@@ -558,7 +558,7 @@ The repo's Wrangler pin, ^4.152.0 as of 2026-10-22 ([stack.md](stack.md)), is ab
 
 ## Spikes before Phase 4
 
-Six questions the docs do not settle. Each is answered on a throwaway Worker before PR 6, and [roadmap.md](roadmap.md) owns the method, the pass criteria and the schedule (S7–S9 belong to PR 2). Ask Joseph before any spike that burns the daily quota: it is per account, and another Worker on the account shares it. What this page needs is the consequence for the lab:
+Six questions the docs do not settle. Each is answered on a throwaway Worker before PR 6, and [roadmap.md](roadmap.md) owns the method, the pass criteria and the schedule (S7 and S8 run in PR 2, S9 in PR 3). Ask Joseph before any spike that burns the daily quota: it is per account, and another Worker on the account shares it. What this page needs is the consequence for the lab:
 
 | Spike | Question | If the answer is no |
 |---|---|---|

@@ -8,7 +8,7 @@ PR 1 is docs only: no code, no workflow, nothing deployed. Every ADR in [adr/](a
 
 ## Start here in 10 minutes
 
-1. [product.md](product.md): read **Why** and **Open decisions** (5 minutes). [Q1 and Q2](product.md#blocking-pr-2) block PR 2. Q14, the domain renewal, has a calendar deadline: 2026-10-31.
+1. [product.md](product.md): read **Why** and **Open decisions** (5 minutes). The questions that blocked PR 2 and PR 3 were answered on 2026-10-22 ([Decided](product.md#decided)); the rest are listed by the pull request they block.
 2. [architecture.md](architecture.md): the diagrams only (2 minutes).
 3. [roadmap.md](roadmap.md): the phases, what each PR ships, and what blocks it (3 minutes).
 

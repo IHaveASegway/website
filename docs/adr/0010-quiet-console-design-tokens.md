@@ -19,6 +19,8 @@ Neither works as-is. Measured on 2026-10-22:
 
 The repository is likely to become public ([ADR 0012](0012-public-repository.md)), so every value in it must be safe to publish and licensed for it.
 
+**Reopened on 2026-10-22.** Joseph confirmed that the Mission-AI values are his to reuse (Q25 · Q-token-owner in [product.md](../product.md#decided)). He also asked for a look that is distinctive rather than what everyone else ships: creative, but not distracting. Zinc neutrals with Inter are the default of a great many developer sites built on shadcn, so the values in the Decision below are a starting point, not the answer. A design exploration before PR 3 puts three directions on Home's real wireframe. Joseph picks one, and this ADR is rewritten with its values and then Accepted, together with Q17. What stands either way: one token file owned by this repository, copied rather than imported, semantic token names, full `oklch()` values, the CI contrast test and the focus rule. PR 2 ships that structure with placeholder values and system fonts.
+
 ## Decision
 
 Copy the token values into this repository as a deliberate fork. Nothing depends on Mission-AI's packages.
@@ -46,7 +48,7 @@ Prior art. "A little copying is better than a little dependency" is one of Rob P
 ## Consequences
 
 - **Divergence from Mission-AI is accepted.** Nothing syncs in either direction. If Mission-AI is revived and wants these values, the direction reverses: this repository publishes, and Mission-AI imports or copies.
-- **Joseph confirms that he is the sole owner of the Mission-AI token values before the copy lands in PR 2** (Q25 · Q-token-owner in [product.md](../product.md)). `UNLICENSED` reserves every right to the owner. Until he confirms, or if anyone else has a claim, the eight zinc steps come straight from Tailwind (MIT) and the other neutrals are re-derived; the accent, the signal and the terminal fixes are new work either way.
+- **Joseph confirmed on 2026-10-22 that he is the sole owner of the Mission-AI token values** (Q25 · Q-token-owner in [product.md](../product.md#decided)), so the chosen direction may reuse any of them.
 - **Recognition starts accumulating at launch.** The accent is on every link, focus outline, OG image and screenshot, so changing it after launch is a rebrand.
 - **The contrast test is load-bearing.** A token edit that breaks AA fails `verify`. That is how this design avoids the silent failure Mission-AI's focus ring shows.
 - **About 100 lines of CSS are maintained by hand**, with no upstream fixes. Acceptable at this size.
@@ -63,5 +65,4 @@ The accent hue is effectively one-way over time. Recognition accumulates in peop
 - The contrast test fails on a proposed token change, or axe or a manual VoiceOver or NVDA pass finds a contrast failure in a real component.
 - Three of five recruiter or peer reviewers call the look "templated", "gimmicky" or "hard to read", or name a template (Brittany Chiang's v4, Vercel's Geist).
 - Mission-AI is revived and needs the same tokens: publish them from here instead of copying twice.
-- Joseph cannot confirm sole ownership of the copied values: re-derive the neutrals from Tailwind's zinc scale.
 - Light mode collects more defects than dark in the first three months after launch, a sign the dark-first design shortchanges the theme a recruiter on a light-mode laptop sees first.

@@ -4,6 +4,8 @@ Quiet Console is how ihaveasegway.com looks and moves: Mission-AI's console neut
 
 Status: Draft for review in PR 1 · 2026-10-22
 
+**Palette and typefaces reopened on 2026-10-22.** Joseph asked for a look that is distinctive rather than what everyone else ships: creative, but not distracting. The token values, the accent (Q17) and the typefaces in this doc are a starting point. A design exploration before PR 3 replaces them with the direction he picks ([ADR 0010](adr/0010-quiet-console-design-tokens.md)). What stands: one token file with semantic names, the contrast test, the budgets and the accessibility rules. The motifs, effects and wireframes are reviewed with the direction. PR 2 ships placeholder values and system fonts.
+
 Units: 1 KB = 1,000 bytes. JS and CSS sizes are minified and gzip -9 unless stated. Every measurement here was taken on 2026-10-22, from the research prototypes, the font files and the token values; the CI checks below replace them with numbers from the real build.
 
 ## Why

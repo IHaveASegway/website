@@ -34,7 +34,7 @@ A focused day is about five hours of uninterrupted work on this repository. Seve
 
 | Work | Focused days |
 |---|---|
-| Spikes S7–S9, before PR 2 | about 1 |
+| Spikes S7 and S8, inside PR 2; S9, in PR 3 | about 1 |
 | Phases 1–3: the site with content (PR 2, PR 3, the gate, PR 4, PR 5) | 9.5–12.5 |
 | Phase 4: the lab (PR 6, including spikes S1–S6; PR 7; PR 8) | 18–23 |
 | Total | 28.5–36.5 |
@@ -57,8 +57,8 @@ Solo estimates run optimistic. That is the planning fallacy, and the remedy is t
 | Phase | Pull request | Scope | Est. (focused days) | Actual | Blocked by |
 |---|---|---|---|---|---|
 | 0 | [PR 1](#pr-1-the-plan-docs) | `docs/` (this pull request) | done | — | — |
-| 1 | [PR 2 Foundation](#pr-2-foundation) | pnpm workspace; `apps/web` Astro static site; `tokens.css`, base layout, 404; `wrangler.jsonc`; CI (`verify`, `firewall`, `preview`, `e2e`, `deploy`, `prod-smoke`); hooks; Dependabot; security headers; zone hardening executed; a minimal real Home deployed to `ihaveasegway.com` | 2–3 | — | Q-deploy-token, Q-mail; spikes S7–S9 |
-| 2 | [PR 3 Home v1 + Colophon](#pr-3-home-v1-and-colophon) | Quiet Console components; final Home copy; OG images; JSON-LD; Web Analytics; `/colophon/` rendering ADRs; budgets enforced | 2–3 | — | Q-threat-model, Q-title, Q-location, Q-availability |
+| 1 | [PR 2 Foundation](#pr-2-foundation) | pnpm workspace; `apps/web` Astro static site; `tokens.css`, base layout, 404; `wrangler.jsonc`; CI (`verify`, `firewall`, `preview`, `e2e`, `deploy`, `prod-smoke`); hooks; Dependabot; security headers; zone hardening executed; a minimal real Home deployed to `ihaveasegway.com` | 2–3 | — | — (spikes S7 and S8 run inside it) |
+| 2 | [PR 3 Home v1 + Colophon](#pr-3-home-v1-and-colophon) | Quiet Console components; final Home copy; OG images; JSON-LD; Web Analytics; `/colophon/` rendering ADRs; budgets enforced | 2–3 | — | The design exploration |
 | 2 | [Gate: repository public](#gate-repository-public) | [ADR 0012](adr/0012-public-repository.md) | 0.5 | — | Q-visibility |
 | 3 | [PR 4 Work + About + Now](#pr-4-work-about-and-now) | `/work/stillhere/`, `/work/gitops/`, `/about/`, `/now/`; terminal recordings (VHS, freeze) | 3–4 | — | repo readiness checks; Q-career-arc, Q-resume, Q-projects |
 | 3 | [PR 5 Writing](#pr-5-writing) | `/writing/`, `/notes/`, `/rss.xml`, first posts (Writing renders at 3 or more) | 2 | — | — |
@@ -71,11 +71,11 @@ Solo estimates run optimistic. That is the planning fallacy, and the remedy is t
 flowchart TB
   subgraph foundation["Phases 0–1: plan and foundation"]
     direction LR
-    P1["PR 1: docs"] --> S79{{"Spikes S7–S9"}} --> P2["PR 2: Foundation"]
+    P1["PR 1: docs"] --> P2["PR 2: Foundation, with spikes S7 and S8"]
   end
   subgraph content["Phases 2–3: content"]
     direction LR
-    P3["PR 3: Home v1 + Colophon"] --> G1{"Gate: repository public"} --> P4["PR 4: Work, About, Now"] --> P5["PR 5: Writing"]
+    DX{{"Design exploration, spike S9"}} --> P3["PR 3: Home v1 + Colophon"] --> G1{"Gate: repository public"} --> P4["PR 4: Work, About, Now"] --> P5["PR 5: Writing"]
   end
   subgraph lab["Phase 4: the lab"]
     direction LR
@@ -96,18 +96,18 @@ Phase 0 · estimate: done (this pull request) · blocked by: —
 **Scope.** `docs/`: the index, product, architecture, stack, content, design system, lab, delivery, operations, security, cost, this roadmap, the reading list and twelve Proposed ADRs.
 
 **Done when:**
-- [ ] Every planned doc exists, and every relative link resolves.
-- [ ] The docs were scanned locally with the firewall's private term list before commit, and the scan was clean.
-- [ ] All twelve ADRs are Proposed, and every open decision in product.md names what it blocks.
-- [ ] Joseph has answered, or put a date on, the two decisions that block PR 2: [Q-deploy-token](product.md) and [Q-mail](product.md). [Q-renew](product.md) is answered by 2026-10-31, the only open decision with a calendar deadline.
+- [x] Every planned doc exists, and every relative link resolves.
+- [x] The docs were scanned locally with the firewall's private term list before commit, and the scan was clean.
+- [x] All twelve ADRs are Proposed, and every open decision in product.md names what it blocks.
+- [x] Joseph has answered, or put a date on, the two decisions that block PR 2: [Q-deploy-token](product.md) and [Q-mail](product.md). [Q-renew](product.md) is answered by 2026-10-31, the only open decision with a calendar deadline.
 
 **What it teaches.** The architect's pass written down before any code: the need behind the ask, data ownership, prior art, options and their tradeoffs. **C4** context and container diagrams ([architecture.md](architecture.md)). **ADRs** as a decision log, and **one-way and two-way doors** as the measure of how much care a choice needs. The **last responsible moment**: each open question carries the pull request it blocks instead of being decided up front.
 
 ### PR 2: Foundation
 
-Phase 1 · estimate: 2–3 focused days · blocked by: [Q-deploy-token](product.md), [Q-mail](product.md); spikes [S7, S8 and S9](#spikes)
+Phase 1 · estimate: 2–3 focused days · blocked by: — (Q-deploy-token and Q-mail were decided on 2026-10-22; spikes [S7 and S8](#spikes) run inside it)
 
-**Scope.** pnpm workspace; the Astro site in `apps/web` as static output; `tokens.css`, the base layout and the 404 page; `wrangler.jsonc`; the CI job graph; local hooks; Dependabot; security headers; zone hardening; `/robots.txt` and the root icons; a minimal real Home on `https://ihaveasegway.com/`. Details: [delivery.md](delivery.md), [stack.md](stack.md), [security.md](security.md), [operations.md](operations.md). Also due before it, though not blocking: [Q-ai-crawlers](product.md), [Q-token-owner](product.md), [Q-alerts](product.md), [Q-s1-timing](product.md).
+**Scope.** pnpm workspace; the Astro site in `apps/web` as static output; `tokens.css` (the token names, with placeholder values until PR 3), the base layout and the 404 page; `wrangler.jsonc`; the CI job graph; local hooks; Dependabot; security headers; zone hardening; `/robots.txt` and the root icons; a minimal real Home on `https://ihaveasegway.com/`. Details: [delivery.md](delivery.md), [stack.md](stack.md), [security.md](security.md), [operations.md](operations.md). Q-ai-crawlers, Q-token-owner, Q-alerts and Q-s1-timing are decided ([product.md](product.md#decided)).
 
 **Done when:**
 - [ ] A clean clone installs and builds with the pinned toolchain alone: `pnpm install --frozen-lockfile`, then the build (pins in [stack.md](stack.md)).
@@ -119,16 +119,16 @@ Phase 1 · estimate: 2–3 focused days · blocked by: [Q-deploy-token](product.
 - [ ] Dependabot runs with the planned configuration, and its first pull request has been reviewed.
 - [ ] Security headers match [security.md](security.md), and the `e2e` header checks assert them.
 - [ ] Zone hardening is done per security.md's checklist and confirmed by `scripts/verify-zone.sh`, which needs no Cloudflare token. HSTS starts its ramp at 300 s ([ADR 0011](adr/0011-dnssec-and-hsts-ramp.md)).
-- [ ] `https://ihaveasegway.com/` serves a minimal real Home: Joseph's name and the contact address from Q-mail, and nothing that waits on a later decision or check (title, location, availability, links to profiles or repositories). `www` redirects to the apex with a 301, and `/.well-known/security.txt`, `/robots.txt` (with its `Sitemap` line) and the root icons are served.
-- [ ] ADRs 0001, 0002, 0003, 0005, 0006, 0007, 0008, 0010 and 0011 are Accepted, or rewritten and then Accepted. ADR 0001 goes first, because the others are accepted under its rules.
+- [ ] `https://ihaveasegway.com/` serves a minimal real Home: Joseph's name, his title and location line (Q-title, Q-location) and the contact address from Q-mail, and nothing that waits on a later check (links to profiles or repositories). `www` redirects to the apex with a 301, and `/.well-known/security.txt`, `/robots.txt` (with its `Sitemap` line) and the root icons are served.
+- [ ] ADRs 0001, 0002, 0003, 0005, 0006, 0007, 0008 and 0011 are Accepted, or rewritten and then Accepted. ADR 0001 goes first, because the others are accepted under its rules. ADR 0010 waits for PR 3 and the design direction.
 
 **What it teaches.** The **walking skeleton**: the thinnest slice that builds, gates, deploys, serves and rolls back, before any feature. The **deployment pipeline**: build once, gate, promote the artifact that was tested. **Blue/green** in miniature: the Version URL is tested on the edge before it takes traffic. **Single writer**: one path to production. **Policy as code** with a **fail-safe default**: the firewall is a versioned script, and "cannot prove clean" blocks publication just as a finding does. And a question to ask early: when does **infrastructure as code** pay for itself? Not yet. Zone settings stay in the dashboard with a checklist and an audit script until a trigger in operations.md fires.
 
 ### PR 3: Home v1 and Colophon
 
-Phase 2 · estimate: 2–3 focused days · blocked by: [Q-threat-model](product.md), [Q-title](product.md), [Q-location](product.md), [Q-availability](product.md)
+Phase 2 · estimate: 2–3 focused days · blocked by: the design exploration ([ADR 0010](adr/0010-quiet-console-design-tokens.md)); Q-threat-model, Q-title, Q-location and Q-availability were decided on 2026-10-22 ([product.md](product.md#decided))
 
-**Scope.** Quiet Console components; final Home copy; Open Graph images; JSON-LD; Web Analytics; `/colophon/` with rendered ADRs; budgets enforced in CI. Details: [content.md](content.md), [design-system.md](design-system.md). Also due before it, though not blocking: [Q-theme](product.md), [Q-accent](product.md), [Q-analytics](product.md).
+**Scope.** The design direction Joseph picks from an exploration of three, each rendered on Home's real wireframe: palette, accent and typefaces (spike S9 for the fonts); components built from it; final Home copy; Open Graph images; JSON-LD; Web Analytics; `/colophon/` with rendered ADRs; budgets enforced in CI. Details: [content.md](content.md), [design-system.md](design-system.md). Q-theme and Q-analytics are decided ([product.md](product.md#decided)); Q-accent is chosen in the exploration.
 
 **Done when:**
 - [ ] Home's copy is final and checked against the firewall classes in content.md. Each item in the ASK class is cleared by Joseph in writing in the private record ([product.md](product.md#content-firewall)); until then the strictest class applies.
@@ -144,6 +144,7 @@ Phase 2 · estimate: 2–3 focused days · blocked by: [Q-threat-model](product.
 - [ ] Unless Q-analytics says no, the Web Analytics beacon is live with its CSP entries. A non-blocking question proceeds on its recommendation.
 - [ ] `/colophon/` is live, and the ADRs Joseph has opted in render at `/colophon/decisions/<nnnn-slug>/`. An ADR that is not opted in does not render.
 - [ ] ADR 0004 is Accepted, or rewritten and then Accepted.
+- [ ] ADR 0010 is rewritten with the chosen direction and Accepted, and Q-accent is decided with it.
 
 **What it teaches.** **Fitness functions**: budgets and the contrast test turn design intentions into failing builds. **Islands architecture** and **progressive enhancement**: the page is complete with zero JavaScript, and the palette and effects are additions that fail safe. **Schema-on-write**: front matter is validated at build, the way events are validated at the producer. **System of record**: the colophon reads `docs/adr/` at build time and never holds a copy. And the **mosaic effect**: lines that are harmless alone can identify together, which is why Q-threat-model comes before any copy.
 
@@ -276,7 +277,7 @@ A spike answers one question with the least code that can answer it, and the cod
 - Results go in the Result column with the date and a link to the evidence (metrics screenshots and command output, scrubbed as [security.md](security.md#scrubbing-evidence) lists). A result that changes a design also updates the doc that owns it and gets a postscript or a superseding ADR.
 - **Ask Joseph before anything that burns the account's daily quota.** Workers Free counts 100,000 Worker requests a day for the whole account, reset at 00:00 UTC[^limits], and a Worker already runs in this account.
 
-S7–S9 take about one focused day before PR 2. S1–S6 take about one focused day at the start of PR 6, inside its estimate. [lab.md](lab.md) says what changes in the lab's design if any of S1–S6 fails.
+S7 and S8 run inside PR 2, so the site ships sooner (decided 2026-10-22): S7 is PR 2's own first deploy, which fails safe because the domain serves nothing yet, and S8 is this repository's first Dependabot run. S9 moves to PR 3, where the typefaces are chosen. S1–S6 take about one focused day at the start of PR 6, inside its estimate. [lab.md](lab.md) says what changes in the lab's design if any of S1–S6 fails.
 
 | Spike | Question | Why it matters | Method | Pass criteria | Cost and risk | Result |
 |---|---|---|---|---|---|---|
@@ -286,9 +287,9 @@ S7–S9 take about one focused day before PR 2. S1–S6 take about one focused d
 | **S4** · before PR 6 | Is the Workers Rate Limiting binding available on Free at no charge? The docs state neither plan nor price[^rl] | It is the second admission layer for session minting and WebSocket upgrades | A throwaway Worker on workers.dev with a `ratelimits` binding of 5 requests per 60 s, the lab's planned session limit. Send 30 requests in 10 s from one machine, and check billable usage the next day | It deploys; calls past the 5th return `success: false` (counts are approximate and per location); no new billable line appears | About 30 Worker requests | — |
 | **S5** · before PR 6 | With `workers_dev` and `preview_urls` set to false, do Worker Previews still publish on workers.dev? The Previews docs mention neither setting[^previews] | If they do, every lab preview is a public entry point outside the zone's WAF kill switch, spending the same account quota | A throwaway Worker with both settings false. Run `wrangler preview --name s5` with and without a `previews: {}` block, and request the URL it prints | A clear answer either way. "No side door" holds only if no preview URL answers; otherwise the lab gets no previews, and lab changes are tested with `wrangler dev` and the Vitest plugin | Negligible | — |
 | **S6** · before PR 6 | Do preview DO namespaces count toward the Free limit of 100 DO classes per account[^dolimits]? | Every open lab preview may hold one namespace per class; with about 5 classes, production plus 19 open previews would reach the limit | Count the account's DO namespaces through the API before, during and after two previews of a throwaway Worker with two DO classes | Previews add nothing to the count, or the count returns to its baseline once the previews are deleted. If they count, `preview-cleanup` becomes a checked job for any lab preview | Negligible; delete the previews afterwards | — |
-| **S7** · before PR 2 | Can the minimal account-owned token (`cfat_`) deploy to a custom domain? Its scopes are "likely, not tested" | It is PR 2's deploy credential. A missing permission found during the first production deploy stalls the launch; an over-broad token is a standing risk | Create a separate token as [operations.md](operations.md#1-deploy-token-pr-2) describes in access setup step 1, item 9: the four permissions in [ADR 0006](adr/0006-github-actions-owns-deploys.md), a 1-day TTL, deleted when the spike ends. With only that token, deploy a throwaway assets-only Worker to a throwaway hostname on the zone, then run `wrangler versions upload`, `wrangler versions deploy`, `wrangler rollback` and `wrangler preview`. Delete the hostname afterwards | Every command succeeds with that token alone. If one fails, add the narrowest permission that fixes it, and record it in operations.md (token setup), the [secrets inventory](security.md#secrets-inventory) and ADR 0006 | About an hour. Trial and error widens a token: remove any permission the final run did not use | — |
-| **S8** · before PR 2 | Does Dependabot round-trip a pnpm 11 workspace lockfile? Its pnpm 11 support shipped 2026-10-20[^dependabot] | If Dependabot's lockfile fails a frozen install, every dependency update fails CI, and the dependency policy has to move to Renovate | A throwaway private repository with the planned workspace shape (`packageManager`, a catalog, `allowBuilds`) and the planned `dependabot.yml`, with one dependency a minor version behind, released more than three days ago so the default cooldown does not hide it. Dependabot checks when the configuration file is checked in[^dependabot]. Run `pnpm install --frozen-lockfile` in Actions on its pull request | The frozen install passes, or fails only on pnpm's minimum release age with the documented workaround, and the dependency graph lists the workspace's packages, which is what security alerts need | One to two hours; delete the repository afterwards | — |
-| **S9** · before PR 2 | Can Astro's Fonts API serve the custom HUD subset through its local provider[^fonts]? | The design's glyphs (box drawing, ▸ ✓ ✗ ⌘ →) are not in the stock Latin subsets, and the font budget assumes the subset in [design-system.md](design-system.md) | A scratch Astro 7.4 project. Register Inter Variable and the HUD subset with `fontProviders.local()`, build, and open a page that uses every HUD glyph | Both files ship at their measured sizes with preload links, and a Playwright check of the fonts Chromium used for each glyph (`CSS.getPlatformFontsForNode`[^cdp]) shows the subset, not a fallback. Otherwise: plain `@font-face` rules and hand-written preload links, with the same budget | About two hours | — |
+| **S7** · in PR 2 | Can the minimal account-owned token (`cfat_`) deploy to a custom domain? Its scopes are "likely, not tested" | It is PR 2's deploy credential. A missing permission found during the first production deploy stalls the launch; an over-broad token is a standing risk | PR 2's pipeline is the test: its first `preview`, its first `deploy` (which attaches the domain) and the rollback rehearsal run with the stored deploy token alone, the four permissions in [ADR 0006](adr/0006-github-actions-owns-deploys.md) | Every command succeeds with that token alone. If one fails, add the narrowest permission that fixes it, and record it in operations.md (token setup), the [secrets inventory](security.md#secrets-inventory) and ADR 0006 | About an hour. Trial and error widens a token: remove any permission the final run did not use | — |
+| **S8** · after PR 2 merges | Does Dependabot round-trip a pnpm 11 workspace lockfile? Its pnpm 11 support shipped 2026-10-20[^dependabot] | If Dependabot's lockfile fails a frozen install, every dependency update fails CI, and the dependency policy has to move to Renovate | This repository's first Dependabot pull requests, once PR 2 has merged the workspace (`packageManager`, a catalog, `allowBuilds`) and `dependabot.yml`. Dependabot checks when the configuration file is checked in[^dependabot]. CI runs `pnpm install --frozen-lockfile` on each. A failure fails only those pull requests | The frozen install passes, or fails only on pnpm's minimum release age with the documented workaround, and the dependency graph lists the workspace's packages, which is what security alerts need | One to two hours; delete the repository afterwards | — |
+| **S9** · in PR 3, once the typefaces are chosen | Can Astro's Fonts API serve the custom HUD subset through its local provider[^fonts]? | The design's glyphs (box drawing, ▸ ✓ ✗ ⌘ →) are not in the stock Latin subsets, and the font budget assumes the subset in [design-system.md](design-system.md) | A scratch Astro 7.4 project. Register the chosen text face and the mono subset with `fontProviders.local()`, build, and open a page that uses every HUD glyph | Both files ship at their measured sizes with preload links, and a Playwright check of the fonts Chromium used for each glyph (`CSS.getPlatformFontsForNode`[^cdp]) shows the subset, not a fallback. Otherwise: plain `@font-face` rules and hand-written preload links, with the same budget | About two hours | — |
 
 ## Risks to the plan
 
