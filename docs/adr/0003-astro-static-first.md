@@ -1,6 +1,6 @@
 # ADR 0003: Astro, static-first, zero JavaScript by default
 
-Status: Proposed · 2026-10-22 · Deciders: Joseph Peterson
+Status: Accepted · 2026-10-23 · Deciders: Joseph Peterson
 
 ## Context
 
@@ -108,3 +108,7 @@ Two-way, with a medium exit cost. Markdown content and CSS tokens move to any ge
 - A demo needs state that survives navigation, such as a persistent console.
 - An Astro major takes more than one day to adopt, or breaks the build path for more than two weeks.
 - Real-user p75 LCP exceeds 2.5 s, or INP exceeds 200 ms, on text pages. Where that p75 comes from is settled in PR 3, because Web Analytics' docs do not say whether it reports one site-wide ([delivery.md](../delivery.md)).
+
+## Postscript 2026-10-23
+
+The typefaces under **Styling and fonts** changed with the design direction chosen on 2026-10-23: Instrument Sans and JetBrains Mono, self-hosted from PR 3 after spike S9 ([ADR 0010](0010-quiet-console-design-tokens.md), [design-system.md](../design-system.md#chosen-direction)). Until then the site uses system font stacks. The rest of the decision stands, and no Revisit if condition was met.

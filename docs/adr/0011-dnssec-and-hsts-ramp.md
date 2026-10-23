@@ -1,6 +1,6 @@
 # ADR 0011: DNSSEC now; HSTS ramped; no preload yet
 
-Status: Proposed · 2026-10-22 · Deciders: Joseph Peterson
+Status: Accepted · 2026-10-23 · Deciders: Joseph Peterson
 
 ## Context
 

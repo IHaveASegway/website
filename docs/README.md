@@ -62,7 +62,7 @@ The ADR lifecycle (proposing, accepting, superseding, rendering on the site) is 
 
 ## Conventions
 
-- Every price, limit and version is labelled "as of 2026-10-22" and carries a source URL.
+- Every price, limit and version is labelled with the date it was checked, such as "as of 2026-10-22", and carries a source URL.
 - Configuration in code fences is a sketch: confirm it against current docs when building.
 - Diagrams are mermaid, which GitHub renders.
 - Site URLs are written as code, such as `/work/<slug>/`, never as links. Links between docs are relative.

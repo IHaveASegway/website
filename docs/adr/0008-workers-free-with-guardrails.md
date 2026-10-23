@@ -1,6 +1,6 @@
 # ADR 0008: Workers Free with spend guardrails and upgrade triggers
 
-Status: Proposed · 2026-10-22 · Deciders: Joseph Peterson
+Status: Accepted · 2026-10-23 · Deciders: Joseph Peterson
 
 ## Context
 

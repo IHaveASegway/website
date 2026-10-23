@@ -39,6 +39,7 @@ ihaveasegway.com
 ├── /sitemap-index.xml                     Generated at build                  P1
 ├── /robots.txt                            Sitemap line; crawlers per Q15      P1
 ├── /favicon.ico · /apple-touch-icon.png   Root icons, asked for by name       P1
+├── /favicon.svg                           Source of both root icons           P1
 ├── /colophon/                             How it is built, what it costs      P2
 │   └── /colophon/decisions/               Published ADRs                      P2
 │       └── <nnnn-slug>/                   One ADR, rendered from docs/adr     P2

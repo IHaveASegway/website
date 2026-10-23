@@ -1,0 +1,52 @@
+---
+import Base from '../layouts/Base.astro';
+import { builtOn, shortCommit } from '../lib/build';
+---
+
+<Base
+  title="Joseph Peterson · Senior Software Engineer"
+  description="Joseph Peterson, Senior Software Engineer. US · remote."
+  path="/"
+>
+  <section class="border-t border-border pt-8 pb-6 md:pt-16 md:pb-10" aria-labelledby="name">
+    <h1 id="name" class="text-hero text-balance wrap-break-word">
+      Joseph Peterson
+    </h1>
+    <div class="mt-5 grid gap-y-5 md:mt-10 lg:grid-cols-12 lg:items-start lg:gap-x-7">
+      <div class="flex flex-col gap-2.5 lg:col-span-4">
+        <p class="text-h2">Senior Software Engineer</p>
+        <p class="where">
+          <span class="dot" aria-hidden="true"></span>US · remote
+        </p>
+      </div>
+      <p class="max-w-prose text-lead text-muted-foreground lg:col-span-5">
+        The rest of the site is being built.
+      </p>
+      <div class="lg:col-span-3">
+        <a class="btn btn-primary w-full sm:w-80 lg:w-full" href="mailto:hello@ihaveasegway.com">
+          Email <span class="hint">hello@</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section aria-label="This build">
+    <dl class="readouts">
+      <div class="readout">
+        <dt class="label">Build</dt>
+        <dd>{shortCommit}</dd>
+      </div>
+      <div class="readout">
+        <dt class="label">Built</dt>
+        <dd>
+          <time datetime={builtOn}>{builtOn}</time>
+        </dd>
+      </div>
+      <div class="readout">
+        <dt class="label">JavaScript</dt>
+        {/* A claim test/javascript.test.ts proves: the build fails if any page ships a script. */}
+        <dd>0 KB</dd>
+      </div>
+    </dl>
+  </section>
+</Base>

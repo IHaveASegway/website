@@ -35,17 +35,17 @@ Out of scope: an insider at Cloudflare or GitHub, legal compulsion, and targeted
 | Threat | How it happens | Mitigation | Residual risk |
 |---|---|---|---|
 | Account takeover (Cloudflare or GitHub) | A phished or reused password, a SIM swap, a work email that stops working | Hardware-key 2FA with no SMS fallback, unique passwords from a password manager, recovery codes offline, a personal email as primary on both accounts ([Account continuity](#account-continuity)) | Malware on Joseph's laptop can steal a signed-in session, and 2FA does not stop that. One account controls registrar, DNS and hosting. |
-| Deploy token leak | Committed by mistake, printed in a log, or read by a compromised action or package in a job that holds it | An account-owned token: 4 permissions, 1 zone, a 12-month expiry. It sits only in the `env:` of the 5 steps that call Cloudflare, in the `preview`, `preview-cleanup`, `deploy` and `rollback` jobs ([delivery.md](delivery.md)). No Global API Key anywhere ([Secrets inventory](#secrets-inventory)). Once the repo is public, GitHub push protection blocks all 3 Cloudflare credential formats and reports leaked ones to Cloudflare ([supported patterns](https://docs.github.com/en/code-security/reference/secret-security/supported-secret-scanning-patterns)) | Until it is revoked, the token can publish anything at `ihaveasegway.com`, because it can deploy Workers and add routes on the zone. prod-smoke notices a changed home page, not a quiet extra route. |
+| Deploy token leak | Committed by mistake, printed in a log, or read by a compromised action or package in a job that holds it | An account-owned token: 4 permissions, 1 zone, a 12-month expiry. It sits only in the `env:` of the 6 steps that call Cloudflare, in the `preview`, `preview-cleanup`, `deploy` and `rollback` jobs, none of which restores a shared cache ([delivery.md](delivery.md)). No Global API Key anywhere ([Secrets inventory](#secrets-inventory)). Once the repo is public, GitHub push protection blocks all 3 Cloudflare credential formats and reports leaked ones to Cloudflare ([supported patterns](https://docs.github.com/en/code-security/reference/secret-security/supported-secret-scanning-patterns)) | Until it is revoked, the token can publish anything at `ihaveasegway.com`, because it can deploy Workers and add routes on the zone. prod-smoke notices a changed home page, not a quiet extra route. |
 | Firewall rules leak | A report or log prints a match; a debug file is committed | Logs carry rule id, file, line and commit only; `--redact`; temp files in `$RUNNER_TEMP`, removed by `trap`; no artifacts from the firewall job ([Logging rules](#logging-rules)) | GitHub's log redaction "largely relies on finding an exact match", "is not guaranteed", and can fail for structured data, which the TOML rules are ([GitHub](https://docs.github.com/en/actions/reference/security/secure-use)). A derived form (lowercased, split across lines) is never masked. Hence no match is ever printed. |
 | Supply chain: GitHub Actions | A maintainer's tag is moved to malicious code that runs in a job with secrets (tj-actions/changed-files, CVE-2025-30066) | An allowed-actions list; jobs that hold secrets run only GitHub-created actions and pnpm/action-setup; step-scoped secrets ([Supply chain](#supply-chain)) | Tags stay mutable, by choice, and a moved tag arrives with no Dependabot PR, so no cooldown applies. A compromise of a GitHub-created action or of pnpm/action-setup reaches the token. |
 | Supply chain: npm | A malicious version of a dependency runs an install script or ships build-time code | Frozen lockfile; pnpm `minimumReleaseAge` (1 day) and `allowBuilds`; Dependabot cooldown (3 days, 14 for majors); the build runs in `verify`, which holds no secrets | A malicious version older than the cooldown. Wrangler runs with the token because it is the deploy tool. Build-time code can still change the built pages. |
 | Content leak by accident | Joseph or an agent writes an identifying name or detail into a file, a commit, a PR, an image or a built page | The content firewall (local hooks, plus a CI job that fails closed), the identity allowlist, the PR checklist, metadata stripping for images ([Content firewall design](#content-firewall-design)) | Paraphrase, and combinations of harmless facts (the mosaic effect), pass any regex. On a public repo, content is public at `git push`, before CI runs ([ADR 0012](adr/0012-public-repository.md)). |
-| Script injection and CSP gaps | Injected script through content, a dependency, or an edge feature that rewrites HTML | No visitor input is rendered on content pages; a hash-based CSP with no `'unsafe-inline'` for scripts; HTML-rewriting zone features off; e2e fails on any CSP violation ([Headers and CSP](#headers-and-content-security-policy)) | `style-src-attr 'unsafe-inline'` (for Expressive Code) allows style attributes. The Web Analytics beacon is a Cloudflare-hosted script without Subresource Integrity, because it is served from one unversioned URL. |
+| Script injection and CSP gaps | Injected script through content, a dependency, or an edge feature that rewrites HTML | No visitor input is rendered on content pages; a hash-based CSP with no `'unsafe-inline'` for scripts; HTML-rewriting zone features off; e2e fails on any CSP violation ([Headers and CSP](#headers-and-content-security-policy)) | From the first code block, `style-src-attr 'unsafe-inline'` (for Expressive Code) allows style attributes. The Web Analytics beacon is a Cloudflare-hosted script without Subresource Integrity, because it is served from one unversioned URL. |
 | Cross-site WebSocket hijacking (Phase 4) | A hostile page opens a WebSocket to `/lab/api/`. The browser attaches the visitor's cookie, and upgrades ignore CORS. | An exact `Origin` check against `https://ihaveasegway.com` on every upgrade; the session cookie is `Path=/lab/api; HttpOnly; Secure; SameSite=Strict`; no free text from visitors in v1 ([OWASP](https://cheatsheetseries.owasp.org/cheatsheets/WebSocket_Security_Cheat_Sheet.html)) | `SameSite` treats subdomains as same-site, so a forgotten subdomain record would sit inside the boundary. The quarterly zone export lists every record. |
 | Denial of wallet | Floods or loops against `/lab/api/*` spend quota or money | Workers Free, where operations fail instead of billing ([ADR 0008](adr/0008-workers-free-with-guardrails.md)); admission control and a recorded fallback ([lab.md](lab.md)); page views run no Worker code | The Free daily caps are per account, so an abuser can push every demo into recorded mode until 00:00 UTC. On Workers Paid, budget alerts arrive a day late ([cost.md](cost.md)). |
 | DNS hijack | A transfer away, a DNS edit through a taken-over account, or forged resolver answers | Registrar lock, 2FA, DNSSEC, a weekly token-free audit ([Zone hardening checklist](#zone-hardening-checklist)) | DNSSEC protects answers in transit, not the account: whoever holds the account holds the signing keys. |
 | Mail spoofing | Someone sends mail with a `From:` address at the domain, for example to phish recruiters | DMARC `p=reject` with SPF, and DKIM under Email Routing ([Mail posture](#mail-posture)) | Lookalike domains; receivers that ignore DMARC. |
-| Drafts on public previews | A PR preview is public on workers.dev, and its URL shows up in PR comments and link unfurls | The firewall job runs before the preview job; `X-Robots-Tag: noindex`; previews are deleted when the PR closes; the account's workers.dev subdomain, public from the first preview comment, and the Worker names are checked once to name nothing private, and no other Worker in the account answers on that subdomain: each has workers.dev and Version URLs off, or moves to its own account | Anyone holding the URL can read the preview while the PR is open. The escalation is Cloudflare Access in front of previews, which means CI needs an Access service token. |
+| Drafts on public previews | A PR preview is public on workers.dev, and its URL shows up in PR comments and link unfurls | The firewall job runs before the preview job; `X-Robots-Tag: noindex`, which the preview job checks before it posts the link; previews are deleted when the PR closes; the account's workers.dev subdomain, public from the first preview comment, and the Worker names are checked once to name nothing private, and no other Worker in the account answers on that subdomain: each has workers.dev and Version URLs off, or moves to its own account | Anyone holding the URL can read the preview while the PR is open. The escalation is Cloudflare Access in front of previews, which means CI needs an Access service token. |
 | Unreviewed change to `main` | A push to `main` deploys what it holds, and GitHub Free cannot protect a branch on a private repo | Deploy jobs `needs:` verify and firewall; the pre-push hook refuses `main`; a ruleset with required checks once the repo is public ([ADR 0006](adr/0006-github-actions-owns-deploys.md)) | Joseph is the only admin and can skip the hook with `--no-verify`. |
 
 ## Headers and Content Security Policy
@@ -54,9 +54,9 @@ The rule is **one owner per directive**. When a page has two policies, the brows
 
 | Header or directive | Owner | Value | Why |
 |---|---|---|---|
-| `script-src` | Astro's CSP (`security.csp`), a `<meta>` tag with hashes | `'self'` plus a SHA-256 hash for each inline script, the pre-paint theme script included | No `'unsafe-inline'`, so an injected inline script does not run |
-| `style-src`, `style-src-attr` | Astro's CSP | `style-src 'self'` plus hashes; `style-src-attr 'unsafe-inline'` | Expressive Code colors tokens through `style` attributes. Hashes cannot allow attributes without `'unsafe-hashes'`, and `'unsafe-inline'` in `style-src` would make Astro drop its style hashes. Scoping it to `-attr` keeps `<style>` elements hash-only. |
-| `default-src`, `img-src`, `font-src`, `connect-src`, `object-src`, `base-uri`, `form-action` | Astro's CSP (`security.csp.directives`) | `'self'`, except `img-src 'self' data:`, `object-src 'none'` and `base-uri 'none'` | The whole page policy lives in one file, and the build tests it |
+| `script-src` | Astro's CSP (`security.csp`), a `<meta>` tag with hashes | `'self'` plus a SHA-256 hash for each inline script: from PR 3, the pre-paint theme script. PR 2 ships no script | No `'unsafe-inline'`, so an injected inline script does not run |
+| `style-src`, `style-src-attr` | Astro's CSP | `style-src 'self'` plus hashes; `style-src-attr 'unsafe-inline'` from the first code block. PR 2 has none, and Astro's own syntax highlighting is off | Expressive Code colors tokens through `style` attributes. Hashes cannot allow attributes without `'unsafe-hashes'`, and `'unsafe-inline'` in `style-src` would make Astro drop its style hashes. Scoping it to `-attr` keeps `<style>` elements hash-only. |
+| `default-src`, `img-src`, `font-src`, `connect-src`, `object-src`, `base-uri`, `form-action` | Astro's CSP (`security.csp.directives`) | `'self'`, except `object-src 'none'` and `base-uri 'none'`. `img-src` has no `data:`, because nothing uses it | The whole page policy lives in one file, and the build tests it |
 | `frame-ancestors` | `apps/web/public/_headers`, as a `Content-Security-Policy` header | `'none'` | A `<meta>` policy cannot carry it ([MDN](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/frame-ancestors)). Nothing frames this site. |
 | `X-Content-Type-Options` | `_headers` | `nosniff` | Browsers use the declared type and never guess |
 | `Referrer-Policy` | `_headers` | `strict-origin-when-cross-origin` | Outbound links send only the origin. GitHub's traffic insights still list the site as a referrer. |
@@ -73,33 +73,29 @@ Never sent:
 That rules out Cloudflare's "Add security headers" managed transform. As of 2026-10-22 it adds five headers: `x-content-type-options: nosniff`, `x-xss-protection: 1; mode=block`, `x-frame-options: SAMEORIGIN`, `referrer-policy: same-origin` and `expect-ct: max-age=86400, enforce` ([Cloudflare](https://developers.cloudflare.com/rules/transform/managed-transforms/reference/)). Three are on the list above, and the other two would be second owners of headers that `_headers` already sends, one with a different value.
 
 ```js
-// apps/web/astro.config.mjs, CSP part (sketch — confirm against current docs when building)
-import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { defineConfig } from 'astro/config';
-
-// The layout inlines this exact file, and the hash is computed from it, so the two cannot drift.
-const themeScript = readFileSync(new URL('./src/scripts/theme-prepaint.js', import.meta.url), 'utf8');
-const themeHash = `sha256-${createHash('sha256').update(themeScript).digest('base64')}`;
-
+// apps/web/astro.config.mjs, CSP part, as PR 2 ships it. The commented lines arrive with their features.
 export default defineConfig({
+  build: { format: 'directory', inlineStylesheets: 'never' }, // an inlined <style> would need a hash
+  markdown: { syntaxHighlight: false }, // Shiki's inline styles would need style-src-attr
   security: {
     csp: {
       algorithm: 'SHA-256',
       directives: [
         "default-src 'self'",
-        "img-src 'self' data:",
+        "img-src 'self'",
         "font-src 'self'",
         "connect-src 'self'",
         "object-src 'none'",
         "base-uri 'none'",
         "form-action 'self'",
       ],
-      scriptDirective: { hashes: [themeHash] },
-      styleDirective: {
-        // kind: 'attribute' puts the source in style-src-attr only (Astro 7.1 and later)
-        resources: ["'self'", { resource: "'unsafe-inline'", kind: 'attribute' }],
-      },
+      // PR 3, the theme script. The layout inlines this exact file, and the hash is computed from it,
+      // so the two cannot drift:
+      //   const themeHash = `sha256-${createHash('sha256').update(readFileSync(themeFile, 'utf8')).digest('base64')}`;
+      // scriptDirective: { hashes: [themeHash] },
+      // The first code block (Expressive Code). kind: 'attribute' puts the source in style-src-attr
+      // only (Astro 7.1 and later):
+      // styleDirective: { resources: ["'self'", { resource: "'unsafe-inline'", kind: 'attribute' }] },
     },
   },
 });
@@ -117,6 +113,8 @@ export default defineConfig({
 
 The `kind` field (Astro 7.1 and later) and Astro's rule that a directive listing `'unsafe-inline'` gets no hashes both come from its [configuration reference](https://docs.astro.build/en/reference/configuration-reference/), as of 2026-10-22. Cache headers in the same file belong to [delivery.md](delivery.md).
 
+Astro also writes hashes of its own into the policy: 5 in `script-src`, one for each of its `client:*` directive loaders, and 1 in `style-src`, for an empty style. No page includes those scripts, and they cannot be configured off ([`core/csp/common.ts`](https://github.com/withastro/astro/blob/astro%407.4.2/packages/astro/src/core/csp/common.ts), Astro 7.4.2, as of 2026-10-23). They allow nothing on these pages, and the e2e known-answer test shows that an injected inline script is still refused.
+
 **Why a `<meta>` policy.** Three ways to deliver the page policy:
 
 | Option | What allows the inline theme script | What it trades | Verdict |
@@ -127,14 +125,14 @@ The `kind` field (Astro 7.1 and later) and Astro's rule that a directive listing
 
 Two-way: it is configuration. Revisit if violation reports become worth collecting, which needs a header policy and an endpoint, or if Astro can write per-page hashes into headers for static output.
 
-**The theme script.** The theme follows the OS until the visitor presses the toggle, and the choice is then stored in `localStorage` ([design-system.md](design-system.md)). A small inline script applies it before first paint; loaded as a separate file, it would flash the wrong theme. Astro does not hash `is:inline` scripts ([ADR 0003](adr/0003-astro-static-first.md)), so the config adds the hash. Because the hash is computed at build time from the file the layout inlines, an edit cannot leave a stale hash behind. The e2e run proves the result in a browser: a blocked theme script is a CSP violation, and a violation fails the job.
+**The theme script, from PR 3.** The theme follows the OS until the visitor presses the toggle, and the choice is then stored in `localStorage` ([design-system.md](design-system.md)). A small inline script applies it before first paint; loaded as a separate file, it would flash the wrong theme. Astro does not hash `is:inline` scripts ([ADR 0003](adr/0003-astro-static-first.md)), so the config adds the hash. Because the hash is computed at build time from the file the layout inlines, an edit cannot leave a stale hash behind. The e2e run proves the result in a browser: a blocked theme script is a CSP violation, and a violation fails the job.
 
 **Enforced from the first deploy, with no Report-Only phase.** Report-Only is how an existing site with unknown inline code adopts CSP: collect reports, fix, then enforce. This site has no history, and every preview serves the exact bytes that will deploy, so e2e sees each violation before production does. A `<meta>` policy cannot be Report-Only anyway (above).
 
 **What CI checks.** [delivery.md](delivery.md) owns the jobs; the rules are these:
 
-- e2e, against the preview, collects `securitypolicyviolation` events and CSP console messages on every page in the smoke set. One is a failure. It also asserts the `_headers` values on a page, an asset and the 404.
-- Previews are served from workers.dev, so they never pass through the zone ([delivery.md](delivery.md)). prod-smoke and the weekly audit request the production hostname, which does. They assert the HSTS value and the absence of `X-XSS-Protection`, `Expect-CT` and `X-Frame-Options`. prod-smoke also compares the served HTML of its pages with the artifact it just deployed, byte for byte; the weekly audit holds no artifact, so it looks for injected `/cdn-cgi/` scripts instead. That is what catches a zone feature switched on in the dashboard, such as the managed transform or Email Address Obfuscation.
+- e2e, against the preview, collects `securitypolicyviolation` events and CSP console messages on every page in the smoke set and on the 404. One is a failure. A known-answer test injects an inline script and requires the browser to refuse it, so a missing or loose policy cannot pass for the wrong reason. e2e also asserts the `_headers` values on a page, an asset and the 404. With no preview, it runs against `wrangler dev` serving the same `dist/`, which applies every `_headers` rule.
+- Previews are served from workers.dev, so they never pass through the zone ([delivery.md](delivery.md)). prod-smoke and the weekly audit request the production hostname, which does. They assert that HSTS is at a step of the ramp, with `includeSubDomains` and without `preload`, and the absence of `X-XSS-Protection`, `Expect-CT` and `X-Frame-Options`. prod-smoke also compares the served HTML of its pages with the artifact it just deployed, byte for byte, in the run attempt that promoted it; the weekly audit holds no artifact, so it looks for injected `/cdn-cgi/` scripts instead. That is what catches a zone feature switched on in the dashboard, such as the managed transform or Email Address Obfuscation.
 
 **Lab Worker responses.** `_headers` applies to static-asset responses only, never to responses a Worker generates ([Cloudflare](https://developers.cloudflare.com/workers/static-assets/headers/)). When the lab ships in Phase 4, `packages/security-headers` becomes the one source. It writes `_headers`, which stays committed, and `verify` fails if the committed file differs from what it writes ([delivery.md](delivery.md)). It also exports the function the lab Worker wraps every response with, and a unit test asserts that both carry the same values. API responses are not documents, so their policy is `default-src 'none'; frame-ancestors 'none'`. HSTS stays with the zone. The weekly audit checks that the zone's header also reaches a `/lab/api/` response; if it does not, the shared function adds HSTS to Worker responses only.
 
@@ -151,51 +149,60 @@ Lab-only additions go through Astro's per-page CSP API (`Astro.csp.insertDirecti
 
 ## Zone hardening checklist
 
-The zone's settings live in the Cloudflare dashboard. This table is the target, and `scripts/verify-zone.sh` checks it every week without a Cloudflare token (DNS over HTTPS, RDAP, `curl`, `openssl`). Zone config moves to code (OpenTofu) only when a trigger in [operations.md](operations.md) fires. "As found" comes from a read-only API session and the public RDAP record on 2026-10-22; "not read" means the session did not record it.
+The zone's settings live in the Cloudflare dashboard. This table is the target, and `scripts/verify-zone.sh` checks it every week without a Cloudflare token (DNS over HTTPS, RDAP, `curl`, `openssl`). Its DNS questions go to `dns.google`, so a validating resolver outside the zone's own DNS host checks the signatures, as most visitors' resolvers do. Zone config moves to code (OpenTofu) only when a trigger in [operations.md](operations.md) fires. "As found" comes from a read-only API session and the public RDAP record on 2026-10-22; "not read" means the session did not record it.
 
 | # | Item | As found 2026-10-22 | Target | Why | How to verify without a token | Door |
 |---|---|---|---|---|---|---|
 | 1 | Registrar lock | On | On | A transfer moves the domain out of Joseph's control | RDAP `status` includes `client transfer prohibited` | Two-way |
 | 2 | Auto-renew | On; expires 2027-10-18 | On; the primary card is valid on 2027-09-18 | Cloudflare first tries to renew about 30 days before expiry, with the primary payment method only, then allows 40 days of grace ([FAQ](https://developers.cloudflare.com/registrar/faq/)) | RDAP `expiration` date; the weekly job warns under 60 days | Two-way |
-| 3 | WHOIS privacy | Redaction on: name, street, city and postal code redacted; the phone is the registrar's proxy; the state is published | Only what Q5 · Q-location in [product.md](product.md) allows. Hiding the state would take a registrar with a privacy or proxy service, which means a transfer ([stack.md](stack.md) covers the registrar), so it is a consequence of Q5, not a setting | Anyone can read the registrant record, and each location field in it adds to the mosaic effect | The registrar's RDAP registrant record shows only redacted street, city and postal code, plus the state. `scripts/verify-zone.sh` fails if a street or city ever appears unredacted | Two-way |
+| 3 | WHOIS privacy | Redaction on: name, street, city and postal code redacted; the phone is the registrar's proxy; the state is published | Only what Q5 · Q-location in [product.md](product.md) allows. Hiding the state would take a registrar with a privacy or proxy service, which means a transfer ([stack.md](stack.md) covers the registrar), so it is a consequence of Q5, not a setting | Anyone can read the registrant record, and each location field in it adds to the mosaic effect | The registrar's RDAP registrant record shows only redacted street, city and postal code, plus the state. `scripts/verify-zone.sh` fails if the street, city, postal code or the address label (where a registrar can put the whole formatted address) ever appears unredacted | Two-way |
 | 4 | DNSSEC | Off | On: one click; the DS record reaches the registry through CDS/CDNSKEY in 1–2 days ([Cloudflare](https://developers.cloudflare.com/registrar/get-started/enable-dnssec/)) | Forged DNS answers fail validation | A DS record over DNS over HTTPS, and `"AD": true` on answers; RDAP `delegationSigned: true` | Near one-way ([ADR 0011](adr/0011-dnssec-and-hsts-ramp.md)) |
-| 5 | Minimum TLS version | 1.0 | 1.2 | TLS 1.0 and 1.1 are deprecated ([RFC 8996](https://www.rfc-editor.org/rfc/rfc8996.html)) | A TLS 1.1 handshake fails and a TLS 1.2 one succeeds. OpenSSL 3 refuses to offer TLS 1.1 at its default security level, so the test passes `-cipher 'DEFAULT:@SECLEVEL=0'`; without it the check passes against any server. | Two-way |
-| 6 | TLS 1.3 | Not read | On | Fewer round trips; no legacy cipher suites | `openssl s_client -tls1_3` succeeds | Two-way |
+| 5 | Minimum TLS version | 1.0 | 1.2 | TLS 1.0 and 1.1 are deprecated ([RFC 8996](https://www.rfc-editor.org/rfc/rfc8996.html)) | A TLS 1.1 handshake fails and a TLS 1.2 one succeeds. OpenSSL 3 refuses to offer TLS 1.1 at its default security level, so the test passes `-cipher 'DEFAULT:@SECLEVEL=0'`; without it the check passes against any server. A refusal counts only when the same client negotiates TLS 1.1 with `example.com` and the zone completes TLS 1.2 with a certificate valid for its name. | Two-way |
+| 6 | TLS 1.3 | Not read | On | Fewer round trips; no legacy cipher suites | `openssl s_client -tls1_3` completes, with a certificate valid for the hostname at the default security level | Two-way |
 | 7 | Always Use HTTPS | Off | On | Nothing is served over plain HTTP | `curl -sI http://ihaveasegway.com/` returns a 301 to `https://` | Two-way |
 | 8 | HSTS | Off | Zone only. Ramp 300 s → 1 week → 1 month → 12 months, with `includeSubDomains`; preload deferred. The setting's No-Sniff option stays off, because `_headers` owns `nosniff` | Browsers refuse plain HTTP for the max-age | `curl -sI https://ihaveasegway.com/` shows the planned max-age; from Phase 4, also a `/lab/api/` response | Each served max-age is one-way for its duration; preload near one-way ([ADR 0011](adr/0011-dnssec-and-hsts-ramp.md)) |
-| 9 | SSL/TLS encryption mode | Full | Full (strict) | No origin exists today. Strict is the safe default if a proxied origin is ever added. | Not observable without an origin | Two-way |
+| 9 | SSL/TLS encryption mode | Full | Full (strict) | No origin exists today. Strict is the safe default if a proxied origin is ever added. | Not observable without an origin: the audit prints SKIP, and the setting is read in the dashboard | Two-way |
 | 10 | HTML rewriting: Email Address Obfuscation, Rocket Loader, Automatic HTTPS Rewrites | Obfuscation on; the others not read | All off | They change the served bytes after CI tested them, and Obfuscation injects a script the CSP does not allow ([Cloudflare](https://developers.cloudflare.com/waf/tools/scrape-shield/email-address-obfuscation/)) | Served HTML has no `/cdn-cgi/` script; in prod-smoke it also equals the deployed artifact byte for byte | Two-way |
 | 11 | "Add security headers" managed transform | Not read | Off | It sends `X-XSS-Protection: 1; mode=block` and `Expect-CT`, which OWASP says not to send | `curl -sI` shows neither header | Two-way |
 | 12 | Bot Fight Mode | Off | Off | "You cannot bypass or skip Bot Fight Mode using WAF custom rules or Page Rules", and its JavaScript detections "cannot be disabled" ([Cloudflare](https://developers.cloudflare.com/bots/get-started/bot-fight-mode/)). A link-preview crawler or a WebSocket client cannot solve a challenge, so one false positive breaks an unfurl or a live demo, with no rule to exempt it | Served HTML has no `/cdn-cgi/challenge-platform/` script (the same check as row 10). It decides by bot scoring, so a faked user agent proves nothing. | Two-way |
 | 13 | AI crawlers | Blocking off | Allowed (recommended; Q15 · Q-ai-crawlers in [product.md](product.md)) | Recruiters use AI search | `robots.txt` carries no Cloudflare-managed AI block. Blocking keys on verified crawlers, so the setting itself is read in the dashboard, quarterly. | Two-way |
-| 14 | CAA records | None | None at launch | Custom Domains use Advanced Certificates, for which Cloudflare adds no CAA records automatically, so a lone record could block issuance or renewal ([Cloudflare](https://developers.cloudflare.com/ssl/edge-certificates/caa-records/)) | A CAA query over DNS over HTTPS returns no answer | Two-way |
+| 14 | CAA records | None | None at launch | Custom Domains use Advanced Certificates, for which Cloudflare adds no CAA records automatically, so a lone record could block issuance or renewal ([Cloudflare](https://developers.cloudflare.com/ssl/edge-certificates/caa-records/)) | A CAA query over DNS over HTTPS gets an answer (NOERROR or NXDOMAIN) that holds no CAA record. A failed lookup fails the row | Two-way |
 | 15 | Canonical host | 0 DNS records | The apex on the Workers Custom Domain; `www` → apex 301 through a proxied placeholder (AAAA `100::`) and 1 Single Redirect | One origin for links, cookies and CSP | `curl -sI https://www.ihaveasegway.com/a/?b=1` returns a 301 to the apex with path and query kept | Two-way |
-| 16 | Mail records | None | Per Q2 · Q-mail ([Mail posture](#mail-posture)) | Nobody can send mail as the domain | MX, TXT and `_dmarc` TXT over DNS over HTTPS | Two-way, bounded by TTL |
+| 16 | Mail records | None | Per Q2 · Q-mail ([Mail posture](#mail-posture)) | Nobody can send mail as the domain | MX, TXT and `_dmarc` TXT over DNS over HTTPS, and a DKIM record that publishes a key: an empty `p=` is a revoked one | Two-way, bounded by TTL |
 | 17 | `security.txt` | No site yet | `/.well-known/security.txt` with `Contact` and an `Expires` under a year out ([RFC 9116](https://www.rfc-editor.org/rfc/rfc9116.html)) | A reporter knows where to write | The weekly job fails when `Expires` is under 30 days away | Two-way |
-| 18 | Site Worker on workers.dev | No Worker yet | `workers_dev: false`, `preview_urls: true` | One public origin; previews stay on workers.dev with `noindex` | A check in `verify` reads `wrangler.jsonc` | Two-way |
+| 18 | Site Worker on workers.dev | No Worker yet | `workers_dev: false`, `preview_urls: true` | One public origin; previews stay on workers.dev with `noindex` | A check in `verify` reads `wrangler.jsonc`; the audit prints SKIP | Two-way |
+
+**State on 2026-10-23.** Read back through the API that day: minimum TLS 1.2; TLS 1.3 on; Always Use HTTPS on; SSL/TLS mode Full (strict); HSTS on at the ramp's first step, max-age 300 with `includeSubDomains`, preload off and the setting's No-Sniff off; Email Address Obfuscation, Rocket Loader and Automatic HTTPS Rewrites off; no Managed Transforms on. DNSSEC reads "pending": the DS record has not reached the registry, so rows 4a to 4c of the audit fail until it does. Set up on 2026-10-22: the `www` placeholder (AAAA `100::`, proxied) with a Single Redirect to the apex (301, path and query kept), and Email Routing for `hello@`, with its MX, SPF and DKIM records and DMARC `p=reject`. The "As found" column keeps what was found before these changes.
 
 Later, in Phase 4: the pre-built, disabled WAF custom rule that blocks `/lab/api/` (the kill switch) and the zone's one rate-limiting rule ([lab.md](lab.md)).
 
 ```sh
-# scripts/verify-zone.sh, excerpt (sketch — confirm against current docs when building)
-fail() { echo "FAIL $1"; status=1; }
-doh() { curl -s -H 'accept: application/dns-json' "https://cloudflare-dns.com/dns-query?name=$1&type=$2"; }
+# scripts/verify-zone.sh, excerpt. One line per check (PASS, FAIL, or SKIP for what cannot be seen
+# from outside); any FAIL exits 1.
+ZONE="${ZONE:-ihaveasegway.com}"   # overridable only to test the script against another domain
+DOH="https://dns.google/resolve"   # a validating resolver outside the zone's own DNS host
+answer() {   # the resolver's JSON, only when the lookup worked: NOERROR or NXDOMAIN, never SERVFAIL
+  curl -fsS --max-time 15 -H 'accept: application/dns-json' "$DOH?name=$1&type=$2" |
+    jq -e 'select(.Status == 0 or .Status == 3)'
+}
+check 4a "DNSSEC: a DS record is published at the parent" test -n "$(records "$ZONE" DS)"
+caa_absent() { answer "$ZONE" CAA | jq -e '[.Answer // [] | .[] | select(.type == 257)] | length == 0'; }
+check 14 "no CAA record" caa_absent   # a failed lookup is not "no record"
 
-doh ihaveasegway.com DS  | jq -e '(.Answer // []) | length > 0' >/dev/null || fail "dnssec: no DS record"
-doh ihaveasegway.com SOA | jq -e '.AD == true' >/dev/null                 || fail "dnssec: answer not validated"
-doh ihaveasegway.com CAA | jq -e '(.Answer // []) | length == 0' >/dev/null || fail "caa: record present"
-curl -s https://rdap.verisign.com/com/v1/domain/ihaveasegway.com \
-  | jq -e '.status | index("client transfer prohibited")' >/dev/null       || fail "registrar: not locked"
-! openssl s_client -connect ihaveasegway.com:443 -tls1_1 -cipher 'DEFAULT:@SECLEVEL=0' </dev/null >/dev/null 2>&1 \
-                                                                            || fail "tls: 1.1 accepted"
-exit "${status:-0}"
+# A handshake counts only when s_client exits 0: a failed one still prints the protocol it tried.
+tls12="$(protocol "$ZONE" -tls1_2)"   # row 5a: TLS 1.2, with a certificate valid for the name
+legacy() { handshake "$1" -tls1_1 -cipher 'DEFAULT:@SECLEVEL=0'; }   # no TLS 1.1 offer without the flag
+if [ "$(legacy example.com)" != TLSv1.1 ]; then fail 5b "this client cannot offer TLS 1.1: a refusal would prove nothing"
+elif [ "$tls12" != TLSv1.2 ]; then fail 5b "the zone does not answer over TLS: a refusal would prove nothing"
+elif [ "$(legacy "$ZONE")" = TLSv1.1 ]; then fail 5b "the zone accepted TLS 1.1"
+else pass 5b "the zone refuses TLS 1.1"; fi
 ```
 
-The cipher flag on the TLS line is the firewall canary's lesson again: a check that cannot fail proves nothing. Measured on 2026-10-22 with OpenSSL 3.6.3, `-tls1_1` alone failed inside the client ("no protocols available") before any server was asked, so the check would have passed against every server. With the flag, the same client negotiated TLS 1.1 with `example.com` and `cloudflare.com`. That is the known answer: the client can offer TLS 1.1, so a refusal comes from the server.
+The cipher flag on the TLS line is the firewall canary's lesson again: a check that cannot fail proves nothing. Measured on 2026-10-22 with OpenSSL 3.6.3, `-tls1_1` alone failed inside the client ("no protocols available") before any server was asked, so the check would have passed against every server. With the flag, the same client negotiated TLS 1.1 with `example.com` and `cloudflare.com`. That is the known answer: the client can offer TLS 1.1, so a refusal comes from the server. The script asks it on every run, together with a second one: the zone must complete TLS 1.2 with a valid certificate, or a refusal of TLS 1.1 proves nothing either. Building PR 2 also showed that OpenSSL 3.6 prints "Protocol: TLSv1.1" even when the handshake fails, so every probe reads `s_client`'s exit status, never its output. Rows 5a and 6 check the certificate and the hostname at the default security level; only the TLS 1.1 offer drops to level 0.
 
 ## Mail posture
 
-Pending Q2 · Q-mail in [product.md](product.md). The two postures cannot coexist: "A domain that advertises a null MX MUST NOT advertise any other MX RR" ([RFC 7505](https://www.rfc-editor.org/rfc/rfc7505.html), section 3), and Email Routing needs its own MX records.
+Q2 · Q-mail chose A on 2026-10-22 ([product.md](product.md#decided)), and its records were set up that day ([zone checklist](#zone-hardening-checklist)). The two postures cannot coexist: "A domain that advertises a null MX MUST NOT advertise any other MX RR" ([RFC 7505](https://www.rfc-editor.org/rfc/rfc7505.html), section 3), and Email Routing needs its own MX records.
 
 | | A. Receive-only inbox (recommended) | B. Never sends, never receives |
 |---|---|---|
@@ -220,10 +227,10 @@ Records as documented by [Email Routing](https://developers.cloudflare.com/email
 
 | Secret | What it is | Stored in | Read by | If it leaks | Rotation |
 |---|---|---|---|---|---|
-| `CLOUDFLARE_API_TOKEN` | An account-owned token (`cfat_`). Account: Workers Scripts Edit, Account Settings Read. Zone `ihaveasegway.com`: Workers Routes Edit, Zone Read. | Actions repository secret; never a Dependabot secret | The `env:` of the 5 steps that run Wrangler, in `preview`, `preview-cleanup`, `deploy` and `rollback` | Anything can be published at the domain until it is revoked | 12-month expiry; at once on suspicion ([operations.md](operations.md)) |
+| `CLOUDFLARE_API_TOKEN` | An account-owned token (`cfat_`). Account: Workers Scripts Edit, Account Settings Read. Zone `ihaveasegway.com`: Workers Routes Edit, Zone Read. | Actions repository secret; never a Dependabot secret | The `env:` of the 6 steps that run Wrangler, in `preview`, `preview-cleanup`, `deploy` and `rollback` | Anything can be published at the domain until it is revoked | 12-month expiry; at once on suspicion ([operations.md](operations.md)) |
 | `CLOUDFLARE_ACCOUNT_ID` | An identifier, not a credential | Actions repository secret, so GitHub masks it in logs, which go public with the repository at the [ADR 0012](adr/0012-public-repository.md) switch | The same steps | Nothing on its own. It is still never echoed and never written in docs. | None |
 | `GITHUB_TOKEN` | Minted by GitHub for each job | Nowhere | Each job, with `permissions: {}` at the top and grants per job | It expires when the job ends | Automatic |
-| `FIREWALL_RULES` | The firewall rules, as gitleaks TOML | An Actions secret and a Dependabot secret, both copied from `~/.config/ihaveasegway/firewall.toml` (mode 600, backed up in the password manager) | The firewall step, as `GITLEAKS_CONFIG_TOML`; the local hooks read the private file | It grants no access. Its contents are the disclosure. | On every term change, through `scripts/firewall/sync-secrets.sh`, then a full-history scan |
+| `FIREWALL_RULES` | The firewall rules, as gitleaks TOML | An Actions secret and a Dependabot secret, both copied from `~/.config/ihaveasegway/firewall.toml` (mode 600, backed up in the password manager) | The `firewall` step and `pr-text.yml`'s one step, as `GITLEAKS_CONFIG_TOML`; the local hooks read the private file | It grants no access. Its contents are the disclosure. | On every term change, through `scripts/firewall/sync-secrets.sh`, then a full-history scan |
 | `SESSION_HMAC_KEY` (Phase 4), plus `SESSION_HMAC_KEY_PREV` during a rotation | The key that signs lab session cookies | `wrangler secret put` for production, the lab's only deployed environment ([lab.md](lab.md)); `.dev.vars` locally (git-ignored; `.dev.vars.example` holds names only) | The lab Worker | Forged lab sessions | Yearly, with an overlap so live sessions survive ([lab.md](lab.md)); at once on suspicion |
 | `TURNSTILE_SECRET` (Phase 4) | The server half of a Turnstile widget created in the dashboard. Account-owned tokens cannot manage Turnstile ([Cloudflare](https://developers.cloudflare.com/fundamentals/api/get-started/account-owned-tokens/)). | A Worker secret | The lab Worker's siteverify call | Challenges can be skipped | Yearly; at once on suspicion |
 | `CLOUDFLARE_READ_TOKEN` (Phase 4) | An account-owned token with Workers Scripts Read only | Actions repository secret | The one step of the nightly `lab-objects` job, so a scheduled job never holds write access | Read access to the account's Workers | Expires on the deploy token's end date (12 months at most), and rotates with it ([operations.md](operations.md#rotate-the-cloudflare-token)) |
@@ -261,13 +268,13 @@ flowchart LR
 
 | Piece | Responsibility | Why this piece |
 |---|---|---|
-| gitleaks 8.30.1 (released 2026-03-21), pinned by version and sha256 in `scripts/firewall/gitleaks.version` | The scan engine for trees, commit ranges and stdin; JSON reports; `--redact` | It reads rules from the `GITLEAKS_CONFIG_TOML` variable, so no rules file ever enters the repo ([gitleaks](https://github.com/gitleaks/gitleaks)) |
-| `FIREWALL_RULES`, an Actions secret and a Dependabot secret | The rules, as gitleaks TOML | Dependabot runs see only Dependabot secrets, and fork runs see none |
+| gitleaks 8.30.1 (released 2026-03-21), pinned by version and sha256 in `scripts/firewall/gitleaks.version`, and installed by `scripts/firewall/install-gitleaks.sh`, which checks the sha256 before every run | The scan engine for trees, commit ranges and stdin; JSON reports; `--redact` | It reads rules from the `GITLEAKS_CONFIG_TOML` variable, so no rules file ever enters the repo ([gitleaks](https://github.com/gitleaks/gitleaks)) |
+| `FIREWALL_RULES`, an Actions secret and a Dependabot secret | The rules, as gitleaks TOML, for the `firewall` job and `pr-text.yml` | Dependabot runs see only Dependabot secrets, and fork runs see none |
 | `~/.config/ihaveasegway/firewall.toml` (mode 600, backed up in the password manager) | The source of truth, read by the local hooks | Outside the repo by construction |
-| `scripts/firewall/check.sh`, about 80 lines | Guards, the canary, orchestration, exit codes, log-safe output | The only bespoke code |
-| `scripts/firewall/test.sh` | A self-test with a throwaway rule (`zq-test-term`) against fixtures; it runs in `verify` | Proves exit codes 0, 1 and 2 without any real term |
+| `scripts/firewall/check.sh`, about 560 lines | Guards, the canary and the git known answer, forced git settings, orchestration, exit codes, log-safe output. Five modes (CI, `--staged`, `--range`, `--history`, `--pr-text`), so the hooks, the full-history scan and `pr-text.yml` run the same code as CI | The only bespoke code. What the length buys is in [ADR 0007](adr/0007-content-firewall.md) |
+| `scripts/firewall/test.sh` | A self-test of 75 cases against fixture repositories, with throwaway rules only (`zq-test-term`, a non-ASCII twin, filler rules up to the floor, the canary last); it runs in `verify` | Proves exit codes 0, 1 and 2 without any real term, and that no output prints a term or an address |
 | `scripts/firewall/allowed-identities.txt` | The public allowlist of commit emails | An allowlist fails closed and reveals nothing |
-| `scripts/firewall/sync-secrets.sh` | `gh secret set FIREWALL_RULES` for Actions, and again with `--app dependabot`, from the private file | One source, two copies, one command |
+| `scripts/firewall/sync-secrets.sh` | `gh secret set FIREWALL_RULES` for Actions, and again with `--app dependabot`, from the private file, after checking the file's mode, the floor and that `fw-canary` is the last rule | One source, two copies, one command, and a bad copy never reaches either |
 | `.githooks/pre-commit`, `.githooks/pre-push` | Local prevention | The only control before publication on a public repo |
 | The checklist in `.github/pull_request_template.md` | Paraphrase, images, PDFs | What regex cannot see |
 
@@ -276,12 +283,13 @@ flowchart LR
 ### Rule-writing rules
 
 - Opaque ids (`fw-01`, `fw-02`, ...). An id appears in public CI logs, so it must say nothing.
-- Word boundaries on every rule, case-insensitive. Without `\b`, a rule for `cat` would fire on `concatenate`.
+- Case-insensitive, with word boundaries on every word. Without `\b`, a rule for `cat` would fire on `concatenate`. A long, specific string, such as an ID or an address, may go without `\b`, so that it also matches inside a longer token; it is too specific to fire by accident.
 - A term that is also an ordinary word needs context: a case-sensitive form, a multi-word phrase or a domain form.
-- A lowercase `keywords` prefilter on every rule.
-- Suppression only through `.gitleaksignore` fingerprints (`commit:file:rule:line`, which contains no term), reviewed in the PR diff. Inline `gitleaks:allow` comments are switched off with `--ignore-gitleaks-allow`, because a bypass written into the scanned text defeats the scan.
+- **A keyword must be a literal that every match contains.** gitleaks runs a rule's regex only on text that contains one of the rule's keywords, compared in lowercase: it lowercases each keyword when it loads the rules, and lowercases the text before it looks for them ([config.go](https://github.com/gitleaks/gitleaks/blob/v8.30.1/config/config.go), [detect.go](https://github.com/gitleaks/gitleaks/blob/v8.30.1/detect/detect.go), v8.30.1, as of 2026-10-23). The check is on the whole fragment, so a keyword that some match lacks can hide that match, with no error. A rule written as a regular expression with alternatives or character classes, where no single literal is in every match, gets no keywords and runs on every fragment, which costs time, never coverage.
+- Suppression only through `.gitleaksignore` fingerprints (`file:rule:line`, with the commit first for a commit; it contains no term), reviewed in the PR diff. A suppression counts only once it is committed. Each scan reads the reviewed copy, the staged one for a commit and the committed one otherwise. CI, the pre-push hook and the history scan exit 2 when the working tree's copy differs from it, and CI refuses a `.gitleaksignore` anywhere but the repository root. Inline `gitleaks:allow` comments are switched off with `--ignore-gitleaks-allow`, because a bypass written into the scanned text defeats the scan.
 - The private rules also cover the account and zone IDs and Joseph's personal email addresses, so logs and command output that reach a scanned surface are checked for them too. Like the terms, their values exist only in the private file and the two secrets.
-- After every rule change: `sync-secrets.sh`, then a full-history scan, because a new rule can match old commits.
+- The `fw-canary` rule is always the last rule ([The canary](#the-canary)).
+- After every rule change: `sync-secrets.sh`, then a full-history scan (`check.sh --history`), because a new rule can match old commits. When the count changes, `RULE_FLOOR` in `check.sh` changes with it.
 
 ```toml
 # Rule shape only. The real rules exist in the private file and the two secrets, nowhere else.
@@ -290,6 +298,7 @@ id = "fw-01"
 regex = '''(?i)\b<term>\b'''
 keywords = ["<term>"]
 
+# The canary comes last, always.
 [[rules]]
 id = "fw-canary"
 regex = '''zq-fw-canary-[0-9a-f]{8}'''
@@ -300,12 +309,14 @@ keywords = ["zq-fw-canary-"]
 
 | # | Surface | How | What it catches |
 |---|---|---|---|
-| 1 | The tracked tree at `HEAD` | `git archive HEAD` into `$RUNNER_TEMP`, then `gitleaks dir` | A term in any committed file. `node_modules/` and untracked files are excluded by construction. |
-| 2 | The commit range | `gitleaks git --log-opts="$BASE..$HEAD"` (a PR: base to head; a push: before to after; the weekly rebuild has no range, and surfaces 1 and 4 cover it). The full history (`--log-opts=--all`) after any rule change, and before the repo goes public on a clone that has also fetched every pull request head (`refs/pull/*/head`), which the switch publishes too ([ADR 0012](adr/0012-public-repository.md)). | A term added and then removed inside the range, which history still holds |
-| 3 | Commit and PR metadata, and file paths | `git log --format='%s%n%b' --name-only` over the range (messages, and every path a commit touched), `git ls-tree -r --name-only HEAD`, plus the PR title, body and branch name passed through `env:`, all piped to `gitleaks stdin` | A term in a message, a title, a branch name or a file name. Surfaces 1 and 4 read what files contain, not what they are called, and a slug is a file name ([content.md](content.md)). PR reviews, comments and issues are not scanned per pull request: sensitive answers never go there ([product.md](product.md#content-firewall)), and the audit before the public switch reads them ([ADR 0012](adr/0012-public-repository.md)) |
-| 4 | Built output | `gitleaks dir` over `dist/`, and from Phase 4 the lab bundle (`wrangler deploy --dry-run --outdir`) | A term that exists only after the build, such as data fetched at build time |
-| 5 | PDFs | Each added `*.pdf` through `pdftotext <file> - \| gitleaks stdin`, and its metadata through `pdfinfo`, or PDFs blocked outright | Text inside documents, and metadata fields (Author, Creator, Producer) that name a machine, a path or an account |
-| 6 | Commit identities | The author, the committer and every `Co-authored-by:` address in the range must be on `allowed-identities.txt` (exact match, case-insensitive) | A work address in commit metadata |
+| 1 | The tracked tree at `HEAD` | Every blob at `HEAD` written out byte for byte with `git cat-file` into `$RUNNER_TEMP`, then `gitleaks dir`. Not `git archive`, which applies a committed `.gitattributes`: `export-ignore` would drop a file from the scan | A term in any committed file. `node_modules/` and untracked files are excluded by construction. |
+| 2 | The commit range | `gitleaks git --log-opts="$BASE..$HEAD"` (a PR: base to head; a push: before to after; the weekly rebuild has no range, and surfaces 1 and 4 cover it), with `--no-color --text --no-textconv --no-ext-diff --diff-merges=first-parent`, so files marked binary and a merge's own changes are read too. The full history (`--log-opts=--all`, `check.sh --history`) after any rule change, and before the repo goes public on a clone that has also fetched every pull request head (`refs/pull/*/head`), which the switch publishes too ([ADR 0012](adr/0012-public-repository.md)). Each git scan first proves itself on a known answer (below). | A term added and then removed inside the range, which history still holds, and a term that exists only in a merge's conflict resolution |
+| 3 | Commit and PR metadata, file paths and ref names | Each commit's message on its own, so a finding names its commit; every path at `HEAD`, in the range and in `dist/`, NUL-separated and never quoted; the pushed ref's name (pre-push) or every ref name (`--history`); each annotated tag's message and tagger; and the PR title, body and branch name, passed through `env:`, on every push and again whenever the title or body is edited (`pr-text.yml`). All go to `gitleaks stdin` | A term in a message, a title, a branch or tag name, or a file name. Surfaces 1 and 4 read what files contain, not what they are called, and a slug is a file name ([content.md](content.md)). PR reviews, comments and issues are not scanned per pull request: sensitive answers never go there ([product.md](product.md#content-firewall)), and the audit before the public switch reads them ([ADR 0012](adr/0012-public-repository.md)) |
+| 4 | Built output | `gitleaks dir` over `dist/`, and from Phase 4 the lab bundle (`wrangler deploy --dry-run --outdir`). A symbolic link in `dist/` exits 2, because gitleaks skips links | A term that exists only after the build, such as data fetched at build time |
+| 5 | PDFs and packed files | Every file in the tree, in `dist/` and in the staged changes is typed by its first bytes, whatever its name. A PDF's text goes through `pdftotext <file> - \| gitleaks stdin`, and its metadata through `pdfinfo`; without both tools, PDFs are blocked. An archive, an Office document or another packed format (zip, gzip, 7z, tar, SQLite, executables and more) exits 2. Commit ranges and history are not typed yet | Text inside documents, metadata fields (Author, Creator, Producer) that name a machine, a path or an account, and files no rule could read |
+| 6 | Commit identities | The author, the committer and every `Co-authored-by:` trailer in the range, each trailer holding exactly one address, and each annotated tag's tagger must be on `allowed-identities.txt` (exact match, case-insensitive) | A work address in commit metadata |
+
+`check.sh` reads git through 16 forced settings (`GIT_CONFIG_COUNT`) and takes attributes from git's empty tree, so neither the caller's git configuration nor a committed `.gitattributes` can change what gitleaks reads. A committed `.gitattributes` is still part of the firewall's trust surface, and a change to it gets a firewall review.
 
 The allowlist holds Joseph's GitHub noreply address (`<id>+IHaveASegway@users.noreply.github.com`), `noreply@github.com` (the committer of commits made in GitHub's web interface), `49699333+dependabot[bot]@users.noreply.github.com`, `41898282+github-actions[bot]@users.noreply.github.com`, and an AI agent's co-author address only if Joseph approves one.
 
@@ -315,7 +326,7 @@ The allowlist holds Joseph's GitHub noreply address (`<id>+IHaveASegway@users.no
 |---|---|---|
 | 0 | Clean | Every surface scanned with no finding; every identity on the allowlist |
 | 1 | Finding | A rule matched; an identity is not on the allowlist |
-| 2 | Cannot prove clean | `FIREWALL_RULES` unset or empty; fewer rules than the floor set in `check.sh`; the canary not detected; a gitleaks checksum mismatch; `dist/` missing; the base SHA not in the clone; any gitleaks error |
+| 2 | Cannot prove clean | `FIREWALL_RULES` unset or empty; fewer rules than the floor set in `check.sh`; the canary not detected, or not the last rule; the git known answer failing; a gitleaks checksum mismatch; `dist/` missing, or holding a symbolic link; the base SHA not in the clone; the PR's text missing; a `.gitleaksignore` that is not the reviewed one, or sits below the root; a file no rule can read; any gitleaks error, and any error the script did not expect |
 
 Codes 1 and 2 both fail the job, and `preview` and `deploy` `needs:` it, so a misconfigured check blocks publication instead of passing. gitleaks itself exits 1 both for "leaks found" and for "error", so `check.sh` runs it with `--exit-code 3`. A 3 becomes exit 1; anything else that is not 0 becomes exit 2.
 
@@ -325,43 +336,56 @@ These are the fail-open traps that exit 2 closes:
 - A Dependabot run sees no Actions secrets, which is why the Dependabot secret exists.
 - A fork PR sees no secrets at all. It fails with exit 2, and an outside contribution passes only after Joseph pushes it from a branch in the repo.
 - A shallow clone hides the commit range, so checkout uses `fetch-depth: 0`, and a missing base SHA is exit 2.
-- A truncated secret: the rule count falls below the floor.
+- A truncated secret: the rule count falls below the floor, and the canary, kept last, is cut off with the rest.
 - A swapped binary: the sha256 does not match.
+- Rules from somewhere else: `check.sh` unsets `GITLEAKS_CONFIG`, which would outrank the secret, and outside CI it ignores a `GITLEAKS_CONFIG_TOML` left in the environment and reads only the private file.
+- Git settings that change what git prints (colors, `-diff` attributes, UTF-16 messages, abbreviated commit ids) and so hide a term: forced settings, and the git known answer below.
 
 ### The canary
 
 A known-answer test. At runtime, `check.sh` generates `zq-fw-canary-` followed by 8 random hex characters and pipes it through `gitleaks stdin` with the same configuration. The `fw-canary` rule lives inside the secret, next to the real rules. If gitleaks loaded the secret, it reports the canary. If it fell back to its defaults, or the secret is empty or malformed, it does not, and the script exits 2. The full canary never exists in the repo, so the tree scan cannot match the script. For the same reason, this page writes it only as a prefix.
 
+The `fw-canary` rule must be the last rule in the file. A copy cut short anywhere then loses it, whatever the count, and both `check.sh` and `sync-secrets.sh` refuse a file whose last rule is anything else. The floor beside it, `RULE_FLOOR` in `check.sh`, is 51 on 2026-10-23: at least that many rules, the canary included. It is raised to the real count whenever rules are added, so a copy that lost rules exits 2. The number is not a secret.
+
+The git path gets a known answer of its own. Before it scans commits, `check.sh` commits the canary in a scratch repository and requires gitleaks to report it with that commit's id, under the same forced settings. A git setting the script does not override, that still changes what gitleaks reads, then fails the run with exit 2 instead of hiding a term.
+
 ```sh
-# scripts/firewall/check.sh, guard section (sketch — confirm against current docs when building)
+# scripts/firewall/check.sh, guard section, condensed
 set -euo pipefail
 umask 077
-RULE_FLOOR=<n>   # a constant in this file: a floor against a truncated secret, not a secret itself
-T="$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/fw.XXXXXX")"; trap 'rm -rf "$T"' EXIT
-cannot_prove() { echo "::error::content-firewall: cannot prove clean ($1)"; exit 2; }
+RULE_FLOOR=51   # at least this many rules, the canary included; raised to the real count when rules are added
+unset GITLEAKS_CONFIG   # it would outrank the rules below
+if [ -n "${CI:-}" ]; then
+  [ -n "${GITLEAKS_CONFIG_TOML:-}" ] || cannot_prove "FIREWALL_RULES is not set for this run"
+else
+  GITLEAKS_CONFIG_TOML="$(cat "$HOME/.config/ihaveasegway/firewall.toml")"   # the private file, never the environment
+fi
+count="$(grep -c '^[[:space:]]*\[\[rules\]\]' <<<"$GITLEAKS_CONFIG_TOML" || true)"
+[ "$count" -ge "$RULE_FLOOR" ] || cannot_prove "$count rules loaded, below the floor of $RULE_FLOOR"
+# ...and the last rule's id must be fw-canary, or exit 2
 
-[ -n "${GITLEAKS_CONFIG_TOML:-}" ] || cannot_prove "rules not set"
-n="$(grep -c '^\[\[rules\]\]' <<<"$GITLEAKS_CONFIG_TOML" || true)"
-[ "$n" -ge "$RULE_FLOOR" ] || cannot_prove "rule count below floor"
-
-canary="zq-fw-canary-$(openssl rand -hex 4)"
-rc=0; printf '%s\n' "$canary" | gitleaks stdin --no-banner --redact --exit-code 3 >/dev/null 2>&1 || rc=$?
-[ "$rc" -eq 3 ] || cannot_prove "canary not detected"
+printf 'zq-fw-canary-%s\n' "$(od -An -N4 -tx1 /dev/urandom | tr -d ' \n')" >"$T/canary"
+rc=0
+(cd "$T/empty" && exec "$GL" stdin --no-banner --redact --exit-code 3 --log-level error \
+  --gitleaks-ignore-path "$T/empty") <"$T/canary" >/dev/null 2>&1 || rc=$?
+[ "$rc" -eq 3 ] || cannot_prove "the canary was not detected, so the rules did not load"
 ```
 
 ### Logging rules
 
 - Print only the rule id, file, line and commit SHA, for example `::error file=apps/web/src/pages/about.astro,line=42::content-firewall fw-07`. Read them from the JSON report with `jq`; never print the report.
 - Never print a match, the matched line, an offending email address, or any normalized or derived form of them. GitHub's log redaction relies on exact matches and "is not guaranteed" ([GitHub](https://docs.github.com/en/actions/reference/security/secure-use)), and nothing redacts a derived form.
+- Once a file name itself has matched, no path is printed for the rest of the run: the name is the leak.
+- Control characters in any reported field become `?`, so a crafted file name cannot start a new log line or a GitHub workflow command.
 - `umask 077`, temp files in `$RUNNER_TEMP` removed by `trap`, never `set -x`, and never an uploaded report or artifact.
 
 ### Local parity
 
-Enabled with `git config core.hooksPath .githooks`, which needs no extra dependency.
+Enabled with `git config core.hooksPath .githooks`, which needs no extra dependency. `pnpm install` warns while they are off (`scripts/check-hooks.sh`), and nothing turns them on for you.
 
-- **pre-commit:** the staged diff (`git diff --cached -U0`) through `gitleaks stdin` with `--config ~/.config/ihaveasegway/firewall.toml`, plus the author identity (`git var GIT_AUTHOR_IDENT`) against the allowlist, plus a metadata check: a staged image or PDF that carries EXIF, XMP or IPTC, or PDF Info fields other than Title and Author, is rejected (for example with `exiftool`). A binary file's metadata never shows in the diff, so the diff scan cannot see it.
-- **pre-push:** refuses `refs/heads/main`, then scans the pushed range and its identities.
-- **No private file:** exit 2, with setup steps.
+- **pre-commit:** `check.sh --staged` scans the staged files: the staged contents of every added, copied, modified, renamed or retyped file, through `gitleaks dir`, then their names, then the author and committer identities git is about to record, against the allowlist. It scans the staged files rather than the staged diff, because the diff's form depends on the user's git settings. Then `scripts/image-metadata.mjs` rejects a staged image or PDF that carries EXIF, XMP, IPTC or C2PA metadata, or PDF Info fields other than Title and Author. A binary file's metadata never shows in a text scan, so the text scan cannot see it.
+- **pre-push:** refuses `refs/heads/main`, then `check.sh --range` scans each pushed ref: its commits' diffs, messages, paths and identities, the ref's own name, and an annotated tag's message and tagger.
+- **No private file:** exit 2, with setup steps. The hooks read the rules only from the private file.
 
 Hooks can be skipped (`--no-verify`, edits in GitHub's web interface, an agent that skips them). On a private repo the CI job is the backstop. On a public repo the hooks are the only prevention.
 
@@ -381,9 +405,10 @@ The escalation is the pattern Google's [Copybara](https://github.com/google/copy
 |---|---|
 | Paraphrase, and combinations of harmless facts (an industry, a region, a role, a tenure) that identify an employer: the mosaic effect | The copy classes in [content.md](content.md) and the PR checklist. Each entry's `firewall_reviewed` date, and `profile.json`'s, records that a person read it, and `verify` fails a change to anything other than the stamp that leaves the date alone |
 | Screenshots and diagrams rendered as images | The PR checklist; no screenshots of work tools, ever |
-| Image metadata (EXIF, XMP and IPTC: location, device owner, file paths) | Stripped before commit: the pre-commit hook rejects a staged image or PDF that carries it (for example with `exiftool`), and `verify` checks every tracked one. The image pipeline strips again at build |
+| Image metadata (EXIF, XMP and IPTC: location, device owner, file paths) | Rejected before commit: the pre-commit hook runs `scripts/image-metadata.mjs` on every staged image or PDF, and `verify` runs it on every tracked one. It also rejects C2PA Content Credentials, which can carry the same fields and an author. The image pipeline strips again at build |
 | Open Graph images | They are rendered from text in the repo, and that text is scanned |
 | PDFs | Extracted or blocked (surface 5) |
+| Archives, Office documents and other packed files | No rule can read inside one, so CI and the pre-commit hook refuse it with exit 2 (surface 5), and the PR checklist asks for what it holds instead. Commit ranges and history are not checked for them yet |
 | Names outside the repo: the workers.dev subdomain, Worker names, the Cloudflare account name, the Email Routing destination | Checked once in PR 2 and after any change. Every other Worker in the account keeps workers.dev and Version URLs off, or moves to its own account, so nothing else answers on the subdomain (access setup step 1, item 8, in [operations.md](operations.md#1-deploy-token-pr-2)) |
 | The linked GitHub profile: its fields, README, organizations, gists, pinned items, and every public repository and fork it lists | The profile item in the [readiness checklist](content.md#repo-readiness-checklist), before PR 3 links the profile and again before any new link to it |
 | Copies outside GitHub: forks, clones, the Wayback Machine, package proxies, link-unfurl caches | Nothing but prevention. The leak-response runbook is in [operations.md](operations.md). |
@@ -441,8 +466,8 @@ Two doors lead in: GitHub Actions and npm. Joseph prefers version tags to SHA pi
 
 | Door | The attack | Controls, in layers | What still gets through |
 |---|---|---|---|
-| GitHub Actions | A tag is moved to new code, which runs in a job that holds a secret | The repository allows only GitHub-created actions plus a short list ([GitHub](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository)); jobs that hold a secret use only GitHub-created actions and `pnpm/action-setup`; each secret sits in the `env:` of the one step that needs it; `permissions: {}` at the top; PR text reaches scripts only through `env:` ([GitHub Security Lab](https://securitylab.github.com/resources/github-actions-untrusted-input/)); no `pull_request_target`; Wrangler runs from the lockfile, not through a deploy action | A moved tag on an allowed action. A moved tag is not a new version, so no Dependabot PR and no cooldown ever sees it |
-| npm | A malicious version runs an install script or changes what the build emits | `pnpm install --frozen-lockfile`; `minimumReleaseAge` of 1,440 minutes and `strictDepBuilds` with an `allowBuilds` list, both pnpm 11 defaults as of 2026-10-22 ([pnpm 11](https://pnpm.io/blog/releases/11.0)); Dependabot's cooldown, 3 days and 14 for majors, because in most of the attacks William Woodruff surveyed the malicious version was pulled within a week ([delivery.md](delivery.md)); the build runs in `verify`, which holds no secret | A malicious version older than the cooldown; Wrangler itself, which holds the token because it is the deploy tool; build-time code that changes the pages |
+| GitHub Actions | A tag is moved to new code, which runs in a job that holds a secret | The repository allows only GitHub-created actions plus a short list ([GitHub](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository)); jobs that hold a secret use only GitHub-created actions and `pnpm/action-setup`; each secret sits in the `env:` of the steps that need it and no others; `permissions: {}` at the top; PR text reaches scripts only through `env:` ([GitHub Security Lab](https://securitylab.github.com/resources/github-actions-untrusted-input/)); no `pull_request_target`; Wrangler runs from the lockfile, not through a deploy action | A moved tag on an allowed action. A moved tag is not a new version, so no Dependabot PR and no cooldown ever sees it |
+| npm | A malicious version runs an install script or changes what the build emits | `pnpm install --frozen-lockfile`; `minimumReleaseAge` of 1,440 minutes and `strictDepBuilds` with an `allowBuilds` list, both pnpm 11 defaults as of 2026-10-22 ([pnpm 11](https://pnpm.io/blog/releases/11.0)); Dependabot's cooldown, 3 days and 14 for majors, because in most of the attacks William Woodruff surveyed the malicious version was pulled within a week ([delivery.md](delivery.md)); the build runs in `verify`, which holds no secret, and no job that holds the deploy token restores the pnpm cache `verify` writes ([delivery.md](delivery.md#hardening-rules), rule 11) | A malicious version older than the cooldown; Wrangler itself, which holds the token because it is the deploy tool; build-time code that changes the pages |
 | The firewall's engine | A swapped gitleaks binary in the job that holds the rules | An exact version and a sha256 check (`scripts/firewall/gitleaks.version`) | A malicious release that was pinned on purpose |
 
 Escalation: SHA-pin an action the day it gets a tag-retarget advisory, and rotate whatever its jobs could read. For every action at once, the repository setting "Require actions to be pinned to a full-length commit SHA".
@@ -460,7 +485,7 @@ The weaker designs: SHA pins bumped without review stop retargeting but invite b
 | Theme choice (`localStorage` key `theme`: `light` or `dark`) | The toggle, only when pressed; choosing System deletes the key ([design-system.md](design-system.md)) | The visitor's browser | Until the visitor clears it or picks System | Remember an explicit choice |
 | IP address, user agent and path of every request | Cloudflare, as the host | Cloudflare, under its own policy | Cloudflare's policy | Serving the site. Joseph sees aggregates only. |
 | Page views: path without query string, referrer, browser, country (from PR 3) | The Web Analytics beacon | Cloudflare | 6 months | Counting. No cookies, no `localStorage`, no fingerprinting ([Cloudflare](https://www.cloudflare.com/web-analytics/)). |
-| Mail to `hello@` (if Q-mail picks A) | Email Routing | Relayed by Cloudflare, which says it does "not store or access the content of your emails" ([Cloudflare](https://www.cloudflare.com/en-au/developer-platform/products/email-routing/), its own claim, unaudited); then Joseph's inbox | Until he deletes it | Contact |
+| Mail to `hello@` | Email Routing | Relayed by Cloudflare, which says it does "not store or access the content of your emails" ([Cloudflare](https://www.cloudflare.com/en-au/developer-platform/products/email-routing/), its own claim, unaudited); then Joseph's inbox | Until he deletes it | Contact |
 | Turnstile signals (Phase 4) | Turnstile, on lab pages | Cloudflare | Cloudflare's policy | Abuse prevention. No pre-clearance, so no `cf_clearance` cookie. |
 | Lab session cookie (Phase 4) | The lab Worker, after Turnstile | The visitor's browser | 15 minutes | Admission to a live demo |
 | Hashed IP address (Phase 4) | The lab Worker writes `HMAC(daily salt, IP)`; the address itself is never stored or logged | The lab's own log lines | Logs: 3 days, 7 days from 2026-12-01 ([Workers Logs](https://developers.cloudflare.com/workers/observability/logs/workers-logs/)). The salt lives in memory for one UTC day. | Rate limits, budgets, abuse review |

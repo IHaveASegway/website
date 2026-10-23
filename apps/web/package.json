@@ -1,0 +1,33 @@
+{
+  "name": "web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "serve": "wrangler dev --local --ip 127.0.0.1 --port 8787 --show-interactive-dev-session=false",
+    "typecheck": "astro check",
+    "test": "vitest run",
+    "e2e": "playwright test --project=site",
+    "smoke": "playwright test --project=smoke",
+    "prod-smoke": "playwright test --config playwright.prod.config.ts",
+    "icons": "node scripts/icons.mjs"
+  },
+  "dependencies": {
+    "@astrojs/sitemap": "3.7.4",
+    "@tailwindcss/vite": "4.3.3",
+    "astro": "7.4.2",
+    "tailwindcss": "4.3.3"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.12",
+    "@axe-core/playwright": "catalog:",
+    "@playwright/test": "catalog:",
+    "@types/culori": "^4.0.1",
+    "@types/node": "^26.6.5",
+    "culori": "4.0.2",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "wrangler": "catalog:"
+  }
+}

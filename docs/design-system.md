@@ -8,6 +8,45 @@ Status: Draft for review in PR 1 · 2026-10-22
 
 Units: 1 KB = 1,000 bytes. JS and CSS sizes are minified and gzip -9 unless stated. Every measurement here was taken on 2026-10-22, from the research prototypes, the font files and the token values; the CI checks below replace them with numbers from the real build.
 
+## Chosen direction
+
+Chosen on 2026-10-23 (Q17 in [product.md](product.md#decided)). The exploration drew three directions on Home's wireframe, at 1440 px and 390 px, in both themes: A "Drawing Set", B "Field Notes" and C "Instrument". Joseph picked C, and then Petrol + Apricot from four color studies of it; Graphite + Cobalt, Ink + Chartreuse, Paper + Swiss red, and C's first palette of graphite and orange lost. Cards keep the hover he preferred: a 2px accent bar that sweeps across the card's top edge, rather than corner crop marks.
+
+What C is:
+
+- **A 12-column frame with a ruler.** A numbered tick band across the top marks the columns the layout sits on, four of them on a phone. It is decoration, hidden from assistive technology.
+- **A poster-size name.** 156 px at 1440 px and 66 px at 400 px (a ratio of 2.36, inside the 2.5 the type scale allows). Below 400 px it scales with the screen, at 16.5vw, so the name fits a 320 px screen whole even in a wide fallback font such as DejaVu Sans; PR 2's first CI run found that overflow on Linux. Under the name, one row holds the title and location, a line of proof, and the actions.
+- **A readout row.** Facts about the build in mono, read from the build itself: the commit, the build date, the JavaScript shipped. It is the seed of the status line.
+- **One accent.** Apricot fills the primary button, marks focus and the location dot, numbers sections, and colors a link on hover. Otherwise links read as text with an underline at 3:1, so the underline, not the color, marks them (SC 1.4.1). `--signal` points at the accent.
+- **Type.** Instrument Sans, whose width axis runs from 75% to 100% and gives the condensed name, and JetBrains Mono for labels and readouts; both OFL 1.1. They arrive in PR 3 through spike S9. Until then the site uses system stacks.
+
+PR 2 ships these values in `tokens.css`:
+
+| Token | Dark | Light |
+|---|---|---|
+| `--background` | `oklch(0.233 0.035 225)` `#08212a` | `oklch(0.981 0.007 220)` `#f4fafc` |
+| `--surface-1` | `oklch(0.272 0.041 225)` `#0c2b36` | `oklch(0.951 0.011 211)` `#e7f1f3` |
+| `--surface-2` | `oklch(0.31 0.044 225)` `#143541` | `oklch(0.925 0.014 212)` `#dce9ec` |
+| `--foreground` | `oklch(0.961 0.01 205)` `#ebf4f5` | `oklch(0.219 0.03 231)` `#0a1d26` |
+| `--muted-foreground` | `oklch(0.8 0.025 216)` `#adc2c8` | `oklch(0.471 0.03 225)` `#495f68` |
+| `--subtle-foreground` | `oklch(0.72 0.03 218)` `#90aab1` | `oklch(0.505 0.03 222)` `#526971` |
+| `--border` | `oklch(0.431 0.04 223)` `#375560` | `oklch(0.861 0.015 213)` `#c7d4d7` |
+| `--input` | `oklch(0.6 0.035 220)` `#69868f` | `oklch(0.6 0.03 220)` `#6d858d` |
+| `--primary` | `oklch(0.84 0.095 60)` `#f9bc8b` | `oklch(0.52 0.126 48)` `#a14e1b` |
+| `--primary-strong` | `oklch(0.88 0.068 62)` `#f9ceaa` | `oklch(0.46 0.115 46)` `#8a3f15` |
+| `--primary-foreground` | `oklch(0.2 0.029 60)` `#201308` | `oklch(0.991 0.005 211)` `#f8fdfe` |
+| `--grid-line` | `--foreground` at 6% | `--foreground` at 6% |
+| `--signal`, `--ring` | `var(--primary)` | `var(--primary)` |
+| `--ok`, `--destructive` | `var(--foreground)`, until a page shows a status | the same |
+
+Measured by `test/tokens.test.ts` on 2026-10-23: every text token reaches 4.5:1 and every non-text token 3:1 on all three surfaces in both themes, the full cross product with no forbidden pair. The tightest pairs are in light: `primary` on `surface-2` at 4.66:1, `subtle-foreground` on `surface-2` at 4.68:1, and `input` on `surface-2` at 3.14:1. `primary-foreground` on `primary` measures 10.91:1 in dark and 5.65:1 in light.
+
+The token file keeps all sixteen semantic names. Tailwind's own palette, text sizes and radii are removed, so a stray utility class produces nothing instead of an untested color. Themes switch on `prefers-color-scheme` alone: `[data-theme]` and the toggle come with the theme script in PR 3, and the motion and HUD motif tokens with the components that use them. Beyond the cross product, the contrast test fails when a color token has no declared role, or when the light theme does not redeclare one.
+
+Forced colors: a Windows contrast theme replaces the button's apricot fill with the user's background but keeps the label's own color, which axe measured at 1.02:1. So under `forced-colors: active` the primary button takes system colors (`ButtonFace`, `ButtonText`). System color keywords are the one kind of color allowed outside `tokens.css`.
+
+The rest of this doc still describes Quiet Console, the starting point. Where its token table, contrast table, typography or motifs conflict with this section, this section wins; PR 3 rewrites them around C, together with [ADR 0010](adr/0010-quiet-console-design-tokens.md).
+
 ## Why
 
 - Recruiters give the page seconds and engineers give it a minute ([content.md](content.md) has the evidence). A slow, hard-to-read or templated page contradicts what the site says about its author, so speed and accessibility are requirements here, not polish.

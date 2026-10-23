@@ -1,0 +1,32 @@
+# Version updates (delivery.md, "Dependency policy"). Security updates skip the cooldown and
+# arrive at once. gitleaks is not managed here: scripts/firewall/gitleaks.version, quarterly.
+version: 2
+updates:
+  - package-ecosystem: npm # covers pnpm: the root lockfile, the workspace and the catalog
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+    cooldown: # a release must age before it is proposed; most malicious versions are pulled within a week
+      default-days: 3
+      semver-major-days: 14
+    groups:
+      minor-and-patch: # one pull request, merged every other Monday; majors arrive one at a time
+        update-types: [minor, patch]
+        patterns: ['*']
+    ignore:
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major'] # until typescript-eslint and @astrojs/check accept 7
+
+  - package-ecosystem: github-actions # version tags, not SHAs; the hardening rules compensate
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+    cooldown: # setup-node and pnpm/action-setup run in every job that holds the deploy token
+      default-days: 7
+    groups:
+      actions:
+        patterns: ['*']

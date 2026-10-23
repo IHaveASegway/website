@@ -1,0 +1,48 @@
+# Deletes a pull request's Worker Preview when the pull request closes (delivery.md, "Pipeline").
+# Best effort: Free keeps 100 previews per Worker and drops the least recently deployed anyway.
+name: preview-cleanup
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions: {}
+
+concurrency:
+  # ci.yml's group for this pull request: closing it cancels a run that may still be publishing the
+  # preview, and the delete waits until that run has stopped, so nothing recreates pr-<n> after it.
+  group: ci-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  preview-cleanup:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository
+      && github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.repository.default_branch }} # main's lockfile, not the closed branch's code
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false # no cache: this job holds the deploy token (ci.yml, deploy)
+      - run: pnpm install --frozen-lockfile
+      - name: Delete the preview
+        working-directory: apps/web
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if pnpm exec wrangler preview delete --name "pr-$PR_NUMBER" --skip-confirmation; then
+            echo "Deleted the preview pr-$PR_NUMBER." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::Could not delete the preview pr-$PR_NUMBER (it may never have existed)."
+          fi

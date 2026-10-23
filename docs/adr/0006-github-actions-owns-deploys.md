@@ -1,6 +1,6 @@
 # ADR 0006: GitHub Actions owns build, gates and deploys
 
-Status: Proposed · 2026-10-22 · Deciders: Joseph Peterson
+Status: Accepted · 2026-10-23 · Deciders: Joseph Peterson
 
 ## Context
 
@@ -73,3 +73,12 @@ Two-way. Moving to Workers Builds means connecting the repository in the dashboa
 - Actions usage passes 1,500 minutes a month on a private repository.
 - Any incident involves the token: a leak, or a version, deployment or route that no Actions run explains.
 - The repository is public with required checks, and keeping a deploy token in GitHub has become the bigger risk than splitting the pipeline across two systems.
+
+## Postscript 2026-10-23
+
+The pipeline PR 2 built differs in two places from "every merge deploys, and the exact version is smoke-tested on Cloudflare's edge before it takes traffic" ([delivery.md](../delivery.md#deploy-verify-roll-back)):
+
+- A run deploys only while its commit is `main`'s tip. Runs queue in arrival order and a re-run can come days later, so when merges land close together, only the newest one's run deploys.
+- The first deploy creates the Worker and attaches the domain with `wrangler deploy`, and goes live without a Version URL smoke, because the domain serves nothing yet; `prod-smoke` checks it. Until then `preview` publishes nothing, because `wrangler preview` would create the Worker itself, without its domain.
+
+The decision stands, and no Revisit if condition was met.
