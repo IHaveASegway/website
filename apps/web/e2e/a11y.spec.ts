@@ -1,13 +1,13 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { MISSING, PAGES } from './expected';
+import { NOT_FOUND_PAGE, PAGES } from './expected';
 
 // WCAG 2.2 AA (design-system.md, "Accessibility rules"). axe finds part of what matters, about 57%
 // of issues in Deque's own data; the keyboard and screen-reader pass in the pull request template
 // covers the rest.
 
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
-const ROUTES = [...PAGES, MISSING];
+const ROUTES = [...PAGES, NOT_FOUND_PAGE];
 type Media = Parameters<Page['emulateMedia']>[0] & {};
 const MEDIA: Record<string, Media> = {
   dark: { colorScheme: 'dark' },

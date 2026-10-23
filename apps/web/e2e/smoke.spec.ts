@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { FILES, MISSING, ORIGIN, PAGES } from './expected';
+import { FILES, MISSING, ON_WORKER_PREVIEW, ORIGIN, PAGES, PREVIEW_404_GAP } from './expected';
 
 // The smoke: run against every preview, against each Version URL before it takes traffic, against
 // production through the zone (prod-smoke), and locally against wrangler dev. HTTP only, so it
@@ -28,6 +28,7 @@ for (const path of FILES) {
 }
 
 test('an unknown path answers 404 with the 404 page, which is noindex', async ({ request }) => {
+  test.fail(ON_WORKER_PREVIEW, PREVIEW_404_GAP);
   const response = await request.get(MISSING, { maxRedirects: 0 });
   expect(response.status()).toBe(404);
   const html = await response.text();

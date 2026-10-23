@@ -253,6 +253,8 @@ jobs:
         working-directory: apps/web
         env:
           BASE_URL: ${{ needs.preview.outputs.url }}
+          # Worker Previews ignore not_found_handling (apps/web/e2e/expected.ts, ON_WORKER_PREVIEW)
+          E2E_TARGET: ${{ needs.preview.outputs.url != '' && 'worker-preview' || 'wrangler-dev' }}
         run: pnpm run e2e
       - name: Keep the report (run artifacts only, never public storage)
         if: failure()

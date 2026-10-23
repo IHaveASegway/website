@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { MISSING, PAGES } from './expected';
+import { NOT_FOUND_PAGE, PAGES } from './expected';
 
 // Zero Content Security Policy violations, from the browser's own event and from the console
 // (security.md, "What CI checks"). Enforced from the first deploy, with no Report-Only phase.
@@ -27,7 +27,7 @@ async function watch(page: Page): Promise<() => Promise<string[]>> {
   };
 }
 
-for (const path of [...PAGES, MISSING]) {
+for (const path of [...PAGES, NOT_FOUND_PAGE]) {
   test(`no CSP violation on ${path}`, async ({ page }) => {
     const violations = await watch(page);
     await page.goto(path, { waitUntil: 'load' });
