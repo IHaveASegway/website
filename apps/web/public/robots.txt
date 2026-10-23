@@ -1,0 +1,5 @@
+# Every crawler is welcome, AI crawlers included (Q15, product.md).
+User-agent: *
+Allow: /
+
+Sitemap: https://ihaveasegway.com/sitemap-index.xml

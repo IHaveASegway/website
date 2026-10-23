@@ -1,0 +1,21 @@
+// The site Worker: assets only (ADR 0002). Every field here is reviewed like code.
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "ihaveasegway-web",
+  "compatibility_date": "2026-10-22", // the scaffold date; bumped quarterly in a PR of its own (delivery.md)
+  // No "main": no request runs Worker code, so a page view is never an invocation.
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "404-page",
+    "html_handling": "auto-trailing-slash", // the default, set explicitly (ADR 0005)
+  },
+  "routes": [{ "pattern": "ihaveasegway.com", "custom_domain": true }],
+  "workers_dev": false, // one public origin
+  "preview_urls": true, // Version URLs for the deploy smoke; it otherwise follows workers_dev
+  "previews": {}, // Worker Previews; the site has no bindings to re-bind
+  "observability": { "enabled": true },
+  "send_metrics": false, // no Wrangler usage metrics from CI or laptops
+  // No "account_id": it comes from the CLOUDFLARE_ACCOUNT_ID secret, so it never enters the repository.
+  // Never "cache": { "enabled": true }. It bills every asset request at the Workers rate;
+  // apps/web/test/wrangler.test.ts fails the build if it appears anywhere in a Worker's config.
+}

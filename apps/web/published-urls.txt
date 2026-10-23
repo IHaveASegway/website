@@ -1,0 +1,6 @@
+# Every page URL this site has published, one per line, oldest first (ADR 0005, "Slugs never
+# change"). Append only: a URL here stays public once it has been deployed, through links, search
+# results and archives. A page that moves keeps its line here and gets a 301 in public/_redirects.
+# apps/web/test/urls.test.ts fails when a built page is missing from this list, or when a URL here
+# is neither a built page nor the source of a 301.
+/

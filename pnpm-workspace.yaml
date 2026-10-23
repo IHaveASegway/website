@@ -1,0 +1,24 @@
+packages:
+  - apps/*
+  - workers/* # empty until Phase 4
+  - packages/* # empty until a second consumer exists
+
+# One version per tool that more than one package uses; a package depends on "typescript": "catalog:".
+catalog:
+  '@axe-core/playwright': 4.14.0
+  '@playwright/test': 1.64.1
+  typescript: 6.0.3
+  vitest: ^5.0.5
+  wrangler: ^4.152.0
+
+# strictDepBuilds is on by default: an install script from any package not listed here fails the install.
+allowBuilds:
+  esbuild: true
+  workerd: true
+
+# minimumReleaseAge stays unset: the pnpm 11 default, 1440 minutes, in loose mode.
+# Setting it, even to 1440, also turns on minimumReleaseAgeStrict (delivery.md, "The release-age gate").
+# Every entry below is dated and removed within 7 days, whether pnpm or a person wrote it.
+minimumReleaseAgeExclude:
+  - miniflare@5.20261019.2-beta # 2026-10-23: written by pnpm; wrangler 4.152.0 pins it, published under 24 h earlier; remove by 2026-10-30
+  - wrangler@4.152.0 # 2026-10-23: written by pnpm; published 2026-10-22 14:43 UTC, the catalog's floor; remove by 2026-10-30

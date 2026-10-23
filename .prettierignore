@@ -1,0 +1,10 @@
+# Written by tools, not people
+pnpm-lock.yaml
+**/dist/
+**/.astro/
+**/.wrangler/
+**/playwright-report/
+**/test-results/
+
+# The plan is hand-formatted prose and tables, edited only in its own pull requests
+docs/

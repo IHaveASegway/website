@@ -1,0 +1,27 @@
+# Dependencies and build output
+node_modules/
+dist/
+.astro/
+.wrangler/
+
+# Test output
+playwright-report/
+test-results/
+blob-report/
+coverage/
+
+# Local configuration and secrets: never committed (security.md, "Secrets inventory")
+.env
+.env.*
+.dev.vars
+*.local
+
+# Firewall rules live outside the repository, but refuse a stray copy too (ADR 0007)
+firewall.toml
+
+# Editors and operating systems
+.DS_Store
+*.log
+.vscode/*
+!.vscode/extensions.json
+.idea/

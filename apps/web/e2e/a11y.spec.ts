@@ -1,0 +1,75 @@
+import AxeBuilder from '@axe-core/playwright';
+import { expect, test, type Page } from '@playwright/test';
+import { MISSING, PAGES } from './expected';
+
+// WCAG 2.2 AA (design-system.md, "Accessibility rules"). axe finds part of what matters, about 57%
+// of issues in Deque's own data; the keyboard and screen-reader pass in the pull request template
+// covers the rest.
+
+const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
+const ROUTES = [...PAGES, MISSING];
+type Media = Parameters<Page['emulateMedia']>[0] & {};
+const MEDIA: Record<string, Media> = {
+  dark: { colorScheme: 'dark' },
+  light: { colorScheme: 'light' },
+  'more contrast': { colorScheme: 'dark', contrast: 'more' },
+  'forced colors': { colorScheme: 'light', forcedColors: 'active' },
+};
+
+for (const path of ROUTES) {
+  for (const [name, media] of Object.entries(MEDIA)) {
+    test(`axe finds no violation on ${path}, ${name}`, async ({ page }) => {
+      await page.emulateMedia(media);
+      await page.goto(path);
+      const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+      expect(results.violations).toEqual([]);
+    });
+  }
+}
+
+test('no sideways scrolling at 320 px (SC 1.4.10)', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  for (const path of ROUTES) {
+    await page.goto(path);
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
+    );
+    expect(overflow, path).toBeLessThanOrEqual(0);
+  }
+});
+
+test('every focusable element shows a visible outline from the keyboard (SC 2.4.7)', async ({
+  page,
+}) => {
+  for (const path of ROUTES) {
+    await page.goto(path);
+    // Only what Tab reaches: a negative tabindex (a skip link's target, often <main tabindex="-1">),
+    // a disabled control or a hidden one is focusable by script but never by Tab.
+    const count = await page.evaluate(
+      () =>
+        [
+          ...document.querySelectorAll<HTMLElement & { disabled?: boolean }>(
+            'a[href], button, input, select, textarea, [tabindex]',
+          ),
+        ].filter(
+          (element) => element.tabIndex >= 0 && !element.disabled && element.checkVisibility(),
+        ).length,
+    );
+    for (let i = 0; i < count; i++) {
+      await page.keyboard.press('Tab');
+      const focus = await page.evaluate(() => {
+        const element = document.activeElement;
+        if (!element || element === document.body) return null;
+        const style = getComputedStyle(element);
+        return {
+          name: element.textContent?.trim(),
+          style: style.outlineStyle,
+          width: parseFloat(style.outlineWidth),
+        };
+      });
+      expect(focus, `${path}: Tab ${i + 1} reaches an element`).not.toBeNull();
+      expect(focus?.style, `${path}: ${focus?.name}`).not.toBe('none');
+      expect(focus?.width, `${path}: ${focus?.name}`).toBeGreaterThanOrEqual(2);
+    }
+  }
+});

@@ -1,0 +1,48 @@
+# The weekly audit (delivery.md, "Pipeline"; operations.md, "Maintenance calendar"): the zone, TLS,
+# registration and mail records, security.txt's expiry, links on the live site, and the age of
+# compatibility_date. Token-free: it reads only what the public can read. A failure emails.
+name: scheduled
+
+on:
+  schedule:
+    - cron: '17 7 * * 1' # Monday 07:17 UTC, beside the weekly rebuild
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  scheduled:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Zone audit (security.md, "Zone hardening checklist" and "Mail posture")
+        run: scripts/verify-zone.sh
+      - name: Links on the live site
+        if: ${{ !cancelled() }}
+        uses: lycheeverse/lychee-action@v2 # third party, in a job that holds no secret (rule 4)
+        with:
+          args: --no-progress --max-retries 2 https://ihaveasegway.com/
+          output: ${{ runner.temp }}/lychee.md
+          # The action passes the job's GITHUB_TOKEN by default, which reads this private repository.
+          # A public site needs none. If GitHub links start answering 429, pass a token scoped to
+          # nothing instead of this one.
+          token: ''
+      - name: compatibility_date younger than 180 days (a warning, not a failure)
+        if: ${{ !cancelled() }}
+        run: |
+          date="$(sed -n 's/.*"compatibility_date": *"\([0-9-]*\)".*/\1/p' apps/web/wrangler.jsonc)"
+          # An empty date would read as today and pass forever: fail instead.
+          if [ -z "$date" ]; then
+            echo "::error::compatibility_date not found in apps/web/wrangler.jsonc"
+            exit 1
+          fi
+          age=$(( ($(date -u +%s) - $(date -u -d "$date" +%s)) / 86400 ))
+          echo "compatibility_date $date is $age days old."
+          if [ "$age" -gt 180 ]; then
+            echo "::warning::compatibility_date is $age days old: bump it (operations.md, compatibility_date bump)."
+          fi

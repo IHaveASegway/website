@@ -1,0 +1,608 @@
+# The pipeline: build once, gate, preview, deploy, verify, roll back (delivery.md, "Pipeline").
+# Hardening rules 1-9 from delivery.md are marked where they apply, and one more is marked "no
+# cache": a job that holds the deploy token restores no shared cache (the deploy job says why).
+name: ci
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened] # a title or body edited later: pr-text.yml
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 7 * * 1' # the weekly rebuild, Monday 07:17 UTC: off the hour, when GitHub drops fewer runs
+  workflow_dispatch:
+    inputs:
+      rollback_to:
+        description: Version id to put back in production (from the incident issue or a deploy summary)
+        required: true
+        type: string
+      reason:
+        description: 'Why, in a few words. The deployment message becomes "rollback: <why>"'
+        required: false
+        default: prod-smoke failed
+        type: string
+
+permissions: {} # rule 1: each job grants only what its row in delivery.md says
+
+concurrency:
+  # Rule 8: a new push to a pull request cancels its superseded run, and so does closing it
+  # (preview-cleanup.yml shares the group). Every other run gets a group of its own; production
+  # writes queue in deploy-production below, which never cancels.
+  group: ci-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  ASTRO_TELEMETRY_DISABLED: '1' # the build talks to no one it does not need
+
+jobs:
+  verify:
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15 # rule 9
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false # rule 7
+      - uses: pnpm/action-setup@v6 # no version input: pnpm reads packageManager
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm dedupe --check
+      - run: pnpm run format:check
+      - run: pnpm run lint
+      - run: pnpm run typecheck
+      - run: pnpm run build
+      - name: Unit tests and fitness functions (token contrast, URL scheme, Workers Cache, color literals)
+        run: pnpm run test
+      - name: Image and PDF metadata
+        run: node scripts/image-metadata.mjs --tracked
+      - name: Internal links, offline
+        uses: lycheeverse/lychee-action@v2 # third party: allowed only in jobs that hold no secret (rule 4)
+        with:
+          args: >-
+            --offline --no-progress --root-dir ${{ github.workspace }}/apps/web/dist
+            --index-files index.html 'apps/web/dist/**/*.html'
+          output: ${{ runner.temp }}/lychee.md
+          token: '' # the action passes the job's GITHUB_TOKEN by default; an offline check needs none
+      - name: Firewall self-test, with throwaway rules only
+        run: scripts/firewall/test.sh
+      - name: Keep the build (every later job uses these bytes, never a rebuild)
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: apps/web/dist
+          include-hidden-files: true # .well-known/security.txt
+          if-no-files-found: error
+          retention-days: 7
+
+  firewall:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # the commit range needs history; a shallow clone would hide it
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: apps/web/dist
+      - name: Content firewall (exit 1 is a finding, 2 is cannot prove clean; both stop the run)
+        env:
+          # Rule 2: the secret exists only in this step. A Dependabot run reads the Dependabot copy.
+          GITLEAKS_CONFIG_TOML: ${{ secrets.FIREWALL_RULES }}
+          FW_EVENT: ${{ github.event_name }}
+          FW_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          FW_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          # Rule 3: pull request text reaches the script through env, never through ${{ }} in run.
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_BRANCH: ${{ github.head_ref }}
+          DIST_DIR: apps/web/dist
+        run: scripts/firewall/check.sh
+
+  preview:
+    needs: firewall # a preview is public the moment it exists, so the firewall comes first
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    outputs:
+      url: ${{ steps.publish.outputs.url }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false # no cache: this job holds the deploy token (see deploy)
+      - run: pnpm install --frozen-lockfile # no token in this step's environment
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: apps/web/dist
+      - name: Publish the Worker Preview, once production exists
+        id: publish
+        working-directory: apps/web
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # wrangler preview creates the Worker ihaveasegway-web itself when it is missing, without its
+          # custom domain. Only deploy creates production (delivery.md, "Shape"), so until a deploy
+          # from main has, there is no preview, and e2e runs on wrangler dev as it does for Dependabot.
+          status="$RUNNER_TEMP/status.ndjson"
+          if ! WRANGLER_OUTPUT_FILE_PATH="$status" pnpm exec wrangler deployments status --json > /dev/null 2>&1; then
+            if jq -se 'any(.[]; .type == "command-failed"
+                and (.code == 10007 or ((.message // "") | test("does not exist|not found|has no deployments"; "i"))))' "$status" > /dev/null 2>&1; then
+              echo "::notice::No preview: production does not exist until the first deploy from main. e2e runs on wrangler dev, serving the same dist/."
+              echo "No preview: production does not exist until the first deploy from main, so e2e ran on wrangler dev." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            code="$(jq -r 'select(.type == "command-failed") | .code // "none"' "$status" 2> /dev/null | tail -n 1)"
+            echo "::error::wrangler deployments status failed (API error code ${code:-none}). No preview was published."
+            exit 1
+          fi
+          out="$RUNNER_TEMP/preview.ndjson"
+          # --ignore-base-config: wrangler.jsonc is the only owner of the preview's settings.
+          if ! WRANGLER_OUTPUT_FILE_PATH="$out" pnpm exec wrangler preview --name "pr-$PR_NUMBER" \
+            --tag "${SHA:0:8}" --message "$SHA" --ignore-base-config; then
+            code="$(jq -r 'select(.type == "command-failed") | .code // "none"' "$out" 2> /dev/null | tail -n 1)"
+            echo "::error::wrangler preview failed (API error code ${code:-none})."
+            exit 1
+          fi
+          # Read the URLs Wrangler reports; never build one by hand.
+          url="$(jq -r 'select(.type == "preview") | .deployment_urls[0] // empty' "$out" | tail -n 1)"
+          alias="$(jq -r 'select(.type == "preview") | .preview_urls[0] // empty' "$out" | tail -n 1)"
+          if [ -z "$url" ]; then
+            echo "::error::Wrangler reported no preview URL"
+            exit 1
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "alias=${alias:-$url}" >> "$GITHUB_OUTPUT"
+      - name: Wait until the preview answers, and check that it is noindex
+        if: steps.publish.outputs.url != ''
+        env:
+          URL: ${{ steps.publish.outputs.url }}
+        run: |
+          headers="$RUNNER_TEMP/preview-headers.txt"
+          for _ in $(seq 1 30); do
+            if curl -fsS -o /dev/null -D "$headers" "$URL/"; then
+              # The comment below tells reviewers the preview is noindex, and security.md counts on it
+              # ("Drafts on public previews"). Cloudflare documents the header for workers.dev Preview
+              # URLs; this checks it rather than trusting it.
+              if tr -d '\r' < "$headers" | grep -iqE '^x-robots-tag:.*noindex'; then
+                exit 0
+              fi
+              echo "::error::The preview answers without X-Robots-Tag: noindex, which the preview comment and security.md promise. Correct both, or put Cloudflare Access in front of previews, before the repository goes public."
+              exit 1
+            fi
+            sleep 2
+          done
+          echo "::error::the preview did not answer within a minute"
+          exit 1
+      - name: Post or update the preview comment
+        if: steps.publish.outputs.url != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          URL: ${{ steps.publish.outputs.url }}
+          ALIAS: ${{ steps.publish.outputs.alias }}
+        run: |
+          marker='<!-- ci:preview -->'
+          body="$(printf '%s\n**Preview:** %s\n\nThis commit (%s) only: %s\n\nPublic, with X-Robots-Tag: noindex, until the pull request closes.' \
+            "$marker" "$ALIAS" "${SHA:0:8}" "$URL")"
+          id="$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --paginate \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- ci:preview -->"))) | .id' | head -n 1)"
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -f body="$body" > /dev/null
+          else
+            gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" -f body="$body" > /dev/null
+          fi
+
+  e2e:
+    needs: [firewall, preview]
+    # Runs on the preview, or on wrangler dev when there is none: a Dependabot pull request, or any
+    # pull request before the first deploy from main.
+    if: >-
+      ${{ !cancelled() && github.event_name == 'pull_request'
+      && needs.firewall.result == 'success'
+      && (needs.preview.result == 'success' || needs.preview.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: apps/web/dist
+      - name: Install Chromium
+        working-directory: apps/web
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Playwright, against the preview (or wrangler dev serving the same dist/)
+        working-directory: apps/web
+        env:
+          BASE_URL: ${{ needs.preview.outputs.url }}
+        run: pnpm run e2e
+      - name: Keep the report (run artifacts only, never public storage)
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report
+          retention-days: 14
+
+  deploy:
+    needs: [verify, firewall] # the gate: nothing ships without both (ADR 0006)
+    if: (github.event_name == 'push' || github.event_name == 'schedule') && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    concurrency:
+      group: deploy-production # shared with rollback: one production write at a time
+      cancel-in-progress: false # rule 8: a deploy is never killed halfway
+    outputs:
+      skipped: ${{ steps.upload.outputs.skipped }}
+      superseded: ${{ steps.current.outputs.superseded || steps.still-current.outputs.superseded }}
+      previous: ${{ steps.upload.outputs.previous }}
+      version: ${{ steps.upload.outputs.id || steps.first.outputs.id }}
+      # The run attempt that put this run's dist/ live. prod-smoke compares served bytes with dist/
+      # only in that attempt: a later re-run of prod-smoke alone cannot know what is live.
+      promoted_attempt: ${{ steps.promote.outputs.attempt || steps.first.outputs.attempt }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          # No cache in a job that holds the deploy token. verify writes the shared pnpm store cache
+          # on main, and build-time code runs there; pnpm trusts a store once it is restored, so a
+          # poisoned entry would run here, next to the token. A cold install costs seconds.
+          package-manager-cache: false
+      - run: pnpm install --frozen-lockfile # no token in this step's environment
+      - uses: actions/download-artifact@v8 # the dist/ that verify built and firewall scanned
+        with:
+          name: dist
+          path: apps/web/dist
+      - name: Stop unless this is main's tip (production only moves forward)
+        id: current
+        env:
+          GH_TOKEN: ${{ github.token }} # contents: read, to read main's tip
+          SHA: ${{ github.sha }}
+        run: |
+          # Deploys queue in the order their runs arrive, not in commit order, and a re-run can come days
+          # later. Only main's tip deploys; the newer commit's own run deploys it.
+          tip="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
+          if [ "$tip" != "$SHA" ]; then
+            echo "superseded=true" >> "$GITHUB_OUTPUT"
+            echo "Not deployed: main has moved on to ${tip:0:12}, whose run deploys it." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Record the live version, then upload the new one with no traffic
+        id: upload
+        if: steps.current.outputs.superseded != 'true'
+        working-directory: apps/web
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SHA: ${{ github.sha }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          status="$RUNNER_TEMP/status.ndjson"
+          live="$RUNNER_TEMP/live.json" # carries the author's email: read with jq, never printed
+          if ! WRANGLER_OUTPUT_FILE_PATH="$status" pnpm exec wrangler deployments status --json > "$live" 2> /dev/null; then
+            # Bootstrap: production does not exist yet. Either the Worker is missing (API error 10007),
+            # or it exists with no deployment, which is what a Worker Preview made outside this
+            # pipeline leaves. Both need wrangler deploy, the only command that attaches the custom
+            # domain. Anything else stops here.
+            if [ "$EVENT" = push ] && jq -se 'any(.[]; .type == "command-failed"
+                and (.code == 10007 or ((.message // "") | test("does not exist|not found|has no deployments"; "i"))))' "$status" > /dev/null 2>&1; then
+              echo "first=true" >> "$GITHUB_OUTPUT"
+              echo "Production does not exist yet: this run creates it with wrangler deploy." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            code="$(jq -r 'select(.type == "command-failed") | .code // "none"' "$status" 2> /dev/null | tail -n 1)"
+            echo "::error::wrangler deployments status failed (API error code ${code:-none}), and not because production is missing. Nothing was uploaded."
+            exit 1
+          fi
+          previous="$(jq -r '[.versions[] | select(.percentage == 100)][0].version_id // empty' "$live")"
+          echo "previous=$previous" >> "$GITHUB_OUTPUT"
+          if [ "$EVENT" = schedule ]; then
+            # The guard: the unattended rebuild promotes only over a deploy from main, so it never
+            # undoes a rollback, a dashboard change, or anything else nobody planned for.
+            case "$(jq -r '.annotations["workers/message"] // ""' "$live")" in
+              main@*) ;;
+              *)
+                echo "skipped=true" >> "$GITHUB_OUTPUT"
+                echo "Weekly rebuild stopped: the live deployment did not come from main." >> "$GITHUB_STEP_SUMMARY"
+                exit 0
+                ;;
+            esac
+          fi
+          out="$RUNNER_TEMP/upload.ndjson"
+          WRANGLER_OUTPUT_FILE_PATH="$out" pnpm exec wrangler versions upload --tag "${SHA:0:8}" --message "$SHA"
+          id="$(jq -r 'select(.type == "version-upload") | .version_id // empty' "$out" | tail -n 1)"
+          url="$(jq -r 'select(.type == "version-upload") | .preview_url // empty' "$out" | tail -n 1)"
+          if [ -z "$id" ] || [ -z "$url" ]; then
+            echo "::error::Wrangler reported no version id or Version URL"
+            exit 1
+          fi
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          {
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Live before | \`${previous:-none}\` |"
+            echo "| Uploaded | \`$id\` |"
+            echo "| Version URL | $url |"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: First deploy, which creates the Worker and attaches ihaveasegway.com
+        id: first
+        if: steps.upload.outputs.first == 'true'
+        working-directory: apps/web
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SHA: ${{ github.sha }}
+        run: |
+          out="$RUNNER_TEMP/deploy.ndjson"
+          # The domain serves nothing yet, so this one deploy goes live without a Version URL smoke;
+          # prod-smoke checks it next.
+          WRANGLER_OUTPUT_FILE_PATH="$out" pnpm exec wrangler deploy --message "main@$SHA"
+          id="$(jq -r 'select(.type == "deploy") | .version_id // empty' "$out" | tail -n 1)"
+          if [ -z "$id" ]; then
+            echo "::error::Wrangler reported no version id for the first deploy"
+            exit 1
+          fi
+          # deploy --message annotates the version. The weekly guard reads the deployment's own message,
+          # which versions deploy sets, so stamp it: the same version at 100%, as a deployment from main.
+          pnpm exec wrangler versions deploy "$id@100%" --yes --message "main@$SHA"
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+          echo "attempt=$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+          echo "First deploy: version \`$id\`, live at https://ihaveasegway.com/" >> "$GITHUB_STEP_SUMMARY"
+      - name: Wait until the Version URL answers
+        if: steps.upload.outputs.id != ''
+        env:
+          URL: ${{ steps.upload.outputs.url }}
+        run: |
+          for _ in $(seq 1 30); do
+            curl -fsS -o /dev/null "$URL/" && exit 0
+            sleep 2
+          done
+          echo "::error::the Version URL did not answer within a minute; production is unchanged"
+          exit 1
+      - name: Smoke the Version URL before it takes traffic (no token in this step)
+        if: steps.upload.outputs.id != ''
+        working-directory: apps/web
+        env:
+          BASE_URL: ${{ steps.upload.outputs.url }}
+        run: pnpm run smoke
+      - name: Stop unless this is still main's tip
+        id: still-current
+        if: steps.upload.outputs.id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+          ID: ${{ steps.upload.outputs.id }}
+        run: |
+          tip="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
+          if [ "$tip" != "$SHA" ]; then
+            echo "superseded=true" >> "$GITHUB_OUTPUT"
+            echo "Not promoted: main moved on to ${tip:0:12} during this run, whose run deploys it. \`$ID\` stays uploaded, with no traffic." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Promote to 100%
+        id: promote
+        if: steps.upload.outputs.id != '' && steps.still-current.outputs.superseded != 'true'
+        working-directory: apps/web
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          ID: ${{ steps.upload.outputs.id }}
+          SHA: ${{ github.sha }}
+        run: |
+          pnpm exec wrangler versions deploy "$ID@100%" --yes --message "main@$SHA" # the prefix the guard reads
+          echo "attempt=$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+          echo "Promoted \`$ID\` to 100%." >> "$GITHUB_STEP_SUMMARY"
+          # Routes and the custom domain are not part of a version: only wrangler deploy and wrangler
+          # triggers deploy apply them (delivery.md). If the apex does not answer at all, the first
+          # deploy's attach failed (spike S7) or the domain was removed, so apply wrangler.jsonc's
+          # routes again. That is idempotent, and it runs only while nothing is being served.
+          if ! curl -fsS -o /dev/null --max-time 15 --retry 2 https://ihaveasegway.com/; then
+            echo "::warning::https://ihaveasegway.com/ does not answer: applying the routes in wrangler.jsonc again (wrangler triggers deploy)"
+            pnpm exec wrangler triggers deploy
+            echo "The apex did not answer, so the custom domain was applied again (wrangler triggers deploy)." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  rollback:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    concurrency:
+      group: deploy-production # never races a deploy
+      cancel-in-progress: false
+    steps:
+      - name: Only from main
+        run: |
+          # The job that writes production runs main's reviewed workflow, lockfile and Wrangler, never a
+          # branch's. A job-level if would skip it silently and leave a green run.
+          if [ "$GITHUB_REF" != refs/heads/main ]; then
+            echo "::error::Run the rollback from main: gh workflow run ci.yml --ref main -f rollback_to=<version-id>"
+            exit 1
+          fi
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false # no cache: this job holds the deploy token (see deploy)
+      - run: pnpm install --frozen-lockfile
+      - name: Roll back to the version named (no artifact needed, it was scanned when uploaded)
+        working-directory: apps/web
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TARGET: ${{ inputs.rollback_to }}
+          REASON: ${{ inputs.reason }}
+        run: |
+          # Always an explicit id: without one, Wrangler picks by upload order, not by what served.
+          if ! printf '%s' "$TARGET" | grep -Eqx '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'; then
+            echo "::error::rollback_to must be a version id"
+            exit 1
+          fi
+          pnpm exec wrangler rollback "$TARGET" --message "rollback: ${REASON:-manual}" --yes
+          echo "Rolled back to \`$TARGET\`." >> "$GITHUB_STEP_SUMMARY"
+
+  prod-smoke:
+    needs: [deploy, rollback]
+    # After a deploy that promoted (or that the weekly guard stopped), or after a rollback. Not after a
+    # deploy a newer commit superseded: that commit's run owns production.
+    if: >-
+      ${{ !cancelled() && (
+      (needs.deploy.result == 'success' && needs.deploy.outputs.superseded != 'true')
+      || needs.rollback.result == 'success') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Fetch the artifact this attempt deployed, for the byte-for-byte check
+        if: needs.deploy.outputs.promoted_attempt == github.run_attempt
+        uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: apps/web/dist
+      - name: Install Chromium
+        working-directory: apps/web
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Wait until production answers (a first deploy attaches the domain)
+        id: reach
+        run: |
+          for _ in $(seq 1 30); do
+            curl -fsS -o /dev/null https://ihaveasegway.com/ && exit 0
+            sleep 4
+          done
+          echo "unreachable=true" >> "$GITHUB_OUTPUT"
+          echo "::error::https://ihaveasegway.com/ did not answer within two minutes. Nothing is being served: the custom domain is not attached, or the zone is failing. A rollback cannot fix that."
+          exit 1
+      - name: Smoke production through the zone
+        id: smoke
+        continue-on-error: true # the verdict below decides, once it knows whether a newer deploy took over
+        working-directory: apps/web
+        env:
+          DIST_DIR: ${{ needs.deploy.outputs.promoted_attempt == github.run_attempt && format('{0}/apps/web/dist', github.workspace) || '' }}
+        run: pnpm run prod-smoke
+      - name: Verdict
+        if: steps.smoke.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+          ROLLED_BACK_TO: ${{ inputs.rollback_to }}
+        run: |
+          # prod-smoke runs outside the deploy group, so a newer run's deploy can promote while it
+          # runs, and production then differs from this run's dist/ for that reason alone.
+          if [ -z "$ROLLED_BACK_TO" ]; then
+            tip="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
+            if [ "$tip" != "$SHA" ]; then
+              echo "::notice::prod-smoke failed, but main has moved on to ${tip:0:12}, and its deploy may have promoted while this ran. That run's prod-smoke owns the verdict."
+              echo "Superseded by ${tip:0:12}: that run's prod-smoke owns the verdict." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+          fi
+          echo "::error::prod-smoke failed against production."
+          exit 1
+      - name: Open the incident issue, or add to the open one
+        if: failure() || needs.deploy.outputs.skipped == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FAILED: ${{ job.status == 'failure' }}
+          UNREACHABLE: ${{ steps.reach.outputs.unreachable == 'true' }}
+          SKIPPED: ${{ needs.deploy.outputs.skipped == 'true' }}
+          PREVIOUS: ${{ needs.deploy.outputs.previous }}
+          DEPLOYED: ${{ needs.deploy.outputs.version }}
+          ROLLED_BACK_TO: ${{ inputs.rollback_to }}
+          SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          body="$RUNNER_TEMP/incident.md"
+          {
+            if [ "$FAILED" = true ] && [ "$UNREACHABLE" = true ]; then
+              echo "https://ihaveasegway.com/ did not answer at all ($RUN_URL). That is not a bad version, so a rollback cannot help: the custom domain is not attached, or the zone is not serving."
+              echo
+              echo "Read the deploy job's log. If attaching the domain failed for a missing permission (spike S7), add only the permission the error names (operations.md, access setup step 1), then re-run the deploy job: it attaches the domain again whenever the apex does not answer."
+            elif [ "$FAILED" = true ] && [ -n "$ROLLED_BACK_TO" ]; then
+              echo "prod-smoke failed after the rollback to \`$ROLLED_BACK_TO\` ($RUN_URL)."
+              echo
+              echo "Choose another version id from Workers & Pages, ihaveasegway-web, Deployments, and run the rollback again."
+            elif [ "$FAILED" = true ] && [ "$SKIPPED" = true ]; then
+              echo "prod-smoke failed, and this weekly rebuild deployed nothing ($RUN_URL): production, a rollback or a dashboard change, is failing prod-smoke on its own."
+              echo
+              echo "Find what is live (Workers & Pages, ihaveasegway-web, Deployments), then roll back to a version you trust with \`gh workflow run ci.yml -f rollback_to=<version-id>\`, or fix forward on main."
+            elif [ "$FAILED" = true ] && [ -n "$PREVIOUS" ]; then
+              echo "prod-smoke failed after deploying ${SHA:0:12}, version \`${DEPLOYED:-unknown}\` ($RUN_URL)."
+              echo
+              echo "Put the version that was live before back in production:"
+              echo
+              echo "    gh workflow run ci.yml -f rollback_to=$PREVIOUS"
+              echo
+              echo "That runs \`wrangler rollback $PREVIOUS --message \"rollback: prod-smoke failed\"\` with the deploy token."
+              echo "Then revert or fix on main (operations.md, Rollback)."
+            elif [ "$FAILED" = true ]; then
+              echo "prod-smoke failed after the first deploy, version \`${DEPLOYED:-unknown}\` ($RUN_URL)."
+              echo
+              echo "No earlier version exists to roll back to. If a zone check failed (HSTS, the plain-HTTP or www redirect, or HTML rewritten by Email Address Obfuscation), a zone step from security.md's checklist is missing, not the build: make the step, then re-run prod-smoke. Otherwise fix forward on main."
+            else
+              echo "The weekly rebuild stopped: the live deployment did not come from main, so a rollback or a dashboard change is live ($RUN_URL)."
+              echo
+              echo "The next merge to main deploys main again and re-arms the rebuild. Revert or fix on main first."
+            fi
+          } > "$body"
+          number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search 'Incident in:title' \
+            --json number,title --jq '[.[] | select(.title | startswith("Incident:"))][0].number // empty')"
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --repo "$GITHUB_REPOSITORY" --body-file "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "Incident: production needs attention (${SHA:0:8})" --body-file "$body"
+          fi
