@@ -18,6 +18,7 @@ Status: Draft for review in PR 1 · 2026-10-22
 | [0010](0010-quiet-console-design-tokens.md) | Direction C's tokens, owned here and copied rather than imported | Accepted |
 | [0011](0011-dnssec-and-hsts-ramp.md) | DNSSEC now; HSTS ramped; no preload yet | Accepted |
 | [0012](0012-public-repository.md) | Public repository after the firewall audit | Proposed |
+| [0015](0015-preview-build-superset-of-production.md) | A preview build holds the production build, byte for byte | Proposed |
 
 How an ADR is proposed, accepted, superseded and later rendered on the site is itself a decision: [ADR 0001](0001-record-architecture-decisions.md).
 
