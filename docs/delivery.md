@@ -27,7 +27,7 @@ website/
 ├── .github/workflows/{ci.yml,pr-text.yml,preview-cleanup.yml,scheduled.yml}
 ├── .github/dependabot.yml · .github/pull_request_template.md
 ├── .githooks/{pre-commit,pre-push}
-├── apps/web/            Astro site → assets-only Worker "ihaveasegway-web" (wrangler.jsonc, src/, public/, e2e/, test/, published-urls.txt; lighthouserc.json from PR 3)
+├── apps/web/            Astro site → assets-only Worker "ihaveasegway-web" (wrangler.jsonc, src/, public/, icons/, e2e/, test/, published-urls.txt; lighthouserc.json from PR 3)
 ├── workers/lab/         LATER (Phase 4): Worker "ihaveasegway-lab" with all DO classes
 ├── packages/            LATER: created only when a second consumer exists (e.g. packages/security-headers when the lab ships)
 ├── scripts/firewall/{check.sh,test.sh,install-gitleaks.sh,allowed-identities.txt,gitleaks.version,sync-secrets.sh}

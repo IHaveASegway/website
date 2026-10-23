@@ -1,6 +1,9 @@
-// Renders public/favicon.svg, the one source for the site's icons, into the two raster files
-// clients ask for by name: /favicon.ico (16, 32 and 48 px) and /apple-touch-icon.png (180 px).
-// Run it after changing the SVG:  pnpm --filter web icons
+// Renders the site's two icon sources into the raster files clients ask for by name:
+// public/favicon.svg, the tab icon (a self-balancing scooter seen from the front), into
+// /favicon.ico (16, 32 and 48 px); icons/touch-icon.svg, a rider, which only reads from about 44 px
+// up, into /apple-touch-icon.png (180 px). The touch icon is a full-bleed square: iOS rounds the
+// corners itself and fills any transparency with black. Run it after changing either SVG:
+//   pnpm --filter web icons
 //
 // Chromium draws the SVG. Only the chunks an image needs survive, so no metadata (EXIF, XMP,
 // IPTC, text, timestamps) can ship; scripts/image-metadata.mjs checks that again in verify.
@@ -43,11 +46,12 @@ function ico(images) {
 }
 
 const publicDir = new URL('../public/', import.meta.url);
-const svg = await readFile(new URL('favicon.svg', publicDir), 'utf8');
+const favicon = await readFile(new URL('favicon.svg', publicDir), 'utf8');
+const touchIcon = await readFile(new URL('../icons/touch-icon.svg', import.meta.url), 'utf8');
 const browser = await chromium.launch();
 try {
-  /** @param {number} size */
-  const render = async (size) => {
+  /** @param {string} svg @param {number} size */
+  const render = async (svg, size) => {
     const page = await browser.newPage({ viewport: { width: size, height: size } });
     await page.setContent(
       `<!doctype html><style>html,body{margin:0}svg{display:block;width:${size}px;height:${size}px}</style>${svg}`,
@@ -58,9 +62,9 @@ try {
   };
   const sizes = [16, 32, 48];
   const images = [];
-  for (const size of sizes) images.push({ size, png: await render(size) });
+  for (const size of sizes) images.push({ size, png: await render(favicon, size) });
   await writeFile(new URL('favicon.ico', publicDir), ico(images));
-  await writeFile(new URL('apple-touch-icon.png', publicDir), await render(180));
+  await writeFile(new URL('apple-touch-icon.png', publicDir), await render(touchIcon, 180));
 } finally {
   await browser.close();
 }
