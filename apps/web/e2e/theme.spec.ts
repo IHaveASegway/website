@@ -75,7 +75,15 @@ for (const { os, stored, theme, saved, looks } of CASES) {
       saved: boolean;
       background: string;
     };
-    expect(frame.theme).toBe(theme);
+    // When the HTML arrives in pieces, a frame can come before the theme script, the first child of
+    // <body>, has run (seen on a Worker Preview). With nothing stored that frame is still right,
+    // because CSS reads a missing attribute as System. A stored choice must already be applied, or
+    // the page would flash the OS's theme; stage B moves the script into <head> to close the gap.
+    if (stored === 'nothing' || stored === 'storage that throws') {
+      expect([theme, null]).toContain(frame.theme);
+    } else {
+      expect(frame.theme).toBe(theme);
+    }
     expect(frame.saved).toBe(saved);
     expect(schemeOf(frame.background)).toBe(looks);
     const name = saved
