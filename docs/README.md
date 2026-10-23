@@ -28,7 +28,7 @@ Purpose first, then the shape, then the parts, then how the parts ship, stay saf
 | 2 | [architecture.md](architecture.md) | What is the shape? Context and container diagrams, bounded contexts, who owns each piece of data, request flows, bulkheads and failure modes |
 | 3 | [stack.md](stack.md) | Which technologies, pinned how, and why? What each owns, what came second, what was rejected, the upgrade policy |
 | 4 | [content.md](content.md) | What is on the site? Sitemap, URL scheme summary, Home sections, the case-study template, content model, voice, firewall classes for copy, writing plan |
-| 5 | [design-system.md](design-system.md) | What does it look like? The Quiet Console design language: tokens, contrast, type, motifs, motion, effects, budgets, accessibility rules, wireframes |
+| 5 | [design-system.md](design-system.md) | What does it look like? Instrument, direction C: tokens, contrast, type, motifs, motion, effects, budgets, accessibility rules, Home row by row |
 | 6 | [lab.md](lab.md) | How do the live demos work? Durable Objects topology, admission and guardrails, kill switch, recorded fallbacks, protocol v1, the ranked demo backlog |
 | 7 | [delivery.md](delivery.md) | How does a change reach production? Repo layout, toolchain pins, the CI/CD job graph, environments, deploy and rollback, quality gates, dependency policy |
 | 8 | [security.md](security.md) | What could go wrong, and what stops it? Threat model, headers and CSP, zone hardening, mail, secrets, the content firewall design, supply chain, privacy |

@@ -65,3 +65,7 @@ Two-way. The records are Markdown files in one folder, so changing the template 
 - More than a quarter of Revisit if sections name no evidence anyone could observe. The format is being filled in rather than used.
 - A second regular contributor joins. MADR's decision-makers, consulted and informed fields start to earn their place, and acceptance should not rest on one person.
 - After a year of rendered decisions, no reader or reviewer has mentioned one. Keep writing them for maintenance, and stop treating them as portfolio pieces.
+
+## Postscript 2026-10-23
+
+Rendering ADRs on the site moved from PR 3 to PR 3b, which follows PR 5, when the roadmap's order changed on 2026-10-23 ([roadmap.md](../roadmap.md)). The decision is unchanged: rendering is still opt-in per ADR, from `docs/adr/` as the system of record. No Revisit if condition was met.
