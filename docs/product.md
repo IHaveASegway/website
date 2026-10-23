@@ -15,7 +15,7 @@ Joseph Peterson's personal site: name, title, proof and contact inside a 7-secon
 **Who needs it.** Joseph is a senior backend and platform engineer, training to become a software architect. Two kinds of visitor need something a LinkedIn profile and a résumé cannot give them:
 
 1. Recruiters, who need his name, title, one proof point and a way to reach him inside a scan of about 7 seconds.
-2. Hiring managers and engineers for senior and architect roles, who need depth: case studies, the decisions behind them (ADRs), demos, and writing.
+2. Hiring managers and engineers for senior and architect roles, who need depth: owned work they can check in its repository, the decisions behind it (ADRs), demos, and writing.
 
 **Where they come from.** Mostly from links Joseph hands out: the résumé, LinkedIn, GitHub, and posts shared in Slack and on LinkedIn. Not from name search: "Joseph Peterson" is a crowded name. The site's job is to convert those links. It is not an SEO project.
 
@@ -32,7 +32,7 @@ Joseph Peterson's personal site: name, title, proof and contact inside a 7-secon
 | Who | What they need | Time they give it | What answers it |
 |---|---|---|---|
 | Recruiter | Name, title, one proof point, how to reach him | About 7 seconds, mostly on the first screen | Home rows 1–3, visible without scrolling at 390×844 and 1440×900: hero, status line, at a glance ([content.md](content.md)) |
-| Hiring manager, senior or architect role | Evidence of judgment: the problem, the options, the decision, the result | Minutes, usually after a recruiter's screen | Case studies at `/work/<slug>/`, each with an options table and a link to its ADR; "How I work" on Home |
+| Hiring manager, senior or architect role | Evidence of judgment: the problem, the options, the decision, the result | Minutes, usually after a recruiter's screen | Project cards on Home that link to the repositories, whose READMEs and ADRs show the problem, the options and the decision; essays; "How I work" on Home |
 | Engineer evaluating his work | Something to check: source, decisions, a demo that works or says why it does not | As long as the material holds them | Public repos, selected ADRs rendered at `/colophon/decisions/<nnnn-slug>/` ([ADR 0001](adr/0001-record-architecture-decisions.md)), `/writing/` and `/notes/`, the lab (Phase 4) |
 | Joseph | A place to practice architecture under real constraints, material for conversations about his work, a writing habit | ≤2 h/month of upkeep plus 8–10 h/month of writing (Q23) | This repository: docs/, the ADRs, the pipeline, `/now/` |
 
@@ -79,8 +79,8 @@ Nothing is deployed. As found on 2026-10-22:
 | A site | None: the domain serves nothing | PR 2 deploys a minimal real Home |
 | Cloudflare account | Already runs one other Worker. The Free plan's daily Worker request quota is per account, so the two share it | Spikes that could spend that quota ask Joseph first ([roadmap.md](roadmap.md)) |
 | This repository | One initial commit. Private, on a GitHub Free personal account, where rulesets and branch protection are unavailable (the API returns 403) and environments are public-repo-only ([GitHub plans](https://docs.github.com/en/get-started/learning-about-github/githubs-plans)) | docs/ in PR 1; the pipeline itself is the gate ([ADR 0006](adr/0006-github-actions-owns-deploys.md)); public after the audit ([ADR 0012](adr/0012-public-repository.md), Q7) |
-| stillhere | Joseph's own. Public; Apache-2.0; pre-release; 15 ADRs; publishes a failed validation of its own headline metric | The lead case study in PR 4, after the repo readiness checks |
-| gitops | Joseph's own, with outside contributions. MIT; cosign-signed checksums; CI on Linux, macOS and Windows. Its last public release, v1.2.2, came out on 2026-10-23, and Joseph made the repository private the same day | Held off the site ([content.md](content.md#names-held-off-the-site)). Whether PR 4 has a case study without links, or none, is his decision (Q10) |
+| stillhere | Joseph's own. Public; Apache-2.0; pre-release; 15 ADRs; publishes a failed validation of its own headline metric | A card on Home that links to its repository, turned on in PR 4 after the readiness checks (Joseph, 2026-10-23: card → repo only) |
+| gitops | Joseph's own, with outside contributions. MIT; cosign-signed checksums; CI on Linux, macOS and Windows. Its last public release, v1.2.2, came out on 2026-10-23, and Joseph made the repository private the same day | Held off the site ([content.md](content.md#names-held-off-the-site)) until it is public again; then a card like stillhere's (Joseph, 2026-10-23) |
 | capacitor | Someone else's project, with an upstream contribution from Joseph | One contribution line, never "his project" |
 | Mission-AI console UI | His own earlier project; private | Design lineage only. The token file began as a copy of its shadcn token names and zinc neutrals, which Joseph confirmed are his (Q25); direction C replaced the neutrals and the accent on 2026-10-23, and the copied structure stays ([ADR 0010](adr/0010-quiet-console-design-tokens.md)). No Mission-AI content at launch (Q24) |
 | Employment history | LinkedIn and his private résumé | Stays there and is never copied into the repository ([ADR 0004](adr/0004-content-as-code.md)) |
@@ -88,7 +88,7 @@ Nothing is deployed. As found on 2026-10-22:
 
 The owned-work facts were read from the repositories on 2026-10-22. This brief names the repositories but does not link them: a repository gets a link from the site only after it passes the readiness checks in [content.md](content.md#repo-readiness-checklist), a firewall scan of its tree, history and PR text plus a commit-identity check.
 
-**What is new:** the site; its content (case studies, field notes, essays, rendered ADRs); a delivery pipeline in which nothing deploys unless the content firewall passes; and, in Phase 4, the lab.
+**What is new:** the site; its content (essays, field notes, rendered ADRs, cards for owned work); a delivery pipeline in which nothing deploys unless the content firewall passes; and, in Phase 4, the lab.
 
 ## Prior art
 
@@ -173,13 +173,13 @@ A summary of [roadmap.md](roadmap.md), which owns scope, definitions of done and
 | 3 | PR 5 Writing, next | `/writing/`, `/notes/`, `/rss.xml`; first posts (Writing renders at ≥3) | 2 | — |
 | 2 | PR 3b Colophon, analytics, LHCI | `/colophon/` with the ADRs Joseph opts in; Web Analytics; Lighthouse CI | about 2.5 | PR 5; his ADR opt-ins and analytics site token |
 | 2 | Gate: repository public | [ADR 0012](adr/0012-public-repository.md) | 0.5 | Q7 |
-| 3 | PR 4 Work + About + Now | `/work/stillhere/`, `/about/`, `/now/`, and `/work/gitops/` if he keeps it; terminal recordings; the ⌘K palette | 3–4 | Q8–Q10; repo readiness checks |
+| 3 | PR 4 About + Now | `/about/`, `/now/`; stillhere's card turned on; the ⌘K palette | about 2 | Q8–Q10; stillhere's and the GitHub profile's readiness checks |
 | 4 | PR 6 Lab platform + Presence | Lab Worker; admission; budgets; recordings; `/privacy/`; kill switch | 4–5 | Q13; spikes S1–S6, running from 2026-10-23 |
 | 4 | PR 7 Outbox Lab | The transactional outbox demo | 8–10 | Q12 |
 | 4 | PR 8 Migration Lab | The saved-plan migration demo | 6–8 | — |
 | 5 | Later | Route Lab, a public résumé edition, Pagefind search, Mission-AI references, terminal mode | — | Q9, Q24 |
 
-Phases 1–3, a complete content site, added up to 9.5–12.5 focused days as first planned, and about 17–19 since PR 3's re-baseline on 2026-10-23. Phase 4, the lab, adds 18–23. Content came first by design; on 2026-10-23 Joseph moved the blog ahead of the case studies and started the lab's spikes alongside it ([roadmap.md](roadmap.md)).
+Phases 1–3, a complete content site, added up to 9.5–12.5 focused days as first planned, and about 15–18 since PR 3's re-baseline and PR 4's re-estimate on 2026-10-23. Phase 4, the lab, adds 18–23. Content came first by design; on 2026-10-23 Joseph moved the blog ahead of the other content pages, made owned work cards instead of case studies, and started the lab's spikes alongside it ([roadmap.md](roadmap.md)).
 
 ## Open decisions
 
@@ -201,7 +201,7 @@ None left: Q1 and Q2 were decided on 2026-10-22 ([Decided](#decided)).
 |---|---|---|---|---|---|
 | Q8 · Q-career-arc | What may the career arc say? | (a) Role titles and years, with no employer. (b) (a) plus one generic industry noun, such as "operations". (c) Exact titles, including rare ones | (a), then clear (b) item by item. The arc is the differentiator a recruiter remembers, but a rare title or an industry noun, next to a location and a LinkedIn link, can narrow to one company. Résumé metrics stay off until each is cleared in writing | One-way once published | At a glance on Home, `/about/`, JSON-LD · before PR 4 |
 | Q9 · Q-resume | A public résumé, or "on request"? | (a) A LinkedIn link plus "full résumé on request". (b) A public edition: HTML and a print-CSS PDF generated from `profile.json`, employer omitted, clean PDF metadata | (a) now; (b) once Q3 and Q8 are answered. (a) costs nothing and leaks nothing. The current résumé PDF is never hosted or committed either way | Two-way for the page; one-way for a PDF someone downloaded | The résumé line in PR 4; `/resume/` in Phase 5 · before PR 4 |
-| Q10 · Q-projects | Which work is featured? | (a) stillhere and gitops, plus one line for the upstream contribution to capacitor. (b) Other repositories as well | (a). Both are owned, public and checkable; each passes the readiness checks before it is linked; and the credit stays exact (gitops has outside contributions; capacitor is someone else's project). Stays open until the readiness checks: gitops went private on 2026-10-23, so (a) now needs his decision on gitops | Two-way | `/work/` in PR 4 · before PR 4 |
+| Q10 · Q-projects | Which work is featured? | (a) stillhere and gitops, plus one line for the upstream contribution to capacitor. (b) Other repositories as well | (a). Both are owned, public and checkable; each passes the readiness checks before it is linked; and the credit stays exact (gitops has outside contributions; capacitor is someone else's project). Stays open until the readiness checks: gitops went private on 2026-10-23, so (a) now needs his decision on gitops Partly answered on 2026-10-23: owned work shows as cards that link to the repositories (no case studies); stillhere's card waits on its checks, and gitops returns once it is public again. Still open: the capacitor line | Two-way | the project cards and the capacitor line in PR 4 · before PR 4 |
 
 ### Blocking PR 6 and later
 
@@ -219,7 +219,6 @@ These proceed on the recommendation until answered, ordered by when the answer i
 | Q20 · Q-photo | A photo? | (a) None in the hero. (b) A photo on `/about/` | (a) for the hero: in the Ladders study, 19% of recruiters' time on LinkedIn profiles went to the photo. (b) is his call | Two-way | `/about/` · before PR 4 |
 | Q21 · Q-segway | How far to lean into the name? | (a) Two sentences on `/about/` with the story behind "I have a Segway". (b) (a) plus a small easter egg. (c) Ignore it | (a). The domain is the most memorable thing about the site, and its story is a ready-made hook. Any glyph is a generic self-balancing scooter, with no Segway Inc. marks or implied affiliation | Two-way | `/about/` · before PR 4 |
 | Q22 · Q-other-repos | Link the older private repositories? | (a) No: they stay private and unlinked. (b) Clean some and publish them | (a). The owned public work already carries the proof, and each extra repository would need the full readiness checks | Two-way | PR 4 · before PR 4 |
-| Q27 · Q-agent-credit | How do case studies credit work a coding agent helped with? | (a) One line per case study: how it was built, any coding agent included, and what the author owned (decisions, specs, tests). (b) Nothing | (a), in Joseph's wording. A reader who opens the history will work it out anyway; saying it first turns a question into a strength ([content.md](content.md#case-study-template)) | One-way once published | The role line in PR 4's case studies · before PR 4 |
 | Q23 · Q-writing-budget | Is 8–10 h/month of writing realistic? | (a) The full plan in [content.md](content.md): each month 1 essay, 2 field notes and 1 `/now/` update. (b) Notes only, to start | (a), with content.md's stop rule: if three months pass without a post, drop to notes only and hide Writing from Home | Two-way | PR 5 · before PR 5 |
 | Q28 · Q-live-count | Should the footer's telemetry strip show a live "N here now" count on every page? | (a) No: the count stays on lab pages. (b) Yes, site-wide | (a). Site-wide, every page view would make a Worker request and a DO request and need an admission check, Turnstile or a new path without it. That ends the zero-invocation page view that [ADR 0008](adr/0008-workers-free-with-guardrails.md) rests on ([design-system.md](design-system.md), [cost.md](cost.md)) | Two-way | The strip, once Presence ships · before PR 6 |
 | Q24 · Q-mission | When and how is Mission-AI referenced? | (a) Not at launch; decide later. (b) A case study. (c) A line on `/about/` | (a). It is his decision, and it needs the invention-assignment check (Q13) first | One-way once published | Phase 5 · no date |
@@ -246,6 +245,7 @@ Joseph answered these in chat on 2026-10-22 and 2026-10-23; each row dated 2026-
 | Q25 · Q-token-owner | (a): the Mission-AI values are his. He also asked for a look that is distinctive rather than what everyone else ships: creative, but not distracting. So the palette, the accent (Q17) and the typefaces are chosen in a design exploration before PR 3 | PR 2: `tokens.css` with the token names and the chosen palette (Q17), with system fonts. PR 3: the typefaces and the rest of the chosen direction ([ADR 0010](adr/0010-quiet-console-design-tokens.md)) | Two-way: one token file | The chosen direction fails the contrast test, or reviewers call it templated or distracting |
 | Q26 · Q-alerts | (a) Email to his personal inbox: the recommendation | PR 2's alert routing | Two-way | An alert arrives too late on a day uptime matters (upgrade trigger 4) |
 | Q29 · Q-s1-timing | (a) Before PR 6, as planned. The account's other Worker logged no requests in the 30 days to 2026-10-22 | — | Two-way | That Worker starts serving traffic before PR 6: read its peak again |
+| Q27 · Q-agent-credit | Moot (2026-10-23): no case studies ship, so there is no role line to word. Owned work is a card that links to its repository (Q10) | — | Two-way | Case studies come back; then reopen it |
 
 ## Non-goals (v1)
 

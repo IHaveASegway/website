@@ -126,9 +126,9 @@ Every pair passes in both themes, and the test lists no forbidden pair. The tigh
 
 The petrol sits less than two just-noticeable differences from the template's navy, so the background alone does not set the site apart. The apricot accent, the condensed type and the visible grid do; those are what to keep if the palette is ever revisited.
 
-### Terminal recordings (PR 4)
+### Terminal recordings (dropped)
 
-No terminal panel ships in PR 3: the readout row took its place on Home. The recordings in PR 4's case studies keep their own colors, dark in both themes like the freeze screenshots. The values are gitops' Lip Gloss ANSI 256 colors (xterm palette) on `#171717`, as the research measured them on 2026-10-22:
+Dropped on 2026-10-23: owned work is a card that links to its repository, so no case study carries a recording. No terminal panel ships in PR 3 either: the readout row took its place on Home. The research below is kept for the day a recording ships: it keeps its own colors, dark in both themes like the freeze screenshots. The values are gitops' Lip Gloss ANSI 256 colors (xterm palette) on `#171717`, as the research measured them on 2026-10-22:
 
 | Use | ANSI | Value | Contrast | Result |
 |---|---|---|---|---|
@@ -272,10 +272,10 @@ PR 1 planned seven launch effects for Quiet Console. Where each went:
 
 | Effect | Now | Why |
 |---|---|---|
-| ⌘K / Ctrl+K command palette (1.18 KB in research) | PR 4 | It earns its place when there are pages to find; until Work and About exist it would list nothing but Home |
+| ⌘K / Ctrl+K command palette (1.18 KB in research) | PR 4 | It earns its place when there are pages to find; until About and Writing exist it would list nothing but Home |
 | Telemetry strip's serving data center | PR 4 | Reading it after load needs the check that `/cdn-cgi/trace` runs no Worker code; the readout row ships the build facts meanwhile |
 | Draw-on-scroll diagram | PR 3b, on `/colophon/` | The diagram lives on the colophon |
-| Terminal recordings | PR 4 | They belong to the case studies |
+| Terminal recordings | dropped (2026-10-23) | No case studies ship; owned work is a card that links to its repository |
 | One-time label decode | dropped | C's labels are short, static facts; decoding them would be motion with no information |
 | Static scanlines, LEDs, corner brackets | dropped | They left with Quiet Console |
 
@@ -388,7 +388,7 @@ As built in PR 3, at 1440 px; the phone layout stacks the same parts in the same
 | 1 · Hero | the name (`h1`); the title; "US · remote" with the apricot dot; the proof line; the actions: Email (primary, with the `hello@` hint from 48rem), Work ↓ (to Selected work), and each checked profile, LinkedIn ↗ today, with `rel="me"` | `profile.json`, through `Hero.astro` | from 64rem the row below the name takes the 12 columns: title and location 1–4, proof 5–9, actions 10–12. Phones put the buttons two to a row |
 | 2 · This build | the readout row: Build, Built, JavaScript | the build, through `Readouts.astro` | Home's telemetry strip, so Home's footer leaves the build line out |
 | 3 | not rendered | — | the career timeline and the stack line wait on Q8 and Joseph's skills list (PR 4). A row with nothing to show is left out, never filled with a placeholder |
-| 01 · Selected work | one card: This site, with its JavaScript and fonts figures | `index.astro`, `WorkCard.astro` | no link until `/colophon/` exists (PR 3b); stillhere's card waits on its readiness checks |
+| 01 · Selected work | This site, with its JavaScript and fonts figures; then a card per owned project whose checks are recorded and whose hold is lifted, with its tag, its facts and "Source on GitHub ↗" to its repository: none yet | `index.astro`, `WorkCard.astro`; the projects from `profile.json` through `projectCards()` | This site links nothing until `/colophon/` exists (PR 3b); stillhere's card waits on its readiness check and the GitHub profile's |
 | 02 · How I work | four principles, numbered | `index.astro`, `Principles.astro` | no links until their evidence pages exist |
 | Footer | "Contact" and the address; the links that exist and the checked profiles; the theme toggle; "© 2026 Joseph Peterson", plus the build line on other pages | `Footer.astro` | the address breaks anywhere, so it fits 320 px |
 
@@ -404,7 +404,7 @@ The 404 page uses the same frame: the ruler and header, an "Error 404" label, a 
 |---|---|---|---|
 | Josef Müller-Brockmann, *Grid Systems in Graphic Design* (1981) | the Swiss grid: a column system that orders the page, with type as the main image | the 12-column frame, a ruler that makes the grid visible, a poster-size name | — |
 | Linear, ["How we redesigned the Linear UI (part II)"](https://linear.app/now/how-we-redesigned-the-linear-ui) (2024-03-28) | themes generated in LCH from three inputs (base color, accent color, contrast) instead of 98 variables per theme | the model: a few inputs, and variants such as the `prefers-contrast: more` mapping | Inter Display |
-| Charm: [VHS](https://github.com/charmbracelet/vhs) (v0.12.1, 2026-09-24) and [freeze](https://github.com/charmbracelet/freeze) (v0.2.2, 2025-04-01), as of 2026-10-22 | scripted terminal recordings and static terminal images | PR 4's recordings, with 0 KB of JS on the page | autoplay loops |
+| Charm: [VHS](https://github.com/charmbracelet/vhs) (v0.12.1, 2026-09-24) and [freeze](https://github.com/charmbracelet/freeze) (v0.2.2, 2025-04-01), as of 2026-10-22 | scripted terminal recordings and static terminal images | nothing since 2026-10-23, when the recordings were dropped; 0 KB of JS on the page if they return | autoplay loops |
 | Rauno Freiberg, ["Invisible Details of Interaction Design"](https://rauno.me/craft/interaction-design) (2023) | interaction craft; on motion, that an interaction repeated hundreds of times a day turns animation into "cognitive burden" | instant hover and focus; motion only on rare actions; a 0 ms palette | — |
 | Stripe, ["Designing accessible color systems"](https://stripe.com/blog/accessible-color-systems) | perceptual color tooling with contrast feedback built into how colors are chosen | the contrast check as a CI test computed from the tokens | — |
 | [Arwes](https://github.com/arwes/arwes) | the canonical sci-fi web UI framework | nothing; a mood reference at most | the framework: unmaintained, React 18 only, no strict mode |

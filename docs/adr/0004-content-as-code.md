@@ -61,3 +61,7 @@ Two-way. Content is Markdown, MDX and JSON in git. Adding a git-based CMS leaves
 - A second author joins. Review and permissions then matter more than the simplicity of plain files.
 - Project facts need to be fresher than a week. Then each project's release workflow triggers a rebuild (`repository_dispatch`) instead of the site polling.
 - Q-threat-model's answer rules out any traceable link (option c). The LinkedIn link goes; ownership does not change, and the site shows no employment history at all.
+
+## Postscript 2026-10-23
+
+Practice now differs in one place; the decision does not change, and no Revisit if condition was met. Case studies, which the Context and the table list as content this record governs, will not ship: on 2026-10-23 Joseph chose to show owned work as cards on Home that link to their repositories ([content.md](../content.md#owned-work)). A card is generated from `profile.json`'s projects, so it stays inside this decision: content in the repository, validated at build. Each project's story lives in its own repository, its system of record.

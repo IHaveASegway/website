@@ -84,3 +84,7 @@ Nearly one-way. It is free to change until the first URL is shared, which happen
 - A new kind of content needs a home (talks, for example). Add a prefix by amending this record; never reuse an existing one.
 - Search Console reports slashless duplicates of pages. Then the three layers disagree somewhere.
 - A list page passes about 50 entries and needs pagination, or tags get pages of their own (with search, at about 20 posts). Decide those URL forms here before building them.
+
+## Postscript 2026-10-23
+
+`/work/` and `/work/<slug>/` are unused: owned work became cards on Home that link to their repositories ([content.md](../content.md#owned-work)). The prefix stays reserved, so case studies could return without an amendment. Nothing else changes, and no Revisit if condition was met.

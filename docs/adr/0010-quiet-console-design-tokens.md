@@ -69,3 +69,7 @@ The accent hue is effectively one-way over time. Recognition accumulates in peop
 - Home fails the 7-second test ([product.md](../product.md)), or three of five recruiter or peer reviewers call the look "templated", "gimmicky", "distracting" or "hard to read", or name a template (Brittany Chiang's v4, Vercel's Geist).
 - Mission-AI is revived and needs the same tokens: publish them from here instead of copying twice.
 - Light mode collects more defects than dark in the first three months after launch, a sign the dark-first design shortchanges the theme a recruiter on a light-mode laptop sees first.
+
+## Postscript 2026-10-23
+
+The terminal recordings this record mentions were dropped on 2026-10-23, with the case studies they belonged to ([design-system.md](../design-system.md)). gitops' ANSI colors, and the two fixes named for them, have no use until a recording ships. Nothing else changes, and no Revisit if condition was met.

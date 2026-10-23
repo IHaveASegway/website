@@ -45,9 +45,9 @@ Every link below resolved when checked on 2026-10-22. Three pages (the PubMed re
 | Static rendering and hydration cost | Jason Miller and Addy Osmani, ["Rendering on the Web"](https://web.dev/articles/rendering-on-the-web) (web.dev) | Explains the gap between a static page with no JavaScript and a framework page that hydrates everything |
 | Progressive enhancement | Jeremy Keith, [*Resilient Web Design*](https://resilientwebdesign.com/chapter6/) (2016), ch. 6, "Steps" | Core content in plain HTML first; view transitions, the palette and the effects are additions that may fail |
 | Cool URIs | Tim Berners-Lee, ["Cool URIs don't change"](https://www.w3.org/Provider/Style/URI) (1998) | Why the URL scheme is nearly a one-way door and slugs never change ([ADR 0005](adr/0005-url-scheme.md)) |
-| URL as UI | Jakob Nielsen, ["URL as UI"](https://www.nngroup.com/articles/url-as-ui/) (NN/g, 1999) | Every prefix of a page URL is itself a page, so a visitor can trim `/work/gitops/` to `/work/` |
+| URL as UI | Jakob Nielsen, ["URL as UI"](https://www.nngroup.com/articles/url-as-ui/) (NN/g, 1999) | Every prefix of a page URL is itself a page, so a visitor can trim `/writing/<slug>/` to `/writing/` |
 | Inverted pyramid | NN/g, ["Inverted Pyramid: Writing for Comprehension"](https://www.nngroup.com/articles/inverted-pyramid/) | Each page starts with its conclusion, and the detail follows for whoever stays |
-| Progressive disclosure | Jakob Nielsen, ["Progressive Disclosure"](https://www.nngroup.com/articles/progressive-disclosure/) (NN/g, 2006) | Home answers the 10-second questions; case studies, decisions and demos sit one click down |
+| Progressive disclosure | Jakob Nielsen, ["Progressive Disclosure"](https://www.nngroup.com/articles/progressive-disclosure/) (NN/g, 2006) | Home answers the 10-second questions; the repositories, decisions, essays and demos sit one click down |
 
 ## Resilience, overload and cost
 

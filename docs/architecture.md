@@ -20,7 +20,7 @@ C4 level 1, with one deviation. Strict C4 draws the system in scope as a single 
 flowchart TB
   subgraph visitors ["Visitors"]
     recruiter(["Recruiter<br/>name, title, proof<br/>and contact in about 7 s"])
-    engineer(["Engineer or hiring manager<br/>case studies, ADRs, demos"])
+    engineer(["Engineer or hiring manager<br/>repositories, ADRs, essays, demos"])
   end
   joseph(["Joseph<br/>author and sole operator"])
   linkedin["LinkedIn<br/>owns employment history"]
@@ -121,7 +121,7 @@ Six contexts. Each writes only its own data; the others get copies across one na
 | Context | Vocabulary | Owns | Boundary | Talks to the others by | It is not |
 |---|---|---|---|---|---|
 | Presentation (site) | page, section, island, token, budget | templates, components, design tokens, the build output | `apps/web` outside `src/content`; the site Worker | build-time reads of Authoring and of Delivery's build metadata; links to Lab pages and to Contact | A runtime. It holds no server-side state |
-| Authoring (content) | post, note, case study, profile, front matter | `apps/web/src/content/**`, `profile.json`, the ADRs in `docs/adr/` | the content collections and their Zod schemas | a build-time copy, validated on write: a file that fails its schema fails the build | A copy of LinkedIn |
+| Authoring (content) | post, note, project, profile, front matter | `apps/web/src/content/**`, `profile.json`, the ADRs in `docs/adr/` | the content collections and their Zod schemas | a build-time copy, validated on write: a file that fails its schema fails the build | A copy of LinkedIn |
 | Lab | session, budget, flag, room, sandbox, frame, recording | demo state, budgets and flags, recordings, protocol v1 | `workers/lab/` and each demo's island | protocol v1 with the browser; recordings ship as static assets through Presentation | Part of the site's availability |
 | Edge (zone) | zone, record, rule, redirect, certificate | DNS records, DNSSEC, TLS and HSTS settings, WAF rules, the `www` redirect | the Cloudflare dashboard | wraps every request before any Worker runs; changed by Joseph, audited weekly | Deployed by the pipeline, until an IaC trigger fires |
 | Delivery (pipeline) | job, gate, preview, version, artifact | workflows, the firewall check, build metadata, the deploy credential | `.github/`, `.githooks/`, `scripts/` | builds, gates and deploys the other contexts' artifacts | A second deployer. Workers Builds stays disconnected |
@@ -141,7 +141,7 @@ Every datum the site touches. Read a row left to right: where it lives, who may 
 
 | Datum | System of record | Context | Writes it | Reads it | How it crosses | Consistency readers need |
 |---|---|---|---|---|---|---|
-| Posts, notes, case studies | Markdown and MDX in `apps/web/src/content/**` | Authoring | Joseph, by pull request | the build; visitors, as HTML, RSS, sitemap and OG images | build-time copy, Zod-validated (schema-on-write) | live minutes after merge; fixed per version |
+| Posts and notes | Markdown and MDX in `apps/web/src/content/**` | Authoring | Joseph, by pull request | the build; visitors, as HTML, RSS, sitemap and OG images | build-time copy, Zod-validated (schema-on-write) | live minutes after merge; fixed per version |
 | ADRs | `docs/adr/*.md` | Authoring | Joseph, by pull request | repo readers; the build, which renders the ADRs on its publish allowlist at `/colophon/decisions/<nnnn-slug>/` ([content.md](content.md)) | rendered at build time from the same files; nothing is copied by hand | per deploy; the site cannot disagree with the repo |
 | Public profile: title, arc, skills, education, links | `apps/web/src/content/profile.json`, a JSON Resume subset with no employer field | Authoring | Joseph, by pull request | `/about/`, later `/resume/`, the JSON-LD | build-time copy | per deploy |
 | Employment history: employers, dates | LinkedIn and Joseph's private résumé | outside the system | Joseph, on LinkedIn | visitors who follow the link | a link only: never copied, never fetched | none: the site holds no copy, so it cannot be stale |
@@ -189,7 +189,7 @@ sequenceDiagram
     Z-->>B: 301 to the apex, a Single Redirect, no Worker
   end
   Note over B,Z: DNS answers are signed with DNSSEC.<br/>TLS 1.2 or later. HSTS comes from the zone.
-  B->>Z: GET /work/stillhere/
+  B->>Z: GET /about/
   Z->>Z: WAF rules, no match
   Z->>S: custom domain, path matched to a file
   S-->>B: 200, HTML with the _headers rules applied
