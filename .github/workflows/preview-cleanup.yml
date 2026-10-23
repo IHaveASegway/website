@@ -8,6 +8,9 @@ on:
 
 permissions: {}
 
+env:
+  WRANGLER_SEND_METRICS: 'false' # as in ci.yml: no Wrangler usage reports from CI
+
 concurrency:
   # ci.yml's group for this pull request: closing it cancels a run that may still be publishing the
   # preview, and the delete waits until that run has stopped, so nothing recreates pr-<n> after it.
