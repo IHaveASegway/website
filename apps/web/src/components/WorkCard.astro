@@ -1,0 +1,37 @@
+---
+interface Props {
+  index: string;
+  tag: string;
+  title: string;
+  text: string;
+  facts: readonly { term: string; value: string }[];
+  /** The page it opens. Left out until that page exists: a card never links to nothing. */
+  link?: { href: string; label: string };
+}
+
+const { index, tag, title, text, facts, link } = Astro.props;
+---
+
+<article class="card">
+  <div class="card-idx">
+    <span class="label">{index}</span>
+    <span class="label">{tag}</span>
+  </div>
+  <h3 class="card-title">{title}</h3>
+  <p class="card-text">{text}</p>
+  {facts.length > 0 && (
+    <dl class="kv">
+      {facts.map(({ term, value }) => (
+        <>
+          <dt>{term}</dt>
+          <dd>{value}</dd>
+        </>
+      ))}
+    </dl>
+  )}
+  {link && (
+    <a class="card-more" href={link.href}>
+      {link.label} <span aria-hidden="true">→</span>
+    </a>
+  )}
+</article>

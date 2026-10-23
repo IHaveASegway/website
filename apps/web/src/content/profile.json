@@ -1,0 +1,32 @@
+{
+  "basics": {
+    "name": "Joseph Peterson",
+    "label": "Senior Software Engineer",
+    "url": "https://ihaveasegway.com/",
+    "location": { "countryCode": "US", "remote": true },
+    "profiles": [
+      { "network": "GitHub", "url": "https://github.com/IHaveASegway" },
+      {
+        "network": "LinkedIn",
+        "url": "https://www.linkedin.com/in/joseph-peterson-96b90b168/",
+        "checked": { "date": "2026-10-23" }
+      }
+    ]
+  },
+  "work": [],
+  "education": [],
+  "skills": [],
+  "projects": [
+    {
+      "name": "stillhere",
+      "description": "What landed, what lasted, who knows the code. Every number traces back to its commits.",
+      "url": "https://github.com/IHaveASegway/stillhere"
+    },
+    {
+      "name": "gitops",
+      "description": "One git command across every repository in a directory. A TUI for people, a CLI for scripts.",
+      "url": "https://github.com/IHaveASegway/gitops"
+    }
+  ],
+  "meta": { "firewall_reviewed": null }
+}

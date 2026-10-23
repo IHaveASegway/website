@@ -1,0 +1,25 @@
+---
+import { headerNav } from '../lib/nav';
+
+// The wordmark, and the manifest's header items whose page exists (none until the colophon).
+const here = Astro.url.pathname;
+---
+
+<header class="site-header">
+  <a href="/" aria-current={here === '/' ? 'page' : undefined} class="wordmark">
+    ihaveasegway<span>.com</span>
+  </a>
+  {headerNav.length > 0 && (
+    <nav class="site-nav" aria-label="Primary">
+      <ul>
+        {headerNav.map((item) => (
+          <li>
+            <a href={item.href} aria-current={here === item.href ? 'page' : undefined}>
+              {item.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )}
+</header>

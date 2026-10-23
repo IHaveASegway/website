@@ -10,7 +10,12 @@ export const ORIGIN = 'https://ihaveasegway.com';
  */
 export const PAGES: readonly string[] = ['/'];
 
-/** Files clients ask for by name, at the paths they look in (ADR 0005). */
+/**
+ * Files clients ask for by name, at the paths they look in (ADR 0005). Every release since launch
+ * serves each of them, so the smoke still passes after a rollback to any earlier version. A file a
+ * page names, such as its og:image, is checked through that page instead (smoke.spec.ts), so an
+ * older build that names none is not failed for lacking it.
+ */
 export const FILES: readonly string[] = [
   '/robots.txt',
   '/.well-known/security.txt',

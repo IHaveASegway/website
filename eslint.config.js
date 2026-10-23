@@ -17,8 +17,12 @@ export default defineConfig([
   tseslint.configs.recommended,
   astro.configs.recommended,
   {
-    // Everything here runs in Node: build-time templates, scripts, tests and configs. Pages ship
-    // no JavaScript; when a browser script arrives, it gets browser globals of its own.
+    // Everything here runs in Node: build-time templates, scripts, tests and configs.
     languageOptions: { globals: { ...globals.node } },
+  },
+  {
+    // Except the scripts a page runs: the inline theme script, for now (apps/web/src/scripts).
+    files: ['apps/web/src/scripts/**/*.js'],
+    languageOptions: { globals: { ...globals.browser } },
   },
 ]);

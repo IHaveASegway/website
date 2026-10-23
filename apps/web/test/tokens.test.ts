@@ -1,6 +1,8 @@
-import { readFileSync } from 'node:fs';
-import { inGamut, parse, wcagContrast, type Color } from 'culori';
+import { readFileSync, readdirSync } from 'node:fs';
+import { inGamut, wcagContrast, type Color } from 'culori';
 import { describe, expect, test } from 'vitest';
+import { SELECTORS, block, stripComments, themeBlocks, themeColors } from '../src/lib/tokens';
+import { files, read } from './support/dist';
 
 // The contrast claim belongs to this test, not to a comment (ADR 0010). It reads tokens.css,
 // resolves every color token in both themes, and checks each text and non-text token against
@@ -19,75 +21,39 @@ const TEXT = [
   'destructive',
 ];
 /** Non-text: focus outlines, functional borders and indicators, 3:1 on every surface (SC 1.4.11). */
-const NON_TEXT = ['ring', 'input', 'ok'];
+const NON_TEXT = ['ring', 'input'];
 /** Text drawn on an accent fill, such as a button label, against each fill it sits on. */
 const ON_FILL: Record<string, string[]> = { 'primary-foreground': ['primary', 'primary-strong'] };
 /** Decoration only: no contrast claim, but still inside sRGB. */
-const DECORATIVE = ['border', 'grid-line'];
+const DECORATIVE = ['border'];
 /** Pairs a design must never draw; each is listed with its reason (none yet). */
 const FORBIDDEN: [string, string][] = [];
 
-const css = readFileSync(new URL('../src/styles/tokens.css', import.meta.url), 'utf8').replace(
-  /\/\*[\s\S]*?\*\//g,
-  '',
-);
+const source = readFileSync(new URL('../src/styles/tokens.css', import.meta.url), 'utf8');
+const css = stripComments(source);
+const blocks = themeBlocks(source);
+const themes = { dark: themeColors(source, 'dark'), light: themeColors(source, 'light') };
 
-/** The body of the first `{ ... }` block that follows `marker`, braces balanced. */
-function block(source: string, marker: string): string {
-  const start = source.indexOf(marker);
-  if (start < 0) throw new Error(`tokens.css has no block for ${marker}`);
-  const open = source.indexOf('{', start);
-  let depth = 0;
-  for (let i = open; i < source.length; i++) {
-    if (source[i] === '{') depth++;
-    if (source[i] === '}' && --depth === 0) return source.slice(open + 1, i);
-  }
-  throw new Error(`unbalanced braces after ${marker}`);
-}
+describe('the theme blocks', () => {
+  test('light from the OS is the same block as light by choice, so the copy cannot drift', () => {
+    expect(Object.fromEntries(blocks.lightFromOs)).toEqual(Object.fromEntries(blocks.light));
+  });
 
-/** The custom properties declared directly in a block, without nested blocks. */
-function declarations(body: string): Map<string, string> {
-  const flat = body.replace(/\{[^{}]*\}/g, '');
-  const found = new Map<string, string>();
-  for (const [, name, value] of flat.matchAll(/--([\w-]+)\s*:\s*([^;]+);/g)) {
-    if (name && value) found.set(name, value.trim());
-  }
-  return found;
-}
+  test('light redeclares every color token dark declares, so light never inherits a dark value', () => {
+    expect([...blocks.light.keys()].sort()).toEqual([...blocks.dark.keys()].sort());
+  });
 
-/** Resolves var() references within one theme and parses each value as a color. */
-function resolve(theme: Map<string, string>): Map<string, Color> {
-  const colors = new Map<string, Color>();
-  const valueOf = (name: string, seen: string[] = []): string => {
-    const raw = theme.get(name);
-    if (raw === undefined) throw new Error(`--${name} is not declared in this theme`);
-    if (seen.includes(name)) throw new Error(`--${name} refers to itself`);
-    const reference = /^var\(--([\w-]+)\)$/.exec(raw);
-    return reference?.[1] ? valueOf(reference[1], [...seen, name]) : raw;
-  };
-  for (const name of theme.keys()) {
-    // A theme block holds colors only: a value culori cannot read would escape every check below.
-    const color = parse(valueOf(name));
-    if (!color) throw new Error(`--${name} is not a color this test can read`);
-    colors.set(name, color);
-  }
-  return colors;
-}
-
-// The default :root block is the dark theme; the light theme overrides it under its media query.
-const rootStart = css.indexOf(':root');
-const dark = declarations(block(css.slice(rootStart), ':root'));
-const lightOverrides = declarations(
-  block(block(css, '@media (prefers-color-scheme: light)'), ':root'),
-);
-const themes = {
-  dark: resolve(dark),
-  light: resolve(new Map([...dark, ...lightOverrides])),
-};
-
-test('both themes declare the same color tokens, so light never inherits a dark value', () => {
-  const colorNames = [...themes.dark.keys()].sort();
-  expect([...lightOverrides.keys()].sort()).toEqual(expect.arrayContaining(colorNames));
+  test('the contrast and print blocks come last, and name [data-theme] so they outrank every theme', () => {
+    const contrast = css.indexOf('@media (prefers-contrast: more)');
+    const print = css.indexOf('@media print');
+    for (const at of [contrast, print]) {
+      expect(at).toBeGreaterThan(css.indexOf(SELECTORS.lightMedia));
+      expect(at).toBeGreaterThan(css.indexOf(SELECTORS.light));
+    }
+    for (const media of ['@media (prefers-contrast: more)', '@media print']) {
+      expect(() => block(block(css, media), ':root, :root[data-theme]'), media).not.toThrow();
+    }
+  });
 });
 
 test('every color token has a declared role', () => {
@@ -141,3 +107,107 @@ for (const [themeName, colors] of Object.entries(themes)) {
     }
   });
 }
+
+// SC 1.4.4 (Resize Text): a size in vw alone does not grow with zoom (WCAG failure F94). So every
+// fluid size is a clamp() with a rem floor and a rem term, and its maximum stays within 2.5 times
+// its minimum (Maxwell Barvian, "Addressing Accessibility Concerns With Using Fluid Type", 2023).
+describe('fluid type', () => {
+  /** Every font size the stylesheets declare: --text-* tokens and font-size properties. */
+  const styles = readdirSync(new URL('../src/styles/', import.meta.url))
+    .filter((name) => name.endsWith('.css'))
+    .map((name) =>
+      stripComments(readFileSync(new URL(`../src/styles/${name}`, import.meta.url), 'utf8')),
+    );
+  const sizes = styles.flatMap((text) =>
+    [...text.matchAll(/(--text-[\w-]+|font-size)\s*:\s*([^;]+);/g)]
+      .filter(([, name = '']) => !name.includes('--', 2))
+      .map(([, name = '', value = '']) => ({ name, value: value.trim() })),
+  );
+
+  function check(value: string): string | null {
+    if (!/vw/.test(value)) return null;
+    const clamp = /^clamp\(\s*([\d.]+)rem\s*,\s*([^,]+),\s*([\d.]+)rem\s*\)$/.exec(value);
+    if (!clamp) return 'a vw size outside clamp(<rem>, <rem> + <vw>, <rem>)';
+    const [, min = '0', preferred = '', max = '0'] = clamp;
+    if (!/[\d.]+rem/.test(preferred)) return 'the preferred size has no rem term';
+    if (Number(max) / Number(min) > 2.5)
+      return `max/min is ${(Number(max) / Number(min)).toFixed(2)}`;
+    return null;
+  }
+
+  test('there are fluid sizes to check', () => {
+    expect(sizes.filter(({ value }) => value.includes('vw')).length).toBeGreaterThan(3);
+  });
+
+  for (const { name, value } of sizes) {
+    test(`${name}: ${value}`, () => expect(check(value)).toBeNull());
+  }
+
+  test('known answers: what the check refuses and what it accepts', () => {
+    expect(check('min(clamp(4.125rem, 2.036rem + 8.571vw, 9.75rem), 16.5vw)')).not.toBeNull();
+    expect(check('16.5vw')).not.toBeNull();
+    expect(check('clamp(1rem, 5vw, 2rem)')).toBe('the preferred size has no rem term');
+    expect(check('clamp(1rem, 0.5rem + 5vw, 3rem)')).toBe('max/min is 3.00');
+    expect(check('clamp(4.125rem, 2.0357rem + 8.5714vw, 9.75rem)')).toBeNull();
+    expect(check('1.25rem')).toBeNull();
+  });
+});
+
+// Motion is authored inside prefers-reduced-motion: no-preference only (design-system.md,
+// "Motion"). Read from the CSS that ships, so a utility class or a plugin cannot slip one past.
+describe('motion lives only under prefers-reduced-motion: no-preference', () => {
+  const MOTION = /^(transition|transition-[a-z-]+|animation|animation-[a-z-]+)$/;
+
+  /** Every motion declaration and @view-transition rule, with the at-rules around it. */
+  function motion(text: string): { what: string; inside: string[] }[] {
+    const found: { what: string; inside: string[] }[] = [];
+    const stack: string[] = [];
+    let start = 0;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (c !== '{' && c !== '}' && c !== ';') continue;
+      const chunk = text.slice(start, i).trim();
+      if (c === '{') {
+        if (chunk.startsWith('@view-transition'))
+          found.push({ what: '@view-transition', inside: [...stack] });
+        stack.push(chunk);
+      } else if (chunk.includes(':')) {
+        const property = chunk.slice(0, chunk.indexOf(':')).trim();
+        const value = chunk.slice(chunk.indexOf(':') + 1).trim();
+        if (MOTION.test(property) && !/^(none|0s?)$/.test(value))
+          found.push({ what: chunk, inside: [...stack] });
+        if (property === 'scroll-behavior' && value === 'smooth')
+          found.push({ what: chunk, inside: [...stack] });
+      }
+      if (c === '}') stack.pop();
+      start = i + 1;
+    }
+    return found;
+  }
+  const guarded = ({ inside }: { inside: string[] }) =>
+    inside.some((prelude) => /prefers-reduced-motion:\s*no-preference/.test(prelude));
+
+  const shipped = files.filter((file) => file.endsWith('.css'));
+  test('the build ships a stylesheet', () => expect(shipped.length).toBeGreaterThan(0));
+
+  for (const file of shipped) {
+    test(`${file}`, () => {
+      const found = motion(read(file));
+      expect(found.filter((m) => !guarded(m)).map((m) => m.what)).toEqual([]);
+      // The card's bar and the view transition are the two motions C ships; both are guarded.
+      expect(found.length).toBeGreaterThanOrEqual(2);
+    });
+  }
+
+  test('known answers', () => {
+    expect(motion('.a{transition:opacity .2s}').filter((m) => !guarded(m))).toHaveLength(1);
+    expect(motion('@view-transition{navigation:auto}').filter((m) => !guarded(m))).toHaveLength(1);
+    expect(motion('html{scroll-behavior:smooth}').filter((m) => !guarded(m))).toHaveLength(1);
+    expect(
+      motion('@media (prefers-reduced-motion:no-preference){.a{transition:opacity .2s}}').filter(
+        (m) => !guarded(m),
+      ),
+    ).toHaveLength(0);
+    expect(motion('.a{transition:none}')).toHaveLength(0);
+  });
+});

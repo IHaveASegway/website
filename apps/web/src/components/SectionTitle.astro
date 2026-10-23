@@ -1,0 +1,18 @@
+---
+interface Props {
+  id: string;
+  /** Assigned at build in the order the sections render, so the numbers never skip. */
+  number: string;
+  title: string;
+}
+
+const { id, number, title } = Astro.props;
+---
+
+<h2 class="section-title" id={id}>
+  <span class="section-n" aria-hidden="true">
+    {number}
+  </span>
+  {title}
+  <span class="section-rule" aria-hidden="true"></span>
+</h2>

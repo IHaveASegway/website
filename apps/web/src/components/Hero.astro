@@ -1,0 +1,49 @@
+---
+import { checkedProfiles, locationLine, type Profile } from '../lib/profile';
+import { CONTACT_EMAIL } from '../lib/site';
+
+interface Props {
+  profile: Profile;
+  /** One line of proof that names only what a reader can see on this site. */
+  proof: string;
+}
+
+const { profile, proof } = Astro.props;
+// External profiles render only from a record whose readiness check is recorded (profile.ts).
+const external = checkedProfiles(profile);
+---
+
+<section class="hero" aria-labelledby="name" data-row="1">
+  <h1 id="name" class="hero-name">
+    {profile.basics.name}
+  </h1>
+  <div class="hero-below">
+    <div class="hero-who">
+      <p class="hero-title">{profile.basics.label}</p>
+      <p class="where">
+        <span class="dot" aria-hidden="true"></span>
+        {locationLine(profile)}
+      </p>
+    </div>
+    <p class="hero-proof">{proof}</p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href={`mailto:${CONTACT_EMAIL}`}>
+        Email <span class="hint">{CONTACT_EMAIL.slice(0, CONTACT_EMAIL.indexOf('@') + 1)}</span>
+      </a>
+      <a class="btn" href="#work">
+        Work{' '}
+        <span class="hint" aria-hidden="true">
+          ↓
+        </span>
+      </a>
+      {external.map((p) => (
+        <a class="btn" href={p.url} rel="me">
+          {p.network}{' '}
+          <span class="hint" aria-hidden="true">
+            ↗
+          </span>
+        </a>
+      ))}
+    </div>
+  </div>
+</section>

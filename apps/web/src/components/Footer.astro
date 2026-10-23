@@ -1,0 +1,54 @@
+---
+import { builtOn, shortCommit } from '../lib/build';
+import { footerNav } from '../lib/nav';
+import { checkedProfiles, type Profile } from '../lib/profile';
+import { CONTACT_EMAIL } from '../lib/site';
+import ThemeToggle from './ThemeToggle.astro';
+
+interface Props {
+  profile: Profile;
+  /** The build line. Home leaves it out: its readout row is the page's one telemetry strip. */
+  telemetry: boolean;
+}
+
+const { profile, telemetry } = Astro.props;
+// The build's year, so the line never goes stale; each deploy is built once and shipped as tested.
+const year = new Date().getUTCFullYear();
+// Pages that exist, then external profiles whose readiness check is recorded (rel="me" pairs each
+// with the profile's link back to this site).
+// The copyright, and on every page but Home the build line: one telemetry strip per page.
+const line = [
+  `© ${year} ${profile.basics.name}`,
+  ...(telemetry ? [`build ${shortCommit}`, `built ${builtOn}`] : []),
+].join(' · ');
+const links = [
+  ...footerNav.map((item) => ({ label: item.label, href: item.href, rel: undefined })),
+  ...checkedProfiles(profile).map((p) => ({ label: p.network, href: p.url, rel: 'me' })),
+];
+---
+
+<footer class="frame">
+  <div class="site-footer">
+    <div class="contact">
+      <p class="label">Contact</p>
+      <a class="contact-email" href={`mailto:${CONTACT_EMAIL}`}>
+        {CONTACT_EMAIL}
+      </a>
+    </div>
+    <div class="side">
+      {links.length > 0 && (
+        <ul class="footer-links">
+          {links.map((link) => (
+            <li>
+              <a href={link.href} rel={link.rel}>
+                {link.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+      <ThemeToggle />
+      <p class="tele">{line}</p>
+    </div>
+  </div>
+</footer>

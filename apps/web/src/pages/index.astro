@@ -1,52 +1,79 @@
 ---
+import Hero from '../components/Hero.astro';
+import Principles from '../components/Principles.astro';
+import Readouts from '../components/Readouts.astro';
+import SectionTitle from '../components/SectionTitle.astro';
+import WorkCard from '../components/WorkCard.astro';
 import Base from '../layouts/Base.astro';
-import { builtOn, shortCommit } from '../lib/build';
+import { loadProfile } from '../lib/content';
+import { homeGraph, serialize } from '../lib/jsonld';
+import { homeCard } from '../lib/og';
+import { locationLine } from '../lib/profile';
+import { kilobytes, pageJavaScriptBytes, preloadedFontBytes } from '../lib/weights';
+
+// Home v1 (content.md, "Home page"). An element renders only when its source and its link target
+// exist, and a figure only when a reader can check it; until then the line is left out, never
+// filled with a placeholder. So the proof line names no project, the cards hold only this site,
+// and How I work links to nothing until its evidence pages exist.
+const profile = await loadProfile();
+const { name, label } = profile.basics;
+const javascript = kilobytes(pageJavaScriptBytes());
+const fonts = kilobytes(preloadedFontBytes());
+
+// Below the fold, numbered at build in the order the sections render.
+const numbered = (position: number) => String(position).padStart(2, '0');
+const work = { title: 'Selected work', number: numbered(1) };
+const how = { title: 'How I work', number: numbered(2) };
+
+const PRINCIPLES = [
+  {
+    title: 'Write the decision down.',
+    text: 'A choice that is costly to undo gets a record: the options, what each one costs, and what would show it was wrong.',
+  },
+  {
+    title: 'One owner per piece of data.',
+    text: 'Each fact is written in one place, and everything else reads it from there instead of keeping a copy.',
+  },
+  {
+    title: 'Measure before building.',
+    text: 'Find where the time goes before changing anything, then change what the numbers point at.',
+  },
+  {
+    title: 'Fail closed.',
+    text: 'When a check cannot prove a change is safe, the change does not ship.',
+  },
+];
 ---
 
 <Base
-  title="Joseph Peterson · Senior Software Engineer"
-  description="Joseph Peterson, Senior Software Engineer. US · remote."
+  title={`${name} · ${label}`}
+  description={`${name}, ${label}. ${locationLine(profile)}.`}
   path="/"
+  og={homeCard(profile)}
+  telemetry={false}
+  jsonLd={serialize(homeGraph(profile))}
 >
-  <section class="border-t border-border pt-8 pb-6 md:pt-16 md:pb-10" aria-labelledby="name">
-    <h1 id="name" class="text-hero text-balance wrap-break-word">
-      Joseph Peterson
-    </h1>
-    <div class="mt-5 grid gap-y-5 md:mt-10 lg:grid-cols-12 lg:items-start lg:gap-x-7">
-      <div class="flex flex-col gap-2.5 lg:col-span-4">
-        <p class="text-h2">Senior Software Engineer</p>
-        <p class="where">
-          <span class="dot" aria-hidden="true"></span>US · remote
-        </p>
-      </div>
-      <p class="max-w-prose text-lead text-muted-foreground lg:col-span-5">
-        The rest of the site is being built.
-      </p>
-      <div class="lg:col-span-3">
-        <a class="btn btn-primary w-full sm:w-80 lg:w-full" href="mailto:hello@ihaveasegway.com">
-          Email <span class="hint">hello@</span>
-        </a>
-      </div>
+  <Hero profile={profile} proof="This site's hard-to-reverse decisions are written down." />
+  <Readouts javascript={javascript} />
+
+  <section class="section" id="work" aria-labelledby="work-title">
+    <SectionTitle id="work-title" number={work.number} title={work.title} />
+    <div class="cards">
+      <WorkCard
+        index={`${work.number}.1`}
+        tag="Astro"
+        title="This site"
+        text="Static HTML from Astro, served by Cloudflare. A page that goes over its byte budget fails the build."
+        facts={[
+          { term: 'JavaScript', value: `${javascript} on this page` },
+          { term: 'Fonts', value: `${fonts}, self-hosted` },
+        ]}
+      />
     </div>
   </section>
 
-  <section aria-label="This build">
-    <dl class="readouts">
-      <div class="readout">
-        <dt class="label">Build</dt>
-        <dd>{shortCommit}</dd>
-      </div>
-      <div class="readout">
-        <dt class="label">Built</dt>
-        <dd>
-          <time datetime={builtOn}>{builtOn}</time>
-        </dd>
-      </div>
-      <div class="readout">
-        <dt class="label">JavaScript</dt>
-        {/* A claim test/javascript.test.ts proves: the build fails if any page ships a script. */}
-        <dd>0 KB</dd>
-      </div>
-    </dl>
+  <section class="section" aria-labelledby="how-title">
+    <SectionTitle id="how-title" number={how.number} title={how.title} />
+    <Principles items={PRINCIPLES} />
   </section>
 </Base>

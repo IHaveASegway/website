@@ -1,0 +1,26 @@
+# Names held off the site. Each one is already public in this repository, so this list keeps no
+# secret: it says what must not appear on a page, in a file the site serves, or in a path, until the
+# rule beside it lifts. Secret terms never go here; they belong in the content firewall's private
+# rules (AGENTS.md).
+#
+# test/not-on-site.test.ts scans every text file and every path in dist/ and fails on a name the
+# way a reader would see it (src/lib/held-names.ts): in any case; behind an HTML character
+# reference, with or without its ";"; split by markup such as <wbr> or <b>; with an invisible
+# character, such as a soft hyphen or a zero-width space, or a typographic dash inside; or in a
+# compatibility form such as a fullwidth letter. A file it cannot read fails the test.
+#
+# Columns: the name, how its parts may be joined, and the rule that holds it.
+#   - "-" and "_" split a name where it is written with them; "|" marks where a name written as one
+#     word splits (still|here).
+#   - any       the parts joined by nothing, or by any run of spaces, hyphens and underscores:
+#               git|ops catches gitops, git-ops, git ops and Git_Ops.
+#   - no-space  the parts joined by nothing, one hyphen or one underscore, but never a space,
+#               because the spaced form is ordinary English: still|here catches stillhere,
+#               still-here and still_here, and passes "still here".
+#
+# Lifting a hold means deleting its line, in a reviewed pull request.
+#
+# name        joins     the rule that holds it
+Mission-AI    any       product.md, Q24: not on the site at launch
+still|here    no-space  content.md, "Repo readiness checklist": held until its readiness check passes
+git|ops       any       content.md, "Repo readiness checklist": held until its readiness check passes

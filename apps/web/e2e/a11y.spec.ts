@@ -16,6 +16,12 @@ const MEDIA: Record<string, Media> = {
   'forced colors': { colorScheme: 'light', forcedColors: 'active' },
 };
 
+/** A theme stored in this browser, the opposite of the OS's: the toggle's two saved states. */
+const STORED: Record<string, { media: Media; theme: 'light' | 'dark' }> = {
+  'dark OS, light stored': { media: { colorScheme: 'dark' }, theme: 'light' },
+  'light OS, dark stored': { media: { colorScheme: 'light' }, theme: 'dark' },
+};
+
 for (const path of ROUTES) {
   for (const [name, media] of Object.entries(MEDIA)) {
     test(`axe finds no violation on ${path}, ${name}`, async ({ page }) => {
@@ -25,18 +31,34 @@ for (const path of ROUTES) {
       expect(results.violations).toEqual([]);
     });
   }
+  for (const [name, { media, theme }] of Object.entries(STORED)) {
+    test(`axe finds no violation on ${path}, ${name}`, async ({ page }) => {
+      await page.emulateMedia(media);
+      await page.addInitScript((choice) => localStorage.setItem('theme', choice), theme);
+      await page.goto(path);
+      expect(await page.evaluate(() => document.documentElement.dataset['theme'])).toBe(theme);
+      const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+      expect(results.violations).toEqual([]);
+    });
+  }
 }
 
-test('no sideways scrolling at 320 px (SC 1.4.10)', async ({ page }) => {
-  await page.setViewportSize({ width: 320, height: 640 });
-  for (const path of ROUTES) {
-    await page.goto(path);
-    const overflow = await page.evaluate(
-      () => document.documentElement.scrollWidth - window.innerWidth,
-    );
-    expect(overflow, path).toBeLessThanOrEqual(0);
-  }
-});
+// The fallback fonts are wider than a condensed face would be if they were not fitted, and the
+// overflow PR 2's first CI run found happened in a fallback, so the check runs without the web
+// fonts too.
+for (const fonts of ['loaded', 'blocked'] as const) {
+  test(`no sideways scrolling at 320 px, web fonts ${fonts} (SC 1.4.10)`, async ({ page }) => {
+    if (fonts === 'blocked') await page.route('**/*.woff2', (route) => route.abort());
+    await page.setViewportSize({ width: 320, height: 640 });
+    for (const path of ROUTES) {
+      await page.goto(path);
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - window.innerWidth,
+      );
+      expect(overflow, path).toBeLessThanOrEqual(0);
+    }
+  });
+}
 
 test('every focusable element shows a visible outline from the keyboard (SC 2.4.7)', async ({
   page,

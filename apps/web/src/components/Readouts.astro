@@ -1,0 +1,31 @@
+---
+import { builtOn, shortCommit } from '../lib/build';
+
+interface Props {
+  /** The page's eager JavaScript, measured by lib/weights.ts. */
+  javascript: string;
+}
+
+const { javascript } = Astro.props;
+// Row 2: facts about this build, read from the build itself (design-system.md, "Chosen
+// direction"). "Built", not "Deployed": a rollback promotes an older build, whose date this is.
+---
+
+<section aria-label="This build" data-row="2">
+  <dl class="readouts">
+    <div class="readout">
+      <dt class="label">Build</dt>
+      <dd>{shortCommit}</dd>
+    </div>
+    <div class="readout">
+      <dt class="label">Built</dt>
+      <dd>
+        <time datetime={builtOn}>{builtOn}</time>
+      </dd>
+    </div>
+    <div class="readout">
+      <dt class="label">JavaScript</dt>
+      <dd>{javascript}</dd>
+    </div>
+  </dl>
+</section>
