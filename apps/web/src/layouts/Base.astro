@@ -1,6 +1,11 @@
 ---
+import { Font } from 'astro:assets';
+import Footer from '../components/Footer.astro';
+import Header from '../components/Header.astro';
 import Ruler from '../components/Ruler.astro';
-import { builtOn, shortCommit } from '../lib/build';
+import { loadProfile } from '../lib/content';
+import { ogAlt, ogTitle, OG_SIZE, type OgCard } from '../lib/og';
+import { THEME_SCRIPT } from '../lib/weights';
 import '../styles/global.css';
 
 interface Props {
@@ -15,13 +20,26 @@ interface Props {
    * status 404 for unknown paths, but with status 200 at /404 itself, a soft 404 a crawler could index.
    */
   noindex?: boolean;
+  /** The link preview: the two strings og.png.ts draws beside this page (lib/og.ts). */
+  og?: OgCard;
+  /** The footer's build line. Home turns it off: its readout row is the page's telemetry strip. */
+  telemetry?: boolean;
+  /** Structured data for this page, already serialized (lib/jsonld.ts). */
+  jsonLd?: string;
 }
 
-const { title, description, path, noindex = false } = Astro.props;
+const { title, description, path, noindex = false, og, telemetry = true, jsonLd } = Astro.props;
 const canonical = path === undefined ? undefined : new URL(path, Astro.site).href;
-const isHome = Astro.url.pathname === '/';
-// The build's year, so the line never goes stale; each deploy is built once and shipped as tested.
-const year = new Date().getUTCFullYear();
+const image = og && canonical ? new URL('og.png', canonical).href : undefined;
+const profile = await loadProfile();
+
+// The theme script (src/scripts/theme.js) runs in <head>, before <body> exists, so no frame can
+// paint before a stored choice applies. In <body> it left a gap: when the HTML arrived in pieces,
+// a frame came before the script had run (seen on the first Worker Preview). The cost: Astro
+// writes the CSP <meta> at the end of <head>, and a <meta> policy covers only what follows it, so
+// this one script, ours and generated at build, runs before the policy. Everything after it stays
+// covered, and test/csp.test.ts allows exactly this script, byte for byte, before the policy.
+// astro.config.mjs still hashes it into script-src, and JSON-LD closes <body>.
 ---
 
 <!doctype html>
@@ -30,14 +48,31 @@ const year = new Date().getUTCFullYear();
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark light" />
+    <script is:inline set:html={THEME_SCRIPT} />
     <title>{title}</title>
     <meta name="description" content={description} />
     {noindex && <meta name="robots" content="noindex" />}
     {canonical && <link rel="canonical" href={canonical} />}
+    {og && canonical && image && (
+      <>
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content={ogTitle(og)} />
+        <meta property="og:description" content={description} />
+        <meta property="og:url" content={canonical} />
+        <meta property="og:image" content={image} />
+        <meta property="og:image:type" content="image/png" />
+        <meta property="og:image:width" content={String(OG_SIZE.width)} />
+        <meta property="og:image:height" content={String(OG_SIZE.height)} />
+        <meta property="og:image:alt" content={ogAlt(og)} />
+        <meta name="twitter:card" content="summary_large_image" />
+      </>
+    )}
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="sitemap" href="/sitemap-index.xml" />
+    <Font cssVariable="--font-instrument-sans" preload />
+    <Font cssVariable="--font-jetbrains-mono" preload />
   </head>
   <body class="flex min-h-dvh flex-col">
     <a class="skip-link" href="#main">
@@ -45,33 +80,12 @@ const year = new Date().getUTCFullYear();
     </a>
     <div class="frame">
       <Ruler />
-      <header class="flex min-h-11 items-center py-3.5 md:py-5">
-        <a href="/" aria-current={isHome ? 'page' : undefined} class="wordmark">
-          ihaveasegway<span>.com</span>
-        </a>
-      </header>
+      <Header />
     </div>
     <main id="main" class="frame flex-1">
       <slot />
     </main>
-    <footer class="frame">
-      <div class="mt-14 grid gap-5 border-t border-border pt-7 pb-14 md:mt-22 lg:grid-cols-12 lg:items-end lg:gap-x-7">
-        <div class="flex flex-col gap-2.5 lg:col-span-7">
-          <p class="label">Contact</p>
-          <a
-            class="text-h3 wrap-anywhere sm:text-h2 md:text-h1"
-            href="mailto:hello@ihaveasegway.com"
-          >
-            hello@ihaveasegway.com
-          </a>
-        </div>
-        <div class="flex flex-col gap-1 font-mono text-meta text-muted-foreground lg:col-span-5 lg:items-end">
-          <p>&copy; {year} Joseph Peterson</p>
-          <p>
-            build {shortCommit} · built {builtOn}
-          </p>
-        </div>
-      </div>
-    </footer>
+    <Footer profile={profile} telemetry={telemetry} />
+    {jsonLd && <script is:inline type="application/ld+json" set:html={jsonLd} />}
   </body>
 </html>

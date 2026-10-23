@@ -1,5 +1,7 @@
 # Written by tools, not people
 pnpm-lock.yaml
+apps/web/scripts/fonts/fonts.lock.json
+apps/web/src/styles/font-fallbacks.css
 **/dist/
 **/.astro/
 **/.wrangler/

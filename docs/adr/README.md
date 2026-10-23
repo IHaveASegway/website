@@ -9,13 +9,13 @@ Status: Draft for review in PR 1 · 2026-10-22
 | [0001](0001-record-architecture-decisions.md) | Record architecture decisions | Accepted |
 | [0002](0002-host-on-workers-static-assets.md) | Host on Workers static assets, not Pages | Accepted |
 | [0003](0003-astro-static-first.md) | Astro, static-first, zero JavaScript by default | Accepted |
-| [0004](0004-content-as-code.md) | Content lives in the repo; LinkedIn owns employment history | Proposed |
+| [0004](0004-content-as-code.md) | Content lives in the repo; LinkedIn owns employment history | Accepted |
 | [0005](0005-url-scheme.md) | URL scheme with trailing slashes | Accepted |
 | [0006](0006-github-actions-owns-deploys.md) | GitHub Actions owns build, gates and deploys | Accepted |
 | [0007](0007-content-firewall.md) | Content firewall: secret-held rules, fail closed | Accepted |
 | [0008](0008-workers-free-with-guardrails.md) | Workers Free with spend guardrails and upgrade triggers | Accepted |
 | [0009](0009-lab-worker-same-origin.md) | One lab Worker for all Durable Objects, on `/lab/api/*` | Proposed |
-| [0010](0010-quiet-console-design-tokens.md) | Quiet Console tokens, copied rather than imported | Proposed |
+| [0010](0010-quiet-console-design-tokens.md) | Direction C's tokens, owned here and copied rather than imported | Accepted |
 | [0011](0011-dnssec-and-hsts-ramp.md) | DNSSEC now; HSTS ramped; no preload yet | Accepted |
 | [0012](0012-public-repository.md) | Public repository after the firewall audit | Proposed |
 

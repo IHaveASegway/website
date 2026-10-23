@@ -1,0 +1,107 @@
+{
+  "about": "What scripts/fonts/build.sh reads and writes. Sources are pinned by URL, sha256 and size: the shipped fonts and their licenses, and fonts measured only to fit the fallback faces. Outputs are recorded by build.sh --write, and test/fonts.test.ts fails when a committed file differs from its line here.",
+  "sources": {
+    "instrument-sans-ttf": {
+      "url": "https://raw.githubusercontent.com/google/fonts/0b58fb370093f9a9f4ff785d94405710b79de67c/ofl/instrumentsans/InstrumentSans%5Bwdth%2Cwght%5D.ttf",
+      "sha256": "b24f1812584816958afcf22e22d08e44318c5e51651e25d2438efdde389b33b1",
+      "bytes": 194336,
+      "provenance": "Instrument Sans 1.000, OFL 1.1, no Reserved Font Name. google/fonts at commit 0b58fb37, which publishes git blob 3589b81b for this file; byte-identical to the foundry's own copy (Instrument/instrument-sans)."
+    },
+    "instrument-sans-ofl": {
+      "url": "https://raw.githubusercontent.com/google/fonts/0b58fb370093f9a9f4ff785d94405710b79de67c/ofl/instrumentsans/OFL.txt",
+      "sha256": "9e27a72ed30eb49a08678f6a5d6ed98ec7ba5368f541637ee0683ec9134ef966",
+      "bytes": 4403,
+      "provenance": "google/fonts at commit 0b58fb37, git blob 26bd2f95."
+    },
+    "jetbrains-mono-zip": {
+      "url": "https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip",
+      "sha256": "6f6376c6ed2960ea8a963cd7387ec9d76e3f629125bc33d1fdcd7eb7012f7bbf",
+      "bytes": 5622857,
+      "provenance": "JetBrains Mono v2.304 (2023-01-14), OFL 1.1, no Reserved Font Name. GitHub publishes no digest for this release asset, so this sha256 was computed on 2026-10-23 and matched an independent download made on 2026-10-22."
+    },
+    "jetbrains-mono-ttf": {
+      "from": "jetbrains-mono-zip",
+      "member": "fonts/variable/JetBrainsMono[wght].ttf",
+      "sha256": "662a196d58f1183bf2d77428b6d5283fe3f45161ab021bea4036bc98e5cac016",
+      "bytes": 303144
+    },
+    "jetbrains-mono-ofl": {
+      "from": "jetbrains-mono-zip",
+      "member": "OFL.txt",
+      "sha256": "30f0c136e3c88e422d0791acd97238870f9054a9729bc34cf2ff0d4ed8cac4ad",
+      "bytes": 4399
+    },
+    "arimo-ttf": {
+      "url": "https://raw.githubusercontent.com/google/fonts/0b58fb370093f9a9f4ff785d94405710b79de67c/apache/arimo/Arimo%5Bwght%5D.ttf",
+      "sha256": "c75270dfa8b5747c666d9e1915b8c9a6cb6e2de74d103cd0f6ee0104675a3604",
+      "bytes": 496840,
+      "provenance": "Measured only, never shipped: Arial's widths for the fallback faces. Arimo is metric-compatible with Arial (checked against macOS's Arial and Arial Bold on 2026-10-23). google/fonts at commit 0b58fb37, git blob 6e4d197f."
+    },
+    "roboto-ttf": {
+      "url": "https://raw.githubusercontent.com/google/fonts/0b58fb370093f9a9f4ff785d94405710b79de67c/ofl/roboto/Roboto%5Bwdth%2Cwght%5D.ttf",
+      "sha256": "d7598e12c5dbef095ff8272cfc55da0250bd07fbdecbac8a530b9b277872a134",
+      "bytes": 488584,
+      "provenance": "Measured only, never shipped: Android's fallback widths. google/fonts at commit 0b58fb37, git blob 5522a368."
+    },
+    "cousine-ttf": {
+      "url": "https://raw.githubusercontent.com/google/fonts/0b58fb370093f9a9f4ff785d94405710b79de67c/apache/cousine/Cousine-Regular.ttf",
+      "sha256": "69e1ea59eb770014204e5174f805750f9a793db4a2531e6516b30b7460d470b3",
+      "bytes": 308360,
+      "provenance": "Measured only, never shipped: Courier New's width, which Cousine and Liberation Mono share. google/fonts at commit 0b58fb37, git blob f67a6c8f."
+    },
+    "dejavu-zip": {
+      "url": "https://github.com/dejavu-fonts/dejavu-fonts/releases/download/version_2_37/dejavu-fonts-ttf-2.37.zip",
+      "sha256": "7576310b219e04159d35ff61dd4a4ec4cdba4f35c00e002a136f00e96a908b0a",
+      "bytes": 5522795,
+      "provenance": "Measured only, never shipped: DejaVu 2.37 (2016-07-30). GitHub publishes no digest for this release asset, so this sha256 was computed on 2026-10-23."
+    },
+    "dejavu-sans-ttf": {
+      "from": "dejavu-zip",
+      "member": "dejavu-fonts-ttf-2.37/ttf/DejaVuSans.ttf",
+      "sha256": "7da195a74c55bef988d0d48f9508bd5d849425c1770dba5d7bfc6ce9ed848954",
+      "bytes": 757076
+    },
+    "dejavu-sans-bold-ttf": {
+      "from": "dejavu-zip",
+      "member": "dejavu-fonts-ttf-2.37/ttf/DejaVuSans-Bold.ttf",
+      "sha256": "e6476c1b80502924294eed40894c5b18e06c181444ca953e5334262df9c27724",
+      "bytes": 705684
+    },
+    "dejavu-sans-mono-ttf": {
+      "from": "dejavu-zip",
+      "member": "dejavu-fonts-ttf-2.37/ttf/DejaVuSansMono.ttf",
+      "sha256": "b4a6c3e4faab8773f4ff761d56451646409f29abedd68f05d38c2df667d3c582",
+      "bytes": 340712
+    }
+  },
+  "outputs": {
+    "public/fonts/OFL-InstrumentSans.txt": {
+      "sha256": "9e27a72ed30eb49a08678f6a5d6ed98ec7ba5368f541637ee0683ec9134ef966",
+      "bytes": 4403
+    },
+    "public/fonts/OFL-JetBrainsMono.txt": {
+      "sha256": "30f0c136e3c88e422d0791acd97238870f9054a9729bc34cf2ff0d4ed8cac4ad",
+      "bytes": 4399
+    },
+    "src/assets/fonts/instrument-sans-latin.woff2": {
+      "sha256": "de7594258871b1504753d2939f854495a025c9dda3f8a89c6f96dd1169d87202",
+      "bytes": 55984
+    },
+    "src/assets/fonts/jetbrains-mono-c.woff2": {
+      "sha256": "c082b7850c2ae1ecab85567754e26cd66e7fa03228b0da11971a1f3897dababf",
+      "bytes": 8156
+    },
+    "src/og/fonts/instrument-sans-100-550.ttf": {
+      "sha256": "3c462e1194e1ce53071bc4e6417476430f82ab734cc8c8ec4758d0f8ef2adb62",
+      "bytes": 34976
+    },
+    "src/og/fonts/instrument-sans-80-620.ttf": {
+      "sha256": "c4201eae6cf1509b6e64e7aaf5a90e653f1f702d87b9e41bf038298bc2d5459e",
+      "bytes": 34820
+    },
+    "src/styles/font-fallbacks.css": {
+      "sha256": "c7a8cc49c3390388a29e4d64cb20c1107b4fc8247a9e0c43e2719196bee04314",
+      "bytes": 6458
+    }
+  }
+}

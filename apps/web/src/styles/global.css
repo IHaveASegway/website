@@ -1,5 +1,7 @@
-@import 'tailwindcss';
+/* Tailwind reads class names from src/ only: tests and scripts mention utilities they never use. */
+@import 'tailwindcss' source('../');
 @import './tokens.css';
+@import './font-fallbacks.css';
 
 @layer base {
   html {
@@ -50,6 +52,15 @@
   }
 }
 
+/* Motion is authored inside no-preference only (design-system.md, "Motion"): a visitor who asks
+   for reduced motion gets every state change without the movement. test/tokens.test.ts fails if a
+   transition, an animation, smooth scrolling or a view transition appears anywhere else. */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition {
+    navigation: auto;
+  }
+}
+
 @layer components {
   /* Hidden until focused, then the first thing on the page (SC 2.4.1). */
   .skip-link {
@@ -71,11 +82,13 @@
     transform: none;
   }
 
-  /* Direction C, "Instrument" (design-system.md): a 12-column frame, a ruler over it, and a mono
-     voice for labels and readouts. */
+  /* Direction C, "Instrument" (design-system.md): a 12-column frame, a ruler over it, a poster-size
+     name, and a mono voice for labels and readouts. The mockup's frame is 1312px of content inside
+     64px margins. Tailwind's preflight makes every box border-box, so the padding counts inside
+     max-width here: 90rem is 1312px of content plus 2 × 4rem. */
   .frame {
     width: 100%;
-    max-width: 82rem;
+    max-width: 90rem;
     margin-inline: auto;
     padding-inline: 1.125rem;
   }
@@ -119,8 +132,23 @@
     }
   }
 
+  .site-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    min-height: 2.75rem;
+    padding-block: 0.875rem;
+  }
+
+  @media (width >= 48rem) {
+    .site-header {
+      padding-block: 1.375rem;
+    }
+  }
+
   .wordmark {
-    font-size: var(--text-lead);
+    font-size: 1.125rem;
     font-weight: 650;
     letter-spacing: -0.01em;
     text-decoration-line: none;
@@ -129,6 +157,27 @@
   .wordmark > span {
     color: var(--muted-foreground);
     font-weight: 500;
+  }
+
+  .site-nav ul {
+    display: flex;
+    gap: 1.75rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--text-ui);
+    font-weight: 500;
+  }
+
+  .site-nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    text-decoration-line: none;
+  }
+
+  .site-nav a[aria-current='page'] {
+    text-decoration-line: underline;
   }
 
   .label {
@@ -141,14 +190,53 @@
     text-transform: uppercase;
   }
 
+  /* Row 1: the hero. */
+  .hero {
+    padding-block: 1.875rem 1.375rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .hero-name {
+    margin: 0;
+    font-size: var(--text-hero);
+    font-weight: 620;
+    font-stretch: 80%;
+    line-height: 0.9;
+    letter-spacing: -0.035em;
+    text-wrap: balance;
+    overflow-wrap: break-word;
+  }
+
+  .hero-below {
+    display: grid;
+    gap: 0.875rem;
+    margin-top: 1.125rem;
+  }
+
+  .hero-who {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+  }
+
+  .hero-title {
+    margin: 0;
+    font-size: var(--text-title);
+    font-weight: 550;
+    line-height: var(--text-title--line-height);
+    letter-spacing: -0.01em;
+  }
+
   .where {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
+    margin: 0;
     color: var(--muted-foreground);
     font-family: var(--font-mono);
-    font-size: var(--text-meta);
+    font-size: 0.78125rem;
     font-weight: 500;
+    line-height: 1;
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
@@ -161,6 +249,63 @@
     background-color: var(--signal);
   }
 
+  .hero-proof {
+    margin: 0;
+    max-width: 40rem;
+    color: var(--muted-foreground);
+    font-size: var(--text-lead);
+    line-height: var(--text-lead--line-height);
+    text-wrap: pretty;
+  }
+
+  .hero-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  @media (width >= 48rem) {
+    .hero {
+      padding-block: 4rem 2.5rem;
+    }
+
+    .hero-name {
+      line-height: 0.86;
+    }
+
+    .hero-below {
+      gap: 1.25rem;
+      margin-top: 2.5rem;
+    }
+
+    .hero-actions {
+      grid-template-columns: repeat(3, minmax(0, 15rem));
+    }
+  }
+
+  @media (width >= 64rem) {
+    .hero-below {
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      column-gap: 1.75rem;
+      align-items: start;
+    }
+
+    .hero-who {
+      grid-column: 1 / 5;
+    }
+
+    .hero-proof {
+      grid-column: 5 / 10;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-direction: column;
+      grid-column: 10 / 13;
+      gap: 0.625rem;
+    }
+  }
+
   .btn {
     display: inline-flex;
     align-items: center;
@@ -171,6 +316,7 @@
     border: 1px solid var(--input);
     border-radius: var(--radius-md);
     color: var(--foreground);
+    font-size: var(--text-ui);
     font-weight: 550;
     text-decoration-line: none;
   }
@@ -193,10 +339,18 @@
     color: var(--primary-foreground);
   }
 
+  /* The key on a button (hello@, ↓, ↗) is a desktop detail; phones show the word alone. */
   .btn .hint {
+    display: none;
     font-family: var(--font-mono);
-    font-size: var(--text-meta);
+    font-size: var(--text-label);
     font-weight: 500;
+  }
+
+  @media (width >= 48rem) {
+    .btn .hint {
+      display: inline;
+    }
   }
 
   /* Forced colors (Windows contrast themes) replace the apricot fill with the user's background,
@@ -211,12 +365,26 @@
     }
   }
 
-  /* The readouts wrap instead of squeezing: each takes at least 7rem, a row shares its width, and
-     the 1px gaps between them show the border color as rules, wherever the rows break. */
+  /* On paper the fill may not print (browsers drop backgrounds by default), and the label's screen
+     color is near-white on light and near-black on dark. So the primary button prints as an
+     outline with ink text, which reads the same with or without background graphics. */
+  @media print {
+    .btn-primary,
+    .btn-primary:hover {
+      border-color: var(--foreground);
+      background-color: transparent;
+      color: var(--foreground);
+    }
+  }
+
+  /* Row 2: facts about this build, read from the build itself. The readouts wrap instead of
+     squeezing: each takes at least 6.5rem, a row shares its width, and the 1px gaps between them
+     show the border color as rules, wherever the rows break. */
   .readouts {
     display: flex;
     flex-wrap: wrap;
     gap: 1px;
+    margin: 0;
     overflow: hidden;
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
@@ -225,17 +393,19 @@
 
   .readout {
     display: flex;
-    flex: 1 1 7rem;
+    flex: 1 1 6.5rem;
     flex-direction: column;
-    gap: 0.375rem;
+    gap: 0.3125rem;
     padding: 0.625rem 0.75rem;
     background-color: var(--surface-1);
   }
 
   .readout dd {
+    margin: 0;
     font-family: var(--font-mono);
     font-size: var(--text-sm);
     font-weight: 500;
+    line-height: 1.2;
     font-variant-numeric: tabular-nums;
   }
 
@@ -248,5 +418,391 @@
     .readout dd {
       font-size: var(--text-base);
     }
+  }
+
+  /* Forced colors paint every background in the system's Canvas color, so the rules drawn by the
+     row's background showing through the gaps disappear. Each readout draws its own instead. */
+  @media (forced-colors: active) {
+    .readout {
+      outline: 1px solid CanvasText;
+    }
+  }
+
+  /* Sections below the fold, each with a number assigned at build. */
+  .section {
+    padding-top: 2.75rem;
+  }
+
+  @media (width >= 48rem) {
+    .section {
+      padding-top: 4.5rem;
+    }
+  }
+
+  .section-title {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    margin: 0 0 1.625rem;
+    font-size: var(--text-ui);
+    font-weight: 600;
+    line-height: var(--text-ui--line-height);
+    letter-spacing: 0.01em;
+  }
+
+  .section-n {
+    color: var(--primary);
+    font-family: var(--font-mono);
+    font-size: var(--text-meta);
+    font-weight: 500;
+  }
+
+  .section-rule {
+    flex: 1;
+    align-self: center;
+    height: 1px;
+    background-color: var(--border);
+  }
+
+  .cards {
+    display: grid;
+    gap: 1.25rem;
+  }
+
+  @media (width >= 48rem) {
+    .cards {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (width >= 64rem) {
+    .cards {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  /* A card's hover: a 2px accent bar sweeps across its top edge, the sign that the card leads
+     somewhere. So only a card that holds a link reacts to the pointer; a card with nothing to
+     activate stays still. The state change is here; the movement is in the no-preference block
+     below, so reduced motion shows the bar at once. :focus-within mirrors hover for the keyboard,
+     and only a card with a link can hold focus. The two selectors are separate rules, so a browser
+     without :has() still keeps the keyboard state. */
+  .card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+    overflow: hidden;
+    padding: 1.5rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background-color: var(--surface-1);
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: 2px;
+    background-color: var(--primary);
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+
+  .card:focus-within {
+    border-color: var(--muted-foreground);
+  }
+
+  .card:has(.card-more):hover {
+    border-color: var(--muted-foreground);
+  }
+
+  .card:focus-within::before {
+    transform: scaleX(1);
+  }
+
+  .card:has(.card-more):hover::before {
+    transform: scaleX(1);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .card::before {
+      transition: transform 0.22s ease-out;
+    }
+  }
+
+  .card-idx {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .card-title {
+    margin: 0;
+    font-size: var(--text-card-title);
+    font-weight: 620;
+    font-stretch: 90%;
+    line-height: var(--text-card-title--line-height);
+    letter-spacing: -0.02em;
+  }
+
+  .card-text {
+    margin: 0;
+    color: var(--muted-foreground);
+    font-size: var(--text-card);
+    line-height: var(--text-card--line-height);
+    text-wrap: pretty;
+  }
+
+  /* A card's link keeps its underline: inline links are marked by it, not by color (SC 1.4.1). */
+  .card-more {
+    margin-top: auto;
+    font-size: var(--text-sm);
+    font-weight: 600;
+  }
+
+  .kv {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.4375rem 1.125rem;
+    margin: 0.375rem 0 0;
+    padding-top: 0.875rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .kv dt {
+    color: var(--muted-foreground);
+    font-family: var(--font-mono);
+    font-size: var(--text-kv);
+    font-weight: 500;
+    line-height: var(--text-kv--line-height);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .kv dd {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.84375rem;
+    font-weight: 500;
+    line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* How I work: the <ol> numbers the items for assistive technology, so the visible number is
+     hidden from it. role="list" in the markup keeps the list in Safari, which drops it otherwise. */
+  .principles {
+    display: grid;
+    gap: 1.25rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  @media (width >= 48rem) {
+    .principles {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (width >= 64rem) {
+    .principles {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  .principles > li {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    padding-top: 1rem;
+    border-top: 2px solid var(--foreground);
+  }
+
+  .principle-n {
+    color: var(--primary);
+    font-family: var(--font-mono);
+    font-size: var(--text-meta);
+    font-weight: 500;
+    line-height: 1;
+  }
+
+  .principle-title {
+    margin: 0;
+    font-size: var(--text-principle);
+    font-weight: 620;
+    line-height: var(--text-principle--line-height);
+    letter-spacing: -0.01em;
+  }
+
+  .principle-text {
+    margin: 0;
+    color: var(--muted-foreground);
+    font-size: 0.96875rem;
+    line-height: 1.55;
+    text-wrap: pretty;
+  }
+
+  /* The footer: contact, links that exist, the theme toggle and the build line. */
+  .site-footer {
+    display: grid;
+    row-gap: 1.25rem;
+    margin-top: 3.5rem;
+    padding-block: 1.75rem 3.5rem;
+    border-top: 1px solid var(--border);
+  }
+
+  @media (width >= 64rem) {
+    .site-footer {
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      column-gap: 1.75rem;
+      align-items: end;
+      margin-top: 5.5rem;
+    }
+
+    .site-footer .contact {
+      grid-column: 1 / 7;
+    }
+
+    .site-footer .side {
+      grid-column: 7 / 13;
+      align-items: flex-end;
+    }
+  }
+
+  .contact {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+  }
+
+  .contact-email {
+    font-size: var(--text-email);
+    font-weight: 620;
+    font-stretch: 90%;
+    line-height: var(--text-email--line-height);
+    letter-spacing: -0.02em;
+    overflow-wrap: anywhere;
+  }
+
+  .side {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.375rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--text-ui);
+    font-weight: 500;
+  }
+
+  .tele {
+    margin: 0;
+    color: var(--muted-foreground);
+    font-family: var(--font-mono);
+    font-size: var(--text-meta);
+    line-height: var(--text-meta--line-height);
+  }
+
+  /* The theme toggle cycles System, then the theme the OS is not showing, then the one it is, and
+     back to System (src/scripts/theme.js). Its label comes from the two attributes the script sets
+     on <html>, so the visible words and the accessible name are the same text. Without the script nothing sets data-theme, and the toggle stays hidden: there is
+     never a control that does nothing. */
+  .theme-toggle {
+    display: none;
+    min-height: 2.75rem;
+    padding: 0 0.875rem;
+    border: 1px solid var(--input);
+    border-radius: var(--radius-md);
+    background-color: transparent;
+    color: var(--foreground);
+    font-family: var(--font-mono);
+    font-size: var(--text-meta);
+    font-weight: 500;
+    line-height: 1.25; /* room between the lines when a narrow screen wraps the saved note */
+    cursor: pointer;
+  }
+
+  .theme-toggle:hover {
+    border-color: var(--foreground);
+    background-color: var(--surface-2);
+  }
+
+  :root[data-theme] .theme-toggle {
+    display: inline-block;
+  }
+
+  .theme-toggle svg {
+    display: inline-block;
+    width: 0.875rem;
+    height: 0.875rem;
+    margin-inline-end: 0.5rem;
+    vertical-align: -0.125rem;
+  }
+
+  .theme-state,
+  .theme-saved {
+    display: none;
+  }
+
+  :root[data-theme='dark'] .theme-state[data-for='dark'],
+  :root[data-theme='light'] .theme-state[data-for='light'],
+  :root[data-theme='system'] .theme-state[data-for='system'] {
+    display: inline;
+  }
+
+  /* One unit, so a narrow screen (320px) breaks the label before "· saved in this browser" rather
+     than inside it. */
+  :root[data-saved] .theme-saved {
+    display: inline-block;
+  }
+
+  /* Paper gets no control: the toggle does nothing there. The :root[data-theme] prefix outranks
+     the rule above that shows it. */
+  @media print {
+    :root[data-theme] .theme-toggle {
+      display: none;
+    }
+  }
+
+  /* The 404 page. */
+  .notice {
+    padding-block: 1.875rem 1.5rem;
+    border-top: 1px solid var(--border);
+  }
+
+  @media (width >= 48rem) {
+    .notice {
+      padding-block: 4rem 2.5rem;
+    }
+  }
+
+  .notice-title {
+    margin: 1rem 0 0;
+    font-size: var(--text-display);
+    font-weight: 620;
+    font-stretch: 90%;
+    line-height: var(--text-display--line-height);
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+  }
+
+  .notice-text {
+    margin: 1rem 0 0;
+    color: var(--muted-foreground);
+    font-size: var(--text-lead);
+    line-height: var(--text-lead--line-height);
+  }
+
+  .notice-actions {
+    margin: 2.5rem 0 0;
   }
 }

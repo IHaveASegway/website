@@ -1,0 +1,25 @@
+---
+// Cycles System, the theme the OS is not showing, then the one it is: every press but the return to
+// System changes the page. The click handler lives in the pre-paint script (src/scripts/theme.js),
+// so the toggle adds no script of its own. Its label is chosen by CSS from data-theme and data-saved
+// on <html>: the hidden spans are display: none, so the visible words are also the accessible
+// name. "saved in this browser" is the notice that keeps a stored choice consent-exempt
+// (security.md, "Privacy and data inventory").
+---
+
+<button type="button" class="theme-toggle" data-theme-toggle>
+  <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+    <circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+    <path d="M8 1.75a6.25 6.25 0 0 1 0 12.5z" fill="currentColor"></path>
+  </svg>
+  <span class="theme-state" data-for="dark">
+    Theme: dark
+  </span>
+  <span class="theme-state" data-for="light">
+    Theme: light
+  </span>
+  <span class="theme-state" data-for="system">
+    Theme: system
+  </span>
+  <span class="theme-saved">&nbsp;· saved in this browser</span>
+</button>

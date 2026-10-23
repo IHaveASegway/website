@@ -111,4 +111,11 @@ Two-way, with a medium exit cost. Markdown content and CSS tokens move to any ge
 
 ## Postscript 2026-10-23
 
-The typefaces under **Styling and fonts** changed with the design direction chosen on 2026-10-23: Instrument Sans and JetBrains Mono, self-hosted from PR 3 after spike S9 ([ADR 0010](0010-quiet-console-design-tokens.md), [design-system.md](../design-system.md#chosen-direction)). Until then the site uses system font stacks. The rest of the decision stands, and no Revisit if condition was met.
+Practice now differs from the decision in four places, all from PR 3; none changes it, and no Revisit if condition was met.
+
+- **Eager JavaScript.** 624 B on a content page, the theme script alone, against the 2.2 KB of vanilla modules planned under Consequences: the ⌘K palette moved to PR 4, and the label decode and the telemetry strip's data center are deferred ([design-system.md](../design-system.md#effects-catalog)).
+- **Fonts.** The typefaces under **Styling and fonts** changed with the design direction chosen on 2026-10-23 ([ADR 0010](0010-quiet-console-design-tokens.md)): Instrument Sans (55,984 B) and a JetBrains Mono subset (8,156 B), 64,140 B together against the 64,120 B planned. Astro's Fonts API serves them through its local provider, which spike S9 tested in PR 3, with Astro's own fallback off and fallback faces fitted per width instead ([design-system.md](../design-system.md#typography)).
+- **OG images.** Satori with sharp, not resvg. `@resvg/resvg-js` had not released since 2024-03-26; sharp was already in the lockfile as Astro's optional dependency, has no install script, and is what satori's README recommends ([stack.md](../stack.md)).
+- **The theme script runs before the policy.** It moved into `<head>`, ahead of the `<meta>` where Astro writes the CSP, so no frame paints before a stored theme applies. Its hash is still in `script-src`, but a `<meta>` policy covers only what follows it, so this one script is outside it; two tests pin it byte for byte ([security.md](../security.md#headers-and-content-security-policy)).
+
+The field p75 question under Revisit if, where real-user LCP and INP come from, moved with the Web Analytics beacon to PR 3b.

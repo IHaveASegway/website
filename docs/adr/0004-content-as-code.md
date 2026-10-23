@@ -1,6 +1,6 @@
 # ADR 0004: Content lives in the repo; LinkedIn owns employment history
 
-Status: Proposed · 2026-10-22 · Deciders: Joseph Peterson
+Status: Accepted · 2026-10-23 · Deciders: Joseph Peterson
 
 ## Context
 
@@ -22,13 +22,14 @@ One owner per piece of data:
 |---|---|---|---|---|
 | Case studies, essays, notes, lab write-ups, `/now/` | Markdown and MDX in `apps/web/src/content/**` | Joseph, by pull request | At build, validated by Zod (schema-on-write) | As of the last deploy, minutes after merge |
 | Public profile: title, arc (role titles and years, no employer), skills, education, links | `apps/web/src/content/profile.json`, a JSON Resume subset with no employer field | Joseph, by pull request | At build; renders `/about/`, Home, the JSON-LD, and later `/resume/` | As of the last deploy; compared with LinkedIn each quarter |
-| Employment history, with employer names | LinkedIn, plus Joseph's private résumé | Joseph, on LinkedIn | Never copied. At most a link, if Q-threat-model allows it | Not applicable |
+| Employment history, with employer names | LinkedIn, plus Joseph's private résumé | Joseph, on LinkedIn | Never copied. At most a link: Q-threat-model allows one, and LinkedIn is linked from PR 3 with Joseph's written clearance | Not applicable |
 | Project facts: latest release, tag dates | GitHub | Each project's release process | Read from GitHub's API once per build, never at request time; a weekly scheduled rebuild refreshes them | Eventual: at most a week old |
 | Decisions | `docs/adr/*.md` | Joseph, by pull request | At build, from the same files; rendered at `/colophon/decisions/<nnnn-slug>/` | As of the last deploy |
 
 - **No CMS.** The repo is the content store, git is its history, a pull request is its review, and the firewall job is its gate.
 - **The profile schema has no slot for the employer.** Its objects are strict, so an employer field, a city, an address, an email or a phone number in `profile.json` fails the build. Free-text values (the title, the arc) can still carry a name; the firewall scan covers those. The schema is in [content.md](../content.md).
-- **Nothing is fetched at request time.** If GitHub does not answer during a build, the project line is dropped, not guessed, and the build goes on.
+- **Nothing is fetched at request time.** If GitHub does not answer during a build, the project line is dropped, not guessed, and the build goes on. The unattended weekly rebuild is the exception: it fails instead, so the live page keeps the facts it has rather than losing them to an outage nobody is watching ([delivery.md](../delivery.md#pipeline)).
+- **A record renders only once its check is recorded.** An external profile or a repository in `profile.json` carries `checked`, with the date and, for GitHub, the commit the readiness check read, before anything on the site links it ([content.md](../content.md#repo-readiness-checklist)). PR 3 built the profile this way: the first collection to use this decision.
 
 Prior art. This is docs as code applied to a personal site. Cloudflare's developer documentation is MDX in the public `cloudflare/cloudflare-docs` repository, built with Astro (astro 7.4.1 in its `package.json`, as of 2026-10-22), with its content under `src/content/` ([repository](https://github.com/cloudflare/cloudflare-docs)). It is the same pattern this site uses, at a far larger size. GitLab keeps its company handbook in a repository and changes it through merge requests ([Editing the handbook](https://handbook.gitlab.com/handbook/about/editing-handbook/)). The profile uses JSON Resume, an open schema under the MIT license ([jsonresume.org](https://jsonresume.org/schema)), so any résumé tool can read the same file.
 

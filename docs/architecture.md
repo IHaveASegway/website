@@ -146,11 +146,11 @@ Every datum the site touches. Read a row left to right: where it lives, who may 
 | Public profile: title, arc, skills, education, links | `apps/web/src/content/profile.json`, a JSON Resume subset with no employer field | Authoring | Joseph, by pull request | `/about/`, later `/resume/`, the JSON-LD | build-time copy | per deploy |
 | Employment history: employers, dates | LinkedIn and Joseph's private résumé | outside the system | Joseph, on LinkedIn | visitors who follow the link | a link only: never copied, never fetched | none: the site holds no copy, so it cannot be stale |
 | Project facts: latest release, tag dates | GitHub | Presentation, as build input | each project's release workflow | the build | build-time snapshot through GitHub's REST API; a weekly scheduled rebuild | eventual, at most about a week old; pages print the snapshot date |
-| Design tokens | `tokens.css` in `apps/web`, a deliberate fork of Mission-AI's values | Presentation | Joseph, by pull request | pages, lab islands, the contrast unit test | same build | per deploy; never synced with Mission-AI |
-| Build metadata: commit SHA, build time, page weight | git and the CI run | Delivery | CI, at build | the telemetry strip | baked into the HTML | exact for that version |
-| Serving data center | none: Cloudflare's edge derives it per request | Edge | Cloudflare | the telemetry strip | read in the browser after load, from the `colo` field of Cloudflare's `/cdn-cgi/trace` ([design-system.md](design-system.md)). Whether a Worker sees that request is undocumented, so PR 3 checks that Workers requests stay at 0; the fallback is the `CF-RAY` header of a same-origin `HEAD`, which ends in the same code[^cfray] | per request; never stored |
-| Theme choice | the visitor's `localStorage` | Presentation | the visitor | the inline pre-paint script, hashed into the CSP | never leaves the browser | per browser; if lost, the OS setting applies |
-| Page-view analytics | Cloudflare Web Analytics | Presentation | the beacon in the visitor's browser | Joseph | cookieless beacon; six months of history[^wa] | approximate: ad blockers undercount developers, so capacity triggers use Workers and DO metrics |
+| Design tokens | `tokens.css` in `apps/web`: direction C's values (Petrol + Apricot), in the token structure first copied from Mission-AI | Presentation | Joseph, by pull request | pages, lab islands, the contrast unit test, the Open Graph card | same build | per deploy; never synced with Mission-AI, and no Mission-AI value remains |
+| Build metadata: commit SHA, build date, JavaScript bytes | git and the CI run; `src/lib/weights.ts` measures the bytes | Delivery | CI, at build | Home's readout row and the footer's build line on other pages | baked into the HTML | exact for that version |
+| Serving data center | none: Cloudflare's edge derives it per request | Edge | Cloudflare | the served-from readout, deferred from PR 3 to PR 4 | read in the browser after load, from the `colo` field of Cloudflare's `/cdn-cgi/trace` ([design-system.md](design-system.md)). Whether a Worker sees that request is undocumented, so the pull request that ships it checks that Workers requests stay at 0; the fallback is the `CF-RAY` header of a same-origin `HEAD`, which ends in the same code[^cfray] | per request; never stored |
+| Theme choice | the visitor's `localStorage` | Presentation | the visitor, through the toggle | the inline pre-paint script in `<head>`, the only code that reads or writes it; its hash is in the CSP, and it runs before the policy's `<meta>` ([security.md](security.md#headers-and-content-security-policy)) | never leaves the browser | per browser; if lost, the OS setting applies |
+| Page-view analytics (from PR 3b) | Cloudflare Web Analytics | Presentation | the beacon in the visitor's browser | Joseph | cookieless beacon; six months of history[^wa] | approximate: ad blockers undercount developers, so capacity triggers use Workers and DO metrics |
 | Lab session (Phase 4) | a cookie in the visitor's browser, HMAC-signed by the lab Worker | Lab | the lab Worker, after Turnstile and the mint rate limit[^turnstile] | the lab Worker, on each `/lab/api/` call | cookie `Path=/lab/api; HttpOnly; Secure; SameSite=Strict`, 15 minutes | self-verifying; nothing stored on the server |
 | Demo state (Phase 4) | one DO per room or session, SQLite | Lab, per demo | that DO only | browsers in the room | WebSocket, protocol v1: a snapshot on join, then events | strong per object; deleted within 15 minutes |
 | Lab budgets and flags (Phase 4) | the `LabControl` DO | Lab | `LabControl` (counters); Joseph (flags, in the dashboard's Data Studio; the route has no admin endpoint) | the lab Worker, on every upgrade | an RPC call from the lab Worker to the one `LabControl` object | strong; on error, admission falls back to recorded |
@@ -195,9 +195,9 @@ sequenceDiagram
   S-->>B: 200, HTML with the _headers rules applied
   B->>S: CSS, fonts, images
   S-->>B: 200, static assets
-  B->>Z: GET /cdn-cgi/trace, for the status line
-  Z-->>B: the colo code. Whether a Worker<br/>sees this request is checked in PR 3
-  B->>A: cookieless beacon
+  B->>Z: GET /cdn-cgi/trace, for the served-from readout (from PR 4)
+  Z-->>B: the colo code. Whether a Worker<br/>sees this request is checked when it ships
+  B->>A: cookieless beacon (from PR 3b)
   Note over B,S: No Worker code ran, so 0 Worker requests<br/>count against the Free cap.
 ```
 

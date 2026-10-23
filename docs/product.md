@@ -80,9 +80,9 @@ Nothing is deployed. As found on 2026-10-22:
 | Cloudflare account | Already runs one other Worker. The Free plan's daily Worker request quota is per account, so the two share it | Spikes that could spend that quota ask Joseph first ([roadmap.md](roadmap.md)) |
 | This repository | One initial commit. Private, on a GitHub Free personal account, where rulesets and branch protection are unavailable (the API returns 403) and environments are public-repo-only ([GitHub plans](https://docs.github.com/en/get-started/learning-about-github/githubs-plans)) | docs/ in PR 1; the pipeline itself is the gate ([ADR 0006](adr/0006-github-actions-owns-deploys.md)); public after the audit ([ADR 0012](adr/0012-public-repository.md), Q7) |
 | stillhere | Joseph's own. Public; Apache-2.0; pre-release; 15 ADRs; publishes a failed validation of its own headline metric | The lead case study in PR 4, after the repo readiness checks |
-| gitops | Joseph's own, with outside contributions. Public; MIT; 5 releases, the latest v1.2.1; cosign-signed checksums; CI on Linux, macOS and Windows | The second case study in PR 4, with the contributions credited |
+| gitops | Joseph's own, with outside contributions. MIT; cosign-signed checksums; CI on Linux, macOS and Windows. Its last public release, v1.2.2, came out on 2026-10-23, and Joseph made the repository private the same day | Held off the site ([content.md](content.md#names-held-off-the-site)). Whether PR 4 has a case study without links, or none, is his decision (Q10) |
 | capacitor | Someone else's project, with an upstream contribution from Joseph | One contribution line, never "his project" |
-| Mission-AI console UI | His own earlier project; private | Design lineage only. The Quiet Console copies its zinc neutrals and shadcn token names rather than importing them, once Joseph confirms he is the sole owner of those values (Q25, [ADR 0010](adr/0010-quiet-console-design-tokens.md)). No Mission-AI content at launch (Q24) |
+| Mission-AI console UI | His own earlier project; private | Design lineage only. The token file began as a copy of its shadcn token names and zinc neutrals, which Joseph confirmed are his (Q25); direction C replaced the neutrals and the accent on 2026-10-23, and the copied structure stays ([ADR 0010](adr/0010-quiet-console-design-tokens.md)). No Mission-AI content at launch (Q24) |
 | Employment history | LinkedIn and his private résumé | Stays there and is never copied into the repository ([ADR 0004](adr/0004-content-as-code.md)) |
 | Older private repos | Private | Stay private and unlinked (Q22) |
 
@@ -163,22 +163,23 @@ This section is the **policy**: what is excluded and why. How it is enforced (th
 
 ## Milestones
 
-A summary of [roadmap.md](roadmap.md), which owns scope, definitions of done and the spikes. Estimates are in focused days. One PR is in flight at a time.
+A summary of [roadmap.md](roadmap.md), which owns scope, definitions of done and the spikes. Estimates are in focused days. One PR is in flight at a time; on 2026-10-23 that limit was relaxed for a branch stacked on PR 3's and for the lab's spikes, and the order changed ([roadmap.md](roadmap.md#how-we-work)).
 
 | Phase | PR | Ships | Est. (days) | Blocked by |
 |---|---|---|---|---|
 | 0 | PR 1 | docs/ (this PR) | done | — |
 | 1 | PR 2 Foundation | pnpm workspace; Astro static site; tokens, base layout, 404; CI (verify, firewall, preview, e2e, deploy, prod-smoke); local hooks; Dependabot; security headers; zone hardening; a minimal real Home on `ihaveasegway.com` | 2–3 | — (spikes S7 and S8 run inside it) |
-| 2 | PR 3 Home v1 + Colophon | Quiet Console components; final Home copy; Open Graph images; JSON-LD; Web Analytics; `/colophon/` with selected ADRs rendered; budgets enforced in CI | 2–3 | The design exploration |
+| 2 | PR 3 Home v1 | Direction C's typefaces, tokens and components; the theme toggle; final Home copy; Open Graph images; JSON-LD; budgets enforced in CI | 2–3, re-baselined to about 7 | The design exploration |
+| 3 | PR 5 Writing, next | `/writing/`, `/notes/`, `/rss.xml`; first posts (Writing renders at ≥3) | 2 | — |
+| 2 | PR 3b Colophon, analytics, LHCI | `/colophon/` with the ADRs Joseph opts in; Web Analytics; Lighthouse CI | about 2.5 | PR 5; his ADR opt-ins and analytics site token |
 | 2 | Gate: repository public | [ADR 0012](adr/0012-public-repository.md) | 0.5 | Q7 |
-| 3 | PR 4 Work + About + Now | `/work/stillhere/`, `/work/gitops/`, `/about/`, `/now/`; terminal recordings | 3–4 | Q8–Q10; repo readiness checks |
-| 3 | PR 5 Writing | `/writing/`, `/notes/`, `/rss.xml`; first posts (Writing renders at ≥3) | 2 | — |
-| 4 | PR 6 Lab platform + Presence | Lab Worker; admission; budgets; recordings; `/privacy/`; kill switch | 4–5 | Q11, Q13; spikes S1–S6 |
+| 3 | PR 4 Work + About + Now | `/work/stillhere/`, `/about/`, `/now/`, and `/work/gitops/` if he keeps it; terminal recordings; the ⌘K palette | 3–4 | Q8–Q10; repo readiness checks |
+| 4 | PR 6 Lab platform + Presence | Lab Worker; admission; budgets; recordings; `/privacy/`; kill switch | 4–5 | Q13; spikes S1–S6, running from 2026-10-23 |
 | 4 | PR 7 Outbox Lab | The transactional outbox demo | 8–10 | Q12 |
 | 4 | PR 8 Migration Lab | The saved-plan migration demo | 6–8 | — |
 | 5 | Later | Route Lab, a public résumé edition, Pagefind search, Mission-AI references, terminal mode | — | Q9, Q24 |
 
-Phases 1–3, a complete content site, add up to 9.5–12.5 focused days. Phase 4, the lab, adds 18–23: nearly twice the rest of the site, which is one more reason it comes last.
+Phases 1–3, a complete content site, added up to 9.5–12.5 focused days as first planned, and about 17–19 since PR 3's re-baseline on 2026-10-23. Phase 4, the lab, adds 18–23. Content came first by design; on 2026-10-23 Joseph moved the blog ahead of the case studies and started the lab's spikes alongside it ([roadmap.md](roadmap.md)).
 
 ## Open decisions
 
@@ -200,15 +201,14 @@ None left: Q1 and Q2 were decided on 2026-10-22 ([Decided](#decided)).
 |---|---|---|---|---|---|
 | Q8 · Q-career-arc | What may the career arc say? | (a) Role titles and years, with no employer. (b) (a) plus one generic industry noun, such as "operations". (c) Exact titles, including rare ones | (a), then clear (b) item by item. The arc is the differentiator a recruiter remembers, but a rare title or an industry noun, next to a location and a LinkedIn link, can narrow to one company. Résumé metrics stay off until each is cleared in writing | One-way once published | At a glance on Home, `/about/`, JSON-LD · before PR 4 |
 | Q9 · Q-resume | A public résumé, or "on request"? | (a) A LinkedIn link plus "full résumé on request". (b) A public edition: HTML and a print-CSS PDF generated from `profile.json`, employer omitted, clean PDF metadata | (a) now; (b) once Q3 and Q8 are answered. (a) costs nothing and leaks nothing. The current résumé PDF is never hosted or committed either way | Two-way for the page; one-way for a PDF someone downloaded | The résumé line in PR 4; `/resume/` in Phase 5 · before PR 4 |
-| Q10 · Q-projects | Which work is featured? | (a) stillhere and gitops, plus one line for the upstream contribution to capacitor. (b) Other repositories as well | (a). Both are owned, public and checkable; each passes the readiness checks before it is linked; and the credit stays exact (gitops has outside contributions; capacitor is someone else's project) | Two-way | `/work/` in PR 4 · before PR 4 |
+| Q10 · Q-projects | Which work is featured? | (a) stillhere and gitops, plus one line for the upstream contribution to capacitor. (b) Other repositories as well | (a). Both are owned, public and checkable; each passes the readiness checks before it is linked; and the credit stays exact (gitops has outside contributions; capacitor is someone else's project). Stays open until the readiness checks: gitops went private on 2026-10-23, so (a) now needs his decision on gitops | Two-way | `/work/` in PR 4 · before PR 4 |
 
 ### Blocking PR 6 and later
 
 | # | Question | Options | Recommendation, and why | Door | Blocks · by |
 |---|---|---|---|---|---|
-| Q11 · Q-budget | What unexpected monthly Cloudflare bill would hurt? | $10, $25 or $50 | Joseph names the number. On Workers Free the bill cannot pass $0, so the number matters from the day an upgrade trigger fires. It sets the budget alerts and the threshold at which the automatic kill switch blocks the lab API ([ADR 0008](adr/0008-workers-free-with-guardrails.md), [cost.md](cost.md)) | Two-way | PR 6's guardrails; any move to Workers Paid · before PR 6 |
 | Q12 · Q-first-demo | Which demo follows Presence? | (a) Outbox Lab. (b) Migration Lab. (c) Route Lab | (a). It shows a failure and its fix side by side, a naive dual write that visibly loses events next to a transactional outbox, on synthetic data, and it needs no external map data or solver. (c) brings the most outside parts (a WASM solver, map data, a travel-time matrix) on top of 7–10 days of work, so it ships last ([lab.md](lab.md)) | Two-way | PR 7 · before PR 7 |
-| Q13 · Q-ip | Has Joseph confirmed that his invention-assignment agreement does not reach his personal projects? | (a) Checked: it does not. (b) It might, or it is unclear | Read the agreement, and the statute of the state he works in, before any demo or Mission-AI reference is scheduled. Every one of them waits on (a). Not legal advice.[^q13] | One-way: a published invention cannot be unpublished | Every demo, from PR 6; Q24 · before PR 6 |
+| Q13 · Q-ip | Has Joseph confirmed that his invention-assignment agreement does not reach his personal projects? | (a) Checked: it does not. (b) It might, or it is unclear | Read the agreement, and the statute of the state he works in, before any demo or Mission-AI reference is scheduled. Every one of them waits on (a). Not yet checked, as of 2026-10-23. Not legal advice.[^q13] | One-way: a published invention cannot be unpublished | Every demo, from PR 6; Q24 · before PR 6 |
 
 ### Non-blocking
 
@@ -226,21 +226,22 @@ These proceed on the recommendation until answered, ordered by when the answer i
 
 ### Decided
 
-Joseph answered these in chat on 2026-10-22. Where he did not pick an option himself, he took the recommendation, as the row says. When a question is answered, it moves here with the date, the option chosen and what ships, its door, and the evidence that would show it wrong. Detail the firewall touches stays in the private record ([Content firewall](#content-firewall)); for Q13, this section records only that the check is done, with the date. A one-way answer also gets an ADR. Each ADR stays Proposed until the pull request that [roadmap.md](roadmap.md) names accepts it.
+Joseph answered these in chat on 2026-10-22 and 2026-10-23; each row dated 2026-10-23 says so. Where he did not pick an option himself, he took the recommendation, as the row says. When a question is answered, it moves here with the date, the option chosen and what ships, its door, and the evidence that would show it wrong. Detail the firewall touches stays in the private record ([Content firewall](#content-firewall)); for Q13, this section records only that the check is done, with the date. A one-way answer also gets an ADR. Each ADR stays Proposed until the pull request that [roadmap.md](roadmap.md) names accepts it.
 
 | Question | Answer | What ships | Door | Wrong if |
 |---|---|---|---|---|
 | Q1 · Q-deploy-token | (a). Joseph created the account-owned token with the four permissions and a 12-month expiry, stored as the repository secret `CLOUDFLARE_API_TOKEN`; the account ID is the secret `CLOUDFLARE_ACCOUNT_ID` | PR 2's `preview`, `deploy` and `rollback` jobs ([ADR 0006](adr/0006-github-actions-owns-deploys.md)) | Two-way: revoke the token | PR 2's first deploy cannot attach the domain (spike S7), or any incident involves the token |
 | Q2 · Q-mail | (a) `hello@ihaveasegway.com` through Email Routing to his personal inbox | PR 2: the Email Routing records, SPF, DMARC `p=reject`, and the address on Home | Two-way until the address is printed; after that, retiring it breaks links people kept | Spam to the address costs more than an hour a month: then a form, option (c) |
-| Q3 · Q-threat-model | (b) Not described: the recommendation | All copy from PR 3; a LinkedIn link is allowed | One-way for anything published under it | A reader can name the employer from the site and LinkedIn together |
+| Q3 · Q-threat-model | (b) Not described: the recommendation | All copy from PR 3; a LinkedIn link is allowed | One-way for anything published under it | The site alone names the employer, or narrows to it. A reader who follows the LinkedIn link learns the employer there by construction: that was accepted when Joseph cleared the link in writing (private record, 2026-10-23), and the site still carries nothing that adds to it |
 | Q4 · Q-title | "Senior Software Engineer" | Home from PR 2; page titles, JSON-LD `jobTitle` and Open Graph images from PR 3 | Two-way on the page; one-way in caches | It stops matching LinkedIn, or the 7-second test shows visitors cannot tell what he does |
 | Q5 · Q-location | (b) "US · remote" | Home from PR 2; JSON-LD `homeLocation` names the country only | Two-way on the page; one-way in caches | He wants local roles: then (a) |
-| Q6 · Q-availability | (c) None at launch | No availability line; the status line shows the latest gitops release | Two-way on the page | The 7-second test shows visitors cannot tell whether he is open to a conversation: then (b) |
+| Q6 · Q-availability | (c) None at launch | No availability line. The readout row shows build facts; a release line waits for a repository that passes its readiness checks | Two-way on the page | The 7-second test shows visitors cannot tell whether he is open to a conversation: then (b) |
+| Q11 · Q-budget | $50: an unexpected monthly Cloudflare bill above that would hurt (2026-10-23) | PR 6's guardrails: the budget alerts and the threshold at which the automatic kill switch blocks the lab API ([ADR 0008](adr/0008-workers-free-with-guardrails.md), [cost.md](cost.md)). On Workers Free the bill cannot pass $0, so it matters from the day an upgrade trigger fires | Two-way | A month's bill passes $50, or a guardrail trips on ordinary demo traffic |
 | Q14 · Q-renew | (a), extended by 9 years ($94.14) before the price rise; Joseph makes the purchase in the dashboard | The registration runs to 2036-10-18 | One-way: renewals are final | After 2026-10-31, RDAP still shows 2027-10-18: the purchase did not go through |
 | Q15 · Q-ai-crawlers | (a) Allow: the recommendation | No change to the zone setting | Two-way | An AI answer joins the site to something the firewall keeps off it |
 | Q16 · Q-theme | (a) Follow the OS, dark-first, with a toggle: the recommendation | PR 3 | Two-way | Light mode collects more defects than dark ([ADR 0010](adr/0010-quiet-console-design-tokens.md)) |
 | Q17 · Q-accent | Neither (a) nor (b): apricot, chosen on 2026-10-23 with the palette. From three directions drawn on Home's wireframe he picked C, "Instrument" (a 12-column frame with a ruler, a poster-size name and a readout row), then Petrol + Apricot from four color studies of it, with a top bar that sweeps across a card on hover ([design-system.md](design-system.md#chosen-direction)) | PR 2: `tokens.css` with the palette in both themes, contrast-tested, and Home in the direction's frame. PR 3: the typefaces (spike S9) and the rest of the direction ([ADR 0010](adr/0010-quiet-console-design-tokens.md)) | Two-way: one token file, though recognition starts at launch | The contrast test fails, or the 7-second test or a reviewer calls the look templated or distracting |
-| Q18 · Q-analytics | (a) Cloudflare Web Analytics: the recommendation | The beacon, from PR 3 | Two-way | The 90-day funnel check finds nothing to act on |
+| Q18 · Q-analytics | (a) Cloudflare Web Analytics: the recommendation | The beacon, with the colophon in PR 3b | Two-way | The 90-day funnel check finds nothing to act on |
 | Q19 · Q-license | (a) Code MIT; writing and images © Joseph Peterson, all rights reserved; fonts OFL: the recommendation | License files, before the repository goes public | Loosening is two-way; tightening cannot recall copies | A request to reuse the writing arrives that he wants to allow: then (c) |
 | Q25 · Q-token-owner | (a): the Mission-AI values are his. He also asked for a look that is distinctive rather than what everyone else ships: creative, but not distracting. So the palette, the accent (Q17) and the typefaces are chosen in a design exploration before PR 3 | PR 2: `tokens.css` with the token names and the chosen palette (Q17), with system fonts. PR 3: the typefaces and the rest of the chosen direction ([ADR 0010](adr/0010-quiet-console-design-tokens.md)) | Two-way: one token file | The chosen direction fails the contrast test, or reviewers call it templated or distracting |
 | Q26 · Q-alerts | (a) Email to his personal inbox: the recommendation | PR 2's alert routing | Two-way | An alert arrives too late on a day uptime matters (upgrade trigger 4) |
@@ -275,7 +276,7 @@ Joseph answered these in chat on 2026-10-22. Where he did not pick an option him
 - **Assets-only Worker:** a Cloudflare Worker with no script, only static files. Requests to it are free and unlimited and never count toward Worker request limits. The site is one, named `ihaveasegway-web`.
 - **Bulkhead:** a partition that keeps a failure in one part from sinking the rest. Here, pages run no code, and all code sits in a separate lab Worker.
 - **Canary (firewall):** a random marker generated at run time and fed through the firewall check. If the check does not flag it, the rules did not load, and the check fails.
-- **Colo:** the Cloudflare data center that served a request. The status line shows it.
+- **Colo:** the Cloudflare data center that served a request. The served-from readout will show it (PR 4).
 - **Content firewall:** the policy above that keeps the current employer and the private venture out of the site, the repository and commit metadata, and the check that enforces it.
 - **Door:** an ADR field. A one-way door is expensive or impossible to reverse (a shared URL, a published page, a public repository); a two-way door is reversed in a PR.
 - **Durable Object (DO):** a Cloudflare object with its own storage and single-threaded execution, addressed by name: the virtual-actor pattern. The lab's demos run in DOs.
@@ -286,14 +287,15 @@ Joseph answered these in chat on 2026-10-22. Where he did not pick an option him
 - **Island:** an interactive component hydrated on its own inside an otherwise static page (islands architecture). Content pages ship none; React islands appear only on lab pages that need them.
 - **Kill switch:** the layered controls that stop the lab, from a per-demo budget breaker, through a web application firewall (WAF) rule that blocks `/lab/api/`, to deleting the route ([lab.md](lab.md)).
 - **Mosaic effect:** details that are harmless alone and identifying together.
-- **Quiet Console:** the site's design language. Its "cyber" feel comes from structure (hairline grids, corner brackets, mono labels, real telemetry), not from neon ([design-system.md](design-system.md)).
+- **Instrument:** the site's design language, direction C of the 2026-10-23 exploration. Its "cyber" feel comes from structure (a 12-column frame with a ruler, a poster-size name, mono readouts of real build facts), not from neon ([design-system.md](design-system.md)).
+- **Quiet Console:** the design language PR 1 planned (Mission-AI's zinc, a teal accent, hairline grids, corner brackets); Instrument replaced it on 2026-10-23 and kept its structure ([design-system.md](design-system.md#lineage)).
 - **Recorded fallback:** a static recording of a demo's server messages that the page replays when live mode is unavailable.
 - **Revisit if:** an ADR field naming the evidence that would show the decision was wrong.
 - **Spike:** a small throwaway experiment that answers one platform question before the plan relies on it (S1–S9 in [roadmap.md](roadmap.md)).
 - **System of record:** the one place a piece of data is written and owned. Everything else reads it or holds a derived copy.
 - **Upgrade trigger:** an event that moves the account from Workers Free to Workers Paid ([ADR 0008](adr/0008-workers-free-with-guardrails.md)).
 - **Version URL:** a URL that serves one uploaded version of a Worker before it takes traffic. The deploy job smoke-tests it before promoting the version.
-- **WIP limit:** a cap on work in progress. Here, one PR in flight.
+- **WIP limit:** a cap on work in progress. Here, one PR in flight, relaxed on 2026-10-23 for one stacked branch ([roadmap.md](roadmap.md#how-we-work)).
 - **Worker Preview:** a preview deployment of a Worker for one pull request, on `workers.dev`: public, but marked `noindex`.
 
 ## Patterns and further reading
