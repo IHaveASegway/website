@@ -6,7 +6,7 @@ import { ON_WRITING_FIXTURE } from './e2e/expected';
 // uploads, so build first. Production has its own config: playwright.prod.config.ts.
 //
 // pnpm e2e:writing (E2E_SITE=writing-fixture) checks the test-only writing fixture build instead:
-// wrangler dev on .fixtures/fixture-three, so posts, indexes and the feed meet axe, the CSP, the
+// wrangler dev on .fixtures/fixture-many, so posts, indexes and the feed meet axe, the CSP, the
 // glyph and held-name checks and the smoke before a real post exists. Build it first with
 // pnpm build:fixtures.
 const target = ON_WRITING_FIXTURE ? undefined : process.env.BASE_URL || undefined; // empty when the preview was skipped

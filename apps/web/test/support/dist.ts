@@ -8,10 +8,11 @@ import { profileSchema, type Profile } from '../../src/lib/profile';
 export const app = fileURLToPath(new URL('../..', import.meta.url));
 
 /**
- * The build these checks read: dist/, or a test-only fixture build when TEST_DIST names one.
- * vitest.config.ts runs every check over dist/ a second time on .fixtures/fixture-three, a build
- * with posts in it, so a page type that only exists once there is content (a post, an index, the
- * feed) meets the same checks as Home before any real post ships.
+ * The build these checks read: dist/, or another build when TEST_DIST names one. vitest.config.ts
+ * runs every check over dist/ again on dist-preview/ and on three fixture builds with posts in
+ * them (fixture-many, fixture-many-preview, fixture-two-preview), so a page type that only exists
+ * once there is content (a post, an index, the feed) meets the same checks as Home before any real
+ * post ships.
  */
 export const fixture: string | undefined = process.env['TEST_DIST'] || undefined;
 export const dist = join(app, fixture ?? 'dist');
