@@ -1,6 +1,6 @@
 # ADR 0005: URL scheme with trailing slashes
 
-Status: Proposed · 2026-10-22 · Deciders: Joseph Peterson
+Status: Accepted · 2026-10-23 · Deciders: Joseph Peterson
 
 ## Context
 
@@ -34,8 +34,8 @@ Astro's configuration reference says that for prerendered pages the hosting plat
 | `/colophon/decisions/` · `/colophon/decisions/<nnnn-slug>/` | Published ADRs; the slug is the file name in `docs/adr/` |
 | `/privacy/` | Ships before the first lab ([security.md](../security.md)) |
 | `/resume/` | Later, pending the firewall questions; its PDF is `/resume/joseph-peterson-resume.pdf` ([content.md](../content.md)) |
-| `/rss.xml` · `/sitemap-index.xml` · `/robots.txt` · `/.well-known/security.txt` · `/favicon.ico` · `/apple-touch-icon.png` | Files. They keep their extensions because clients ask for them by name; `robots.txt`, `security.txt` and the two icons also sit at the paths clients look in by convention |
-| `/404` | The not-found page, served with status 404 for any unknown path (`not_found_handling: "404-page"`) |
+| `/rss.xml` · `/sitemap-index.xml` · `/robots.txt` · `/.well-known/security.txt` · `/favicon.ico` · `/favicon.svg` · `/apple-touch-icon.png` | Files. They keep their extensions because clients ask for them by name; `robots.txt`, `security.txt`, `favicon.ico` and `apple-touch-icon.png` also sit at the paths clients look in by convention |
+| `/404` | The not-found page, served with status 404 for any unknown path (`not_found_handling: "404-page"`). Workers also serves it at `/404` itself with status 200, a soft 404, so the page carries `noindex` and stays out of the sitemap |
 
 **Trailing slash, always.** Every page URL ends in `/`.
 
@@ -45,7 +45,7 @@ Astro's configuration reference says that for prerendered pages the hosting plat
 
 **Slugs.** A slug is the content file's name: lowercase ASCII words joined by hyphens. No dates. No file extensions. No words about how the page is made (a framework, `index`, `html`) and no status words (`new`, `draft`, `final`, `v2`). Most of this follows Berners-Lee's list of what to leave out of a URI: author's name, subject, status, access, file name extension, software mechanisms, disk name. Where the scheme departs from it (subject-like section prefixes, no dates), the Alternatives and Consequences below say why. His reason is the rule this record exists for: "URIs don't change: people change them."
 
-**Slugs never change.** A rename adds a 301 to `apps/web/public/_redirects`. The file allows 2,000 static and 100 dynamic redirects of up to 1,000 characters each, and its default status is 302, so every rule states 301 ([Redirects](https://developers.cloudflare.com/workers/static-assets/redirects/), as of 2026-10-22). A CI check compares the new sitemap with production's and fails when a URL disappears without a redirect. ADR file names are part of the scheme: renaming an ADR file is a URL change.
+**Slugs never change.** A rename adds a 301 to `apps/web/public/_redirects`. The file allows 2,000 static and 100 dynamic redirects of up to 1,000 characters each, and its default status is 302, so every rule states 301 ([Redirects](https://developers.cloudflare.com/workers/static-assets/redirects/), as of 2026-10-22). Every page URL that has been deployed is listed in `apps/web/published-urls.txt`, an append-only ledger beside the site. `verify` fails when a built page is missing from the ledger, or when a URL in it is neither a built page nor the source of a 301. The ledger lives in the repository because `verify` has no network, so production's sitemap is out of its reach. ADR file names are part of the scheme: renaming an ADR file is a URL change.
 
 **Nothing moves between sections.** A note that grows into an essay is published as a new essay that links back; the note keeps its URL.
 
@@ -67,7 +67,8 @@ Patterns: cool URIs (Berners-Lee, ["Cool URIs don't change"](https://www.w3.org/
 ## Consequences
 
 - A visitor who types `/about` takes one 307 hop to `/about/`. Google's post recommends a 301 from the duplicate to the preferred form, and Workers sends a temporary 307 instead. That is acceptable: for redirects to trailing-slash URLs the same post says "our search results will likely show the version of the URL with the 200 response code", "regardless of whether the redirect was a 301 or 302", and the canonical tag names the slash form anyway.
-- A build test crawls `dist/` and fails on an internal link without a trailing slash, or a page URL with a date, an extension or an uppercase letter. A second check fails when a URL leaves the sitemap without a 301; it skips while production has no sitemap, before the first deploy. Both are fitness functions: the scheme is tested on every pull request, not remembered ([delivery.md](../delivery.md)).
+- A build test crawls `dist/` and fails on an internal link without a trailing slash, or a page URL with a date, an extension or an uppercase letter. A second check reads the ledger of published URLs and fails when one leaves without a 301. It needs no network and no production, so it runs from the first pull request. A smoke test asks for each page's other form, `/index.html` for Home and the slashless form of every other page, and expects a redirect to the slash form. All three are fitness functions: the scheme is tested on every pull request, not remembered ([delivery.md](../delivery.md)).
+- The ledger is append-only by review, not by test. A pull request that deletes a page and its ledger line together passes CI, so review reads every removed line of `published-urls.txt`.
 - Every rename shows up in review as a line in `_redirects`, and the line stays. Deleting a redirect breaks the old links it protects.
 - A rendered ADR's file name is a public URL, so the naming rule in [ADR 0001](0001-record-architecture-decisions.md) doubles as a URL rule.
 - `/lab/api/*` is the only path that runs code. Everything else is a static asset, which keeps page views out of Worker quotas and bills ([ADR 0002](0002-host-on-workers-static-assets.md), [ADR 0009](0009-lab-worker-same-origin.md)).

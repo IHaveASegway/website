@@ -11,28 +11,30 @@ One pipeline, one writer per environment. GitHub Actions builds `dist/` once per
 | Data | System of record | Only writer | Readers | How it crosses |
 |---|---|---|---|---|
 | Source, content, config | git: `main` on GitHub | merged PRs | CI, Dependabot | `actions/checkout` |
-| Build output, `dist/` | the `verify` job's artifact for that run | `verify` | `firewall`, `preview`, `deploy`, `e2e` | uploaded once, downloaded by each job; never rebuilt |
+| Build output, `dist/` | the `verify` job's artifact for that run | `verify` | `firewall`, `preview`, `deploy`, `e2e`, `prod-smoke` | uploaded once, downloaded by each job; never rebuilt |
 | Production versions and deployments | Cloudflare, Worker `ihaveasegway-web` | the pipeline: `deploy`, and `rollback`; the dashboard's Rollback is the break-glass path | visitors | Wrangler and the Cloudflare API |
 | PR previews | Cloudflare Worker Previews | `preview` creates, `preview-cleanup` deletes | `e2e`, the reviewer | Wrangler |
 | Tool versions | `.nvmrc`, `packageManager`, the pnpm catalog | PRs, from Dependabot or Joseph | every job | files in the repo |
 
 The site's own data (content, profile, analytics, lab state) is in [architecture.md](architecture.md). The second row is "build once". In the weaker design every job runs its own build, so the bytes the firewall scanned and the bytes that went live can differ (a build that reads the clock, an environment variable, or a dependency published an hour ago), and the scan proves nothing about production. Here the scanned artifact is the published artifact.
 
+One trap sits in the upload. `actions/upload-artifact` skips hidden files unless `include-hidden-files: true` is set, and a file inside a folder whose name starts with a dot counts as hidden ([upload-artifact](https://github.com/actions/upload-artifact#uploading-hidden-files), as of 2026-10-23). Without the setting, `.well-known/security.txt` would have dropped out of every deploy with no error. `verify` sets it.
+
 ## Repository layout
 
 ```text
 website/
-├── .github/workflows/{ci.yml,preview-cleanup.yml,scheduled.yml}
+├── .github/workflows/{ci.yml,pr-text.yml,preview-cleanup.yml,scheduled.yml}
 ├── .github/dependabot.yml · .github/pull_request_template.md
 ├── .githooks/{pre-commit,pre-push}
-├── apps/web/            Astro site → assets-only Worker "ihaveasegway-web" (wrangler.jsonc, src/, public/, e2e/, lighthouserc.json)
+├── apps/web/            Astro site → assets-only Worker "ihaveasegway-web" (wrangler.jsonc, src/, public/, e2e/, test/, published-urls.txt; lighthouserc.json from PR 3)
 ├── workers/lab/         LATER (Phase 4): Worker "ihaveasegway-lab" with all DO classes
 ├── packages/            LATER: created only when a second consumer exists (e.g. packages/security-headers when the lab ships)
-├── scripts/firewall/{check.sh,test.sh,allowed-identities.txt,gitleaks.version,sync-secrets.sh}
-├── scripts/verify-zone.sh
+├── scripts/firewall/{check.sh,test.sh,install-gitleaks.sh,allowed-identities.txt,gitleaks.version,sync-secrets.sh}
+├── scripts/{verify-zone.sh,image-metadata.mjs,check-hooks.sh}
 ├── docs/
 ├── .nvmrc (26) · package.json ("packageManager": "pnpm@11.28.6") · pnpm-workspace.yaml (packages + catalog + allowBuilds) · pnpm-lock.yaml
-└── README.md
+└── AGENTS.md · README.md
 ```
 
 - **A pnpm workspace from day one.** It costs one YAML file. Starting as a single package would mean moving every path, and every CI path, when the lab arrives.
@@ -54,10 +56,10 @@ Pins as of 2026-10-22:
 | Wrangler | ^4.152.0 | pnpm catalog | Worker Previews need 4.135.0 or later. CI runs `pnpm exec wrangler`, the lockfile's copy | [npm](https://www.npmjs.com/package/wrangler), [Worker Previews](https://developers.cloudflare.com/workers/previews/) |
 | Astro | 7.4.x (7.4.2), exact | `apps/web/package.json` | Majors are adopted on x.1 ([ADR 0003](adr/0003-astro-static-first.md)) | [npm](https://www.npmjs.com/package/astro) |
 | Tailwind CSS | 4.3.x (4.3.3) | `apps/web/package.json` | | [npm](https://www.npmjs.com/package/tailwindcss) |
-| Vitest and `@cloudflare/vitest-plugin` | 5 (5.0.5) and 1.4.7 | pnpm catalog | The plugin, renamed from vitest-pool-workers on 2026-08-19, runs Worker and DO tests inside workerd | [changelog](https://developers.cloudflare.com/changelog/post/2026-08-19-vitest-plugin/) |
+| Vitest and `@cloudflare/vitest-plugin` | 5 (5.0.5) and 1.4.7 | pnpm catalog | The plugin, renamed from vitest-pool-workers on 2026-08-19, runs Worker and DO tests inside workerd. It joins the catalog with the lab (Phase 4): until then no Worker code exists to test | [changelog](https://developers.cloudflare.com/changelog/post/2026-08-19-vitest-plugin/) |
 | Playwright and `@axe-core/playwright` | 1.64.x (1.64.1) and 4.14.0 | pnpm catalog | CI installs Chromium only. From Phase 4 it adds WebKit for the lab's one live-socket test ([lab.md](lab.md)) | [npm](https://www.npmjs.com/package/@playwright/test) |
-| `@lhci/cli` | 0.15.1 | `apps/web/package.json` | No release since 2025-06-26, so it is watched. If it falls behind Chrome, Lighthouse runs from Playwright instead | [releases](https://github.com/GoogleChrome/lighthouse-ci/releases) |
-| lychee | `lycheeverse/lychee-action@v2` (v2.9.0) | workflow file | A third-party action, so it runs only in jobs without secrets | [releases](https://github.com/lycheeverse/lychee-action/releases) |
+| `@lhci/cli` | 0.15.1 | `apps/web/package.json`, from PR 3 | No release since 2025-06-26, so it is watched. If it falls behind Chrome, Lighthouse runs from Playwright instead | [releases](https://github.com/GoogleChrome/lighthouse-ci/releases) |
+| lychee | `lycheeverse/lychee-action@v2` (v2.9.0) | workflow file | A third-party action, so it runs only in jobs without secrets, and with `token: ''`: by default the action passes the job's `GITHUB_TOKEN`, which can read this private repository, and neither check needs it | [releases](https://github.com/lycheeverse/lychee-action/releases) |
 | gitleaks | 8.30.1, sha256-pinned | `scripts/firewall/gitleaks.version` | Dependabot does not manage it. Upstream calls the project feature complete, with security patches only. Checked quarterly ([operations.md](operations.md)) | [gitleaks](https://github.com/gitleaks/gitleaks) |
 | Actions | `actions/checkout@v7`, `actions/setup-node@v7`, `actions/upload-artifact@v7`, `actions/download-artifact@v8`, `pnpm/action-setup@v6` | workflow files | Major version tags, bumped by Dependabot's `github-actions` updates | [checkout releases](https://github.com/actions/checkout/releases) |
 
@@ -83,7 +85,7 @@ catalog:               # one version per shared tool; a package depends on "type
   typescript: 6.0.3
   wrangler: ^4.152.0
   vitest: ^5.0.5
-  '@cloudflare/vitest-plugin': ^1.4.7
+  # '@cloudflare/vitest-plugin': ^1.4.7   # Phase 4, with the lab's Worker tests
   '@playwright/test': 1.64.1
   '@axe-core/playwright': 4.14.0
 
@@ -101,7 +103,7 @@ allowBuilds:           # strictDepBuilds is on by default: any other install scr
 
 **The release-age gate.** pnpm 11 prefers versions published at least 1,440 minutes ago ([pnpm settings](https://pnpm.io/settings/dependency-resolution)). It is a dependency cooldown. In 8 of the 10 supply-chain attacks William Woodruff tabulated, the window between a malicious release and its removal was under a week ([2025-11-21](https://blog.yossarian.net/2025/11/21/We-should-all-be-using-dependency-cooldowns)). Dependabot's 3-day cooldown sits on top. As of 2026-10-22 the gate behaves in two ways that matter here ([pnpm 11.1.3 release notes](https://github.com/pnpm/pnpm/releases/tag/v11.1.3)):
 
-- **Resolving is loose by default.** When no version in a range is old enough, pnpm installs the newest one anyway and writes it into `minimumReleaseAgeExclude` in `pnpm-workspace.yaml`. Wrangler 4.152.0 was published at 14:43 UTC on 2026-10-22, so a scaffold that day adds `wrangler@4.152.0` to that list without asking. Review treats a generated entry like a hand-written one: it gets a date and is removed within 7 days. Setting `minimumReleaseAge` explicitly, even to 1440, switches to strict mode, where CI fails with `ERR_PNPM_NO_MATURE_MATCHING_VERSION` instead. That is why the sketch leaves it unset.
+- **Resolving is loose by default.** When no version in a range is old enough, pnpm installs the newest one anyway and writes it into `minimumReleaseAgeExclude` in `pnpm-workspace.yaml`. Wrangler 4.152.0 was published at 14:43 UTC on 2026-10-22, so PR 2's install added `wrangler@4.152.0` to that list without asking, and with it `miniflare@5.20261019.2-beta`, which Wrangler 4.152.0 pins exactly. Both carry a date and are removed by 2026-10-30. Review treats a generated entry like a hand-written one: it gets a date and is removed within 7 days. Setting `minimumReleaseAge` explicitly, even to 1440, switches to strict mode, where CI fails with `ERR_PNPM_NO_MATURE_MATCHING_VERSION` instead. That is why the sketch leaves it unset.
 - **Installs from the lockfile are checked.** Every `pnpm install` re-validates the lockfile's entries against the policy before fetching anything, and a frozen install aborts on a violation. A lockfile Dependabot regenerated can carry a transitive version published hours earlier, so CI fails with `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`. The fix is a re-run after 24–48 hours, or a dated exclusion. The runbook is in [operations.md](operations.md).
 
 ## Pipeline
@@ -113,6 +115,10 @@ flowchart LR
     F --> P["preview<br/>CLOUDFLARE_API_TOKEN"]
     P --> E["e2e<br/>on the preview URL"]
     F -.->|"Dependabot PR: no preview"| EL["e2e<br/>on local wrangler dev"]
+    P -.->|"no production yet:<br/>nothing published"| EL
+  end
+  subgraph ED["pull_request: edited"]
+    T["pr-text<br/>FIREWALL_RULES"]
   end
   subgraph CL["pull_request: closed"]
     C["preview-cleanup<br/>CLOUDFLARE_API_TOKEN"]
@@ -134,15 +140,16 @@ Estimated billable minutes per job are rounded up, as GitHub bills them (below).
 
 | Job | Trigger | `needs` | Secrets (in step `env:` only) | `permissions` | Does | Billable min (est.) |
 |---|---|---|---|---|---|---|
-| `verify` | PR; push to `main`; the weekly rebuild; from Phase 4, the `redeploy_lab` dispatch | none | none; the build step reads project facts with the job's own `GITHUB_TOKEN` ([content.md](content.md)) | `contents: read` | `pnpm install --frozen-lockfile`, `pnpm dedupe --check`, format, lint, typecheck, unit tests (the design-token contrast tests among them), build, the byte budgets, URL and glyph checks, lychee `--offline` on `dist/`, the Workers Cache check, the firewall self-test (`scripts/firewall/test.sh`, no real rules); uploads `dist/`, and from Phase 4 the lab bundle | 3 |
+| `verify` | PR; push to `main`; the weekly rebuild; from Phase 4, the `redeploy_lab` dispatch | none | none; the build step reads project facts with the job's own `GITHUB_TOKEN` ([content.md](content.md)) | `contents: read` | `pnpm install --frozen-lockfile`, `pnpm dedupe --check`, format, lint, typecheck, build, unit tests (the design-token contrast tests, the URL checks and the published-URL ledger, the Worker config checks, no JavaScript in the build), the image-metadata check, lychee `--offline` on `dist/`, the firewall self-test (`scripts/firewall/test.sh`, no real rules); from PR 3, the byte budgets and the glyph check; uploads `dist/` with `include-hidden-files: true`, and from Phase 4 the lab bundle | 3 |
 | `firewall` | As `verify` | `verify` | `FIREWALL_RULES` (on a Dependabot PR, the Dependabot copy) | `contents: read` | Full-history checkout; downloads `dist/`; installs gitleaks 8.30.1 after checking its sha256; runs `scripts/firewall/check.sh`. Exit 0 passes; 1 (a finding) and 2 (cannot prove clean) fail ([security.md](security.md)). The weekly rebuild has no commit range, so it scans the tree and `dist/` | 1 |
-| `preview` | PR from this repository, not opened by Dependabot | `firewall` | `CLOUDFLARE_API_TOKEN`; the secret `CLOUDFLARE_ACCOUNT_ID` | `contents: read`, `pull-requests: write` | Downloads `dist/`; `wrangler preview --name pr-<n> --tag <sha8> --message <sha>`; reads the URL from the `preview` entry Wrangler writes to `WRANGLER_OUTPUT_FILE_PATH`; posts or updates one PR comment | 2 |
-| `e2e` | PR | `firewall` and `preview`; runs when `preview` succeeded or was skipped | none | `contents: read` | Playwright on Chromium: smoke on key routes, axe with zero violations, response headers, zero CSP violations, theme before first paint, reduced motion, the fold. LHCI, 3 runs per URL, with assertions. Reports stay as run artifacts, never on public upload storage | 4 |
-| `preview-cleanup` | PR closed, not opened by Dependabot | none | `CLOUDFLARE_API_TOKEN`; the secret `CLOUDFLARE_ACCOUNT_ID` | `contents: read` | `wrangler preview delete --name pr-<n> --skip-confirmation`, best effort | 1 |
-| `deploy` | push to `main`; the weekly rebuild, site only; from Phase 4 also `workflow_dispatch` with `redeploy_lab` (kill-switch L2) | `verify`, `firewall`. A dispatch runs them too, since a skipped `needs` job skips this one | `CLOUDFLARE_API_TOKEN`; the secret `CLOUDFLARE_ACCOUNT_ID` | `contents: read` | Concurrency group `deploy-production`, never cancelled. Records the live version; on the weekly rebuild, stops there unless the live deployment's message starts with `main@` (the guards below); site: `versions upload`, smoke the Version URL, `versions deploy <id>@100% --message main@<sha>`; lab (Phase 4): `wrangler deploy` of the scanned bundle, and on the `redeploy_lab` dispatch only that, unconditionally | 3 |
-| `prod-smoke` | push to `main`; the weekly rebuild; a rollback dispatch | `deploy` and `rollback`, with an `if:` that runs it after whichever one succeeded | none | `contents: read`, `issues: write` | curl and one Playwright spec against `https://ihaveasegway.com`, including the zone-level checks; on failure, opens an issue with the exact `wrangler rollback <previous-id>` command and the one-line dispatch that runs it; after a weekly rebuild the guard stopped, comments on the open incident issue, or opens one | 1 |
-| `rollback` | `workflow_dispatch` with `rollback_to: <version-id>` | none: the target was scanned when it was uploaded | `CLOUDFLARE_API_TOKEN`; the secret `CLOUDFLARE_ACCOUNT_ID` | `contents: read` | In the `deploy-production` group, so it never races a deploy: `wrangler rollback <id> --message "rollback: <reason>"` | 1 |
-| `scheduled` | Monday 07:17 UTC; `workflow_dispatch` | none | none | `contents: read` | `scripts/verify-zone.sh` (DNS, TLS, domain expiry); lychee online against production; `security.txt` `Expires` more than 30 days out; `compatibility_date` younger than 180 days (a warning) | 3 |
+| `preview` | PR from this repository, not opened by Dependabot | `firewall` | `CLOUDFLARE_API_TOKEN`; the secret `CLOUDFLARE_ACCOUNT_ID` | `contents: read`, `pull-requests: write` | Downloads `dist/`; runs `wrangler deployments status` first, and publishes nothing until a deploy from `main` has created production: it posts a notice, and `e2e` runs on `wrangler dev` (routes and custom domains, below). Then `wrangler preview --name pr-<n> --tag <sha8> --message <sha> --ignore-base-config`, so `wrangler.jsonc` is the only owner of the preview's settings; reads `deployment_urls` (this commit) and `preview_urls` (the stable link) from the `preview` entry Wrangler writes to `WRANGLER_OUTPUT_FILE_PATH`; waits until the preview answers, and fails unless it sends `X-Robots-Tag: noindex`; posts or updates one PR comment with both links | 2 |
+| `e2e` | PR | `firewall` and `preview`; runs when `preview` succeeded or was skipped | none | `contents: read` | Playwright on Chromium, against the preview, or `wrangler dev` serving the same `dist/` when there is none: the smoke on every page and file, axe with zero violations in dark, light, more contrast and forced colors, response headers, zero CSP violations plus a known-answer test, no sideways scrolling at 320 px, and a visible outline on every control Tab reaches. From PR 3: theme before first paint, reduced motion, the fold, and LHCI, 3 runs per URL, with assertions. Reports stay as run artifacts, never on public upload storage | 4 |
+| `preview-cleanup` | PR closed, not opened by Dependabot | none | `CLOUDFLARE_API_TOKEN`; the secret `CLOUDFLARE_ACCOUNT_ID` | `contents: read` | `wrangler preview delete --name pr-<n> --skip-confirmation`, best effort, with `main`'s lockfile. It shares `ci.yml`'s concurrency group for the PR, so closing cancels a run that may still be publishing, and the delete waits for it to stop | 1 |
+| `pr-text` (`pr-text.yml`) | PR title or body edited | none | `FIREWALL_RULES` (on a Dependabot PR, the Dependabot copy) | `contents: read` | `check.sh --pr-text`: the title, body and branch name again, so text edited after the last push is scanned before the merge commit carries it to `main`. A workflow of its own, so an edit never cancels the main run | 1 |
+| `deploy` | push to `main`; the weekly rebuild, site only; from Phase 4 also `workflow_dispatch` with `redeploy_lab` (kill-switch L2) | `verify`, `firewall`. A dispatch runs them too, since a skipped `needs` job skips this one | `CLOUDFLARE_API_TOKEN`; the secret `CLOUDFLARE_ACCOUNT_ID`; the job's `GITHUB_TOKEN` in the two steps that read `main`'s tip | `contents: read` | Concurrency group `deploy-production`, never cancelled. Stops unless the run's commit is `main`'s tip, and checks again before promotion. Records the live version; on the weekly rebuild, stops there unless the live deployment's message starts with `main@` (the guards below); site: `versions upload`, smoke the Version URL, `versions deploy <id>@100% --message main@<sha>`. While production does not exist, a push runs `wrangler deploy` instead, which creates the Worker and attaches the domain (below). Lab (Phase 4): `wrangler deploy` of the scanned bundle, and on the `redeploy_lab` dispatch only that, unconditionally | 3 |
+| `prod-smoke` | push to `main`; the weekly rebuild; a rollback dispatch | `deploy` and `rollback`, with an `if:` that runs it after whichever one succeeded, but not after a deploy a newer commit superseded | none | `contents: read`, `issues: write` | Waits up to two minutes for `https://ihaveasegway.com` to answer, then runs two Playwright specs through the zone: the smoke every preview gets, and the zone-level checks. The byte-for-byte check runs only in the run attempt that promoted. On failure, opens an `Incident:` issue, or comments on the open one, with the exact `wrangler rollback <previous-id>` command and the one-line dispatch that runs it. If production did not answer at all, the issue says instead that a rollback cannot help: the custom domain is not attached, or the zone is not serving. A failure after `main` has moved on opens no issue, since the newer run's `prod-smoke` owns the verdict. After a weekly rebuild the guard stopped, comments on the open incident issue, or opens one | 1 |
+| `rollback` | `workflow_dispatch` with `rollback_to: <version-id>`, and a `reason` that defaults to "prod-smoke failed" | none: the target was scanned when it was uploaded | `CLOUDFLARE_API_TOKEN`; the secret `CLOUDFLARE_ACCOUNT_ID` | `contents: read` | Fails unless it runs from `main`, and unless `rollback_to` is a version id. In the `deploy-production` group, so it never races a deploy: `wrangler rollback <id> --message "rollback: <reason>" --yes`, since CI cannot answer a prompt | 1 |
+| `scheduled` | Monday 07:17 UTC; `workflow_dispatch` | none | none | `contents: read` | `scripts/verify-zone.sh` (registration, DNSSEC, TLS, HSTS, redirects, mail records, and `security.txt` with an `Expires` more than 30 days out); lychee online against production; `compatibility_date` younger than 180 days (a warning; a missing date fails) | 3 |
 | `lab-objects` (Phase 4) | nightly | none | `CLOUDFLARE_READ_TOKEN`, read-only ([operations.md](operations.md)) | `contents: read`, `issues: write` | Lists each sandbox namespace's objects and opens an issue for any object with stored data on two nights running: a cleanup bug ([lab.md](lab.md)) | 1 |
 
 Six notes on the graph:
@@ -150,13 +157,13 @@ Six notes on the graph:
 - **The firewall sits before the preview** because a preview is public the moment it exists.
 - **The weekly rebuild** runs the `main` path again every Monday at 07:17 UTC (`schedule` in `ci.yml`), so project facts read from GitHub at build time are at most a week old while it succeeds ([ADR 0004](adr/0004-content-as-code.md)). It redeploys the site only, behind the guards below; the lab still deploys only when `workers/lab/` changed. Each run that deploys adds a version, which the rollback reach below counts.
 - **A rollback runs in CI too.** The deploy token exists only as a GitHub secret, so a rollback from the laptop would need a second edit credential at rest there. The `rollback` job uses the same scoped token, cannot race a deploy, and leaves a record in Actions. The dashboard's Rollback button is the fallback when GitHub is down ([operations.md](operations.md)).
-- **Dependabot PRs** run with only Dependabot secrets and a read-only `GITHUB_TOKEN`. `firewall` reads the Dependabot copy of `FIREWALL_RULES`. `preview` is skipped, because the deploy token is not a Dependabot secret and never will be, and `e2e` runs against `wrangler dev` serving the same `dist/`. Whether `wrangler dev` applies `_headers` is not documented, so PR 2 confirms which header assertions hold on that target.
+- **Dependabot PRs** run with only Dependabot secrets and a read-only `GITHUB_TOKEN`. `firewall` reads the Dependabot copy of `FIREWALL_RULES`. `preview` is skipped, because the deploy token is not a Dependabot secret and never will be, and `e2e` runs against `wrangler dev` serving the same `dist/`. Whether `wrangler dev` applies `_headers` is not documented. PR 2 found that `wrangler dev` 4.152.0 applies every rule, so every header assertion holds on that target.
 - **Fork PRs**, possible only once the repository is public, receive no secrets, so `firewall` exits 2 and the run fails. That is the intended fail-closed result.
 - **The schedule runs at 07:17, not on the hour**, because GitHub says scheduled runs are delayed most, and sometimes dropped, at the top of the hour ([GitHub](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows)).
 
 **Guards on the weekly rebuild** (sketch — confirm against current docs when building). The rebuild runs unattended, so it must never make things worse:
 
-- **It never undoes a rollback.** `deploy` sets the deployment message to `main@<sha>` (PR 2's first `wrangler deploy` too), and the `rollback` job sets `rollback: <reason>`. On a scheduled run, `deploy` reads the live deployment's message before it uploads anything, and goes on only if the message starts with `main@`. Otherwise it stops, and `prod-smoke` comments on the open incident issue, or opens one. The check looks for the known-good state rather than for the word "rollback", so a dashboard rollback, or any message nobody planned for, stops it too: a fail-safe default. The first merge after the fix deploys with `main@` again, which re-arms it.
+- **It never undoes a rollback.** `deploy` sets the deployment message to `main@<sha>`, and the `rollback` job sets `rollback: <reason>`. The first deploy is stamped too: `wrangler deploy --message` annotates only the version, so the job then runs `versions deploy <id>@100%` with the same message, which creates a deployment that carries it. On a scheduled run, `deploy` reads the live deployment's message before it uploads anything, and goes on only if the message starts with `main@`. Otherwise it stops, and `prod-smoke` comments on the open incident issue, or opens one. The check looks for the known-good state rather than for the word "rollback", so a dashboard rollback, or any message nobody planned for, stops it too: a fail-safe default. The first merge after the fix deploys with `main@` again, which re-arms it.
 - **It never ships a page with facts missing.** On a push, a project fact GitHub does not return drops its line ([content.md](content.md)). On a scheduled run, the build fails instead, so the live site stays as it was, and the failed run emails.
 
 The comment comes from `prod-smoke`, which already holds `issues: write`, so the job that holds the deploy token keeps a read-only `GITHUB_TOKEN`. A stopped or failed run costs fewer minutes than a deploy, so the budget below still holds.
@@ -173,7 +180,7 @@ The comment comes from `prod-smoke`, which already holds `issues: write`, so the
 | Weekly | `scheduled` 3 | 3 | 4: 12 | 5: 15 |
 | **Total** | | | **675** | **1,023** |
 
-As of 2026-10-22, GitHub Free includes 2,000 minutes a month for private repositories (Pro: 3,000), and public repositories on standard runners pay nothing ([GitHub](https://docs.github.com/en/billing/concepts/product-billing/github-actions)). The model uses about a third of that in a typical month and about half in a busy one. GitHub "rounds the minutes and partial minutes each job uses up to the nearest whole minute" ([runner pricing](https://docs.github.com/en/enterprise-cloud@latest/billing/reference/actions-runner-pricing)), so a job that runs 10 seconds costs a full minute, and the budget counts jobs as much as runtime. With no payment method on file, "usage is blocked once you use up your quota"; beyond it, Linux minutes would cost $0.006 each. Phase 4 adds the nightly `lab-objects` job, about 30 minutes a month; a rollback costs about 2. A hung job at GitHub's default 360-minute timeout would burn 18% of the month, which is why every job sets `timeout-minutes`. [ADR 0006](adr/0006-github-actions-owns-deploys.md) revisits the deploy owner above 1,500 minutes a month.
+As of 2026-10-22, GitHub Free includes 2,000 minutes a month for private repositories (Pro: 3,000), and public repositories on standard runners pay nothing ([GitHub](https://docs.github.com/en/billing/concepts/product-billing/github-actions)). The model uses about a third of that in a typical month and about half in a busy one. GitHub "rounds the minutes and partial minutes each job uses up to the nearest whole minute" ([runner pricing](https://docs.github.com/en/enterprise-cloud@latest/billing/reference/actions-runner-pricing)), so a job that runs 10 seconds costs a full minute, and the budget counts jobs as much as runtime. With no payment method on file, "usage is blocked once you use up your quota"; beyond it, Linux minutes would cost $0.006 each. Phase 4 adds the nightly `lab-objects` job, about 30 minutes a month; a rollback costs about 2. A hung job at GitHub's default 360-minute timeout would burn 18% of the month, which is why every job sets `timeout-minutes`. `pr-text` adds 1 minute for each edit of a pull request's title or body; the model does not count edits. [ADR 0006](adr/0006-github-actions-owns-deploys.md) revisits the deploy owner above 1,500 minutes a month.
 
 ### Hardening rules
 
@@ -189,6 +196,7 @@ Actions are pinned by version tag, not commit SHA (Joseph's preference), and tag
 8. **`concurrency`: PR runs cancel superseded runs; the deploy group never cancels.** Closes: wasted minutes, and a deploy killed halfway.
 9. **`timeout-minutes` on every job.** Closes: a hung job billing 360 minutes.
 10. **SHA-pin an action the day it gets a tag-retarget advisory**, and rotate any secret a job using it could read.
+11. **No shared cache in a job that holds the deploy token.** `preview`, `preview-cleanup`, `deploy` and `rollback` set `package-manager-cache: false`; `verify`, `e2e` and `prod-smoke` keep the pnpm cache. Closes: a poisoned cache entry running next to the token. `verify` runs build-time code and writes the shared pnpm store cache on `main`, and pnpm trusts a store once it is restored. A cold install costs seconds.
 
 The weaker design is the common one: secrets at the workflow level, third-party actions in every job, and `${{ github.event.pull_request.title }}` inside `run:`. One retargeted tag then reads every secret the workflow has. Rules that live only in review decay; zizmor and actionlint check most of these statically, and are worth adding to `verify` the first time a rule is broken in review.
 
@@ -196,7 +204,7 @@ The weaker design is the common one: secrets at the workflow level, third-party 
 
 | Environment | URL | Built from | Data | Secrets | Writer | Lifetime |
 |---|---|---|---|---|---|---|
-| local | `http://localhost:4321` (`astro dev`); `http://localhost:8787` (`wrangler dev` serving `dist/`) | the working tree | none for the site; local state for the lab | lab only: `.dev.vars`, git-ignored, with names in `.dev.vars.example` | Joseph | a session |
+| local | `http://localhost:4321` (`astro dev`); `http://127.0.0.1:8787` (`wrangler dev` serving `dist/`) | the working tree | none for the site; local state for the lab | lab only: `.dev.vars`, git-ignored, with names in `.dev.vars.example` | Joseph | a session |
 | preview, one per PR | on the account's workers.dev subdomain, as Wrangler reports it; public, with `X-Robots-Tag: noindex` | the PR head's `dist/` | site: none. Lab: no previews until spikes S5 and S6 pass, since a workers.dev preview would sit outside the zone's WAF and spend the same quota ([lab.md](lab.md)) | none at launch | the `preview` job only | until the PR closes; Free keeps 100 per Worker and deletes the least recently deployed |
 | production | `https://ihaveasegway.com` | `main`'s `dist/` | site: none. Lab: production DOs, all state disposable within 15 minutes | lab secrets, Phase 4 ([security.md](security.md)) | the `deploy` and `rollback` jobs (the dashboard's Rollback only when GitHub is down) | permanent; the last 100 versions are rollback targets |
 
@@ -208,39 +216,54 @@ Preview limits as of 2026-10-22: [Worker Previews](https://developers.cloudflare
 
 ### The site: blue/green in miniature
 
-1. Record the live version's id from `wrangler deployments status --json`, extracted with `jq -r`. Only the id goes into the job summary and into any rollback issue, because the full output carries the author's email ([Scrubbing evidence](security.md#scrubbing-evidence)). On a scheduled run, the guard reads the same output and stops here unless the live deployment's message starts with `main@`.
-2. `wrangler versions upload --tag <sha8> --message <sha>`. The new version gets a Version URL and no traffic. The job reads `version_id` and `preview_url` from the `version-upload` entry that Wrangler writes to `WRANGLER_OUTPUT_FILE_PATH` ([field definitions](https://github.com/cloudflare/workers-sdk/blob/main/packages/workers-utils/src/output.ts)). It never builds a URL by hand, the rule Cloudflare's own docs pipeline follows.
-3. Smoke the Version URL: a fixed list of routes answers 200, an unknown path answers 404 with the 404 page, a path without its trailing slash redirects, and the `_headers` values are present. Once the telemetry strip exists (PR 3), the build SHA the page carries must equal the commit being deployed.
-4. `wrangler versions deploy <id>@100% --yes --message main@<sha>`. The `main@` prefix is what the weekly rebuild's guard looks for.
-5. `prod-smoke` runs against `https://ihaveasegway.com`.
+1. Stop unless the run's commit is still `main`'s tip, read with the job's `GITHUB_TOKEN`. Deploys queue in the order their runs arrive, not in commit order, and a re-run can come days later, so only `main`'s tip deploys and production only moves forward. The newer commit's own run deploys it.
+2. Record the live version's id from `wrangler deployments status --json`, extracted with `jq -r`. Only the id goes into the job summary and into any rollback issue, because the full output carries the author's email ([Scrubbing evidence](security.md#scrubbing-evidence)). On a scheduled run, the guard reads the same output and stops here unless the live deployment's message starts with `main@`. If production does not exist yet, a push takes the first deploy below instead.
+3. `wrangler versions upload --tag <sha8> --message <sha>`. The new version gets a Version URL and no traffic. The job reads `version_id` and `preview_url` from the `version-upload` entry that Wrangler writes to `WRANGLER_OUTPUT_FILE_PATH` ([field definitions](https://github.com/cloudflare/workers-sdk/blob/main/packages/workers-utils/src/output.ts)). It never builds a URL by hand, the rule Cloudflare's own docs pipeline follows.
+4. Wait up to a minute for the Version URL to answer, then smoke it: every page and file answers 200, each page with its own canonical link and no robots meta tag; an unknown path answers 404 with the 404 page, which is `noindex`, as is `/404` itself; each page's other form (`/index.html` for Home, the slashless form of every other page) redirects to it; and the `_headers` values are present. Home has carried its build commit since PR 2, in the readout row; from PR 3 the smoke also requires it to equal the commit being deployed.
+5. Check `main`'s tip again, then `wrangler versions deploy <id>@100% --yes --message main@<sha>`. The `main@` prefix is what the weekly rebuild's guard looks for. If the apex then does not answer at all, the job runs `wrangler triggers deploy` to apply the routes again (below).
+6. `prod-smoke` runs against `https://ihaveasegway.com`.
 
 The live version is blue. The uploaded one is green: reachable at its own URL and serving no one. Promotion moves all traffic in one call, and a rollback moves it back. Classic blue/green pays for two full environments; here the platform keeps every version, so the second environment costs nothing. What a Version URL cannot show is anything set at the zone, because it is served from workers.dev: HSTS, the `www` redirect, Email Address Obfuscation staying off. `prod-smoke` checks those after promotion, and the weekly audit checks them again.
 
 ```yaml
-# .github/workflows/ci.yml, the deploy job (sketch — confirm against current docs when building)
+# .github/workflows/ci.yml, the deploy job, condensed: the full job, with its job summary lines, is in the file
 permissions: {}                                    # rule 1
 
 jobs:
   deploy:
+    needs: [verify, firewall]                      # the gate
     # A scheduled run also has to pass the guard in the upload step.
     if: (github.event_name == 'push' || github.event_name == 'schedule') && github.ref == 'refs/heads/main'
-    needs: [verify, firewall]                      # the gate
     runs-on: ubuntu-latest
     timeout-minutes: 15                            # rule 9
     permissions: { contents: read }
-    concurrency: { group: deploy-production, cancel-in-progress: false }   # rule 8
-    outputs: { skipped: "${{ steps.upload.outputs.skipped }}" }            # prod-smoke comments when true
+    concurrency: { group: deploy-production, cancel-in-progress: false }   # rule 8; rollback shares it
+    outputs:                                       # prod-smoke reads these
+      skipped: ${{ steps.upload.outputs.skipped }}
+      superseded: ${{ steps.current.outputs.superseded || steps.still-current.outputs.superseded }}
+      previous: ${{ steps.upload.outputs.previous }}
+      version: ${{ steps.upload.outputs.id || steps.first.outputs.id }}
+      promoted_attempt: ${{ steps.promote.outputs.attempt || steps.first.outputs.attempt }}
     steps:
       - uses: actions/checkout@v7
         with: { persist-credentials: false }       # rule 7
       - uses: pnpm/action-setup@v6                 # no version input: reads packageManager
       - uses: actions/setup-node@v7
-        with: { node-version-file: .nvmrc, cache: pnpm }
+        with: { node-version-file: .nvmrc, package-manager-cache: false }   # rule 11: no cache next to the token
       - run: pnpm install --frozen-lockfile        # no token in this step's environment
       - uses: actions/download-artifact@v8         # the dist/ that verify built and firewall scanned
         with: { name: dist, path: apps/web/dist }
-      - name: Upload a version (no traffic)
+      - name: Stop unless this is main's tip (production only moves forward)
+        id: current
+        env:
+          GH_TOKEN: ${{ github.token }}            # contents: read, to read main's tip
+          SHA: ${{ github.sha }}
+        run: |
+          tip="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
+          [ "$tip" = "$SHA" ] || echo "superseded=true" >> "$GITHUB_OUTPUT"
+      - name: Record the live version, then upload the new one with no traffic
         id: upload
+        if: steps.current.outputs.superseded != 'true'
         working-directory: apps/web
         env:                                       # rule 2: only the steps that call Cloudflare
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -248,34 +271,68 @@ jobs:
           SHA: ${{ github.sha }}
           EVENT: ${{ github.event_name }}
         run: |
-          out="$RUNNER_TEMP/wrangler.ndjson"
-          pnpm exec wrangler deployments status --json > "$RUNNER_TEMP/live.json"   # the rollback target; never printed
+          status="$RUNNER_TEMP/status.ndjson"
+          live="$RUNNER_TEMP/live.json"            # carries the author's email: read with jq, never printed
+          if ! WRANGLER_OUTPUT_FILE_PATH="$status" pnpm exec wrangler deployments status --json > "$live" 2> /dev/null; then
+            # Bootstrap: only a push creates production, and only when it is missing. Anything else stops here.
+            if [ "$EVENT" = push ] && jq -se 'any(.[]; .type == "command-failed" and (.code == 10007
+                or ((.message // "") | test("does not exist|not found|has no deployments"; "i"))))' "$status" > /dev/null 2>&1; then
+              echo "first=true" >> "$GITHUB_OUTPUT"; exit 0
+            fi
+            exit 1
+          fi
+          echo "previous=$(jq -r '[.versions[] | select(.percentage == 100)][0].version_id // empty' "$live")" >> "$GITHUB_OUTPUT"
           if [ "$EVENT" = schedule ]; then                 # the guard: promote only over a deploy from main
-            case "$(jq -r '.annotations["workers/message"] // ""' "$RUNNER_TEMP/live.json")" in
+            case "$(jq -r '.annotations["workers/message"] // ""' "$live")" in
               main@*) ;;
               *) echo "skipped=true" >> "$GITHUB_OUTPUT"; exit 0 ;;
             esac
           fi
+          out="$RUNNER_TEMP/upload.ndjson"
           WRANGLER_OUTPUT_FILE_PATH="$out" pnpm exec wrangler versions upload --tag "${SHA:0:8}" --message "$SHA"
-          echo "id=$(jq -r 'select(.type == "version-upload") | .version_id' "$out")" >> "$GITHUB_OUTPUT"
-          echo "url=$(jq -r 'select(.type == "version-upload") | .preview_url' "$out")" >> "$GITHUB_OUTPUT"
-      - name: Smoke the Version URL                # no token here
-        if: steps.upload.outputs.skipped != 'true'
+          echo "id=$(jq -r 'select(.type == "version-upload") | .version_id // empty' "$out" | tail -n 1)" >> "$GITHUB_OUTPUT"
+          echo "url=$(jq -r 'select(.type == "version-upload") | .preview_url // empty' "$out" | tail -n 1)" >> "$GITHUB_OUTPUT"
+      - name: First deploy, which creates the Worker and attaches ihaveasegway.com
+        id: first
+        if: steps.upload.outputs.first == 'true'
+        working-directory: apps/web
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SHA: ${{ github.sha }}
+        run: |
+          out="$RUNNER_TEMP/deploy.ndjson"
+          WRANGLER_OUTPUT_FILE_PATH="$out" pnpm exec wrangler deploy --message "main@$SHA"   # nothing is served yet: no Version URL smoke
+          id="$(jq -r 'select(.type == "deploy") | .version_id // empty' "$out" | tail -n 1)"
+          pnpm exec wrangler versions deploy "$id@100%" --yes --message "main@$SHA"   # deploy --message annotates only the version
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+          echo "attempt=$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+      # (A step waits up to a minute for the Version URL to answer.)
+      - name: Smoke the Version URL before it takes traffic (no token in this step)
+        if: steps.upload.outputs.id != ''
         working-directory: apps/web
         env: { BASE_URL: "${{ steps.upload.outputs.url }}" }
         run: pnpm run smoke
+      # (still-current: the same tip check again. If main moved on, the upload stays, with no traffic.)
       - name: Promote to 100%
-        if: steps.upload.outputs.skipped != 'true'
+        id: promote
+        if: steps.upload.outputs.id != '' && steps.still-current.outputs.superseded != 'true'
         working-directory: apps/web
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           ID: ${{ steps.upload.outputs.id }}
           SHA: ${{ github.sha }}
-        run: pnpm exec wrangler versions deploy "$ID@100%" --yes --message "main@$SHA"   # the prefix the guard reads
+        run: |
+          pnpm exec wrangler versions deploy "$ID@100%" --yes --message "main@$SHA"   # the prefix the guard reads
+          echo "attempt=$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+          # Routes are not part of a version. If the apex does not answer at all, apply them again:
+          curl -fsS -o /dev/null --max-time 15 --retry 2 https://ihaveasegway.com/ || pnpm exec wrangler triggers deploy
 ```
 
-**Routes and custom domains are not part of a version.** They change only through `wrangler deploy` or `wrangler triggers deploy`, which Wrangler marks experimental as of 2026-10-22 ([deployment management](https://developers.cloudflare.com/workers/versions-and-deployments/deployment-management/), [Wrangler commands](https://developers.cloudflare.com/workers/wrangler/commands/workers/)). PR 2's first deploy therefore runs `wrangler deploy`, which creates the Worker and attaches `ihaveasegway.com`. After that, a change to `routes` in `wrangler.jsonc` adds `wrangler triggers deploy` to the same job. Whether the minimal token can attach the custom domain is spike S7 ([roadmap.md](roadmap.md)). PR 2 also settles whether a Worker Preview can be created before the Worker exists.
+**Routes and custom domains are not part of a version.** They change only through `wrangler deploy` or `wrangler triggers deploy`, which Wrangler marks experimental as of 2026-10-22 ([deployment management](https://developers.cloudflare.com/workers/versions-and-deployments/deployment-management/), [Wrangler commands](https://developers.cloudflare.com/workers/wrangler/commands/workers/)). PR 2's first deploy therefore runs `wrangler deploy`, which creates the Worker and attaches `ihaveasegway.com`. It runs only on a push, and only when `wrangler deployments status` says production is missing: error 10007, "does not exist" or "not found" for a missing Worker, or "has no deployments" for a Worker with none. None of these answers has been seen from the live API yet, so the job accepts each. Any other error stops it, and the log shows only the API's numeric error code. The weekly rebuild never creates the Worker. That one deploy goes live without a Version URL smoke, because the domain serves nothing yet; `prod-smoke` checks it next. After every promotion, if the apex does not answer at all, the job runs `wrangler triggers deploy`, which applies the routes in `wrangler.jsonc` again. That is idempotent and runs only while nothing is being served, so re-running the deploy job retries a failed attach. A later change to `routes` in `wrangler.jsonc` adds an unconditional `wrangler triggers deploy` to the same job. Whether the minimal token can attach the custom domain is spike S7 ([roadmap.md](roadmap.md)).
+
+PR 2 also settled whether a Worker Preview can be created before the Worker exists. It can, and that is the problem. Cloudflare says "You do not need to deploy a Worker to production before creating its first Preview" ([Previews, get started](https://developers.cloudflare.com/workers/previews/get-started/)), and in CI `wrangler preview` creates the missing Worker without asking: Wrangler 4.152.0's `provisionParentWorker` answers its own prompt yes, "so CI and Workers Builds can create Previews unattended" ([wrangler 4.152.0](https://www.npmjs.com/package/wrangler/v/4.152.0)). Both as of 2026-10-23. The Worker it creates has no routes, no domain and no deployment, and only `deploy` may create production (the Shape table above). So `preview` publishes nothing until a deploy from `main` has created production, and `e2e` runs on `wrangler dev` until then. `deploy`'s bootstrap treats a Worker with no deployments like a missing one, since both need `wrangler deploy`, the only command that attaches the custom domain. Spike S7's preview leg moves to the first pull request after the first deploy ([roadmap.md](roadmap.md#spikes)).
 
 ### The lab (Phase 4)
 
@@ -289,7 +346,7 @@ jobs:
 
 ### Rollback
 
-`wrangler rollback <version-id> --message "rollback: <why>"`, run by the `rollback` job (`gh workflow run ci.yml -f rollback_to=<version-id>`). If GitHub is down, the dashboard does the same: Workers & Pages → `ihaveasegway-web` → Deployments → ⋯ → Rollback. As of 2026-10-22 ([rollbacks](https://developers.cloudflare.com/workers/configuration/versions-and-deployments/rollbacks/)):
+`wrangler rollback <version-id> --message "rollback: <why>" --yes`, run by the `rollback` job from `main` only (`gh workflow run ci.yml -f rollback_to=<version-id>`, plus `-f reason=<why>` when the reason is not the default, "prod-smoke failed"). `--yes` because CI cannot answer a prompt. If GitHub is down, the dashboard does the same: Workers & Pages → `ihaveasegway-web` → Deployments → ⋯ → Rollback. As of 2026-10-22 ([rollbacks](https://developers.cloudflare.com/workers/configuration/versions-and-deployments/rollbacks/)):
 
 - **Reach:** the 100 most recently published versions. At 23 deploys a month (19 merges and 4 weekly rebuilds in the typical month above), that is about four months of the site's history.
 - **Blocked** across a DO class lifecycle change (`exports` or the legacy `migrations`) between the live and the target version, and when the target binds a KV namespace, R2 bucket or queue that no longer exists.
@@ -318,28 +375,29 @@ What 20 runs prove: with zero failures in 20 runs, the flake rate is below about
 ## Config as code
 
 ```jsonc
-// apps/web/wrangler.jsonc (sketch — confirm against current docs when building)
+// apps/web/wrangler.jsonc, as PR 2 ships it (comments shortened)
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "ihaveasegway-web",
-  "compatibility_date": "2026-10-22",         // the scaffold date; PR 2 sets its own
+  "compatibility_date": "2026-10-22",         // the scaffold date; bumped quarterly in a PR of its own
   // No "main": an assets-only Worker. No request runs Worker code.
   "assets": {
     "directory": "./dist",
     "not_found_handling": "404-page",
-    "html_handling": "auto-trailing-slash"
+    "html_handling": "auto-trailing-slash"   // the default, set explicitly (ADR 0005)
   },
   "routes": [{ "pattern": "ihaveasegway.com", "custom_domain": true }],
   "workers_dev": false,      // one public origin
   "preview_urls": true,      // Version URLs for the deploy smoke; explicit, because it otherwise follows workers_dev
   "previews": {},            // Worker Previews; the site has no bindings to re-bind
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+  "send_metrics": false      // no Wrangler usage metrics from CI or laptops
   // Never "cache": { "enabled": true }. With it, every asset request is billed at the
-  // Workers request rate (https://developers.cloudflare.com/workers/cache/). CI fails if it appears.
+  // Workers request rate (https://developers.cloudflare.com/workers/cache/). CI fails if it appears, at any depth.
 }
 ```
 
-There is no `account_id` in the file. It comes from the `CLOUDFLARE_ACCOUNT_ID` Actions secret, which keeps the account identifier out of a repository that may become public, and out of its logs: GitHub masks secrets there, and the logs go public with the repository ([ADR 0012](adr/0012-public-repository.md)).
+`send_metrics: false` stops Wrangler's usage reports, and CI sets `ASTRO_TELEMETRY_DISABLED=1` for Astro's, so the build talks to no one it does not need. There is no `account_id` in the file. It comes from the `CLOUDFLARE_ACCOUNT_ID` Actions secret, which keeps the account identifier out of a repository that may become public, and out of its logs: GitHub masks secrets there, and the logs go public with the repository ([ADR 0012](adr/0012-public-repository.md)).
 
 ```text
 # apps/web/public/_headers, cache part (sketch — confirm against current docs when building)
@@ -390,6 +448,8 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly, day: monday, time: "06:00" }
+    cooldown:
+      default-days: 7                 # setup-node and pnpm/action-setup run in every job that holds the deploy token
     groups:
       actions:
         patterns: ["*"]
@@ -414,24 +474,25 @@ A fitness function is an executable check of an architectural property. A budget
 | Unit | `verify` | a Vitest test fails; the lab's tests run inside workerd | this doc |
 | Tokens | `verify` | a token pair misses WCAG AA contrast, a value leaves sRGB, or a color literal appears outside `tokens.css` | design-system.md |
 | Build | `verify` | Astro fails, including Zod rejecting front matter (schema-on-write) | [content.md](content.md) |
-| URL scheme | `verify` | an internal link lacks its trailing slash, a page URL carries a date, an extension or a capital, a URL leaves the sitemap without a 301, or a lab entry is named `api`, a path the lab Worker's route owns ([content.md](content.md)) | ADR 0005 |
-| Bundle bytes | `verify` | eager JS on a content page, lazy JS per feature, CSS or preloaded fonts exceed their budgets, measured as gzip -9 bytes in `dist/` | design-system.md |
-| Glyph coverage | `verify` | a character in mono text is missing from the HUD font subset | design-system.md |
+| URL scheme | `verify` | an internal link lacks its trailing slash, a page URL carries a date, an extension or a capital, the sitemap lists anything but the built pages, a built page is missing from the published-URL ledger (`apps/web/published-urls.txt`) or a URL in it is neither a page nor the source of a 301, or a lab entry is named `api`, a path the lab Worker's route owns ([content.md](content.md)) | ADR 0005 |
+| No JavaScript (PR 2) | `verify` | a built page holds a `<script>`, or `dist/` holds a JavaScript file. PR 3's byte budgets replace it | design-system.md |
+| Bundle bytes (PR 3) | `verify` | eager JS on a content page, lazy JS per feature, CSS or preloaded fonts exceed their budgets, measured as gzip -9 bytes in `dist/` | design-system.md |
+| Glyph coverage (PR 3) | `verify` | a character in mono text is missing from the HUD font subset | design-system.md |
 | Internal links | `verify` | lychee `--offline` finds a link in `dist/` that points nowhere | this doc |
-| No Workers Cache | `verify` | `cache.enabled` appears in a Worker's `wrangler.jsonc` | this doc |
+| Worker config | `verify` | `cache.enabled` appears anywhere in a Worker's `wrangler.jsonc`, `previews` included; the file carries an `account_id`; or the site Worker loses its assets-only shape, `workers_dev: false` or its Version URLs | this doc |
 | `_headers` regeneration (Phase 4) | `verify` | the committed `_headers` differs from what `packages/security-headers` writes | security.md |
 | Firewall self-test | `verify` | `scripts/firewall/test.sh` does not get exits 0, 1 and 2 where it expects them | security.md |
-| Image metadata | `verify` | a tracked image or PDF carries EXIF, XMP or IPTC, or PDF Info fields other than Title and Author | security.md |
+| Image metadata | `verify` | a tracked image or PDF carries EXIF, XMP, IPTC or C2PA, or PDF Info fields other than Title and Author | security.md |
 | Review stamp | `verify` | a PR changes anything other than the stamp in a work, writing, notes, lab or now entry, or in `profile.json`, without changing its `firewall_reviewed` date | content.md |
 | Content firewall | `firewall` | exit 1 (a finding) or exit 2 (cannot prove clean) | security.md |
-| Smoke | `deploy`, `e2e`, `prod-smoke` | a key route's status or content is wrong, or the 404 page or the trailing-slash redirect misbehaves | this doc |
-| Accessibility | `e2e` | axe reports any violation, in light, dark, forced colors and high contrast | design-system.md |
-| CSP | `e2e` | any `securitypolicyviolation` event or CSP console message | security.md |
-| Headers | `e2e`, `prod-smoke` | a `_headers` value is missing (preview); HSTS is wrong, or a forbidden header appears (production) | security.md |
-| Served bytes | `prod-smoke` | served HTML does not hash the same as the build artifact, because a zone feature rewrote it | security.md |
-| Theme and motion | `e2e` | `data-theme` is not set before first paint, a stored choice is not labelled "saved in this browser", or an animation runs under `reducedMotion: 'reduce'` | design-system.md |
-| Fold | `e2e` | the bottom edge of Home's row 3 is below the bottom of the viewport at 390×844 or 1440×900 ([content.md](content.md#home-page)) | content.md |
-| Synthetic performance | `e2e` | an LHCI assertion fails: Home transfer, and LCP and CLS on simulated mobile, 3 runs per URL | design-system.md |
+| Smoke | `deploy`, `e2e`, `prod-smoke` | a page or file answers with the wrong status or content, a page lacks its own canonical link or carries a robots meta tag, the 404 page or its `noindex` misbehaves, or a page's other form does not redirect to it | this doc |
+| Accessibility | `e2e` | axe reports any violation, in light, dark, forced colors and high contrast; a page scrolls sideways at 320 px; or a control Tab reaches shows no visible outline | design-system.md |
+| CSP | `e2e`, `prod-smoke` | any `securitypolicyviolation` event or CSP console message, or an injected inline script runs (the known answer, in `e2e`) | security.md |
+| Headers | `e2e`, `prod-smoke` | a `_headers` value is missing (preview); HSTS is not a step of the ramp, or a forbidden header appears (production) | security.md |
+| Served bytes | `prod-smoke` | served HTML differs from the build artifact, byte for byte, because a zone feature rewrote it. Only the run attempt that promoted the artifact checks | security.md |
+| Theme and motion (PR 3) | `e2e` | `data-theme` is not set before first paint, a stored choice is not labelled "saved in this browser", or an animation runs under `reducedMotion: 'reduce'` | design-system.md |
+| Fold (PR 3) | `e2e` | the bottom edge of Home's row 3 is below the bottom of the viewport at 390×844 or 1440×900 ([content.md](content.md#home-page)) | content.md |
+| Synthetic performance (PR 3) | `e2e` | an LHCI assertion fails: Home transfer, and LCP and CLS on simulated mobile, 3 runs per URL | design-system.md |
 
 Each check sees one layer, so each property is checked where it lives:
 

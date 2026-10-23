@@ -6,7 +6,7 @@ Status: Draft for review in PR 1 · 2026-10-22
 
 ## Access setup
 
-Order for PR 2: step 6, then 1, then 5. Step 3 waits on the mail decision (Q2 · Q-mail in [product.md](product.md)), step 4 comes with PR 3, step 7 with PR 6, and step 2 is as needed.
+Order for PR 2: step 6, then 1, then 5, and step 3, since Q2 · Q-mail chose Email Routing on 2026-10-22 ([product.md](product.md#decided)). Step 4 comes with PR 3, step 7 with PR 6, and step 2 is as needed.
 
 Three rules apply to every credential below:
 
@@ -41,8 +41,8 @@ One account-owned API token, prefix `cfat_`, used by the `preview`, `deploy`, `r
    ```
 
    The account ID is an identifier, not a credential, but it is stored as a secret anyway. GitHub masks secrets in logs, while "variables render unmasked in your build outputs" ([GitHub](https://docs.github.com/en/actions/concepts/workflows-and-actions/variables)), and the logs go public with the repository at the [ADR 0012](adr/0012-public-repository.md) switch. Wrangler reads it from the environment, so `wrangler.jsonc` carries no `account_id`.
-8. Before the first preview, check the names the pipeline will expose: every preview and Version URL carries the account's workers.dev subdomain, and the Worker and account names show in the dashboard and in logs. None may name anything the firewall blocks, or any part of an email address ([security.md](security.md)). The subdomain in particular is public from the first preview comment on, and old comments keep it, so any rename comes before that comment. Also confirm that no other Worker in the account answers on that subdomain: every other Worker has workers.dev and Version URLs off, confirmed with a request to its workers.dev hostname, or it moves to its own account. Re-check after any change to that Worker.
-9. Verify with PR 2's first preview run, not by exporting the token in a local shell. That run is spike S7 too, since it moved inside PR 2 on 2026-10-22, so S7 needs no token of its own ([roadmap.md](roadmap.md#spikes)).
+8. Before the first deploy from `main`, which comes before any preview, check the names the pipeline will expose: every preview and Version URL carries the account's workers.dev subdomain, and the Worker and account names show in the dashboard and in logs. None may name anything the firewall blocks, or any part of an email address ([security.md](security.md)). The subdomain in particular is public from the first preview comment on, and old comments keep it, so any rename comes before that comment. Also confirm that no other Worker in the account answers on that subdomain: every other Worker has workers.dev and Version URLs off, confirmed with a request to its workers.dev hostname, or it moves to its own account. Re-check after any change to that Worker.
+9. Verify with PR 2's first deploy from `main`, then the first pull request's preview after it, not by exporting the token in a local shell. The deploy comes first: until production exists, `preview` publishes nothing ([delivery.md](delivery.md#pipeline)). Those runs are spike S7 too, since it moved inside PR 2 on 2026-10-22, so S7 needs no token of its own ([roadmap.md](roadmap.md#spikes)).
 
 ### 2. Short-lived tokens for inspection and one-off changes (as needed)
 
@@ -57,14 +57,14 @@ For an agent or a script that has to read account state (zone settings, usage, a
 
 ### 3. Email Routing (after Q2 · Q-mail)
 
-Only if Joseph picks the receive-only `hello@` posture. The records, and the alternative posture, are in [security.md](security.md).
+Q2 · Q-mail chose the receive-only `hello@` posture, and Email Routing was set up on 2026-10-22. The records, and the alternative posture, are in [security.md](security.md).
 
 1. Dashboard → Compute → Email Service → Email Routing → Onboard Domain → `ihaveasegway.com`. Review the records Cloudflare will add (MX, an SPF TXT record and a DKIM TXT record), then Done ([Email Routing](https://developers.cloudflare.com/email-routing/get-started/enable-email-routing/)).
 2. Destination Addresses → add Joseph's personal inbox → open Cloudflare's message and select "Verify email address". The destination address is never written into the repo, a doc, a commit or an issue.
 3. Routing Rules → Create routing rule → Email pattern `hello` → Action "Send to an email" → the verified destination → Save. Leave catch-all off.
 4. Add DMARC by hand, since onboarding adds MX, SPF and DKIM only: a TXT record at `_dmarc` with the value in [security.md](security.md).
 5. Send a test from an outside account. Replies go out from the personal address; nothing sends as `hello@`.
-6. Run `scripts/verify-zone.sh`, and update the "as found" column of the zone checklist in [security.md](security.md).
+6. Run `scripts/verify-zone.sh`, and record the change with its date under the zone checklist in [security.md](security.md#zone-hardening-checklist). The "As found" column keeps what was found before.
 
 ### 4. Web Analytics, manual beacon (PR 3)
 
@@ -81,7 +81,7 @@ Pending Q18 · Q-analytics in [product.md](product.md); recommended for PR 3.
 
 The rules are never committed and never quoted ([ADR 0007](adr/0007-content-firewall.md)). The private file is the source of truth; the two GitHub secrets are copies of it.
 
-1. In the clone: `git config core.hooksPath .githooks`. The setting is per clone; a root `prepare` script can set it on `pnpm install`.
+1. In the clone: `git config core.hooksPath .githooks`. The setting is per clone. `pnpm install` warns until it is set (`scripts/check-hooks.sh`, run as the root `postinstall` script), but no script sets it: an install should not change git configuration as a side effect.
 2. Commit identity: `git config --show-origin user.email` must show the GitHub noreply address ([security.md](security.md)).
 3. Create the rules file, readable only by its owner:
 
@@ -91,10 +91,10 @@ The rules are never committed and never quoted ([ADR 0007](adr/0007-content-fire
    chmod 600 ~/.config/ihaveasegway/firewall.toml
    ```
 
-   The content is gitleaks TOML with opaque ids and a word boundary on every rule; [security.md](security.md) has the rule shape with placeholders.
+   The content is gitleaks TOML with opaque ids, word boundaries on every word, and the `fw-canary` rule last; [security.md](security.md#rule-writing-rules) has the rule shape with placeholders. Set `RULE_FLOOR` in `scripts/firewall/check.sh` to the file's rule count, the canary included. The number is not a secret.
 4. Back the file up in the password manager.
 5. Run `scripts/firewall/test.sh`, the self-test with a throwaway rule.
-6. Run `scripts/firewall/sync-secrets.sh`. It copies the file into the Actions secret and the Dependabot secret, both named `FIREWALL_RULES`.
+6. Run `scripts/firewall/sync-secrets.sh`. It copies the file into the Actions secret and the Dependabot secret, both named `FIREWALL_RULES`. It refuses a file that anyone but its owner can read, that holds fewer rules than `RULE_FLOOR`, or whose last rule is not `fw-canary`.
 7. Prove the hooks: from a local `main`, `git push origin main` is refused by `pre-push`.
 
 A clone without the private file gets exit 2 from both hooks, with these steps in the message.
@@ -156,7 +156,7 @@ Where alerts go is an open decision (Q26 · Q-alerts in [product.md](product.md)
 | Site down | The uptime monitor's check fails | Better Stack | [Incident: site down](#incident-site-down) |
 | Deploy or `prod-smoke` failed | The job fails; `prod-smoke` also opens an issue | GitHub Actions | [Rollback](#rollback) |
 | Firewall failed | `firewall` exits 1 (a finding) or 2 (cannot prove clean) | GitHub Actions | [Leak response](#leak-response) for exit 1; [access setup step 5](#5-local-hooks-and-the-private-firewall-file-pr-2) for exit 2 |
-| Weekly audit failed | Zone drift, a dead external link, `security.txt` within 30 days of its `Expires`, the domain within 60 days of expiry, `compatibility_date` past 180 days | `scheduled.yml` | [DNS or mail change](#dns-or-mail-change), [compatibility_date bump](#compatibility_date-bump), [maintenance calendar](#maintenance-calendar) |
+| Weekly audit failed | Zone drift, a dead external link, `security.txt` within 30 days of its `Expires`, the domain within 60 days of expiry, `compatibility_date` missing (past 180 days it only warns, in the run's log) | `scheduled.yml` | [DNS or mail change](#dns-or-mail-change), [compatibility_date bump](#compatibility_date-bump), [maintenance calendar](#maintenance-calendar) |
 | Vulnerable dependency | A Dependabot alert | GitHub | [Dependency update](#dependency-update) |
 | Lab cleanup bug, Phase 4 | An object with stored data on two nights running; the job opens an issue | `lab-objects` | [lab.md](lab.md); L1 for the demo until it is fixed |
 | Spend, on Workers Paid only | A budget alert threshold, set on upgrade day | Cloudflare | [Upgrade to Workers Paid](#upgrade-to-workers-paid) |
@@ -174,19 +174,20 @@ Deploys happen on merge, and on the weekly rebuild every Monday ([delivery.md](d
 2. Read the `deploy` job summary: the version that was live before, the new version id, its Version URL, and the smoke result.
 3. Wait for `prod-smoke`. Green means done.
 4. If the Version URL smoke failed, nothing changed: production still serves the old version. Fix forward in a new PR.
-5. If `prod-smoke` failed, follow [Rollback](#rollback).
-6. If GitHub Actions is down, wait. New content can wait, and a broken production can be rolled back from the Cloudflare dashboard without Actions.
+5. If the summary says "Not deployed" or "Not promoted", `main` moved on during the run. The newer commit's run deploys it; nothing needs doing.
+6. If `prod-smoke` failed, follow [Rollback](#rollback). If its issue says production did not answer at all, a rollback cannot help: the custom domain is not attached, or the zone is not serving, and the issue says what to check.
+7. If GitHub Actions is down, wait. New content can wait, and a broken production can be rolled back from the Cloudflare dashboard without Actions.
 
-PR 2 only: the first deploy creates the Worker and attaches the custom domain ([delivery.md](delivery.md)).
+PR 2 only: the first deploy creates the Worker and attaches the custom domain with `wrangler deploy`, and goes live without a Version URL smoke, since the domain serves nothing yet ([delivery.md](delivery.md#deploy-verify-roll-back)). If attaching the domain failed for a missing permission (spike S7), add only the permission the error names ([access setup step 1](#1-deploy-token-pr-2)), then re-run the deploy job: it applies the routes again whenever the apex does not answer.
 
 The lab, from Phase 4: a lab deploy drops every live WebSocket, and clients fall back to recordings. A PR that changes a DO class is merged alone and deployed alone, because a rollback cannot cross it.
 
 ### Rollback
 
 1. Find the target. The issue `prod-smoke` opened names it, and so does the previous `deploy` job summary. Never roll back without an explicit version id ([delivery.md](delivery.md) explains why).
-2. Run the rollback through the pipeline: `gh workflow run ci.yml -f rollback_to=<version-id>`. The `rollback` job runs `wrangler rollback <version-id> --message "rollback: <reason>"` with the scoped deploy token, waits for any deploy in progress, and `prod-smoke` follows. This is the path PR 2 rehearses.
+2. Run the rollback through the pipeline, from `main`: `gh workflow run ci.yml -f rollback_to=<version-id>`, plus `-f reason=<why>` when the reason is not "prod-smoke failed". The `rollback` job checks that the input is a version id, runs `wrangler rollback <version-id> --message "rollback: <reason>" --yes` with the scoped deploy token, waits for any deploy in progress, and `prod-smoke` follows. This is the path PR 2 rehearses.
 3. If GitHub or Actions is down, use the dashboard: Workers & Pages → `ihaveasegway-web` → Deployments → ⋯ on the target version → Rollback. It runs under Joseph's login and its second factor. Never `wrangler rollback` from the laptop: it would need an edit credential at rest there.
-4. Confirm `prod-smoke` passes against the rolled-back version. After a dashboard rollback, re-run the failed job: `gh run rerun <run-id> --failed`.
+4. Confirm `prod-smoke` passes against the rolled-back version. After a dashboard rollback, re-run the failed job: `gh run rerun <run-id> --failed`. The re-run skips the byte-for-byte check, which only the run attempt that promoted a version can make.
 5. Revert or fix on `main` first. The Monday rebuild skips while a rollback is live, but the next merge deploys `main` again, broken commit included.
 6. Close the issue with one line: the cause, and which check would have caught it before production.
 
@@ -232,13 +233,14 @@ Suspected exposure, at any time, immediately:
 
 When a term is added, changed or removed. The rules never appear in an issue, a PR, a commit message or a chat.
 
-1. Edit `~/.config/ihaveasegway/firewall.toml`. A new rule gets the next opaque id and a word boundary on both sides; the canary rule stays.
+1. Edit `~/.config/ihaveasegway/firewall.toml`. A new rule gets the next opaque id, a word boundary on both sides if it is a word, and keywords that every match contains ([rule-writing rules](security.md#rule-writing-rules)); the canary rule stays, and stays last.
 2. Run `scripts/firewall/test.sh`.
-3. Scan the full history with the new rules (`--log-opts=--all`), printing only rule ids and locations ([security.md](security.md)). A new rule can match old commits.
+3. Scan the full history with the new rules: `scripts/firewall/check.sh --history`, which prints only rule ids and locations ([security.md](security.md)). A new rule can match old commits.
 4. Run `scripts/firewall/sync-secrets.sh` to update both `FIREWALL_RULES` copies.
-5. Update the password-manager backup.
-6. Re-run `firewall` on `main` and confirm it passes. The canary proves the new rules loaded.
-7. If step 3 or step 6 finds a match, go to [Leak response](#leak-response).
+5. If the rule count changed, set `RULE_FLOOR` in `scripts/firewall/check.sh` to the new count in a pull request: after step 4 when rules were added, and before it when rules were removed, since `sync-secrets.sh` refuses a file below the floor.
+6. Update the password-manager backup.
+7. Re-run `firewall` on `main` and confirm it passes. The canary proves the new rules loaded.
+8. If step 3 or step 7 finds a match, go to [Leak response](#leak-response).
 
 ### Leak response
 
@@ -286,9 +288,9 @@ A validation fault (the weekly `AD` check fails, SERVFAIL reports, DNSViz errors
 Four steps over about five weeks after PR 2, each held at least as long as its own max-age with no HTTPS fault before the next: 300 seconds until PR 2's first deploy passes `prod-smoke`, then 1 week, 1 month, and 12 months, all with `includeSubDomains` ([ADR 0011](adr/0011-dnssec-and-hsts-ramp.md)). Each served max-age is a one-way door for its own duration.
 
 1. Confirm the current step has been held for its full max-age, and nothing has served plain HTTP or a bad certificate in that time.
-2. Open a PR that changes the expected max-age, kept in one place that `prod-smoke` and `scripts/verify-zone.sh` both read.
+2. Nothing changes in the repository: `prod-smoke` and `scripts/verify-zone.sh` accept any step of the ramp, with `includeSubDomains` and without `preload`.
 3. Steps 1 and 2 go through the API, since the dashboard starts at 1 month: a 1-day token with Zone Settings Edit ([access setup step 2](#2-short-lived-tokens-for-inspection-and-one-off-changes-as-needed)), a `PATCH` of the zone setting `security_header` whose `value.strict_transport_security` carries `enabled`, `max_age` in seconds and `include_subdomains` ([API reference](https://developers.cloudflare.com/api/resources/zones/subresources/settings/methods/edit/), as of 2026-10-22), then delete the token. If the API refuses a value under a month, the ramp starts at step 3, as [ADR 0011](adr/0011-dnssec-and-hsts-ramp.md) allows. Steps 3 and 4: SSL/TLS → Edge Certificates → HSTS.
-4. `curl -sI https://ihaveasegway.com/` shows the new `Strict-Transport-Security` value. Merge the PR.
+4. `curl -sI https://ihaveasegway.com/` shows the new `Strict-Transport-Security` value.
 5. Put the date of the next step in the [maintenance calendar](#maintenance-calendar). Preload is not a step: it is reconsidered no earlier than 3 months after step 4, in a new ADR.
 
 ### Upgrade to Workers Paid

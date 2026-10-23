@@ -21,6 +21,8 @@ The repository is likely to become public ([ADR 0012](0012-public-repository.md)
 
 **Reopened on 2026-10-22.** Joseph confirmed that the Mission-AI values are his to reuse (Q25 · Q-token-owner in [product.md](../product.md#decided)). He also asked for a look that is distinctive rather than what everyone else ships: creative, but not distracting. Zinc neutrals with Inter are the default of a great many developer sites built on shadcn, so the values in the Decision below are a starting point, not the answer. A design exploration before PR 3 puts three directions on Home's real wireframe. Joseph picks one, and this ADR is rewritten with its values and then Accepted, together with Q17. What stands either way: one token file owned by this repository, copied rather than imported, semantic token names, full `oklch()` values, the CI contrast test and the focus rule. PR 2 ships that structure with placeholder values and system fonts.
 
+**Direction chosen on 2026-10-23.** From the exploration Joseph picked direction C, "Instrument", in the Petrol + Apricot palette (Q17 in [product.md](../product.md#decided); the values and the reasons are in [design-system.md](../design-system.md#chosen-direction)). PR 2 ships those values in `tokens.css` under the same semantic names, with system fonts, and the contrast test passes the full cross product in both themes. This ADR is rewritten around the direction, and then Accepted, in PR 3, once the typefaces are in (Instrument Sans and JetBrains Mono, spike S9).
+
 ## Decision
 
 Copy the token values into this repository as a deliberate fork. Nothing depends on Mission-AI's packages.
