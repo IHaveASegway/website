@@ -191,6 +191,8 @@ The lab, from Phase 4: a lab deploy drops every live WebSocket, and clients fall
 5. Revert or fix on `main` first. The Monday rebuild skips while a rollback is live, but the next merge deploys `main` again, broken commit included.
 6. Close the issue with one line: the cause, and which check would have caught it before production.
 
+A rehearsal has nothing to fix on `main`, so it ends by deploying `main` again: re-run the `deploy` job of `main`'s last push run (`gh run rerun <run-id> --job <deploy-job-id>`). The job checks that its commit is still `main`'s tip, uploads it as a new version, smokes it, promotes it with `main@<sha>`, and its `prod-smoke` follows, so the Monday rebuild's guard re-arms without a merge. The first rehearsal, on 2026-10-23, took production from `bd499bbb` back to `dca99190` in 33 seconds, with `prod-smoke` passing against the old version; the re-run then promoted `75b0b8a5` from `main` and passed `prod-smoke`, the byte-for-byte check included.
+
 A blocked rollback (the lab): Cloudflare refuses to roll back across a DO class change. Put the demos in recorded mode with kill-switch L1, then fix forward.
 
 ### Lab kill switch, L0–L4 (Phase 4)
