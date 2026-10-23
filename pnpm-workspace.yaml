@@ -18,7 +18,5 @@ allowBuilds:
 
 # minimumReleaseAge stays unset: the pnpm 11 default, 1440 minutes, in loose mode.
 # Setting it, even to 1440, also turns on minimumReleaseAgeStrict (delivery.md, "The release-age gate").
-# Every entry below is dated and removed within 7 days, whether pnpm or a person wrote it.
-minimumReleaseAgeExclude:
-  - miniflare@5.20261019.2-beta # 2026-10-23: written by pnpm; wrangler 4.152.0 pins it, published under 24 h earlier; remove by 2026-10-30
-  - wrangler@4.152.0 # 2026-10-23: written by pnpm; published 2026-10-22 14:43 UTC, the catalog's floor; remove by 2026-10-30
+# minimumReleaseAgeExclude is empty. An entry, whether pnpm or a person writes it, is dated and
+# removed within 7 days; the last two, wrangler 4.152.0 and its miniflare, matured on 2026-10-23.
