@@ -15,7 +15,7 @@ Chosen on 2026-10-23 (Q17 in [product.md](product.md#decided)). The exploration 
 What C is:
 
 - **A 12-column frame with a ruler.** A numbered tick band across the top marks the columns the layout sits on, four of them on a phone. It is decoration, hidden from assistive technology.
-- **A poster-size name.** 156 px at 1440 px and 66 px on a 390 px phone (a ratio of 2.36, inside the 2.5 the type scale allows). Under it, one row holds the title and location, a line of proof, and the actions.
+- **A poster-size name.** 156 px at 1440 px and 66 px at 400 px (a ratio of 2.36, inside the 2.5 the type scale allows). Below 400 px it scales with the screen, at 16.5vw, so the name fits a 320 px screen whole even in a wide fallback font such as DejaVu Sans; PR 2's first CI run found that overflow on Linux. Under the name, one row holds the title and location, a line of proof, and the actions.
 - **A readout row.** Facts about the build in mono, read from the build itself: the commit, the build date, the JavaScript shipped. It is the seed of the status line.
 - **One accent.** Apricot fills the primary button, marks focus and the location dot, numbers sections, and colors a link on hover. Otherwise links read as text with an underline at 3:1, so the underline, not the color, marks them (SC 1.4.1). `--signal` points at the accent.
 - **Type.** Instrument Sans, whose width axis runs from 75% to 100% and gives the condensed name, and JetBrains Mono for labels and readouts; both OFL 1.1. They arrive in PR 3 through spike S9. Until then the site uses system stacks.

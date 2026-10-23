@@ -60,9 +60,10 @@
   --text-display--line-height: 1.05;
   --text-display--letter-spacing: -0.03em;
   --text-display--font-weight: 600;
-  /* The name on Home, direction C's poster line: 66px on a 390px phone to 156px at 1440px, a
-     ratio of 2.36, inside the 2.5 above. */
-  --text-hero: clamp(4.125rem, 2.036rem + 8.571vw, 9.75rem);
+  /* The name on Home, direction C's poster line: 66px at 400px to 156px at 1440px, a ratio of
+     2.36, inside the 2.5 above. Below 400px it also stops at 16.5vw, so the longest word still fits
+     on a 320px screen in a wide fallback font (DejaVu Sans, Linux's default, measured in CI). */
+  --text-hero: min(clamp(4.125rem, 2.036rem + 8.571vw, 9.75rem), 16.5vw);
   --text-hero--line-height: 0.88;
   --text-hero--letter-spacing: -0.035em;
   --text-hero--font-weight: 620;
