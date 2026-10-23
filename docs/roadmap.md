@@ -218,16 +218,16 @@ gitops went private on 2026-10-23, after its last public release, so the site ca
 
 Phase 3 · estimate: 2 focused days · next, ahead of PR 3b and PR 4 (re-ordered on 2026-10-23) · blocked by: — (due before it, not blocking: [Q-writing-budget](product.md))
 
-**Scope.** `/writing/`, `/notes/`, `/rss.xml`, and the first posts. Details: [content.md](content.md). The machinery can merge before the posts: it ships hidden until 3 posts exist, and Joseph writes the posts.
+**Scope.** `/writing/`, `/notes/`, `/rss.xml`, and the first posts. Details: [content.md](content.md). The machinery merges before the posts: it ships hidden until 3 posts are published, and Joseph writes the posts. Built on 2026-10-23: the `writing` and `notes` collections; the indexes and post pages as dynamic routes, which build nothing below 3 posts; the feed, with `@astrojs/rss`; drafts on pull-request previews only; a link-preview card and BlogPosting JSON-LD per post; Writing in the header and on Home, and RSS in the footer and in each page's `<head>`; and a generic prose layout, which PR 3b's colophon reuses. With no real post yet, three test-only builds from fixture posts stand in for content (`apps/web/scripts/build-fixtures.mjs`): 2 published posts and a draft, 3 and a draft, and the same 3 built as a preview builds them. Every check over `dist/` runs again on both 3-post builds, and `pnpm e2e:writing` runs the browser checks on their pages.
 
 **Done when:**
-- [ ] Essays and notes are content collections with validated front matter. Drafts never reach the build output.
-- [ ] `/writing/` renders only once 3 posts exist. Until then it is absent from the header and the sitemap.
-- [ ] `/rss.xml` passes the W3C feed validator.
-- [ ] At least three posts are published. The field notes drafted in PRs 2–4 count.
-- [ ] Each post carries a `firewall_reviewed` date.
+- [x] Essays and notes are content collections with validated front matter. Drafts build only in `astro dev` and pull-request previews, never in a production build: `DRAFTS=include` turns them on, CI sets it for pull requests alone, and a test reads `ci.yml` to keep it so.
+- [x] `/writing/` renders only once 3 posts are published, drafts not counted. Until then it is absent from the header, Home, the feed and the sitemap. The fixture builds at 2 and 3 posts prove both sides (`test/writing.test.ts`).
+- [x] `/rss.xml` passes the W3C feed validator. The fixture build's feed, submitted as text on 2026-10-23, was valid with 0 errors. Its one warning, "Self reference doesn't match document location", comes from submitting text rather than the URL, and goes once the live feed is validated by URL. `e2e` also parses the feed with the browser's XML parser.
+- [ ] At least three posts are published. The field notes drafted in PRs 2–4 count. Joseph writes them; this box ticks with the third.
+- [x] Each post carries a `firewall_reviewed` date: the schema refuses a post without one. The review-stamp gate in [delivery.md](delivery.md#quality-gates-and-budgets-as-fitness-functions), which fails a pull request that changes a post without changing that date, is not built yet; it should land before the first post.
 
-**What it teaches.** **Cool URIs**: a post's slug is permanent from its first publish, and a rename is a 301 in `_redirects` ([ADR 0005](adr/0005-url-scheme.md)). Writing as a system rather than a resolution: a cadence, a definition of done that produces drafts, and a fallback when the cadence slips.
+**What it teaches.** **Cool URIs**: a post's slug is permanent from its first publish, and a rename is a 301 in `_redirects` ([ADR 0005](adr/0005-url-scheme.md)). Writing as a system rather than a resolution: a cadence, a definition of done that produces drafts, and a fallback when the cadence slips. **Test fixtures for content**: a rule about content ("nothing below 3 posts") can only be proven with content, so known fixture posts stand in for the real ones, the same move as a test double, and a check proves no fixture ever reaches the real build. **Explicit environment over inference**: production is the default, and drafts need a named switch that only pull requests set; a build that guessed its environment from the branch would fail open.
 
 ### PR 6: Lab platform and Presence
 
