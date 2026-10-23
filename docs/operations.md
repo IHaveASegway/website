@@ -6,7 +6,7 @@ Status: Draft for review in PR 1 · 2026-10-22
 
 ## Access setup
 
-Order for PR 2: step 6, then 1, then 5, and step 3, since Q2 · Q-mail chose Email Routing on 2026-10-22 ([product.md](product.md#decided)). Step 4 comes with PR 3, step 7 with PR 6, and step 2 is as needed.
+Order for PR 2: step 6, then 1, then 5, and step 3, since Q2 · Q-mail chose Email Routing on 2026-10-22 ([product.md](product.md#decided)). Step 4 comes with PR 3b, step 7 with PR 6, and step 2 is as needed.
 
 Three rules apply to every credential below:
 
@@ -66,9 +66,9 @@ Q2 · Q-mail chose the receive-only `hello@` posture, and Email Routing was set 
 5. Send a test from an outside account. Replies go out from the personal address; nothing sends as `hello@`.
 6. Run `scripts/verify-zone.sh`, and record the change with its date under the zone checklist in [security.md](security.md#zone-hardening-checklist). The "As found" column keeps what was found before.
 
-### 4. Web Analytics, manual beacon (PR 3)
+### 4. Web Analytics, manual beacon (PR 3b)
 
-Pending Q18 · Q-analytics in [product.md](product.md); recommended for PR 3.
+Q18 · Q-analytics chose it on 2026-10-22 ([product.md](product.md#decided)). It ships with the colophon in PR 3b, which carries its disclosure; steps 1 to 3 are Joseph's, in the dashboard, before that pull request starts.
 
 1. Dashboard → Web Analytics → Add a site → select `ihaveasegway.com` → Done. For a proxied site this turns on automatic setup ([Web Analytics](https://developers.cloudflare.com/web-analytics/get-started/)).
 2. Manage site → "Enable with JS Snippet installation". Automatic injection stays off: an injected script would change the served bytes after CI tested them, and the CSP would have to allow it.
@@ -128,7 +128,7 @@ A page view runs no Worker code, so until the lab ships there is little to obser
 
 | Signal | Tool | Answers | Free allowance | From | Source |
 |---|---|---|---|---|---|
-| Page views, referrers, real-user Core Web Vitals | Cloudflare Web Analytics, manual beacon | Do the shared links convert? How do real visits rate on LCP, INP and CLS (Good, Needs Improvement, Poor; the worst elements at P75)? | Free; no cookies or `localStorage`; 6 months of history. Ad blockers undercount a developer audience, so capacity decisions never use it | PR 3 | [Web Analytics](https://www.cloudflare.com/web-analytics/), [Core Web Vitals](https://developers.cloudflare.com/web-analytics/data-metrics/core-web-vitals/) |
+| Page views, referrers, real-user Core Web Vitals | Cloudflare Web Analytics, manual beacon | Do the shared links convert? How do real visits rate on LCP, INP and CLS (Good, Needs Improvement, Poor; the worst elements at P75)? | Free; no cookies or `localStorage`; 6 months of history. Ad blockers undercount a developer audience, so capacity decisions never use it | PR 3b | [Web Analytics](https://www.cloudflare.com/web-analytics/), [Core Web Vitals](https://developers.cloudflare.com/web-analytics/data-metrics/core-web-vitals/) |
 | Worker logs | Workers Logs (`observability.enabled`) | What did lab code do, session by session? The lab writes its own JSON lines and turns automatic invocation logs off, because those record location fields ([lab.md](lab.md)) | Until 2026-11-30: 200,000 events a day, 3-day retention. From 2026-12-01: 0.5 GB a day of ingestion and 7-day retention; at the cap, ingestion stops until 00:00 UTC, with no overage on Free | On from PR 2; asset requests run no Worker code, so the site should log little or nothing (not documented). Useful from Phase 4 | [Workers Logs](https://developers.cloudflare.com/workers/observability/logs/workers-logs/), [Observability pricing](https://developers.cloudflare.com/observability/pricing/) |
 | Lab usage counters | Workers Analytics Engine | How close is each demo to its daily budget? | 100,000 data points written and 10,000 read queries a day; billing not yet active | Phase 4 | [Analytics Engine](https://developers.cloudflare.com/analytics/analytics-engine/pricing/) |
 | Lab cleanup | The nightly `lab-objects` job | Did any sandbox object keep its state past its 15-minute life? | Inside the Actions minutes, about 30 a month | Phase 4 | [lab.md](lab.md) |
@@ -187,7 +187,7 @@ The lab, from Phase 4: a lab deploy drops every live WebSocket, and clients fall
 1. Find the target. The issue `prod-smoke` opened names it, and so does the previous `deploy` job summary. Never roll back without an explicit version id ([delivery.md](delivery.md) explains why).
 2. Run the rollback through the pipeline, from `main`: `gh workflow run ci.yml -f rollback_to=<version-id>`, plus `-f reason=<why>` when the reason is not "prod-smoke failed". The `rollback` job checks that the input is a version id, runs `wrangler rollback <version-id> --message "rollback: <reason>" --yes` with the scoped deploy token, waits for any deploy in progress, and `prod-smoke` follows. This is the path PR 2 rehearses.
 3. If GitHub or Actions is down, use the dashboard: Workers & Pages → `ihaveasegway-web` → Deployments → ⋯ on the target version → Rollback. It runs under Joseph's login and its second factor. Never `wrangler rollback` from the laptop: it would need an edit credential at rest there.
-4. Confirm `prod-smoke` passes against the rolled-back version. After a dashboard rollback, re-run the failed job: `gh run rerun <run-id> --failed`. The re-run skips the byte-for-byte check, which only the run attempt that promoted a version can make.
+4. Confirm `prod-smoke` passes against the rolled-back version. After a dashboard rollback, re-run the failed job: `gh run rerun <run-id> --failed`. The re-run skips the byte-for-byte check, which only the run attempt that promoted a version can make. A rollback run does not know which build is live, so it checks the files every release since launch serves and each page's own `og:image`, and skips the Build readout check; after a rollback to a version from before PR 3, which names no `og:image`, it reports those checks as skipped and passes.
 5. Revert or fix on `main` first. The Monday rebuild skips while a rollback is live, but the next merge deploys `main` again, broken commit included.
 6. Close the issue with one line: the cause, and which check would have caught it before production.
 
@@ -363,7 +363,7 @@ Each row carries an estimate of the minutes it costs a month, with quarterly and
 | Weekly, from Phase 4 | `LabControl`'s ledger against the account's metered usage; metered above the ledger means the per-session ceilings are wrong | Cloudflare dashboard ([lab.md](lab.md)), about 10 minutes | 43, until PR 6 changes it |
 | Nightly, from Phase 4 | `lab-objects`: sandbox state that outlived its 15 minutes | Automatic; an issue on a finding | 0 while green |
 | After PR 2, about 5 weeks | The HSTS ramp: 300 s, 1 week, 1 month, 12 months | [HSTS ramp step](#hsts-ramp-step) | Once: about an hour in all |
-| Monthly | One sitting: Actions minutes used (above 1,500 of the 2,000, the deploy owner is revisited, [ADR 0006](adr/0006-github-actions-owns-deploys.md)); Worker requests (the site should be near zero) and, from Phase 4, DO usage; real-user LCP, INP and CLS against the limits in [design-system.md](design-system.md), read the way PR 3 settles ([delivery.md](delivery.md)); firewall false positives (more than one a month: tighten the rules); once the repository is public, its traffic view ([ADR 0012](adr/0012-public-repository.md)) | GitHub billing and traffic pages, Cloudflare dashboard, Web Analytics | 15 |
+| Monthly | One sitting: Actions minutes used (above 1,500 of the 2,000, the deploy owner is revisited, [ADR 0006](adr/0006-github-actions-owns-deploys.md)); Worker requests (the site should be near zero) and, from Phase 4, DO usage; real-user LCP, INP and CLS against the limits in [design-system.md](design-system.md), read the way PR 3b settles ([delivery.md](delivery.md)); firewall false positives (more than one a month: tighten the rules); once the repository is public, its traffic view ([ADR 0012](adr/0012-public-repository.md)) | GitHub billing and traffic pages, Cloudflare dashboard, Web Analytics | 15 |
 | Monthly | A web search for the site and for Joseph's name, looking for anything the firewall should have caught | By hand | 5 |
 | Monthly | `git bundle create website.bundle --all`, kept with personal backups; GitHub is otherwise the only remote copy ([security.md](security.md)) | By hand | 3 |
 | Quarterly | `compatibility_date` bump per Worker | [Runbook](#compatibility_date-bump), about 30 minutes a Worker | 10; 20 from Phase 4 |
