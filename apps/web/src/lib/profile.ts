@@ -25,12 +25,62 @@ export const HANDLE = 'IHaveASegway';
 const githubCheck = z.strictObject({ date: isoDate, sha: commit });
 const profileCheck = z.strictObject({ date: isoDate });
 
-/** A figure on a project's card: static, re-measured when the card is turned on, and never an
- *  adoption count (content.md, "Owned work"), which says nothing a reader can check about the work. */
-const ADOPTION = /\b(stars?|stargazers?|downloads?|forks?|installs?|clones?|watchers?)\b/i;
-const fact = z
-  .strictObject({ term: z.string().min(1).max(24), value: z.string().min(1).max(48) })
-  .refine(({ term, value }) => !ADOPTION.test(`${term} ${value}`), 'never an adoption count');
+/** The terms a card's figures may use: things a reader can check in the repository (content.md,
+ *  "Owned work"). A new term is a reviewed code change, so a figure cannot slip in under any name. */
+export const FACT_TERMS = [
+  'Tests',
+  'Decisions',
+  'Releases',
+  'Commands',
+  'Code',
+  'Benchmark',
+  'Validation',
+  'Signing',
+  'CI',
+  'License',
+] as const;
+
+/** Words that count adoption, which says nothing a reader can check about the work: refused
+ *  anywhere on a card, its line, its tag and its figures. content.md names the same words. A list
+ *  cannot catch every phrasing, so review still reads the card. */
+export const ADOPTION_WORDS = [
+  'stars',
+  'starred',
+  'stargazers',
+  'downloads',
+  'downloaded',
+  'forks',
+  'forked',
+  'installs',
+  'installed',
+  'clones',
+  'cloned',
+  'watchers',
+  'dependents',
+  'users',
+  'used by',
+  '★',
+  '⭐',
+] as const;
+const ADOPTION = new RegExp(
+  ADOPTION_WORDS.map((w) => (/^\p{L}/u.test(w) ? `\\b${w.replace(' ', '\\s+')}\\b` : w)).join('|'),
+  'iu',
+);
+
+/** The adoption word a card's text holds, or null. */
+export function adoptionWord(text: string): string | null {
+  return ADOPTION.exec(text)?.[0] ?? null;
+}
+
+const fact = z.strictObject({ term: z.enum(FACT_TERMS), value: z.string().min(1).max(48) });
+
+/** What a card shows besides its name and link: its line, its tag and its figures. */
+const cardWords = (p: {
+  description: string;
+  tag?: string | undefined;
+  facts?: readonly { term: string; value: string }[] | undefined;
+}): string =>
+  [p.description, p.tag ?? '', ...(p.facts ?? []).flatMap((f) => [f.term, f.value])].join('\n');
 
 /** Country names for JSON-LD homeLocation. Adding a country is a code change, reviewed like one. */
 export const COUNTRY_NAMES = { US: 'United States' } as const;
@@ -65,16 +115,27 @@ export const profileSchema = z.strictObject({
   skills: z.tuple([]),
   // Owned work (content.md): each project is a card on Home that links to its repository, once its
   // check is recorded and its hold is lifted. The tag and the facts join in the pull request that
-  // turns the card on, re-measured that day.
+  // turns the card on. profile.json is the one owner of a card's figures, copied by hand from the
+  // repository, and `measured` is their one age: the day they were read.
   projects: z.array(
-    z.strictObject({
-      name: z.string().min(1),
-      description: z.string().min(1),
-      url: z.string().regex(new RegExp(`^https://github\\.com/${HANDLE}/[a-z0-9-]+$`)),
-      tag: z.string().min(1).max(16).optional(),
-      facts: z.array(fact).max(3).optional(),
-      checked: githubCheck.optional(),
-    }),
+    z
+      .strictObject({
+        name: z.string().min(1),
+        description: z.string().min(1),
+        url: z.string().regex(new RegExp(`^https://github\\.com/${HANDLE}/[a-z0-9-]+$`)),
+        tag: z.string().min(1).max(16).optional(),
+        facts: z.array(fact).max(3).optional(),
+        measured: isoDate.optional(),
+        checked: githubCheck.optional(),
+      })
+      .refine((p) => adoptionWord(cardWords(p)) === null, {
+        message: 'a card never counts adoption (content.md, "Owned work")',
+        path: ['facts'],
+      })
+      .refine((p) => (p.facts ?? []).length === 0 || p.measured !== undefined, {
+        message: 'figures need `measured`, the day they were read',
+        path: ['measured'],
+      }),
   ),
   // The date of the human firewall review, set by hand after it (content.md); null until then.
   meta: z.strictObject({ firewall_reviewed: isoDate.nullable() }),

@@ -3,6 +3,8 @@ import { join } from 'node:path';
 import { expect, test } from 'vitest';
 import { parseHolds } from '../src/lib/held-names';
 import {
+  ADOPTION_WORDS,
+  FACT_TERMS,
   HANDLE,
   locationLine,
   profileSchema,
@@ -147,7 +149,7 @@ test("a project card renders only when its check and the GitHub profile's are re
     project({ checked, name: 'held-name' }),
     project({ checked, description: 'Built beside heldname.' }),
     project({ checked, url: `https://github.com/${HANDLE}/held-name` }),
-    project({ checked, facts: [{ term: 'Ships', value: 'Held Name inside' }] }),
+    project({ checked, facts: [{ term: 'Code', value: 'Held Name inside' }] }),
   ];
   for (const p of held)
     expect(projectCards(withOnly([p]), testHolds), JSON.stringify(p)).toEqual([]);
@@ -181,23 +183,55 @@ test("the real hold list keeps both of today's projects off, even once each is c
   expect(projectCards(withOnly(both), realHolds)).toEqual([]);
 });
 
-test('a card never cites adoption, and holds at most three facts', () => {
-  const facts = (f: { term: string; value: string }[]) => (p: Loose) => {
-    first(p.projects)['facts'] = f;
-  };
-  expect(refused(facts([{ term: 'Tests', value: '181' }]))).toBe(false);
-  for (const bad of [
-    { term: 'Stars', value: '120' },
-    { term: 'GitHub', value: '2,000 stars' },
-    { term: 'Downloads', value: '10k a month' },
-    { term: 'Forks', value: '12' },
-    { term: 'Installs', value: '300' },
-  ]) {
-    expect(refused(facts([bad])), JSON.stringify(bad)).toBe(true);
+/** The first project changed by `over`; true when the schema refuses the result. */
+const refusedCard = (over: Record<string, unknown>) =>
+  refused((p) => Object.assign(first(p.projects), { measured: '2026-10-23' }, over));
+
+test('figures use the fixed terms, at most three, and carry the day they were measured', () => {
+  expect(refusedCard({ facts: [{ term: 'Tests', value: '181' }] })).toBe(false);
+  for (const term of FACT_TERMS)
+    expect(refusedCard({ facts: [{ term, value: '1' }] }), term).toBe(false);
+  expect(refusedCard({ facts: [{ term: 'GitHub', value: '2k' }] })).toBe(true);
+  expect(refusedCard({ facts: FACT_TERMS.slice(0, 4).map((term) => ({ term, value: '1' })) })).toBe(
+    true,
+  );
+  // One age for the figures: facts without `measured` are refused, and `measured` is a date.
+  expect(refused((p) => (first(p.projects)['facts'] = [{ term: 'Tests', value: '181' }]))).toBe(
+    true,
+  );
+  expect(refusedCard({ facts: [{ term: 'Tests', value: '181' }], measured: 'today' })).toBe(true);
+  expect(refusedCard({ tag: '' })).toBe(true);
+  expect(refusedCard({ stars: 120 })).toBe(true);
+});
+
+test('no part of a card counts adoption: each word content.md names, in the line, the tag and a figure', () => {
+  for (const word of ADOPTION_WORDS) {
+    expect(refusedCard({ description: `Counted in ${word} 120.` }), `line: ${word}`).toBe(true);
+    expect(refusedCard({ tag: word }), `tag: ${word}`).toBe(true);
+    expect(refusedCard({ facts: [{ term: 'Code', value: `120 ${word}` }] }), `fact: ${word}`).toBe(
+      true,
+    );
+    expect(
+      refusedCard({ description: `Counted in ${word.toUpperCase()} 120.` }),
+      `case: ${word}`,
+    ).toBe(true);
   }
-  expect(refused(facts([1, 2, 3, 4].map((n) => ({ term: `T${n}`, value: `${n}` }))))).toBe(true);
-  expect(refused((p) => (first(p.projects)['tag'] = ''))).toBe(true);
-  expect(refused((p) => (first(p.projects)['stars'] = 120))).toBe(true);
+  // The phrasings a denylist of facts alone let through, each refused as a card's figure.
+  for (const [term, value] of [
+    ['Downloaded', '10k times'],
+    ['Starred by', '500 people'],
+    ['Forked', '12 times'],
+    ['Installed', '300 times'],
+    ['GitHub', '2k ★'],
+    ['Used by', '40 repositories'],
+    ['npm', '10k weekly'],
+    ['Dependents', '40'],
+    ['Users', '300'],
+  ]) {
+    expect(refusedCard({ facts: [{ term, value }] }), `${term}: ${value}`).toBe(true);
+  }
+  // Words that only contain one of them are not counts, and pass.
+  expect(refusedCard({ description: 'Forkless, starless, a clone of nothing.' })).toBe(false);
 });
 
 test('only a fixture name selects test projects; every real build reads profile.json alone', () => {
