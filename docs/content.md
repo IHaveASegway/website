@@ -110,7 +110,7 @@ As PR 3 built it, an element renders only when its source and its link target ex
 | 7 | Writing | below | Thinking and recency | the three latest posts (title, date, one line) · All writing · RSS | at least 3 posts |
 | 8 | Footer | bottom | One click to contact; freshness | "Contact" and `hello@ihaveasegway.com` (Q-mail) · the links whose pages exist · the checked profiles · the theme toggle · "© `<year>` Joseph Peterson", plus the build line on every page but Home. No separate "Updated" line: on Home, row 2 carries the build date. RSS joins with Writing (PR 5); Now and Colophon as their pages ship, and ⌘K with the palette (PR 4) | always |
 
-Selected work (row 4). A project's line is its `description` in `profile.json`, and its proof is its `facts`, added and re-measured in the pull request that turns its card on. Numbers are re-measured at publish time. The page's JavaScript and font weights are computed at build, by the same module the byte budgets use, so they cannot drift.
+Selected work (row 4). A project's line is its `description` in `profile.json`, and its proof is its `facts`, copied by hand from the repository and dated by `measured`, in the pull request that turns its card on. Numbers are re-measured at publish time. The page's JavaScript and font weights are computed at build, by the same module the byte budgets use, so they cannot drift.
 
 | Card | Line | Proof | Links to | State on 2026-10-23 |
 |---|---|---|---|---|
@@ -286,7 +286,7 @@ Rules the sketch encodes:
 - **Tags come from a fixed list** of 10. Adding one is a pull request. There are no tag pages: they are not in the URL scheme, and adding them is an amendment to ADR 0005, best made with search (Pagefind) at about 20 posts.
 - **A lab write-up does not copy runtime state.** `lifecycle` says whether a demo is published. Whether it is taking live sessions right now belongs to the lab's control object and is read when the page is viewed ([lab.md](lab.md)). A hand-edited `status: live` field that someone forgets to flip would be a second owner of that fact.
 - **Decisions render from the same files; nothing is copied.** The loader reads `docs/adr/NNNN-*.md`, parses the `# ADR NNNN: <decision>` heading and the `Status:` line, validates them with Zod, and renders the body. It rewrites links: one ADR to another becomes `/colophon/decisions/<nnnn-slug>/`; an ADR to another doc becomes the file on GitHub once the repo is public ([ADR 0012](adr/0012-public-repository.md)), and plain text before that. Publication is an allowlist in the loader's options. An ADR renders only when its number is listed, so a new ADR cannot reach the site by accident. Astro's `glob()` loader can read `docs/adr` directly, but it validates only YAML front matter, which the ADR template does not have; the custom part is the parser for the heading and the Status line. The weaker alternative, front matter in every ADR, would store the number, title and status twice in one file.
-- **Project facts** (latest release, tag dates) are read from GitHub's API once per build, never when a visitor loads a page. If GitHub does not answer, the card drops the line; the build neither fails nor guesses. The unattended weekly rebuild is the exception: it fails instead, so the live page keeps its facts ([delivery.md](delivery.md#pipeline)). The build reads with the job's own `GITHUB_TOKEN` (`contents: read`), which adds no secret and allows 1,000 requests an hour per repository. Unauthenticated reads allow 60 an hour per IP address, and GitHub-hosted runners share their addresses with other customers' jobs, so an unauthenticated build could find the limit already spent (as of 2026-10-22, [GitHub](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api)). A build needs a handful.
+- **Card figures have one owner and one age.** `profile.json` owns them: Joseph copies them by hand from the project's repository, at the commit its check read, in a pull request, and `measured` is the day they were read; the schema refuses figures without it. The site reads nothing from GitHub's API. The GitHub facts step planned for PR 4 (latest release, tag dates, read at build) was dropped on 2026-10-23: stillhere has no tagged release to read, and two writers into one card's figures would need a boundary nobody owns.
 
 ## Voice
 
@@ -418,7 +418,7 @@ A link from the site sends readers to everything a repository holds, so linking 
 
 A card renders on Home when three things hold, each in a reviewed pull request:
 
-1. The project's check is recorded in `profile.json`: `checked: {date, sha}`. The same pull request adds its `tag` and up to three `facts`, re-measured that day. A fact never counts adoption (stars, downloads, forks); the schema refuses one.
+1. The project's check is recorded in `profile.json`: `checked: {date, sha}`. The same pull request adds its `tag`, up to three `facts` and `measured`, the day the facts were read. A fact's term comes from a fixed list (`FACT_TERMS` in `src/lib/profile.ts`: Tests, Decisions, Releases, Commands, Code, Benchmark, Validation, Signing, CI, License). No part of a card, its line, its tag or a figure, counts adoption: the schema refuses stars, starred, stargazers, downloads, downloaded, forks, forked, installs, installed, clones, cloned, watchers, dependents, users, "used by", ★ and ⭐, and a test names each. A word list cannot catch every phrasing, so review reads the card too.
 2. The GitHub profile's check is recorded too. A repository's page links its owner's profile, and its URL names the account, so the profile is checked before any repository is linked.
 3. The project's hold is lifted: its line leaves `not-on-site.txt` ([Names held off the site](#names-held-off-the-site)).
 
@@ -514,7 +514,7 @@ Open Graph: one template per page type, rendered at build for each page as a 120
 | Page type | Image shows |
 |---|---|
 | Home | the name and `<title line — Q-title>` |
-| Work, Writing, Notes, Lab | the section label and the entry's title |
+| Writing, Notes, Lab | the section label and the entry's title |
 | About, Now, Colophon, Decisions | the section label and the page title |
 
 | Consumer | Requirement or behavior (as of 2026-10-22) | Source |

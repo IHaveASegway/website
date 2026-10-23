@@ -358,7 +358,7 @@ Each row carries an estimate of the minutes it costs a month, with quarterly and
 | When | Task | How | Minutes a month |
 |---|---|---|---|
 | Weekly, Monday | Zone audit (DNS, TLS, registration), external links, `security.txt` expiry, `compatibility_date` age | Automatic (`scheduled.yml`); a failure emails | 0 while green |
-| Weekly, Monday | Rebuild and redeploy `main`, so the project facts read from GitHub are at most a week old ([ADR 0004](adr/0004-content-as-code.md)) | Automatic (`ci.yml` schedule); a failure emails | 0 while green |
+| Weekly, Monday | Rebuild and redeploy `main`, which proves it still builds and deploys from scratch. Its first reason, keeping GitHub facts at most a week old ([ADR 0004](adr/0004-content-as-code.md)), went with the facts step on 2026-10-23 | Automatic (`ci.yml` schedule); a failure emails | 0 while green |
 | Every other Monday | Dependabot's grouped PRs; security updates as they arrive | [Dependency update](#dependency-update), about 15 minutes a sitting | 32 |
 | Weekly, from Phase 4 | `LabControl`'s ledger against the account's metered usage; metered above the ledger means the per-session ceilings are wrong | Cloudflare dashboard ([lab.md](lab.md)), about 10 minutes | 43, until PR 6 changes it |
 | Nightly, from Phase 4 | `lab-objects`: sandbox state that outlived its 15 minutes | Automatic; an issue on a finding | 0 while green |

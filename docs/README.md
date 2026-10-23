@@ -35,7 +35,7 @@ Purpose first, then the shape, then the parts, then how the parts ship, stay saf
 | 9 | [cost.md](cost.md) | What does it cost, and what keeps it there? Price sheet, formulas, scenarios, Free versus Paid, guardrails, upgrade triggers, annual totals |
 | 10 | [operations.md](operations.md) | How is it run alone? Access setup, observability, alerting, runbooks, the maintenance calendar |
 | 11 | [roadmap.md](roadmap.md) | In what order? Phases and PRs with scope, definition of done, estimates and blockers; spikes S1–S9; the WIP limit |
-| 12 | [adr/README.md](adr/README.md) | Which decisions are hard to reverse? The ADR format and the index of ADRs 0001–0012 |
+| 12 | [adr/README.md](adr/README.md) | Which decisions are hard to reverse? The ADR format and the index of ADRs 0001–0012 and 0014 (0013 is reserved for PR 6) |
 | 13 | [reading-list.md](reading-list.md) | Where do I learn more? Every pattern named in these docs, with one canonical source and why it is worth the time |
 
 This table lists docs, not ADRs. The ADR index is the one owner of ADR titles and statuses. Copying it here would give the same facts two owners, the drift this plan avoids everywhere else (principle 3 in product.md).

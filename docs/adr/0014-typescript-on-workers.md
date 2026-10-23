@@ -9,8 +9,8 @@ The lab runs on Workers. One Worker holds every Durable Object (DO) class ([ADR 
 - Cloudflare's first-class Workers languages are JavaScript, TypeScript, Python and Rust; Go runs only as WebAssembly ([languages](https://developers.cloudflare.com/workers/languages/)). Only JavaScript and TypeScript have a first-party DO test harness ([testing](https://developers.cloudflare.com/workers/testing/)).
 - Go DOs exist only in untagged, experimental [workers-go](https://github.com/syumai/workers-go) code, which has no typed auto-response, attachments, recovery bookmarks or RPC. Native Go needs [Containers](https://developers.cloudflare.com/containers/faq/), which are Paid-only and whose cold starts "can often be in the 1-3 second range".
 - [workers-rs](https://github.com/cloudflare/workers-rs) 0.8.7 has no bindings for point-in-time recovery, `ctx.abort()` or DO RPC.
-- One demo core is 2.5 KB gzip as JavaScript and 1.24 MB as Go WebAssembly (go1.27.3). A Python core needs [Pyodide](https://pyodide.org/en/stable/project/roadmap.html), 5.5 MB with brotli. [stack.md](../stack.md) records the method.
-- A stateless Worker on Free gets 10 ms of CPU ([limits](https://developers.cloudflare.com/workers/platform/limits/)). In spike S3 a DO handler ran about 250 ms of CPU with no limit error, and all 20 calls at that size succeeded; the docs conflict on the DO limit.
+- One demo core is 2.5 KB gzip as JavaScript and 1.24 MB as Go WebAssembly (go1.27.3). A Python core needs [Pyodide](https://pyodide.org/en/stable/project/roadmap.html), whose first load is a 6.4 MB download by its own roadmap page. [stack.md](../stack.md) records how the JavaScript and Go figures were measured.
+- A stateless Worker on Free gets 10 ms of CPU ([limits](https://developers.cloudflare.com/workers/platform/limits/)). In spike S3 a DO handler ran about 250 ms of CPU with no limit error, and all 20 calls at that size succeeded ([roadmap.md](../roadmap.md#spikes), recorded 2026-10-23); the docs conflict on the DO limit. ADR 0008 said to plan for 10 ms until S3 answered, and its postscript of 2026-10-23 proposes 10 ms for the stateless Worker only.
 - Since 2026-09-04 a Worker may be 64 MiB uncompressed on Free and Paid alike, so script size rules no language out ([changelog](https://developers.cloudflare.com/changelog/post/2026-09-04-increased-worker-size-limit/)).
 
 Out of scope: build and CI glue, and jobs that run outside Workers.
@@ -24,7 +24,7 @@ Out of scope: build and CI glue, and jobs that run outside Workers.
 
 | Option | Gains | Costs | Verdict |
 |---|---|---|---|
-| Go in Workers (workers-go) | Evolvability: Joseph's own language | Operability: an untagged runtime, glue for three DO APIs, no RPC. Latency: about 4× slower in local workerd (go1.26.0) | Rejected |
+| Go in Workers (workers-go) | Evolvability: Joseph's own language | Operability: an untagged runtime, glue for three DO APIs, no RPC. Latency: about 4× slower end to end in local workerd (go1.26.0; [stack.md](../stack.md)) | Rejected |
 | Go in Containers behind a TypeScript DO | Evolvability: native Go | Cost: Paid-only (ADR 0008's first trigger), and under a month-long attack only one small instance stays within budget. Latency: 1–3 s cold starts | Deferred |
 | TypeScript shell, Go core as WebAssembly | Evolvability: one Go source | Latency: 1.24 MB to download before a recorded run plays. Security: `wasm-unsafe-eval` on every demo page | Rejected |
 | Go server core and TypeScript browser twin, with the recordings as shared tests | Evolvability: Go on the server | Cost: about twice the domain code. Evolvability: drift is caught only where recordings reach | Rejected |
@@ -37,7 +37,7 @@ Out of scope: build and CI glue, and jobs that run outside Workers.
 - The recorded fallback loads a core of a few kilobytes, and `wasm-unsafe-eval` stays on the one page that runs WebAssembly ([security.md](../security.md)).
 - TypeScript types vanish at runtime, so every frame is parsed at the boundary (ADR 0013).
 - The DO test harness is young ([renamed](https://developers.cloudflare.com/changelog/post/2026-08-19-vitest-plugin/) on 2026-08-19, eight releases since 2026-10-08), so it is pinned to an exact version.
-- Workers code shows no Go. Go can still appear outside Workers, in a scheduled job that runs in GitHub Actions (option G), if Joseph makes showing Go a goal of the site.
+- Workers code shows no Go. Go can still appear outside Workers, in a scheduled job written in Go that runs in GitHub Actions ("option G" in the research behind this record), if Joseph makes showing Go a goal of the site.
 
 ## Door
 
@@ -45,9 +45,9 @@ Two-way, with an exit cost that grows with each demo. Recordings are language-ne
 
 ## Revisit if
 
-- A DO handler's production `cpuTime` p99 passes 100 ms. Respond in this order: move that work to the browser with an O(n) check in the DO; profile; consider a WebAssembly kernel; then use ADR 0008's third trigger.
+- A DO handler's production `cpuTime` p99 passes 100 ms: 40% of the about 250 ms per call that spike S3 ran without a limit error, kept low because a long handler stalls everyone in its room (ADR 0008's postscript of 2026-10-23). Respond in this order: move that work to the browser with an O(n) check in the DO; profile; consider a WebAssembly kernel; then use ADR 0008's third trigger.
 - Cloudflare ships a Go SDK, or workers-go tags a release with DO hosting that has typed auto-response, attachments, recovery and RPC.
-- A Go core passes the golden replays and fits design-system.md's lab-page budget together with the island.
+- A Go core passes the golden replays and fits a lab-page JavaScript budget together with the island. design-system.md has no such budget yet; PR 6 is to propose one.
 - Workers Paid arrives through another trigger, and a demo needs a long-running native process.
 - workers-rs binds point-in-time recovery, `ctx.abort()` and DO RPC.
-- Joseph makes showing Go a goal of the site, his question, open on 2026-10-23. Then option G comes first: write the lab's scheduled jobs, such as the weekly ledger reconciliation, in Go, running in GitHub Actions outside Workers' limits, before this record is reopened.
+- Joseph makes showing Go a goal of the site, his question, open on 2026-10-23. Then option G comes first: write the lab's scheduled jobs in Go, in GitHub Actions, outside Workers' limits, before this record is reopened. The nightly object check already runs in Actions ([lab.md](../lab.md#observability)). A job that reconciles `LabControl`'s ledger needs a copy of the ledger it can read from outside the Worker first, such as Analytics Engine, which is an open question for PR 6.
