@@ -9,6 +9,11 @@
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
   Cross-Origin-Opener-Policy: same-origin
 
+# RFC 9116, section 3: security.txt is served as text/plain with charset=utf-8. Production's asset
+# server sends text types without a charset (wrangler dev adds one), so this rule sets it.
+/.well-known/security.txt
+  Content-Type: text/plain; charset=utf-8
+
 # Bundles named by content hash never change at their URL, so a year and immutable are safe.
 # HTML keeps Cloudflare's default, so a promoted version is what the next page view gets.
 /_astro/*
