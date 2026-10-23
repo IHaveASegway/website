@@ -33,12 +33,13 @@ const canonical = path === undefined ? undefined : new URL(path, Astro.site).hre
 const image = og && canonical ? new URL('og.png', canonical).href : undefined;
 const profile = await loadProfile();
 
-// The theme script (src/scripts/theme.js) runs first in <body>, before anything paints, so a
-// stored choice never flashes the other theme. It sits in <body> because Astro writes the CSP
-// <meta> at the end of <head>, and a <meta> policy covers only what comes after it: here the
-// policy covers the script, and astro.config.mjs puts its hash in script-src. One file is both
-// inlined and hashed, so an edit cannot leave a stale hash. JSON-LD closes <body>, after the
-// policy too, so the policy precedes every <script> (test/csp.test.ts).
+// The theme script (src/scripts/theme.js) runs in <head>, before <body> exists, so no frame can
+// paint before a stored choice applies. In <body> it left a gap: when the HTML arrived in pieces,
+// a frame came before the script had run (seen on the first Worker Preview). The cost: Astro
+// writes the CSP <meta> at the end of <head>, and a <meta> policy covers only what follows it, so
+// this one script, ours and generated at build, runs before the policy. Everything after it stays
+// covered, and test/csp.test.ts allows exactly this script, byte for byte, before the policy.
+// astro.config.mjs still hashes it into script-src, and JSON-LD closes <body>.
 ---
 
 <!doctype html>
@@ -47,6 +48,7 @@ const profile = await loadProfile();
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark light" />
+    <script is:inline set:html={THEME_SCRIPT} />
     <title>{title}</title>
     <meta name="description" content={description} />
     {noindex && <meta name="robots" content="noindex" />}
@@ -73,7 +75,6 @@ const profile = await loadProfile();
     <Font cssVariable="--font-jetbrains-mono" preload />
   </head>
   <body class="flex min-h-dvh flex-col">
-    <script is:inline set:html={THEME_SCRIPT} />
     <a class="skip-link" href="#main">
       Skip to content
     </a>

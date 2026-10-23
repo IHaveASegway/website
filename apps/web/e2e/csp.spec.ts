@@ -50,24 +50,28 @@ test('the page policy is enforced: an injected inline script is refused', async 
   expect((await violations()).join('\n')).toContain('script-src');
 });
 
-// The theme script runs only because its hash is in the policy. Change one byte of it and the
-// browser must refuse it: proof that the hash is checked, not merely present.
-test('the theme script is allowed by its hash: one byte changed and it is refused', async ({
-  page,
-}) => {
+// The theme script runs in <head>, before the policy's <meta>, so the policy does not govern it:
+// test/csp.test.ts allows exactly that script there, byte for byte. Everything after the <meta> is
+// governed. A copy of the theme script with one byte changed, placed after the policy, must be
+// refused: proof that the policy checks hashes, not merely that it is present.
+test('after the policy, a theme script with one byte changed is refused', async ({ page }) => {
   const violations = await watch(page);
   await page.route(
     (url) => url.pathname === '/',
     async (route) => {
       const response = await route.fetch();
       const html = await response.text();
-      const changed = html.replace('Pre-paint theme', 'Pre-paint themE');
+      const original = /<script>([\s\S]*?)<\/script>/.exec(html)?.[1] ?? '';
+      expect(original).toContain('Pre-paint theme');
+      // One byte changed, plus a marker, so the page shows whether the copy ran.
+      const tampered = `${original.replace('Pre-paint theme', 'Pre-paint themE')};document.documentElement.setAttribute('data-tampered', '');`;
+      const changed = html.replace('<body', `<script>${tampered}</script><body`);
       expect(changed).not.toBe(html);
       await route.fulfill({ response, body: changed });
     },
   );
   await page.goto('/', { waitUntil: 'load' });
-  expect(await page.evaluate(() => document.documentElement.hasAttribute('data-theme'))).toBe(
+  expect(await page.evaluate(() => document.documentElement.hasAttribute('data-tampered'))).toBe(
     false,
   );
   expect((await violations()).join('\n')).toContain('script-src');

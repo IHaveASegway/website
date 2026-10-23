@@ -28,9 +28,14 @@ for (const file of html) {
       expect(verdicts.filter((v) => v !== 'theme' && v !== 'json-ld')).toEqual([]);
     });
 
-    test('the theme script is there once, as the first child of <body>', () => {
+    test('the theme script is there once, in <head> before any stylesheet, so it runs before <body> exists', () => {
       expect(verdicts.filter((v) => v === 'theme')).toHaveLength(1);
-      expect(page).toMatch(/<body[^>]*><script>/);
+      const head = page.slice(0, page.indexOf('</head>'));
+      const script = head.indexOf('<script>');
+      expect(script).toBeGreaterThan(0);
+      const stylesheet = head.search(/<link\b[^>]*rel="stylesheet"/);
+      if (stylesheet >= 0) expect(script).toBeLessThan(stylesheet);
+      expect(page.slice(page.indexOf('<body'))).not.toMatch(/<script>(?!\s*\{)/);
     });
 
     test('JSON-LD is on Home only', () => {

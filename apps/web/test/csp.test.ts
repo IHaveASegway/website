@@ -57,11 +57,20 @@ for (const file of html) {
     const page = read(file);
     const directives = policy(page);
 
-    test('the policy <meta> comes before every <script>, so it covers each of them', () => {
+    test('the policy <meta> comes before every <script> but the theme script, which runs first in <head>', () => {
       const meta = page.search(/<meta http-equiv="content-security-policy"/i);
-      const scripts = [...page.matchAll(/<script\b/gi)].map((m) => m.index ?? -1);
+      expect(meta).toBeGreaterThan(0);
+      const scripts = [...page.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)].map((m) => ({
+        index: m.index ?? -1,
+        attributes: (m[1] ?? '').trim(),
+        body: m[2] ?? '',
+      }));
       expect(scripts.length).toBeGreaterThan(0);
-      for (const at of scripts) expect(at).toBeGreaterThan(meta);
+      // Exactly one script may run before the policy: the theme script, byte for byte, with no
+      // attributes. Any other script before the policy would run uncovered.
+      const before = scripts.filter((s) => s.index < meta);
+      expect(before.map((s) => [s.attributes, s.body])).toEqual([['', THEME_SCRIPT]]);
+      expect(scripts[0]?.index).toBe(before[0]?.index);
     });
 
     test("script-src allows nothing broad: no 'unsafe-inline', 'unsafe-eval', *, data:, https: or http:", () => {
