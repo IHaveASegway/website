@@ -4,6 +4,7 @@ import Footer from '../components/Footer.astro';
 import Header from '../components/Header.astro';
 import Ruler from '../components/Ruler.astro';
 import { loadProfile, loadWritingArea } from '../lib/content';
+import { NOINDEX } from '../lib/noindex.mjs';
 import { ogAlt, ogTitle, OG_SIZE, type OgCard } from '../lib/og';
 import { areaRoutes } from '../lib/posts';
 import { THEME_SCRIPT } from '../lib/weights';
@@ -17,8 +18,9 @@ interface Props {
   /** The canonical path, such as "/". A page with no canonical URL (the 404) leaves it out. */
   path?: string;
   /**
-   * Keeps the page out of search results. Only the 404 sets it: Workers serves that page with
-   * status 404 for unknown paths, but with status 200 at /404 itself, a soft 404 a crawler could index.
+   * Keeps the page out of search results. The 404 sets it: Workers serves that page with status 404
+   * for unknown paths, but with status 200 at /404 itself, a soft 404 a crawler could index. A draft
+   * and an unlisted post set it through Prose.astro. The tag is lib/noindex.mjs's, byte for byte.
    */
   noindex?: boolean;
   /** The link preview: the two strings og.png.ts draws beside this page (lib/og.ts). */
@@ -67,7 +69,7 @@ const generated = areaRoutes(area);
     <script is:inline set:html={THEME_SCRIPT} />
     <title>{title}</title>
     <meta name="description" content={description} />
-    {noindex && <meta name="robots" content="noindex" />}
+    {noindex && <Fragment set:html={NOINDEX} />}
     {canonical && <link rel="canonical" href={canonical} />}
     {og && canonical && image && (
       <>

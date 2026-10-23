@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest';
 import { ORIGIN } from '../src/lib/site';
 import { tags, THEME_SCRIPT } from '../src/lib/weights';
 import { html, read, textFiles } from './support/dist';
+import { attribute, elementsOf, markupOf } from './support/html';
 
 // The page policy's shape, read from the built HTML (security.md, "Headers and Content Security
 // Policy"). e2e/csp.spec.ts proves the same policy in a browser; this proves it on every build,
@@ -32,6 +33,14 @@ const DIRECTIVES: Readonly<Record<string, readonly string[] | 'self and hashes'>
   'style-src': 'self and hashes',
 };
 const HASH = /^'sha256-[A-Za-z0-9+/]+={0,2}'$/;
+
+/** Each element that carries a style attribute, as the browser's parser reads the page: a ">" in
+ *  another attribute's value, a comment or a script's text cannot hide one or invent one. */
+export function styled(page: string): string[] {
+  return elementsOf(page)
+    .filter((element) => attribute(element, 'style') !== undefined)
+    .map(markupOf);
+}
 
 /** Sources outside 'self' and sha256 hashes: none may ship while the site loads nothing from
  *  another origin (the Web Analytics beacon's exact path joins script-src in its own change). */
@@ -105,10 +114,7 @@ for (const file of html) {
     // 'unsafe-hashes'. Astro writes none; in a post, Markdown writes one for a table column's
     // alignment (":--:"), and raw HTML can carry one. Leave columns unaligned, and style in CSS.
     test('no element carries a style attribute: the policy refuses them', () => {
-      const styled = [
-        ...page.matchAll(/<[a-z][^>]*\sstyle\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)[^>]*>/gi),
-      ];
-      expect(styled.map(([tag]) => tag.slice(0, 80))).toEqual([]);
+      expect(styled(page)).toEqual([]);
     });
 
     test("script-src and style-src hold only 'self' and sha256 hashes: no host, no scheme", () => {
@@ -229,6 +235,17 @@ describe('nothing the browser fetches leaves the origin', () => {
       expect(fetchedUrls(text).filter(offOrigin), text).toEqual([]);
     }
   });
+});
+
+test('known answers: a style attribute is found as the browser parses the page, and only then', () => {
+  expect(styled('<p style="color: red">a</p>')).toEqual(['<p style="color: red">']);
+  expect(styled("<p STYLE=x>a</p><p\nstyle='y'>b</p><p style>c</p>")).toHaveLength(3);
+  expect(styled('<svg><rect style="fill: red"/></svg>')).toEqual(['<rect style="fill: red">']);
+  // A ">" inside a quoted value does not end the tag: the style attribute after it is still found.
+  expect(styled('<a title="a>b" style="x">link</a>')).toEqual(['<a title="a>b" style="x">']);
+  // None of these is a style attribute: another attribute's name or value, a comment, script text.
+  expect(styled('<p data-style="x" title=" style=x">a</p>')).toEqual([]);
+  expect(styled('<!-- <p style="x"> --><script>let s = "<p style=x>";</script>')).toEqual([]);
 });
 
 test('known answer: the parser reads a policy and the check sees a broad source', () => {

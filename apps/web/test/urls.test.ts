@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { ORIGIN, SITE_PAGES, WRITING_FIXTURE_PAGES } from '../e2e/expected';
+import { isNoindex, NOINDEX } from '../src/lib/noindex.mjs';
 import { app, dist, files, fixture, previewBuild } from './support/dist';
 
 // The URL scheme as a fitness function over the build output (ADR 0005, delivery.md "Quality
@@ -12,9 +13,8 @@ import { app, dist, files, fixture, previewBuild } from './support/dist';
 const html = files.filter((file) => file.endsWith('.html'));
 const fixtureBuild = fixture?.startsWith('.fixtures/') ?? false;
 
-const NOINDEX = '<meta name="robots" content="noindex">';
 const noindex = (page: string) =>
-  readFileSync(join(dist, page.slice(1), 'index.html'), 'utf8').includes(NOINDEX);
+  isNoindex(readFileSync(join(dist, page.slice(1), 'index.html'), 'utf8'));
 
 /** URL path of each built page: "index.html" is "/", "a/b/index.html" is "/a/b/". */
 const pages = html

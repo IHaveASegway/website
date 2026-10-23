@@ -4,6 +4,7 @@ import { satteri } from '@astrojs/markdown-satteri';
 import sitemap from '@astrojs/sitemap';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig, fontProviders } from 'astro/config';
+import { isNoindex } from './src/lib/noindex.mjs';
 
 // The pre-paint theme script. Base.astro inlines this exact file, and its hash is computed here
 // from the same bytes, so an edit can never leave a stale hash behind (security.md, "The theme
@@ -37,7 +38,8 @@ const recordCommand = {
 
 // The sitemap lists indexable pages only. A draft or an unlisted post in a pull request preview is
 // noindex (lib/posts.ts), and so is anything else that says so; the filter reads each built page's
-// own robots tag rather than keeping a second list. It runs once the pages are written, in outDir.
+// own robots tag (lib/noindex.mjs) rather than keeping a second list. It runs once the pages are
+// written, in outDir.
 let outDir;
 const recordOutDir = {
   name: 'record-out-dir',
@@ -45,9 +47,7 @@ const recordOutDir = {
 };
 const indexable = (page) => {
   const file = new URL(`.${new URL(page).pathname}index.html`, outDir);
-  return (
-    !existsSync(file) || !/<meta name="robots" content="noindex">/.test(readFileSync(file, 'utf8'))
-  );
+  return !existsSync(file) || !isNoindex(readFileSync(file, 'utf8'));
 };
 
 export default defineConfig({

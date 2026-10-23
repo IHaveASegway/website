@@ -24,6 +24,16 @@ page's one.
 | CSS              | 15,000 B | 6,238 B  |
 | Preloaded fonts  | 70,000 B | 64,140 B |
 
+### A wide table
+
+Five columns, two of them holding commit ids, which have nowhere to break: at 320 px the cells must
+wrap inside the column, or the table would push the page sideways.
+
+| Version  | Commit                                   | Deployment message                            | Day        | Result   |
+| -------- | ---------------------------------------- | --------------------------------------------- | ---------- | -------- |
+| 1f0b6c2d | 5a00328d0c1b8d4e9f2a7c6b3d1e0f9a8b7c6d5e | main@5a00328d0c1b8d4e9f2a7c6b3d1e0f9a8b7c6d5e | 2026-10-23 | promoted |
+| 7c3e9a01 | 0c1b8d4e9f2a7c6b3d1e0f9a8b7c6d5e5a00328d | main@0c1b8d4e9f2a7c6b3d1e0f9a8b7c6d5e5a00328d | 2026-10-24 | promoted |
+
 ### Footnotes
 
 The measure is set in em rather than ch.[^measure] A second reference shares the same note.[^measure]

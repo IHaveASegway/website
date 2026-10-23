@@ -21,6 +21,7 @@ const DIST_CHECKS = [
   'nav',
   'not-on-site',
   'og',
+  'prose',
   'readiness',
   'readouts',
   'scripts',

@@ -16,8 +16,9 @@ post can never collide with a fixture.
   three.
 - `many/`: `three/` plus two older posts, five published in all: Home lists the three latest, and
   the indexes and the feed list all five. `fixture-markdown-tour` uses every construct the prose
-  layout styles: a table, footnotes, nested lists, a quotation, code and a heading underlined
-  instead of hashed.
+  layout styles: a table, a wide one whose commit ids cannot break (so the cell rule is exercised
+  at 320 px), footnotes, nested lists, a quotation, code and a heading underlined instead of
+  hashed.
 
 The text uses only characters the site's font subsets carry, so the glyph checks pass on it, and
 one title holds `&` and `"`, and one summary `<`, so escaping is checked in every output.

@@ -1,12 +1,14 @@
 // Test-only builds of the site from the post fixtures in test/fixtures/posts/, written to .fixtures/
 // and never deployed: CI uploads dist/ or dist-preview/ alone. test/writing.test.ts reads them all,
-// vitest.config.ts runs every check over a build on three of them, and pnpm e2e:writing serves
-// fixture-many (roadmap.md, PR 5).
+// test/superset.test.ts holds each production build to its preview (ADR 0015), vitest.config.ts runs
+// every check over a build on three of them, and pnpm e2e:writing serves fixture-many (roadmap.md,
+// PR 5).
 //
 //   fixture-two            2 published + a draft, production: Writing builds nothing
 //   fixture-two-preview    the same, drafts included: the 2 posts unlisted, and the draft
 //   fixture-two-node-env   fixture-two again under NODE_ENV=development: still no draft
 //   fixture-three          3 published + a draft, production: Writing renders, at the minimum
+//   fixture-three-preview  the same, drafts included: every set's draft renders in some build
 //   fixture-many           5 published + a draft, production: Home lists 3, the indexes all 5
 //   fixture-many-preview   the same, drafts included, as a pull request preview builds them
 //
@@ -24,6 +26,7 @@ const BUILDS = [
   { name: 'fixture-two-preview', set: 'two', drafts: true },
   { name: 'fixture-two-node-env', set: 'two', drafts: false, nodeEnv: 'development' },
   { name: 'fixture-three', set: 'three', drafts: false },
+  { name: 'fixture-three-preview', set: 'three', drafts: true },
   { name: 'fixture-many', set: 'many', drafts: false },
   { name: 'fixture-many-preview', set: 'many', drafts: true },
 ];

@@ -1,8 +1,10 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
+import { isAlias, isScalar } from 'yaml';
 import { WRITING_FIXTURE_PAGES } from '../e2e/expected';
 import { findHeld, parseHolds } from '../src/lib/held-names';
+import { isNoindex, NOINDEX } from '../src/lib/noindex.mjs';
 import {
   asDay,
   draftsIncluded,
@@ -20,6 +22,7 @@ import {
   type PostPage,
 } from '../src/lib/posts';
 import { app, dist, files as distFiles, filesIn, kindOf } from './support/dist';
+import { frontMatter, indirection, valueNode } from './support/front-matter';
 
 // Writing (roadmap.md, PR 5): the rules in lib/posts.ts with known answers, then the test-only
 // fixture builds that scripts/build-fixtures.mjs writes, then the real build and the real posts.
@@ -279,7 +282,7 @@ function fixtureBuild(name: string) {
   const files = filesIn(dir);
   const text = (file: string) => readFileSync(join(dir, file), 'utf8');
   const textFiles = files.filter((file) => kindOf(readFileSync(join(dir, file))) === 'text');
-  const noindex = (file: string) => text(file).includes('<meta name="robots" content="noindex">');
+  const noindex = (file: string) => isNoindex(text(file));
   const pages = files
     .filter((f) => f.endsWith('index.html'))
     .map((f) => `/${f.slice(0, -'index.html'.length)}`)
@@ -308,28 +311,68 @@ const listed = (page: string, level: 2 | 3) =>
     ([, href = '']) => href,
   );
 
-/** The fixture drafts, read from their files: what must never reach a production build. */
-const FIXTURE_DRAFTS = ['two', 'three', 'many'].flatMap((set) =>
+/** The fixture drafts, read from their front matter as Astro reads it (a quoted title is the title,
+ *  not the title in quotes): what must never reach a production build. */
+const FIXTURE_DRAFTS = (['two', 'three', 'many'] as const).flatMap((set) =>
   ['writing', 'notes'].flatMap((section) => {
     const dir = join(app, 'test/fixtures/posts', set, section);
     return readdirSync(dir).flatMap((name) => {
-      const source = readFileSync(join(dir, name), 'utf8');
-      if (!/^draft: true$/m.test(source)) return [];
-      const field = (key: string) => new RegExp(`^${key}: (.+)$`, 'm').exec(source)?.[1] ?? '';
-      return [
-        { set, slug: name.replace(/\.md$/, ''), title: field('title'), summary: field('summary') },
-      ];
+      const read = frontMatter(readFileSync(join(dir, name), 'utf8'));
+      if ('problem' in read) throw new Error(`${set}/${section}/${name}: ${read.problem}`);
+      if (read.data['draft'] !== true) return [];
+      const slug = name.replace(/\.md$/, '');
+      const { title, summary } = read.data;
+      return [{ set, page: `${section}/${slug}/index.html`, slug, title, summary }];
     });
   }),
 );
+
+/** The forms a draft's text takes in a build: as written, and escaped for HTML or XML. */
+const escaped = (text: string) =>
+  text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+const holds = (text: string, needle: unknown) =>
+  typeof needle === 'string' && [needle, escaped(needle)].some((form) => text.includes(form));
+
+/** The preview build of each fixture set: where its draft renders. */
+const PREVIEW_OF = {
+  two: 'fixture-two-preview',
+  three: 'fixture-three-preview',
+  many: 'fixture-many-preview',
+} as const;
 
 describe('the fixture drafts', () => {
   test('there are drafts in every set, each with a title and a summary to look for', () => {
     expect(new Set(FIXTURE_DRAFTS.map((d) => d.set))).toEqual(new Set(['two', 'three', 'many']));
     for (const draft of FIXTURE_DRAFTS) {
-      expect(draft.title.length, draft.slug).toBeGreaterThan(5);
-      expect(draft.summary.length, draft.slug).toBeGreaterThan(5);
+      expect(String(draft.title).length, draft.slug).toBeGreaterThan(5);
+      expect(String(draft.summary).length, draft.slug).toBeGreaterThan(5);
     }
+  });
+
+  // The positive control: the same needles, matched the same way, are found where the draft does
+  // render, its page in the set's preview build. A needle that can never match (a title read with
+  // its quotes, or escaped differently from the build) fails here, instead of passing below.
+  test('positive control: each draft is found, by the same needles, on its page in a preview', () => {
+    for (const draft of FIXTURE_DRAFTS) {
+      const page = fixtureBuild(PREVIEW_OF[draft.set]).text(draft.page);
+      for (const needle of [draft.title, draft.summary, draft.slug]) {
+        expect(holds(page, needle), `${draft.page}: ${String(needle)}`).toBe(true);
+      }
+    }
+  });
+
+  test('known answers: a needle is found as written and escaped, and a quoted title as its text', () => {
+    expect(holds('<h1>Retries &amp; back-off</h1>', 'Retries & back-off')).toBe(true);
+    expect(holds('<title>A &quot;quoted&quot; title</title>', 'A "quoted" title')).toBe(true);
+    expect(holds('<h1>Another title</h1>', 'A title')).toBe(false);
+    expect(holds('<h1>A title</h1>', undefined)).toBe(false);
+    const quoted = frontMatter('---\ntitle: "An unfinished thought"\ndraft: true\n---\n');
+    expect('data' in quoted && quoted.data['title']).toBe('An unfinished thought');
   });
 
   // Every text file a production build writes, whatever its kind (HTML, XML, JSON, text), for
@@ -347,7 +390,7 @@ describe('the fixture drafts', () => {
         for (const file of build.textFiles) {
           const text = build.text(file);
           for (const needle of [draft.title, draft.summary, draft.slug]) {
-            expect(text.includes(needle), `${file}: ${needle}`).toBe(false);
+            expect(holds(text, needle), `${file}: ${String(needle)}`).toBe(false);
           }
         }
       }
@@ -547,7 +590,7 @@ describe('fixture-many-preview: the same posts, with drafts included as a previe
 
   test('the draft page is noindex, says Draft, and carries no preview card or structured data', () => {
     const page = build.text(draft);
-    expect(page).toContain('<meta name="robots" content="noindex">');
+    expect(page).toContain(NOINDEX);
     expect(page).toContain('<p class="label">Draft · Field note</p>');
     expect(page).not.toContain('property="og:');
     expect(page).not.toContain('application/ld+json');
@@ -610,16 +653,42 @@ function prose(markdown: string): string {
     .replace(/`[^`\n]*`/g, '');
 }
 
-/** Each front-matter date that is not written as a bare day, YYYY-MM-DD. */
-function datesWithTimes(markdown: string): string[] {
-  const front = /^---\n([\s\S]*?)\n---\n/.exec(markdown)?.[1] ?? '';
-  return front
-    .split('\n')
-    .filter((line) => /^(published|updated|firewall_reviewed)\s*:/.test(line))
-    .filter((line) => !/^[a-z_]+\s*:\s*(['"]?)\d{4}-\d{2}-\d{2}\1\s*(#.*)?$/.test(line));
+const DATE_KEYS = ['published', 'updated', 'firewall_reviewed'] as const;
+const BARE_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Why a post's dates are not each written as a bare day, YYYY-MM-DD, one line per problem. It reads
+ * the front matter as Astro does (support/front-matter.ts), so a date is found however the YAML
+ * writes it: a flow mapping, a value on the next line, an alias or a merge key, none of which a line
+ * of text shows. Then each date's source text must be a bare day, and the value Astro hands the
+ * schema must be that day: an unquoted 2026-10-20T20:00:00-04:00 is midnight UTC on the 21st.
+ */
+function dateProblems(source: string): string[] {
+  const read = frontMatter(source);
+  if ('problem' in read) return [read.problem];
+  const problems = indirection(read.doc).map((what) => `${what}: write each value out in full`);
+  for (const key of DATE_KEYS) {
+    const node = valueNode(read.doc, key);
+    if (node === undefined) continue;
+    if (!isScalar(node) || typeof node.source !== 'string' || !BARE_DAY.test(node.source)) {
+      const written = isScalar(node)
+        ? `"${String(node.source)}"`
+        : isAlias(node)
+          ? 'as an alias'
+          : 'as a list or a mapping';
+      problems.push(`${key} is written ${written}, not as a bare day, YYYY-MM-DD`);
+      continue;
+    }
+    const value = read.data[key];
+    const day = value instanceof Date ? value.toISOString().slice(0, 10) : value;
+    if (day !== node.source) problems.push(`${key} reads as ${String(day)}, not ${node.source}`);
+  }
+  return problems;
 }
 
-/** The images a post's body would show: Markdown images, and HTML images or pictures. */
+/** The images a post's source names inline: Markdown images, and HTML images or pictures. An early,
+ *  readable message only: a shortcut reference (![a chart], defined elsewhere) passes it, so
+ *  test/prose.test.ts reads the rendered body on every build, which catches every form. */
 function imagesIn(markdown: string): string[] {
   return [...prose(markdown).matchAll(/!\[[^\]]*\]\s*[([]|<(img|picture|source)\b/gi)].map(
     ([match]) => match,
@@ -658,7 +727,7 @@ describe('the real posts, drafts included, before anything renders them', () => 
   });
 
   test('every date is written as a bare day: a time or an offset in the file names a time zone', () => {
-    for (const { name, path } of sources) expect(datesWithTimes(read(path)), name).toEqual([]);
+    for (const { name, path } of sources) expect(dateProblems(read(path)), name).toEqual([]);
   });
 
   test('no images in posts yet', () => {
@@ -676,16 +745,34 @@ describe('the real posts, drafts included, before anything renders them', () => 
           expect(isSlug(file.replace(/\.md$/, '')), file).toBe(true);
           expect(file.startsWith(FIXTURE_PREFIX), file).toBe(true);
           expect(findHeld(text, holds), file).toEqual([]);
-          expect(datesWithTimes(text), file).toEqual([]);
+          expect(dateProblems(text), file).toEqual([]);
           expect(imagesIn(text), file).toEqual([]);
         }
       }
     }
-    const front = (line: string) => `---\ntitle: x\n${line}\n---\n\nBody.\n`;
-    expect(datesWithTimes(front('published: 2026-10-20'))).toEqual([]);
-    expect(datesWithTimes(front("published: '2026-10-20'"))).toEqual([]);
-    expect(datesWithTimes(front('published: 2026-10-20T20:00:00-04:00'))).toHaveLength(1);
-    expect(datesWithTimes(front('updated: 2026-10-20 09:00'))).toHaveLength(1);
+    const front = (yaml: string) => `---\ntitle: x\n${yaml}\n---\n\nBody.\n`;
+    expect(dateProblems(front('published: 2026-10-20'))).toEqual([]);
+    expect(dateProblems(front("published: '2026-10-20'"))).toEqual([]);
+    expect(dateProblems(front('published: 2026-10-20 # read twice'))).toEqual([]);
+    expect(dateProblems(front('published: 2026-10-20T20:00:00-04:00'))).toHaveLength(1);
+    expect(dateProblems(front('updated: 2026-10-20 09:00'))).toHaveLength(1);
+    // What a line of text does not show: each of these hands the schema midnight UTC on the 21st.
+    expect(
+      dateProblems('---\n{title: x, published: 2026-10-20T20:00:00-04:00}\n---\n'),
+    ).toHaveLength(1);
+    expect(dateProblems(front('published:\n  2026-10-20T20:00:00-04:00'))).toHaveLength(1);
+    expect(dateProblems(front('x: &d 2026-10-20T20:00:00-04:00\npublished: *d'))).toEqual([
+      'an anchor, &d: write each value out in full',
+      'an alias, *d: write each value out in full',
+      'published is written as an alias, not as a bare day, YYYY-MM-DD',
+    ]);
+    expect(dateProblems(front('<<: {published: 2026-10-20T20:00:00-04:00}'))).toEqual([
+      'a merge key, <<: write each value out in full',
+    ]);
+    // Front matter Astro would read another way, or not at all, is refused rather than skipped.
+    expect(dateProblems('+++\npublished = 2026-10-20T20:00:00-04:00\n+++\n')).toHaveLength(1);
+    expect(dateProblems('\n---\npublished: 2026-10-20\n---\n')).toHaveLength(1);
+    expect(dateProblems(front('published: 2026-10-20\npublished: 2026-10-21'))).toHaveLength(1);
     expect(imagesIn('---\ntitle: x\n---\n\n![a chart](./chart.png)\n')).toHaveLength(1);
     expect(imagesIn('Text <img src="/a.webp" alt=""> text')).toHaveLength(1);
     expect(

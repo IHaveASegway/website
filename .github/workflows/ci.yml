@@ -44,17 +44,24 @@ jobs:
     timeout-minutes: 15 # rule 9
     permissions:
       contents: read
+    outputs:
+      playwright: ${{ steps.playwright.outputs.version }}
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false # rule 7
-          fetch-depth: 2 # a pull request's merge commit and its parents: the review stamp's base
+          # The whole history: the review stamp compares the merge commit with its first parent, and
+          # reads when each changed entry last changed from the pull request's own commits.
+          fetch-depth: 0
       - uses: pnpm/action-setup@v6 # no version input: pnpm reads packageManager
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: The Playwright version the lockfile installs (e2e runs in that version's image)
+        id: playwright
+        run: echo "version=$(node -p "require('./apps/web/node_modules/@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
       - run: pnpm dedupe --check
       - run: pnpm run format:check
       - run: pnpm run lint
@@ -73,6 +80,7 @@ jobs:
         run: pnpm run test
       # The merge commit's content against its base (HEAD^1), dated by the pull request's own head
       # commit (HEAD^2): GitHub dates the merge commit when it makes it, not when the work was done.
+      # When each entry last changed is read from HEAD^2's history.
       - name: Review stamp (a changed entry carries a current firewall_reviewed date)
         if: github.event_name == 'pull_request'
         run: node apps/web/scripts/review-stamp.mjs HEAD^1 HEAD HEAD^2
@@ -245,7 +253,7 @@ jobs:
           fi
 
   e2e:
-    needs: [firewall, preview]
+    needs: [verify, firewall, preview]
     # Runs on the preview, or on wrangler dev when there is none: a Dependabot pull request, or any
     # pull request before the first deploy from main.
     if: >-
@@ -253,6 +261,13 @@ jobs:
       && needs.firewall.result == 'success'
       && (needs.preview.result == 'success' || needs.preview.result == 'skipped') }}
     runs-on: ubuntu-latest
+    # Playwright's own image carries Chromium and every library it needs, so no apt install runs:
+    # on the runner that took from 25 seconds to 10 minutes, depending on the mirror. The tag is
+    # the version the lockfile installs, which verify reads, so a Playwright update needs no edit
+    # here (delivery.md, "Actions minutes budget"; test/e2e-image.test.ts).
+    container:
+      image: mcr.microsoft.com/playwright:v${{ needs.verify.outputs.playwright }}-noble
+      options: --user 1001
     timeout-minutes: 15
     permissions:
       contents: read
@@ -270,9 +285,6 @@ jobs:
         with:
           name: dist
           path: apps/web/dist
-      - name: Install Chromium
-        working-directory: apps/web
-        run: pnpm exec playwright install --with-deps chromium
       - name: Playwright, against the preview (or wrangler dev serving the same dist/)
         working-directory: apps/web
         env:
@@ -335,17 +347,12 @@ jobs:
         with:
           name: dist
           path: apps/web/dist
+      # The last line of defence for drafts, at the boundary and independent of every switch
+      # upstream: production is built without them, and the tests check it, but this job only
+      # trusts the bytes it is about to upload. The 404 page is the one noindex page it ships.
+      # Known answers in test/deploy-guard.test.ts; exit 2, could not check, stops it too.
       - name: Refuse a build that holds a noindex page (a draft, or an unlisted post)
-        run: |
-          # The last line of defence for drafts, at the boundary and independent of every switch
-          # upstream: production is built without them, and the tests check it, but this job only
-          # trusts the bytes it is about to upload. The 404 page is the one noindex page it ships.
-          found="$(grep -rlF --include=index.html '<meta name="robots" content="noindex">' apps/web/dist || true)"
-          if [ -n "$found" ]; then
-            echo "::error::Not deployed: the build holds a noindex page, a draft or an unlisted post, which production never serves."
-            printf '%s\n' "$found"
-            exit 1
-          fi
+        run: node apps/web/scripts/deploy-guard.mjs apps/web/dist
       - name: Stop unless this is main's tip (production only moves forward)
         id: current
         env:

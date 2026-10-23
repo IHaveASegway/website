@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { NOT_FOUND_PAGE, PAGES } from './expected';
+import { NOT_FOUND_PAGE, pages } from './expected';
 
 // Glyph coverage (design-system.md, "Budgets as CI fitness functions"): every character on every
 // page is drawn by a self-hosted face, never by a system fallback. Chromium says which fonts drew
@@ -57,7 +57,7 @@ async function fallbacksOn(
   return { fallbacks, elements: elements.length, painted };
 }
 
-for (const path of [...PAGES, NOT_FOUND_PAGE]) {
+for (const path of [...pages(), NOT_FOUND_PAGE]) {
   test(`every glyph on ${path} comes from a self-hosted face`, async ({ page }) => {
     await page.goto(path);
     const { fallbacks, elements, painted } = await fallbacksOn(page);

@@ -24,14 +24,20 @@ const MONO = { name: 'JetBrains Mono', chars: face('jetbrains-mono-c.woff2') };
 const text = (markup: string) => decodeReferences(markup.replace(/<[^>]+>/g, ' '));
 
 /** A post page's text, split by the face that draws it (global.css: labels, the meta line and
- *  code are mono; the heading, the lead and the body are sans). Labels are set in capitals. */
+ *  code are mono; the heading, the lead and the body are sans). Labels are set in capitals. A page
+ *  whose header or body the check cannot find throws: a check that reads nothing passes nothing. */
 export function textByFace(page: string): { sans: string; mono: string } {
-  const head = /<header class="page-head">([\s\S]*?)<\/header>/.exec(page)?.[1] ?? '';
+  const head = /<header class="page-head">([\s\S]*?)<\/header>/.exec(page)?.[1];
+  const body = /<div class="prose">([\s\S]*?)<\/div>(?=<ul class="post-links">|<\/article>)/.exec(
+    page,
+  )?.[1];
+  if (head === undefined || body === undefined) {
+    throw new Error(
+      `no ${head === undefined ? 'header.page-head' : 'div.prose'} on this post page: the layout changed, so change this check with it`,
+    );
+  }
   const label = /<p class="label">([\s\S]*?)<\/p>/.exec(head)?.[1] ?? '';
   const meta = /<p class="post-meta">([\s\S]*?)<\/p>/.exec(head)?.[1] ?? '';
-  const body =
-    /<div class="prose">([\s\S]*?)<\/div>(?=<ul class="post-links">|<\/article>)/.exec(page)?.[1] ??
-    '';
   const code = [...body.matchAll(/<code\b[^>]*>([\s\S]*?)<\/code>/g)].map(([, c = '']) => c);
   const headSans = head.replace(/<p class="(label|post-meta)">[\s\S]*?<\/p>/g, ' ');
   return {
@@ -92,4 +98,16 @@ test('known answers: a missing character is named with its code point and its fa
   expect(glyphProblems(page('<p>é <code>é</code></p>'))).toEqual([
     '"é" (U+00E9) in code or a label: not in JetBrains Mono',
   ]);
+  // A page the check cannot read fails: a body under another class, or no header, is not clean.
+  expect(() =>
+    glyphProblems(page('<p>≤</p>').replace('class="prose"', 'class="post-body"')),
+  ).toThrow(/div\.prose/);
+  expect(() =>
+    glyphProblems(page('<p>a</p>').replace('class="page-head"', 'class="head"')),
+  ).toThrow(/header\.page-head/);
+});
+
+test('every post page in this build is read: its body is found, so no page passes unread', () => {
+  for (const file of posts)
+    expect(textByFace(read(file)).sans.trim().length, file).toBeGreaterThan(20);
 });
