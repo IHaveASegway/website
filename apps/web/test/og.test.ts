@@ -1,6 +1,14 @@
 import { describe, expect, test } from 'vitest';
-import { drawnStrings, homeCard, ogTree, OG_SIZE, renderOg } from '../src/lib/og';
-import { bytes, html, profile, read } from './support/dist';
+import {
+  drawnStrings,
+  homeCard,
+  ogTree,
+  OG_SIZE,
+  renderOg,
+  titleSize,
+  type OgCard,
+} from '../src/lib/og';
+import { bytes, fileFor, files, html, profile, read } from './support/dist';
 
 // Link previews (content.md, "Structured data and link previews"). Pixels cannot be scanned for
 // held names or firewall terms, so the card draws only two strings, and they must be the page's
@@ -61,6 +69,60 @@ describe("Home's link preview", () => {
   test('dist/og.png is the card drawn from those strings, byte for byte', async () => {
     expect((await renderOg(card)).equals(bytes('og.png'))).toBe(true);
   });
+});
+
+/** The two strings a card drew, read back from og:title ("title · label") and og:image:alt
+ *  ("title, label"): the one split where both agree. */
+function cardFrom(ogTitle: string, ogAlt: string): OgCard | null {
+  for (let at = ogTitle.indexOf(' · '); at >= 0; at = ogTitle.indexOf(' · ', at + 1)) {
+    const card = { title: ogTitle.slice(0, at), label: ogTitle.slice(at + 3) };
+    if (ogAlt === `${card.title}, ${card.label}`) return card;
+  }
+  return null;
+}
+
+// Every page with a preview, not only Home: posts and their indexes draw their own cards. Each
+// card is redrawn from the page's own og:title and og:image:alt and compared byte for byte, so no
+// picture holds a word the page's text does not.
+const previewed = html.filter((file) => meta(read(file), 'og:image') !== undefined);
+for (const file of previewed) {
+  test(`${file}: its og:image is a 1200×630 PNG beside it, drawn from its own text`, async () => {
+    const page = read(file);
+    const image = meta(page, 'og:image') ?? '';
+    expect(image).toBe(new URL('og.png', meta(page, 'og:url')).href);
+    const png = fileFor(image);
+    expect(files).toContain(png);
+    const card = cardFrom(
+      decode(meta(page, 'og:title') ?? ''),
+      decode(meta(page, 'og:image:alt') ?? ''),
+    );
+    expect(
+      card,
+      'og:title and og:image:alt must be "title · label" and "title, label"',
+    ).not.toBeNull();
+    expect((await renderOg(card as OgCard)).equals(bytes(png))).toBe(true);
+    expect(meta(page, 'og:type')).toBe(
+      /^(writing|notes)\/[a-z0-9-]+\//.test(file) ? 'article' : 'website',
+    );
+  });
+}
+
+test('known answers: a card is read back from its two strings, whatever they hold', () => {
+  expect(cardFrom('A · B', 'A, B')).toEqual({ title: 'A', label: 'B' });
+  expect(cardFrom('Why A · B matters · Writing', 'Why A · B matters, Writing')).toEqual({
+    title: 'Why A · B matters',
+    label: 'Writing',
+  });
+  expect(cardFrom('A · B', 'A, C')).toBeNull();
+});
+
+test("a title's size steps down with its length, so the longest title still fits the card", () => {
+  expect(titleSize(homeCard(profile).title)).toBe(150);
+  expect(titleSize('x'.repeat(16))).toBe(150);
+  expect(titleSize('x'.repeat(17))).toBe(104);
+  expect(titleSize('x'.repeat(32))).toBe(104);
+  expect(titleSize('x'.repeat(33))).toBe(80);
+  expect(titleSize('x'.repeat(70))).toBe(80);
 });
 
 test('pages without a canonical URL (the 404) carry no preview tags', () => {

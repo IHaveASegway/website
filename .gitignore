@@ -1,6 +1,7 @@
-# Dependencies and build output
+# Dependencies and build output, including the test-only fixture builds (apps/web/scripts/build-fixtures.mjs)
 node_modules/
 dist/
+.fixtures/
 .astro/
 .wrangler/
 

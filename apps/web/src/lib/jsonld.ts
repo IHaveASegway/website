@@ -1,8 +1,9 @@
+import { isoDay, postPath, type Post } from './posts';
 import { checkedProfiles, COUNTRY_NAMES, type Profile } from './profile';
 import { ALTERNATE_NAME } from './site';
 
-// Structured data for Home (content.md, "Structured data and link previews"), built from
-// profile.json so it cannot disagree with the page. Each node is written from an exact list of
+// Structured data for Home and for each published post (content.md, "Structured data and link
+// previews"), built from profile.json and the post's front matter so it cannot disagree with the page. Each node is written from an exact list of
 // keys, never by copying the profile: a new key takes a code change here, and
 // test/jsonld.test.ts fails on any key outside these lists. That is an allowlist, not a denylist:
 // worksFor, memberOf, address and their cousins cannot appear, named or not.
@@ -13,6 +14,22 @@ export const WEBSITE_OPTIONAL_KEYS = ['alternateName'] as const;
 export const PERSON_KEYS = ['@type', '@id', 'name', 'jobTitle', 'homeLocation', 'url'] as const;
 /** sameAs joins the Person only when a profile's readiness check is recorded. */
 export const PERSON_OPTIONAL_KEYS = ['sameAs'] as const;
+/** A published post. Google reads headline, image, the dates and the author's name and url
+ *  ([Article](https://developers.google.com/search/docs/appearance/structured-data/article)). */
+export const POSTING_KEYS = [
+  '@context',
+  '@type',
+  'headline',
+  'description',
+  'datePublished',
+  'url',
+  'image',
+  'author',
+] as const;
+/** dateModified joins only when the post says when it was updated. */
+export const POSTING_OPTIONAL_KEYS = ['dateModified'] as const;
+/** The author, by the same @id as Home's Person, with the name and url Google wants inline. */
+export const AUTHOR_KEYS = ['@type', '@id', 'name', 'url'] as const;
 
 /** Home's graph: the WebSite and the Person who publishes it. /about/ reuses the Person's @id. */
 export function homeGraph(profile: Profile): Record<string, unknown> {
@@ -43,6 +60,23 @@ export function homeGraph(profile: Profile): Record<string, unknown> {
     publisher: { '@id': personId },
   };
   return { '@context': 'https://schema.org', '@graph': [website, person] };
+}
+
+/** A published post's BlogPosting. A draft carries none: it is not advertised anywhere. */
+export function postingGraph(post: Post, profile: Profile, image: string): Record<string, unknown> {
+  const { name, url } = profile.basics;
+  const page = new URL(postPath(post), url).href;
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: post.title,
+    description: post.summary,
+    datePublished: isoDay(post.published),
+    ...(post.updated ? { dateModified: isoDay(post.updated) } : {}),
+    url: page,
+    image,
+    author: { '@type': 'Person', '@id': `${url}#person`, name, url },
+  };
 }
 
 /** JSON for a <script type="application/ld+json">: "<" is escaped, so no string in it can close

@@ -1,8 +1,12 @@
 import { describe, expect, test } from 'vitest';
+import { decodeReferences } from '../src/lib/held-names';
 import {
+  AUTHOR_KEYS,
   homeGraph,
   PERSON_KEYS,
   PERSON_OPTIONAL_KEYS,
+  POSTING_KEYS,
+  POSTING_OPTIONAL_KEYS,
   serialize,
   WEBSITE_KEYS,
   WEBSITE_OPTIONAL_KEYS,
@@ -76,10 +80,57 @@ describe("Home's graph", () => {
   });
 });
 
-test('no page but Home carries structured data, so WebSite appears only at the root', () => {
-  for (const file of html.filter((f) => f !== 'index.html'))
+/** A published post's page: /writing/<slug>/ or /notes/<slug>/, and not a draft. */
+const isPost = (file: string) =>
+  /^(writing|notes)\/[a-z0-9-]+\/index\.html$/.test(file) &&
+  !read(file).includes('<meta name="robots" content="noindex">');
+const posts = html.filter(isPost);
+
+test('structured data is on Home and on published posts only, so WebSite appears only at the root', () => {
+  for (const file of html.filter((f) => f !== 'index.html' && !isPost(f)))
     expect(blocks(read(file)), file).toEqual([]);
 });
+
+/** The first match of a pattern in a page, with its character references decoded. */
+const first = (page: string, pattern: RegExp) => decodeReferences(pattern.exec(page)?.[1] ?? '');
+
+for (const file of posts) {
+  describe(`${file}: one BlogPosting, written from the page itself`, () => {
+    const page = read(file);
+    const [posting, ...rest] = blocks(page);
+    const node = posting ?? {};
+    const updated = page.includes(' · updated <time');
+
+    test('exactly its allowed keys, dateModified only when the post was updated', () => {
+      expect(rest).toEqual([]);
+      const required = updated ? [...POSTING_KEYS, ...POSTING_OPTIONAL_KEYS] : POSTING_KEYS;
+      expect(keyProblems(node, required)).toEqual([]);
+      expect(node['@context']).toBe('https://schema.org');
+      expect(node['@type']).toBe('BlogPosting');
+    });
+
+    test("the author is Home's Person, by @id, with exactly its keys", () => {
+      const author = (node['author'] ?? {}) as Node;
+      expect(keyProblems(author, AUTHOR_KEYS)).toEqual([]);
+      expect(author).toEqual({
+        '@type': 'Person',
+        '@id': 'https://ihaveasegway.com/#person',
+        name: profile.basics.name,
+        url: 'https://ihaveasegway.com/',
+      });
+    });
+
+    test('headline, description, url, image and dates are the ones the page shows', () => {
+      expect(node['headline']).toBe(first(page, /<h1[^>]*>([^<]*)<\/h1>/));
+      expect(node['description']).toBe(first(page, /<meta name="description" content="([^"]*)">/));
+      expect(node['url']).toBe(first(page, /<link rel="canonical" href="([^"]*)">/));
+      expect(node['image']).toBe(first(page, /<meta property="og:image" content="([^"]*)">/));
+      expect(node['datePublished']).toBe(first(page, /<time datetime="([^"]*)"/));
+      if (updated)
+        expect(node['dateModified']).toBe(first(page, / · updated <time datetime="([^"]*)"/));
+    });
+  });
+}
 
 test('serialize escapes "<", so no string can close the <script> element', () => {
   const out = serialize({ name: '</script><script>alert(1)</script>' });

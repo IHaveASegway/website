@@ -3,6 +3,7 @@ pnpm-lock.yaml
 apps/web/scripts/fonts/fonts.lock.json
 apps/web/src/styles/font-fallbacks.css
 **/dist/
+**/.fixtures/
 **/.astro/
 **/.wrangler/
 **/playwright-report/

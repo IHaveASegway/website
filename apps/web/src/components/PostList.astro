@@ -1,0 +1,27 @@
+---
+import { isoDay, KIND_LABELS, postPath, type Post } from '../lib/posts';
+
+interface Props {
+  posts: readonly Post[];
+  /** The heading level of each title: 2 on an index, 3 inside a Home section. */
+  level: 2 | 3;
+}
+
+const { posts, level } = Astro.props;
+const Title = level === 2 ? 'h2' : 'h3';
+---
+
+<ol class="post-list" role="list">
+  {posts.map((post) => (
+    <li>
+      <p class="post-meta">
+        <time datetime={isoDay(post.published)}>{isoDay(post.published)}</time> ·{' '}
+        {KIND_LABELS[post.kind]}
+      </p>
+      <Title class="post-title">
+        <a href={postPath(post)}>{post.title}</a>
+      </Title>
+      <p class="post-summary">{post.summary}</p>
+    </li>
+  ))}
+</ol>

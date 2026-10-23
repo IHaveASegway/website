@@ -5,15 +5,19 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
+    "build:fixtures": "node scripts/build-fixtures.mjs",
     "serve": "wrangler dev --local --ip 127.0.0.1 --port 8787 --show-interactive-dev-session=false",
+    "serve:fixture": "wrangler dev --local --ip 127.0.0.1 --port 8788 --assets .fixtures/fixture-three --show-interactive-dev-session=false",
     "typecheck": "astro check",
     "test": "vitest run",
     "e2e": "playwright test --project=site",
+    "e2e:writing": "E2E_SITE=writing-fixture playwright test --project=writing-fixture",
     "smoke": "playwright test --project=smoke",
     "prod-smoke": "playwright test --config playwright.prod.config.ts",
     "icons": "node scripts/icons.mjs"
   },
   "dependencies": {
+    "@astrojs/rss": "4.0.19",
     "@astrojs/sitemap": "3.7.4",
     "@tailwindcss/vite": "4.3.3",
     "astro": "7.4.2",

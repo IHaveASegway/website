@@ -1,0 +1,64 @@
+---
+import PageHead from '../../components/PageHead.astro';
+import PostList from '../../components/PostList.astro';
+import Base from '../../layouts/Base.astro';
+import { loadProfile, loadWritingArea } from '../../lib/content';
+import { sectionCard } from '../../lib/og';
+import { listedOn, SECTION_LABELS, type Section } from '../../lib/posts';
+
+// /writing/, everything published, and /notes/, the field notes alone. A dynamic route, because a
+// page file always builds: these build only while Writing renders, at 3 published posts, and
+// /notes/ only once a note is published (lib/posts.ts). Below that, the prefix builds nothing.
+export async function getStaticPaths() {
+  const area = await loadWritingArea();
+  return area.sections.map((section) => ({ params: { section }, props: { section } }));
+}
+
+interface Props {
+  section: Section;
+}
+
+const { section } = Astro.props;
+const area = await loadWritingArea();
+const profile = await loadProfile();
+const { name } = profile.basics;
+const posts = listedOn(area, section);
+const heading = SECTION_LABELS[section];
+const WORDS: Record<Section, { description: string; lead: string }> = {
+  writing: {
+    description: `Essays and field notes by ${name}.`,
+    lead: 'Essays on decisions and what they cost, and short field notes on one thing learned.',
+  },
+  notes: {
+    description: `Field notes by ${name}: short posts, each on one thing learned.`,
+    lead: 'Short posts, each on one thing learned, written while it is fresh.',
+  },
+};
+const other = section === 'writing' && area.sections.includes('notes') ? 'notes' : 'writing';
+---
+
+<Base
+  title={`${heading} · ${name}`}
+  description={WORDS[section].description}
+  path={`/${section}/`}
+  og={sectionCard(section, profile)}
+>
+  <section class="page" aria-labelledby="page-title">
+    <PageHead
+      label={`${posts.length} ${posts.length === 1 ? 'post' : 'posts'}`}
+      heading={heading}
+      lead={WORDS[section].lead}
+    />
+    <PostList posts={posts} level={2} />
+    <ul class="post-links">
+      {other !== section && (
+        <li>
+          <a href={`/${other}/`}>{other === 'notes' ? 'Field notes only' : 'All writing'}</a>
+        </li>
+      )}
+      <li>
+        <a href="/rss.xml">RSS feed</a>
+      </li>
+    </ul>
+  </section>
+</Base>

@@ -3,9 +3,9 @@ import { tags, THEME_SCRIPT } from '../src/lib/weights';
 import { html, read } from './support/dist';
 
 // The script allowlist (spec B13): a page may carry the inline theme script, exactly as
-// src/scripts/theme.js has it and first in <body>, and JSON-LD. Anything else fails, whatever
-// wrote it: a component, an integration, a dependency. The Web Analytics beacon joins the list in
-// the pull request that ships it.
+// src/scripts/theme.js has it and first in <head>, and JSON-LD, which Home and each published post
+// carry. Anything else fails, whatever wrote it: a component, an integration, a dependency. The
+// Web Analytics beacon joins the list in the pull request that ships it.
 
 type Verdict = 'theme' | 'json-ld' | string;
 
@@ -38,8 +38,13 @@ for (const file of html) {
       expect(page.slice(page.indexOf('<body'))).not.toMatch(/<script>(?!\s*\{)/);
     });
 
-    test('JSON-LD is on Home only', () => {
-      expect(verdicts.filter((v) => v === 'json-ld')).toHaveLength(file === 'index.html' ? 1 : 0);
+    test('JSON-LD is on Home and on published posts only, one block each', () => {
+      const post =
+        /^(writing|notes)\/[a-z0-9-]+\/index\.html$/.test(file) &&
+        !page.includes('<meta name="robots" content="noindex">');
+      expect(verdicts.filter((v) => v === 'json-ld')).toHaveLength(
+        file === 'index.html' || post ? 1 : 0,
+      );
     });
   });
 }

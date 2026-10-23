@@ -2,5 +2,7 @@
 # change"). Append only: a URL here stays public once it has been deployed, through links, search
 # results and archives. A page that moves keeps its line here and gets a 301 in public/_redirects.
 # apps/web/test/urls.test.ts fails when a built page is missing from this list, or when a URL here
-# is neither a built page nor the source of a 301.
+# is neither a built page nor the source of a 301. The e2e checks walk this list (e2e/expected.ts),
+# so publishing a post, or the third post that brings /writing/, /notes/ and the feed, is adding
+# its URLs here in the same pull request. A draft is never listed: it is not published.
 /

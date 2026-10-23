@@ -1,11 +1,12 @@
 ---
 import Hero from '../components/Hero.astro';
+import PostList from '../components/PostList.astro';
 import Principles from '../components/Principles.astro';
 import Readouts from '../components/Readouts.astro';
 import SectionTitle from '../components/SectionTitle.astro';
 import WorkCard from '../components/WorkCard.astro';
 import Base from '../layouts/Base.astro';
-import { loadProfile } from '../lib/content';
+import { loadProfile, loadWritingArea } from '../lib/content';
 import { homeGraph, serialize } from '../lib/jsonld';
 import { homeCard } from '../lib/og';
 import { locationLine } from '../lib/profile';
@@ -24,6 +25,9 @@ const fonts = kilobytes(preloadedFontBytes());
 const numbered = (position: number) => String(position).padStart(2, '0');
 const work = { title: 'Selected work', number: numbered(1) };
 const how = { title: 'How I work', number: numbered(2) };
+// Writing (row 7 in content.md): the three latest posts, only while Writing renders at all.
+const area = await loadWritingArea();
+const writing = { title: 'Writing', number: numbered(3) };
 
 const PRINCIPLES = [
   {
@@ -76,4 +80,19 @@ const PRINCIPLES = [
     <SectionTitle id="how-title" number={how.number} title={how.title} />
     <Principles items={PRINCIPLES} />
   </section>
+
+  {area.visible && (
+    <section class="section" id="writing" aria-labelledby="writing-title">
+      <SectionTitle id="writing-title" number={writing.number} title={writing.title} />
+      <PostList posts={area.published.slice(0, 3)} level={3} />
+      <ul class="post-links">
+        <li>
+          <a href="/writing/">All writing</a>
+        </li>
+        <li>
+          <a href="/rss.xml">RSS feed</a>
+        </li>
+      </ul>
+    </section>
+  )}
 </Base>

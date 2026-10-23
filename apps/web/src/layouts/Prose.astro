@@ -1,0 +1,63 @@
+---
+import PageHead from '../components/PageHead.astro';
+import type { OgCard } from '../lib/og';
+import Base from './Base.astro';
+
+// The long-form layout: posts now, the colophon and its decision records next (roadmap.md, PR 3b).
+// A label line, the page's one <h1>, a lead, then the body in .prose: the base size at 16/26,
+// at most 68 characters a line (design-system.md, "Type scale"). It knows nothing about posts:
+// a page passes its words in, puts its body in the slot, and anything after the body in "after".
+
+interface Props {
+  /** The document title, as tabs and search results show it. */
+  title: string;
+  /** One or two sentences for search results and link previews. */
+  description: string;
+  /** The canonical path, such as "/writing/". */
+  path: string;
+  /** The mono line above the heading, such as "Essay · 2026-10-23". */
+  label: string;
+  /** The page's one <h1>. */
+  heading: string;
+  /** A sentence under the heading. */
+  lead?: string;
+  /** Keeps the page out of search results and the sitemap: a draft in a preview. */
+  noindex?: boolean;
+  og?: OgCard;
+  ogType?: 'website' | 'article';
+  jsonLd?: string;
+}
+
+const {
+  title,
+  description,
+  path,
+  label,
+  heading,
+  lead,
+  noindex = false,
+  og,
+  ogType = 'website',
+  jsonLd,
+} = Astro.props;
+---
+
+<Base
+  title={title}
+  description={description}
+  path={path}
+  noindex={noindex}
+  ogType={ogType}
+  {...(og ? { og } : {})}
+  {...(jsonLd ? { jsonLd } : {})}
+>
+  <article class="page" aria-labelledby="page-title">
+    <PageHead label={label} heading={heading} lead={lead}>
+      <slot name="meta" />
+    </PageHead>
+    <div class="prose">
+      <slot />
+    </div>
+    <slot name="after" />
+  </article>
+</Base>

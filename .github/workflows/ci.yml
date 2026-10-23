@@ -44,6 +44,10 @@ jobs:
     timeout-minutes: 15 # rule 9
     permissions:
       contents: read
+    env:
+      # Drafts build for a pull request's preview and never for main, whose dist/ is the one that
+      # deploys (content.md, "Drafts"). The unit tests read it too, to know which build they check.
+      DRAFTS: ${{ github.event_name == 'pull_request' && 'include' || 'exclude' }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -59,6 +63,8 @@ jobs:
       - run: pnpm run lint
       - run: pnpm run typecheck
       - run: pnpm run build
+      - name: Writing fixture builds (test-only, under apps/web/.fixtures; never uploaded or deployed)
+        run: pnpm --filter web run build:fixtures
       - name: Unit tests and fitness functions (token contrast, URL scheme, Workers Cache, color literals)
         run: pnpm run test
       - name: Image and PDF metadata
@@ -256,6 +262,12 @@ jobs:
           # Worker Previews ignore not_found_handling (apps/web/e2e/expected.ts, ON_WORKER_PREVIEW)
           E2E_TARGET: ${{ needs.preview.outputs.url != '' && 'worker-preview' || 'wrangler-dev' }}
         run: pnpm run e2e
+      - name: Playwright, against the writing fixture build on wrangler dev (posts, indexes, feed)
+        if: ${{ !cancelled() }}
+        working-directory: apps/web
+        run: |
+          pnpm run build:fixtures
+          pnpm run e2e:writing
       - name: Keep the report (run artifacts only, never public storage)
         if: failure()
         uses: actions/upload-artifact@v7

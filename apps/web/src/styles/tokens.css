@@ -67,6 +67,18 @@
   --text-email--line-height: 1.2;
   --text-display: clamp(2.441rem, 1.8rem + 3.2vw, 3.815rem); /* the 404's heading */
   --text-display--line-height: 1.05;
+  /* Long-form pages (design-system.md, "Type scale"): h1 for page and post titles, h2 and h3 for
+     headings inside a post. */
+  --text-h1: clamp(1.9375rem, 1.7518rem + 0.7619vw, 2.4375rem); /* 31px to 39px */
+  --text-h1--line-height: 1.15;
+  --text-h2: clamp(1.375rem, 1.3054rem + 0.2857vw, 1.5625rem); /* 22px to 25px */
+  --text-h2--line-height: 1.2;
+  --text-h3: 1.25rem; /* 20px: a post's title in a list, an h3 in a post */
+  --text-h3--line-height: 1.75rem;
+  /* The reading measure: about 68 characters of English a line (design-system.md, "Type scale").
+     Set in em, not ch: ch is the width of "0", which Instrument Sans draws wide, so 68ch measured
+     99 characters a line at 16px, and 31em measures 68 (e2e/writing.spec.ts checks it). */
+  --measure: 31em;
   /* The name on Home: 66px up to 390px, 156px at 1440px, a ratio of 2.36. At 66px the condensed
      name's longest word, "Peterson", is 206px wide, so it fits the 284px a 320px screen leaves,
      and the fitted fallback faces keep that true before the font arrives. */

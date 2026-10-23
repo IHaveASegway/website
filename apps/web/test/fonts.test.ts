@@ -50,6 +50,7 @@ const NOT_SOURCE = new Set([
   '.git',
   'node_modules',
   'dist',
+  '.fixtures', // the test-only fixture builds: build output, like dist/
   '.astro',
   '.wrangler',
   'test-results',

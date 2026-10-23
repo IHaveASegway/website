@@ -773,6 +773,215 @@
     }
   }
 
+  /* Long-form pages and the lists that lead to them: posts, /writing/ and /notes/ now, the colophon
+     next (layouts/Prose.astro). The head is a label, the page's one <h1> and a lead. Body text is
+     the base size at 16/26, about 68 characters a line (--measure, tokens.css). */
+  .page {
+    padding-block: 1.875rem 1.5rem;
+    border-top: 1px solid var(--border);
+  }
+
+  @media (width >= 48rem) {
+    .page {
+      padding-block: 4rem 2.5rem;
+    }
+  }
+
+  .page-head {
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+    max-width: var(--measure);
+  }
+
+  .page-title {
+    margin: 0;
+    font-size: var(--text-h1);
+    font-weight: 600;
+    line-height: var(--text-h1--line-height);
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+    overflow-wrap: break-word;
+  }
+
+  .page-lead {
+    margin: 0;
+    color: var(--muted-foreground);
+    font-size: var(--text-lead);
+    line-height: var(--text-lead--line-height);
+    text-wrap: pretty;
+  }
+
+  /* A post's body, as Markdown renders it. Tailwind's preflight removes every margin, list marker
+     and heading size, so the rhythm is set here once, for whatever a post holds. */
+  .prose {
+    max-width: var(--measure);
+    margin-top: 2.5rem;
+    overflow-wrap: break-word;
+  }
+
+  .prose > * + * {
+    margin-top: 1.25rem;
+  }
+
+  .prose h2 {
+    margin-top: 2.75rem;
+    font-size: var(--text-h2);
+    font-weight: 600;
+    line-height: var(--text-h2--line-height);
+    letter-spacing: -0.015em;
+  }
+
+  .prose h3 {
+    margin-top: 2rem;
+    font-size: var(--text-h3);
+    font-weight: 600;
+    line-height: var(--text-h3--line-height);
+    letter-spacing: -0.01em;
+  }
+
+  .prose h2 + *,
+  .prose h3 + * {
+    margin-top: 0.75rem;
+  }
+
+  .prose ul,
+  .prose ol {
+    padding-inline-start: 1.5rem;
+  }
+
+  .prose ul {
+    list-style: disc;
+  }
+
+  .prose ol {
+    list-style: decimal;
+  }
+
+  .prose li + li,
+  .prose li > ul,
+  .prose li > ol {
+    margin-top: 0.375rem;
+  }
+
+  .prose blockquote {
+    padding-inline-start: 1.125rem;
+    border-inline-start: 2px solid var(--input);
+    color: var(--muted-foreground);
+  }
+
+  .prose strong {
+    font-weight: 650;
+  }
+
+  .prose code {
+    font-family: var(--font-mono);
+    font-size: 0.875em;
+  }
+
+  .prose :not(pre) > code {
+    padding: 0.0625rem 0.3125rem;
+    border-radius: var(--radius-sm);
+    background-color: var(--surface-1);
+  }
+
+  /* Code wraps rather than scrolls: a scrolling block would need to take keyboard focus (axe,
+     scrollable-region-focusable), and a 320px screen would scroll it sideways (SC 1.4.10). */
+  .prose pre {
+    padding: 1rem 1.125rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background-color: var(--surface-1);
+    font-size: var(--text-sm);
+    line-height: 1.6;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .prose pre code {
+    font-size: inherit;
+  }
+
+  .prose hr {
+    height: 0;
+    border: 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .prose img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Lists of posts, newest first: on Home, /writing/ and /notes/. */
+  .post-list {
+    max-width: var(--measure);
+    margin: 2rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .section .post-list {
+    margin-top: 0;
+  }
+
+  .post-list > li {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    padding-block: 1.25rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .post-list > li:last-child {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .post-meta {
+    margin: 0;
+    color: var(--muted-foreground);
+    font-family: var(--font-mono);
+    font-size: var(--text-meta);
+    line-height: var(--text-meta--line-height);
+  }
+
+  .post-title {
+    margin: 0;
+    font-size: var(--text-h3);
+    font-weight: 600;
+    line-height: var(--text-h3--line-height);
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+
+  .post-summary {
+    margin: 0;
+    color: var(--muted-foreground);
+    text-wrap: pretty;
+  }
+
+  .post-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.375rem;
+    margin: 1.75rem 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--text-ui);
+    font-weight: 500;
+  }
+
+  .page > .post-links {
+    max-width: var(--measure);
+    margin-top: 3rem;
+  }
+
+  .post-links a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+
   /* The 404 page. */
   .notice {
     padding-block: 1.875rem 1.5rem;

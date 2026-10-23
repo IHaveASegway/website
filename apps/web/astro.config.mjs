@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import sitemap from '@astrojs/sitemap';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig, fontProviders } from 'astro/config';
@@ -23,6 +23,21 @@ const font = (name, cssVariable, file, variant) => ({
   options: { variants: [{ src: [`./src/assets/fonts/${file}`], style: 'normal', ...variant }] },
 });
 
+// The sitemap lists indexable pages only. A draft in a pull request preview is noindex
+// (lib/posts.ts), and so is anything else that says so; the filter reads each built page's own
+// robots tag rather than keeping a second list. It runs once the pages are written, in outDir.
+let outDir;
+const recordOutDir = {
+  name: 'record-out-dir',
+  hooks: { 'astro:config:done': ({ config }) => (outDir = config.outDir) },
+};
+const indexable = (page) => {
+  const file = new URL(`.${new URL(page).pathname}index.html`, outDir);
+  return (
+    !existsSync(file) || !/<meta name="robots" content="noindex">/.test(readFileSync(file, 'utf8'))
+  );
+};
+
 export default defineConfig({
   site: 'https://ihaveasegway.com',
   // Trailing slashes everywhere, written as <path>/index.html (ADR 0005).
@@ -33,7 +48,7 @@ export default defineConfig({
     // /_astro/ files are cached for a year by content hash (delivery.md, "Config as code").
     inlineStylesheets: 'never',
   },
-  integrations: [sitemap()],
+  integrations: [recordOutDir, sitemap({ filter: indexable })],
   // Spike S9 (roadmap.md): the Fonts API's local provider passes the width range through to
   // font-stretch, writes both preload links, serves the files from /_astro/fonts/ and hashes the
   // <style> it emits into style-src. So it serves the faces, with Astro's fallbacks off (above).

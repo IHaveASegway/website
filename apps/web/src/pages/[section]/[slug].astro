@@ -1,0 +1,85 @@
+---
+import { render } from 'astro:content';
+import Prose from '../../layouts/Prose.astro';
+import { loadProfile, loadWritingArea, postEntry } from '../../lib/content';
+import { postingGraph, serialize } from '../../lib/jsonld';
+import { postCard } from '../../lib/og';
+import { isoDay, KIND_LABELS, postPath, type Post } from '../../lib/posts';
+
+// One post: /writing/<slug>/ for an essay, /notes/<slug>/ for a field note. Published posts build
+// while Writing renders; a draft builds only where drafts are included (pull request previews and
+// astro dev), noindex, with no link preview or structured data, and nothing links to it.
+export async function getStaticPaths() {
+  const area = await loadWritingArea();
+  return area.pages.map((post) => ({
+    params: { section: post.section, slug: post.slug },
+    props: { post, listed: area.visible && !post.draft },
+  }));
+}
+
+interface Props {
+  post: Post;
+  /** Whether Writing renders in this build, so the link back to its index has a target. */
+  listed: boolean;
+}
+
+const { post, listed } = Astro.props;
+const profile = await loadProfile();
+const { Content } = await render(await postEntry(post));
+const path = postPath(post);
+const card = postCard(post);
+const image = new URL('og.png', new URL(path, profile.basics.url)).href;
+const label = [post.draft ? 'Draft' : null, KIND_LABELS[post.kind]].filter(Boolean).join(' · ');
+const source = post.source ? new URL(post.source) : null;
+// After the body: the note's source, and the way back to the index while one exists.
+const links = [
+  ...(source ? [{ href: source.href, text: `Source: ${source.hostname}`, away: true }] : []),
+  ...(listed
+    ? [
+        {
+          href: `/${post.section}/`,
+          text: post.section === 'notes' ? 'All field notes' : 'All writing',
+          away: false,
+        },
+      ]
+    : []),
+];
+---
+
+<Prose
+  title={`${post.title} · ${profile.basics.name}`}
+  description={post.summary}
+  path={path}
+  label={label}
+  heading={post.title}
+  lead={post.summary}
+  noindex={post.draft}
+  ogType="article"
+  {...(post.draft ? {} : { og: card, jsonLd: serialize(postingGraph(post, profile, image)) })}
+>
+  <p slot="meta" class="post-meta">
+    <time datetime={isoDay(post.published)}>{isoDay(post.published)}</time>
+    {post.updated && (
+      <>
+        {' '}
+        · updated <time datetime={isoDay(post.updated)}>{isoDay(post.updated)}</time>
+      </>
+    )}
+    {post.tags.length > 0 && <> · {post.tags.join(', ')}</>}
+  </p>
+  <Content />
+  <Fragment slot="after">
+    {links.length > 0 && (
+      <ul class="post-links">
+        {links.map((link) => (
+          <li>
+            <a href={link.href}>
+              {link.text}
+              {link.away && <span aria-hidden="true"> ↗</span>}
+            </a>
+          </li>
+        ))}
+      </ul>
+    )}
+  </Fragment>
+</Prose>
