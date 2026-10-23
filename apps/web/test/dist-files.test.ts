@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
-import { app, files, kindOf, kinds, type Kind } from './support/dist';
+import { app, dist, files, kindOf, kinds, type Kind } from './support/dist';
 
 // Every file the site serves is read by some check (spec B8: the scans cover every file). The text
 // scans (hold list, readiness, timestamps) read every file that is UTF-8 text, whatever its name.
@@ -33,10 +33,7 @@ test('every image in dist/ passes the image metadata check: PNG and ICO by their
   expect(images.length).toBeGreaterThan(0);
   const result = spawnSync(
     process.execPath,
-    [
-      join(app, '../../scripts/image-metadata.mjs'),
-      ...images.map((file) => join(app, 'dist', file)),
-    ],
+    [join(app, '../../scripts/image-metadata.mjs'), ...images.map((file) => join(dist, file))],
     { encoding: 'utf8' },
   );
   expect(result.status, `${result.stdout}${result.stderr}`).toBe(0);

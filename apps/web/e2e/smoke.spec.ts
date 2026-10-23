@@ -113,3 +113,26 @@ test('the link preview image each page names answers 200 as a PNG', async ({ req
   }
   test.skip(named === 0, 'the served build names no link preview image: an older build is live');
 });
+
+test('the feed the pages name answers 200 as RSS 2.0', async ({ request }) => {
+  // Followed from the pages, as og:image is: a build without Writing names no feed, so the smoke
+  // passes after a rollback to one, and the feed is fetched from the very Worker under test.
+  const named = new Set<string>();
+  for (const path of PAGES) {
+    const html = await (await request.get(path)).text();
+    for (const [tag] of html.matchAll(/<link\b[^>]*\brel="alternate"[^>]*>/g)) {
+      if (!/\btype="application\/rss\+xml"/.test(tag)) continue;
+      const href = /\bhref="([^"]+)"/.exec(tag)?.[1];
+      if (href) named.add(new URL(href, ORIGIN).pathname);
+    }
+  }
+  test.skip(named.size === 0, 'the served build names no feed: Writing is not live');
+  for (const path of named) {
+    const response = await request.get(path, { maxRedirects: 0 });
+    expect(response.status(), path).toBe(200);
+    expect(response.headers()['content-type'], path).toMatch(/xml/);
+    const body = await response.text();
+    expect(body.startsWith('<?xml version="1.0" encoding="UTF-8"?>'), path).toBe(true);
+    expect(body, path).toContain('<rss version="2.0"');
+  }
+});

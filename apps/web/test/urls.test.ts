@@ -1,35 +1,38 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
-import { ORIGIN, PAGES } from '../e2e/expected';
+import { ORIGIN, SITE_PAGES, WRITING_FIXTURE_PAGES } from '../e2e/expected';
+import { app, dist, files, fixture, previewBuild } from './support/dist';
 
 // The URL scheme as a fitness function over the build output (ADR 0005, delivery.md "Quality
 // gates"): every internal link ends in "/", page URLs carry no capital, extension or date, the
 // sitemap lists exactly the built pages, /lab/api/ stays reserved for the lab Worker, and a URL
-// once published never leaves without a 301.
-const app = fileURLToPath(new URL('..', import.meta.url));
-const dist = join(app, 'dist');
-
-function walk(dir: string): string[] {
-  return readdirSync(dir).flatMap((name) => {
-    const path = join(dir, name);
-    return statSync(path).isDirectory() ? walk(path) : [path];
-  });
-}
-
-if (!existsSync(join(dist, 'index.html'))) {
-  throw new Error(
-    'apps/web/dist/ is missing: build the site before running these tests (pnpm build)',
-  );
-}
-const files = walk(dist).map((path) => relative(dist, path).split(sep).join('/'));
+// once published never leaves without a 301. Run on the preview build and the fixture builds too
+// (support/dist.ts); on a fixture the ledger checks give way to the fixture's own page list.
 const html = files.filter((file) => file.endsWith('.html'));
+const fixtureBuild = fixture?.startsWith('.fixtures/') ?? false;
+
+const NOINDEX = '<meta name="robots" content="noindex">';
+const noindex = (page: string) =>
+  readFileSync(join(dist, page.slice(1), 'index.html'), 'utf8').includes(NOINDEX);
 
 /** URL path of each built page: "index.html" is "/", "a/b/index.html" is "/a/b/". */
 const pages = html
   .filter((file) => file.endsWith('index.html'))
   .map((file) => `/${file.slice(0, -'index.html'.length)}`);
+
+/** The pages a reader and a crawler can find: every page but a draft or an unlisted post, which are
+ *  noindex and exist only in a preview build (lib/posts.ts). The sitemap, the e2e list and the
+ *  ledger hold these. */
+const indexable = pages.filter((page) => !noindex(page));
+
+/** The indexable pages this build must write: the ledger's for dist/ and dist-preview/, the
+ *  fixture's for fixture-many (with drafts or without), and Home alone below 3 posts. */
+const EXPECTED = fixture?.includes('fixture-many')
+  ? WRITING_FIXTURE_PAGES
+  : fixture?.includes('fixture-two')
+    ? ['/']
+    : SITE_PAGES;
 
 /** Every href in a document, with the element and rel it came from. */
 function links(file: string): { tag: string; rel: string; href: string }[] {
@@ -41,11 +44,42 @@ function links(file: string): { tag: string; rel: string; href: string }[] {
   });
 }
 
-/** The path of an internal URL, or null for an external one (mailto:, another host). */
-function internalPath(href: string): string | null {
+/** The URL a built file is served at, so a relative link resolves as a browser resolves it there.
+ *  The 404 page answers at any missing path, so its links resolve from the root. */
+const pageUrl = (file: string) =>
+  `${ORIGIN}/${file === '404.html' ? '' : file.replace(/index\.html$/, '')}`;
+
+/** The path an href on a page leads to, or null for a fragment or an external URL (mailto:,
+ *  another host). Resolved against the page's own URL: "../b/" on /writing/a/ is /writing/b/. */
+function internalPath(href: string, base: string): string | null {
   if (href.startsWith('#')) return null;
-  const url = new URL(href, `${ORIGIN}/`);
+  const url = new URL(href, base);
   return url.origin === ORIGIN ? url.pathname : null;
+}
+
+/** A built page as the draft-link rule reads it: its URL, whether it is a draft, and its links. */
+interface LinkedPage {
+  readonly url: string;
+  readonly draft: boolean;
+  readonly hrefs: readonly string[];
+}
+
+/**
+ * Each link from a page that is not a draft to a draft: "<from> links <to>". The guarantee: no
+ * page but a draft links a draft, whatever the post count, so no published post does, listed or
+ * unlisted below 3 posts. Only a preview build holds drafts, so that is where it bites; a draft is
+ * told by its label, not by noindex, which an unlisted post has too.
+ */
+function draftLinks(built: readonly LinkedPage[]): string[] {
+  const drafts = new Set(built.filter((p) => p.draft).map((p) => new URL(p.url).pathname));
+  return built
+    .filter((page) => !page.draft)
+    .flatMap((page) =>
+      page.hrefs
+        .map((href) => internalPath(href, page.url))
+        .filter((path): path is string => path !== null && drafts.has(path))
+        .map((path) => `${new URL(page.url).pathname} links ${path}`),
+    );
 }
 
 const SEGMENT = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -78,7 +112,7 @@ describe('links in the built pages', () => {
   for (const file of html) {
     test(`${file}: internal links end in "/" unless they name a file`, () => {
       for (const { tag, href } of links(file)) {
-        const path = internalPath(href);
+        const path = internalPath(href, pageUrl(file));
         if (path === null) continue;
         // Files keep their extensions (robots.txt, the icons, a feed); everything else is a page.
         const namesAFile = /\.[a-z0-9]+$/i.test(path) && files.includes(path.slice(1));
@@ -115,31 +149,104 @@ describe('the sitemap', () => {
     }
   });
 
-  test('it lists exactly the built pages, and never the 404', () => {
-    expect(listed.map((url) => new URL(url).pathname).sort()).toEqual([...pages].sort());
+  test('it lists exactly the indexable pages: never the 404, never a draft', () => {
+    expect(listed.map((url) => new URL(url).pathname).sort()).toEqual([...indexable].sort());
   });
 });
 
 describe('the page list the e2e checks walk', () => {
-  test('e2e/expected.ts lists exactly the built pages, so no page skips axe, CSP or the smoke', () => {
-    expect([...PAGES].sort()).toEqual([...pages].sort());
+  test('the indexable pages are exactly the expected ones: the ledger, or the fixture list', () => {
+    expect([...EXPECTED].sort()).toEqual([...indexable].sort());
   });
 
   test('the 404 page is noindex, and no page in the sitemap is', () => {
-    expect(readFileSync(join(dist, '404.html'), 'utf8')).toContain(
-      '<meta name="robots" content="noindex">',
-    );
-    for (const page of pages) {
+    expect(readFileSync(join(dist, '404.html'), 'utf8')).toContain(NOINDEX);
+    for (const page of indexable) {
       const file = join(dist, page.slice(1), 'index.html');
       expect(readFileSync(file, 'utf8'), page).not.toMatch(/<meta name="robots"/i);
     }
+  });
+
+  test('a noindex page is a draft or an unlisted post, and only a preview build has one', () => {
+    for (const page of pages.filter(noindex)) {
+      expect(page, 'only posts can be drafts').toMatch(/^\/(writing|notes)\/[a-z0-9-]+\/$/);
+      expect(readFileSync(join(dist, page.slice(1), 'index.html'), 'utf8')).toMatch(
+        /<p class="label">(Draft|Unlisted) · /,
+      );
+    }
+    // The backstop: dist/ is the build that deploys, so it holds none whatever DRAFTS says.
+    if (!previewBuild) expect(pages.filter(noindex), 'a draft in a production build').toEqual([]);
+  });
+});
+
+describe('every internal link resolves in this build', () => {
+  /** The file an internal path is served from: a page's index.html, or the file it names. */
+  const target = (path: string) =>
+    path.endsWith('/') ? `${path.slice(1)}index.html` : path.slice(1);
+
+  for (const file of html) {
+    test(`${file}: every internal link names a page or a file this build writes`, () => {
+      for (const { tag, href } of links(file)) {
+        const path = internalPath(href, pageUrl(file));
+        if (path === null) continue;
+        expect(files.includes(target(path)), `<${tag} href="${href}">`).toBe(true);
+      }
+    });
+  }
+
+  // A preview builds drafts, so a published page linking one resolves there, and below 3 posts
+  // dist/ builds no post at all. So the rule is checked on every build, by label.
+  test('no page but a draft links a draft: no published post does, listed or unlisted', () => {
+    const built = html.map((file) => ({
+      url: pageUrl(file),
+      draft: readFileSync(join(dist, file), 'utf8').includes('<p class="label">Draft · '),
+      hrefs: links(file).map(({ href }) => href),
+    }));
+    expect(draftLinks(built)).toEqual([]);
+  });
+
+  test('known answers: what the draft-link rule flags, at any post count', () => {
+    const page = (path: string, draft: boolean, ...hrefs: string[]) => ({
+      url: `${ORIGIN}${path}`,
+      draft,
+      hrefs,
+    });
+    const draft = page(
+      '/writing/part-two/',
+      true,
+      '/writing/part-one/',
+      '../../notes/other-draft/',
+    );
+    const otherDraft = page('/notes/other-draft/', true);
+    // A listed post, Home or an index linking a draft, absolutely or relatively.
+    expect(draftLinks([draft, page('/writing/part-one/', false, '/writing/part-two/')])).toEqual([
+      '/writing/part-one/ links /writing/part-two/',
+    ]);
+    expect(draftLinks([draft, page('/writing/part-one/', false, '../part-two/')])).toEqual([
+      '/writing/part-one/ links /writing/part-two/',
+    ]);
+    expect(draftLinks([draft, page('/', false, 'writing/part-two/#a')])).toEqual([
+      '/ links /writing/part-two/',
+    ]);
+    // Below 3 posts a published post is unlisted, and noindex, and still may not link a draft.
+    expect(draftLinks([draft, page('/notes/cool-uris/', false, '/writing/part-two/')])).toEqual([
+      '/notes/cool-uris/ links /writing/part-two/',
+    ]);
+    // A draft may link anything, a published page links published pages, and fragments are local.
+    expect(
+      draftLinks([draft, otherDraft, page('/writing/part-one/', false, '../a/', '#x')]),
+    ).toEqual([]);
+    // The relative form resolves from the page, not from the root: "../b/" on /writing/a/.
+    expect(internalPath('../b/', `${ORIGIN}/writing/a/`)).toBe('/writing/b/');
+    expect(internalPath('b/', `${ORIGIN}/writing/a/`)).toBe('/writing/a/b/');
+    expect(internalPath('mailto:hello@ihaveasegway.com', `${ORIGIN}/`)).toBeNull();
   });
 });
 
 // ADR 0005: "Slugs never change. A rename adds a 301." Production's sitemap is not reachable from
 // verify, which has no network by design, so the URLs once published are kept in a ledger beside
-// the site instead: appended to, never edited, and read here.
-describe('a URL once published never leaves without a 301', () => {
+// the site instead: appended to, never edited, and read here. A fixture build publishes nothing.
+describe.skipIf(fixtureBuild)('a URL once published never leaves without a 301', () => {
   const lines = (text: string) =>
     text
       .split('\n')
@@ -163,11 +270,11 @@ describe('a URL once published never leaves without a 301', () => {
   });
 
   test('every built page is in published-urls.txt: once deployed, its URL is public for good', () => {
-    expect(pages.filter((page) => !ledger.includes(page))).toEqual([]);
+    expect(indexable.filter((page) => !ledger.includes(page))).toEqual([]);
   });
 
   test('every URL in the ledger is still a page, or the source of a 301 in public/_redirects', () => {
-    expect(ledger.filter((url) => !pages.includes(url) && !covered(url))).toEqual([]);
+    expect(ledger.filter((url) => !indexable.includes(url) && !covered(url))).toEqual([]);
   });
 
   test('every redirect states its status, since the default is a temporary 302', () => {

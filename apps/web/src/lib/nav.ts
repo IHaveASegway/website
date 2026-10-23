@@ -1,7 +1,8 @@
 // The one nav manifest (design-system.md, "One nav manifest"). The header, the footer and, later,
 // the command palette read it, so a page renamed in one place is renamed everywhere. Pages are
 // listed before they exist; only those this build writes are linked, so the rule "an element
-// renders only when its target exists" holds by construction rather than by review.
+// renders only when its target exists" holds by construction rather than by review. Page files
+// say which static pages exist; content says the rest (Writing's indexes and feed, lib/posts.ts).
 
 export interface NavItem {
   readonly id: string;
@@ -15,8 +16,10 @@ export interface NavItem {
 
 export const MANIFEST: readonly NavItem[] = [
   { id: 'work', label: 'Work', href: '/work/', header: true }, // PR 4
+  { id: 'writing', label: 'Writing', href: '/writing/', header: true }, // PR 5, at 3 posts
   { id: 'about', label: 'About', href: '/about/', header: true }, // PR 4
-  { id: 'colophon', label: 'Colophon', href: '/colophon/', header: true, footer: true }, // PR 3, stage B
+  { id: 'rss', label: 'RSS', href: '/rss.xml', footer: true }, // PR 5, with Writing
+  { id: 'colophon', label: 'Colophon', href: '/colophon/', header: true, footer: true }, // PR 3b
 ];
 
 /** Page URLs from page file paths: index.astro is "/", colophon/index.astro is "/colophon/". The
@@ -38,5 +41,8 @@ export function present(manifest: readonly NavItem[], routes: ReadonlySet<string
 
 const ROUTES = routesFrom(Object.keys(import.meta.glob('../pages/**/*.{astro,md,mdx}')));
 
-export const headerNav = present(MANIFEST, ROUTES).filter((item) => item.header);
-export const footerNav = present(MANIFEST, ROUTES).filter((item) => item.footer);
+/** The manifest items for the header or the footer, given the URLs content adds to this build
+ *  (lib/posts.ts, areaRoutes): a dynamic route builds a page only when its content exists. */
+export function navFor(place: 'header' | 'footer', generated: Iterable<string> = []): NavItem[] {
+  return present(MANIFEST, new Set([...ROUTES, ...generated])).filter((item) => item[place]);
+}

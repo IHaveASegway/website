@@ -66,7 +66,7 @@ Render rules:
 |---|---|---|
 | Work | at least 1 case study is published | P3 |
 | About | the page exists | P3 |
-| Writing (with `/notes/` and `/rss.xml`) | at least 3 posts, essays and notes together | P3 |
+| Writing (with `/notes/` and `/rss.xml`) | at least 3 published posts, essays and notes together; a draft never counts, and `/notes/` also waits for its first note | P3 |
 | Lab | at least 1 demo has `lifecycle: live` | P4 |
 | Résumé | the public edition exists | later |
 
@@ -110,7 +110,7 @@ As PR 3 built it, an element renders only when its source and its link target ex
 | 5 | How I work | below | Architect signal in four lines, each linked to its evidence | four lines, below; no links yet | always; each link once its evidence exists |
 | 6 | Lab | below | Invite play; be plain about state | "Try `<demo>`. Its state is deleted within 15 minutes. How it works →" (logs are covered on `/privacy/`) | a demo has `lifecycle: live` |
 | 7 | Writing | below | Thinking and recency | the three latest posts (title, date, one line) · All writing · RSS | at least 3 posts |
-| 8 | Footer | bottom | One click to contact; freshness | "Contact" and `hello@ihaveasegway.com` (Q-mail) · the links whose pages exist · the checked profiles · the theme toggle · "© `<year>` Joseph Peterson", plus the build line on every page but Home. No separate "Updated" line: on Home, row 2 carries the build date. Still to come: RSS, Now and Colophon as their pages ship, and ⌘K with the palette (PR 4) | always |
+| 8 | Footer | bottom | One click to contact; freshness | "Contact" and `hello@ihaveasegway.com` (Q-mail) · the links whose pages exist · the checked profiles · the theme toggle · "© `<year>` Joseph Peterson", plus the build line on every page but Home. No separate "Updated" line: on Home, row 2 carries the build date. RSS joins with Writing (PR 5); Now and Colophon as their pages ship, and ⌘K with the palette (PR 4) | always |
 
 Selected work (row 4). Numbers are re-measured at publish time. The page's JavaScript and font weights are computed at build, by the same module the byte budgets use, so they cannot drift.
 
@@ -201,7 +201,7 @@ Rules:
 - Lead with the decision and the evidence, including what failed. A published failure, such as stillhere's own metric, is worth more than one more success.
 - The [firewall classes](#firewall-classes-for-copy) apply to every surface: text, diagrams, alt text, screenshots, code samples.
 - Screenshots show owned work only, cropped to the content: no browser chrome, tabs, bookmarks or account names. The telemetry strip's colo is hidden or cropped in any screenshot or recording of the live site, because it names the data center nearest the person taking it. Images are stripped of metadata before they are committed, because a public repository publishes a file at `git push`, before any build runs: the pre-commit hook and `verify` reject an image or PDF that still carries EXIF, XMP or IPTC, and the build strips again ([security.md](security.md)).
-- `firewall_reviewed` is the date a person last read the whole page, images and alt text included. Every collection a person writes carries it: case studies, essays, notes, lab write-ups, `/now/` and `profile.json`. `profile.json` keeps it inside JSON Resume's `meta` object, the place the schema leaves for tooling, so the file stays valid JSON Resume. CI fails a pull request that changes an entry's body, or any field of `profile.json`, without changing that date. The check needs no secret, so it runs in `verify` ([delivery.md](delivery.md#quality-gates-and-budgets-as-fitness-functions)).
+- `firewall_reviewed` is the date a person last read the whole page, images and alt text included. Every collection a person writes carries it: case studies, essays, notes, lab write-ups, `/now/` and `profile.json`. `profile.json` keeps it inside JSON Resume's `meta` object, the place the schema leaves for tooling, so the file stays valid JSON Resume. CI fails a pull request that changes an entry, or any field of `profile.json`, unless that date is current: moved forward to the day of the read, or already the day of the pull request's head commit (`apps/web/scripts/review-stamp.mjs`, from PR 5; every rule is in step 3 of [Publishing a post](#publishing-a-post)). The check needs no secret, so it runs in `verify` ([delivery.md](delivery.md#quality-gates-and-budgets-as-fitness-functions)).
 - The OG image is generated from the title at build. Nobody hand-makes one.
 
 ## Content model
@@ -212,7 +212,7 @@ Content is code: Markdown, MDX and JSON in the repo, validated when the site bui
 |---|---|---|---|---|
 | `profile` | `apps/web/src/content/profile.json` | `file()` | `/about/`, Home rows 1 and 3, JSON-LD; later `/resume/` | A JSON Resume subset, with `firewall_reviewed` in `meta`. No field exists for an employer, a city, an address, an email or a phone number |
 | `work` | `apps/web/src/content/work/*.{md,mdx}` | `glob()` | `/work/<slug>/` | The case-study front matter above |
-| `writing` | `apps/web/src/content/writing/*.{md,mdx}` | `glob()` | `/writing/<slug>/`, `/rss.xml` | title, summary, published, updated, kind (essay, pattern, postmortem), tags, draft, firewall_reviewed |
+| `writing` | `apps/web/src/content/writing/*.md`; `.mdx` with the first post that needs a shared component | `glob()` | `/writing/<slug>/`, `/rss.xml` | title, summary, published, updated, kind (essay, pattern, postmortem), tags, draft, firewall_reviewed |
 | `notes` | `apps/web/src/content/notes/*.md` | `glob()` | `/notes/<slug>/`, `/rss.xml` | title, summary, published, tags, source (optional link), draft, firewall_reviewed |
 | `lab` | `apps/web/src/content/lab/*.{md,mdx}` | `glob()` | `/lab/<slug>/` | title, summary, lifecycle (building, live, retired), recording, cost, state TTL (at most 15 minutes), decisions, firewall_reviewed |
 | `now` | `apps/web/src/content/now.md` | `glob()` | `/now/` | updated, firewall_reviewed |
@@ -248,7 +248,7 @@ import { glob, file } from 'astro/loaders';
 import { z } from 'astro/zod';
 import { adrLoader } from './lib/adr-loader'; // about 40 lines; see the rules below
 
-const day = z.coerce.date();
+const day = calendarDay; // YYYY-MM-DD only: a time or an offset fails the build (lib/posts.ts, asDay)
 const TAGS = ['architecture', 'data', 'go', 'cloudflare', 'durable-objects',
   'platform', 'testing', 'security', 'tools', 'writing'] as const;
 
@@ -277,13 +277,13 @@ const work = defineCollection({
 });
 
 const writing = defineCollection({
-  loader: glob({ base: './src/content/writing', pattern: '*.{md,mdx}' }),
+  loader: glob({ base: './src/content/writing', pattern: '*.md' }), // .mdx joins with its first use
   schema: z.strictObject({ ...post, kind: z.enum(['essay', 'pattern', 'postmortem']) }),
 });
 
 const notes = defineCollection({
   loader: glob({ base: './src/content/notes', pattern: '*.md' }),
-  schema: z.strictObject({ ...post, source: z.url().optional() }),
+  schema: z.strictObject({ ...post, source: z.url({ protocol: /^https$/ }).optional() }),
 });
 
 const lab = defineCollection({
@@ -350,8 +350,9 @@ Rules the sketch encodes:
 - **A record renders only once its check is recorded.** An external profile or a project carries `checked` once it passes the [readiness checklist](#repo-readiness-checklist): the date, and for a GitHub record the commit the check read. Until then it renders nowhere: no link, no name in a link, no `sameAs`, no `rel="me"`. `test/readiness.test.ts` holds the gate on fixtures and over `dist/`.
 - **The slug is the file name.** There is no `slug` field: it would be a second source for the same fact. Renaming a file changes a URL, and the sitemap check catches that.
 - **`api` is reserved under `/lab/`.** The lab Worker owns `/lab/api/*` ([ADR 0009](adr/0009-lab-worker-same-origin.md)), so no lab entry may be named `api`: the URL check in `verify` fails on `apps/web/src/content/lab/api.*`.
-- **Drafts** (`draft: true`) build in dev and in pull-request previews, which the firewall job scans first, and never in production. A draft is hidden from the site, not from the repository: once the repository is public, a committed draft is public at `git push` ([ADR 0012](adr/0012-public-repository.md)).
-- **MDX stays thin.** `.md` by default; `.mdx` only to use one of at most 5 shared components; no `client:*` in posts ([ADR 0003](adr/0003-astro-static-first.md)).
+- **Drafts** (`draft: true`) build in dev and on a pull request's preview, which the firewall job scans first, and never in production. Two builds make that explicit. `pnpm build` writes `dist/`, the build `main` deploys: it sets `DRAFTS=exclude` itself, the tests hold `dist/` to production's rules whatever the environment says, and the deploy job refuses an artifact with any `noindex` page but the 404. `pnpm build:preview` writes `dist-preview/`, which a pull request's preview serves: a superset of `dist/`, with the same pages, every draft, and below 3 posts the published posts as unlisted pages, so a draft's links to them resolve. `astro dev` includes drafts too, by the command Astro runs, never by `NODE_ENV`. A draft's page and an unlisted one are `noindex` and say so ("Draft", "Unlisted"); they carry no link-preview card and no JSON-LD, nothing lists them (not an index, Home, the feed or the sitemap), no page but a draft may link a draft, at any post count, and a draft never counts toward the 3 posts Writing needs. Its author reaches it by URL, on the preview or in `astro dev`. A draft is hidden from the site, not from the repository: once the repository is public, a committed draft is public at `git push` ([ADR 0012](adr/0012-public-repository.md)).
+- **Dates are calendar days.** `published`, `updated` and `firewall_reviewed` are written `YYYY-MM-DD`, because an offset names a time zone, the reason commits are made in UTC. The schema refuses a value that is not midnight UTC, and `test/writing.test.ts` reads each post's file and refuses any time or offset written there: YAML turns an unquoted `2026-10-20T20:00:00-04:00` into midnight UTC before the schema sees it. The feed writes each day as midnight GMT. `updated` comes on or after `published`.
+- **MDX stays thin.** `.md` by default; `.mdx` only to use one of at most 5 shared components; no `client:*` in posts ([ADR 0003](adr/0003-astro-static-first.md)). No post needs a component yet, so Writing reads `.md` only and `@astrojs/mdx` is not installed; both arrive with the first post that does.
 - **Tags come from a fixed list** of 10. Adding one is a pull request. There are no tag pages: they are not in the URL scheme, and adding them is an amendment to ADR 0005, best made with search (Pagefind) at about 20 posts.
 - **A lab write-up does not copy runtime state.** `lifecycle` says whether a demo is published. Whether it is taking live sessions right now belongs to the lab's control object and is read when the page is viewed ([lab.md](lab.md)). A hand-edited `status: live` field that someone forgets to flip would be a second owner of that fact.
 - **Decisions render from the same files; nothing is copied.** The loader reads `docs/adr/NNNN-*.md`, parses the `# ADR NNNN: <decision>` heading and the `Status:` line, validates them with Zod, and renders the body. It rewrites links: one ADR to another becomes `/colophon/decisions/<nnnn-slug>/`; an ADR to another doc becomes the file on GitHub once the repo is public ([ADR 0012](adr/0012-public-repository.md)), and plain text before that. Publication is an allowlist in the loader's options. An ADR renders only when its number is listed, so a new ADR cannot reach the site by accident. Astro's `glob()` loader can read `docs/adr` directly, but it validates only YAML front matter, which the ADR template does not have; the custom part is the parser for the heading and the Status line. The weaker alternative, front matter in every ADR, would store the number, title and status twice in one file.
@@ -577,6 +578,24 @@ Open Graph: one template per page type, rendered at build for each page as a 120
 | LinkedIn | needs `og:title`, `og:image`, `og:description`, `og:url`; image at least 1200×627 px, 1.91:1 recommended, at most 5 MB; under 401 px wide it shows as a thumbnail | [LinkedIn help](https://www.linkedin.com/help/linkedin/answer/a521928) |
 | Slack | reads oEmbed, Twitter Card and Open Graph tags; caches an unfurl globally for about 30 minutes; does not honor `robots.txt` | [Slack robots](https://api.slack.com/robots) |
 
+A post's card draws its title at 150 px up to 16 characters, 104 px up to 32 and 80 px beyond, so the 70 characters the schema allows fit in two lines; a word longer than a line breaks rather than leaving the card. Posts set `og:type` to `article`; every other page is `website`.
+
+A published post also carries one `BlogPosting`, built from its front matter with an exact key list, like Home's graph. The author is Home's Person, by the same `@id`, with the name and URL inline because Google reads them there ([Article](https://developers.google.com/search/docs/appearance/structured-data/article)). `dateModified` appears only when the post has an `updated` date. A draft carries none.
+
+```json
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "<title>",
+  "description": "<summary>",
+  "datePublished": "<published>",
+  "dateModified": "<updated, when there is one>",
+  "url": "https://ihaveasegway.com/writing/<slug>/",
+  "image": "https://ihaveasegway.com/writing/<slug>/og.png",
+  "author": { "@type": "Person", "@id": "https://ihaveasegway.com/#person", "name": "Joseph Peterson", "url": "https://ihaveasegway.com/" }
+}
+```
+
 A generated PNG of text sits far below LinkedIn's 5 MB limit. LinkedIn does not document how long it caches a card, so re-inspect a changed page in its [Post Inspector](https://www.linkedin.com/post-inspector/) before sharing it. If Slack unfurled a link shortly before a change, it shows the old card for up to about 30 minutes.
 
 ## Writing plan
@@ -625,6 +644,16 @@ Backlog. Owned work and general architecture only; nothing about the day job.
 | Zero Worker invocations per page view | [ADR 0002](adr/0002-host-on-workers-static-assets.md), [ADR 0008](adr/0008-workers-free-with-guardrails.md) | bulkhead; denial of wallet | note |
 | The fix was zero | the capacitor upstream pull request | back-pressure | note |
 | Cool URIs, with trailing slashes | [ADR 0005](adr/0005-url-scheme.md) | cool URIs | note |
+
+### Publishing a post
+
+1. Write `apps/web/src/content/writing/<slug>.md` for an essay, or `apps/web/src/content/notes/<slug>.md` for a field note. The file name is the slug and the URL, for good; slugs that start with `fixture-` are reserved for test posts. Front matter: `title` (at most 70 characters), `summary` (at most 160; it is the meta description, the card's text and the feed's), `published` (`YYYY-MM-DD`), `tags` (up to 3 from the list above), `kind` for an essay (`essay`, `pattern` or `postmortem`), an optional https `source` for a note, `draft: true` while it is a draft, and `firewall_reviewed`.
+2. Open a pull request. The firewall scans it before anything is published, and the draft builds on the pull request's preview at `/writing/<slug>/` or `/notes/<slug>/`, `noindex`, listed nowhere. Below 3 posts the published ones build there too, unlisted, so links between posts resolve.
+3. Read the whole post against the [firewall classes](#firewall-classes-for-copy), then set `firewall_reviewed` to that day and remove `draft: true`. Any later change to a post needs a read too, and the review stamp in `verify` holds the date to it, in UTC days: a changed post's stamp moves forward to the day of the read, and may stay as it is only when it already names the day of the pull request's head commit, a same-day re-read. A stamp never moves back and never names a later day than the head commit. A new post, or one renamed or copied, needs a stamp no earlier than the day of the base commit.
+4. Writing appears with the third published post. That pull request adds every new page URL to `apps/web/published-urls.txt`: the posts, `/writing/`, and `/notes/`, which exists only while Writing renders and a note is published. Every later post adds its own. `test/urls.test.ts` names any URL missing there. The e2e checks walk the pages of the build they serve, so a new page meets axe, the CSP and the smoke checks on its own preview.
+5. Merge. The deploy builds the same posts without drafts, and the feed and the sitemap pick the post up.
+
+What a post can hold today: paragraphs, h2 and h3 headings (the title is the page's one `<h1>`), lists, quotations, code (plain mono, wrapped), tables with unaligned columns, and footnotes. Column alignment (`:--:`) writes a style attribute, which the policy refuses, and `test/csp.test.ts` names it. Every character must be in the font subsets, and `test/glyph-coverage.test.ts` names any that is not, with its code point. Not yet: images. They need a check for WebP, an image budget and an asset pipeline that keeps a draft's images out of production, so until that pull request `test/writing.test.ts` refuses an image in any post, a draft included.
 
 ## Patterns and further reading
 

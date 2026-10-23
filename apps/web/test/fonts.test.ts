@@ -50,10 +50,14 @@ const NOT_SOURCE = new Set([
   '.git',
   'node_modules',
   'dist',
+  'dist-preview', // the build with drafts: output, like dist/
+  '.fixtures', // the test-only fixture builds: build output, like dist/
   '.astro',
   '.wrangler',
   'test-results',
+  'test-results-writing',
   'playwright-report',
+  'playwright-report-writing',
 ]);
 
 function sources(dir: string): string[] {

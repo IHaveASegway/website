@@ -20,20 +20,20 @@ Source for [ihaveasegway.com](https://ihaveasegway.com): Joseph Peterson's site.
 
 ## Commands
 
-| Command                                              | What it does                                                                                  |
-| ---------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `pnpm dev`                                           | Astro's dev server at http://localhost:4321                                                   |
-| `pnpm build`                                         | Builds the site into `apps/web/dist/`                                                         |
-| `pnpm test`                                          | Fitness functions: token contrast, URL scheme, Worker config, color literals; build first     |
-| `pnpm e2e`                                           | Playwright against `wrangler dev` serving `dist/`; build first, and install Chromium once     |
-| `pnpm --filter web serve`                            | `wrangler dev` at http://127.0.0.1:8787: `dist/` with the `_headers` rules production applies |
-| `pnpm lint`, `pnpm typecheck`                        | ESLint and `astro check`                                                                      |
-| `pnpm format`, `pnpm format:check`                   | Prettier                                                                                      |
-| `pnpm firewall:test`                                 | The content firewall's self-test, with throwaway rules                                        |
-| `scripts/firewall/check.sh --history`                | A full-history firewall scan, after any rule change                                           |
-| `scripts/verify-zone.sh`                             | The zone audit: DNS, DNSSEC, TLS, HSTS, redirects, mail records, registration                 |
-| `pnpm --filter web icons`                            | Renders the raster icons from `public/favicon.svg`                                            |
-| `pnpm --filter web exec playwright install chromium` | Chromium for the e2e suite, once per machine                                                  |
+| Command                                              | What it does                                                                                                                                                                      |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm dev`                                           | Astro's dev server at http://localhost:4321                                                                                                                                       |
+| `pnpm build`                                         | Builds the site into `apps/web/dist/`                                                                                                                                             |
+| `pnpm test`                                          | Fitness functions: token contrast, URL scheme, Worker config, color literals. Build first: `pnpm build`, `pnpm --filter web build:preview` and `pnpm --filter web build:fixtures` |
+| `pnpm e2e`                                           | Playwright against `wrangler dev` serving `dist/`; build first, and install Chromium once                                                                                         |
+| `pnpm --filter web serve`                            | `wrangler dev` at http://127.0.0.1:8787: `dist/` with the `_headers` rules production applies                                                                                     |
+| `pnpm lint`, `pnpm typecheck`                        | ESLint and `astro check`                                                                                                                                                          |
+| `pnpm format`, `pnpm format:check`                   | Prettier                                                                                                                                                                          |
+| `pnpm firewall:test`                                 | The content firewall's self-test, with throwaway rules                                                                                                                            |
+| `scripts/firewall/check.sh --history`                | A full-history firewall scan, after any rule change                                                                                                                               |
+| `scripts/verify-zone.sh`                             | The zone audit: DNS, DNSSEC, TLS, HSTS, redirects, mail records, registration                                                                                                     |
+| `pnpm --filter web icons`                            | Renders the raster icons from `public/favicon.svg`                                                                                                                                |
+| `pnpm --filter web exec playwright install chromium` | Chromium for the e2e suite, once per machine                                                                                                                                      |
 
 ## Deploy and roll back
 

@@ -1,6 +1,6 @@
 ---
 import { builtOn, shortCommit } from '../lib/build';
-import { footerNav } from '../lib/nav';
+import { navFor } from '../lib/nav';
 import { checkedProfiles, type Profile } from '../lib/profile';
 import { CONTACT_EMAIL } from '../lib/site';
 import ThemeToggle from './ThemeToggle.astro';
@@ -9,20 +9,26 @@ interface Props {
   profile: Profile;
   /** The build line. Home leaves it out: its readout row is the page's one telemetry strip. */
   telemetry: boolean;
+  /** URLs content adds to this build (lib/posts.ts, areaRoutes). */
+  generated: readonly string[];
 }
 
-const { profile, telemetry } = Astro.props;
+const { profile, telemetry, generated } = Astro.props;
 // The build's year, so the line never goes stale; each deploy is built once and shipped as tested.
 const year = new Date().getUTCFullYear();
-// Pages that exist, then external profiles whose readiness check is recorded (rel="me" pairs each
-// with the profile's link back to this site).
 // The copyright, and on every page but Home the build line: one telemetry strip per page.
 const line = [
   `© ${year} ${profile.basics.name}`,
   ...(telemetry ? [`build ${shortCommit}`, `built ${builtOn}`] : []),
 ].join(' · ');
+// Pages that exist (RSS, Now, Colophon), then external profiles whose readiness check is recorded
+// (rel="me" pairs each with the profile's link back to this site): content.md's order.
 const links = [
-  ...footerNav.map((item) => ({ label: item.label, href: item.href, rel: undefined })),
+  ...navFor('footer', generated).map((item) => ({
+    label: item.label,
+    href: item.href,
+    rel: undefined,
+  })),
   ...checkedProfiles(profile).map((p) => ({ label: p.network, href: p.url, rel: 'me' })),
 ];
 ---

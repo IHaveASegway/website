@@ -1,7 +1,14 @@
 ---
-import { headerNav } from '../lib/nav';
+import { navFor } from '../lib/nav';
 
-// The wordmark, and the manifest's header items whose page exists (none until the colophon).
+interface Props {
+  /** URLs content adds to this build (lib/posts.ts, areaRoutes). */
+  generated: readonly string[];
+}
+
+// The wordmark, and the manifest's header items whose page exists: none until Writing or the
+// colophon does.
+const headerNav = navFor('header', Astro.props.generated);
 const here = Astro.url.pathname;
 ---
 

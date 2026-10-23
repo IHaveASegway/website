@@ -1,12 +1,16 @@
-# Dependencies and build output
+# Dependencies and build output, including the test-only fixture builds (apps/web/scripts/build-fixtures.mjs)
 node_modules/
 dist/
+dist-preview/
+.fixtures/
 .astro/
 .wrangler/
 
 # Test output
 playwright-report/
+playwright-report-writing/
 test-results/
+test-results-writing/
 blob-report/
 coverage/
 

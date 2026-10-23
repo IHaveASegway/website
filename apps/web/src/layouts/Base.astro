@@ -3,8 +3,9 @@ import { Font } from 'astro:assets';
 import Footer from '../components/Footer.astro';
 import Header from '../components/Header.astro';
 import Ruler from '../components/Ruler.astro';
-import { loadProfile } from '../lib/content';
+import { loadProfile, loadWritingArea } from '../lib/content';
 import { ogAlt, ogTitle, OG_SIZE, type OgCard } from '../lib/og';
+import { areaRoutes } from '../lib/posts';
 import { THEME_SCRIPT } from '../lib/weights';
 import '../styles/global.css';
 
@@ -22,16 +23,31 @@ interface Props {
   noindex?: boolean;
   /** The link preview: the two strings og.png.ts draws beside this page (lib/og.ts). */
   og?: OgCard;
+  /** Open Graph's type: a post is an article; every other page is the website. */
+  ogType?: 'website' | 'article';
   /** The footer's build line. Home turns it off: its readout row is the page's telemetry strip. */
   telemetry?: boolean;
   /** Structured data for this page, already serialized (lib/jsonld.ts). */
   jsonLd?: string;
 }
 
-const { title, description, path, noindex = false, og, telemetry = true, jsonLd } = Astro.props;
+const {
+  title,
+  description,
+  path,
+  noindex = false,
+  og,
+  ogType = 'website',
+  telemetry = true,
+  jsonLd,
+} = Astro.props;
 const canonical = path === undefined ? undefined : new URL(path, Astro.site).href;
 const image = og && canonical ? new URL('og.png', canonical).href : undefined;
 const profile = await loadProfile();
+// Writing's pages and feed exist only at 3 published posts (lib/posts.ts): the header, the footer
+// and the feed link below learn from this which of them this build writes.
+const area = await loadWritingArea();
+const generated = areaRoutes(area);
 
 // The theme script (src/scripts/theme.js) runs in <head>, before <body> exists, so no frame can
 // paint before a stored choice applies. In <body> it left a gap: when the HTML arrived in pieces,
@@ -55,7 +71,7 @@ const profile = await loadProfile();
     {canonical && <link rel="canonical" href={canonical} />}
     {og && canonical && image && (
       <>
-        <meta property="og:type" content="website" />
+        <meta property="og:type" content={ogType} />
         <meta property="og:title" content={ogTitle(og)} />
         <meta property="og:description" content={description} />
         <meta property="og:url" content={canonical} />
@@ -71,6 +87,14 @@ const profile = await loadProfile();
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="sitemap" href="/sitemap-index.xml" />
+    {area.visible && (
+      <link
+        rel="alternate"
+        type="application/rss+xml"
+        title={`${profile.basics.name}: writing`}
+        href="/rss.xml"
+      />
+    )}
     <Font cssVariable="--font-instrument-sans" preload />
     <Font cssVariable="--font-jetbrains-mono" preload />
   </head>
@@ -80,12 +104,12 @@ const profile = await loadProfile();
     </a>
     <div class="frame">
       <Ruler />
-      <Header />
+      <Header generated={generated} />
     </div>
     <main id="main" class="frame flex-1">
       <slot />
     </main>
-    <Footer profile={profile} telemetry={telemetry} />
+    <Footer profile={profile} telemetry={telemetry} generated={generated} />
     {jsonLd && <script is:inline type="application/ld+json" set:html={jsonLd} />}
   </body>
 </html>

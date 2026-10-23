@@ -203,10 +203,13 @@ From the approved mockup at 390 px and 1440 px. Fluid sizes run linearly between
 | ui | 15 px | 1.4 | 0; +0.01em on section titles | 500–600 | sans | buttons, nav and footer links, section titles |
 | base | 16 px | 26 px | 0 | 400 | sans | body text; readout values from 48rem |
 | card | 17 px | 1.5 | 0 | 400 | sans | card copy |
+| h3 | 20 px | 28 px | −0.01em | 600 | sans | a post's title in a list; an h3 inside a post (PR 5) |
 | principle | 22 px | 1.2 | −0.01em | 620 | sans | How I work titles |
+| h2 | 22→25 px | 1.2 | −0.015em | 600 | sans | an h2 inside a post (PR 5) |
 | lead | 16.5→21 px | 1.45 | 0 | 400 | sans | the proof line, the 404's text |
 | title | 21→28 px | 1.15 | −0.01em | 550 | sans | the hero's title line |
 | card-title | 28→32 px | 1.1 | −0.02em, 90% width | 620 | sans | card titles |
+| h1 | 31→39 px | 1.15 | −0.02em | 600 | sans | page and post titles (PR 5) |
 | email | 24→32 px | 1.2 | −0.02em, 90% width | 620 | sans | the footer's address |
 | display | 39→61 px | 1.05 | −0.03em, 90% width | 620 | sans | the 404's heading |
 | hero | 66→156 px | 0.9; 0.86 from 48rem | −0.035em, 80% width | 620 | sans | the name on Home |
@@ -216,6 +219,7 @@ Rules:
 - **Mono for values and labels, never prose.** Readouts, card facts, labels and numbers are mono; sentences are sans.
 - Fluid sizes mix `rem` and `vw`, each has a `rem` floor, and each maximum is at most 2.5 times its minimum (the hero: 2.36), so 200% zoom still enlarges text (SC 1.4.4; Maxwell Barvian, ["Addressing Accessibility Concerns With Using Fluid Type"](https://www.smashingmagazine.com/2023/11/addressing-accessibility-concerns-fluid-type/), 2023-11-07). `test/tokens.test.ts` checks all three.
 - Numbers that line up (commits, dates, sizes) use tabular numerals.
+- **The measure.** Body text runs about 68 characters a line: `--measure: 31em` in `tokens.css`. Not `68ch`: `ch` is the width of the digit zero, which Instrument Sans draws wide, so a 68ch column measured 95 to 103 characters a line of English at 16 px, past the 80 that SC 1.4.8 asks for. At 31em the same paragraph runs 62 to 71 (2026-10-23), and `e2e/writing.spec.ts` counts them in the browser.
 
 ## Motifs
 
@@ -306,20 +310,21 @@ A fitness function is an automated check that an architectural characteristic st
 |---|---|---|---|---|---|
 | Eager JS on a content page (gzip) | ≤ 5 KB | — | 624 B: the theme script | `test/budgets.test.ts` on every page in `dist/`, measured by the module the readouts use | `verify` |
 | Lazy JS per feature (gzip) | ≤ 2 KB | — | none ships | same | `verify` |
-| CSS (gzip, with preflight) | ≤ 15 KB | — | 5,751 B: the stylesheet and the Fonts API's inline `@font-face` | same | `verify` |
+| CSS (gzip, with preflight) | ≤ 15 KB | — | 6,390 B on PR 5's build: the stylesheet (6,030 B, now with the prose, table, footnote and post-list styles) and the Fonts API's inline `@font-face`; 5,751 B in PR 3 | same, on every page of `dist/` and of the writing fixture builds | `verify` |
 | Preloaded fonts | ≤ 70 KB | — | 64,140 B (55,984 + 8,156) | same | `verify` |
-| Home transfer, first view | ≤ 150 KB | — | about 73 KB from its parts (HTML 3.5 KB, CSS 5.4 KB, fonts 64.1 KB, gzip -9); LHCI measures the real transfer from PR 3b | Lighthouse CI against the preview | `e2e`, from PR 3b |
+| Home transfer, first view | ≤ 150 KB | — | about 73.6 KB from its parts on PR 5's build (HTML 3.5 KB, CSS 6.0 KB, fonts 64.1 KB, gzip -9); LHCI measures the real transfer from PR 3b | Lighthouse CI against the preview | `e2e`, from PR 3b |
 | Contrast | AA for every text and non-text token against every surface, both themes | — | full cross product, no forbidden pair; tightest 4.66:1 text, 3.14:1 non-text ([Measured contrast](#measured-contrast)) | `test/tokens.test.ts`, reading `tokens.css` with culori | `verify` |
 | Gamut | every `oklch()` value inside sRGB | — | all pass | same test | `verify` |
 | Raw colors | no color literal outside `tokens.css`, system colors excepted | — | none | `test/color-literals.test.ts` | `verify` |
 | Fonts | every served font is a locked output, with only the strings and tables it should carry | — | both faces, the OG instances and the fallback CSS match the lock | `test/fonts.test.ts`, with known answers | `verify` |
-| Glyph coverage | every character on every page is drawn by a self-hosted face | — | none falls back | Chromium reports the fonts that drew each text node (DevTools Protocol, `CSS.getPlatformFontsForNode`), after `text-transform`; a known answer requires characters outside both subsets (Ł, ó, ź) to be reported with the system font that drew them | `e2e` |
+| Glyph coverage | every character on every page is drawn by a self-hosted face | — | none falls back, on the site and on the writing fixture's posts (PR 5). From PR 5, `test/glyph-coverage.test.ts` also reads every post page in every build, drafts included, and names a missing character with its code point before e2e sees it | Chromium reports the fonts that drew each text node (DevTools Protocol, `CSS.getPlatformFontsForNode`), after `text-transform`; a known answer requires characters outside both subsets (Ł, ó, ź) to be reported with the system font that drew them | `e2e` |
 | Fold | the bottom edge of Home's last rendered row of 1–3 at or above the bottom of the viewport at 390×844 and 1440×900 ([content.md](content.md#home-page)) | — | 495.5 of 844 px and 545.7 of 900 px, with the web fonts; the hero is the same height without them, within 1 px | `e2e/fold.spec.ts`, fonts loaded and blocked; once in Safari on a real phone, by Joseph, before PR 3 merges | `e2e` |
 | LCP, p75 mobile | ≤ 2.5 s | 1.5 s | from PR 3b | Lighthouse CI on simulated mobile (the gate); Web Analytics field data (the evidence) | `e2e`; monthly review |
 | CLS | ≤ 0.1 | 0.05 | from PR 3b | same | `e2e`; monthly review |
 | INP | ≤ 200 ms | 100 ms | from PR 3b | field data only; Total Blocking Time is the lab proxy | monthly review |
-| axe | 0 violations | — | 0 on every page | `@axe-core/playwright` in dark, light, more contrast and forced colors, and with a stored theme opposite the OS's | `e2e` |
+| axe | 0 violations | — | 0 on every page, and on every page of the writing fixture build (PR 5) | `@axe-core/playwright` in dark, light, more contrast and forced colors, and with a stored theme opposite the OS's | `e2e` |
 | Theme before first paint | the first frame has the right theme in every stored state; the toggle cycles and labels as designed; print, more contrast and no-JavaScript hold | — | all pass | `e2e/theme.spec.ts` ([Theme before first paint](#theme-before-first-paint)) | `e2e` |
+| Reading measure (PR 5) | a line of body text holds about 68 characters: 60 to 75 on average, never more than 80 (SC 1.4.8) | — | 62 to 71, average 67, at 1440 px | `e2e/writing.spec.ts` sets a paragraph of English in a post's column and counts its lines | `e2e` |
 | Reduced motion | nothing would move under `reduce` | — | none | `e2e/motion.spec.ts` reads the computed motion of every element and pseudo-element, then requires [`document.getAnimations()`](https://developer.mozilla.org/en-US/docs/Web/API/Document/getAnimations) to be empty after load, a hover and every Tab; a card without a link does not react to the pointer; a known answer with no preference finds the card bar's transition | `e2e` |
 
 Lab data gates the merge; field data says whether the gate was right. Cloudflare Web Analytics rates LCP, INP and CLS from real page loads as Good, Needs Improvement or Poor, and its debug view lists the worst elements at P75 ([Core Web Vitals](https://developers.cloudflare.com/web-analytics/data-metrics/core-web-vitals/), as of 2026-10-22). Its docs do not say whether it gives a site-wide p75 to compare with the limits above, so PR 3b settles how that number is read ([delivery.md](delivery.md)). INP needs real interactions, so no lab tool measures it directly. Playwright's emulation covers every media query the token sheet handles: `colorScheme`, `reducedMotion`, `forcedColors`, `contrast` (1.51+) and `media: 'print'` ([Playwright](https://playwright.dev/docs/api/class-page#page-emulate-media)).
@@ -356,10 +361,22 @@ Manual checks on every PR that changes UI (the PR template carries them): a keyb
 
 One list feeds every way of getting around: `apps/web/src/lib/nav.ts`. The weaker design gives the header, the footer, the palette and the sitemap their own lists; the third copy drifts the first time a page is renamed.
 
-- **Writer.** Joseph writes the list, by pull request: each item has an id, a label, an `href`, and whether it belongs in the header, the footer or both. The build keeps only the items whose page it writes, read from `src/pages`, so a link to a page that does not exist cannot render. The rule "a section shows only when it has content" ([ADR 0005](adr/0005-url-scheme.md), [content.md](content.md)) holds by construction rather than by review.
-- **Today.** Work and About (PR 4) and the Colophon (PR 3b) are listed, and none is written yet, so the header shows the wordmark alone and the footer shows only the checked external profiles.
+- **Writer.** Joseph writes the list, by pull request: each item has an id, a label, an `href`, and whether it belongs in the header, the footer or both. The build keeps only the items whose page it writes, so a link to a page that does not exist cannot render. Static pages are read from `src/pages`; Writing's indexes and feed are dynamic routes, so their URLs come from the posts (`lib/posts.ts`, `areaRoutes`). The rule "a section shows only when it has content" ([ADR 0005](adr/0005-url-scheme.md), [content.md](content.md)) holds by construction rather than by review.
+- **Today.** Work and About (PR 4) and the Colophon (PR 3b) are listed, and none is written yet. Writing (the header) and RSS (the footer) are listed too, and appear with the third published post. Until then the header shows the wordmark alone and the footer shows only the checked external profiles.
 - **Readers.** The header and the footer now; the palette (PR 4) and terminal mode later. External profiles do not come from the manifest: they come from `profile.json`, and only from a record whose readiness check is recorded ([content.md](content.md#repo-readiness-checklist)).
 - **Later, with the palette.** Actions join the list (copy the email address, the theme), and the theme entry's label follows the toggle's, so the two always match.
+
+## Long-form pages (PR 5)
+
+Posts now, and the colophon with its decision records in PR 3b, share one layout: `layouts/Prose.astro`, with `components/PageHead.astro` for the head and `components/PostList.astro` for the lists on Home, `/writing/` and `/notes/`. The layout knows nothing about posts: a page passes in its words and puts its body in the slot.
+
+- **Head.** A mono label (the kind, such as "Essay", with "Draft" or "Unlisted" before it on a preview's hidden page), the page's one `<h1>` at the h1 size, the summary as the lead, and a mono line of dates and tags. `test/headings.test.ts` holds every page to one `<h1>`, read from the rendered HTML, so no way of writing a heading in a body gets around it.
+- **Body.** Markdown as written, at the base size and the measure. Tailwind's preflight removes every margin, list marker and heading size, so `.prose` sets them once: the h2 and h3 sizes, list markers, a quotation's 3:1 rule, and code in the mono face on `surface-1`.
+- **Code wraps.** A code block wraps its lines rather than scrolling. A scrolling block would have to take keyboard focus (axe's `scrollable-region-focusable`), and at 320 px it would scroll sideways (SC 1.4.10). There is no syntax highlighting yet: Shiki writes inline styles the policy would refuse, and Expressive Code arrives with the first post that needs it ([stack.md](stack.md)).
+- **Tables.** They fill the column at the small size, with tabular figures and hairline rules, and wrap their cells, so a table never scrolls sideways at 320 px. Column alignment is not supported: Markdown writes it as a `style` attribute, which the policy refuses, and `test/csp.test.ts` names it.
+- **Footnotes.** As the processor writes them: a section after the body at the small size, above a hairline, and its heading for assistive technology only (`.sr-only`, the same rule as Tailwind's utility, which the build cannot see in the processor's output). The way back is "↑", not the processor's "↩", which neither subset carries (`astro.config.mjs`).
+- **Lists.** A post is its date and kind in mono, its title as a link, and its summary. Newest first; a day's posts by slug, so the order never depends on the disk.
+- **Not yet.** Images in posts. `test/dist-files.test.ts` admits PNG, ICO and WOFF2 binaries only, Astro writes a post's images as WebP, and its asset pipeline emits a draft's images in a production build, so images need a WebP check, an image budget and drafts kept out of the asset pipeline first. Until then `test/writing.test.ts` refuses an image in any post, with that reason.
 
 ## Home, row by row
 

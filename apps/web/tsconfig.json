@@ -5,5 +5,14 @@
     "types": ["node"]
   },
   "include": [".astro/types.d.ts", "**/*"],
-  "exclude": ["dist", "node_modules", "playwright-report", "test-results"]
+  "exclude": [
+    "dist",
+    "dist-preview",
+    ".fixtures",
+    "node_modules",
+    "playwright-report",
+    "playwright-report-writing",
+    "test-results",
+    "test-results-writing"
+  ]
 }

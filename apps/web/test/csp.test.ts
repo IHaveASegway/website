@@ -101,6 +101,16 @@ for (const file of html) {
       }
     });
 
+    // A style attribute is inline style, which style-src refuses without 'unsafe-inline' or
+    // 'unsafe-hashes'. Astro writes none; in a post, Markdown writes one for a table column's
+    // alignment (":--:"), and raw HTML can carry one. Leave columns unaligned, and style in CSS.
+    test('no element carries a style attribute: the policy refuses them', () => {
+      const styled = [
+        ...page.matchAll(/<[a-z][^>]*\sstyle\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)[^>]*>/gi),
+      ];
+      expect(styled.map(([tag]) => tag.slice(0, 80))).toEqual([]);
+    });
+
     test("script-src and style-src hold only 'self' and sha256 hashes: no host, no scheme", () => {
       for (const name of ['script-src', 'style-src']) {
         const sources = directives.get(name) ?? [];

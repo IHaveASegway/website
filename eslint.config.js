@@ -8,10 +8,14 @@ import tseslint from 'typescript-eslint';
 export default defineConfig([
   globalIgnores([
     '**/dist/',
+    '**/dist-preview/',
+    '**/.fixtures/',
     '**/.astro/',
     '**/.wrangler/',
     '**/playwright-report/',
+    '**/playwright-report-writing/',
     '**/test-results/',
+    '**/test-results-writing/',
   ]),
   js.configs.recommended,
   tseslint.configs.recommended,

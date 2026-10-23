@@ -3,26 +3,48 @@ import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { profileSchema, type Profile } from '../../src/lib/profile';
 
-// What the checks over the build share: where dist/ is, its files, its pages, and the profile.
+// What the checks over the build share: where the build is, its files, its pages, and the profile.
 
 export const app = fileURLToPath(new URL('../..', import.meta.url));
-export const dist = join(app, 'dist');
+
+/**
+ * The build these checks read: dist/, or another build when TEST_DIST names one. vitest.config.ts
+ * runs every check over dist/ again on dist-preview/ and on three fixture builds with posts in
+ * them (fixture-many, fixture-many-preview, fixture-two-preview), so a page type that only exists
+ * once there is content (a post, an index, the feed) meets the same checks as Home before any real
+ * post ships.
+ */
+export const fixture: string | undefined = process.env['TEST_DIST'] || undefined;
+export const dist = join(app, fixture ?? 'dist');
+
+/**
+ * Whether this build may hold drafts: only a build TEST_DIST names whose project says DRAFTS=include
+ * (vitest.config.ts: dist-preview/ and the preview fixtures). dist/ is the build that deploys, and
+ * the checks hold it to production's rules whatever DRAFTS says: a backstop that does not depend
+ * on the switch it guards.
+ */
+export const previewBuild = fixture !== undefined && process.env['DRAFTS'] === 'include';
 
 if (!existsSync(join(dist, 'index.html'))) {
   throw new Error(
-    'apps/web/dist/ is missing: build the site before running these tests (pnpm build)',
+    fixture
+      ? `apps/web/${fixture}/ is missing: build the fixtures first (pnpm --filter web build:fixtures)`
+      : 'apps/web/dist/ is missing: build the site before running these tests (pnpm build)',
   );
 }
 
-function walk(dir: string): string[] {
-  return readdirSync(dir).flatMap((name) => {
-    const path = join(dir, name);
-    return statSync(path).isDirectory() ? walk(path) : [path];
-  });
+/** Every file under a directory, as a path relative to it with forward slashes. */
+export function filesIn(dir: string): string[] {
+  const walk = (at: string): string[] =>
+    readdirSync(at).flatMap((name) => {
+      const path = join(at, name);
+      return statSync(path).isDirectory() ? walk(path) : [path];
+    });
+  return walk(dir).map((path) => relative(dir, path).split(sep).join('/'));
 }
 
-/** Every file in dist/, as a path relative to it with forward slashes. */
-export const files = walk(dist).map((path) => relative(dist, path).split(sep).join('/'));
+/** Every file in the build, as a path relative to it with forward slashes. */
+export const files = filesIn(dist);
 
 /**
  * What a file in dist/ is, from its bytes rather than its name, so a new extension, or none, cannot

@@ -1,6 +1,7 @@
 import satori from 'satori';
 import sharp from 'sharp';
 import tokensCss from '../styles/tokens.css?raw';
+import { SECTION_LABELS, type Post, type Section } from './posts';
 import type { Profile } from './profile';
 import { hex, themeColors } from './tokens';
 
@@ -20,6 +21,29 @@ export const OG_SIZE = { width: 1200, height: 630 } as const;
 /** The card for Home: the name and the title line. */
 export function homeCard(profile: Profile): OgCard {
   return { title: profile.basics.name, label: profile.basics.label };
+}
+
+/** A post's card: its title, and the section it belongs to (content.md, "Structured data and
+ *  link previews": the section label and the entry's title). */
+export function postCard(post: Pick<Post, 'title' | 'section'>): OgCard {
+  return { title: post.title, label: SECTION_LABELS[post.section] };
+}
+
+/** A section index's card: the section, and whose it is. */
+export function sectionCard(section: Section, profile: Profile): OgCard {
+  return { title: SECTION_LABELS[section], label: profile.basics.name };
+}
+
+/**
+ * The title's size on the card. Home's name is drawn at 150 px; a post's title can run to 70
+ * characters (lib/posts.ts), which at that size would need five lines and leave the canvas. So the
+ * size steps down with the length, and the longest title fits in three lines at 80 px. Steps rather
+ * than a formula, so a title one character longer than another never draws at an odd size.
+ */
+export function titleSize(title: string): number {
+  if (title.length <= 16) return 150;
+  if (title.length <= 32) return 104;
+  return 80;
 }
 
 /** og:title and og:image:alt, written from the drawn strings and nothing else. */
@@ -70,9 +94,11 @@ export function ogTree(
         {
           fontFamily: 'Instrument Sans Condensed',
           fontWeight: 600,
-          fontSize: 150,
+          fontSize: titleSize(card.title),
           lineHeight: 0.9,
-          letterSpacing: -5.25,
+          letterSpacing: titleSize(card.title) * -0.035,
+          // A word longer than a line, such as a long identifier, breaks instead of leaving the card.
+          wordBreak: 'break-word',
         },
         card.title,
       ),
