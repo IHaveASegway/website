@@ -44,11 +44,42 @@ function links(file: string): { tag: string; rel: string; href: string }[] {
   });
 }
 
-/** The path of an internal URL, or null for an external one (mailto:, another host). */
-function internalPath(href: string): string | null {
+/** The URL a built file is served at, so a relative link resolves as a browser resolves it there.
+ *  The 404 page answers at any missing path, so its links resolve from the root. */
+const pageUrl = (file: string) =>
+  `${ORIGIN}/${file === '404.html' ? '' : file.replace(/index\.html$/, '')}`;
+
+/** The path an href on a page leads to, or null for a fragment or an external URL (mailto:,
+ *  another host). Resolved against the page's own URL: "../b/" on /writing/a/ is /writing/b/. */
+function internalPath(href: string, base: string): string | null {
   if (href.startsWith('#')) return null;
-  const url = new URL(href, `${ORIGIN}/`);
+  const url = new URL(href, base);
   return url.origin === ORIGIN ? url.pathname : null;
+}
+
+/** A built page as the draft-link rule reads it: its URL, whether it is a draft, and its links. */
+interface LinkedPage {
+  readonly url: string;
+  readonly draft: boolean;
+  readonly hrefs: readonly string[];
+}
+
+/**
+ * Each link from a page that is not a draft to a draft: "<from> links <to>". The guarantee: no
+ * page but a draft links a draft, whatever the post count, so no published post does, listed or
+ * unlisted below 3 posts. Only a preview build holds drafts, so that is where it bites; a draft is
+ * told by its label, not by noindex, which an unlisted post has too.
+ */
+function draftLinks(built: readonly LinkedPage[]): string[] {
+  const drafts = new Set(built.filter((p) => p.draft).map((p) => new URL(p.url).pathname));
+  return built
+    .filter((page) => !page.draft)
+    .flatMap((page) =>
+      page.hrefs
+        .map((href) => internalPath(href, page.url))
+        .filter((path): path is string => path !== null && drafts.has(path))
+        .map((path) => `${new URL(page.url).pathname} links ${path}`),
+    );
 }
 
 const SEGMENT = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -81,7 +112,7 @@ describe('links in the built pages', () => {
   for (const file of html) {
     test(`${file}: internal links end in "/" unless they name a file`, () => {
       for (const { tag, href } of links(file)) {
-        const path = internalPath(href);
+        const path = internalPath(href, pageUrl(file));
         if (path === null) continue;
         // Files keep their extensions (robots.txt, the icons, a feed); everything else is a page.
         const namesAFile = /\.[a-z0-9]+$/i.test(path) && files.includes(path.slice(1));
@@ -156,25 +187,59 @@ describe('every internal link resolves in this build', () => {
   for (const file of html) {
     test(`${file}: every internal link names a page or a file this build writes`, () => {
       for (const { tag, href } of links(file)) {
-        const path = internalPath(href);
+        const path = internalPath(href, pageUrl(file));
         if (path === null) continue;
         expect(files.includes(target(path)), `<${tag} href="${href}">`).toBe(true);
       }
     });
   }
 
-  // The preview builds drafts, so a published page linking one resolves there, and fails only on
-  // main. This finds it on the pull request: no indexable page may link a draft or unlisted post.
-  test('no indexable page links to a noindex page: a published post never links a draft', () => {
-    const hidden = new Set(pages.filter(noindex));
-    const found = indexable.flatMap((page) =>
-      links(`${page.slice(1)}index.html`)
-        .filter(({ tag }) => tag === 'a')
-        .map(({ href }) => internalPath(href))
-        .filter((path): path is string => path !== null && hidden.has(path))
-        .map((path) => `${page} links ${path}`),
+  // A preview builds drafts, so a published page linking one resolves there, and below 3 posts
+  // dist/ builds no post at all. So the rule is checked on every build, by label.
+  test('no page but a draft links a draft: no published post does, listed or unlisted', () => {
+    const built = html.map((file) => ({
+      url: pageUrl(file),
+      draft: readFileSync(join(dist, file), 'utf8').includes('<p class="label">Draft · '),
+      hrefs: links(file).map(({ href }) => href),
+    }));
+    expect(draftLinks(built)).toEqual([]);
+  });
+
+  test('known answers: what the draft-link rule flags, at any post count', () => {
+    const page = (path: string, draft: boolean, ...hrefs: string[]) => ({
+      url: `${ORIGIN}${path}`,
+      draft,
+      hrefs,
+    });
+    const draft = page(
+      '/writing/part-two/',
+      true,
+      '/writing/part-one/',
+      '../../notes/other-draft/',
     );
-    expect(found).toEqual([]);
+    const otherDraft = page('/notes/other-draft/', true);
+    // A listed post, Home or an index linking a draft, absolutely or relatively.
+    expect(draftLinks([draft, page('/writing/part-one/', false, '/writing/part-two/')])).toEqual([
+      '/writing/part-one/ links /writing/part-two/',
+    ]);
+    expect(draftLinks([draft, page('/writing/part-one/', false, '../part-two/')])).toEqual([
+      '/writing/part-one/ links /writing/part-two/',
+    ]);
+    expect(draftLinks([draft, page('/', false, 'writing/part-two/#a')])).toEqual([
+      '/ links /writing/part-two/',
+    ]);
+    // Below 3 posts a published post is unlisted, and noindex, and still may not link a draft.
+    expect(draftLinks([draft, page('/notes/cool-uris/', false, '/writing/part-two/')])).toEqual([
+      '/notes/cool-uris/ links /writing/part-two/',
+    ]);
+    // A draft may link anything, a published page links published pages, and fragments are local.
+    expect(
+      draftLinks([draft, otherDraft, page('/writing/part-one/', false, '../a/', '#x')]),
+    ).toEqual([]);
+    // The relative form resolves from the page, not from the root: "../b/" on /writing/a/.
+    expect(internalPath('../b/', `${ORIGIN}/writing/a/`)).toBe('/writing/b/');
+    expect(internalPath('b/', `${ORIGIN}/writing/a/`)).toBe('/writing/a/b/');
+    expect(internalPath('mailto:hello@ihaveasegway.com', `${ORIGIN}/`)).toBeNull();
   });
 });
 

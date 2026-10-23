@@ -71,9 +71,11 @@ jobs:
         run: pnpm --filter web run build:fixtures
       - name: Unit tests and fitness functions (token contrast, URL scheme, Workers Cache, color literals)
         run: pnpm run test
-      - name: Review stamp (a changed entry carries a new firewall_reviewed date)
+      # The merge commit's content against its base (HEAD^1), dated by the pull request's own head
+      # commit (HEAD^2): GitHub dates the merge commit when it makes it, not when the work was done.
+      - name: Review stamp (a changed entry carries a current firewall_reviewed date)
         if: github.event_name == 'pull_request'
-        run: node apps/web/scripts/review-stamp.mjs HEAD^1 HEAD
+        run: node apps/web/scripts/review-stamp.mjs HEAD^1 HEAD HEAD^2
       - name: Image and PDF metadata
         run: node scripts/image-metadata.mjs --tracked
       - name: Internal links, offline (dist/)
