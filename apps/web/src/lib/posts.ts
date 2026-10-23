@@ -26,9 +26,14 @@ export const MIN_POSTS = 3;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const MS_PER_DAY = 86_400_000;
 
-/** A calendar day at midnight UTC, or null. YAML reads an unquoted 2026-10-23 as that Date; a quoted
- *  one arrives as the string. A time of day or an offset is refused, because an offset names a time
- *  zone, the same reason commits are made in UTC (AGENTS.md). */
+/**
+ * A calendar day at midnight UTC, or null. YAML reads an unquoted 2026-10-23 as that Date; a quoted
+ * one arrives as the string. A string with a time or an offset is refused, and so is a Date that is
+ * not midnight UTC, because an offset names a time zone, the same reason commits are made in UTC
+ * (AGENTS.md). One case gets past this function: YAML turns an unquoted datetime into an instant
+ * before the schema sees it, so 2026-10-20T20:00:00-04:00 arrives as midnight UTC. The source check
+ * in test/writing.test.ts reads the file itself and refuses any time or offset written there.
+ */
 export function asDay(value: Date | string): Date | null {
   const date = typeof value === 'string' ? new Date(`${value}T00:00:00Z`) : value;
   if (Number.isNaN(date.getTime()) || date.getTime() % MS_PER_DAY !== 0) return null;
@@ -134,9 +139,11 @@ export function postsBase(fixtureSet: string | undefined): string {
 }
 
 /**
- * Whether this build writes drafts: astro dev always, a build only with DRAFTS=include. CI sets
- * that for pull requests alone, so previews show drafts and production never does (content.md,
- * "Drafts"). Any other value, or none, is a production build: the safe default.
+ * Whether this build writes drafts: astro dev always, a build only with DRAFTS=include. `dev` is
+ * the command Astro runs, not NODE_ENV (lib/content.ts). Only `pnpm build:preview` sets DRAFTS, so
+ * a pull request's preview shows drafts, and `pnpm build`, which writes the dist/ that deploys,
+ * sets it to exclude (content.md, "Drafts"). Any other value, or none, is a production build: the
+ * safe default.
  */
 export function draftsIncluded(
   env: { readonly DRAFTS?: string | undefined },
@@ -152,6 +159,20 @@ export function newestFirst(posts: readonly Post[]): Post[] {
   );
 }
 
+/**
+ * How a post's page is shown. A listed page is published, indexable and linked from the indexes,
+ * Home and the feed. An unlisted page is a published post below MIN_POSTS, and a draft page is a
+ * draft: both are noindex, carry no link preview or JSON-LD, and are listed nowhere. Production
+ * writes listed pages only; a build with drafts writes all three.
+ */
+export type Exposure = 'listed' | 'unlisted' | 'draft';
+
+/** A page this build writes for a post. */
+export interface PostPage {
+  readonly post: Post;
+  readonly exposure: Exposure;
+}
+
 /** What a build writes for Writing, decided once from the posts and whether drafts are included. */
 export interface WritingArea {
   /** Published posts, newest first. */
@@ -160,20 +181,35 @@ export interface WritingArea {
   readonly visible: boolean;
   /** The section indexes this build writes: /writing/, and /notes/ once a note is published. */
   readonly sections: readonly Section[];
-  /** The posts this build writes a page for: the published ones while Writing renders, and every
-   *  draft when drafts are included. A draft is listed nowhere: not in an index, on Home, in the
-   *  feed or in the sitemap, and it does not count toward MIN_POSTS. */
-  readonly pages: readonly Post[];
+  /**
+   * The post pages this build writes. Without drafts: the published posts while Writing renders,
+   * and nothing below MIN_POSTS. With drafts, a superset of that: the same pages, every draft, and
+   * below MIN_POSTS the published posts as unlisted pages, so a draft's preview can link to the
+   * posts before it. A draft never counts toward MIN_POSTS.
+   */
+  readonly pages: readonly PostPage[];
 }
 
 export function writingArea(posts: readonly Post[], includeDrafts: boolean): WritingArea {
   const published = newestFirst(posts.filter((p) => !p.draft));
-  const drafts = includeDrafts ? newestFirst(posts.filter((p) => p.draft)) : [];
+  const drafts = newestFirst(posts.filter((p) => p.draft));
   const visible = published.length >= MIN_POSTS;
   const sections: Section[] = visible
     ? ['writing', ...(published.some((p) => p.section === 'notes') ? (['notes'] as const) : [])]
     : [];
-  return { published, visible, sections, pages: [...(visible ? published : []), ...drafts] };
+  const shown = (post: Post): PostPage => ({ post, exposure: visible ? 'listed' : 'unlisted' });
+  const pages: PostPage[] = includeDrafts
+    ? [...published.map(shown), ...drafts.map((post) => ({ post, exposure: 'draft' as const }))]
+    : visible
+      ? published.map(shown)
+      : [];
+  return { published, visible, sections, pages };
+}
+
+/** The mono label above a post's title: its kind, with its state first when it is not listed. */
+export function postLabel(page: PostPage): string {
+  const state = { listed: null, unlisted: 'Unlisted', draft: 'Draft' }[page.exposure];
+  return [state, KIND_LABELS[page.post.kind]].filter(Boolean).join(' · ');
 }
 
 /** A post's page URL (ADR 0005): its section, then its slug, with the trailing slash. */

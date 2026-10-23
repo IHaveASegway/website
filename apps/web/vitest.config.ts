@@ -3,16 +3,20 @@ import { defineConfig } from 'vitest/config';
 // Unit tests are fitness functions: each one turns a rule from the docs into a failing build.
 // e2e/*.spec.ts belongs to Playwright, so only test/ is collected here.
 //
-// Three projects. "site" runs everything on dist/. "writing fixture" runs the checks over the build
-// again on .fixtures/fixture-three (scripts/build-fixtures.mjs): a build with essays, a note, both
-// indexes and the feed, so those page types meet every check before a real post exists. "writing
-// fixture preview" runs them on the same posts built as a pull request preview builds them, with a
-// draft's page, which is public on the preview and so meets the same checks.
+// "site" runs everything on dist/, the build that deploys. The other projects run the checks over
+// a build again on the builds that hold what dist/ may not hold yet (scripts/build-fixtures.mjs):
+//   site preview              dist-preview/, the real posts with drafts, which pull requests preview
+//   writing fixture           five published posts, both indexes and the feed
+//   writing fixture preview   the same with a draft, as a preview builds it
+//   writing fixture unlisted  two published posts and a draft with drafts included: unlisted pages
+// so every page type meets every check before a real post exists.
 const DIST_CHECKS = [
   'budgets',
   'csp',
   'dist-files',
   'fonts',
+  'glyph-coverage',
+  'headings',
   'jsonld',
   'nav',
   'not-on-site',
@@ -24,6 +28,11 @@ const DIST_CHECKS = [
   'urls',
 ].map((name) => `test/${name}.test.ts`);
 
+const rerun = (name: string, build: string, drafts: 'include' | 'exclude') => ({
+  extends: true,
+  test: { name, include: DIST_CHECKS, env: { TEST_DIST: build, DRAFTS: drafts } },
+});
+
 export default defineConfig({
   test: {
     environment: 'node',
@@ -32,22 +41,10 @@ export default defineConfig({
     css: { include: [/src\/styles\/tokens\.css/] },
     projects: [
       { extends: true, test: { name: 'site', include: ['test/**/*.test.ts'] } },
-      {
-        extends: true,
-        test: {
-          name: 'writing fixture',
-          include: DIST_CHECKS,
-          env: { TEST_DIST: '.fixtures/fixture-three', DRAFTS: 'exclude' },
-        },
-      },
-      {
-        extends: true,
-        test: {
-          name: 'writing fixture preview',
-          include: DIST_CHECKS,
-          env: { TEST_DIST: '.fixtures/fixture-three-preview', DRAFTS: 'include' },
-        },
-      },
+      rerun('site preview', 'dist-preview', 'include'),
+      rerun('writing fixture', '.fixtures/fixture-many', 'exclude'),
+      rerun('writing fixture preview', '.fixtures/fixture-many-preview', 'include'),
+      rerun('writing fixture unlisted', '.fixtures/fixture-two-preview', 'include'),
     ],
   },
 });

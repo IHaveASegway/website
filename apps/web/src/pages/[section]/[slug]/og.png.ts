@@ -3,13 +3,13 @@ import { loadWritingArea } from '../../../lib/content';
 import { postCard, renderOg } from '../../../lib/og';
 import type { Post } from '../../../lib/posts';
 
-// A published post's link preview, beside its page: the post's title and its section. A draft has
-// none, so nothing about it can be shared before it is published.
+// A listed post's link preview, beside its page: the post's title and its section. A draft or an
+// unlisted post has none, so nothing about it can be shared before it is listed.
 export const getStaticPaths = (async () => {
   const area = await loadWritingArea();
   return area.pages
-    .filter((post) => !post.draft)
-    .map((post) => ({ params: { section: post.section, slug: post.slug }, props: { post } }));
+    .filter((page) => page.exposure === 'listed')
+    .map(({ post }) => ({ params: { section: post.section, slug: post.slug }, props: { post } }));
 }) satisfies GetStaticPaths;
 
 export const GET: APIRoute<{ post: Post }> = async ({ props }) => {

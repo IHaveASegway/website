@@ -4,10 +4,11 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "DRAFTS=exclude astro build",
+    "build:preview": "DRAFTS=include astro build --outDir dist-preview",
     "build:fixtures": "node scripts/build-fixtures.mjs",
     "serve": "wrangler dev --local --ip 127.0.0.1 --port 8787 --show-interactive-dev-session=false",
-    "serve:fixture": "wrangler dev --local --ip 127.0.0.1 --port 8788 --assets .fixtures/fixture-three --show-interactive-dev-session=false",
+    "serve:fixture": "wrangler dev --local --ip 127.0.0.1 --port 8788 --assets .fixtures/fixture-many --show-interactive-dev-session=false",
     "typecheck": "astro check",
     "test": "vitest run",
     "e2e": "playwright test --project=site",
@@ -17,6 +18,7 @@
     "icons": "node scripts/icons.mjs"
   },
   "dependencies": {
+    "@astrojs/markdown-satteri": "0.4.5",
     "@astrojs/rss": "4.0.19",
     "@astrojs/sitemap": "3.7.4",
     "@tailwindcss/vite": "4.3.3",

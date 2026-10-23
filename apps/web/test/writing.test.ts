@@ -12,20 +12,24 @@ import {
   MIN_POSTS,
   newestFirst,
   noteSchema,
+  postLabel,
   postsBase,
   TAGS,
   writingArea,
   type Post,
+  type PostPage,
 } from '../src/lib/posts';
-import { app, dist, files as distFiles, filesIn } from './support/dist';
+import { app, dist, files as distFiles, filesIn, kindOf } from './support/dist';
 
-// Writing (roadmap.md, PR 5): the rules in lib/posts.ts with known answers, then the three
-// test-only fixture builds that scripts/build-fixtures.mjs writes, then the real build and the
-// real posts. The "writing fixture" project in vitest.config.ts runs every other check over the
-// build on fixture-three as well; this file holds what only a known set of posts can prove.
+// Writing (roadmap.md, PR 5): the rules in lib/posts.ts with known answers, then the test-only
+// fixture builds that scripts/build-fixtures.mjs writes, then the real build and the real posts.
+// vitest.config.ts runs every other check over a build on fixture-many, fixture-many-preview and
+// fixture-two-preview as well; this file holds what only a known set of posts can prove.
 
-/** Every fixture post's summary carries this; no file the real build writes may. */
+/** Every fixture post's summary carries this; no file the real builds write may. */
 const SENTINEL = 'A test fixture, never published';
+/** Every fixture post's slug starts with this, and no real post's may (the source checks below). */
+const FIXTURE_PREFIX = 'fixture-';
 
 const day = (iso: string) => new Date(`${iso}T00:00:00Z`);
 function post(slug: string, over: Partial<Post> = {}): Post {
@@ -46,9 +50,10 @@ function post(slug: string, over: Partial<Post> = {}): Post {
 const note = (slug: string, over: Partial<Post> = {}) =>
   post(slug, { section: 'notes', kind: 'note', ...over });
 const slugs = (posts: readonly Post[]) => posts.map((p) => p.slug);
+const pageSlugs = (pages: readonly PostPage[]) => pages.map((p) => `${p.post.slug}:${p.exposure}`);
 
 describe(`the ${MIN_POSTS}-post rule (content.md, "Sitemap and phases")`, () => {
-  test('0 and 2 published posts render nothing: no index, no page, no feed', () => {
+  test('0 and 2 published posts, without drafts, build nothing: no index, no page, no feed', () => {
     for (const posts of [[], [post('a'), note('b')]]) {
       const area = writingArea(posts, false);
       expect(area.visible).toBe(false);
@@ -58,13 +63,15 @@ describe(`the ${MIN_POSTS}-post rule (content.md, "Sitemap and phases")`, () => 
     }
   });
 
-  test('3 render it: /writing/, /notes/ once a note is published, and a page per post', () => {
+  test('3 render it: /writing/, /notes/ once a note is published, and a listed page per post', () => {
     const essays = writingArea([post('a'), post('b'), post('c')], false);
     expect(essays.visible).toBe(true);
     expect(essays.sections).toEqual(['writing']);
-    expect(slugs(essays.pages).sort()).toEqual(['a', 'b', 'c']);
-    const mixed = writingArea([post('a'), post('b'), note('c')], false);
-    expect(mixed.sections).toEqual(['writing', 'notes']);
+    expect(pageSlugs(essays.pages).sort()).toEqual(['a:listed', 'b:listed', 'c:listed']);
+    expect(writingArea([post('a'), post('b'), note('c')], false).sections).toEqual([
+      'writing',
+      'notes',
+    ]);
   });
 
   test('a draft never counts toward the rule, even where drafts are included', () => {
@@ -73,15 +80,36 @@ describe(`the ${MIN_POSTS}-post rule (content.md, "Sitemap and phases")`, () => 
     expect(writingArea(posts, true).visible).toBe(false);
   });
 
-  test('a draft gets a page only where drafts are included, and is listed nowhere', () => {
-    const posts = [post('a'), post('b'), note('c'), note('d', { draft: true })];
-    expect(slugs(writingArea(posts, false).pages)).not.toContain('d');
-    const preview = writingArea(posts, true);
-    expect(slugs(preview.pages)).toContain('d');
-    expect(slugs(preview.published)).not.toContain('d');
-    expect(feedItems(preview).map((i) => i.link)).not.toContain('/notes/d/');
-    // Below the rule, a preview still builds the draft's own page, so its author can read it.
-    expect(slugs(writingArea([post('a'), note('d', { draft: true })], true).pages)).toEqual(['d']);
+  test('with drafts, a build is a superset of production: the same pages, drafts, and unlisted posts below 3', () => {
+    const cases: Post[][] = [
+      [],
+      [post('a')],
+      [post('a'), note('b', { draft: true })],
+      [post('a'), post('b'), note('c'), note('d', { draft: true })],
+      [post('a'), post('b'), note('c', { draft: true }), post('e', { draft: true })],
+    ];
+    for (const posts of cases) {
+      const production = pageSlugs(writingArea(posts, false).pages);
+      const preview = pageSlugs(writingArea(posts, true).pages);
+      expect(preview, JSON.stringify(slugs(posts))).toEqual(expect.arrayContaining(production));
+      const drafts = posts.filter((p) => p.draft).map((p) => `${p.slug}:draft`);
+      expect(preview).toEqual(expect.arrayContaining(drafts));
+    }
+    // Below 3 a preview writes the published posts unlisted, so a draft's links to them resolve.
+    const below = writingArea([post('a'), note('d', { draft: true })], true);
+    expect(pageSlugs(below.pages)).toEqual(['a:unlisted', 'd:draft']);
+    expect(below.visible).toBe(false);
+    // At 3 they are listed in both builds, and the draft is the only addition.
+    const at = writingArea([post('a'), post('b'), note('c'), note('d', { draft: true })], true);
+    expect(pageSlugs(at.pages).filter((p) => !p.endsWith(':listed'))).toEqual(['d:draft']);
+  });
+
+  test('a page says what it is: the kind, with Draft or Unlisted first when it is not listed', () => {
+    expect(postLabel({ post: post('a'), exposure: 'listed' })).toBe('Essay');
+    expect(postLabel({ post: note('a'), exposure: 'unlisted' })).toBe('Unlisted · Field note');
+    expect(postLabel({ post: post('a', { kind: 'pattern' }), exposure: 'draft' })).toBe(
+      'Draft · Pattern',
+    );
   });
 
   test("newest first, and a day's posts by slug, so the order never depends on the disk", () => {
@@ -109,31 +137,14 @@ describe(`the ${MIN_POSTS}-post rule (content.md, "Sitemap and phases")`, () => 
         post('a', { published: day('2026-10-18'), tags: ['go'] }),
         note('b', { published: day('2026-10-22') }),
         post('c', { published: day('2026-10-20') }),
+        post('d', { published: day('2026-10-23'), draft: true }),
       ],
-      false,
+      true,
     );
-    expect(feedItems(area)).toEqual([
-      {
-        title: 'Title b',
-        link: '/notes/b/',
-        pubDate: day('2026-10-22'),
-        description: 'Summary b',
-        categories: [],
-      },
-      {
-        title: 'Title c',
-        link: '/writing/c/',
-        pubDate: day('2026-10-20'),
-        description: 'Summary c',
-        categories: [],
-      },
-      {
-        title: 'Title a',
-        link: '/writing/a/',
-        pubDate: day('2026-10-18'),
-        description: 'Summary a',
-        categories: ['go'],
-      },
+    expect(feedItems(area).map((i) => [i.link, i.categories])).toEqual([
+      ['/notes/b/', []],
+      ['/writing/c/', []],
+      ['/writing/a/', ['go']],
     ]);
   });
 });
@@ -159,7 +170,7 @@ describe('front matter is validated when the site builds (schema-on-write)', () 
     );
   });
 
-  test('a day with a time or an offset fails, since an offset names a time zone', () => {
+  test('a day written with a time or an offset fails, and so does an instant off midnight UTC', () => {
     expect(asDay('2026-10-20')).toEqual(day('2026-10-20'));
     expect(asDay(new Date(Date.UTC(2026, 9, 20)))).toEqual(day('2026-10-20'));
     for (const value of [
@@ -173,6 +184,9 @@ describe('front matter is validated when the site builds (schema-on-write)', () 
       expect(asDay(value), String(value)).toBeNull();
       expect(fails(essaySchema, { ...essay, published: value }), String(value)).toBe(true);
     }
+    // What YAML hands the schema for an unquoted 2026-10-20T20:00:00-04:00: midnight UTC, which
+    // passes here. The source check below refuses the text itself.
+    expect(asDay(new Date('2026-10-20T20:00:00-04:00'))).toEqual(day('2026-10-21'));
   });
 
   test('an unknown key fails, a slug field among them: the file name is the slug', () => {
@@ -219,14 +233,29 @@ describe('drafts: in astro dev and pull request previews, never in production', 
     expect(draftsIncluded({}, true)).toBe(true);
   });
 
-  test('CI includes drafts for pull requests alone, and the deploy builds nothing of its own', () => {
+  test('dist/ is built without drafts by construction, and only the preview build writes them', () => {
+    const scripts = (
+      JSON.parse(readFileSync(join(app, 'package.json'), 'utf8')) as {
+        scripts: Record<string, string>;
+      }
+    ).scripts;
+    expect(scripts['build']).toBe('DRAFTS=exclude astro build');
+    expect(scripts['build:preview']).toBe('DRAFTS=include astro build --outDir dist-preview');
+    // astro dev reads the command Astro runs, not NODE_ENV, which any environment can set.
+    const content = readFileSync(join(app, 'src/lib/content.ts'), 'utf8');
+    expect(content).toContain("__ASTRO_COMMAND__ === 'dev'");
+    expect(content).not.toMatch(/import\.meta\.env\.(DEV|PROD|MODE)|process\.env\.NODE_ENV/);
+  });
+
+  test('CI ships dist-preview/ to pull requests alone, and the deploy refuses a noindex page', () => {
     const ci = readFileSync(join(app, '../../.github/workflows/ci.yml'), 'utf8');
-    const set = [...ci.matchAll(/^\s*DRAFTS:\s*(.+)$/gm)].map(([, value = '']) => value.trim());
-    expect(set).toEqual(["${{ github.event_name == 'pull_request' && 'include' || 'exclude' }}"]);
-    // Production ships the dist/ that verify built on main, where the expression says exclude.
+    expect(ci).toContain(
+      "path: ${{ github.event_name == 'pull_request' && 'apps/web/dist-preview' || 'apps/web/dist' }}",
+    );
     const deploy = ci.slice(ci.indexOf('\n  deploy:'), ci.indexOf('\n  rollback:'));
     expect(deploy).toContain('name: dist');
     expect(deploy).not.toMatch(/astro build|pnpm (run )?build\b/);
+    expect(deploy).toContain('Refuse a build that holds a noindex page');
     // No workflow names a fixture set: only scripts/build-fixtures.mjs does, for its own builds.
     expect(ci).not.toContain('POST_FIXTURES');
   });
@@ -249,8 +278,14 @@ function fixtureBuild(name: string) {
   }
   const files = filesIn(dir);
   const text = (file: string) => readFileSync(join(dir, file), 'utf8');
+  const textFiles = files.filter((file) => kindOf(readFileSync(join(dir, file))) === 'text');
+  const noindex = (file: string) => text(file).includes('<meta name="robots" content="noindex">');
   const pages = files
     .filter((f) => f.endsWith('index.html'))
+    .map((f) => `/${f.slice(0, -'index.html'.length)}`)
+    .sort();
+  const indexable = files
+    .filter((f) => f.endsWith('index.html') && !noindex(f))
     .map((f) => `/${f.slice(0, -'index.html'.length)}`)
     .sort();
   const locs = (xml: string) => [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map(([, l = '']) => l);
@@ -259,7 +294,7 @@ function fixtureBuild(name: string) {
     .map((loc) => new URL(loc).pathname)
     .sort();
   const html = files.filter((f) => f.endsWith('.html'));
-  return { files, text, pages, sitemap, html };
+  return { files, text, textFiles, pages, indexable, sitemap, html };
 }
 
 /** The header nav's links on a page. */
@@ -267,34 +302,144 @@ const headerLinks = (page: string) =>
   [
     ...(/<nav class="site-nav"[\s\S]*?<\/nav>/.exec(page)?.[0] ?? '').matchAll(/href="([^"]+)"/g),
   ].map(([, href = '']) => href);
+/** The post titles a list links to, in order. */
+const listed = (page: string, level: 2 | 3) =>
+  [...page.matchAll(new RegExp(`<h${level} class="post-title"><a href="([^"]+)"`, 'g'))].map(
+    ([, href = '']) => href,
+  );
 
-describe('fixture-two: two published posts and a draft, built for production', () => {
-  const build = fixtureBuild('fixture-two');
+/** The fixture drafts, read from their files: what must never reach a production build. */
+const FIXTURE_DRAFTS = ['two', 'three', 'many'].flatMap((set) =>
+  ['writing', 'notes'].flatMap((section) => {
+    const dir = join(app, 'test/fixtures/posts', set, section);
+    return readdirSync(dir).flatMap((name) => {
+      const source = readFileSync(join(dir, name), 'utf8');
+      if (!/^draft: true$/m.test(source)) return [];
+      const field = (key: string) => new RegExp(`^${key}: (.+)$`, 'm').exec(source)?.[1] ?? '';
+      return [
+        { set, slug: name.replace(/\.md$/, ''), title: field('title'), summary: field('summary') },
+      ];
+    });
+  }),
+);
 
-  test('Writing builds nothing: only Home, no index, no post, no feed', () => {
-    expect(build.pages).toEqual(['/']);
-    expect(build.files.filter((f) => /^(writing|notes)\//.test(f) || f === 'rss.xml')).toEqual([]);
-    expect(build.sitemap).toEqual(['/']);
+describe('the fixture drafts', () => {
+  test('there are drafts in every set, each with a title and a summary to look for', () => {
+    expect(new Set(FIXTURE_DRAFTS.map((d) => d.set))).toEqual(new Set(['two', 'three', 'many']));
+    for (const draft of FIXTURE_DRAFTS) {
+      expect(draft.title.length, draft.slug).toBeGreaterThan(5);
+      expect(draft.summary.length, draft.slug).toBeGreaterThan(5);
+    }
   });
 
-  test('and nothing points at it: no header link, no Home row, no feed link', () => {
-    for (const file of build.html) {
-      const page = build.text(file);
-      expect(headerLinks(page), file).toEqual([]);
-      expect(page, file).not.toContain('/rss.xml');
-      expect(page, file).not.toContain('id="writing"');
-    }
+  // Every text file a production build writes, whatever its kind (HTML, XML, JSON, text), for
+  // every draft's title, summary and slug: a draft that reached a data file or a feed is caught
+  // as surely as one that reached a page.
+  for (const name of ['fixture-two', 'fixture-two-node-env', 'fixture-three', 'fixture-many']) {
+    test(`${name}, built for production, holds no draft's title, summary or slug anywhere`, () => {
+      const build = fixtureBuild(name);
+      expect(build.textFiles.length).toBeGreaterThan(5);
+      for (const draft of FIXTURE_DRAFTS) {
+        expect(
+          build.files.filter((f) => f.includes(draft.slug)),
+          draft.slug,
+        ).toEqual([]);
+        for (const file of build.textFiles) {
+          const text = build.text(file);
+          for (const needle of [draft.title, draft.summary, draft.slug]) {
+            expect(text.includes(needle), `${file}: ${needle}`).toBe(false);
+          }
+        }
+      }
+    });
+  }
+});
+
+describe('fixture-two: two published posts and a draft, built for production', () => {
+  for (const name of ['fixture-two', 'fixture-two-node-env']) {
+    test(`${name}: Writing builds nothing, NODE_ENV=development or not: only Home`, () => {
+      const build = fixtureBuild(name);
+      expect(build.pages).toEqual(['/']);
+      expect(build.files.filter((f) => /^(writing|notes)\//.test(f) || f === 'rss.xml')).toEqual(
+        [],
+      );
+      expect(build.sitemap).toEqual(['/']);
+      for (const file of build.html) {
+        const page = build.text(file);
+        expect(headerLinks(page), file).toEqual([]);
+        expect(page, file).not.toContain('/rss.xml');
+        expect(page, file).not.toContain('id="writing"');
+      }
+    });
+  }
+});
+
+describe('fixture-two-preview: the same posts with drafts included, below 3', () => {
+  const build = fixtureBuild('fixture-two-preview');
+
+  test('the two published posts build unlisted, and the draft builds: all noindex', () => {
+    expect(build.pages).toEqual([
+      '/',
+      '/notes/fixture-trailing-slashes/',
+      '/writing/fixture-draft-essay/',
+      '/writing/fixture-measure-first/',
+    ]);
+    expect(build.indexable).toEqual(['/']);
+    expect(build.text('writing/fixture-measure-first/index.html')).toContain(
+      '<p class="label">Unlisted · Essay</p>',
+    );
+    expect(build.text('writing/fixture-draft-essay/index.html')).toContain(
+      '<p class="label">Draft · Essay</p>',
+    );
+  });
+
+  test("the draft's link to an earlier, unlisted post resolves in the preview", () => {
+    expect(build.text('writing/fixture-draft-essay/index.html')).toContain(
+      'href="/writing/fixture-measure-first/"',
+    );
+    expect(build.files).toContain('writing/fixture-measure-first/index.html');
+  });
+
+  test('nothing lists them: no index, no feed, no header link, no Home row, no card', () => {
+    expect(
+      build.files.filter(
+        (f) => f === 'rss.xml' || /^(writing|notes)\/(index\.html|og\.png)$/.test(f),
+      ),
+    ).toEqual([]);
+    expect(build.files.filter((f) => f.endsWith('og.png') && f !== 'og.png')).toEqual([]);
+    expect(build.sitemap).toEqual(['/']);
+    const home = build.text('index.html');
+    expect(headerLinks(home)).toEqual([]);
+    expect(home).not.toContain('id="writing"');
+    expect(home).not.toContain('fixture-');
   });
 });
 
-describe('fixture-three: three published posts and a draft, built for production', () => {
+describe('fixture-three: exactly three published posts, built for production', () => {
   const build = fixtureBuild('fixture-three');
+
+  test('Writing renders at the minimum: both indexes, three listed posts and the feed', () => {
+    expect(build.pages).toEqual([
+      '/',
+      '/notes/',
+      '/notes/fixture-trailing-slashes/',
+      '/writing/',
+      '/writing/fixture-measure-first/',
+      '/writing/fixture-retries-and-back-off/',
+    ]);
+    expect(build.indexable).toEqual(build.pages);
+    expect(build.files).toContain('rss.xml');
+    expect(headerLinks(build.text('index.html'))).toEqual(['/writing/']);
+  });
+});
+
+describe('fixture-many: five published posts and a draft, built for production', () => {
+  const build = fixtureBuild('fixture-many');
   const home = build.text('index.html');
 
-  test('exactly Home, both indexes and the three posts; the draft has no page', () => {
+  test('exactly Home, both indexes and the five posts; the draft has no page', () => {
     expect(build.pages).toEqual([...WRITING_FIXTURE_PAGES].sort());
-    expect(build.files.filter((f) => f.includes('unfinished-thought'))).toEqual([]);
-    expect(build.html.filter((f) => build.text(f).includes('An unfinished thought'))).toEqual([]);
+    expect(build.indexable).toEqual(build.pages);
   });
 
   test('the sitemap lists every page, and each page but Home has its card beside it', () => {
@@ -315,28 +460,29 @@ describe('fixture-three: three published posts and a draft, built for production
     }
   });
 
-  test("Home's Writing row lists the three latest posts, newest first", () => {
+  test("Home's Writing row lists the three latest of the five, newest first", () => {
     const row = /<section class="section" id="writing"[\s\S]*?<\/section>/.exec(home)?.[0] ?? '';
-    expect(
-      [...row.matchAll(/<h3 class="post-title"><a href="([^"]+)"/g)].map(([, h]) => h),
-    ).toEqual([
-      '/notes/trailing-slashes/',
-      '/writing/measure-first/',
-      '/writing/retries-and-back-off/',
+    expect(listed(row, 3)).toEqual([
+      '/notes/fixture-trailing-slashes/',
+      '/writing/fixture-measure-first/',
+      '/writing/fixture-retries-and-back-off/',
     ]);
     expect(row).toContain('href="/writing/"');
     expect(row).toContain('href="/rss.xml"');
   });
 
-  test('/writing/ lists every post and /notes/ the notes alone', () => {
-    const listed = (file: string) =>
-      [...build.text(file).matchAll(/<h2 class="post-title"><a href="([^"]+)"/g)].map(([, h]) => h);
-    expect(listed('writing/index.html')).toEqual([
-      '/notes/trailing-slashes/',
-      '/writing/measure-first/',
-      '/writing/retries-and-back-off/',
+  test('/writing/ lists all five and /notes/ the two notes', () => {
+    expect(listed(build.text('writing/index.html'), 2)).toEqual([
+      '/notes/fixture-trailing-slashes/',
+      '/writing/fixture-measure-first/',
+      '/writing/fixture-retries-and-back-off/',
+      '/writing/fixture-markdown-tour/',
+      '/notes/fixture-small-note/',
     ]);
-    expect(listed('notes/index.html')).toEqual(['/notes/trailing-slashes/']);
+    expect(listed(build.text('notes/index.html'), 2)).toEqual([
+      '/notes/fixture-trailing-slashes/',
+      '/notes/fixture-small-note/',
+    ]);
   });
 
   describe('/rss.xml', () => {
@@ -359,11 +505,13 @@ describe('fixture-three: three published posts and a draft, built for production
       expect(feed).not.toContain('lastBuildDate');
     });
 
-    test('three items, newest first, never the draft, each with an absolute link and a day', () => {
+    test('all five items, newest first, each with an absolute slash-form link and a day', () => {
       expect(items.map((i) => field(i, 'link'))).toEqual([
-        'https://ihaveasegway.com/notes/trailing-slashes/',
-        'https://ihaveasegway.com/writing/measure-first/',
-        'https://ihaveasegway.com/writing/retries-and-back-off/',
+        'https://ihaveasegway.com/notes/fixture-trailing-slashes/',
+        'https://ihaveasegway.com/writing/fixture-measure-first/',
+        'https://ihaveasegway.com/writing/fixture-retries-and-back-off/',
+        'https://ihaveasegway.com/writing/fixture-markdown-tour/',
+        'https://ihaveasegway.com/notes/fixture-small-note/',
       ]);
       for (const item of items) {
         expect(field(item, 'guid')).toBe(field(item, 'link'));
@@ -373,7 +521,6 @@ describe('fixture-three: three published posts and a draft, built for production
         );
         expect(field(item, 'description')).toContain(SENTINEL);
       }
-      expect(feed).not.toContain('unfinished-thought');
     });
 
     test('known answer: "&", quotation marks and "<" arrive escaped', () => {
@@ -387,12 +534,15 @@ describe('fixture-three: three published posts and a draft, built for production
   });
 });
 
-describe('fixture-three-preview: the same posts, with drafts included as a preview builds them', () => {
-  const build = fixtureBuild('fixture-three-preview');
-  const draft = 'notes/unfinished-thought/index.html';
+describe('fixture-many-preview: the same posts, with drafts included as a preview builds them', () => {
+  const build = fixtureBuild('fixture-many-preview');
+  const draft = 'notes/fixture-unfinished-thought/index.html';
 
-  test('the draft has a page, and every other page is the production set', () => {
-    expect(build.pages).toEqual([...WRITING_FIXTURE_PAGES, '/notes/unfinished-thought/'].sort());
+  test('the draft has a page, and every other page is the production set, listed as there', () => {
+    expect(build.pages).toEqual(
+      [...WRITING_FIXTURE_PAGES, '/notes/fixture-unfinished-thought/'].sort(),
+    );
+    expect(build.indexable).toEqual([...WRITING_FIXTURE_PAGES].sort());
   });
 
   test('the draft page is noindex, says Draft, and carries no preview card or structured data', () => {
@@ -401,104 +551,146 @@ describe('fixture-three-preview: the same posts, with drafts included as a previ
     expect(page).toContain('<p class="label">Draft · Field note</p>');
     expect(page).not.toContain('property="og:');
     expect(page).not.toContain('application/ld+json');
-    expect(build.files).not.toContain('notes/unfinished-thought/og.png');
+    expect(build.files).not.toContain('notes/fixture-unfinished-thought/og.png');
   });
 
   test('nothing links to the draft or lists it: no index, no Home row, no feed, no sitemap', () => {
-    for (const file of build.files.filter((f) => f !== draft && /\.(html|xml)$/.test(f))) {
-      expect(build.text(file), file).not.toContain('unfinished-thought');
+    for (const file of build.textFiles.filter((f) => f !== draft)) {
+      expect(build.text(file), file).not.toContain('fixture-unfinished-thought');
     }
     expect(build.sitemap).toEqual([...WRITING_FIXTURE_PAGES].sort());
   });
 });
 
-describe('the real build', () => {
-  const read = (file: string) => readFileSync(join(dist, file), 'utf8');
-  const home = read('index.html');
-
-  test('Writing is all or nothing: index, feed, header link, Home row and feed link together', () => {
-    const parts = {
-      index: distFiles.includes('writing/index.html'),
-      feed: distFiles.includes('rss.xml'),
-      header: headerLinks(home).includes('/writing/'),
-      row: home.includes('id="writing"'),
-      alternate: home.includes('type="application/rss+xml"'),
-    };
-    expect(new Set(Object.values(parts)).size, JSON.stringify(parts)).toBe(1);
-    if (parts.index) {
-      const listed = read('writing/index.html').match(/<h2 class="post-title">/g) ?? [];
-      expect(listed.length).toBeGreaterThanOrEqual(MIN_POSTS);
-    }
-  });
-
-  test('no fixture reaches it: not its text, and not its slugs', () => {
-    const fixtureSlugs = ['two', 'three'].flatMap((set) =>
-      ['writing', 'notes'].flatMap((section) =>
-        readdirSync(join(app, 'test/fixtures/posts', set, section)).map((f) =>
-          f.replace(/\.md$/, ''),
-        ),
-      ),
+describe('the real builds: dist/ and dist-preview/', () => {
+  const preview = join(app, 'dist-preview');
+  if (!existsSync(join(preview, 'index.html'))) {
+    throw new Error(
+      'apps/web/dist-preview/ is missing: build it before running these tests (pnpm --filter web build:preview)',
     );
-    expect(fixtureSlugs.length).toBeGreaterThan(0);
-    for (const file of distFiles.filter((f) => /\.(html|xml|txt|css|json)$/.test(f))) {
-      expect(read(file), file).not.toContain(SENTINEL);
-    }
-    expect(distFiles.filter((f) => fixtureSlugs.some((slug) => f.includes(`/${slug}/`)))).toEqual(
-      [],
-    );
-  });
+  }
+  const builds = [
+    { name: 'dist', dir: dist, files: distFiles },
+    { name: 'dist-preview', dir: preview, files: filesIn(preview) },
+  ];
+
+  for (const { name, dir, files } of builds) {
+    test(`${name}: Writing is all or nothing, index, feed, header link, Home row and feed link`, () => {
+      const read = (file: string) => readFileSync(join(dir, file), 'utf8');
+      const home = read('index.html');
+      const parts = {
+        index: files.includes('writing/index.html'),
+        feed: files.includes('rss.xml'),
+        header: headerLinks(home).includes('/writing/'),
+        row: home.includes('id="writing"'),
+        alternate: home.includes('type="application/rss+xml"'),
+      };
+      expect(new Set(Object.values(parts)).size, JSON.stringify(parts)).toBe(1);
+      if (parts.index) {
+        expect(listed(read('writing/index.html'), 2).length).toBeGreaterThanOrEqual(MIN_POSTS);
+      }
+    });
+
+    test(`${name}: no fixture reaches it, not its text and not a fixture- slug`, () => {
+      for (const file of files) {
+        const data = readFileSync(join(dir, file));
+        if (kindOf(data) === 'text') expect(data.toString('utf8'), file).not.toContain(SENTINEL);
+      }
+      expect(files.filter((f) => f.includes(`/${FIXTURE_PREFIX}`))).toEqual([]);
+    });
+  }
 });
 
-/** Level-1 headings in a post's body, outside fenced code: the title is the page's one <h1>. */
-function bodyHeadings(markdown: string): string[] {
-  const body = markdown.replace(/^---\n[\s\S]*?\n---\n/, '').replace(/^```[\s\S]*?^```/gm, '');
-  return [...body.matchAll(/^#[ \t]+(.+)$/gm)].map(([, text = '']) => text);
+/** A post's body with its front matter, fenced code and inline code removed: what a reader reads
+ *  as prose and markup. */
+function prose(markdown: string): string {
+  return markdown
+    .replace(/^---\n[\s\S]*?\n---\n/, '')
+    .replace(/^(```|~~~)[\s\S]*?^\1[^\n]*$/gm, '')
+    .replace(/`[^`\n]*`/g, '');
 }
+
+/** Each front-matter date that is not written as a bare day, YYYY-MM-DD. */
+function datesWithTimes(markdown: string): string[] {
+  const front = /^---\n([\s\S]*?)\n---\n/.exec(markdown)?.[1] ?? '';
+  return front
+    .split('\n')
+    .filter((line) => /^(published|updated|firewall_reviewed)\s*:/.test(line))
+    .filter((line) => !/^[a-z_]+\s*:\s*(['"]?)\d{4}-\d{2}-\d{2}\1\s*(#.*)?$/.test(line));
+}
+
+/** The images a post's body would show: Markdown images, and HTML images or pictures. */
+function imagesIn(markdown: string): string[] {
+  return [...prose(markdown).matchAll(/!\[[^\]]*\]\s*[([]|<(img|picture|source)\b/gi)].map(
+    ([match]) => match,
+  );
+}
+
+const NO_IMAGES =
+  'images in posts are not supported yet: they need a WebP check, an image budget and an asset ' +
+  'pipeline that keeps a draft\'s images out of production (content.md, "Not yet"). Describe the ' +
+  'picture in words, or wait for that pull request.';
 
 describe('the real posts, drafts included, before anything renders them', () => {
   const holds = parseHolds(readFileSync(join(app, 'not-on-site.txt'), 'utf8'));
   const sources = ['writing', 'notes'].flatMap((section) => {
     const dir = join(app, 'src/content', section);
-    return existsSync(dir) ? readdirSync(dir).map((name) => ({ section, name, dir })) : [];
+    return existsSync(dir)
+      ? readdirSync(dir).map((name) => ({ name: `${section}/${name}`, path: join(dir, name) }))
+      : [];
   });
+  const read = (path: string) => readFileSync(path, 'utf8');
 
   test('each file is <slug>.md, the slug lowercase words joined by hyphens (ADR 0005)', () => {
-    for (const { section, name } of sources) {
-      expect(name, `${section}/${name}`).toMatch(/\.md$/);
-      expect(isSlug(name.replace(/\.md$/, '')), `${section}/${name}`).toBe(true);
+    for (const { name } of sources) {
+      const file = name.split('/')[1] ?? '';
+      expect(file, name).toMatch(/\.md$/);
+      expect(isSlug(file.replace(/\.md$/, '')), name).toBe(true);
+      expect(
+        file.startsWith(FIXTURE_PREFIX),
+        `${name}: the fixture- prefix is reserved for test posts`,
+      ).toBe(false);
     }
   });
 
   test('no held name in any post, a draft included: drafts reach public previews', () => {
-    for (const { section, name, dir } of sources) {
-      expect(findHeld(readFileSync(join(dir, name), 'utf8'), holds), `${section}/${name}`).toEqual(
-        [],
-      );
+    for (const { name, path } of sources) expect(findHeld(read(path), holds), name).toEqual([]);
+  });
+
+  test('every date is written as a bare day: a time or an offset in the file names a time zone', () => {
+    for (const { name, path } of sources) expect(datesWithTimes(read(path)), name).toEqual([]);
+  });
+
+  test('no images in posts yet', () => {
+    for (const { name, path } of sources) {
+      expect(imagesIn(read(path)), `${name}: ${NO_IMAGES}`).toEqual([]);
     }
   });
 
-  test("no level-1 heading in a body: the post's title is the page's one <h1>", () => {
-    for (const { section, name, dir } of sources) {
-      expect(bodyHeadings(readFileSync(join(dir, name), 'utf8')), `${section}/${name}`).toEqual([]);
-    }
-  });
-
-  test('known answers: the fixtures pass these checks, and the heading check sees an h1', () => {
-    for (const set of ['two', 'three']) {
+  test('known answers: the fixtures pass, and each check sees what it looks for', () => {
+    for (const set of ['two', 'three', 'many']) {
       for (const section of ['writing', 'notes']) {
         const dir = join(app, 'test/fixtures/posts', set, section);
-        for (const name of readdirSync(dir)) {
-          const text = readFileSync(join(dir, name), 'utf8');
-          expect(isSlug(name.replace(/\.md$/, '')), name).toBe(true);
-          expect(findHeld(text, holds), name).toEqual([]);
-          expect(bodyHeadings(text), name).toEqual([]);
+        for (const file of readdirSync(dir)) {
+          const text = read(join(dir, file));
+          expect(isSlug(file.replace(/\.md$/, '')), file).toBe(true);
+          expect(file.startsWith(FIXTURE_PREFIX), file).toBe(true);
+          expect(findHeld(text, holds), file).toEqual([]);
+          expect(datesWithTimes(text), file).toEqual([]);
+          expect(imagesIn(text), file).toEqual([]);
         }
       }
     }
-    expect(bodyHeadings('---\ntitle: x\n---\n\n# Another title\n\n## A section\n')).toEqual([
-      'Another title',
-    ]);
-    expect(bodyHeadings('```sh\n# a comment, not a heading\n```\n')).toEqual([]);
+    const front = (line: string) => `---\ntitle: x\n${line}\n---\n\nBody.\n`;
+    expect(datesWithTimes(front('published: 2026-10-20'))).toEqual([]);
+    expect(datesWithTimes(front("published: '2026-10-20'"))).toEqual([]);
+    expect(datesWithTimes(front('published: 2026-10-20T20:00:00-04:00'))).toHaveLength(1);
+    expect(datesWithTimes(front('updated: 2026-10-20 09:00'))).toHaveLength(1);
+    expect(imagesIn('---\ntitle: x\n---\n\n![a chart](./chart.png)\n')).toHaveLength(1);
+    expect(imagesIn('Text <img src="/a.webp" alt=""> text')).toHaveLength(1);
+    expect(
+      imagesIn('A [link](/a/), `![in code](x.png)` and:\n\n```md\n![also code](y.png)\n```\n'),
+    ).toEqual([]);
     expect(isSlug('My_Post')).toBe(false);
     expect(isSlug('caches-and-queues')).toBe(true);
   });

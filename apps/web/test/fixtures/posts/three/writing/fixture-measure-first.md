@@ -28,4 +28,4 @@ $ time ./scan --all
 real    41.0s
 ```
 
-The next note covers [trailing slashes](/notes/trailing-slashes/).
+The next note covers [trailing slashes](/notes/fixture-trailing-slashes/).

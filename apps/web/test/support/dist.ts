@@ -16,6 +16,14 @@ export const app = fileURLToPath(new URL('../..', import.meta.url));
 export const fixture: string | undefined = process.env['TEST_DIST'] || undefined;
 export const dist = join(app, fixture ?? 'dist');
 
+/**
+ * Whether this build may hold drafts: only a build TEST_DIST names whose project says DRAFTS=include
+ * (vitest.config.ts: dist-preview/ and the preview fixtures). dist/ is the build that deploys, and
+ * the checks hold it to production's rules whatever DRAFTS says: a backstop that does not depend
+ * on the switch it guards.
+ */
+export const previewBuild = fixture !== undefined && process.env['DRAFTS'] === 'include';
+
 if (!existsSync(join(dist, 'index.html'))) {
   throw new Error(
     fixture

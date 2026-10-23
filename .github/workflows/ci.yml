@@ -44,14 +44,11 @@ jobs:
     timeout-minutes: 15 # rule 9
     permissions:
       contents: read
-    env:
-      # Drafts build for a pull request's preview and never for main, whose dist/ is the one that
-      # deploys (content.md, "Drafts"). The unit tests read it too, to know which build they check.
-      DRAFTS: ${{ github.event_name == 'pull_request' && 'include' || 'exclude' }}
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false # rule 7
+          fetch-depth: 2 # a pull request's merge commit and its parents: the review stamp's base
       - uses: pnpm/action-setup@v6 # no version input: pnpm reads packageManager
       - uses: actions/setup-node@v7
         with:
@@ -62,14 +59,24 @@ jobs:
       - run: pnpm run format:check
       - run: pnpm run lint
       - run: pnpm run typecheck
-      - run: pnpm run build
+      # Two builds of the real content (content.md, "Drafts"). dist/ never holds a draft: `build`
+      # sets DRAFTS=exclude itself, and the tests hold dist/ to that whatever the environment says.
+      # It is the build main deploys, so a pull request checks the bytes that will ship. dist-preview/
+      # adds drafts, and below 3 posts the published ones unlisted, for the pull request's preview.
+      - name: Build, without drafts (dist/, the build that deploys)
+        run: pnpm run build
+      - name: Build, with drafts (dist-preview/, a pull request's preview)
+        run: pnpm --filter web run build:preview
       - name: Writing fixture builds (test-only, under apps/web/.fixtures; never uploaded or deployed)
         run: pnpm --filter web run build:fixtures
       - name: Unit tests and fitness functions (token contrast, URL scheme, Workers Cache, color literals)
         run: pnpm run test
+      - name: Review stamp (a changed entry carries a new firewall_reviewed date)
+        if: github.event_name == 'pull_request'
+        run: node apps/web/scripts/review-stamp.mjs HEAD^1 HEAD
       - name: Image and PDF metadata
         run: node scripts/image-metadata.mjs --tracked
-      - name: Internal links, offline
+      - name: Internal links, offline (dist/)
         uses: lycheeverse/lychee-action@v2 # third party: allowed only in jobs that hold no secret (rule 4)
         with:
           args: >-
@@ -77,13 +84,22 @@ jobs:
             --index-files index.html 'apps/web/dist/**/*.html'
           output: ${{ runner.temp }}/lychee.md
           token: '' # the action passes the job's GITHUB_TOKEN by default; an offline check needs none
+      - name: Internal links, offline (dist-preview/)
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --offline --no-progress --root-dir ${{ github.workspace }}/apps/web/dist-preview
+            --index-files index.html 'apps/web/dist-preview/**/*.html'
+          output: ${{ runner.temp }}/lychee-preview.md
+          token: ''
       - name: Firewall self-test, with throwaway rules only
         run: scripts/firewall/test.sh
       - name: Keep the build (every later job uses these bytes, never a rebuild)
         uses: actions/upload-artifact@v7
         with:
           name: dist
-          path: apps/web/dist
+          # A pull request's preview shows its drafts; anything else is on its way to production.
+          path: ${{ github.event_name == 'pull_request' && 'apps/web/dist-preview' || 'apps/web/dist' }}
           include-hidden-files: true # .well-known/security.txt
           if-no-files-found: error
           retention-days: 7
@@ -268,12 +284,18 @@ jobs:
         run: |
           pnpm run build:fixtures
           pnpm run e2e:writing
-      - name: Keep the report (run artifacts only, never public storage)
+      - name: Keep the reports (run artifacts only, never public storage)
         if: failure()
         uses: actions/upload-artifact@v7
         with:
           name: playwright-report
-          path: apps/web/playwright-report
+          # Each run writes its own folders (playwright.config.ts), so a failing first run keeps its
+          # report and traces when the second one runs.
+          path: |
+            apps/web/playwright-report
+            apps/web/playwright-report-writing
+            apps/web/test-results
+            apps/web/test-results-writing
           retention-days: 14
 
   deploy:
@@ -311,6 +333,17 @@ jobs:
         with:
           name: dist
           path: apps/web/dist
+      - name: Refuse a build that holds a noindex page (a draft, or an unlisted post)
+        run: |
+          # The last line of defence for drafts, at the boundary and independent of every switch
+          # upstream: production is built without them, and the tests check it, but this job only
+          # trusts the bytes it is about to upload. The 404 page is the one noindex page it ships.
+          found="$(grep -rlF --include=index.html '<meta name="robots" content="noindex">' apps/web/dist || true)"
+          if [ -n "$found" ]; then
+            echo "::error::Not deployed: the build holds a noindex page, a draft or an unlisted post, which production never serves."
+            printf '%s\n' "$found"
+            exit 1
+          fi
       - name: Stop unless this is main's tip (production only moves forward)
         id: current
         env:

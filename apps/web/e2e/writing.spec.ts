@@ -1,14 +1,22 @@
 import { expect, test } from '@playwright/test';
 import { REVALIDATE, SECURITY_HEADERS, WRITING_FIXTURE_PAGES } from './expected';
 
-// What only a build with posts can show (pnpm e2e:writing, on .fixtures/fixture-three). The page
+// What only a build with posts can show (pnpm e2e:writing, on .fixtures/fixture-many). The page
 // list checks (axe, the CSP and the request watcher, glyphs, held names, the smoke) walk every
 // fixture page from their own specs; this one checks the feed in a real XML parser, the draft's
-// absence, and the post page's headers and layout.
+// absence, the post page's headers and layout, and the Markdown the tour post renders.
 
-const POST = '/writing/measure-first/';
+const POST = '/writing/fixture-measure-first/';
+const TOUR = '/writing/fixture-markdown-tour/';
+const NEWEST_FIRST = [
+  '/notes/fixture-trailing-slashes/',
+  '/writing/fixture-measure-first/',
+  '/writing/fixture-retries-and-back-off/',
+  '/writing/fixture-markdown-tour/',
+  '/notes/fixture-small-note/',
+];
 
-test('/rss.xml parses as XML in the browser: RSS 2.0, three items, served as XML', async ({
+test('/rss.xml parses as XML in the browser: RSS 2.0, five items, served as XML', async ({
   page,
   request,
 }) => {
@@ -26,19 +34,17 @@ test('/rss.xml parses as XML in the browser: RSS 2.0, three items, served as XML
       items: [...doc.querySelectorAll('channel > item')].map((item) => ({
         title: item.querySelector('title')?.textContent,
         link: item.querySelector('link')?.textContent,
+        description: item.querySelector('description')?.textContent,
       })),
     };
   }, xml);
   expect(parsed.error).toBeNull();
   expect(parsed.root).toBe('rss');
   expect(parsed.version).toBe('2.0');
-  expect(parsed.items.map((i) => new URL(i.link ?? '').pathname)).toEqual([
-    '/notes/trailing-slashes/',
-    '/writing/measure-first/',
-    '/writing/retries-and-back-off/',
-  ]);
-  // The parser undid the escaping: the title reads as written.
+  expect(parsed.items.map((i) => new URL(i.link ?? '').pathname)).toEqual(NEWEST_FIRST);
+  // The parser undid the XML escaping: the title reads as written, and the description is HTML.
   expect(parsed.items[2]?.title).toBe('Retries & back-off, or why "later" beats "now"');
+  expect(parsed.items[2]?.description).toContain('p99 &lt; 2 s');
 });
 
 test('a reader finds the feed from any page: <head> names it, and the footer links it', async ({
@@ -54,8 +60,15 @@ test('a reader finds the feed from any page: <head> names it, and the footer lin
   }
 });
 
+test('the footer lists pages first, then the checked profiles (content.md)', async ({ page }) => {
+  await page.goto('/');
+  const labels = await page.locator('.footer-links a').allTextContents();
+  expect(labels[0]).toBe('RSS');
+  expect(labels.slice(1)).toEqual(expect.arrayContaining(['LinkedIn']));
+});
+
 test('the draft is not served: production builds no page for it', async ({ request }) => {
-  const response = await request.get('/notes/unfinished-thought/', { maxRedirects: 0 });
+  const response = await request.get('/notes/fixture-unfinished-thought/', { maxRedirects: 0 });
   expect(response.status()).toBe(404);
 });
 
@@ -70,16 +83,41 @@ test('a post page carries the security headers and revalidates, like every page'
   expect(headers['cache-control']).toBe(REVALIDATE);
 });
 
-test('at 320 px a code block wraps instead of scrolling the page or itself', async ({ page }) => {
+test('at 320 px a code block and a table wrap instead of scrolling the page or themselves', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 320, height: 640 });
-  await page.goto(POST);
-  const pre = page.locator('.prose pre');
-  await expect(pre).toHaveCount(1);
-  const sizes = await pre.evaluate((element) => ({
-    scroll: element.scrollWidth,
-    client: element.clientWidth,
-  }));
-  expect(sizes.scroll).toBeLessThanOrEqual(sizes.client);
+  for (const [path, selector] of [
+    [POST, '.prose pre'],
+    [TOUR, '.prose pre'],
+    [TOUR, '.prose table'],
+  ] as const) {
+    await page.goto(path);
+    const box = page.locator(selector).first();
+    await expect(box).toBeVisible();
+    const sizes = await box.evaluate((element) => ({
+      scroll: element.scrollWidth,
+      client: element.clientWidth,
+      page: document.documentElement.scrollWidth - window.innerWidth,
+    }));
+    expect(sizes.scroll, `${path} ${selector}`).toBeLessThanOrEqual(sizes.client);
+    expect(sizes.page, `${path}: the page scrolls sideways`).toBeLessThanOrEqual(0);
+  }
+});
+
+test("a footnote's way back works, and the footnotes' heading is for assistive technology only", async ({
+  page,
+}) => {
+  await page.goto(TOUR);
+  const heading = page.locator('#footnote-label');
+  await expect(heading).toHaveText('Footnotes');
+  const box = await heading.boundingBox();
+  expect((box?.width ?? 0) * (box?.height ?? 0)).toBeLessThanOrEqual(1);
+  await page.locator('[data-footnote-ref]').first().click();
+  await expect(page).toHaveURL(/#user-content-fn-measure$/);
+  await page.locator('.data-footnote-backref').first().click();
+  await expect(page).toHaveURL(/#user-content-fnref-measure$/);
+  await expect(page.locator('.data-footnote-backref').first()).toHaveText('↑');
 });
 
 // The measure (tokens.css, --measure): about 68 characters a line of English at 16 px. A paragraph
@@ -117,18 +155,19 @@ test('a line of body text holds about 68 characters at 1440 px', async ({ page }
   for (const n of full) expect(n).toBeLessThanOrEqual(80); // WCAG 2.2 SC 1.4.8 asks for 80 at most
 });
 
-test("Home's Writing row and the post's way back lead to pages that exist", async ({ page }) => {
+test("Home lists the three latest posts, /writing/ all five, and a post's way back works", async ({
+  page,
+}) => {
   await page.goto('/');
-  const links = await page
+  const home = await page
     .locator('#writing a')
     .evaluateAll((anchors) => anchors.map((a) => (a as HTMLAnchorElement).pathname));
-  expect(links).toEqual([
-    '/notes/trailing-slashes/',
-    '/writing/measure-first/',
-    '/writing/retries-and-back-off/',
-    '/writing/',
-    '/rss.xml',
-  ]);
+  expect(home).toEqual([...NEWEST_FIRST.slice(0, 3), '/writing/', '/rss.xml']);
+  await page.goto('/writing/');
+  const all = await page
+    .locator('.post-title a')
+    .evaluateAll((anchors) => anchors.map((a) => (a as HTMLAnchorElement).pathname));
+  expect(all).toEqual(NEWEST_FIRST);
   await page.goto(POST);
   await page.getByRole('link', { name: 'All writing' }).click();
   await expect(page).toHaveURL(/\/writing\/$/);

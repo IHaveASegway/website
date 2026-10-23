@@ -913,6 +913,64 @@
     height: auto;
   }
 
+  /* Tables fill the column and wrap their cells, so a table never scrolls sideways at 320px.
+     Column alignment (:--:) is not supported: the Markdown processor writes it as a style
+     attribute, which the policy refuses (test/csp.test.ts names it). */
+  .prose table {
+    width: 100%;
+    font-size: var(--text-sm);
+    line-height: var(--text-sm--line-height);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .prose th,
+  .prose td {
+    padding: 0.5rem 0.75rem 0.5rem 0;
+    border-bottom: 1px solid var(--border);
+    text-align: start;
+    vertical-align: top;
+    overflow-wrap: anywhere;
+  }
+
+  .prose th {
+    border-bottom-color: var(--input);
+    font-weight: 600;
+  }
+
+  .prose sup {
+    font-size: 0.75em;
+    line-height: 0;
+  }
+
+  /* Footnotes, as the processor writes them: a section after the body, its heading for assistive
+     technology only, and each note's way back drawn as "↑" (astro.config.mjs). */
+  .prose .footnotes {
+    margin-top: 3rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border);
+    color: var(--muted-foreground);
+    font-size: var(--text-sm);
+    line-height: var(--text-sm--line-height);
+  }
+
+  .prose .footnotes li + li {
+    margin-top: 0.5rem;
+  }
+
+  /* Hidden on screen, read by assistive technology: the rule of Tailwind's sr-only utility, which
+     the build cannot see in the processor's output. */
+  .prose .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    border-width: 0;
+    white-space: nowrap;
+  }
+
   /* Lists of posts, newest first: on Home, /writing/ and /notes/. */
   .post-list {
     max-width: var(--measure);

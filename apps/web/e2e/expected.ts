@@ -1,4 +1,6 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { join, relative, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // What the site must serve. The e2e specs and the production smoke read these, so a change to a
 // route or a header is one edit here, in the same pull request as the change itself.
@@ -14,10 +16,9 @@ const lines = (text: string) =>
     .filter(Boolean);
 
 /**
- * Every page the site's build writes, but a draft: each URL in published-urls.txt that no 301 in
- * public/_redirects has moved. A post is published by adding its URL there (ADR 0005), so a page
- * needs that one line, not a second list here. apps/web/test/urls.test.ts fails when the ledger
- * and the build disagree, so a new page cannot skip the axe, CSP, smoke and byte-for-byte checks.
+ * Every page the site publishes: each URL in published-urls.txt that no 301 in public/_redirects
+ * has moved. A post is published by adding its URL there (ADR 0005). apps/web/test/urls.test.ts
+ * fails when the ledger and the build disagree, so the build's pages and these are the same.
  */
 export const SITE_PAGES: readonly string[] = (() => {
   const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8');
@@ -33,23 +34,67 @@ export const SITE_PAGES: readonly string[] = (() => {
 })();
 
 /**
- * The pages of the test-only writing fixture build, .fixtures/fixture-three (scripts/build-fixtures.mjs):
- * Home, both indexes and the three published posts, and not the draft. pnpm e2e:writing walks these.
+ * The pages of the test-only writing fixture build, .fixtures/fixture-many
+ * (scripts/build-fixtures.mjs): Home, both indexes and the five published posts, and not the draft.
+ * pnpm e2e:writing walks these, and test/writing.test.ts holds the build to them.
  */
 export const WRITING_FIXTURE_PAGES: readonly string[] = [
   '/',
   '/notes/',
-  '/notes/trailing-slashes/',
+  '/notes/fixture-small-note/',
+  '/notes/fixture-trailing-slashes/',
   '/writing/',
-  '/writing/measure-first/',
-  '/writing/retries-and-back-off/',
+  '/writing/fixture-markdown-tour/',
+  '/writing/fixture-measure-first/',
+  '/writing/fixture-retries-and-back-off/',
 ];
+
+/** Pages every release since launch serves: what a run checks when it cannot know which build is
+ *  live (delivery.md, "Deploy, verify, roll back"). */
+export const LAUNCH_PAGES: readonly string[] = ['/'];
 
 /** Which build a run checks: the site, or the writing fixture (E2E_SITE=writing-fixture). */
 export const ON_WRITING_FIXTURE = process.env['E2E_SITE'] === 'writing-fixture';
 
-/** Every page the build under test writes, which the axe, CSP, smoke and glyph checks walk. */
-export const PAGES: readonly string[] = ON_WRITING_FIXTURE ? WRITING_FIXTURE_PAGES : SITE_PAGES;
+/** The indexable pages a build directory holds, read from the build itself: every index.html but
+ *  a noindex one (a draft, or an unlisted post, in a preview). */
+export function pagesIn(dir: string): string[] {
+  const walk = (at: string): string[] =>
+    readdirSync(at).flatMap((name) => {
+      const path = join(at, name);
+      return statSync(path).isDirectory() ? walk(path) : [path];
+    });
+  return walk(dir)
+    .filter((path) => path.endsWith(`${sep}index.html`) || path === join(dir, 'index.html'))
+    .filter(
+      (path) => !readFileSync(path, 'utf8').includes('<meta name="robots" content="noindex">'),
+    )
+    .map((path) => `/${relative(dir, path).split(sep).join('/').slice(0, -'index.html'.length)}`)
+    .sort();
+}
+
+/**
+ * The build being served, when this run has it. prod-smoke has it only in the attempt that put it
+ * live (DIST_DIR); after a rollback, or when the guarded weekly rebuild deployed nothing, production
+ * may serve an older build, so prod-smoke falls back to the launch pages. The e2e and deploy jobs
+ * download the build they serve to apps/web/dist, and a laptop serves its own last build there.
+ */
+function servedBuild(): string | undefined {
+  const named = process.env['DIST_DIR'];
+  if (named) return named;
+  if (process.env['GITHUB_JOB'] === 'prod-smoke') return undefined;
+  const local = fileURLToPath(new URL('../dist/', import.meta.url));
+  return existsSync(join(local, 'index.html')) ? local : undefined;
+}
+
+/**
+ * Every page the build under test serves, which the axe, CSP, smoke and glyph checks walk: read
+ * from that build, so a check never asks for a page the served build lacks, and never skips one it
+ * has. The fixture run walks the fixture's pages.
+ */
+export const PAGES: readonly string[] = ON_WRITING_FIXTURE
+  ? WRITING_FIXTURE_PAGES
+  : ((build) => (build ? pagesIn(build) : LAUNCH_PAGES))(servedBuild());
 
 /**
  * Files clients ask for by name, at the paths they look in (ADR 0005). Every release since launch

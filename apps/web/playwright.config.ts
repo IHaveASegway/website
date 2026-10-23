@@ -11,6 +11,9 @@ import { ON_WRITING_FIXTURE } from './e2e/expected';
 // pnpm build:fixtures.
 const target = ON_WRITING_FIXTURE ? undefined : process.env.BASE_URL || undefined; // empty when the preview was skipped
 const local = ON_WRITING_FIXTURE ? 'http://127.0.0.1:8788' : 'http://127.0.0.1:8787';
+// Each run keeps its own report and traces: the e2e job runs both, one after the other, and a
+// second run would otherwise delete the first one's evidence when the first one failed.
+const suffix = ON_WRITING_FIXTURE ? '-writing' : '';
 
 export default defineConfig({
   testDir: './e2e',
@@ -18,7 +21,10 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 0, // a flaky check is fixed, never retried into green (delivery.md, "Automatic rollback")
-  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
+  outputDir: `test-results${suffix}`,
+  reporter: process.env.CI
+    ? [['list'], ['html', { open: 'never', outputFolder: `playwright-report${suffix}` }]]
+    : 'list',
   use: {
     baseURL: target ?? local,
     trace: 'retain-on-failure',

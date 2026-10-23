@@ -9,6 +9,10 @@ import {
 } from './posts';
 import type { Profile } from './profile';
 
+/** The command Astro runs: 'dev', 'build', 'preview' or 'sync', fixed into the build by
+ *  astro.config.mjs (recordCommand). Unlike NODE_ENV, no environment variable can change it. */
+declare const __ASTRO_COMMAND__: string;
+
 /** The validated profile: src/content/profile.json, through the schema in profile.ts. Pages read
  *  it here; unit tests parse the same file with the same schema. */
 export async function loadProfile(): Promise<Profile> {
@@ -25,21 +29,24 @@ async function readPosts(): Promise<Post[]> {
   ];
 }
 
+const DEV = __ASTRO_COMMAND__ === 'dev';
+
 // Every page asks (the header, the footer, the feed link), and a build's posts cannot change while
 // it runs, so a build reads them once. astro dev reads them on every request, so a new post shows.
 let posts: Promise<Post[]> | undefined;
 
-/** Every essay and note, drafts included, as lib/posts.ts models them. */
+/** Every essay and note, drafts included, as lib/posts.ts models them. Pages read the posts through
+ *  loadWritingArea, which leaves drafts out of a production build. */
 export function loadPosts(): Promise<Post[]> {
-  if (import.meta.env.DEV) return readPosts();
+  if (DEV) return readPosts();
   posts ??= readPosts();
   return posts;
 }
 
 /** What this build writes for Writing (lib/posts.ts owns the rules). Drafts are in astro dev and in
- *  a build with DRAFTS=include, which CI sets for pull requests alone. */
+ *  a build with DRAFTS=include, which only `pnpm build:preview` sets. */
 export async function loadWritingArea(): Promise<WritingArea> {
-  return writingArea(await loadPosts(), draftsIncluded(process.env, import.meta.env.DEV));
+  return writingArea(await loadPosts(), draftsIncluded(process.env, DEV));
 }
 
 /** A post's collection entry, for rendering its body. */

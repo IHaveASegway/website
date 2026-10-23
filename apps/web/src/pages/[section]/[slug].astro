@@ -4,32 +4,33 @@ import Prose from '../../layouts/Prose.astro';
 import { loadProfile, loadWritingArea, postEntry } from '../../lib/content';
 import { postingGraph, serialize } from '../../lib/jsonld';
 import { postCard } from '../../lib/og';
-import { isoDay, KIND_LABELS, postPath, type Post } from '../../lib/posts';
+import { isoDay, postLabel, postPath, type PostPage } from '../../lib/posts';
 
-// One post: /writing/<slug>/ for an essay, /notes/<slug>/ for a field note. Published posts build
-// while Writing renders; a draft builds only where drafts are included (pull request previews and
-// astro dev), noindex, with no link preview or structured data, and nothing links to it.
+// One post: /writing/<slug>/ for an essay, /notes/<slug>/ for a field note. A listed page is a
+// published post while Writing renders. Where drafts are included (pull request previews and astro
+// dev), drafts build too, and below 3 posts the published ones build unlisted; those two kinds are
+// noindex, with no link preview or structured data, and nothing lists them (lib/posts.ts).
 export async function getStaticPaths() {
   const area = await loadWritingArea();
-  return area.pages.map((post) => ({
-    params: { section: post.section, slug: post.slug },
-    props: { post, listed: area.visible && !post.draft },
+  return area.pages.map((page) => ({
+    params: { section: page.post.section, slug: page.post.slug },
+    props: { page },
   }));
 }
 
 interface Props {
-  post: Post;
-  /** Whether Writing renders in this build, so the link back to its index has a target. */
-  listed: boolean;
+  page: PostPage;
 }
 
-const { post, listed } = Astro.props;
+const { page } = Astro.props;
+const { post } = page;
+const listed = page.exposure === 'listed';
 const profile = await loadProfile();
 const { Content } = await render(await postEntry(post));
 const path = postPath(post);
 const card = postCard(post);
 const image = new URL('og.png', new URL(path, profile.basics.url)).href;
-const label = [post.draft ? 'Draft' : null, KIND_LABELS[post.kind]].filter(Boolean).join(' · ');
+const label = postLabel(page);
 const source = post.source ? new URL(post.source) : null;
 // After the body: the note's source, and the way back to the index while one exists.
 const links = [
@@ -53,9 +54,9 @@ const links = [
   label={label}
   heading={post.title}
   lead={post.summary}
-  noindex={post.draft}
+  noindex={!listed}
   ogType="article"
-  {...(post.draft ? {} : { og: card, jsonLd: serialize(postingGraph(post, profile, image)) })}
+  {...(listed ? { og: card, jsonLd: serialize(postingGraph(post, profile, image)) } : {})}
 >
   <p slot="meta" class="post-meta">
     <time datetime={isoDay(post.published)}>{isoDay(post.published)}</time>

@@ -21,16 +21,15 @@ const line = [
   `© ${year} ${profile.basics.name}`,
   ...(telemetry ? [`build ${shortCommit}`, `built ${builtOn}`] : []),
 ].join(' · ');
-// External profiles whose readiness check is recorded (rel="me" pairs each with the profile's
-// link back to this site), then the manifest's footer items whose target exists, in content.md's
-// order: GitHub, LinkedIn, RSS, Now, Colophon.
+// Pages that exist (RSS, Now, Colophon), then external profiles whose readiness check is recorded
+// (rel="me" pairs each with the profile's link back to this site): content.md's order.
 const links = [
-  ...checkedProfiles(profile).map((p) => ({ label: p.network, href: p.url, rel: 'me' })),
   ...navFor('footer', generated).map((item) => ({
     label: item.label,
     href: item.href,
     rel: undefined,
   })),
+  ...checkedProfiles(profile).map((p) => ({ label: p.network, href: p.url, rel: 'me' })),
 ];
 ---
 

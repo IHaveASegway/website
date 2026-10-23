@@ -2,14 +2,15 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { ORIGIN, SITE_PAGES, WRITING_FIXTURE_PAGES } from '../e2e/expected';
-import { app, dist, files, fixture } from './support/dist';
+import { app, dist, files, fixture, previewBuild } from './support/dist';
 
 // The URL scheme as a fitness function over the build output (ADR 0005, delivery.md "Quality
 // gates"): every internal link ends in "/", page URLs carry no capital, extension or date, the
 // sitemap lists exactly the built pages, /lab/api/ stays reserved for the lab Worker, and a URL
-// once published never leaves without a 301. Run on a fixture build too (support/dist.ts), where
-// the ledger checks give way to the fixture's own page list.
+// once published never leaves without a 301. Run on the preview build and the fixture builds too
+// (support/dist.ts); on a fixture the ledger checks give way to the fixture's own page list.
 const html = files.filter((file) => file.endsWith('.html'));
+const fixtureBuild = fixture?.startsWith('.fixtures/') ?? false;
 
 const NOINDEX = '<meta name="robots" content="noindex">';
 const noindex = (page: string) =>
@@ -20,10 +21,18 @@ const pages = html
   .filter((file) => file.endsWith('index.html'))
   .map((file) => `/${file.slice(0, -'index.html'.length)}`);
 
-/** The pages a reader and a crawler can find: every page but a draft, which is noindex and exists
- *  only in a pull request preview (lib/posts.ts). The sitemap, the e2e list and the ledger hold
- *  these. */
+/** The pages a reader and a crawler can find: every page but a draft or an unlisted post, which are
+ *  noindex and exist only in a preview build (lib/posts.ts). The sitemap, the e2e list and the
+ *  ledger hold these. */
 const indexable = pages.filter((page) => !noindex(page));
+
+/** The indexable pages this build must write: the ledger's for dist/ and dist-preview/, the
+ *  fixture's for fixture-many (with drafts or without), and Home alone below 3 posts. */
+const EXPECTED = fixture?.includes('fixture-many')
+  ? WRITING_FIXTURE_PAGES
+  : fixture?.includes('fixture-two')
+    ? ['/']
+    : SITE_PAGES;
 
 /** Every href in a document, with the element and rel it came from. */
 function links(file: string): { tag: string; rel: string; href: string }[] {
@@ -115,10 +124,8 @@ describe('the sitemap', () => {
 });
 
 describe('the page list the e2e checks walk', () => {
-  test('e2e/expected.ts lists exactly the indexable pages, so none skips axe, CSP or the smoke', () => {
-    expect([...(fixture ? WRITING_FIXTURE_PAGES : SITE_PAGES)].sort()).toEqual(
-      [...indexable].sort(),
-    );
+  test('the indexable pages are exactly the expected ones: the ledger, or the fixture list', () => {
+    expect([...EXPECTED].sort()).toEqual([...indexable].sort());
   });
 
   test('the 404 page is noindex, and no page in the sitemap is', () => {
@@ -129,21 +136,52 @@ describe('the page list the e2e checks walk', () => {
     }
   });
 
-  test('a noindex page is a draft, and a production build has none (DRAFTS, lib/posts.ts)', () => {
+  test('a noindex page is a draft or an unlisted post, and only a preview build has one', () => {
     for (const page of pages.filter(noindex)) {
       expect(page, 'only posts can be drafts').toMatch(/^\/(writing|notes)\/[a-z0-9-]+\/$/);
-      expect(readFileSync(join(dist, page.slice(1), 'index.html'), 'utf8')).toContain(
-        '<p class="label">Draft · ',
+      expect(readFileSync(join(dist, page.slice(1), 'index.html'), 'utf8')).toMatch(
+        /<p class="label">(Draft|Unlisted) · /,
       );
     }
-    if (process.env['DRAFTS'] !== 'include') expect(pages.filter(noindex)).toEqual([]);
+    // The backstop: dist/ is the build that deploys, so it holds none whatever DRAFTS says.
+    if (!previewBuild) expect(pages.filter(noindex), 'a draft in a production build').toEqual([]);
+  });
+});
+
+describe('every internal link resolves in this build', () => {
+  /** The file an internal path is served from: a page's index.html, or the file it names. */
+  const target = (path: string) =>
+    path.endsWith('/') ? `${path.slice(1)}index.html` : path.slice(1);
+
+  for (const file of html) {
+    test(`${file}: every internal link names a page or a file this build writes`, () => {
+      for (const { tag, href } of links(file)) {
+        const path = internalPath(href);
+        if (path === null) continue;
+        expect(files.includes(target(path)), `<${tag} href="${href}">`).toBe(true);
+      }
+    });
+  }
+
+  // The preview builds drafts, so a published page linking one resolves there, and fails only on
+  // main. This finds it on the pull request: no indexable page may link a draft or unlisted post.
+  test('no indexable page links to a noindex page: a published post never links a draft', () => {
+    const hidden = new Set(pages.filter(noindex));
+    const found = indexable.flatMap((page) =>
+      links(`${page.slice(1)}index.html`)
+        .filter(({ tag }) => tag === 'a')
+        .map(({ href }) => internalPath(href))
+        .filter((path): path is string => path !== null && hidden.has(path))
+        .map((path) => `${page} links ${path}`),
+    );
+    expect(found).toEqual([]);
   });
 });
 
 // ADR 0005: "Slugs never change. A rename adds a 301." Production's sitemap is not reachable from
 // verify, which has no network by design, so the URLs once published are kept in a ledger beside
 // the site instead: appended to, never edited, and read here. A fixture build publishes nothing.
-describe.skipIf(fixture)('a URL once published never leaves without a 301', () => {
+describe.skipIf(fixtureBuild)('a URL once published never leaves without a 301', () => {
   const lines = (text: string) =>
     text
       .split('\n')

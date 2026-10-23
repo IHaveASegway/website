@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
+import { satteri } from '@astrojs/markdown-satteri';
 import sitemap from '@astrojs/sitemap';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig, fontProviders } from 'astro/config';
@@ -23,9 +24,20 @@ const font = (name, cssVariable, file, variant) => ({
   options: { variants: [{ src: [`./src/assets/fonts/${file}`], style: 'normal', ...variant }] },
 });
 
-// The sitemap lists indexable pages only. A draft in a pull request preview is noindex
-// (lib/posts.ts), and so is anything else that says so; the filter reads each built page's own
-// robots tag rather than keeping a second list. It runs once the pages are written, in outDir.
+// Which command Astro is running, fixed into the build as a constant. lib/content.ts includes
+// drafts in astro dev from this, not from NODE_ENV, which any environment can set: a build then
+// includes drafts only with DRAFTS=include (lib/posts.ts, draftsIncluded).
+const recordCommand = {
+  name: 'record-command',
+  hooks: {
+    'astro:config:setup': ({ command, updateConfig }) =>
+      updateConfig({ vite: { define: { __ASTRO_COMMAND__: JSON.stringify(command) } } }),
+  },
+};
+
+// The sitemap lists indexable pages only. A draft or an unlisted post in a pull request preview is
+// noindex (lib/posts.ts), and so is anything else that says so; the filter reads each built page's
+// own robots tag rather than keeping a second list. It runs once the pages are written, in outDir.
 let outDir;
 const recordOutDir = {
   name: 'record-out-dir',
@@ -48,7 +60,7 @@ export default defineConfig({
     // /_astro/ files are cached for a year by content hash (delivery.md, "Config as code").
     inlineStylesheets: 'never',
   },
-  integrations: [recordOutDir, sitemap({ filter: indexable })],
+  integrations: [recordCommand, recordOutDir, sitemap({ filter: indexable })],
   // Spike S9 (roadmap.md): the Fonts API's local provider passes the width range through to
   // font-stretch, writes both preload links, serves the files from /_astro/fonts/ and hashes the
   // <style> it emits into style-src. So it serves the faces, with Astro's fallbacks off (above).
@@ -63,7 +75,13 @@ export default defineConfig({
   ],
   // No code blocks yet. Shiki's default highlighting writes inline styles the policy would refuse;
   // Expressive Code arrives with the first post that needs it (stack.md).
-  markdown: { syntaxHighlight: false },
+  markdown: {
+    syntaxHighlight: false,
+    // Sätteri, Astro's default processor, configured only to draw a footnote's way back as "↑":
+    // its default "↩" is in neither font subset, so every footnote would fall back to a system
+    // font (the glyph check). Everything else is the processor's default.
+    processor: satteri({ features: { gfm: { footnotes: { backContent: '↑' } } } }),
+  },
   // The page policy, delivered in a <meta> tag (security.md, "Headers and Content Security Policy").
   // Astro adds script-src and style-src with 'self' and a hash for each inline script or style it
   // emits. frame-ancestors cannot live in <meta>, so public/_headers sends it.
