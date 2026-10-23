@@ -21,6 +21,7 @@ const DIST_CHECKS = [
   'nav',
   'not-on-site',
   'og',
+  'project-cards',
   'readiness',
   'readouts',
   'scripts',
@@ -28,9 +29,15 @@ const DIST_CHECKS = [
   'urls',
 ].map((name) => `test/${name}.test.ts`);
 
-const rerun = (name: string, build: string, drafts: 'include' | 'exclude') => ({
+// profile: the PROFILE_FIXTURE the build was made with (scripts/build-fixtures.mjs), so the checks
+// read the same profile the build did.
+const rerun = (name: string, build: string, drafts: 'include' | 'exclude', profile = '') => ({
   extends: true,
-  test: { name, include: DIST_CHECKS, env: { TEST_DIST: build, DRAFTS: drafts } },
+  test: {
+    name,
+    include: DIST_CHECKS,
+    env: { TEST_DIST: build, DRAFTS: drafts, PROFILE_FIXTURE: profile },
+  },
 });
 
 export default defineConfig({
@@ -40,10 +47,13 @@ export default defineConfig({
     // tokens.css with a ?raw import, as the build does, so that one file is passed through.
     css: { include: [/src\/styles\/tokens\.css/] },
     projects: [
-      { extends: true, test: { name: 'site', include: ['test/**/*.test.ts'] } },
+      {
+        extends: true,
+        test: { name: 'site', include: ['test/**/*.test.ts'], env: { PROFILE_FIXTURE: '' } },
+      },
       rerun('site preview', 'dist-preview', 'include'),
-      rerun('writing fixture', '.fixtures/fixture-many', 'exclude'),
-      rerun('writing fixture preview', '.fixtures/fixture-many-preview', 'include'),
+      rerun('writing fixture', '.fixtures/fixture-many', 'exclude', 'card'),
+      rerun('writing fixture preview', '.fixtures/fixture-many-preview', 'include', 'card'),
       rerun('writing fixture unlisted', '.fixtures/fixture-two-preview', 'include'),
     ],
   },

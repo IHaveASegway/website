@@ -23,4 +23,4 @@
 # name        joins     the rule that holds it
 Mission-AI    any       product.md, Q24: not on the site at launch
 still|here    no-space  content.md, "Repo readiness checklist": held until its readiness check passes
-git|ops       any       content.md, "Repo readiness checklist": held until its readiness check passes
+git|ops       any       content.md, "Owned work": the repository is private; held until it is public again and its readiness check passes

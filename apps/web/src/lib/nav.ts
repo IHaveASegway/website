@@ -14,8 +14,9 @@ export interface NavItem {
   readonly footer?: boolean;
 }
 
+// No Work item: owned work is a card on Home that links to its repository, and /work/ builds
+// nothing (content.md, "Owned work", 2026-10-23).
 export const MANIFEST: readonly NavItem[] = [
-  { id: 'work', label: 'Work', href: '/work/', header: true }, // PR 4
   { id: 'writing', label: 'Writing', href: '/writing/', header: true }, // PR 5, at 3 posts
   { id: 'about', label: 'About', href: '/about/', header: true }, // PR 4
   { id: 'rss', label: 'RSS', href: '/rss.xml', footer: true }, // PR 5, with Writing

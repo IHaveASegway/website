@@ -199,8 +199,16 @@ describe('the gate itself, on fixtures: a record renders exactly when it is chec
   const today = { date: '2026-10-23' };
   const sha = { date: '2026-10-23', sha: 'a'.repeat(40) };
   const linkedinUrl = 'https://www.linkedin.com/in/someone-example/';
+  /** A record without its check. */
+  function bare<T extends { checked?: unknown }>(record: T): Omit<T, 'checked'> {
+    const copy = { ...record };
+    delete copy.checked;
+    return copy;
+  }
   const base: Profile = {
     ...profile,
+    // No project is checked here, whatever the build's profile holds (a fixture build checks one).
+    projects: profile.projects.map((p) => bare(p)),
     basics: {
       ...profile.basics,
       profiles: [
@@ -209,12 +217,6 @@ describe('the gate itself, on fixtures: a record renders exactly when it is chec
       ],
     },
   };
-  /** A record without its check. */
-  function bare<T extends { checked?: unknown }>(record: T): Omit<T, 'checked'> {
-    const copy = { ...record };
-    delete copy.checked;
-    return copy;
-  }
   const withChecks = (linkedin: boolean, github: boolean): Profile => ({
     ...base,
     basics: {
