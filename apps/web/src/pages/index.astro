@@ -9,14 +9,19 @@ import Base from '../layouts/Base.astro';
 import { loadProfile, loadWritingArea } from '../lib/content';
 import { homeGraph, serialize } from '../lib/jsonld';
 import { homeCard } from '../lib/og';
-import { locationLine } from '../lib/profile';
+import { parseHolds } from '../lib/held-names';
+import { locationLine, projectCards } from '../lib/profile';
+import holdList from '../../not-on-site.txt?raw';
 import { kilobytes, pageJavaScriptBytes, preloadedFontBytes } from '../lib/weights';
 
 // Home v1 (content.md, "Home page"). An element renders only when its source and its link target
 // exist, and a figure only when a reader can check it; until then the line is left out, never
-// filled with a placeholder. So the proof line names no project, the cards hold only this site,
-// and How I work links to nothing until its evidence pages exist.
+// filled with a placeholder. So the proof line names no project, the cards hold this site and
+// only the projects that are ready, and How I work links to nothing until its evidence pages exist.
 const profile = await loadProfile();
+// Owned work: a card per project whose check is recorded and whose hold is lifted, linking to its
+// repository (content.md, "Owned work"). Today that is none.
+const projects = projectCards(profile, parseHolds(holdList));
 const { name, label } = profile.basics;
 const javascript = kilobytes(pageJavaScriptBytes());
 const fonts = kilobytes(preloadedFontBytes());
@@ -73,6 +78,16 @@ const PRINCIPLES = [
           { term: 'Fonts', value: `${fonts}, self-hosted` },
         ]}
       />
+      {projects.map((card, i) => (
+        <WorkCard
+          index={`${work.number}.${i + 2}`}
+          tag={card.tag}
+          title={card.title}
+          text={card.text}
+          facts={card.facts}
+          link={card.link}
+        />
+      ))}
     </div>
   </section>
 

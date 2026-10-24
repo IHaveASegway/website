@@ -14,14 +14,14 @@ import { attribute, elementsOf } from './support/html';
 
 /**
  * Classes the stylesheet already held, unused, on main at d6ac7a8, before this check existed:
- * words Tailwind read as utilities, and the card's "more" link, which no page renders yet. A class
- * that leaves the stylesheet, or that a page starts to use, must leave the list (the test below
- * holds it exact). Adding one is a reviewed decision, and no check prevents it.
+ * words Tailwind read as utilities. The card's "more" link left the list when the owned-work cards
+ * began to render it. A class that leaves the stylesheet, or that a page starts to use, must leave
+ * the list (the test below holds it exact). Adding one is a reviewed decision, and no check
+ * prevents it.
  */
 const KNOWN_UNUSED = [
   'block',
   'border',
-  'card-more',
   'fixed',
   'hidden',
   'inline',

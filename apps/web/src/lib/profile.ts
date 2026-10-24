@@ -1,4 +1,5 @@
 import { z } from 'astro/zod';
+import { findHeld, type Hold } from './held-names';
 
 // The public profile (content.md, "Content model"): a JSON Resume subset, read from
 // src/content/profile.json and validated when the site builds (schema-on-write). It is the one
@@ -23,6 +24,63 @@ export const HANDLE = 'IHaveASegway';
  */
 const githubCheck = z.strictObject({ date: isoDate, sha: commit });
 const profileCheck = z.strictObject({ date: isoDate });
+
+/** The terms a card's figures may use: things a reader can check in the repository (content.md,
+ *  "Owned work"). A new term is a reviewed code change, so a figure cannot slip in under any name. */
+export const FACT_TERMS = [
+  'Tests',
+  'Decisions',
+  'Releases',
+  'Commands',
+  'Code',
+  'Benchmark',
+  'Validation',
+  'Signing',
+  'CI',
+  'License',
+] as const;
+
+/** Words that count adoption, which says nothing a reader can check about the work: refused
+ *  anywhere on a card, its line, its tag and its figures. content.md names the same words. A list
+ *  cannot catch every phrasing, so review still reads the card. */
+export const ADOPTION_WORDS = [
+  'stars',
+  'starred',
+  'stargazers',
+  'downloads',
+  'downloaded',
+  'forks',
+  'forked',
+  'installs',
+  'installed',
+  'clones',
+  'cloned',
+  'watchers',
+  'dependents',
+  'users',
+  'used by',
+  '★',
+  '⭐',
+] as const;
+const ADOPTION = new RegExp(
+  ADOPTION_WORDS.map((w) => (/^\p{L}/u.test(w) ? `\\b${w.replace(' ', '\\s+')}\\b` : w)).join('|'),
+  'iu',
+);
+
+/** The adoption word a card's text holds, or null. */
+export function adoptionWord(text: string): string | null {
+  return ADOPTION.exec(text)?.[0] ?? null;
+}
+
+const fact = z.strictObject({ term: z.enum(FACT_TERMS), value: z.string().min(1).max(48) });
+
+/** What a card shows besides its name and link: its line, its tag and its figures. */
+const cardWords = (p: {
+  description: string;
+  tag?: string | undefined;
+  facts?: readonly { term: string; value: string }[] | undefined;
+}): string =>
+  [p.description, p.tag ?? '', ...(p.facts ?? []).flatMap((f) => [f.term, f.value])].join('\n');
 
 /** Country names for JSON-LD homeLocation. Adding a country is a code change, reviewed like one. */
 export const COUNTRY_NAMES = { US: 'United States' } as const;
@@ -55,13 +113,29 @@ export const profileSchema = z.strictObject({
   work: z.tuple([]),
   education: z.tuple([]),
   skills: z.tuple([]),
+  // Owned work (content.md): each project is a card on Home that links to its repository, once its
+  // check is recorded and its hold is lifted. The tag and the facts join in the pull request that
+  // turns the card on. profile.json is the one owner of a card's figures, copied by hand from the
+  // repository, and `measured` is their one age: the day they were read.
   projects: z.array(
-    z.strictObject({
-      name: z.string().min(1),
-      description: z.string().min(1),
-      url: z.string().regex(new RegExp(`^https://github\\.com/${HANDLE}/[a-z0-9-]+$`)),
-      checked: githubCheck.optional(),
-    }),
+    z
+      .strictObject({
+        name: z.string().min(1),
+        description: z.string().min(1),
+        url: z.string().regex(new RegExp(`^https://github\\.com/${HANDLE}/[a-z0-9-]+$`)),
+        tag: z.string().min(1).max(16).optional(),
+        facts: z.array(fact).max(3).optional(),
+        measured: isoDate.optional(),
+        checked: githubCheck.optional(),
+      })
+      .refine((p) => adoptionWord(cardWords(p)) === null, {
+        message: 'a card never counts adoption (content.md, "Owned work")',
+        path: ['facts'],
+      })
+      .refine((p) => (p.facts ?? []).length === 0 || p.measured !== undefined, {
+        message: 'figures need `measured`, the day they were read',
+        path: ['measured'],
+      }),
   ),
   // The date of the human firewall review, set by hand after it (content.md); null until then.
   meta: z.strictObject({ firewall_reviewed: isoDate.nullable() }),
@@ -99,4 +173,84 @@ export function recordUrls(profile: Profile): { url: string; checked: boolean; n
     })),
     ...profile.projects.map((r) => ({ url: r.url, checked: isChecked(r), network: 'GitHub' })),
   ];
+}
+
+export type Project = Profile['projects'][number];
+
+/** A project's card on Home, as WorkCard renders it. */
+export interface ProjectCard {
+  readonly title: string;
+  readonly text: string;
+  readonly tag?: string;
+  readonly facts: readonly { term: string; value: string }[];
+  readonly link: { href: string; label: string; external: true };
+}
+
+/** Everything a project's card would show, the link included, as one text for the hold check. */
+const cardText = (p: Project): string =>
+  [
+    p.name,
+    p.description,
+    p.url,
+    p.tag ?? '',
+    ...(p.facts ?? []).flatMap((f) => [f.term, f.value]),
+  ].join('\n');
+
+/**
+ * The project cards Home renders, in profile order. A project shows only when its readiness check
+ * is recorded, the GitHub profile's is too (a repository's page links its owner's profile, and its
+ * URL names the account: "the linked GitHub profile passes too"), and no held name appears anywhere
+ * on its card, its link included (not-on-site.txt). So a project turns on in reviewed steps: the
+ * checks are recorded, then the hold is lifted (content.md, "Repo readiness checklist").
+ */
+export function projectCards(profile: Profile, holds: readonly Hold[]): ProjectCard[] {
+  if (!checkedProfiles(profile).some((p) => p.network === 'GitHub')) return [];
+  return profile.projects
+    .filter(isChecked)
+    .filter((p) => findHeld(cardText(p), holds).length === 0)
+    .map((p) => ({
+      title: p.name,
+      text: p.description,
+      ...(p.tag === undefined ? {} : { tag: p.tag }),
+      facts: p.facts ?? [],
+      link: { href: p.url, label: 'Source on GitHub', external: true },
+    }));
+}
+
+/** Test builds only. A fixture adds projects to the real profile's, and can record the GitHub
+ *  profile's check, which a project card needs; every other field stays the real one, so a fixture
+ *  build cannot drift from profile.json. Only scripts/build-fixtures.mjs names a fixture, through
+ *  PROFILE_FIXTURE; every real build reads src/content/profile.json alone (test/profile.test.ts). */
+export interface ProfileFixture {
+  readonly githubChecked?: unknown;
+  readonly projects?: readonly unknown[];
+}
+
+export function projectFixturePath(fixture: string | undefined): string | null {
+  if (fixture === undefined || fixture === '') return null;
+  if (!/^[a-z]+$/.test(fixture)) throw new Error(`PROFILE_FIXTURE: not a fixture: ${fixture}`);
+  return `test/fixtures/profile/${fixture}.json`;
+}
+
+/** profile.json's data with a fixture applied; the data itself when there is no fixture. */
+export function withFixture(
+  data: Record<string, unknown>,
+  fixture: ProfileFixture | null,
+): Record<string, unknown> {
+  if (fixture === null) return data;
+  const projects = Array.isArray(data['projects']) ? data['projects'] : [];
+  const basics = (data['basics'] ?? {}) as Record<string, unknown>;
+  const profiles = Array.isArray(basics['profiles']) ? basics['profiles'] : [];
+  return {
+    ...data,
+    basics: {
+      ...basics,
+      profiles: profiles.map((r: Record<string, unknown>) =>
+        r['network'] === 'GitHub' && fixture.githubChecked !== undefined
+          ? { ...r, checked: fixture.githubChecked }
+          : r,
+      ),
+    },
+    projects: [...projects, ...(fixture.projects ?? [])],
+  };
 }

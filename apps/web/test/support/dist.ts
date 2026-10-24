@@ -1,7 +1,12 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { profileSchema, type Profile } from '../../src/lib/profile';
+import {
+  profileSchema,
+  projectFixturePath,
+  withFixture,
+  type Profile,
+} from '../../src/lib/profile';
 
 // What the checks over the build share: where the build is, its files, its pages, and the profile.
 
@@ -96,7 +101,12 @@ export const bytes = (file: string): Buffer => readFileSync(join(dist, file));
 export const fileFor = (url: string): string =>
   decodeURIComponent(new URL(url, 'https://x/').pathname.slice(1));
 
-/** The profile, through the same schema the build validates it with. */
+/** The profile, through the same schema the build validates it with. A fixture build named a
+ *  PROFILE_FIXTURE (vitest.config.ts), so the checks apply the same fixture it did. */
+const fixturePath = projectFixturePath(process.env['PROFILE_FIXTURE']);
 export const profile: Profile = profileSchema.parse(
-  JSON.parse(readFileSync(join(app, 'src/content/profile.json'), 'utf8')),
+  withFixture(
+    JSON.parse(readFileSync(join(app, 'src/content/profile.json'), 'utf8')),
+    fixturePath ? JSON.parse(readFileSync(join(app, fixturePath), 'utf8')) : null,
+  ),
 );

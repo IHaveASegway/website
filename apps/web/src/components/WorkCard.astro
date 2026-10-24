@@ -1,12 +1,14 @@
 ---
 interface Props {
   index: string;
-  tag: string;
+  /** A short label beside the index, such as the language. Left out when there is none. */
+  tag?: string | undefined;
   title: string;
   text: string;
   facts: readonly { term: string; value: string }[];
-  /** The page it opens. Left out until that page exists: a card never links to nothing. */
-  link?: { href: string; label: string };
+  /** The page it opens. Left out until that page exists: a card never links to nothing. An
+   *  external link, such as a project's repository, draws ↗ as the hero's profile links do. */
+  link?: { href: string; label: string; external?: boolean } | undefined;
 }
 
 const { index, tag, title, text, facts, link } = Astro.props;
@@ -15,7 +17,7 @@ const { index, tag, title, text, facts, link } = Astro.props;
 <article class="card">
   <div class="card-idx">
     <span class="label">{index}</span>
-    <span class="label">{tag}</span>
+    {tag && <span class="label">{tag}</span>}
   </div>
   <h3 class="card-title">{title}</h3>
   <p class="card-text">{text}</p>
@@ -31,7 +33,7 @@ const { index, tag, title, text, facts, link } = Astro.props;
   )}
   {link && (
     <a class="card-more" href={link.href}>
-      {link.label} <span aria-hidden="true">→</span>
+      {link.label} <span aria-hidden="true">{link.external ? '↗' : '→'}</span>
     </a>
   )}
 </article>
