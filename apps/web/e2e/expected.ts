@@ -54,7 +54,7 @@ export const WRITING_FIXTURE_PAGES: readonly string[] = [
 export const ON_WRITING_FIXTURE = process.env['E2E_SITE'] === 'writing-fixture';
 
 /** The indexable pages a build directory holds, read from the build itself: every index.html but
- *  a noindex one (a draft, or an unlisted post, in a preview). */
+ *  a noindex one (a draft, in a preview). */
 export function pagesIn(dir: string): string[] {
   const walk = (at: string): string[] =>
     readdirSync(at).flatMap((name) => {

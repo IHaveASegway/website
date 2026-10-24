@@ -20,8 +20,9 @@ export const TAGS = [
 ] as const;
 
 /** Writing renders at this many published posts, essays and notes together (content.md, "Sitemap
- *  and phases"). Below it nothing renders: no page, no link, no feed. */
-export const MIN_POSTS = 3;
+ *  and phases"): from the first one. Below it nothing renders: no page, no link, no feed. A draft
+ *  never counts. */
+export const MIN_POSTS = 1;
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const MS_PER_DAY = 86_400_000;
@@ -161,11 +162,11 @@ export function newestFirst(posts: readonly Post[]): Post[] {
 
 /**
  * How a post's page is shown. A listed page is published, indexable and linked from the indexes,
- * Home and the feed. An unlisted page is a published post below MIN_POSTS, and a draft page is a
- * draft: both are noindex, carry no link preview or JSON-LD, and are listed nowhere. Production
- * writes listed pages only; a build with drafts writes all three.
+ * Home and the feed. A draft page is a draft: noindex, with no link preview or JSON-LD, and listed
+ * nowhere. Production writes listed pages only; a build with drafts writes both. Since Writing
+ * renders from its first published post, every published post is listed: there is no third kind.
  */
-export type Exposure = 'listed' | 'unlisted' | 'draft';
+export type Exposure = 'listed' | 'draft';
 
 /** A page this build writes for a post. */
 export interface PostPage {
@@ -182,10 +183,9 @@ export interface WritingArea {
   /** The section indexes this build writes: /writing/, and /notes/ once a note is published. */
   readonly sections: readonly Section[];
   /**
-   * The post pages this build writes. Without drafts: the published posts while Writing renders,
-   * and nothing below MIN_POSTS. With drafts, a superset of that: the same pages, every draft, and
-   * below MIN_POSTS the published posts as unlisted pages, so a draft's preview can link to the
-   * posts before it. A draft never counts toward MIN_POSTS.
+   * The post pages this build writes. Without drafts: the published posts, listed, while Writing
+   * renders, and nothing below MIN_POSTS. With drafts, a superset of that: the same pages and every
+   * draft. A draft never counts toward MIN_POSTS.
    */
   readonly pages: readonly PostPage[];
 }
@@ -197,18 +197,18 @@ export function writingArea(posts: readonly Post[], includeDrafts: boolean): Wri
   const sections: Section[] = visible
     ? ['writing', ...(published.some((p) => p.section === 'notes') ? (['notes'] as const) : [])]
     : [];
-  const shown = (post: Post): PostPage => ({ post, exposure: visible ? 'listed' : 'unlisted' });
+  const listed: PostPage[] = visible
+    ? published.map((post) => ({ post, exposure: 'listed' as const }))
+    : [];
   const pages: PostPage[] = includeDrafts
-    ? [...published.map(shown), ...drafts.map((post) => ({ post, exposure: 'draft' as const }))]
-    : visible
-      ? published.map(shown)
-      : [];
+    ? [...listed, ...drafts.map((post) => ({ post, exposure: 'draft' as const }))]
+    : listed;
   return { published, visible, sections, pages };
 }
 
-/** The mono label above a post's title: its kind, with its state first when it is not listed. */
+/** The mono label above a post's title: its kind, with "Draft" first on a draft. */
 export function postLabel(page: PostPage): string {
-  const state = { listed: null, unlisted: 'Unlisted', draft: 'Draft' }[page.exposure];
+  const state = page.exposure === 'draft' ? 'Draft' : null;
   return [state, KIND_LABELS[page.post.kind]].filter(Boolean).join(' · ');
 }
 
@@ -237,7 +237,7 @@ export const KIND_LABELS: Readonly<Record<Post['kind'], string>> = {
   note: 'Field note',
 };
 
-/** A day as the site writes it: YYYY-MM-DD, the form the telemetry strip uses. */
+/** A day as the site writes it: YYYY-MM-DD (content.md, "Voice": ISO dates). */
 export const isoDay = (date: Date): string => date.toISOString().slice(0, 10);
 
 /** One item of /rss.xml, in the shape @astrojs/rss takes. */

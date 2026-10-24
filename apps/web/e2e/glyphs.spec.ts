@@ -77,9 +77,9 @@ test('known answer: a glyph outside the subsets is reported, with the system fon
 }) => {
   await page.goto('/');
   await page.evaluate(() => {
-    const proof = document.querySelector('.hero-proof');
-    if (!proof) throw new Error('Home has no proof line');
-    proof.textContent = 'Łódź';
+    const title = document.querySelector('.hero-title');
+    if (!title) throw new Error('Home has no title line');
+    title.textContent = 'Łódź';
   });
   const { fallbacks } = await fallbacksOn(page);
   expect(fallbacks.filter((line) => line.includes('"Łódź"')).length).toBeGreaterThan(0);

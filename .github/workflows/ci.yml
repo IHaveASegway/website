@@ -75,7 +75,7 @@ jobs:
       # Two builds of the real content (content.md, "Drafts"). dist/ never holds a draft: `build`
       # sets DRAFTS=exclude itself, and the tests hold dist/ to that whatever the environment says.
       # It is the build main deploys, so a pull request checks the bytes that will ship. dist-preview/
-      # adds drafts, and below 3 posts the published ones unlisted, for the pull request's preview.
+      # adds the drafts, for the pull request's preview.
       - name: Build, without drafts (dist/, the build that deploys)
         run: pnpm run build
       - name: Build, with drafts (dist-preview/, a pull request's preview)
@@ -357,7 +357,7 @@ jobs:
       # upstream: production is built without them, and the tests check it, but this job only
       # trusts the bytes it is about to upload. The 404 page is the one noindex page it ships.
       # Known answers in test/deploy-guard.test.ts; exit 2, could not check, stops it too.
-      - name: Refuse a build that holds a noindex page (a draft, or an unlisted post)
+      - name: Refuse a build that holds a noindex page (a draft)
         run: node apps/web/scripts/deploy-guard.mjs apps/web/dist
       - name: Stop unless this is main's tip (production only moves forward)
         id: current

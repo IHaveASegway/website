@@ -1,32 +1,41 @@
 ---
 import { navFor } from '../lib/nav';
+import ThemeToggle from './ThemeToggle.astro';
 
 interface Props {
+  /** The name the header links home with. */
+  name: string;
   /** URLs content adds to this build (lib/posts.ts, areaRoutes). */
   generated: readonly string[];
 }
 
-// The wordmark, and the manifest's header items whose page exists: none until Writing or the
-// colophon does.
-const headerNav = navFor('header', Astro.props.generated);
+const { name, generated } = Astro.props;
+// The name, linking home, on every page but Home, whose <h1> is the name; then the manifest's
+// header items whose page exists (Writing, from the first post), and the theme toggle.
+const headerNav = navFor('header', generated);
 const here = Astro.url.pathname;
 ---
 
 <header class="site-header">
-  <a href="/" aria-current={here === '/' ? 'page' : undefined} class="wordmark">
-    ihaveasegway<span>.com</span>
-  </a>
-  {headerNav.length > 0 && (
-    <nav class="site-nav" aria-label="Primary">
-      <ul>
-        {headerNav.map((item) => (
-          <li>
-            <a href={item.href} aria-current={here === item.href ? 'page' : undefined}>
-              {item.label}
-            </a>
-          </li>
-        ))}
-      </ul>
-    </nav>
+  {here !== '/' && (
+    <a href="/" class="wordmark">
+      {name}
+    </a>
   )}
+  <div class="header-end">
+    {headerNav.length > 0 && (
+      <nav class="site-nav" aria-label="Primary">
+        <ul>
+          {headerNav.map((item) => (
+            <li>
+              <a href={item.href} aria-current={here === item.href ? 'page' : undefined}>
+                {item.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    )}
+    <ThemeToggle />
+  </div>
 </header>

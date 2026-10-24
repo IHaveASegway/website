@@ -14,6 +14,11 @@
 /.well-known/security.txt
   Content-Type: text/plain; charset=utf-8
 
+# llms.txt is built from the profile, whose location line holds a "·": without a charset a client
+# may read its UTF-8 as another encoding, so it gets the same rule (content.md, "Files for crawlers").
+/llms.txt
+  Content-Type: text/plain; charset=utf-8
+
 # Bundles named by content hash never change at their URL, so a year and immutable are safe.
 # HTML keeps Cloudflare's default, so a promoted version is what the next page view gets.
 /_astro/*

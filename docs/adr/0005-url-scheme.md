@@ -88,3 +88,7 @@ Nearly one-way. It is free to change until the first URL is shared, which happen
 ## Postscript 2026-10-23
 
 `/work/` and `/work/<slug>/` are unused: owned work became cards on Home that link to their repositories ([content.md](../content.md#owned-work)). The prefix stays reserved, so case studies could return without an amendment. Nothing else changes, and no Revisit if condition was met.
+
+## Postscript 2026-10-24
+
+Writing now renders from the first published post, not the third: `MIN_POSTS` in `apps/web/src/lib/posts.ts` is 1, so the line "Writing renders only once at least 3 posts exist" under Decision no longer describes the code. The change was proposed on 2026-10-24 for Joseph's read, from his ask for a workable site from the content that exists; the threshold is [content.md](../content.md)'s to own. The URL scheme is unchanged: the same prefixes, slugs, trailing slashes and ledger, and a section still appears only when it has content. No Revisit if condition was met.

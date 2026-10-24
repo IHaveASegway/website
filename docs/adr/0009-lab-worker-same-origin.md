@@ -47,7 +47,7 @@ Cloudflare's one-Worker default is sound for an app. It does not fit here, becau
 - The demos share a blast radius: one class's bug ships with all of them. Per-session caps and per-demo budgets bound the damage, and a per-demo flag turns one demo off.
 - A DO class lifecycle change blocks rollback across that deploy, so each one ships alone, at 100%, with its demo flagged `off` until it is healthy.
 - The site and the lab still share the account's Free quota. The site survives a lab that exhausts it only because its pages run no Worker code; spike S1 checks that before Phase 4.
-- Same origin means a script injected into a lab page would run with the site's origin. Nothing of value lives there (a theme value in localStorage, and no cookie outside `/lab/api`), which is why isolation buys little today.
+- Same origin means a script injected into a lab page would run with the site's origin. Nothing of value lives there (a theme value in sessionStorage, for the tab, and no cookie outside `/lab/api`), which is why isolation buys little today.
 - Lab previews stay off until spikes S5 and S6 pass. Until then, lab changes are tested with `wrangler dev` and `@cloudflare/vitest-plugin`.
 
 ## Door

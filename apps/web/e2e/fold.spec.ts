@@ -1,8 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 
 // The fold (content.md, "Home page"): rows 1-3 of Home end inside the first screen at 390×844 and
-// 1440×900, with the web fonts and without them. A row that has nothing to show yet (row 3 waits
-// on the career timeline and the stack line) is not rendered, so the last rendered row counts.
+// 1440×900, with the web fonts and without them. A row that has nothing to show is not rendered
+// (row 2 left with the build readouts on 2026-10-24; row 3 waits on the career timeline and the
+// stack line), so the last rendered row counts: today the hero, row 1, alone.
 // And the hero is the same height either way, within 1 px: the fallback faces are fitted so the
 // name does not rewrap when its font arrives (layout shift).
 
@@ -49,7 +50,7 @@ for (const viewport of VIEWPORTS) {
         console.log(
           `fold ${viewport.width}×${viewport.height} fonts ${fonts}: ${JSON.stringify(result)}`,
         );
-        expect(result.rows).toEqual(['1', '2']);
+        expect(result.rows).toEqual(['1']);
         expect(result.bottom).toBeLessThanOrEqual(viewport.height);
       });
     }

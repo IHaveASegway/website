@@ -15,13 +15,13 @@ import { attribute, elementsOf } from './support/html';
 /**
  * Classes the stylesheet already held, unused, on main at d6ac7a8, before this check existed:
  * words Tailwind read as utilities. The card's "more" link left the list when the owned-work cards
- * began to render it. A class that leaves the stylesheet, or that a page starts to use, must leave
+ * began to render it, and "border" left the stylesheet with the ruler that named it (2026-10-24).
+ * A class that leaves the stylesheet, or that a page starts to use, must leave
  * the list (the test below holds it exact). Adding one is a reviewed decision, and no check
  * prevents it.
  */
 const KNOWN_UNUSED = [
   'block',
-  'border',
   'fixed',
   'hidden',
   'inline',
@@ -67,11 +67,11 @@ const BUILDS = [
   dist,
   join(app, 'dist-preview'),
   ...[
-    'fixture-two',
-    'fixture-two-preview',
-    'fixture-two-node-env',
-    'fixture-three',
-    'fixture-three-preview',
+    'fixture-none',
+    'fixture-none-preview',
+    'fixture-none-node-env',
+    'fixture-one',
+    'fixture-one-preview',
     'fixture-many',
     'fixture-many-preview',
   ].map((name) => join(app, '.fixtures', name)),

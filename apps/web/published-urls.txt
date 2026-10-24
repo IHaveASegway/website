@@ -4,7 +4,7 @@
 # apps/web/test/urls.test.ts fails when a built page is missing from this list, or when a URL here
 # is neither a built page nor the source of a 301, so publishing a post is adding its URL here in
 # the same pull request. (The e2e checks walk the pages of the build they serve, not this list.)
-# The third published post also brings /writing/, and /notes/ exists only while Writing renders
-# and a note is published; the feed is a file, not a page, and is not listed. A draft or an
-# unlisted post is never listed: neither is published.
+# The first published post also brings /writing/, and /notes/ exists only while Writing renders
+# and a note is published; the feed is a file, not a page, and is not listed. A draft is never
+# listed: it is not published.
 /

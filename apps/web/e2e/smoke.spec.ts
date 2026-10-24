@@ -69,10 +69,10 @@ test('the configuration files are not served as assets', async ({ request }) => 
 });
 
 /**
- * The commit Home must report, when this run knows which build is served (delivery.md, "Deploy,
- * verify, roll back"). EXPECTED_COMMIT names it outright. Otherwise GITHUB_SHA does, but only in
- * the jobs that serve their own run's dist/: e2e (a preview, or wrangler dev) and deploy (the
- * Version URL). prod-smoke can run after a rollback, when production serves an older build on
+ * The commit Home's response must name, when this run knows which build is served (delivery.md,
+ * "Deploy, verify, roll back"). EXPECTED_COMMIT names it outright. Otherwise GITHUB_SHA does, but
+ * only in the jobs that serve their own run's dist/: e2e (a preview, or wrangler dev) and deploy
+ * (the Version URL). prod-smoke can run after a rollback, when production serves an older build on
  * purpose, so there only EXPECTED_COMMIT counts.
  */
 function expectedCommit(): string | undefined {
@@ -82,12 +82,23 @@ function expectedCommit(): string | undefined {
   return undefined;
 }
 
-test("Home's Build readout is the commit being served", async ({ request }) => {
+test("Home's X-Build header names the commit being served", async ({ request }) => {
   const commit = expectedCommit();
   test.skip(!commit, 'this run does not know which commit is served: set EXPECTED_COMMIT');
-  const html = await (await request.get('/')).text();
-  const build = /<dt class="label">Build<\/dt><dd>([0-9a-f]{7})<\/dd>/.exec(html)?.[1];
-  expect(build).toBe(commit?.slice(0, 7));
+  const response = await request.get('/');
+  // X-Build carries the full commit, for machines; no page shows or holds it (src/lib/build.mjs).
+  // A build from before 2026-10-24 printed its short commit in Home's Build readout instead, and a
+  // rollback can make one live again, so that form is read when the header is absent. Either way
+  // the served commit must start with the one expected, which may be given short.
+  const build =
+    /^[0-9a-f]{40}$/.exec(response.headers()['x-build'] ?? '')?.[0] ??
+    /<dt class="label">Build<\/dt><dd>([0-9a-f]{7})<\/dd>/.exec(await response.text())?.[1];
+  expect(commit?.length ?? 0, 'EXPECTED_COMMIT is at least 7 characters').toBeGreaterThanOrEqual(7);
+  expect(build, 'Home names no commit').toBeDefined();
+  const [longer = '', shorter = ''] = [build ?? '', commit ?? ''].sort(
+    (a, b) => b.length - a.length,
+  );
+  expect(longer.startsWith(shorter), `Home names ${build}, not ${commit}`).toBe(true);
 });
 
 test('the link preview image each page names answers 200 as a PNG', async ({ request }) => {

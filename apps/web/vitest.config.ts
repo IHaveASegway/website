@@ -8,7 +8,10 @@ import { defineConfig } from 'vitest/config';
 //   site preview              dist-preview/, the real posts with drafts, which pull requests preview
 //   writing fixture           five published posts, both indexes and the feed
 //   writing fixture preview   the same with a draft, as a preview builds it
-//   writing fixture unlisted  two published posts and a draft with drafts included: unlisted pages
+//   writing fixture at one    one published post and two drafts, drafts included: Writing at its
+//                             minimum, and a draft that links the listed post
+//   writing fixture, drafts   two drafts and nothing published, drafts included: what a pull
+//     only                    request's preview builds while its one post is still a draft
 // so every page type meets every check before a real post exists.
 const DIST_CHECKS = [
   'budgets',
@@ -18,6 +21,7 @@ const DIST_CHECKS = [
   'glyph-coverage',
   'headings',
   'jsonld',
+  'llms',
   'nav',
   'not-on-site',
   'og',
@@ -26,6 +30,7 @@ const DIST_CHECKS = [
   'readiness',
   'readouts',
   'scripts',
+  'theme-color',
   'tokens',
   'urls',
 ].map((name) => `test/${name}.test.ts`);
@@ -55,7 +60,8 @@ export default defineConfig({
       rerun('site preview', 'dist-preview', 'include'),
       rerun('writing fixture', '.fixtures/fixture-many', 'exclude', 'card'),
       rerun('writing fixture preview', '.fixtures/fixture-many-preview', 'include', 'card'),
-      rerun('writing fixture unlisted', '.fixtures/fixture-two-preview', 'include'),
+      rerun('writing fixture at one', '.fixtures/fixture-one-preview', 'include'),
+      rerun('writing fixture, drafts only', '.fixtures/fixture-none-preview', 'include'),
     ],
   },
 });

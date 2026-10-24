@@ -147,9 +147,9 @@ Every datum the site touches. Read a row left to right: where it lives, who may 
 | Employment history: employers, dates | LinkedIn and Joseph's private résumé | outside the system | Joseph, on LinkedIn | visitors who follow the link | a link only: never copied, never fetched | none: the site holds no copy, so it cannot be stale |
 | A project card's line, tag and figures | the project's repository, at the commit its check read (`checked.sha`) | Authoring | Joseph, by pull request, copying by hand into `profile.json` | the build | build-time copy | per deploy; the figures' age is `measured` |
 | Design tokens | `tokens.css` in `apps/web`: direction C's values (Petrol + Apricot), in the token structure first copied from Mission-AI | Presentation | Joseph, by pull request | pages, lab islands, the contrast unit test, the Open Graph card | same build | per deploy; never synced with Mission-AI, and no Mission-AI value remains |
-| Build metadata: commit SHA, build date, JavaScript bytes | git and the CI run; `src/lib/weights.ts` measures the bytes | Delivery | CI, at build | Home's readout row and the footer's build line on other pages | baked into the HTML | exact for that version |
-| Serving data center | none: Cloudflare's edge derives it per request | Edge | Cloudflare | the served-from readout, deferred from PR 3 to PR 4 | read in the browser after load, from the `colo` field of Cloudflare's `/cdn-cgi/trace` ([design-system.md](design-system.md)). Whether a Worker sees that request is undocumented, so the pull request that ships it checks that Workers requests stay at 0; the fallback is the `CF-RAY` header of a same-origin `HEAD`, which ends in the same code[^cfray] | per request; never stored |
-| Theme choice | the visitor's `localStorage` | Presentation | the visitor, through the toggle | the inline pre-paint script in `<head>`, the only code that reads or writes it; its hash is in the CSP, and it runs before the policy's `<meta>` ([security.md](security.md#headers-and-content-security-policy)) | never leaves the browser | per browser; if lost, the OS setting applies |
+| Build commit | git and the CI run | Delivery | CI, at build | the deploy smoke, through the `X-Build` response header the build writes into `_headers`; no page holds it (since 2026-10-24) | baked into `_headers` | exact for that version |
+| Serving data center | none: Cloudflare's edge derives it per request | Edge | Cloudflare | nothing: the served-from readout was dropped on 2026-10-24 ([design-system.md](design-system.md#nothing-on-the-page-describes-the-site)) | — | — |
+| Theme choice | the visitor's `sessionStorage`, for the tab | Presentation | the visitor, through the toggle | the inline pre-paint script in `<head>`, the only code that reads or writes it; its hash is in the CSP, and it runs before the policy's `<meta>` ([security.md](security.md#headers-and-content-security-policy)) | never leaves the browser | per tab; if lost, the OS setting applies |
 | Page-view analytics (from PR 3b) | Cloudflare Web Analytics | Presentation | the beacon in the visitor's browser | Joseph | cookieless beacon; six months of history[^wa] | approximate: ad blockers undercount developers, so capacity triggers use Workers and DO metrics |
 | Lab session (Phase 4) | a cookie in the visitor's browser, HMAC-signed by the lab Worker | Lab | the lab Worker, after Turnstile and the mint rate limit[^turnstile] | the lab Worker, on each `/lab/api/` call | cookie `Path=/lab/api; HttpOnly; Secure; SameSite=Strict`, 15 minutes | self-verifying; nothing stored on the server |
 | Demo state (Phase 4) | one DO per room or session, SQLite | Lab, per demo | that DO only | browsers in the room | WebSocket, protocol v1: a snapshot on join, then events | strong per object; deleted within 15 minutes |
@@ -195,8 +195,6 @@ sequenceDiagram
   S-->>B: 200, HTML with the _headers rules applied
   B->>S: CSS, fonts, images
   S-->>B: 200, static assets
-  B->>Z: GET /cdn-cgi/trace, for the served-from readout (from PR 4)
-  Z-->>B: the colo code. Whether a Worker<br/>sees this request is checked when it ships
   B->>A: cookieless beacon (from PR 3b)
   Note over B,S: No Worker code ran, so 0 Worker requests<br/>count against the Free cap.
 ```

@@ -13,15 +13,15 @@ A pull request's `e2e` job runs on that preview: axe, the policy, the headers, t
 
 Building twice breaks a pipeline rule this repository otherwise follows: build once, and promote the same artifact ([ADR 0006](0006-github-actions-owns-deploys.md); Humble and Farley, *Continuous Delivery*, 2010, chapter 5, "Only Build Your Binaries Once"). Static site generators commonly do it anyway. Hugo has `--buildDrafts`, and Netlify's announcement of deploy contexts uses exactly this as its example: `[context.deploy-preview] command = "hugo --buildDrafts --buildFuture"`, overriding the build command and nothing else ([Netlify, 2016](https://www.netlify.com/blog/2016/08/30/introducing-deploy-contexts-in-netlify)). The pattern is common. A check that the two builds agree is not part of it.
 
-Two builds of one commit read the clock at different moments. The build's day (`builtOn`, in Home's readout and in the footer's build line) and the copyright year are the only values that do. In CI the second build costs 2 to 4 seconds (verify step times, 2026-10-23).
+Two builds of one commit read the clock at different moments. The copyright year is the only value that does. (Until 2026-10-24 the build's day did too, in Home's readout row and the footer's build line, which no longer exist.) In CI the second build costs 2 to 4 seconds (verify step times, 2026-10-23).
 
 ## Decision
 
-Keep two builds, and hold them to a contract: for the same commit, every file in `dist/` exists in `dist-preview/` with the same bytes. The one exception is the build's day and the year, each matched only in its exact context. `dist-preview/` may only add pages: drafts, and, below 3 published posts, the published posts as unlisted pages. Every added page is `noindex`.
+Keep two builds, and hold them to a contract: for the same commit, every file in `dist/` exists in `dist-preview/` with the same bytes. The one exception is the copyright year, matched only in its exact context. `dist-preview/` may only add pages: drafts. Every added page is `noindex`.
 
 Three checks hold the contract:
 
-- **`test/superset.test.ts`, in `verify`.** It compares `dist/` with `dist-preview/`, and each fixture build with its preview (`fixture-two`, `fixture-three` and `fixture-many`, with and without drafts). Its known answers: a missing file, a page that lists a draft, a post whose date differs, or a binary that differs is named; two builds either side of midnight pass.
+- **`test/superset.test.ts`, in `verify`.** It compares `dist/` with `dist-preview/`, and each fixture build with its preview (`fixture-none`, `fixture-one` and `fixture-many`, with and without drafts). Its known answers: a missing file, a page that lists a draft, a post whose date differs, or a binary that differs is named; two builds either side of New Year pass.
 - **`test/urls.test.ts`, in `verify`.** It holds "every added page is `noindex`": on each build a Vitest project reads, `dist-preview/` and two fixture previews among them, the pages that are not `noindex` are exactly the published-URL ledger, or the fixture's page list, so a page a preview adds without `noindex` fails there. The byte comparison alone would not see it.
 - **`scripts/deploy-guard.mjs`, in `deploy`.** It covers the other direction: nothing only a preview may hold ships. It refuses an artifact with any `noindex` page but the 404, whichever build it came from ([delivery.md](../delivery.md)).
 
@@ -44,7 +44,7 @@ In quality attributes: A trades a little evolvability (a page production builds 
 - The `e2e` results on a preview stand for `dist/`. The contract is checked on every pull request instead of assumed.
 - Drafts can never change a page production builds. If a shared page ever has to differ in previews, the contract has to change first (see Revisit if).
 - The deploy guard, the sitemap filter and the URL checks share one definition of `noindex` (`src/lib/noindex.mjs`), the bytes `Base.astro` writes, so the writer and the checks that read the tag cannot disagree. The superset test compares bytes and needs no definition of its own.
-- The clock exceptions are narrow: a date anywhere else, a post's `published` for instance, is compared byte for byte.
+- The clock exception is narrow: a date anywhere else, a post's `published` for instance, is compared byte for byte.
 
 ## Door
 

@@ -162,6 +162,13 @@ export function locationLine(profile: Profile): string {
   return remote ? `${countryCode} · remote` : countryCode;
 }
 
+/** "Joseph Peterson, Senior Software Engineer. US · remote.": Home's description, for search
+ *  results and link previews, and the summary line of /llms.txt. */
+export function homeDescription(profile: Profile): string {
+  const { name, label } = profile.basics;
+  return `${name}, ${label}. ${locationLine(profile)}.`;
+}
+
 /** Every URL a record holds, checked or not, with the network it is on: the readiness test's list
  *  of what may not leak. A project is a GitHub repository. */
 export function recordUrls(profile: Profile): { url: string; checked: boolean; network: string }[] {

@@ -1,10 +1,10 @@
 ---
 // Cycles System, the theme the OS is not showing, then the one it is: every press but the return to
 // System changes the page. The click handler lives in the pre-paint script (src/scripts/theme.js),
-// so the toggle adds no script of its own. Its label is chosen by CSS from data-theme and data-saved
-// on <html>: the hidden spans are display: none, so the visible words are also the accessible
-// name. "saved in this browser" is the notice that keeps a stored choice consent-exempt
-// (security.md, "Privacy and data inventory").
+// so the toggle adds no script of its own. It shows an icon; its name, which says the current
+// theme, is the one span CSS leaves displayed for the data-theme the script sets on <html>, read by
+// assistive technology and hidden on screen. The choice lasts for the tab (sessionStorage), so the
+// toggle needs no notice about storage (security.md, "Privacy and data inventory").
 ---
 
 <button type="button" class="theme-toggle" data-theme-toggle>
@@ -21,5 +21,4 @@
   <span class="theme-state" data-for="system">
     Theme: system
   </span>
-  <span class="theme-saved">&nbsp;· saved in this browser</span>
 </button>

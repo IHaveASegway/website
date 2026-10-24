@@ -47,6 +47,7 @@ export default defineConfig({
         'a11y.spec.ts',
         'csp.spec.ts',
         'glyphs.spec.ts',
+        'llms.spec.ts',
         'not-on-site.spec.ts',
         'smoke.spec.ts',
         'writing.spec.ts',

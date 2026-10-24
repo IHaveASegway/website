@@ -1,9 +1,10 @@
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { satteri } from '@astrojs/markdown-satteri';
 import sitemap from '@astrojs/sitemap';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig, fontProviders } from 'astro/config';
+import { commit, withBuildHeader } from './src/lib/build.mjs';
 import { isNoindex } from './src/lib/noindex.mjs';
 
 // The pre-paint theme script. Base.astro inlines this exact file, and its hash is computed here
@@ -36,9 +37,22 @@ const recordCommand = {
   },
 };
 
-// The sitemap lists indexable pages only. A draft or an unlisted post in a pull request preview is
-// noindex (lib/posts.ts), and so is anything else that says so; the filter reads each built page's
-// own robots tag (lib/noindex.mjs) rather than keeping a second list. It runs once the pages are
+// Which commit a build came from is a machine's question: once the build is written, its _headers
+// gains X-Build under the "/*" rule, so every response names the commit for the deploy smoke and
+// no page carries it (src/lib/build.mjs).
+const buildHeader = {
+  name: 'build-header',
+  hooks: {
+    'astro:build:done': ({ dir }) => {
+      const file = new URL('_headers', dir);
+      writeFileSync(file, withBuildHeader(readFileSync(file, 'utf8'), commit));
+    },
+  },
+};
+
+// The sitemap lists indexable pages only. A draft in a pull request preview is noindex
+// (lib/posts.ts), and so is anything else that says so; the filter reads each built page's own
+// robots tag (lib/noindex.mjs) rather than keeping a second list. It runs once the pages are
 // written, in outDir.
 let outDir;
 const recordOutDir = {
@@ -60,7 +74,7 @@ export default defineConfig({
     // /_astro/ files are cached for a year by content hash (delivery.md, "Config as code").
     inlineStylesheets: 'never',
   },
-  integrations: [recordCommand, recordOutDir, sitemap({ filter: indexable })],
+  integrations: [recordCommand, recordOutDir, buildHeader, sitemap({ filter: indexable })],
   // Spike S9 (roadmap.md): the Fonts API's local provider passes the width range through to
   // font-stretch, writes both preload links, serves the files from /_astro/fonts/ and hashes the
   // <style> it emits into style-src. So it serves the faces, with Astro's fallbacks off (above).

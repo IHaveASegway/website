@@ -11,17 +11,10 @@ import { app, dist, filesIn } from './support/dist';
 
 /**
  * The values a build reads from the clock, the only bytes two builds of one commit may differ in:
- * the build's day (lib/build.ts, builtOn) in Home's readout and in the footer's build line, and
- * the year in the copyright. Each is matched in its exact context, so no other date is masked.
+ * the year in the footer's copyright. No page prints the build's day any more. The year is matched
+ * in its exact context, so no other date is masked.
  */
-const WALL_CLOCK: readonly [RegExp, string][] = [
-  [
-    /<dt class="label">Built<\/dt><dd><time datetime="\d{4}-\d{2}-\d{2}">\d{4}-\d{2}-\d{2}<\/time>/g,
-    '<dt class="label">Built</dt><dd><time datetime="DAY">DAY</time>',
-  ],
-  [/ · built \d{4}-\d{2}-\d{2}</g, ' · built DAY<'],
-  [/© \d{4} /g, '© YEAR '],
-];
+const WALL_CLOCK: readonly [RegExp, string][] = [[/© \d{4} /g, '© YEAR ']];
 
 const withoutClock = (text: string) =>
   WALL_CLOCK.reduce((out, [pattern, placeholder]) => out.replace(pattern, placeholder), text);
@@ -55,50 +48,41 @@ describe('known answers', () => {
     }
     return dir;
   }
-  const home = (day: string, year = '2026', posts = '') =>
-    `<dl><div class="readout"><dt class="label">Built</dt><dd><time datetime="${day}">${day}</time></dd></div></dl>${posts}<p>© ${year} Joseph Peterson</p>`;
-  const page = (day: string, published = '2026-10-15') =>
-    `<time datetime="${published}">${published}</time><p>© 2026 Joseph Peterson · build abc1234 · built ${day}</p>`;
+  const home = (year = '2026', posts = '') =>
+    `<h1>Joseph Peterson</h1>${posts}<p class="fine-print">© ${year} Joseph Peterson</p>`;
+  const page = (year = '2026', published = '2026-10-15') =>
+    `<time datetime="${published}">${published}</time><p class="fine-print">© ${year} Joseph Peterson</p>`;
 
   test('the same files, plus pages, pass', () => {
-    const files = { 'index.html': home('2026-10-23'), 'a/index.html': page('2026-10-23') };
-    const preview = { ...files, 'draft/index.html': page('2026-10-23') };
+    const files = { 'index.html': home(), 'a/index.html': page() };
+    const preview = { ...files, 'draft/index.html': page() };
     expect(supersetProblems(build(files), build(preview))).toEqual([]);
   });
 
-  test('two builds either side of midnight differ only in the build day and the year: they pass', () => {
-    const before = build({
-      'index.html': home('2026-12-31', '2026'),
-      'a/index.html': page('2026-12-31'),
-    });
-    const after = build({
-      'index.html': home('2027-01-01', '2027'),
-      'a/index.html': page('2027-01-01'),
-    });
+  test('two builds either side of New Year differ only in the year: they pass', () => {
+    const before = build({ 'index.html': home('2026'), 'a/index.html': page('2026') });
+    const after = build({ 'index.html': home('2027'), 'a/index.html': page('2027') });
     expect(supersetProblems(before, after)).toEqual([]);
   });
 
   test('a missing file, a listed draft or any other date that differs is named', () => {
-    const base = build({ 'index.html': home('2026-10-23'), 'a/index.html': page('2026-10-23') });
-    expect(supersetProblems(base, build({ 'index.html': home('2026-10-23') }))).toEqual([
+    const base = build({ 'index.html': home(), 'a/index.html': page() });
+    expect(supersetProblems(base, build({ 'index.html': home() }))).toEqual([
       'a/index.html: missing from the build with drafts',
     ]);
     const listsADraft = build({
-      'index.html': home('2026-10-23', '2026', '<a href="/draft/">A draft</a>'),
-      'a/index.html': page('2026-10-23'),
+      'index.html': home('2026', '<a href="/draft/">A draft</a>'),
+      'a/index.html': page(),
     });
     expect(supersetProblems(base, listsADraft)).toEqual(["index.html: differs from production's"]);
-    const otherDate = build({
-      'index.html': home('2026-10-23'),
-      'a/index.html': page('2026-10-23', '2026-10-16'),
-    });
+    const otherDate = build({ 'index.html': home(), 'a/index.html': page('2026', '2026-10-16') });
     expect(supersetProblems(base, otherDate)).toEqual(["a/index.html: differs from production's"]);
   });
 
   test('a binary file is compared byte for byte, never through the clock', () => {
     const png = (last: number) => Buffer.from([0x89, 0x50, 0x4e, 0x47, last]).toString('latin1');
-    const base = build({ 'index.html': home('2026-10-23'), 'og.png': png(1) });
-    const superset = build({ 'index.html': home('2026-10-23'), 'og.png': png(2) });
+    const base = build({ 'index.html': home(), 'og.png': png(1) });
+    const superset = build({ 'index.html': home(), 'og.png': png(2) });
     expect(supersetProblems(base, superset)).toEqual(["og.png: differs from production's"]);
   });
 });
@@ -106,7 +90,7 @@ describe('known answers', () => {
 describe('the builds', () => {
   const pairs = [
     ['dist', dist, join(app, 'dist-preview')],
-    ...['fixture-two', 'fixture-three', 'fixture-many'].map((name) => [
+    ...['fixture-none', 'fixture-one', 'fixture-many'].map((name) => [
       name,
       join(app, '.fixtures', name),
       join(app, '.fixtures', `${name}-preview`),

@@ -1,9 +1,8 @@
 // The deploy job's last line of defence for drafts (delivery.md, "Deploy, verify, roll back"). It
 // refuses a build that holds any noindex page but the 404, at the boundary and independent of every
 // switch upstream: production is built without drafts, and the tests check it, but this reads only
-// the bytes about to be uploaded. A draft, and a published post while fewer than 3 are published
-// (unlisted), are noindex (lib/posts.ts), and production serves neither. The tag it looks for is
-// lib/noindex.mjs's, the one Base.astro writes.
+// the bytes about to be uploaded. A draft is noindex (lib/posts.ts), and production never serves
+// one. The tag it looks for is lib/noindex.mjs's, the one Base.astro writes.
 //
 //   node apps/web/scripts/deploy-guard.mjs <build directory>
 //
@@ -51,7 +50,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     process.exit(0);
   }
   console.error(
-    '::error::Not deployed: the build holds a noindex page, a draft or an unlisted post, which production never serves.',
+    '::error::Not deployed: the build holds a noindex page, a draft, which production never serves.',
   );
   for (const file of found) console.error(file);
   process.exit(1);

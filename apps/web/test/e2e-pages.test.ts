@@ -10,15 +10,15 @@ import { app } from './support/dist';
 // answers do not depend on today's posts.
 
 const many = join(app, '.fixtures/fixture-many');
-const twoPreview = join(app, '.fixtures/fixture-two-preview');
+const nonePreview = join(app, '.fixtures/fixture-none-preview');
 
 describe('pagesIn: the indexable pages a build holds', () => {
   test("a production build's pages are the ones it lists", () => {
     expect(pagesIn(many)).toEqual([...WRITING_FIXTURE_PAGES].sort());
   });
 
-  test('a preview below 3 posts walks Home alone: its draft and unlisted posts are noindex', () => {
-    expect(pagesIn(twoPreview)).toEqual(['/']);
+  test('a preview with nothing published walks Home alone: its drafts are noindex', () => {
+    expect(pagesIn(nonePreview)).toEqual(['/']);
   });
 });
 
@@ -31,7 +31,7 @@ describe('pagesFor, per context', () => {
   });
 
   test("the writing fixture run: the fixture's pages, whatever else is set", () => {
-    const env = { E2E_SITE: 'writing-fixture', DIST_DIR: twoPreview, E2E_TARGET: 'production' };
+    const env = { E2E_SITE: 'writing-fixture', DIST_DIR: nonePreview, E2E_TARGET: 'production' };
     expect(pagesFor(env, undefined)).toBe(WRITING_FIXTURE_PAGES);
   });
 

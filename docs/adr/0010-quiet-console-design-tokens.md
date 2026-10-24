@@ -73,3 +73,7 @@ The accent hue is effectively one-way over time. Recognition accumulates in peop
 ## Postscript 2026-10-23
 
 The terminal recordings this record mentions were dropped on 2026-10-23, with the case studies they belonged to ([design-system.md](../design-system.md)). gitops' ANSI colors, and the two fixes named for them, have no use until a recording ships. Nothing else changes, and no Revisit if condition was met.
+
+## Postscript 2026-10-24
+
+The accent now marks fewer things than Consequences lists: the section numbers it drew left on 2026-10-24 with the ruler, the step in the name and How I work's field, because each showed how the page was built rather than anything about Joseph ([design-system.md](../design-system.md#the-poster-setting)). Apricot still fills the primary button and draws focus outlines, the card bar and the Open Graph image's mark, so recognition still accumulates and a hue change is still a rebrand. The tokens, their owner and the contrast test are unchanged, and no Revisit if condition was met.

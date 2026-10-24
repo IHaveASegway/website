@@ -17,7 +17,7 @@ export interface NavItem {
 // No Work item: owned work is a card on Home that links to its repository, and /work/ builds
 // nothing (content.md, "Owned work", 2026-10-23).
 export const MANIFEST: readonly NavItem[] = [
-  { id: 'writing', label: 'Writing', href: '/writing/', header: true }, // PR 5, at 3 posts
+  { id: 'writing', label: 'Writing', href: '/writing/', header: true }, // PR 5, from the first post
   { id: 'about', label: 'About', href: '/about/', header: true }, // PR 4
   { id: 'rss', label: 'RSS', href: '/rss.xml', footer: true }, // PR 5, with Writing
   { id: 'colophon', label: 'Colophon', href: '/colophon/', header: true, footer: true }, // PR 3b
@@ -42,8 +42,14 @@ export function present(manifest: readonly NavItem[], routes: ReadonlySet<string
 
 const ROUTES = routesFrom(Object.keys(import.meta.glob('../pages/**/*.{astro,md,mdx}')));
 
-/** The manifest items for the header or the footer, given the URLs content adds to this build
- *  (lib/posts.ts, areaRoutes): a dynamic route builds a page only when its content exists. */
+/** Every manifest item this build writes, header and footer alike (llms.txt reads them all), given
+ *  the URLs content adds to it (lib/posts.ts, areaRoutes): a dynamic route builds a page only when
+ *  its content exists. */
+export function navAll(generated: Iterable<string> = []): NavItem[] {
+  return present(MANIFEST, new Set([...ROUTES, ...generated]));
+}
+
+/** The manifest items for the header or the footer. */
 export function navFor(place: 'header' | 'footer', generated: Iterable<string> = []): NavItem[] {
-  return present(MANIFEST, new Set([...ROUTES, ...generated])).filter((item) => item[place]);
+  return navAll(generated).filter((item) => item[place]);
 }

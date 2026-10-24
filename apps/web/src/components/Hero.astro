@@ -4,38 +4,39 @@ import { CONTACT_EMAIL } from '../lib/site';
 
 interface Props {
   profile: Profile;
-  /** One line of proof that names only what a reader can see on this site. */
-  proof: string;
+  /** Where the Work button scrolls to: Selected work, when Home has it. Left out, no button. */
+  work?: string | undefined;
 }
 
-const { profile, proof } = Astro.props;
+const { profile, work } = Astro.props;
 // External profiles render only from a record whose readiness check is recorded (profile.ts).
 const external = checkedProfiles(profile);
+// Row 1 (design-system.md, "Home, row by row"): the name on two lines, and beside it from 64rem,
+// under it before that, the title, the location and the ways to reach Joseph. The name's markup is
+// its words alone. A sentence on what Joseph does joins once he clears one (content.md, row 1).
 ---
 
 <section class="hero" aria-labelledby="name" data-row="1">
   <h1 id="name" class="hero-name">
     {profile.basics.name}
   </h1>
-  <div class="hero-below">
+  <div class="hero-side">
     <div class="hero-who">
       <p class="hero-title">{profile.basics.label}</p>
-      <p class="where">
-        <span class="dot" aria-hidden="true"></span>
-        {locationLine(profile)}
-      </p>
+      <p class="where">{locationLine(profile)}</p>
     </div>
-    <p class="hero-proof">{proof}</p>
     <div class="hero-actions">
       <a class="btn btn-primary" href={`mailto:${CONTACT_EMAIL}`}>
-        Email <span class="hint">{CONTACT_EMAIL.slice(0, CONTACT_EMAIL.indexOf('@') + 1)}</span>
+        Email
       </a>
-      <a class="btn" href="#work">
-        Work{' '}
-        <span class="hint" aria-hidden="true">
-          ↓
-        </span>
-      </a>
+      {work && (
+        <a class="btn" href={work}>
+          Work{' '}
+          <span class="hint" aria-hidden="true">
+            ↓
+          </span>
+        </a>
+      )}
       {external.map((p) => (
         <a class="btn" href={p.url} rel="me">
           {p.network}{' '}

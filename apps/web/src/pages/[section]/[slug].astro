@@ -7,9 +7,9 @@ import { postCard } from '../../lib/og';
 import { isoDay, postLabel, postPath, type PostPage } from '../../lib/posts';
 
 // One post: /writing/<slug>/ for an essay, /notes/<slug>/ for a field note. A listed page is a
-// published post while Writing renders. Where drafts are included (pull request previews and astro
-// dev), drafts build too, and below 3 posts the published ones build unlisted; those two kinds are
-// noindex, with no link preview or structured data, and nothing lists them (lib/posts.ts).
+// published post, and Writing renders from the first one. Where drafts are included (pull request
+// previews and astro dev), drafts build too: noindex, with no link preview or structured data, and
+// nothing lists them (lib/posts.ts).
 export async function getStaticPaths() {
   const area = await loadWritingArea();
   return area.pages.map((page) => ({

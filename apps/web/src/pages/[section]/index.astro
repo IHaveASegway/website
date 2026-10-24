@@ -7,8 +7,8 @@ import { sectionCard } from '../../lib/og';
 import { listedOn, SECTION_LABELS, type Section } from '../../lib/posts';
 
 // /writing/, everything published, and /notes/, the field notes alone. A dynamic route, because a
-// page file always builds: these build only while Writing renders, at 3 published posts, and
-// /notes/ only once a note is published (lib/posts.ts). Below that, the prefix builds nothing.
+// page file always builds: these build only while Writing renders, from the first published post,
+// and /notes/ only once a note is published (lib/posts.ts). Before that, the prefix builds nothing.
 export async function getStaticPaths() {
   const area = await loadWritingArea();
   return area.sections.map((section) => ({ params: { section }, props: { section } }));

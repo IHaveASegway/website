@@ -62,9 +62,10 @@ test('after the policy, a theme script with one byte changed is refused', async 
       const response = await route.fetch();
       const html = await response.text();
       const original = /<script>([\s\S]*?)<\/script>/.exec(html)?.[1] ?? '';
-      expect(original).toContain('Pre-paint theme');
-      // One byte changed, plus a marker, so the page shows whether the copy ran.
-      const tampered = `${original.replace('Pre-paint theme', 'Pre-paint themE')};document.documentElement.setAttribute('data-tampered', '');`;
+      expect(original).toContain("'theme'");
+      // One byte changed in a storage key, so the copy would still run cleanly, plus a marker, so
+      // the page shows whether it ran.
+      const tampered = `${original.replace("'theme'", "'themE'")};document.documentElement.setAttribute('data-tampered', '');`;
       const changed = html.replace('<body', `<script>${tampered}</script><body`);
       expect(changed).not.toBe(html);
       await route.fulfill({ response, body: changed });

@@ -8,7 +8,7 @@ import { isNoindex, NOINDEX } from '../src/lib/noindex.mjs';
 import { app, dist } from './support/dist';
 
 // The deploy guard (scripts/deploy-guard.mjs): the deploy job refuses a build with any noindex page
-// but the 404. Known answers on the fixture builds, whose drafts and unlisted posts it must name,
+// but the 404. Known answers on the fixture builds, whose drafts it must name,
 // on small builds written here, and on how the deploy job runs it.
 
 const script = join(app, 'scripts/deploy-guard.mjs');
@@ -25,16 +25,27 @@ describe('known answers on the fixture builds', () => {
     expect(refused.stderr).toContain(draft);
   });
 
-  test('a preview below 3 posts: the draft and both unlisted posts are named', () => {
-    expect(noindexPages(fixture('fixture-two-preview'))).toEqual([
-      'notes/fixture-trailing-slashes/index.html',
+  test('a preview with drafts and nothing published: both drafts are named', () => {
+    expect(noindexPages(fixture('fixture-none-preview'))).toEqual([
+      'notes/fixture-unfinished-thought/index.html',
       'writing/fixture-draft-essay/index.html',
-      'writing/fixture-measure-first/index.html',
+    ]);
+  });
+
+  test('a preview at one published post: the drafts are named, and the listed post is not', () => {
+    expect(noindexPages(fixture('fixture-one-preview'))).toEqual([
+      'notes/fixture-unfinished-thought/index.html',
+      'writing/fixture-draft-essay/index.html',
     ]);
   });
 
   test('a production build passes, the 404 its one noindex page', () => {
-    for (const build of [fixture('fixture-many'), fixture('fixture-two'), dist]) {
+    for (const build of [
+      fixture('fixture-many'),
+      fixture('fixture-one'),
+      fixture('fixture-none'),
+      dist,
+    ]) {
       expect(noindexPages(build), build).toEqual([]);
       expect(isNoindex(readFileSync(join(build, '404.html'), 'utf8')), build).toBe(true);
       expect(run(build).status, build).toBe(0);

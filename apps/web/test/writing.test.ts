@@ -27,7 +27,7 @@ import { frontMatter, indirection, valueNode } from './support/front-matter';
 // Writing (roadmap.md, PR 5): the rules in lib/posts.ts with known answers, then the test-only
 // fixture builds that scripts/build-fixtures.mjs writes, then the real build and the real posts.
 // vitest.config.ts runs every other check over a build on fixture-many, fixture-many-preview and
-// fixture-two-preview as well; this file holds what only a known set of posts can prove.
+// fixture-one-preview as well; this file holds what only a known set of posts can prove.
 
 /** Every fixture post's summary carries this; no file the real builds write may. */
 const SENTINEL = 'A test fixture, never published';
@@ -56,21 +56,26 @@ const slugs = (posts: readonly Post[]) => posts.map((p) => p.slug);
 const pageSlugs = (pages: readonly PostPage[]) => pages.map((p) => `${p.post.slug}:${p.exposure}`);
 
 describe(`the ${MIN_POSTS}-post rule (content.md, "Sitemap and phases")`, () => {
-  test('0 and 2 published posts, without drafts, build nothing: no index, no page, no feed', () => {
-    for (const posts of [[], [post('a'), note('b')]]) {
-      const area = writingArea(posts, false);
-      expect(area.visible).toBe(false);
-      expect(area.sections).toEqual([]);
-      expect(area.pages).toEqual([]);
-      expect(feedItems(area)).toEqual([]);
-    }
+  test('the rule is one published post: Writing renders from the first', () => {
+    expect(MIN_POSTS).toBe(1);
   });
 
-  test('3 render it: /writing/, /notes/ once a note is published, and a listed page per post', () => {
-    const essays = writingArea([post('a'), post('b'), post('c')], false);
-    expect(essays.visible).toBe(true);
-    expect(essays.sections).toEqual(['writing']);
-    expect(pageSlugs(essays.pages).sort()).toEqual(['a:listed', 'b:listed', 'c:listed']);
+  test('0 published posts, without drafts, build nothing: no index, no page, no feed', () => {
+    const area = writingArea([], false);
+    expect(area.visible).toBe(false);
+    expect(area.sections).toEqual([]);
+    expect(area.pages).toEqual([]);
+    expect(feedItems(area)).toEqual([]);
+  });
+
+  test('1 renders it: /writing/, /notes/ once a note is published, and a listed page per post', () => {
+    const one = writingArea([post('a')], false);
+    expect(one.visible).toBe(true);
+    expect(one.sections).toEqual(['writing']);
+    expect(pageSlugs(one.pages)).toEqual(['a:listed']);
+    expect(feedItems(one).map((i) => i.link)).toEqual(['/writing/a/']);
+    // A note alone renders Writing too, with both indexes: /writing/ lists everything.
+    expect(writingArea([note('b')], false).sections).toEqual(['writing', 'notes']);
     expect(writingArea([post('a'), post('b'), note('c')], false).sections).toEqual([
       'writing',
       'notes',
@@ -78,18 +83,22 @@ describe(`the ${MIN_POSTS}-post rule (content.md, "Sitemap and phases")`, () => 
   });
 
   test('a draft never counts toward the rule, even where drafts are included', () => {
-    const posts = [post('a'), note('b'), post('c', { draft: true })];
+    const posts = [post('a', { draft: true }), note('b', { draft: true })];
     expect(writingArea(posts, false).visible).toBe(false);
+    expect(writingArea(posts, false).pages).toEqual([]);
     expect(writingArea(posts, true).visible).toBe(false);
+    expect(writingArea(posts, true).sections).toEqual([]);
+    expect(pageSlugs(writingArea(posts, true).pages)).toEqual(['a:draft', 'b:draft']);
   });
 
-  test('with drafts, a build is a superset of production: the same pages, drafts, and unlisted posts below 3', () => {
+  test('with drafts, a build is a superset of production: the same pages, plus the drafts', () => {
     const cases: Post[][] = [
       [],
       [post('a')],
       [post('a'), note('b', { draft: true })],
       [post('a'), post('b'), note('c'), note('d', { draft: true })],
       [post('a'), post('b'), note('c', { draft: true }), post('e', { draft: true })],
+      [post('a', { draft: true }), note('c', { draft: true })],
     ];
     for (const posts of cases) {
       const production = pageSlugs(writingArea(posts, false).pages);
@@ -98,18 +107,16 @@ describe(`the ${MIN_POSTS}-post rule (content.md, "Sitemap and phases")`, () => 
       const drafts = posts.filter((p) => p.draft).map((p) => `${p.slug}:draft`);
       expect(preview).toEqual(expect.arrayContaining(drafts));
     }
-    // Below 3 a preview writes the published posts unlisted, so a draft's links to them resolve.
-    const below = writingArea([post('a'), note('d', { draft: true })], true);
-    expect(pageSlugs(below.pages)).toEqual(['a:unlisted', 'd:draft']);
-    expect(below.visible).toBe(false);
-    // At 3 they are listed in both builds, and the draft is the only addition.
-    const at = writingArea([post('a'), post('b'), note('c'), note('d', { draft: true })], true);
-    expect(pageSlugs(at.pages).filter((p) => !p.endsWith(':listed'))).toEqual(['d:draft']);
+    // At one published post it is listed in both builds, so a draft's link to it resolves, and
+    // the draft is the only addition.
+    const at = writingArea([post('a'), note('d', { draft: true })], true);
+    expect(pageSlugs(at.pages)).toEqual(['a:listed', 'd:draft']);
+    expect(at.visible).toBe(true);
   });
 
-  test('a page says what it is: the kind, with Draft or Unlisted first when it is not listed', () => {
+  test('a page says what it is: the kind, with Draft first on a draft', () => {
     expect(postLabel({ post: post('a'), exposure: 'listed' })).toBe('Essay');
-    expect(postLabel({ post: note('a'), exposure: 'unlisted' })).toBe('Unlisted · Field note');
+    expect(postLabel({ post: note('a'), exposure: 'listed' })).toBe('Field note');
     expect(postLabel({ post: post('a', { kind: 'pattern' }), exposure: 'draft' })).toBe(
       'Draft · Pattern',
     );
@@ -266,7 +273,7 @@ describe('drafts: in astro dev and pull request previews, never in production', 
   test('the fixture switch is off unless a set is named, and names only a set', () => {
     expect(postsBase(undefined)).toBe('./src/content');
     expect(postsBase('')).toBe('./src/content');
-    expect(postsBase('three')).toBe('./test/fixtures/posts/three');
+    expect(postsBase('one')).toBe('./test/fixtures/posts/one');
     expect(() => postsBase('../../etc')).toThrow(/not a fixture set/);
   });
 });
@@ -313,7 +320,7 @@ const listed = (page: string, level: 2 | 3) =>
 
 /** The fixture drafts, read from their front matter as Astro reads it (a quoted title is the title,
  *  not the title in quotes): what must never reach a production build. */
-const FIXTURE_DRAFTS = (['two', 'three', 'many'] as const).flatMap((set) =>
+const FIXTURE_DRAFTS = (['none', 'one', 'many'] as const).flatMap((set) =>
   ['writing', 'notes'].flatMap((section) => {
     const dir = join(app, 'test/fixtures/posts', set, section);
     return readdirSync(dir).flatMap((name) => {
@@ -340,14 +347,14 @@ const holds = (text: string, needle: unknown) =>
 
 /** The preview build of each fixture set: where its draft renders. */
 const PREVIEW_OF = {
-  two: 'fixture-two-preview',
-  three: 'fixture-three-preview',
+  none: 'fixture-none-preview',
+  one: 'fixture-one-preview',
   many: 'fixture-many-preview',
 } as const;
 
 describe('the fixture drafts', () => {
   test('there are drafts in every set, each with a title and a summary to look for', () => {
-    expect(new Set(FIXTURE_DRAFTS.map((d) => d.set))).toEqual(new Set(['two', 'three', 'many']));
+    expect(new Set(FIXTURE_DRAFTS.map((d) => d.set))).toEqual(new Set(['none', 'one', 'many']));
     for (const draft of FIXTURE_DRAFTS) {
       expect(String(draft.title).length, draft.slug).toBeGreaterThan(5);
       expect(String(draft.summary).length, draft.slug).toBeGreaterThan(5);
@@ -378,7 +385,7 @@ describe('the fixture drafts', () => {
   // Every text file a production build writes, whatever its kind (HTML, XML, JSON, text), for
   // every draft's title, summary and slug: a draft that reached a data file or a feed is caught
   // as surely as one that reached a page.
-  for (const name of ['fixture-two', 'fixture-two-node-env', 'fixture-three', 'fixture-many']) {
+  for (const name of ['fixture-none', 'fixture-none-node-env', 'fixture-one', 'fixture-many']) {
     test(`${name}, built for production, holds no draft's title, summary or slug anywhere`, () => {
       const build = fixtureBuild(name);
       expect(build.textFiles.length).toBeGreaterThan(5);
@@ -398,8 +405,8 @@ describe('the fixture drafts', () => {
   }
 });
 
-describe('fixture-two: two published posts and a draft, built for production', () => {
-  for (const name of ['fixture-two', 'fixture-two-node-env']) {
+describe('fixture-none: two drafts and nothing published, built for production', () => {
+  for (const name of ['fixture-none', 'fixture-none-node-env']) {
     test(`${name}: Writing builds nothing, NODE_ENV=development or not: only Home`, () => {
       const build = fixtureBuild(name);
       expect(build.pages).toEqual(['/']);
@@ -417,30 +424,22 @@ describe('fixture-two: two published posts and a draft, built for production', (
   }
 });
 
-describe('fixture-two-preview: the same posts with drafts included, below 3', () => {
-  const build = fixtureBuild('fixture-two-preview');
+describe('fixture-none-preview: the same drafts, with drafts included', () => {
+  const build = fixtureBuild('fixture-none-preview');
 
-  test('the two published posts build unlisted, and the draft builds: all noindex', () => {
+  test('both drafts build, noindex and labelled Draft, and nothing else does', () => {
     expect(build.pages).toEqual([
       '/',
-      '/notes/fixture-trailing-slashes/',
+      '/notes/fixture-unfinished-thought/',
       '/writing/fixture-draft-essay/',
-      '/writing/fixture-measure-first/',
     ]);
     expect(build.indexable).toEqual(['/']);
-    expect(build.text('writing/fixture-measure-first/index.html')).toContain(
-      '<p class="label">Unlisted · Essay</p>',
-    );
     expect(build.text('writing/fixture-draft-essay/index.html')).toContain(
       '<p class="label">Draft · Essay</p>',
     );
-  });
-
-  test("the draft's link to an earlier, unlisted post resolves in the preview", () => {
-    expect(build.text('writing/fixture-draft-essay/index.html')).toContain(
-      'href="/writing/fixture-measure-first/"',
+    expect(build.text('notes/fixture-unfinished-thought/index.html')).toContain(
+      '<p class="label">Draft · Field note</p>',
     );
-    expect(build.files).toContain('writing/fixture-measure-first/index.html');
   });
 
   test('nothing lists them: no index, no feed, no header link, no Home row, no card', () => {
@@ -458,21 +457,45 @@ describe('fixture-two-preview: the same posts with drafts included, below 3', ()
   });
 });
 
-describe('fixture-three: exactly three published posts, built for production', () => {
-  const build = fixtureBuild('fixture-three');
+describe('fixture-one: one published post and two drafts, built for production', () => {
+  const build = fixtureBuild('fixture-one');
 
-  test('Writing renders at the minimum: both indexes, three listed posts and the feed', () => {
-    expect(build.pages).toEqual([
-      '/',
-      '/notes/',
-      '/notes/fixture-trailing-slashes/',
-      '/writing/',
-      '/writing/fixture-measure-first/',
-      '/writing/fixture-retries-and-back-off/',
-    ]);
+  test('Writing renders at the minimum: /writing/, the one listed post and the feed, no /notes/', () => {
+    expect(build.pages).toEqual(['/', '/writing/', '/writing/fixture-measure-first/']);
     expect(build.indexable).toEqual(build.pages);
+    expect(build.sitemap).toEqual(build.pages);
     expect(build.files).toContain('rss.xml');
     expect(headerLinks(build.text('index.html'))).toEqual(['/writing/']);
+    const row =
+      /<section class="section" id="writing"[\s\S]*?<\/section>/.exec(
+        build.text('index.html'),
+      )?.[0] ?? '';
+    expect(listed(row, 3)).toEqual(['/writing/fixture-measure-first/']);
+  });
+});
+
+describe('fixture-one-preview: the same posts, with drafts included', () => {
+  const build = fixtureBuild('fixture-one-preview');
+
+  test('the published post is listed as in production, and the two drafts are added, noindex', () => {
+    expect(build.pages).toEqual([
+      '/',
+      '/notes/fixture-unfinished-thought/',
+      '/writing/',
+      '/writing/fixture-draft-essay/',
+      '/writing/fixture-measure-first/',
+    ]);
+    expect(build.indexable).toEqual(['/', '/writing/', '/writing/fixture-measure-first/']);
+    expect(build.text('writing/fixture-measure-first/index.html')).toContain(
+      '<p class="label">Essay</p>',
+    );
+  });
+
+  test("the draft's link to the listed post resolves in the preview", () => {
+    expect(build.text('writing/fixture-draft-essay/index.html')).toContain(
+      'href="/writing/fixture-measure-first/"',
+    );
+    expect(build.files).toContain('writing/fixture-measure-first/index.html');
   });
 });
 
@@ -738,7 +761,7 @@ describe('the real posts, drafts included, before anything renders them', () => 
   });
 
   test('known answers: the fixtures pass, and each check sees what it looks for', () => {
-    for (const set of ['two', 'three', 'many']) {
+    for (const set of ['none', 'one', 'many']) {
       for (const section of ['writing', 'notes']) {
         const dir = join(app, 'test/fixtures/posts', set, section);
         for (const file of readdirSync(dir)) {
