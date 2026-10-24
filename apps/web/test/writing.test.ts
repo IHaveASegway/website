@@ -688,7 +688,8 @@ function dateProblems(source: string): string[] {
 
 /** The images a post's source names inline: Markdown images, and HTML images or pictures. An early,
  *  readable message only: a shortcut reference (![a chart], defined elsewhere) passes it, so
- *  test/prose.test.ts reads the rendered body on every build, which catches every form. */
+ *  test/prose.test.ts reads the rendered body on every build, which catches every form Markdown
+ *  writes. Neither refuses raw HTML, which can show an image another way. */
 function imagesIn(markdown: string): string[] {
   return [...prose(markdown).matchAll(/!\[[^\]]*\]\s*[([]|<(img|picture|source)\b/gi)].map(
     ([match]) => match,

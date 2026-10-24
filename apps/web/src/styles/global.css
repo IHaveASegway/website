@@ -1,4 +1,6 @@
-/* Tailwind reads class names from src/ only: tests and scripts mention utilities they never use. */
+/* Tailwind reads class names from src/ only: tests and scripts mention utilities they never use.
+   Every word under src/, comments included, can become a rule, so test/css-classes.test.ts names
+   any class the built stylesheet holds and no built page uses. */
 @import 'tailwindcss' source('../');
 @import './tokens.css';
 @import './font-fallbacks.css';

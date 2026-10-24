@@ -5,8 +5,10 @@ import { descendants, elementsOf, hasClass, markupOf } from './support/html';
 // What a post's rendered body may hold (content.md, "Not yet"): no images yet. They need a WebP
 // check, an image budget and an asset pipeline that keeps a draft's images out of production. The
 // source check in writing.test.ts names a Markdown image early; this one reads what the Markdown
-// processor wrote, so an image written in any form is caught: a reference-style image whose
-// definition sits elsewhere, a shortcut reference, raw HTML. Run on every build (vitest.config.ts).
+// processor wrote: an img, picture or source inside div.prose, so every form Markdown writes is
+// caught, a reference-style or shortcut reference included. Raw HTML is not refused: it can close
+// div.prose early, or show an image another way (an SVG image, an input type=image, a video's
+// poster), which this check does not see. Run on every build (vitest.config.ts).
 
 const IMAGES = new Set(['img', 'picture', 'source']);
 

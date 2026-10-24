@@ -59,9 +59,15 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: The Playwright version the lockfile installs (e2e runs in that version's image)
+      - name: The Playwright version the lockfile installs (e2e and prod-smoke run in its image)
         id: playwright
-        run: echo "version=$(node -p "require('./apps/web/node_modules/@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+        run: |
+          version="$(node -p "require('./apps/web/node_modules/@playwright/test/package.json').version")"
+          if ! printf '%s' "$version" | grep -Eqx '[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "::error::cannot read the Playwright version the lockfile installs"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
       - run: pnpm dedupe --check
       - run: pnpm run format:check
       - run: pnpm run lint
@@ -264,7 +270,7 @@ jobs:
     # Playwright's own image carries Chromium and every library it needs, so no apt install runs:
     # on the runner that took from 25 seconds to 10 minutes, depending on the mirror. The tag is
     # the version the lockfile installs, which verify reads, so a Playwright update needs no edit
-    # here (delivery.md, "Actions minutes budget"; test/e2e-image.test.ts).
+    # here (delivery.md, "Actions minutes budget"; test/playwright-image.test.ts).
     container:
       image: mcr.microsoft.com/playwright:v${{ needs.verify.outputs.playwright }}-noble
       options: --user 1001
@@ -510,6 +516,8 @@ jobs:
     concurrency:
       group: deploy-production # never races a deploy
       cancel-in-progress: false
+    outputs:
+      playwright: ${{ steps.playwright.outputs.version }} # verify does not run on a rollback
     steps:
       - name: Only from main
         run: |
@@ -528,6 +536,15 @@ jobs:
           node-version-file: .nvmrc
           package-manager-cache: false # no cache: this job holds the deploy token (see deploy)
       - run: pnpm install --frozen-lockfile
+      - name: The Playwright version the lockfile installs (prod-smoke runs in its image)
+        id: playwright
+        run: |
+          version="$(node -p "require('./apps/web/node_modules/@playwright/test/package.json').version")"
+          if ! printf '%s' "$version" | grep -Eqx '[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "::error::cannot read the Playwright version the lockfile installs"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Roll back to the version named (no artifact needed, it was scanned when uploaded)
         working-directory: apps/web
         env:
@@ -545,7 +562,7 @@ jobs:
           echo "Rolled back to \`$TARGET\`." >> "$GITHUB_STEP_SUMMARY"
 
   prod-smoke:
-    needs: [deploy, rollback]
+    needs: [verify, deploy, rollback]
     # After a deploy that promoted (or that the weekly guard stopped), or after a rollback. Not after a
     # deploy a newer commit superseded: that commit's run owns production.
     if: >-
@@ -553,10 +570,19 @@ jobs:
       (needs.deploy.result == 'success' && needs.deploy.outputs.superseded != 'true')
       || needs.rollback.result == 'success') }}
     runs-on: ubuntu-latest
+    # e2e's image, at the version the lockfile installs: verify reads it, or the rollback job when no
+    # build ran. Its Chromium (the CSP check on Home opens a page) needs no apt install, which once ran
+    # this job into its timeout (run 40001716913). The verdict and the incident issue need gh, which
+    # the image lacks, and issues: write, which no step in the image should hold: prod-verdict, below.
+    container:
+      image: mcr.microsoft.com/playwright:v${{ needs.verify.outputs.playwright || needs.rollback.outputs.playwright }}-noble
+      options: --user 1001
     timeout-minutes: 10
     permissions:
       contents: read
-      issues: write
+    outputs:
+      unreachable: ${{ steps.reach.outputs.unreachable }}
+      smoke: ${{ steps.smoke.outcome }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -573,9 +599,6 @@ jobs:
         with:
           name: dist
           path: apps/web/dist
-      - name: Install Chromium
-        working-directory: apps/web
-        run: pnpm exec playwright install --with-deps chromium
       - name: Wait until production answers (a first deploy attaches the domain)
         id: reach
         run: |
@@ -588,21 +611,44 @@ jobs:
           exit 1
       - name: Smoke production through the zone
         id: smoke
-        continue-on-error: true # the verdict below decides, once it knows whether a newer deploy took over
+        continue-on-error: true # prod-verdict decides, once it knows whether a newer deploy took over
         working-directory: apps/web
         env:
-          DIST_DIR: ${{ needs.deploy.outputs.promoted_attempt == github.run_attempt && format('{0}/apps/web/dist', github.workspace) || '' }}
+          # Relative to apps/web: in a container job, github.workspace is the runner's path, not the
+          # container's.
+          DIST_DIR: ${{ needs.deploy.outputs.promoted_attempt == github.run_attempt && 'dist' || '' }}
         run: pnpm run prod-smoke
+
+  prod-verdict:
+    needs: [deploy, rollback, prod-smoke]
+    # The verdict on production and the incident issue, on the runner, which has gh, with the run's
+    # only issues: write token. It runs when prod-smoke failed, its smoke failed, or the weekly guard
+    # stopped the rebuild; a clean pass skips it. A cancelled prod-smoke opens no issue, as before.
+    if: >-
+      ${{ !cancelled() && (needs.prod-smoke.result == 'failure'
+      || (needs.prod-smoke.result == 'success'
+      && (needs.prod-smoke.outputs.smoke == 'failure' || needs.deploy.outputs.skipped == 'true'))) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
       - name: Verdict
-        if: steps.smoke.outcome == 'failure'
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ github.sha }}
           ROLLED_BACK_TO: ${{ inputs.rollback_to }}
+          RESULT: ${{ needs.prod-smoke.result }}
+          SMOKE: ${{ needs.prod-smoke.outputs.smoke }}
         run: |
+          # The smoke passed, and this job runs only to comment that the weekly guard stopped.
+          if [ "$RESULT" = success ] && [ "$SMOKE" != failure ]; then
+            exit 0
+          fi
           # prod-smoke runs outside the deploy group, so a newer run's deploy can promote while it
           # runs, and production then differs from this run's dist/ for that reason alone.
-          if [ -z "$ROLLED_BACK_TO" ]; then
+          if [ "$SMOKE" = failure ] && [ -z "$ROLLED_BACK_TO" ]; then
             tip="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
             if [ "$tip" != "$SHA" ]; then
               echo "::notice::prod-smoke failed, but main has moved on to ${tip:0:12}, and its deploy may have promoted while this ran. That run's prod-smoke owns the verdict."
@@ -617,7 +663,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           FAILED: ${{ job.status == 'failure' }}
-          UNREACHABLE: ${{ steps.reach.outputs.unreachable == 'true' }}
+          UNREACHABLE: ${{ needs.prod-smoke.outputs.unreachable == 'true' }}
           SKIPPED: ${{ needs.deploy.outputs.skipped == 'true' }}
           PREVIOUS: ${{ needs.deploy.outputs.previous }}
           DEPLOYED: ${{ needs.deploy.outputs.version }}
