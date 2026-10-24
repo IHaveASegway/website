@@ -134,7 +134,7 @@ A page view runs no Worker code, so until the lab ships there is little to obser
 | Lab cleanup | The nightly `lab-objects` job | Did any sandbox object keep its state past its 15-minute life? | Inside the Actions minutes, about 30 a month | Phase 4 | [lab.md](lab.md) |
 | Platform usage | Cloudflare dashboard, Workers and Durable Objects (DO) metrics | Worker requests a day against the 100,000 cap; DO requests, GB-s, rows written | Free | Now | [Workers limits](https://developers.cloudflare.com/workers/platform/limits/) |
 | Uptime, from outside | Better Stack, free tier | Can the internet reach the site? | 10 monitors and heartbeats combined, 1 status page, email and Slack alerts, "free for personal projects". The pricing page does not state the free check interval; third-party comparisons say 3 minutes | PR 2 | [Better Stack](https://betterstack.com/pricing) |
-| Deploys | The `deploy` job summary; the issue `prod-smoke` opens | Did the deploy work, and what is the rollback command? | Inside the Actions minutes | PR 2 | [delivery.md](delivery.md) |
+| Deploys | The `deploy` job summary; the issue `prod-verdict` opens when `prod-smoke` fails | Did the deploy work, and what is the rollback command? | Inside the Actions minutes | PR 2 | [delivery.md](delivery.md) |
 | Zone drift | `scripts/verify-zone.sh`, weekly | Did a zone setting, a record or the registration change? | Free, token-free | PR 2 | [security.md](security.md) |
 | Errors, later | Sentry, free Developer plan | Exceptions in lab Worker code | 1 user, 5k errors, 5M spans, 30-day lookback; needs `nodejs_compat` | The first lab with server logic | [Sentry](https://sentry.io/pricing/) |
 
@@ -154,7 +154,7 @@ Where alerts go is an open decision (Q26 · Q-alerts in [product.md](product.md)
 | Alert | Fires when | Source | Runbook |
 |---|---|---|---|
 | Site down | The uptime monitor's check fails | Better Stack | [Incident: site down](#incident-site-down) |
-| Deploy or `prod-smoke` failed | The job fails; `prod-smoke` also opens an issue | GitHub Actions | [Rollback](#rollback) |
+| Deploy or `prod-smoke` failed | The job fails; after `prod-smoke`, `prod-verdict` opens an issue, unless `main` moved on | GitHub Actions | [Rollback](#rollback) |
 | Firewall failed | `firewall` exits 1 (a finding) or 2 (cannot prove clean) | GitHub Actions | [Leak response](#leak-response) for exit 1; [access setup step 5](#5-local-hooks-and-the-private-firewall-file-pr-2) for exit 2 |
 | Weekly audit failed | Zone drift, a dead external link, `security.txt` within 30 days of its `Expires`, the domain within 60 days of expiry, `compatibility_date` missing (past 180 days it only warns, in the run's log) | `scheduled.yml` | [DNS or mail change](#dns-or-mail-change), [compatibility_date bump](#compatibility_date-bump), [maintenance calendar](#maintenance-calendar) |
 | Vulnerable dependency | A Dependabot alert | GitHub | [Dependency update](#dependency-update) |
@@ -172,10 +172,10 @@ Deploys happen on merge, and on the weekly rebuild every Monday ([delivery.md](d
 
 1. Merge the PR. `ci.yml` runs on `main`: `verify`, `firewall`, `deploy`, `prod-smoke`.
 2. Read the `deploy` job summary: the version that was live before, the new version id, its Version URL, and the smoke result.
-3. Wait for `prod-smoke`. Green means done.
+3. Wait for `prod-smoke`. Green means done: production passed, and `prod-verdict` is skipped (it runs on a pass only to comment when the weekly guard stopped).
 4. If the Version URL smoke failed, nothing changed: production still serves the old version. Fix forward in a new PR.
-5. If the summary says "Not deployed" or "Not promoted", `main` moved on during the run. The newer commit's run deploys it; nothing needs doing.
-6. If `prod-smoke` failed, follow [Rollback](#rollback). If its issue says production did not answer at all, a rollback cannot help: the custom domain is not attached, or the zone is not serving, and the issue says what to check.
+5. If the summary says "Not deployed" or "Not promoted", `main` moved on during the run. The newer commit's run deploys it; nothing needs doing. A red `prod-smoke` whose `prod-verdict` notice says `main` has moved on is the same case: the newer run's `prod-smoke` owns the verdict, and no issue opens.
+6. If `prod-smoke` failed, `prod-verdict` opened an issue: follow [Rollback](#rollback). If the issue says production did not answer at all, a rollback cannot help: the custom domain is not attached, or the zone is not serving, and the issue says what to check.
 7. If GitHub Actions is down, wait. New content can wait, and a broken production can be rolled back from the Cloudflare dashboard without Actions.
 
 PR 2 only: the first deploy creates the Worker and attaches the custom domain with `wrangler deploy`, and goes live without a Version URL smoke, since the domain serves nothing yet ([delivery.md](delivery.md#deploy-verify-roll-back)). If attaching the domain failed for a missing permission (spike S7), add only the permission the error names ([access setup step 1](#1-deploy-token-pr-2)), then re-run the deploy job: it applies the routes again whenever the apex does not answer.
@@ -187,7 +187,7 @@ The lab, from Phase 4: a lab deploy drops every live WebSocket, and clients fall
 1. Find the target. The issue `prod-verdict` opened names it, and so does the previous `deploy` job summary. Never roll back without an explicit version id ([delivery.md](delivery.md) explains why).
 2. Run the rollback through the pipeline, from `main`: `gh workflow run ci.yml -f rollback_to=<version-id>`, plus `-f reason=<why>` when the reason is not "prod-smoke failed". The `rollback` job checks that the input is a version id, runs `wrangler rollback <version-id> --message "rollback: <reason>" --yes` with the scoped deploy token, waits for any deploy in progress, and `prod-smoke` follows. This is the path PR 2 rehearses.
 3. If GitHub or Actions is down, use the dashboard: Workers & Pages → `ihaveasegway-web` → Deployments → ⋯ on the target version → Rollback. It runs under Joseph's login and its second factor. Never `wrangler rollback` from the laptop: it would need an edit credential at rest there.
-4. Confirm `prod-smoke` passes against the rolled-back version. After a dashboard rollback, re-run the failed job: `gh run rerun <run-id> --failed`. The re-run skips the byte-for-byte check, which only the run attempt that promoted a version can make. A rollback run does not know which build is live, so it walks the pages production's own sitemap lists, read once before the checks start, plus the files every release since launch serves and the `og:image` and the feed each page names, and skips the Build readout check; after a rollback to a version from before PR 3, which names no `og:image`, it reports those checks as skipped and passes.
+4. Confirm `prod-smoke` passes against the rolled-back version. After a dashboard rollback, re-run the failed jobs: `gh run rerun <run-id> --failed` runs `prod-smoke` again, against production as it is now, and `prod-verdict` after it. The re-run skips the byte-for-byte check, which only the run attempt that promoted a version can make. A rollback run does not know which build is live, so it walks the pages production's own sitemap lists, read once before the checks start, plus the files every release since launch serves and the `og:image` and the feed each page names, and skips the Build readout check; after a rollback to a version from before PR 3, which names no `og:image`, it reports those checks as skipped and passes.
 5. Revert or fix on `main` first. The Monday rebuild skips while a rollback is live, but the next merge deploys `main` again, broken commit included.
 6. Close the issue with one line: the cause, and which check would have caught it before production.
 
