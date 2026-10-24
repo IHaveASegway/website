@@ -29,7 +29,7 @@ for (const file of posts) {
   });
 }
 
-test('known answers: an image in the body is named, in any form; one outside it is not', () => {
+test('known answers: an img, picture or source in div.prose is named, whatever Markdown form wrote it; one outside it is not', () => {
   const page = (body: string) =>
     `<header><img src="/logo.png" alt=""></header><article><div class="prose">${body}</div></article>`;
   expect(imagesInProse(page('<p>Text only.</p>'))).toEqual([]);

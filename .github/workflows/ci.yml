@@ -574,6 +574,8 @@ jobs:
     # build ran. Its Chromium (the CSP check on Home opens a page) needs no apt install, which once ran
     # this job into its timeout (run 40001716913). The verdict and the incident issue need gh, which
     # the image lacks, and issues: write, which no step in the image should hold: prod-verdict, below.
+    # No pnpm cache: this job runs on main, and a cache it saved would be restored by every pull
+    # request and by verify, so code from the image never seeds one.
     container:
       image: mcr.microsoft.com/playwright:v${{ needs.verify.outputs.playwright || needs.rollback.outputs.playwright }}-noble
       options: --user 1001
@@ -591,7 +593,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
-          cache: pnpm
+          package-manager-cache: false # no cache from inside the image: see above
       - run: pnpm install --frozen-lockfile
       - name: Fetch the artifact this attempt deployed, for the byte-for-byte check
         if: needs.deploy.outputs.promoted_attempt == github.run_attempt
@@ -609,9 +611,10 @@ jobs:
           echo "unreachable=true" >> "$GITHUB_OUTPUT"
           echo "::error::https://ihaveasegway.com/ did not answer within two minutes. Nothing is being served: the custom domain is not attached, or the zone is failing. A rollback cannot fix that."
           exit 1
+      # A failed smoke fails this job, so "Re-run failed jobs" (gh run rerun --failed) runs it again
+      # with prod-verdict, against production as it is then, never prod-verdict alone on old outputs.
       - name: Smoke production through the zone
         id: smoke
-        continue-on-error: true # prod-verdict decides, once it knows whether a newer deploy took over
         working-directory: apps/web
         env:
           # Relative to apps/web: in a container job, github.workspace is the runner's path, not the
@@ -622,12 +625,12 @@ jobs:
   prod-verdict:
     needs: [deploy, rollback, prod-smoke]
     # The verdict on production and the incident issue, on the runner, which has gh, with the run's
-    # only issues: write token. It runs when prod-smoke failed, its smoke failed, or the weekly guard
-    # stopped the rebuild; a clean pass skips it. A cancelled prod-smoke opens no issue, as before.
+    # only issues: write token. It runs when prod-smoke failed, or to comment when the weekly guard
+    # stopped the rebuild; a clean pass skips it, and a cancelled prod-smoke opens no issue, as before.
+    # A failed prod-smoke is re-run with it, so it never judges a previous attempt's outputs.
     if: >-
       ${{ !cancelled() && (needs.prod-smoke.result == 'failure'
-      || (needs.prod-smoke.result == 'success'
-      && (needs.prod-smoke.outputs.smoke == 'failure' || needs.deploy.outputs.skipped == 'true'))) }}
+      || (needs.prod-smoke.result == 'success' && needs.deploy.outputs.skipped == 'true')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -643,7 +646,7 @@ jobs:
           SMOKE: ${{ needs.prod-smoke.outputs.smoke }}
         run: |
           # The smoke passed, and this job runs only to comment that the weekly guard stopped.
-          if [ "$RESULT" = success ] && [ "$SMOKE" != failure ]; then
+          if [ "$RESULT" = success ]; then
             exit 0
           fi
           # prod-smoke runs outside the deploy group, so a newer run's deploy can promote while it

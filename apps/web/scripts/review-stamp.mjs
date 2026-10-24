@@ -60,7 +60,8 @@ export function stampOf(path, text) {
   return { stamp, rest };
 }
 
-const READ_AGAIN = 'Read the whole entry again, then set firewall_reviewed to the day you did.';
+const READ_AGAIN =
+  'Read the whole entry again, then set firewall_reviewed to the UTC day you commit it.';
 
 /**
  * Why one entry's change may not merge, or null. `before` is null for an added entry, `after` for

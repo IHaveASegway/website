@@ -8,16 +8,21 @@ import { app } from './support/dist';
 // Chromium and its libraries come with it, so no apt install runs, and its tag is the Playwright
 // version the lockfile installs, which verify reads (and the rollback job, when no build ran), so
 // the browser always matches @playwright/test. The verdict on production and the incident issue
-// stay on the runner, which has gh, with the run's only issues: write token. Known answers on the
-// workflow, parsed: each mutation that would bring back the drift, the install or the token fails.
+// stay on the runner, which has gh, with the run's only issues: write token. A failed smoke fails
+// prod-smoke, so a re-run of failed jobs checks production again rather than judging old outputs,
+// and prod-smoke saves no cache: it runs on main, whose caches every pull request restores. Known
+// answers on the workflow, parsed: each mutation that brings back one of these fails.
 
 interface Step {
   id?: string;
   name?: string;
   run?: string;
   uses?: string;
+  with?: Record<string, unknown>;
+  'continue-on-error'?: unknown;
 }
 interface Job {
+  if?: string;
   needs?: string[];
   container?: { image?: string; options?: string };
   outputs?: Record<string, string>;
@@ -76,9 +81,20 @@ export function imageProblems(workflow: Workflow): string[] {
     if (job?.steps?.some((s) => /playwright install|install-deps|apt-get/.test(s.run ?? '')))
       problems.push(`${name} installs a browser of its own`);
   }
-  // No step in the image holds more than contents: read; the issues token stays on the runner.
+  // The image jobs' GITHUB_TOKEN reads contents only; the issues token stays on the runner. (The
+  // runtime token for caches and artifacts is not one permissions: governs: security.md.)
   if (JSON.stringify(smoke?.permissions) !== JSON.stringify({ contents: 'read' }))
     problems.push('prod-smoke holds more than contents: read');
+  if (smoke?.steps?.some((s) => s['continue-on-error'] !== undefined))
+    problems.push('a prod-smoke step continues on error, so a re-run of failed jobs skips it');
+  if (
+    /needs\.prod-smoke\.outputs/.test(verdict?.if ?? '') ||
+    !/needs\.prod-smoke\.result == 'failure'/.test(verdict?.if ?? '')
+  )
+    problems.push("prod-verdict's if reads more than this attempt's prod-smoke result");
+  const node = smoke?.steps?.find((s) => s.uses?.startsWith('actions/setup-node'));
+  if (node?.with?.['cache'] !== undefined || node?.with?.['package-manager-cache'] !== false)
+    problems.push('prod-smoke saves a cache on main from inside the image');
   if (verdict?.container || verdict?.permissions?.['issues'] !== 'write')
     problems.push('prod-verdict is not the runner job with issues: write');
   if (!verdict?.needs?.includes('prod-smoke'))
@@ -140,6 +156,28 @@ test('known answers: a pinned tag, an install, a missing output or a token in th
       job(w, 'prod-smoke').needs = ['deploy', 'rollback'];
     }),
   ).toEqual(['prod-smoke does not need verify and rollback']);
+  // The regression the split brought: a smoke that continues on error leaves prod-smoke green, so
+  // "Re-run failed jobs" re-ran prod-verdict alone, on the first attempt's outputs.
+  expect(
+    mutated((w) => {
+      const step = job(w, 'prod-smoke').steps?.find((s) => s.id === 'smoke');
+      if (step) step['continue-on-error'] = true;
+    }),
+  ).toEqual(['a prod-smoke step continues on error, so a re-run of failed jobs skips it']);
+  expect(
+    mutated((w) => {
+      job(w, 'prod-verdict').if =
+        "${{ !cancelled() && (needs.prod-smoke.result == 'failure' || needs.prod-smoke.outputs.smoke == 'failure') }}";
+    }),
+  ).toEqual(["prod-verdict's if reads more than this attempt's prod-smoke result"]);
+  expect(
+    mutated((w) => {
+      const node = job(w, 'prod-smoke').steps?.find((s) =>
+        s.uses?.startsWith('actions/setup-node'),
+      );
+      if (node) node.with = { 'node-version-file': '.nvmrc', cache: 'pnpm' };
+    }),
+  ).toEqual(['prod-smoke saves a cache on main from inside the image']);
 });
 
 test("the lockfile's Playwright has an image: the catalog pins one exact version", () => {

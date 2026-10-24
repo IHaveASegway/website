@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { compile } from 'tailwindcss';
 import { describe, expect, test } from 'vitest';
 import { app, dist, filesIn } from './support/dist';
 import { attribute, elementsOf } from './support/html';
@@ -7,14 +8,15 @@ import { attribute, elementsOf } from './support/html';
 // Every class the built stylesheet styles is used by some element on a built page. Tailwind reads
 // every word under src/, comments included, as a possible class name (global.css), so a comment
 // that says "filter" ships a .filter utility and 13 @property rules to every page: +220 B gzip in
-// PR 8, which no budget or other check caught, because both builds carried it. The stylesheet is
-// shared, and only the fixtures hold posts yet, so the pages read are every build's.
+// pull request #8 (PR 5's hardening), which no budget or other check caught, because both builds
+// carried it. The stylesheet is shared, and only the fixtures hold posts yet, so the pages read are
+// every build's. Content is outside what Tailwind reads (global.css), and a canary proves it.
 
 /**
  * Classes the stylesheet already held, unused, on main at d6ac7a8, before this check existed:
- * words Tailwind read as utilities, and the card's "more" link, which no page renders yet. The
- * list only shrinks. A class that leaves the stylesheet, or that a page starts to use, must leave
- * the list too, so the list stays exact.
+ * words Tailwind read as utilities, and the card's "more" link, which no page renders yet. A class
+ * that leaves the stylesheet, or that a page starts to use, must leave the list (the test below
+ * holds it exact). Adding one is a reviewed decision, and no check prevents it.
  */
 const KNOWN_UNUSED = [
   'block',
@@ -115,6 +117,30 @@ describe('every class the stylesheet styles is used on a built page', () => {
   });
 });
 
+describe('the words of a post or a draft never reach the stylesheet', () => {
+  const canary = (
+    /^Canary: (.+)$/m.exec(readFileSync(join(app, 'src/content/README.md'), 'utf8'))?.[1] ?? ''
+  )
+    .split(' ')
+    .filter(Boolean);
+
+  test('each canary word is a utility Tailwind would emit, if it read src/content', async () => {
+    expect(canary.length).toBeGreaterThan(3);
+    const utilities = classesStyled((await compile('@tailwind utilities;')).build(canary));
+    expect([...utilities].sort()).toEqual([...canary].sort());
+  });
+
+  test("none of them is in any build's stylesheet: global.css keeps Tailwind out of src/content", () => {
+    const styled = new Set(
+      BUILDS.map(read).flatMap((b) => b.sheets.flatMap((s) => [...classesStyled(s)])),
+    );
+    expect(canary.filter((name) => styled.has(name))).toEqual([]);
+    expect(readFileSync(join(app, 'src/styles/global.css'), 'utf8')).toContain(
+      "@source not '../content';",
+    );
+  });
+});
+
 test('known answers: classes read from selectors only, and the regression this check exists for', () => {
   const css =
     '/*! tailwindcss | https://tailwindcss.com */@layer utilities{.flex{display:flex}' +
@@ -132,7 +158,7 @@ test('known answers: classes read from selectors only, and the regression this c
   ]);
   const page = '<!-- <p class="filter"> --><main class="flex  prose"><p class="card">a</p></main>';
   expect([...classesUsed(page)].filter(Boolean).sort()).toEqual(['card', 'flex', 'prose']);
-  // PR 8's comment "The sitemap filter" made Tailwind ship .filter, which no element uses.
+  // Pull request #8's comment "The sitemap filter" made Tailwind ship .filter, which no element uses.
   const unused = [...classesStyled(css)].filter((name) => !classesUsed(page).has(name));
   expect(unused).toContain('filter');
 });
