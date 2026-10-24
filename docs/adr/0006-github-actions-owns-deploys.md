@@ -35,7 +35,7 @@ As of 2026-10-22:
 | Cloudflare credential held outside Cloudflare | One scoped account token, in GitHub | None in GitHub. Cloudflare generates a user token with Workers Scripts, KV and R2 Edit, and Workers Routes Edit on all zones | Both | An edit credential at rest on a laptop |
 | Writers to production | 1 | 1 | 2 | 1, unrecorded |
 | Where the pipeline's logic lives | Workflow files | Workflow files, plus build settings in the dashboard | Both | Shell history |
-| Free allowance | 2,000 Actions minutes a month on a private repository, free on a public one; this pipeline uses about 865, about 1,312 in a busy month, as measured on 2026-10-23 ([delivery.md](../delivery.md)) | 3,000 build minutes a month | | |
+| Free allowance | 2,000 Actions minutes a month on a private repository, free on a public one; this pipeline uses an estimated 675, about 1,025 in a busy month ([delivery.md](../delivery.md)) | 3,000 build minutes a month | | |
 
 - **B** is the better design once its gate exists. It keeps the Cloudflare secret out of GitHub and comes with pull-request comments and check runs. Without required checks, every push to `main` deploys whatever CI reports. Even with them, nothing in Workers Builds' docs makes a preview wait for GitHub checks, so a failing firewall would block the merge but not the preview. That matters while the repository is private; once it is public, the push has already published the content. Its build settings live in the dashboard, a second place to read when something breaks. B trades content safety (a public preview before the firewall) and operability (two systems) for one fewer secret in GitHub.
 - **C** is two writers to one version history. Deploys race, the last one wins, and the rollback list interleaves two sources. It is multi-leader replication with last-write-wins, and it has the same conflicts.
@@ -62,7 +62,7 @@ Bad:
 - Residual risk: as a repository secret, any workflow on any branch can read it. Environments would not shrink its power, because previews need the same token on pull-request branches and a Cloudflare token cannot be limited to previews. Scope and expiry are the real limits. What a leaked token could do is in [architecture.md](../architecture.md).
 - This repository owns two small jobs that a managed CI would otherwise run: the preview comment, modeled on Cloudflare's own workflow, and preview cleanup when a pull request closes.
 - From Phase 4, the lab's nightly object check needs read access every night. It gets a separate read-only token rather than this one, so a scheduled job never holds write access ([operations.md](../operations.md)).
-- The pipeline spends Actions minutes: about 865 of the 2,000 included each month on a private Free repository, about 1,312 in a busy month, as measured on 2026-10-23 ([delivery.md](../delivery.md) has the model). With no payment method on file, usage is blocked at the quota rather than billed. A public repository pays nothing.
+- The pipeline spends Actions minutes: an estimated 675 of the 2,000 included each month on a private Free repository, about 1,025 in a busy month ([delivery.md](../delivery.md) has the model). With no payment method on file, usage is blocked at the quota rather than billed. A public repository pays nothing.
 
 ## Door
 
@@ -82,3 +82,9 @@ The pipeline PR 2 built differs in two places from "every merge deploys, and the
 - The first deploy creates the Worker and attaches the domain with `wrangler deploy`, and goes live without a Version URL smoke, because the domain serves nothing yet; `prod-smoke` checks it. Until then `preview` publishes nothing, because `wrangler preview` would create the Worker itself, without its domain.
 
 The decision stands, and no Revisit if condition was met.
+
+## Postscript 2026-10-23
+
+The Actions minutes this record cites (an estimated 675 a month, about 1,025 in a busy month) were a model written before the jobs had a run history. Modelled again from job times measured on 2026-10-23, from the Actions API, the pipeline uses about 865 minutes in a typical month and about 1,312 in a busy one ([delivery.md](../delivery.md#actions-minutes-budget)). They changed for two reasons: `verify` bills 4 to 6 minutes, not 3, and `e2e` billed 9 to 13 whenever `playwright install --with-deps` met a slow Ubuntu mirror, until PR 8 moved it into Playwright's own image. The totals multiply those measured job times by assumed event counts, so they are a model, not a meter.
+
+The decision stands. The Revisit if condition on minutes, more than 1,500 a month on a private repository, is not met: a busy month models 188 minutes under it.
