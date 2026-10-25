@@ -376,6 +376,9 @@ describe('the markup both the build and the browser draw', () => {
       /^Map of the bakery and the previous 11 orders, with the routes VROOM planned for 2 vans\. /,
     );
     expect(savedText(m, m)).toBe('These orders came in an order VROOM could not beat.');
+    // One order is one route in both plans: nothing to beat, and the headline says why.
+    const single = measure(data, { routes: [[3], []], unassigned: [] });
+    expect(savedText(single, single)).toBe('With one order, both plans are the same route.');
     const shorter = { ...m, drive: m.drive - 600, metres: m.metres - 1_609 };
     expect(savedText(m, shorter)).toMatch(
       new RegExp(`^VROOM saves 10${NBSP}min of driving and 1.0${NBSP}mi, \\d+% less\\.$`),
@@ -406,10 +409,20 @@ describe('the markup both the build and the browser draw', () => {
     expect(roomText(data, busy.orders, 1, capacityFor(data, busy.orders, 1))).toBe(
       'One van takes all 42 boxes.',
     );
-    // One order of 3 boxes and 4 vans: the room is the largest order, more than the share.
+    // One order has no share to speak of: before 2026-10-25 one order of 3 boxes and 4 vans read
+    // "Each van takes at most 3 of the 3 boxes: the largest order", and one box "1 of the 1 box".
     const three = data.points.find((p) => p.qty === 3)?.i ?? 0;
     expect(roomText(data, [three], 4, capacityFor(data, [three], 4))).toBe(
-      'Each van takes at most 3 of the 3 boxes: the largest order.',
+      'One order: one van takes its 3 boxes.',
+    );
+    const one = data.points.find((p) => p.qty === 1)?.i ?? 0;
+    expect(roomText(data, [one], 2, capacityFor(data, [one], 2))).toBe(
+      'One order: one van takes its 1 box.',
+    );
+    // Two orders that are together the largest: the room is the largest order, more than the share.
+    const two = [three, one];
+    expect(roomText(data, two, 4, capacityFor(data, two, 4))).toBe(
+      'Each van takes at most 3 of the 4 boxes: the largest order.',
     );
     expect(roomText(data, [], 2, 1)).toBe('');
   });

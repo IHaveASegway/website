@@ -171,8 +171,11 @@ export function bandsSentence(minutes: readonly number[], lines: readonly number
   return `Shaded bands show driving time from the bakery, ${range}${at}.`;
 }
 
-/** The headline under the controls: what VROOM saves against the order the orders came in. */
+/** The headline under the controls: what VROOM saves against the order the orders came in. One
+ *  order is one route in both plans, so there is no order to beat. */
 export function savedText(before: Measured, after: Measured): string {
+  if (before.vans.reduce((stops, van) => stops + van.stops.length, 0) === 1)
+    return 'With one order, both plans are the same route.';
   // The difference of the totals as the page shows them, so the headline and the two big figures
   // agree: whole minutes and tenths of a mile, each rounded before subtracting.
   const time = (Math.round(before.drive / 60) - Math.round(after.drive / 60)) * 60;
@@ -183,7 +186,7 @@ export function savedText(before: Measured, after: Measured): string {
 }
 
 /** Why the vans hold what they hold: a share of the day's boxes, so changing the vans changes it.
- *  Nothing when there is no order. */
+ *  Nothing when there is no order, and no share when there is one: one van takes it. */
 export function roomText(
   data: RouteData,
   orders: readonly number[],
@@ -193,6 +196,7 @@ export function roomText(
   const boxes = boxesOf(data, orders);
   if (orders.length === 0) return '';
   const all = `${boxes} ${boxes === 1 ? 'box' : 'boxes'}`;
+  if (orders.length === 1) return `One order: one van takes its ${all}.`;
   if (vans === 1) return `One van takes all ${all}.`;
   const share = shareCapacity(data, orders, vans);
   const why =
