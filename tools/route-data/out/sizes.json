@@ -11,9 +11,9 @@
       "sha256": "579c54d95f37e60ceb6b5bdc9d9b06eb44cd91f83df5c642d02c8327f3b912af"
     },
     "route-data.json": {
-      "raw": 199320,
-      "gzip": 56049,
-      "sha256": "c20c78de094a58e769a23a4c7b430b3a2bf6aae81144c8542d26165097bdc611"
+      "raw": 224857,
+      "gzip": 57365,
+      "sha256": "9a1eb680ac2ebf875a50c42214e6c4e74a306cf79bde22fe93132c8cd1b6fcbd"
     },
     "preview.svg": {
       "raw": 140430,

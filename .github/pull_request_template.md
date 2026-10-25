@@ -21,6 +21,9 @@ with the repository.
 - [ ] No PDF was added, or each one's text and metadata was read.
 - [ ] No archive, Office document or other packed file (zip, docx, xlsx, gz) was added. No rule
       can read inside one, so the firewall refuses it: commit what it holds instead.
+- [ ] Any WebAssembly added is a reproducible build of public source, with its build in `tools/`
+      and its bytes pinned. The firewall reads a module's names and data, not what its code
+      computes ([ADR 0017](https://github.com/IHaveASegway/website/blob/main/docs/adr/0017-firewall-reads-webassembly.md)).
 - [ ] No new name outside the repository (the workers.dev subdomain, a Worker or account name, an
       Email Routing destination), or it names nothing private.
 - [ ] Re-read the title and description after any edit: CI scans an edited title or description

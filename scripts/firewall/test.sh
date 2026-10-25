@@ -4,9 +4,10 @@
 # It runs in verify (delivery.md); a check that cannot fail proves nothing.
 #
 # Each case is one way a term could pass unseen or a scan could pass unproven: a file name git
-# quotes, a merge, a .gitattributes, an archive, git settings that change git's output, rules left
-# in the environment. Every case that finds something runs in both output formats, local and
-# GitHub's annotations, and fails if either one prints a term or an address.
+# quotes, a merge, a .gitattributes, an archive, a WebAssembly module (built here byte by byte, and
+# the Route Lab's own), git settings that change git's output, rules left in the environment. Every
+# case that finds something runs in both output formats, local and GitHub's annotations, and fails
+# if either one prints a term or an address.
 set -euo pipefail
 export LC_ALL=C
 
@@ -127,6 +128,130 @@ commit() { # commit <message>: commits everything staged and unstaged except the
   git commit -qm "$1"
 }
 
+# WebAssembly modules, built byte by byte, with no toolchain. hex: bytes from hex pairs. leb: a
+# number as an unsigned LEB128. str: a name, its length in bytes, then the bytes. section: a
+# section, its id and its length, around what the command after the id prints.
+hex() {
+  local h
+  for h in "$@"; do printf '%b' "\\x$h"; done
+}
+leb() {
+  local n="$1" b
+  while :; do
+    b=$((n & 127))
+    n=$((n >> 7))
+    if [ "$n" -eq 0 ]; then
+      hex "$(printf %02x "$b")"
+      return 0
+    fi
+    hex "$(printf %02x $((b | 128)))"
+  done
+}
+str() {
+  leb "${#1}"
+  printf '%s' "$1"
+}
+section() { # section <id> <command...>
+  "${@:2}" >"$W/payload"
+  hex "$(printf %02x "$1")"
+  leb "$(wc -c <"$W/payload")"
+  cat "$W/payload"
+}
+custom() { # custom <name> <bytes>
+  str "$1"
+  printf '%s' "$2"
+}
+imports() { # imports <name>: env.<name>, a function of type 0
+  hex 01
+  str env
+  str "$1"
+  hex 00 00
+}
+exports() { # exports <name>: <name>, function 1, and the memory
+  hex 02
+  str "$1"
+  hex 00 01
+  str memory
+  hex 02 00
+}
+datas() { # datas <active bytes> <passive bytes>: an active segment at offset 0, then a passive one
+  hex 02 00 41 00 0b
+  str "$1"
+  hex 01
+  str "$2"
+}
+# module <custom name> <custom bytes> <import name> <export name> <active data> <passive data>:
+# a valid module with every kind of section, in the format's order, and a custom section first
+module() {
+  hex 00 61 73 6d 01 00 00 00
+  section 0 custom "$1" "$2"
+  section 1 hex 01 60 00 00          # type: one, [] -> []
+  section 2 imports "$3"             # import
+  section 3 hex 01 00                # function: one, of type 0
+  section 4 hex 01 70 00 01          # table: funcref, at least 1
+  section 5 hex 01 00 01             # memory: at least 1 page
+  section 13 hex 01 00 00            # tag: of type 0
+  section 6 hex 01 7f 00 41 00 0b    # global: i32, i32.const 0
+  section 7 exports "$4"             # export
+  section 8 hex 01                   # start: function 1
+  section 9 hex 01 00 41 00 0b 01 01 # element: function 1, into table 0 at 0
+  section 12 hex 02                  # data count: 2
+  section 10 hex 01 02 00 0b         # code: one body, no locals, end
+  section 11 datas "$5" "$6"         # data
+}
+clean_module() { module fixture 'Plain words.' log run 'Plain words.' 'Plain words, passive.'; }
+empties() { # empties <n>: n empty passive data segments
+  local i
+  leb "$1"
+  for ((i = 0; i < $1; i++)); do hex 01 00; done
+}
+# sized <file> <bytes> <strings> <text>: a valid module of exactly that many bytes and strings, for
+# check.sh's two caps: <strings> - 2 empty passive data segments, then a custom section whose
+# bytes are spaces up to <text> at the very end
+sized() {
+  local lb=1 len
+  {
+    hex 00 61 73 6d 01 00 00 00
+    section 11 empties $(($3 - 2))
+  } >"$W/sized"
+  while :; do # the custom section's length takes lb bytes of LEB128, for a total of <bytes>
+    len=$(($2 - $(wc -c <"$W/sized") - 1 - lb))
+    [ "$(leb "$len" | wc -c)" -ne "$lb" ] || break
+    lb=$((lb + 1))
+  done
+  {
+    cat "$W/sized"
+    hex 00
+    leb "$len"
+    str pad
+    head -c $((len - 4 - ${#4})) /dev/zero | tr '\000' ' '
+    printf '%s' "$4"
+  } >"$1"
+  [ "$(wc -c <"$1")" -eq "$2" ] || {
+    echo "test.sh: cannot build a module of $2 bytes" >&2
+    exit 2
+  }
+}
+# A name 65 bytes long, so its length byte is the letter A: read as raw bytes, the name would start
+# with a letter, and no rule's \b would hold before the term.
+long_name="$TERM_X-$(printf '%052d' 0)"
+vroom="$({ find "$here/../../apps/web/public/lab/routes/solver" -name vroom.wasm -type f 2>/dev/null || true; } | head -n 1)"
+[ -n "$vroom" ] || {
+  echo "test.sh: cannot find the Route Lab's vroom.wasm, which the WebAssembly cases read" >&2
+  exit 2
+}
+wasm_head="$(sed -n "s/^WASM_HEAD='\([^']*\)'.*/\1/p" "$check")"
+[ -n "$wasm_head" ] || {
+  echo "test.sh: cannot read WASM_HEAD from check.sh" >&2
+  exit 2
+}
+wasm_max="$(sed -n 's/^WASM_MAX=\([0-9][0-9]*\).*/\1/p' "$check")"
+wasm_strings="$(sed -n 's/^WASM_STRINGS=\([0-9][0-9]*\).*/\1/p' "$check")"
+[ -n "$wasm_max" ] && [ -n "$wasm_strings" ] || {
+  echo "test.sh: cannot read WASM_MAX and WASM_STRINGS from check.sh" >&2
+  exit 2
+}
+
 # What check.sh must never print: either term, git's quoted form of the non-ASCII one, or any part
 # of an identity (every identity in these fixtures that is not allowed is "Someone", at an address
 # ending in example.invalid).
@@ -196,6 +321,23 @@ expect 0 "a committed .gitleaksignore suppresses its finding" FW_EVENT=schedule 
 printf 'Edited, not committed.\n' >.gitleaksignore
 expect 2 "pre-push: a .gitleaksignore edited in the working tree and not committed" -- --range "$BASE" HEAD
 git checkout -q -- .gitleaksignore
+
+# WebAssembly is read, not refused (ADR 0017): its custom sections, imports, exports and data
+# segments, in every mode. The Route Lab's real vroom.wasm must parse end to end.
+fixture wasm-clean
+mkdir -p lib apps/web/dist/lab
+clean_module >lib/clean.wasm
+cp "$vroom" lib/vroom.wasm
+commit "Add two modules"
+clean_module >apps/web/dist/lab/clean.wasm
+cp "$vroom" apps/web/dist/lab/vroom.wasm
+expect 0 "WebAssembly: a clean module with every kind of section, and vroom.wasm, in the range, the tree and the built site"
+expect 0 "pre-push: the same modules in a pushed range" -- --range "$BASE" HEAD
+expect 0 "the full history: the same modules" -- --history
+clean_module >lib/staged.wasm
+cp "$vroom" lib/staged-vroom.wasm
+git add lib/staged.wasm lib/staged-vroom.wasm
+expect 0 "pre-commit: the same modules, staged" -- --staged
 
 # --- Exit 1: a finding --------------------------------------------------------------------------------
 fixture in-file
@@ -354,6 +496,65 @@ git add staged.md
 expect 0 "pre-commit: clean staged changes" -- --staged
 expect 1 "pre-commit: an identity that is not on the allowlist" GIT_AUTHOR_EMAIL=someone@example.invalid -- --staged
 
+# WebAssembly: the term in each part of a module the reader turns into text, in each surface.
+fixture wasm-active
+mkdir -p lib
+module fixture 'Plain words.' log run "$(printf '%600s' '') Some $TERM_X here." 'Plain words.' >lib/solver.wasm
+commit "Add a module"
+expect 1 "WebAssembly: the term in an active data segment, 600 bytes in, in the tree"
+
+fixture wasm-passive
+mkdir -p apps/web/dist/lab
+module fixture 'Plain words.' log run 'Plain words.' "Some $TERM_X here." >apps/web/dist/lab/solver.wasm
+expect 1 "WebAssembly: the term in a passive data segment, in the built site"
+
+fixture wasm-custom-name
+module "$TERM_X" 'Plain words.' log run 'Plain words.' 'Plain words.' >solver.wasm
+git add solver.wasm
+expect 1 "pre-commit: the term in a staged module's custom section name" -- --staged
+
+fixture wasm-custom-bytes
+mkdir -p apps/web/dist/lab
+module producers "processed-by $TERM_X 1.0" log run 'Plain words.' 'Plain words.' >apps/web/dist/lab/solver.wasm
+expect 1 "WebAssembly: the term in a custom section's bytes, in the built site"
+
+fixture wasm-export
+mkdir -p lib
+module fixture 'Plain words.' log "$long_name" 'Plain words.' 'Plain words.' >lib/solver.wasm
+commit "Add a module"
+expect 1 "WebAssembly: the term in an export name whose length byte is a letter, in the tree"
+
+fixture wasm-import
+mkdir -p apps/web/dist/lab
+module fixture 'Plain words.' "$TERM_U" run 'Plain words.' 'Plain words.' >apps/web/dist/lab/solver.wasm
+expect 1 "WebAssembly: a non-ASCII term in an import name, in the built site"
+
+fixture wasm-renamed
+module fixture 'Plain words.' log run "Some $TERM_X here." 'Plain words.' >apps/web/dist/solver.bin
+expect 1 "WebAssembly: the term in a module called solver.bin, found by its bytes, not its name"
+
+fixture wasm-canary-rule
+module fixture 'Plain words.' log run "$(printf 'zq-fw-canary-%08x' 0)" 'Plain words.' >apps/web/dist/solver.wasm
+expect 1 "WebAssembly: a string the canary rule matches is a finding, not the scan's own known answer"
+
+# Read as raw bytes, as the git scan reads it, this module's term follows the letter A, so no rule
+# with \b sees it: only the reader does.
+fixture wasm-range
+mkdir -p lib
+module fixture 'Plain words.' log "$long_name" 'Plain words.' 'Plain words.' >lib/solver.wasm
+commit "Add a module"
+git rm -q lib/solver.wasm
+commit "Remove it"
+expect 1 "WebAssembly: the term in a module added and removed inside the range"
+expect 1 "pre-push: the term in a module added and removed inside a pushed range" -- --range "$BASE" HEAD
+expect 1 "the full history: the term in a module no ref holds any more" -- --history
+
+# A module at both of the reader's caps is read to its last byte, not refused.
+fixture wasm-caps
+mkdir -p apps/web/dist/lab
+sized apps/web/dist/lab/solver.wasm "$wasm_max" "$wasm_strings" "Some $TERM_X here."
+expect 1 "WebAssembly: the term in the last bytes of a module exactly at both caps, $wasm_max bytes and $wasm_strings strings"
+
 # --- Exit 2: cannot prove clean -------------------------------------------------------------------------
 fixture guards
 printf 'Plain words.\n' >notes.md
@@ -388,6 +589,71 @@ rm apps/web/dist/notes.txt.gz
 printf 'PK\003\004 an office document\n' >apps/web/dist/cv.docx
 expect 2 "an Office document (a zip inside) in the built site"
 rm apps/web/dist/cv.docx
+
+# WebAssembly the reader cannot follow, or text gitleaks did not read: each one exits 2.
+fixture wasm-malformed
+mkdir -p apps/web/dist/lab
+m=apps/web/dist/lab/solver.wasm
+clean_module >"$W/clean.wasm"
+size="$(wc -c <"$W/clean.wasm")"
+head -c $((size - 3)) "$W/clean.wasm" >"$m"
+expect 2 "WebAssembly: a module cut 3 bytes short"
+{
+  hex 00 61 73 6d 01 00 00 00 00
+  leb 1000
+  custom fixture 'Plain words.'
+} >"$m"
+expect 2 "WebAssembly: a section whose length runs past the end of the file"
+hex 00 61 73 6d 01 00 00 00 01 80 >"$m"
+expect 2 "WebAssembly: a section's length cut short at the end of the file"
+hex 00 61 73 6d 01 00 00 00 00 80 80 80 80 80 00 >"$m"
+expect 2 "WebAssembly: an over-long LEB128, a section's length in six bytes"
+hex 00 61 73 6d 01 00 00 00 0e 00 >"$m"
+expect 2 "WebAssembly: a section id the reader does not know"
+{
+  cat "$W/clean.wasm"
+  printf 'trailing garbage'
+} >"$m"
+expect 2 "WebAssembly: bytes after the last section"
+{
+  hex 00 61 73 6d 01 00 00 00
+  section 11 hex 01 01 32 41 42
+  section 0 custom fixture 'Plain words.'
+} >"$m"
+expect 2 "WebAssembly: a data segment longer than its section"
+{
+  hex 00 61 73 6d 01 00 00 00
+  section 11 hex 01 03 01 41
+} >"$m"
+expect 2 "WebAssembly: a data segment of a kind the reader does not know"
+{
+  hex 00 61 73 6d 01 00 00 00
+  section 11 datas a b
+  section 11 datas a b
+} >"$m"
+expect 2 "WebAssembly: a data section twice"
+hex 00 61 73 6d 02 00 00 00 >"$m"
+expect 2 "WebAssembly: a version other than 1"
+# The text opens with check.sh's fixed line; this segment puts "ustar" 257 bytes into it, where
+# gitleaks types its input as a tar archive and skips it unread.
+tar_like() { # one passive segment
+  hex 01 01
+  str "$(printf "%$((257 - ${#wasm_head} - 1))s" '')ustar Some $TERM_X here."
+}
+{
+  hex 00 61 73 6d 01 00 00 00
+  section 11 tar_like
+} >"$m"
+expect 2 "WebAssembly: text gitleaks types as a tar archive and skips, so its known answer goes unreported"
+# Valid modules one past either cap, which would otherwise read clean: exit 2, not a slow pass.
+sized "$m" $((wasm_max + 1)) 2 'Plain words.'
+expect 2 "WebAssembly: a module one byte larger than the reader's cap"
+sized "$m" 65536 $((wasm_strings + 1)) 'Plain words.'
+expect 2 "WebAssembly: a module one string past the reader's cap"
+rm "$m"
+head -c $((size - 3)) "$W/clean.wasm" >staged.wasm
+git add staged.wasm
+expect 2 "pre-commit: a staged module cut 3 bytes short" -- --staged
 
 fixture archive
 printf 'PK\003\004 not much of a zip\n' >bundle.zip
