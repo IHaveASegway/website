@@ -1,0 +1,723 @@
+{
+  "wasm": "1.15.0",
+  "native": "vroom 1.15.0",
+  "reference": "clang-libcxx",
+  "mode": "exact",
+  "failures": 0,
+  "exactDiffs": 0,
+  "unorderedOnly": 0,
+  "timeoutCheck": {
+    "fixture": "bench-60x4.json",
+    "x": 5,
+    "timeoutMs": 250,
+    "wallMs": 252,
+    "code": 0,
+    "cost": 36064,
+    "ok": true
+  },
+  "results": [
+    {
+      "fixture": "01-tsp-12.json",
+      "x": 0,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 6795,
+      "routes": 1,
+      "unassigned": 0,
+      "stopsPerRoute": [
+        12
+      ]
+    },
+    {
+      "fixture": "01-tsp-12.json",
+      "x": 1,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 6795,
+      "routes": 1,
+      "unassigned": 0,
+      "stopsPerRoute": [
+        12
+      ]
+    },
+    {
+      "fixture": "01-tsp-12.json",
+      "x": 2,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 6795,
+      "routes": 1,
+      "unassigned": 0,
+      "stopsPerRoute": [
+        12
+      ]
+    },
+    {
+      "fixture": "01-tsp-12.json",
+      "x": 3,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 6795,
+      "routes": 1,
+      "unassigned": 0,
+      "stopsPerRoute": [
+        12
+      ]
+    },
+    {
+      "fixture": "01-tsp-12.json",
+      "x": 4,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 6795,
+      "routes": 1,
+      "unassigned": 0,
+      "stopsPerRoute": [
+        12
+      ]
+    },
+    {
+      "fixture": "01-tsp-12.json",
+      "x": 5,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 6795,
+      "routes": 1,
+      "unassigned": 0,
+      "stopsPerRoute": [
+        12
+      ],
+      "sameAsNative4Threads": true
+    },
+    {
+      "fixture": "02-cvrp-20x2.json",
+      "x": 0,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 11526,
+      "routes": 2,
+      "unassigned": 0,
+      "stopsPerRoute": [
+        11,
+        9
+      ]
+    },
+    {
+      "fixture": "02-cvrp-20x2.json",
+      "x": 1,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 11526,
+      "routes": 2,
+      "unassigned": 0,
+      "stopsPerRoute": [
+        11,
+        9
+      ]
+    },
+    {
+      "fixture": "02-cvrp-20x2.json",
+      "x": 2,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 11526,
+      "routes": 2,
+      "unassigned": 0,
+      "stopsPerRoute": [
+        11,
+        9
+      ]
+    },
+    {
+      "fixture": "02-cvrp-20x2.json",
+      "x": 3,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 11526,
+      "routes": 2,
+      "unassigned": 0,
+      "stopsPerRoute": [
+        11,
+        9
+      ]
+    },
+    {
+      "fixture": "02-cvrp-20x2.json",
+      "x": 4,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 11526,
+      "routes": 2,
+      "unassigned": 0,
+      "stopsPerRoute": [
+        11,
+        9
+      ]
+    },
+    {
+      "fixture": "02-cvrp-20x2.json",
+      "x": 5,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 11526,
+      "routes": 2,
+      "unassigned": 0,
+      "stopsPerRoute": [
+        11,
+        9
+      ],
+      "sameAsNative4Threads": true
+    },
+    {
+      "fixture": "03-vrptw-25x3.json",
+      "x": 0,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 13990,
+      "routes": 3,
+      "unassigned": 3,
+      "stopsPerRoute": [
+        7,
+        8,
+        7
+      ]
+    },
+    {
+      "fixture": "03-vrptw-25x3.json",
+      "x": 1,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 3,
+      "code": 0,
+      "cost": 13765,
+      "routes": 3,
+      "unassigned": 3,
+      "stopsPerRoute": [
+        7,
+        8,
+        7
+      ]
+    },
+    {
+      "fixture": "03-vrptw-25x3.json",
+      "x": 2,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 13765,
+      "routes": 3,
+      "unassigned": 3,
+      "stopsPerRoute": [
+        7,
+        8,
+        7
+      ]
+    },
+    {
+      "fixture": "03-vrptw-25x3.json",
+      "x": 3,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 13765,
+      "routes": 3,
+      "unassigned": 3,
+      "stopsPerRoute": [
+        7,
+        8,
+        7
+      ]
+    },
+    {
+      "fixture": "03-vrptw-25x3.json",
+      "x": 4,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 13765,
+      "routes": 3,
+      "unassigned": 3,
+      "stopsPerRoute": [
+        7,
+        8,
+        7
+      ]
+    },
+    {
+      "fixture": "03-vrptw-25x3.json",
+      "x": 5,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 13765,
+      "routes": 3,
+      "unassigned": 3,
+      "stopsPerRoute": [
+        7,
+        8,
+        7
+      ],
+      "sameAsNative4Threads": true
+    },
+    {
+      "fixture": "04-shipments-breaks.json",
+      "x": 0,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 23830,
+      "routes": 2,
+      "unassigned": 0,
+      "stopsPerRoute": [
+        15,
+        7
+      ]
+    },
+    {
+      "fixture": "04-shipments-breaks.json",
+      "x": 1,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 23830,
+      "routes": 2,
+      "unassigned": 0,
+      "stopsPerRoute": [
+        15,
+        7
+      ]
+    },
+    {
+      "fixture": "04-shipments-breaks.json",
+      "x": 2,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 23830,
+      "routes": 2,
+      "unassigned": 0,
+      "stopsPerRoute": [
+        15,
+        7
+      ]
+    },
+    {
+      "fixture": "04-shipments-breaks.json",
+      "x": 3,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 23830,
+      "routes": 2,
+      "unassigned": 0,
+      "stopsPerRoute": [
+        15,
+        7
+      ]
+    },
+    {
+      "fixture": "04-shipments-breaks.json",
+      "x": 4,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 23830,
+      "routes": 2,
+      "unassigned": 0,
+      "stopsPerRoute": [
+        15,
+        7
+      ]
+    },
+    {
+      "fixture": "04-shipments-breaks.json",
+      "x": 5,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 23830,
+      "routes": 2,
+      "unassigned": 0,
+      "stopsPerRoute": [
+        15,
+        7
+      ],
+      "sameAsNative4Threads": true
+    },
+    {
+      "fixture": "05-unassigned-profiles.json",
+      "x": 0,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 14871,
+      "routes": 3,
+      "unassigned": 12,
+      "stopsPerRoute": [
+        9,
+        6,
+        3
+      ]
+    },
+    {
+      "fixture": "05-unassigned-profiles.json",
+      "x": 1,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 13731,
+      "routes": 3,
+      "unassigned": 12,
+      "stopsPerRoute": [
+        6,
+        9,
+        3
+      ]
+    },
+    {
+      "fixture": "05-unassigned-profiles.json",
+      "x": 2,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 13731,
+      "routes": 3,
+      "unassigned": 12,
+      "stopsPerRoute": [
+        6,
+        9,
+        3
+      ]
+    },
+    {
+      "fixture": "05-unassigned-profiles.json",
+      "x": 3,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 13405,
+      "routes": 3,
+      "unassigned": 12,
+      "stopsPerRoute": [
+        6,
+        9,
+        3
+      ]
+    },
+    {
+      "fixture": "05-unassigned-profiles.json",
+      "x": 4,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 15463,
+      "routes": 3,
+      "unassigned": 11,
+      "stopsPerRoute": [
+        9,
+        7,
+        3
+      ]
+    },
+    {
+      "fixture": "05-unassigned-profiles.json",
+      "x": 5,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 14873,
+      "routes": 3,
+      "unassigned": 11,
+      "stopsPerRoute": [
+        9,
+        7,
+        3
+      ],
+      "sameAsNative4Threads": true
+    },
+    {
+      "fixture": "bench-25x3.json",
+      "x": 0,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 16084,
+      "routes": 2,
+      "unassigned": 0,
+      "stopsPerRoute": [
+        12,
+        13
+      ]
+    },
+    {
+      "fixture": "bench-25x3.json",
+      "x": 1,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 16084,
+      "routes": 2,
+      "unassigned": 0,
+      "stopsPerRoute": [
+        12,
+        13
+      ]
+    },
+    {
+      "fixture": "bench-25x3.json",
+      "x": 2,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 16084,
+      "routes": 2,
+      "unassigned": 0,
+      "stopsPerRoute": [
+        12,
+        13
+      ]
+    },
+    {
+      "fixture": "bench-25x3.json",
+      "x": 3,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 16084,
+      "routes": 2,
+      "unassigned": 0,
+      "stopsPerRoute": [
+        12,
+        13
+      ]
+    },
+    {
+      "fixture": "bench-25x3.json",
+      "x": 4,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 16084,
+      "routes": 2,
+      "unassigned": 0,
+      "stopsPerRoute": [
+        12,
+        13
+      ]
+    },
+    {
+      "fixture": "bench-25x3.json",
+      "x": 5,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 16084,
+      "routes": 2,
+      "unassigned": 0,
+      "stopsPerRoute": [
+        12,
+        13
+      ],
+      "sameAsNative4Threads": true
+    },
+    {
+      "fixture": "bench-60x4.json",
+      "x": 0,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 35390,
+      "routes": 4,
+      "unassigned": 0,
+      "stopsPerRoute": [
+        11,
+        16,
+        17,
+        16
+      ]
+    },
+    {
+      "fixture": "bench-60x4.json",
+      "x": 1,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 35390,
+      "routes": 4,
+      "unassigned": 0,
+      "stopsPerRoute": [
+        11,
+        16,
+        17,
+        16
+      ]
+    },
+    {
+      "fixture": "bench-60x4.json",
+      "x": 2,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 35179,
+      "routes": 4,
+      "unassigned": 0,
+      "stopsPerRoute": [
+        14,
+        15,
+        14,
+        17
+      ]
+    },
+    {
+      "fixture": "bench-60x4.json",
+      "x": 3,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 35172,
+      "routes": 4,
+      "unassigned": 0,
+      "stopsPerRoute": [
+        13,
+        12,
+        18,
+        17
+      ]
+    },
+    {
+      "fixture": "bench-60x4.json",
+      "x": 4,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 35156,
+      "routes": 4,
+      "unassigned": 0,
+      "stopsPerRoute": [
+        13,
+        12,
+        18,
+        17
+      ]
+    },
+    {
+      "fixture": "bench-60x4.json",
+      "x": 5,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 35088,
+      "routes": 4,
+      "unassigned": 0,
+      "stopsPerRoute": [
+        16,
+        14,
+        13,
+        17
+      ],
+      "sameAsNative4Threads": true
+    },
+    {
+      "fixture": "big-200x8.json",
+      "x": 0,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 0,
+      "cost": 101377,
+      "routes": 8,
+      "unassigned": 0,
+      "stopsPerRoute": [
+        26,
+        29,
+        26,
+        26,
+        24,
+        28,
+        21,
+        20
+      ]
+    },
+    {
+      "fixture": "err-coordinates-only.json",
+      "x": 5,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 3,
+      "error": "VROOM compiled without routing support."
+    },
+    {
+      "fixture": "err-matrix-too-small.json",
+      "x": 5,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 2,
+      "error": "location_index exceeding durations matrix size for car profile."
+    },
+    {
+      "fixture": "err-not-json.json",
+      "x": 5,
+      "exact": true,
+      "unordered": true,
+      "nativeRuns": 1,
+      "code": 2,
+      "error": "Missing a name for object member. (offset: 2)"
+    }
+  ]
+}

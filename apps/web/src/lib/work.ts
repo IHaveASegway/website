@@ -1,8 +1,9 @@
+import { labCards, labPath, type LabArea } from './lab';
 import { KIND_LABELS, postPath, type Post, type Section, type WritingArea } from './posts';
 import type { ProjectCard } from './profile';
 
 // Selected work on Home (content.md, "Home page", row 4, and "Owned work"). A card opens a page: a
-// project's repository, or a post on this site. The rule every card meets is that its page exists
+// demo in the lab, a project's repository, or a post on this site. The rule every card meets is that its page exists
 // in this build: a card never links to nothing, and a card with nowhere to go is not drawn. When no
 // card has a target, Home has no Selected work section at all.
 
@@ -58,17 +59,25 @@ export function withTargets(cards: readonly WorkCard[], targets: ReadonlySet<str
 }
 
 /**
- * Home's Selected work: the project cards, then the featured posts. The targets are the post pages
- * this build lists, and the repositories of the projects projectCards() returned, which are the
- * records whose check is recorded and whose hold is lifted (lib/profile.ts). A preview's draft
- * page is no target: nothing but a draft may link a draft.
+ * Home's Selected work: the lab's demos, then the project cards, then the featured posts. The
+ * targets are the demo pages and post pages this build lists, and the repositories of the projects
+ * projectCards() returned, which are the records whose check is recorded and whose hold is lifted
+ * (lib/profile.ts). A preview's draft page is no target: nothing but a draft may link a draft.
  */
-export function selectedWork(projects: readonly ProjectCard[], area: WritingArea): WorkCard[] {
+export function selectedWork(
+  projects: readonly ProjectCard[],
+  area: WritingArea,
+  lab: LabArea,
+): WorkCard[] {
   const targets = new Set([
+    ...lab.entries.map(labPath),
     ...area.pages.filter((page) => page.exposure === 'listed').map((page) => postPath(page.post)),
     ...projects.map((project) => project.link.href),
   ]);
-  return withTargets([...projects, ...postCards(FEATURED_POSTS, area.published)], targets);
+  return withTargets(
+    [...labCards(lab), ...projects, ...postCards(FEATURED_POSTS, area.published)],
+    targets,
+  );
 }
 
 /** Home's Writing row: the latest published posts, newest first, less any post Selected work

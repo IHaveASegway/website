@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import holdList from '../../not-on-site.txt?raw';
-import { loadProfile, loadWritingArea } from '../lib/content';
+import { loadLabArea, loadProfile, loadWritingArea } from '../lib/content';
+import { labRoutes } from '../lib/lab';
 import { parseHolds } from '../lib/held-names';
 import { llmsText } from '../lib/llms';
 import { navAll } from '../lib/nav';
@@ -13,10 +14,12 @@ import { projectCards } from '../lib/profile';
 export const GET: APIRoute = async () => {
   const profile = await loadProfile();
   const area = await loadWritingArea();
+  const lab = await loadLabArea();
   const text = llmsText({
     profile,
-    pages: navAll(areaRoutes(area)),
+    pages: navAll([...areaRoutes(area), ...labRoutes(lab)]),
     area,
+    lab,
     projects: projectCards(profile, parseHolds(holdList)),
   });
   return new Response(text, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });

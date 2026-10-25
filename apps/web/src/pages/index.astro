@@ -4,13 +4,11 @@ import PostList from '../components/PostList.astro';
 import SectionTitle from '../components/SectionTitle.astro';
 import WorkCard from '../components/WorkCard.astro';
 import Base from '../layouts/Base.astro';
-import { loadProfile, loadWritingArea } from '../lib/content';
+import { loadProfile, loadSelectedWork, loadWritingArea } from '../lib/content';
 import { homeGraph, serialize } from '../lib/jsonld';
 import { homeCard } from '../lib/og';
-import { parseHolds } from '../lib/held-names';
-import { homeDescription, projectCards } from '../lib/profile';
-import { selectedWork, writingRow } from '../lib/work';
-import holdList from '../../not-on-site.txt?raw';
+import { homeDescription } from '../lib/profile';
+import { writingRow } from '../lib/work';
 
 // Home (content.md, "Home page"): who Joseph is, his work, his writing and how to reach him. An
 // element renders only when its source and its link target exist; until then it is left out,
@@ -18,9 +16,10 @@ import holdList from '../../not-on-site.txt?raw';
 const profile = await loadProfile();
 const { name, label } = profile.basics;
 const area = await loadWritingArea();
-// Selected work: a card per project whose check is recorded and whose hold is lifted, then a card
-// per featured post once it is published (lib/work.ts).
-const cards = selectedWork(projectCards(profile, parseHolds(holdList)), area);
+// Selected work: a card per live demo in the lab, then a card per project whose check is recorded
+// and whose hold is lifted, then a card per featured post once it is published (lib/work.ts). The
+// résumé reads the same list.
+const cards = await loadSelectedWork();
 // Writing: the latest posts that are not already a card above.
 const latest = writingRow(area.published, cards);
 ---

@@ -1,0 +1,151 @@
+---
+import PostList from '../../components/PostList.astro';
+import SectionTitle from '../../components/SectionTitle.astro';
+import WorkCard from '../../components/WorkCard.astro';
+import Base from '../../layouts/Base.astro';
+import { loadProfile, loadSelectedWork, loadWritingArea } from '../../lib/content';
+import { resumeGraph, serialize } from '../../lib/jsonld';
+import { labelOf, navAll } from '../../lib/nav';
+import { resumeCard } from '../../lib/og';
+import { areaRoutes, SECTION_LABELS } from '../../lib/posts';
+import { checkedProfiles, locationLine } from '../../lib/profile';
+import { addressText, evidencePages, RESUME_PATH, roleYears, shownSkills } from '../../lib/resume';
+import { CONTACT_EMAIL, ORIGIN } from '../../lib/site';
+import { writingRow } from '../../lib/work';
+
+// The résumé (content.md, "Résumé"): the public edition, Q9 (a) as a page. Everything on it is
+// generated from profile.json and from what this build already renders; nothing is copied from a
+// résumé file, which names the employer and is never committed. A section renders only when its
+// source exists (lib/resume.ts): the roles once Joseph adds them (Q8), a skill once every page it
+// names is built, and Selected work and Writing exactly as Home has them. On paper it is one US
+// Letter page (global.css, "The résumé on paper"; e2e/resume.spec.ts).
+const profile = await loadProfile();
+const { name, label } = profile.basics;
+const area = await loadWritingArea();
+const cards = await loadSelectedWork();
+const latest = writingRow(area.published, cards);
+const profiles = checkedProfiles(profile);
+const linkedIn = profiles.find((p) => p.network === 'LinkedIn');
+// The pages a skill may name: Selected work's, the listed posts, and the other pages this build
+// writes, the manifest's and the section indexes, each by its own title.
+const pages = [
+  ...navAll(areaRoutes(area)),
+  ...area.sections.map((s) => ({ href: `/${s}/`, label: SECTION_LABELS[s] })),
+];
+const skills = shownSkills(profile.skills, evidencePages(cards, area.published, pages));
+const title = labelOf('resume');
+---
+
+<Base
+  title={`${title} · ${name}`}
+  description={`The résumé of ${name}, ${label}. ${locationLine(profile)}.`}
+  path={RESUME_PATH}
+  og={resumeCard(profile, title)}
+  jsonLd={serialize(resumeGraph(profile, RESUME_PATH))}
+>
+  <article class="resume" aria-labelledby="name">
+    <header class="hero">
+      <h1 id="name" class="hero-name">
+        {name}
+      </h1>
+      <div class="hero-side">
+        <div class="hero-who">
+          <p class="hero-title">{label}</p>
+          <p class="where">{locationLine(profile)}</p>
+        </div>
+        <dl class="kv resume-contact">
+          <dt>Email</dt>
+          <dd>
+            <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+          </dd>
+          <dt>Web</dt>
+          <dd>
+            <a href="/">{addressText(ORIGIN)}</a>
+          </dd>
+          {profiles.map((p) => (
+            <>
+              <dt>{p.network}</dt>
+              <dd>
+                <a href={p.url}>{addressText(p.url)}</a>
+              </dd>
+            </>
+          ))}
+        </dl>
+      </div>
+    </header>
+
+    <section class="section" aria-labelledby="experience-title">
+      <SectionTitle id="experience-title" title="Experience" />
+      {profile.work.length > 0 && (
+        <ol class="roles" role="list">
+          {profile.work.map((role) => (
+            <li>
+              <p class="role-years">{roleYears(role)}</p>
+              <h3 class="role-title">{role.position}</h3>
+            </li>
+          ))}
+        </ol>
+      )}
+      <div class="resume-notes">
+        {linkedIn && (
+          <p>
+            Full history on <a href={linkedIn.url}>LinkedIn</a>.
+          </p>
+        )}
+        <p>
+          Full résumé on request: <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
+        </p>
+      </div>
+    </section>
+
+    {skills.length > 0 && (
+      <section class="section" aria-labelledby="skills-title">
+        <SectionTitle id="skills-title" title="Skills" />
+        <dl class="skills">
+          {skills.map((skill) => (
+            <div>
+              <dt>{skill.name}</dt>
+              <dd>
+                {skill.evidence.map((page, i) => (
+                  <>
+                    {i > 0 && ', '}
+                    <a href={page.href}>{page.title}</a>
+                  </>
+                ))}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+    )}
+
+    {cards.length > 0 && (
+      <section class="section" aria-labelledby="work-title">
+        <SectionTitle id="work-title" title="Selected work" />
+        <div class="cards">
+          {cards.map((card) => (
+            <WorkCard
+              tag={card.tag}
+              title={card.title}
+              text={card.text}
+              facts={card.facts}
+              link={card.link}
+            />
+          ))}
+        </div>
+      </section>
+    )}
+
+    {latest.length > 0 && (
+      <section class="section" aria-labelledby="writing-title">
+        <SectionTitle id="writing-title" title="Writing" />
+        <PostList posts={latest} level={3} />
+        <ul class="post-links">
+          <li>
+            <a href="/writing/">All writing</a>
+          </li>
+        </ul>
+      </section>
+    )}
+  </article>
+</Base>

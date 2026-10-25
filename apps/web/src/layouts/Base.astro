@@ -2,7 +2,8 @@
 import { Font } from 'astro:assets';
 import Footer from '../components/Footer.astro';
 import Header from '../components/Header.astro';
-import { loadProfile, loadWritingArea } from '../lib/content';
+import { loadLabArea, loadProfile, loadWritingArea } from '../lib/content';
+import { labRoutes } from '../lib/lab';
 import { NOINDEX } from '../lib/noindex.mjs';
 import { ogAlt, ogTitle, OG_SIZE, type OgCard } from '../lib/og';
 import { areaRoutes } from '../lib/posts';
@@ -36,10 +37,11 @@ const { title, description, path, noindex = false, og, ogType = 'website', jsonL
 const canonical = path === undefined ? undefined : new URL(path, Astro.site).href;
 const image = og && canonical ? new URL('og.png', canonical).href : undefined;
 const profile = await loadProfile();
-// Writing's pages and feed exist only from the first published post (lib/posts.ts): the header,
-// the footer and the feed link below learn from this which of them this build writes.
+// Writing's pages and feed exist only from the first published post (lib/posts.ts), and the lab's
+// from its first live demo (lib/lab.ts): the header, the footer and the feed link below learn from
+// this which of them this build writes.
 const area = await loadWritingArea();
-const generated = areaRoutes(area);
+const generated = [...areaRoutes(area), ...labRoutes(await loadLabArea())];
 
 // The theme script (src/scripts/theme.js) runs in <head>, before <body> exists, so no frame can
 // paint before a stored choice applies. In <body> it left a gap: when the HTML arrived in pieces,

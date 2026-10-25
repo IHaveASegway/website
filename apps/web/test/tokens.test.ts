@@ -1,5 +1,14 @@
 import { readFileSync, readdirSync } from 'node:fs';
-import { inGamut, wcagContrast, type Color } from 'culori';
+import {
+  differenceCiede2000,
+  differenceEuclidean,
+  filterDeficiencyDeuter,
+  filterDeficiencyProt,
+  filterDeficiencyTrit,
+  inGamut,
+  wcagContrast,
+  type Color,
+} from 'culori';
 import { describe, expect, test } from 'vitest';
 import { SELECTORS, block, stripComments, themeBlocks, themeColors } from '../src/lib/tokens';
 import { files, read } from './support/dist';
@@ -24,10 +33,63 @@ const TEXT = [
 const NON_TEXT = ['ring', 'input'];
 /** Text drawn on an accent fill, such as a button label, against each fill it sits on. */
 const ON_FILL: Record<string, string[]> = { 'primary-foreground': ['primary', 'primary-strong'] };
-/** Decoration only: no contrast claim, but still inside sRGB. */
-const DECORATIVE = ['border'];
+/** Decoration only: no contrast claim, but still inside sRGB. The map's streets and roads are
+ *  hairlines under the routes: they place the routes and carry nothing a reader needs. */
+const DECORATIVE = ['border', 'map-street', 'map-road', 'map-road-major'];
 /** Pairs a design must never draw; each is listed with its reason (none yet). */
 const FORBIDDEN: [string, string][] = [];
+
+// The Route Lab's map (design-system.md, "Map colors"; ADR 0016). Its fills are the surfaces of
+// the map: the land is the page's background, then water, parks and the six isochrone bands. Every
+// mark on the map (each van's route and stops, a place, the bakery) meets 3:1 against every fill,
+// since a route crosses all of them, and a label meets 4.5:1. The same cross product as above.
+const MAP_FILLS = [
+  'background',
+  'map-water',
+  'map-park',
+  'map-band-1',
+  'map-band-2',
+  'map-band-3',
+  'map-band-4',
+  'map-band-5',
+  'map-band-6',
+];
+const MAP_MARKS = [
+  'map-van-a',
+  'map-van-b',
+  'map-van-c',
+  'map-van-d',
+  'map-place',
+  'map-depot',
+  'map-contour',
+];
+const MAP_TEXT = ['map-label'];
+/** The vans whose stops share a mark's shape (lib/route-lab/render.ts, isRound): A and D draw
+ *  squares, B and C circles. */
+const SAME_SHAPE: [string, string][] = [
+  ['map-van-a', 'map-van-d'],
+  ['map-van-b', 'map-van-c'],
+];
+
+const deltaOk = differenceEuclidean('oklab');
+const deltaE = differenceCiede2000();
+const DEFICIENCIES = {
+  protanopia: filterDeficiencyProt(1),
+  deuteranopia: filterDeficiencyDeuter(1),
+  tritanopia: filterDeficiencyTrit(1),
+};
+
+/** Two colors as far apart as a reader with each color-vision deficiency sees them: the smallest
+ *  CIEDE2000 difference after Machado's simulation at full severity. */
+export const apartUnderDeficiency = (a: Color, b: Color): number =>
+  Math.min(...Object.values(DEFICIENCIES).map((simulate) => deltaE(simulate(a), simulate(b))));
+
+/** How far each band must sit from its neighbour and from the water: in OKLab, where 0.02 is about
+ *  one just-noticeable step. Until 2026-10-25 the bands stepped 0.031 to 0.038 and light band 4
+ *  sat 0.013 from the water, so a reader could not tell them apart (review, 2026-10-25). */
+const BAND_STEP = 0.045;
+/** How far two vans that share a shape must stay apart under each deficiency, in CIEDE2000. */
+const SHAPE_APART = 20;
 
 const source = readFileSync(new URL('../src/styles/tokens.css', import.meta.url), 'utf8');
 const css = stripComments(source);
@@ -63,6 +125,9 @@ test('every color token has a declared role', () => {
     ...NON_TEXT,
     ...Object.keys(ON_FILL),
     ...DECORATIVE,
+    ...MAP_FILLS,
+    ...MAP_MARKS,
+    ...MAP_TEXT,
   ]);
   const unclassified = [...themes.dark.keys()].filter((name) => !roles.has(name));
   expect(unclassified, 'add each new token to a role in this test').toEqual([]);
@@ -105,8 +170,72 @@ for (const [themeName, colors] of Object.entries(themes)) {
         });
       }
     }
+
+    for (const fill of MAP_FILLS) {
+      for (const name of MAP_MARKS) {
+        test(`map: ${name} on ${fill} reaches 3:1`, () => {
+          expect(wcagContrast(get(name), get(fill))).toBeGreaterThanOrEqual(3);
+        });
+      }
+      for (const name of MAP_TEXT) {
+        test(`map: ${name} on ${fill} reaches 4.5:1`, () => {
+          expect(wcagContrast(get(name), get(fill))).toBeGreaterThanOrEqual(4.5);
+        });
+      }
+    }
+
+    test('map: each band is a step nearer the foreground than the band outside it', () => {
+      const foreground = get('foreground');
+      const bands = [6, 5, 4, 3, 2, 1].map((k) => wcagContrast(get(`map-band-${k}`), foreground));
+      for (let k = 1; k < bands.length; k++) expect(bands[k]).toBeLessThan(bands[k - 1] ?? 0);
+    });
+
+    test(`map: each band sits ${BAND_STEP} or more from its neighbour and from the water`, () => {
+      for (let k = 1; k <= 6; k++) {
+        const band = get(`map-band-${k}`);
+        if (k < 6)
+          expect(deltaOk(band, get(`map-band-${k + 1}`)), `band ${k}`).toBeGreaterThan(BAND_STEP);
+        expect(deltaOk(band, get('map-water')), `band ${k} and the water`).toBeGreaterThan(
+          BAND_STEP,
+        );
+      }
+    });
+
+    for (const van of ['map-van-a', 'map-van-b', 'map-van-c', 'map-van-d']) {
+      test(`map: a stop's number, the background on ${van}, reaches 4.5:1`, () => {
+        expect(wcagContrast(get('background'), get(van))).toBeGreaterThanOrEqual(4.5);
+      });
+    }
+
+    for (const [a, b] of SAME_SHAPE) {
+      test(`map: ${a} and ${b} share a shape, so they stay ${SHAPE_APART} apart under every color-vision deficiency`, () => {
+        expect(apartUnderDeficiency(get(a), get(b))).toBeGreaterThanOrEqual(SHAPE_APART);
+      });
+    }
   });
 }
+
+test('known answer: a band lightened until a route on it drops below 3:1 fails the map check', () => {
+  const dark = themeColors(source, 'dark');
+  const van = dark.get('map-van-a');
+  const band = dark.get('map-band-1');
+  if (!van || !band) throw new Error('tokens.css lost a map token');
+  expect(wcagContrast(van, band)).toBeGreaterThanOrEqual(3);
+  const lighter = { ...band, l: 0.6 } as Color;
+  expect(wcagContrast(van, lighter)).toBeLessThan(3);
+});
+
+// The known answers for the bands' steps and the vans' shapes: the values of 2026-10-24, which the
+// review found a reader could not tell apart, fail; and so would vans A and C sharing a shape.
+test('known answer: the bands of 2026-10-24 fail the step check, and vans A and C could not share a shape', () => {
+  const old = (l: number, c: number, h: number) => ({ mode: 'oklch', l, c, h }) as Color;
+  expect(deltaOk(old(0.445, 0.07, 205), old(0.41, 0.066, 208))).toBeLessThan(BAND_STEP);
+  expect(deltaOk(old(0.89, 0.034, 209), old(0.89, 0.035, 230))).toBeLessThan(BAND_STEP);
+  const light = themeColors(source, 'light');
+  const [a, c] = [light.get('map-van-a'), light.get('map-van-c')];
+  if (!a || !c) throw new Error('tokens.css lost a van');
+  expect(apartUnderDeficiency(a, c)).toBeLessThan(SHAPE_APART);
+});
 
 // SC 1.4.4 (Resize Text): a size in vw alone does not grow with zoom (WCAG failure F94). So every
 // fluid size is a clamp() with a rem floor and a rem term, and its maximum stays within 2.5 times
@@ -194,8 +323,11 @@ describe('motion lives only under prefers-reduced-motion: no-preference', () => 
     test(`${file}`, () => {
       const found = motion(read(file));
       expect(found.filter((m) => !guarded(m)).map((m) => m.what)).toEqual([]);
-      // The card's bar and the view transition are the two motions C ships; both are guarded.
-      expect(found.length).toBeGreaterThanOrEqual(2);
+      // The stylesheet every page links ships the card's bar and the view transition, both
+      // guarded. The Route Lab's own sheet ships one, the maps' fade (ADR 0016), guarded too.
+      if (read(file).includes('.rl-map'))
+        expect(found.map((m) => m.what)).toEqual(['transition:opacity .22s ease-out']);
+      else expect(found.length).toBeGreaterThanOrEqual(2);
     });
   }
 

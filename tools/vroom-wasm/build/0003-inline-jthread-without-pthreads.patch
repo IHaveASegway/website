@@ -1,0 +1,199 @@
+diff -ruN a/src/algorithms/validation/check.cpp b/src/algorithms/validation/check.cpp
+--- a/src/algorithms/validation/check.cpp
++++ b/src/algorithms/validation/check.cpp
+@@ -18,6 +18,7 @@
+ #include "algorithms/validation/choose_ETA.h"
+ #include "structures/vroom/tw_route.h"
+ #include "utils/helpers.h"
++#include "utils/thread_compat.h"
+ 
+ namespace vroom::validation {
+ 
+@@ -78,7 +79,7 @@
+     }
+   };
+ 
+-  std::vector<std::jthread> solving_threads;
++  std::vector<compat::jthread> solving_threads;
+   solving_threads.reserve(thread_ranks.size());
+ 
+   for (const auto& v_ranks : thread_ranks) {
+diff -ruN a/src/problems/tsp/heuristics/local_search.cpp b/src/problems/tsp/heuristics/local_search.cpp
+--- a/src/problems/tsp/heuristics/local_search.cpp
++++ b/src/problems/tsp/heuristics/local_search.cpp
+@@ -16,6 +16,7 @@
+ 
+ #include "problems/tsp/heuristics/local_search.h"
+ #include "utils/helpers.h"
++#include "utils/thread_compat.h"
+ 
+ namespace vroom::tsp {
+ 
+@@ -169,7 +170,7 @@
+   std::vector<Index> best_edge_1_starts(_nb_threads);
+   std::vector<Index> best_edge_2_starts(_nb_threads);
+ 
+-  std::vector<std::jthread> threads;
++  std::vector<compat::jthread> threads;
+   threads.reserve(_nb_threads);
+ 
+   for (std::size_t i = 0; i < _nb_threads; ++i) {
+@@ -433,7 +434,7 @@
+ 
+   // Start other threads, keeping a piece of the range for the main
+   // thread.
+-  std::vector<std::jthread> threads;
++  std::vector<compat::jthread> threads;
+   threads.reserve(_nb_threads);
+ 
+   for (std::size_t i = 0; i < _nb_threads; ++i) {
+@@ -569,7 +570,7 @@
+   }
+   limit_nodes.push_back(init);
+ 
+-  std::vector<std::jthread> threads;
++  std::vector<compat::jthread> threads;
+   threads.reserve(_nb_threads);
+ 
+   for (std::size_t i = 0; i < _nb_threads; ++i) {
+@@ -707,7 +708,7 @@
+   std::vector<Index> best_edge_1_starts(_nb_threads);
+   std::vector<Index> best_edge_2_starts(_nb_threads);
+ 
+-  std::vector<std::jthread> threads;
++  std::vector<compat::jthread> threads;
+   threads.reserve(_nb_threads);
+ 
+   for (std::size_t i = 0; i < _nb_threads; ++i) {
+diff -ruN a/src/problems/vrp.h b/src/problems/vrp.h
+--- a/src/problems/vrp.h
++++ b/src/problems/vrp.h
+@@ -23,6 +23,7 @@
+ #include "structures/vroom/eval.h"
+ #include "structures/vroom/input/input.h"
+ #include "structures/vroom/solution/solution.h"
++#include "utils/thread_compat.h"
+ 
+ namespace vroom {
+ 
+@@ -240,7 +241,7 @@
+       semaphore.release();
+     };
+ 
+-    std::vector<std::jthread> solving_threads;
++    std::vector<compat::jthread> solving_threads;
+     solving_threads.reserve(nb_searches);
+ 
+     for (unsigned i = 0; i < nb_searches; ++i) {
+diff -ruN a/src/routing/wrapper.h b/src/routing/wrapper.h
+--- a/src/routing/wrapper.h
++++ b/src/routing/wrapper.h
+@@ -20,6 +20,7 @@
+ #include "structures/vroom/solution/route.h"
+ #include "structures/vroom/vehicle.h"
+ #include "utils/exception.h"
++#include "utils/thread_compat.h"
+ 
+ namespace vroom::routing {
+ 
+@@ -82,7 +83,7 @@
+         }
+       };
+ 
+-    std::vector<std::jthread> vehicles_threads;
++    std::vector<compat::jthread> vehicles_threads;
+     vehicles_threads.reserve(vehicles.size());
+ 
+     for (Index v_rank = 0; v_rank < vehicles.size(); ++v_rank) {
+diff -ruN a/src/structures/vroom/input/input.cpp b/src/structures/vroom/input/input.cpp
+--- a/src/structures/vroom/input/input.cpp
++++ b/src/structures/vroom/input/input.cpp
+@@ -27,6 +27,7 @@
+ #include "routing/valhalla_wrapper.h"
+ #include "structures/vroom/input/input.h"
+ #include "utils/helpers.h"
++#include "utils/thread_compat.h"
+ 
+ namespace vroom {
+ 
+@@ -1174,7 +1175,7 @@
+     }
+   };
+ 
+-  std::vector<std::jthread> matrix_threads;
++  std::vector<compat::jthread> matrix_threads;
+   matrix_threads.reserve(thread_profiles.size());
+ 
+   for (const auto& profiles : thread_profiles) {
+@@ -1262,7 +1263,7 @@
+       .count();
+ 
+   if (_geometry) {
+-    std::vector<std::jthread> threads;
++    std::vector<compat::jthread> threads;
+     threads.reserve(sol.routes.size());
+     std::exception_ptr ep = nullptr;
+     std::mutex ep_m;
+diff -ruN a/src/utils/thread_compat.h b/src/utils/thread_compat.h
+--- a/src/utils/thread_compat.h
++++ b/src/utils/thread_compat.h
+@@ -0,0 +1,59 @@
++#ifndef THREAD_COMPAT_H
++#define THREAD_COMPAT_H
++
++/*
++
++Not part of upstream VROOM: added for the single-threaded
++WebAssembly build.
++
++An Emscripten build without -pthread has no threads: pthread_create
++returns EAGAIN, so constructing a std::jthread throws
++std::system_error. VROOM starts one std::jthread per search, per
++matrix profile and per TSP look-up range, even when nb_threads is 1.
++
++In that build only, compat::jthread runs the callable to completion
++inside its constructor, on the calling thread, in spawn order, and
++join() does nothing. The arguments are decay-copied first, as
++std::thread does. Every other build gets std::jthread unchanged.
++
++*/
++
++#include <thread>
++
++#if defined(__EMSCRIPTEN__) && !defined(__EMSCRIPTEN_PTHREADS__)
++#include <functional>
++#include <type_traits>
++#include <utility>
++#endif
++
++namespace vroom::compat {
++
++#if defined(__EMSCRIPTEN__) && !defined(__EMSCRIPTEN_PTHREADS__)
++class jthread {
++public:
++  template <class F, class... Args>
++  explicit jthread(F&& f, Args&&... args) {
++    std::invoke(std::decay_t<F>(std::forward<F>(f)),
++                std::decay_t<Args>(std::forward<Args>(args))...);
++  }
++
++  jthread(jthread&&) noexcept = default;
++  jthread& operator=(jthread&&) noexcept = default;
++  jthread(const jthread&) = delete;
++  jthread& operator=(const jthread&) = delete;
++  ~jthread() = default;
++
++  [[nodiscard]] bool joinable() const noexcept {
++    return false;
++  }
++
++  void join() noexcept {
++  }
++};
++#else
++using jthread = std::jthread;
++#endif
++
++} // namespace vroom::compat
++
++#endif

@@ -23,3 +23,13 @@
 # HTML keeps Cloudflare's default, so a promoted version is what the next page view gets.
 /_astro/*
   Cache-Control: public, max-age=31536000, immutable
+
+# The Route Lab's solver (ADR 0016): VROOM compiled to WebAssembly, run in a module Web Worker. A
+# worker takes its policy from its own response, never from the page that starts it, and compiling
+# WebAssembly needs 'wasm-unsafe-eval', so this is the one rule on the site that sends a script-src,
+# and the one place that keyword appears. The page itself keeps Astro's policy, which has no
+# 'wasm-unsafe-eval'. connect-src lets the glue fetch vroom.wasm beside it; nothing else is allowed.
+# The folder is named for the solver's version and a hash of its code, so a year is safe.
+/lab/routes/solver/*
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'
+  Cache-Control: public, max-age=31536000, immutable

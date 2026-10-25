@@ -74,6 +74,28 @@ export function adoptionWord(text: string): string | null {
 
 const fact = z.strictObject({ term: z.enum(FACT_TERMS), value: z.string().min(1).max(48) });
 
+/** A year, YYYY: the only precision a role's dates take. JSON Resume's dates allow a year alone. */
+const year = z.string().regex(/^(19|20)\d{2}$/, 'a year, YYYY');
+
+/** One role: its title and its years, with no end year while it is current. */
+const role = z
+  .strictObject({ position: z.string().min(1).max(60), startDate: year, endDate: year.optional() })
+  .refine((r) => r.endDate === undefined || r.endDate >= r.startDate, {
+    message: 'endDate comes on or after startDate',
+    path: ['endDate'],
+  });
+
+/** A page on this site, as its URL path: "/lab/routes/". Home is not evidence of anything. */
+const sitePage = z
+  .string()
+  .regex(/^\/([a-z0-9-]+\/)+$/, 'a page on this site, such as /lab/routes/');
+
+/** One skill, and the pages on this site that show it: one to three. */
+const skill = z.strictObject({
+  name: z.string().min(1).max(40),
+  evidence: z.array(sitePage).min(1).max(3),
+});
+
 /** What a card shows besides its name and link: its line, its tag and its figures. */
 const cardWords = (p: {
   description: string;
@@ -107,12 +129,22 @@ export const profileSchema = z.strictObject({
       ]),
     ),
   }),
-  // Empty until Joseph clears them in writing: role years are ASK (content.md, "Firewall classes
-  // for copy"), an institution can name a region, and the stack line waits on his list. A tuple of
-  // no items turns any entry into a schema change.
-  work: z.tuple([]),
+  // Experience (Q8 (a)): role titles and years, at most 10 roles, and nothing else. JSON Resume's
+  // work entry also has name (the employer), location, url, summary and highlights; none exists
+  // here, so an employer, a city or a metric cannot be entered at all. Role years are ASK
+  // (content.md, "Firewall classes for copy") until Joseph clears them in writing: only he adds an
+  // entry, and the review stamp on this file holds the pull request to his read.
+  work: z.array(role).max(10),
+  // Empty until Joseph clears one in writing: an institution can name a region. A tuple of no
+  // items turns any entry into a schema change.
   education: z.tuple([]),
-  skills: z.tuple([]),
+  // Skills, each with the pages on this site that show it: /resume/ draws a skill only when every
+  // page it names exists in the build (lib/resume.ts), so a skill with nothing to show is left
+  // out. JSON Resume's skill also has level and keywords; neither is here.
+  skills: z
+    .array(skill)
+    .max(12)
+    .refine((all) => new Set(all.map((s) => s.name)).size === all.length, 'each skill once'),
   // Owned work (content.md): each project is a card on Home that links to its repository, once its
   // check is recorded and its hold is lifted. The tag and the facts join in the pull request that
   // turns the card on. profile.json is the one owner of a card's figures, copied by hand from the
@@ -224,13 +256,15 @@ export function projectCards(profile: Profile, holds: readonly Hold[]): ProjectC
     }));
 }
 
-/** Test builds only. A fixture adds projects to the real profile's, and can record the GitHub
- *  profile's check, which a project card needs; every other field stays the real one, so a fixture
- *  build cannot drift from profile.json. Only scripts/build-fixtures.mjs names a fixture, through
+/** Test builds only. A fixture adds projects, roles and skills to the real profile's, and can
+ *  record the GitHub profile's check, which a project card needs; every other field stays the real
+ *  one, so a fixture build cannot drift from profile.json. Only scripts/build-fixtures.mjs names a fixture, through
  *  PROFILE_FIXTURE; every real build reads src/content/profile.json alone (test/profile.test.ts). */
 export interface ProfileFixture {
   readonly githubChecked?: unknown;
   readonly projects?: readonly unknown[];
+  readonly work?: readonly unknown[];
+  readonly skills?: readonly unknown[];
 }
 
 export function projectFixturePath(fixture: string | undefined): string | null {
@@ -245,7 +279,7 @@ export function withFixture(
   fixture: ProfileFixture | null,
 ): Record<string, unknown> {
   if (fixture === null) return data;
-  const projects = Array.isArray(data['projects']) ? data['projects'] : [];
+  const list = (key: string): unknown[] => (Array.isArray(data[key]) ? data[key] : []);
   const basics = (data['basics'] ?? {}) as Record<string, unknown>;
   const profiles = Array.isArray(basics['profiles']) ? basics['profiles'] : [];
   return {
@@ -258,6 +292,8 @@ export function withFixture(
           : r,
       ),
     },
-    projects: [...projects, ...(fixture.projects ?? [])],
+    projects: [...list('projects'), ...(fixture.projects ?? [])],
+    work: [...list('work'), ...(fixture.work ?? [])],
+    skills: [...list('skills'), ...(fixture.skills ?? [])],
   };
 }

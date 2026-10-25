@@ -1,0 +1,130 @@
+{
+  "githubChecked": {
+    "date": "2026-10-23",
+    "sha": "ffffffffffffffffffffffffffffffffffffffff"
+  },
+  "projects": [
+    {
+      "name": "fixture-project",
+      "description": "A project made up for the tests: checked, and held by nothing.",
+      "url": "https://github.com/IHaveASegway/fixture-project",
+      "tag": "Fixture",
+      "facts": [
+        {
+          "term": "Tests",
+          "value": "12"
+        },
+        {
+          "term": "Decisions",
+          "value": "3 records"
+        }
+      ],
+      "checked": {
+        "date": "2026-10-23",
+        "sha": "ffffffffffffffffffffffffffffffffffffffff"
+      },
+      "measured": "2026-10-23"
+    }
+  ],
+  "work": [
+    {
+      "position": "A made-up role for the tests, its title at the 60-letter cap",
+      "startDate": "2024"
+    },
+    {
+      "position": "Made-up staff engineer",
+      "startDate": "2021",
+      "endDate": "2024"
+    },
+    {
+      "position": "Made-up senior engineer",
+      "startDate": "2019",
+      "endDate": "2021"
+    },
+    {
+      "position": "Made-up engineer, second",
+      "startDate": "2017",
+      "endDate": "2019"
+    },
+    {
+      "position": "Made-up engineer, first",
+      "startDate": "2015",
+      "endDate": "2017"
+    },
+    {
+      "position": "Made-up associate engineer",
+      "startDate": "2014",
+      "endDate": "2015"
+    },
+    {
+      "position": "Made-up one-year role",
+      "startDate": "2013",
+      "endDate": "2013"
+    },
+    {
+      "position": "Made-up contract role",
+      "startDate": "2012",
+      "endDate": "2013"
+    },
+    {
+      "position": "Made-up intern",
+      "startDate": "2011",
+      "endDate": "2012"
+    },
+    {
+      "position": "Made-up first job",
+      "startDate": "2010",
+      "endDate": "2011"
+    }
+  ],
+  "skills": [
+    {
+      "name": "A made-up skill named to the 40-char cap",
+      "evidence": ["/writing/fixture-measure-first/"]
+    },
+    {
+      "name": "Measuring before building",
+      "evidence": ["/writing/fixture-measure-first/", "/notes/fixture-small-note/"]
+    },
+    {
+      "name": "Retries and back-off",
+      "evidence": ["/writing/fixture-retries-and-back-off/"]
+    },
+    {
+      "name": "Markdown",
+      "evidence": ["/writing/fixture-markdown-tour/"]
+    },
+    {
+      "name": "URL design",
+      "evidence": ["/notes/fixture-trailing-slashes/", "/writing/fixture-markdown-tour/", "/notes/"]
+    },
+    {
+      "name": "Field notes",
+      "evidence": ["/notes/"]
+    },
+    {
+      "name": "Technical writing",
+      "evidence": ["/writing/"]
+    },
+    {
+      "name": "Load testing",
+      "evidence": ["/writing/fixture-retries-and-back-off/", "/writing/fixture-measure-first/"]
+    },
+    {
+      "name": "Back-pressure",
+      "evidence": ["/writing/fixture-retries-and-back-off/"]
+    },
+    {
+      "name": "Tables",
+      "evidence": ["/writing/fixture-markdown-tour/"]
+    },
+    {
+      "name": "Short posts",
+      "evidence": ["/notes/fixture-small-note/"]
+    },
+    {
+      "name": "Trailing slashes",
+      "evidence": ["/notes/fixture-trailing-slashes/"]
+    }
+  ]
+}

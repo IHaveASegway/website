@@ -131,23 +131,56 @@ test('known answers: the target check names a short list link and a small button
   ]);
 });
 
+/**
+ * How many times Tab stops on a page: each visible link, button and control, except that a group
+ * of radio buttons (one name) is one stop, as browsers move through it with the arrow keys.
+ * Runs in the page.
+ */
+function tabStops(): number {
+  const groups = new Set<string>();
+  return [
+    ...document.querySelectorAll<HTMLElement & { disabled?: boolean }>(
+      'a[href], button, input, select, textarea, [tabindex]',
+    ),
+  ].filter((element) => {
+    if (element.tabIndex < 0 || element.disabled || !element.checkVisibility()) return false;
+    if (element instanceof HTMLInputElement && element.type === 'radio' && element.name) {
+      if (groups.has(element.name)) return false;
+      groups.add(element.name);
+    }
+    return true;
+  }).length;
+}
+
+test('known answer: a radio group is one Tab stop', async ({ page }) => {
+  await page.setContent(
+    [
+      '<a href="/a/">A</a>',
+      '<label><input type="radio" name="day" checked> One</label>',
+      '<label><input type="radio" name="day"> Two</label>',
+      '<label><input type="radio" name="vans"> 1</label>',
+      '<label><input type="radio" name="vans"> 2</label>',
+      '<button type="button">Go</button>',
+    ].join(''),
+  );
+  expect(await page.evaluate(tabStops)).toBe(4);
+  const reached: string[] = [];
+  for (let i = 0; i < 4; i++) {
+    await page.keyboard.press('Tab');
+    reached.push(await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 20) ?? ''));
+  }
+  expect(reached.every((html) => html !== '' && !html.startsWith('<body'))).toBe(true);
+});
+
 test('every focusable element shows a visible outline from the keyboard (SC 2.4.7)', async ({
   page,
 }) => {
   for (const path of ROUTES) {
     await page.goto(path);
     // Only what Tab reaches: a negative tabindex (a skip link's target, often <main tabindex="-1">),
-    // a disabled control or a hidden one is focusable by script but never by Tab.
-    const count = await page.evaluate(
-      () =>
-        [
-          ...document.querySelectorAll<HTMLElement & { disabled?: boolean }>(
-            'a[href], button, input, select, textarea, [tabindex]',
-          ),
-        ].filter(
-          (element) => element.tabIndex >= 0 && !element.disabled && element.checkVisibility(),
-        ).length,
-    );
+    // a disabled control or a hidden one is focusable by script but never by Tab, and a radio
+    // group is one stop (the Route Lab's day and vans).
+    const count = await page.evaluate(tabStops);
     for (let i = 0; i < count; i++) {
       await page.keyboard.press('Tab');
       const focus = await page.evaluate(() => {

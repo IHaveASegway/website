@@ -1,17 +1,19 @@
 import { readFileSync } from 'node:fs';
 import { defineCollection } from 'astro:content';
 import { file, glob } from 'astro/loaders';
+import { labSchema } from './lib/lab';
 import { essaySchema, noteSchema, postsBase } from './lib/posts';
 import { profileSchema, projectFixturePath, withFixture, type ProfileFixture } from './lib/profile';
 
 // Content is code, validated when the site builds (ADR 0004; content.md, "Content model"). The
-// profile came first; essays and notes arrive with Writing (roadmap.md, PR 5). The lab and now
-// collections arrive with the pages that render them. There is no work collection: owned work is a
+// profile came first; essays and notes arrive with Writing (roadmap.md, PR 5), and the lab with its
+// first demo (ADR 0016). The now collection arrives with the page that renders it. There is no work collection: owned work is a
 // card on Home, generated from the profile's projects (content.md, "Owned work").
 
 // Every real build reads src/content/profile.json alone. Only scripts/build-fixtures.mjs names
-// PROFILE_FIXTURE, which adds made-up projects and a GitHub check to the real profile
-// (lib/profile.ts, withFixture), so a fixture build shows a project's card before any real one does.
+// PROFILE_FIXTURE, which adds made-up projects, roles and skills and a GitHub check to the real
+// profile (lib/profile.ts, withFixture), so a fixture build shows a project's card, and the
+// résumé's roles and skills, before any real one does.
 const fixturePath = projectFixturePath(process.env['PROFILE_FIXTURE']);
 const fixture: ProfileFixture | null = fixturePath
   ? JSON.parse(readFileSync(fixturePath, 'utf8'))
@@ -45,4 +47,11 @@ const notes = defineCollection({
   schema: noteSchema,
 });
 
-export const collections = { profile, writing, notes };
+// One entry per demo: its front matter and its write-up. The fixture builds read the same folder,
+// and lib/content.ts leaves the lab out of them (loadLabArea).
+const lab = defineCollection({
+  loader: glob({ base: './src/content/lab', pattern: '*.md', generateId: fileName }),
+  schema: labSchema,
+});
+
+export const collections = { profile, writing, notes, lab };
