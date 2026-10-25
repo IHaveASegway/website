@@ -76,6 +76,43 @@ test('on paper the site chrome is gone, the name is at a print size, and links s
   for (const content of paper.contact) expect(content).toBe('none');
 });
 
+// A larger default text size scales the printed type with it. The addresses stand beside the name
+// while the two fit across the page, and go under it from a larger size, so the name breaks only
+// between its words. Emulated print lays the page out at the viewport's width, so the viewport is
+// the printed column: Letter less two half-inch margins.
+for (const size of [16, 20, 24, 32]) {
+  test(`on paper at ${size} px default text the name breaks only between its words`, async ({
+    page,
+  }) => {
+    const devtools = await page.context().newCDPSession(page);
+    await devtools.send('Page.setFontSizes', {
+      fontSizes: { standard: size, fixed: Math.round((size * 13) / 16) },
+    });
+    await page.setViewportSize({ width: 720, height: 1000 });
+    await page.goto(RESUME);
+    await page.emulateMedia({ media: 'print' });
+    await page.evaluate(() => document.fonts.ready);
+    const head = await page.evaluate(() => {
+      const name = document.querySelector('.hero-name') as Element;
+      const text = [...name.childNodes].find((n) => n.nodeType === Node.TEXT_NODE) as Text;
+      const broken = [...(text.textContent ?? '').matchAll(/\S+/g)].filter((word) => {
+        const range = document.createRange();
+        range.setStart(text, word.index);
+        range.setEnd(text, word.index + word[0].length);
+        return new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size > 1;
+      });
+      const box = (selector: string) =>
+        (document.querySelector(selector) as Element).getBoundingClientRect();
+      return {
+        broken: broken.map(([word]) => word),
+        beside: box('.resume-contact').left >= box('.hero-name').right,
+      };
+    });
+    expect(head.broken).toEqual([]);
+    expect(head.beside).toBe(size === 16);
+  });
+}
+
 test('on screen the header links the résumé, marked as the current page there', async ({
   page,
 }) => {

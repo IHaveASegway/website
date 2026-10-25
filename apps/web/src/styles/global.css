@@ -1125,12 +1125,64 @@
   }
 }
 
-/* The résumé on paper (content.md, "Résumé"): one US Letter page, in ink on white (tokens.css,
-   the print block). Only the résumé names this page, so every other page prints as before. The
-   header, the skip link and the footer are not printed: the résumé's own head carries the name and
-   every address. A link prints its address after it, so the page works on paper: the site's own
-   links with the domain, which is site.ts's ORIGIN (test/resume.test.ts holds the two to each
-   other). The type steps down to a printed résumé's sizes. */
+/* Every page on paper, in ink on white (tokens.css, the print block). Paper gets no control: the
+   skip link and the header's nav go, and so does the header on Home, where it holds nothing else.
+   A link whose words are not its address prints the address after it, so the page works on paper:
+   the site's own links with the domain, which is site.ts's ORIGIN (test/resume.test.ts holds the
+   two to each other). A button does not: the footer prints the same addresses. Beside a title or
+   a short link the address is a box of its own; in running text it flows with the words, so a
+   long one leaves no gap in the paragraph. Inline code loses its padding, which on white paper,
+   as in forced colors, reads as a stray space (e2e/print.spec.ts). */
+@media print {
+  .skip-link,
+  .site-nav,
+  .site-header:not(:has(.wordmark)) {
+    display: none;
+  }
+
+  :is(.prose a, .post-links a, .footer-links a, .post-title a, .card-more)::after {
+    display: inline-block;
+    margin-inline-start: 0.375em;
+    color: var(--muted-foreground);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 400;
+    overflow-wrap: anywhere;
+  }
+
+  .prose a::after {
+    display: inline;
+  }
+
+  :is(.prose a, .post-links a, .footer-links a, .post-title a, .card-more)[href^='/']::after {
+    content: 'ihaveasegway.com' attr(href);
+  }
+
+  :is(
+      .prose a,
+      .post-links a,
+      .footer-links a,
+      .post-title a,
+      .card-more
+    )[href^='https://']::after {
+    content: attr(href);
+  }
+
+  .prose :not(pre) > code {
+    padding: 0;
+  }
+}
+
+@media (forced-colors: active) {
+  .prose :not(pre) > code {
+    padding: 0;
+  }
+}
+
+/* The résumé on paper (content.md, "Résumé"): one US Letter page at the default text size. Only
+   the résumé names this page, so every other page prints as before. The header, the skip link and
+   the footer are not printed: the résumé's own head carries the name and every address. The type
+   steps down to a printed résumé's sizes. */
 @page resume {
   size: letter;
   margin: 0.5in;
@@ -1195,6 +1247,25 @@
 
   .resume-contact a {
     min-height: 0;
+  }
+
+  /* The addresses stand beside the name while the two fit across the page, as they do at the
+     default text size: together they need about 40.5em. From a larger text size they go under it,
+     where beside it the name would break inside a word. */
+  .resume {
+    container-type: inline-size;
+  }
+
+  @container (width < 41em) {
+    .resume .hero {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .resume-contact {
+      grid-column: 1;
+      grid-row: auto;
+      margin-top: 0.75rem;
+    }
   }
 
   .resume .section {
@@ -1288,19 +1359,5 @@
   .resume .post-links a {
     min-height: 0;
     font-size: 0.8125rem;
-  }
-
-  .resume :is(.card-more, .post-title a, .post-links a)::after {
-    display: inline-block;
-    margin-inline-start: 0.375em;
-    color: var(--muted-foreground);
-    font-family: var(--font-mono);
-    font-size: 0.6875rem;
-    font-weight: 400;
-    content: 'ihaveasegway.com' attr(href);
-  }
-
-  .resume .card-more[href^='https://']::after {
-    content: attr(href);
   }
 }

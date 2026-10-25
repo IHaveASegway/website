@@ -50,6 +50,7 @@ export default defineConfig({
         'glyphs.spec.ts',
         'llms.spec.ts',
         'not-on-site.spec.ts',
+        'print.spec.ts',
         'resume.spec.ts',
         'smoke.spec.ts',
         'writing.spec.ts',
