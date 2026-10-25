@@ -41,6 +41,7 @@ import {
   simplify,
   simplifyRing,
 } from './lib/geom.mjs';
+import { formatRouteData } from './lib/format.mjs';
 import { decodeLegs, encodeLegs } from './lib/legs.mjs';
 import { readme } from './lib/readme.mjs';
 
@@ -851,7 +852,8 @@ const routeData = {
 const files = {
   'basemap.json': JSON.stringify(basemap),
   'isochrones.json': JSON.stringify(isochrones),
-  'route-data.json': JSON.stringify(routeData),
+  // One value per line, so no two numbers run together (lib/format.mjs says why).
+  'route-data.json': formatRouteData(routeData),
 };
 
 // Checks on what the site will serve (the site's own scans run again when the files land there).
