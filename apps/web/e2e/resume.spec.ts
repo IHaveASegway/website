@@ -113,6 +113,53 @@ for (const size of [16, 20, 24, 32]) {
   });
 }
 
+// On a phone the contact list puts each label above its address (global.css, the contact
+// container), so an address has the list's whole width. Beside its label, LinkedIn's address took
+// two lines at 390 px and the default size, and at 32 px the web address broke as "ihaveasegw / ay.com".
+for (const size of [16, 32]) {
+  test(`at 390 px and ${size} px default text the résumé's addresses keep their words`, async ({
+    page,
+  }) => {
+    const devtools = await page.context().newCDPSession(page);
+    await devtools.send('Page.setFontSizes', {
+      fontSizes: { standard: size, fixed: Math.round((size * 13) / 16) },
+    });
+    await page.setViewportSize({ width: 390, height: 900 });
+    await page.goto(RESUME);
+    await page.evaluate(() => document.fonts.ready);
+    const lines = await page.evaluate(() =>
+      [...document.querySelectorAll('.resume-contact dd a')].map((link) => {
+        const range = document.createRange();
+        range.selectNodeContents(link);
+        // Each line's text, from the rects of the characters on it.
+        const text = link.textContent ?? '';
+        const rows = new Map<number, string>();
+        const walker = document.createTreeWalker(link, NodeFilter.SHOW_TEXT);
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+          for (let i = 0; i < (node.textContent ?? '').length; i++) {
+            range.setStart(node, i);
+            range.setEnd(node, i + 1);
+            const rect = range.getBoundingClientRect();
+            if (rect.width === 0) continue;
+            const top = Math.round(rect.top);
+            rows.set(top, (rows.get(top) ?? '') + (node.textContent ?? '')[i]);
+          }
+        }
+        return { text: text.replace(/\s+/g, ''), rows: [...rows.values()] };
+      }),
+    );
+    const [email, web, linkedIn] = lines;
+    if (size === 16) {
+      for (const address of lines) expect(address.rows, address.text).toHaveLength(1);
+    } else {
+      expect(web?.rows, web?.text).toHaveLength(1);
+      // The email breaks only after its "@"; LinkedIn's, wider than the screen, may break anywhere.
+      expect(email?.rows).toEqual(['hello@', 'ihaveasegway.com']);
+      expect(linkedIn?.rows.length).toBeGreaterThan(1);
+    }
+  });
+}
+
 test('on screen the header links the résumé, marked as the current page there', async ({
   page,
 }) => {
