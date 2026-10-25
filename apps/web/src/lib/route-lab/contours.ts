@@ -134,14 +134,70 @@ function landEdge(shape: readonly Loop[], water: readonly Loop[], width: number,
 /**
  * The contours at `minutes`, each a line along its area's edge on land and up to two labels. A
  * label sits where a ray from the bakery first leaves the area, every 5 degrees round, on land and
- * inside the frame, as far as it can be from every label already on the map; a second one a
- * quarter turn or more round from the first.
+ * inside the frame, clear of every place's marker, as far as it can be from every label already
+ * on the map; a second one a quarter turn or more round from the first.
  */
+/** A place's marker, as a radius in the map's units, that a label keeps clear of: a stop's
+ *  numbered disc is the largest mark the routes draw on one. */
+export const MARKER = 30;
+
+/** A label's box in the map's units, from its anchor point (the text's baseline): the labels are
+ *  68 units tall, with characters about 0.6 of that wide in the mono face and 0.55 in the sans. */
+export interface Box {
+  readonly left: number;
+  readonly right: number;
+  readonly top: number;
+  readonly bottom: number;
+}
+export function labelBox(
+  x: number,
+  y: number,
+  chars: number,
+  anchor: 'start' | 'middle' | 'end',
+  perChar: number,
+): Box {
+  const width = chars * perChar;
+  const left = anchor === 'start' ? x : anchor === 'end' ? x - width : x - width / 2;
+  return { left, right: left + width, top: y - 52, bottom: y + 17 };
+}
+
+/** Whether two boxes share any point. */
+export const overlaps = (a: Box, b: Box): boolean =>
+  a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+
+/** Whether a box leaves every place's marker whole: no place within MARKER of it. */
+export const clearOfPlaces = (box: Box, places: readonly { x: number; y: number }[]): boolean =>
+  places.every(
+    (p) =>
+      p.x < box.left - MARKER ||
+      p.x > box.right + MARKER ||
+      p.y < box.top - MARKER ||
+      p.y > box.bottom + MARKER,
+  );
+
+/** Where "The bakery" goes: left of its mark, as before, unless that covers a place (International
+ *  Fountain is there, a stop on the default day), and then right. */
+export function bakeryLabelAt(
+  bakery: { readonly x: number; readonly y: number },
+  places: readonly { x: number; y: number }[],
+): { x: number; y: number; anchor: 'start' | 'end' } {
+  const tries = [
+    { x: bakery.x - 24, y: bakery.y + 11, anchor: 'end' as const },
+    { x: bakery.x + 24, y: bakery.y + 11, anchor: 'start' as const },
+  ];
+  const others = places.filter((p) => p.x !== bakery.x || p.y !== bakery.y);
+  return (
+    tries.find((t) => clearOfPlaces(labelBox(t.x, t.y, 10, t.anchor, 37), others)) ??
+    (tries[0] as (typeof tries)[number])
+  );
+}
+
 export function contours(
   iso: Isochrones,
   base: Basemap,
   taken: readonly { readonly x: number; readonly y: number }[],
   minutes: readonly number[],
+  places: readonly { readonly x: number; readonly y: number }[] = [],
 ): Contour[] {
   const [, , width, height] = base.viewBox;
   const water = rings(base.water);
@@ -167,7 +223,11 @@ export function contours(
             const room = Math.min(
               ...placed.map((p) => Math.max(Math.abs(p.x - x) / 3, Math.abs(p.y - y))),
             );
-            if (!wet && room > 70 && (!best || room > best.room)) best = { x, y, degrees, room };
+            // "20 min" in the mono face, centred: it may not cover a place's marker either, or
+            // a stop's number reads as part of the time.
+            const clear = clearOfPlaces(labelBox(x, y, 6, 'middle', 41), places);
+            if (!wet && clear && room > 70 && (!best || room > best.room))
+              best = { x, y, degrees, room };
             break;
           }
         }
