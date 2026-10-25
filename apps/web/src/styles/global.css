@@ -193,7 +193,8 @@
     text-decoration-line: none;
   }
 
-  .site-nav a[aria-current='page'] {
+  /* The page itself, or a page inside the section: /lab/routes/ marks Lab, a post marks Writing. */
+  .site-nav a[aria-current] {
     text-decoration-line: underline;
   }
 

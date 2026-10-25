@@ -18,6 +18,7 @@ import {
   fromVroom,
   measure,
   percentLess,
+  shareCapacity,
   solveTime,
   vroomInput,
 } from '../src/lib/route-lab/plan';
@@ -176,6 +177,36 @@ describe('the two plans', () => {
     });
     expect(capacityFor(toy, [1], 4)).toBe(3);
     expect(capacityFor(toy, [1, 2, 3], 2)).toBe(4);
+  });
+
+  test('known answers: the vans grow until the orders dealt in turn all fit, so both plans serve every order', () => {
+    // 2, 2 and 2 boxes, then 3, in 3 vans: the share rule gives 4 a van, and dealing then leaves the
+    // 3 with no room though the vans hold 12 between them. One more box a van places it.
+    const toy = {
+      ...data,
+      points: [
+        { i: 0, label: 'b', kind: 'depot', x: 0, y: 0 },
+        ...[2, 2, 2, 3].map((qty, k) => ({
+          i: k + 1,
+          label: `p${k}`,
+          kind: 'park',
+          qty,
+          x: 0,
+          y: 0,
+        })),
+      ],
+    } as RouteData;
+    const orders = [1, 2, 3, 4];
+    expect(shareCapacity(toy, orders, 3)).toBe(4);
+    expect(dealtInTurn(toy, orders, 3, 4).unassigned).toEqual([4]);
+    expect(capacityFor(toy, orders, 3)).toBe(5);
+    expect(dealtInTurn(toy, orders, 3, 5)).toEqual({ routes: [[1, 4], [2], [3]], unassigned: [] });
+    expect(roomText(toy, orders, 3, 5)).toBe(
+      'Each van takes at most 5 of the 9 boxes: room for every order, dealt in turn.',
+    );
+    // The ready-made days need no raise: the pipeline's share rule already deals every order.
+    for (const day of data.scenarios)
+      expect(capacityFor(data, day.stops, day.vans), day.id).toBe(day.capacity);
   });
 
   test('VROOM, from the files the site serves, plans it in 3 h 12 min and 74.8 mi', async () => {
@@ -340,6 +371,19 @@ describe('the markup both the build and the browser draw', () => {
     const shorter = { ...m, drive: m.drive - 600, metres: m.metres - 1_609 };
     expect(savedText(m, shorter)).toMatch(
       new RegExp(`^VROOM saves 10${NBSP}min of driving and 1.0${NBSP}mi, \\d+% less\\.$`),
+    );
+    // The headline is the difference of the totals as shown: 3 h 0 min (10,770 s) and 2 h 28 min
+    // (8,890 s) are 32 min apart on the page, though 1,880 s rounds to 31.
+    const shown = (drive: number, metres: number) => ({ ...m, drive, metres });
+    expect(formatDuration(10_770)).toBe(`3${NBSP}h 0${NBSP}min`);
+    expect(formatDuration(8_890)).toBe(`2${NBSP}h 28${NBSP}min`);
+    expect(savedText(shown(10_770, 40_000), shown(8_890, 40_000))).toMatch(
+      new RegExp(`^VROOM saves 32${NBSP}min of driving and 0.0${NBSP}mi, `),
+    );
+    // Miles too: 24.9 and 24.8 mi on the page (40,152 m and 39,985 m) are 0.1 apart.
+    expect([formatMiles(40_152), formatMiles(39_985)]).toEqual([`24.9${NBSP}mi`, `24.8${NBSP}mi`]);
+    expect(savedText(shown(10_770, 40_152), shown(8_890, 39_985))).toMatch(
+      new RegExp(`and 0.1${NBSP}mi, `),
     );
     expect(backText({ ...m, back: 7_200 }, { ...m, back: 5_400 })).toBe(
       `The last van is back after 2${NBSP}h 0${NBSP}min as the orders came in, and after 1${NBSP}h 30${NBSP}min with VROOM.`,

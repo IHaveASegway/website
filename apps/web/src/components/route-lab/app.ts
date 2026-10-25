@@ -34,7 +34,8 @@ import type { Nearest } from './boot';
 // came in. Every change redraws the dealt-in-turn plan at once, and VROOM plans the same orders
 // again a moment later, in a module Web Worker that runs the WebAssembly build beside the page
 // (ADR 0016). One solve runs at a time: changes made during it are planned once it answers, as
-// one; a solve that has not answered in 15 s is stopped. Each change and VROOM's answer are said
+// one; a solve that has not answered in 15 s (60 s for the first, which loads the solver) is
+// stopped, and the next change tries again. Each change and VROOM's answer are said
 // in one line, on screen and to assistive technology. Nothing is stored and nothing is sent
 // anywhere: the only requests are the route data and the solver's own files.
 
@@ -44,8 +45,12 @@ const LOADING = 'Loading the solver…';
 const NONE = 'Add at least one order to plan a route.';
 /** How long a change waits for the next before VROOM plans, so a run of taps is one solve. */
 const SETTLE_MS = 150;
-/** How long a solve may run before the page gives up on the solver. */
+/** How long a solve may run before the page stops waiting for it; the first also downloads and
+ *  compiles the solver, about 350 KB, so it gets longer. A solve that runs out is not a broken
+ *  solver: the next change starts a new worker. */
 const LIMIT_MS = 15_000;
+const FIRST_LIMIT_MS = 60_000;
+const SLOW = 'The solver did not answer in time. Change anything to try again.';
 
 interface Solved {
   readonly key: string;
@@ -115,6 +120,7 @@ export async function start(root: HTMLElement, queued: Element[], nearest: Neare
   // The solver: one worker, made on the first solve, and at most one request in flight.
   let worker: Worker | null = null;
   let broken = false;
+  let stalled = false;
   let answered = false;
   let asked = 0;
   let busy: { id: number; orders: number[]; vans: number; limit: number; slow: number } | null =
@@ -171,7 +177,7 @@ export async function start(root: HTMLElement, queued: Element[], nearest: Neare
     );
     if (orders.length === 0) text($('[data-rl-saved]'), NONE);
     else if (isFresh) text($('[data-rl-saved]'), savedText(measured, solved.measured));
-    else if (broken)
+    else if (broken || stalled)
       text($('[data-rl-saved]'), 'VROOM’s plan on the map is for the previous orders.');
     const room = $<HTMLElement>('[data-rl-capacity]');
     text(room, roomText(data, orders, vans, capacity));
@@ -196,6 +202,16 @@ export async function start(root: HTMLElement, queued: Element[], nearest: Neare
     say(join(note, FAILED));
   }
 
+  function timedOut() {
+    if (busy) clearTimeout(busy.slow);
+    busy = null;
+    worker?.terminate();
+    worker = null;
+    stalled = true;
+    update();
+    say(join(note, SLOW));
+  }
+
   /** After a change: VROOM plans once the changes stop for a moment. */
   function later() {
     clearTimeout(settle);
@@ -216,11 +232,12 @@ export async function start(root: HTMLElement, queued: Element[], nearest: Neare
       }
     }
     const id = ++asked;
+    stalled = false;
     busy = {
       id,
       orders: [...orders],
       vans,
-      limit: window.setTimeout(fail, LIMIT_MS),
+      limit: window.setTimeout(timedOut, answered ? LIMIT_MS : FIRST_LIMIT_MS),
       // The first solve waits for the solver's files, and says so at once; after that a long
       // solve says so, and a quick one only says its answer.
       slow: answered ? window.setTimeout(() => say(join(note, 'Planning…')), 400) : 0,
@@ -320,6 +337,10 @@ export async function start(root: HTMLElement, queued: Element[], nearest: Neare
     }
     if (box.name === 'rl-vans') {
       vans = Number(box.value);
+      // A day is its orders and its vans: with other vans it is no longer that day, so its chip
+      // lets go, and choosing it again sets both back.
+      const current = DAYS.find((d) => d.id === dayRadios.find((r) => r.checked)?.value);
+      if (current && current.vans !== vans) for (const r of dayRadios) r.checked = false;
       return changed(`${fleet(vans)}.`);
     }
     if (box.name !== 'rl-order') return;

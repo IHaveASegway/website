@@ -28,7 +28,12 @@ const here = Astro.url.pathname;
         <ul>
           {headerNav.map((item) => (
             <li>
-              <a href={item.href} aria-current={here === item.href ? 'page' : undefined}>
+              <a
+                href={item.href}
+                aria-current={
+                  here === item.href ? 'page' : here.startsWith(item.href) ? 'true' : undefined
+                }
+              >
                 {item.label}
               </a>
             </li>

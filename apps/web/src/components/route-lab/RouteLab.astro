@@ -124,7 +124,7 @@ const bands = bandsSentence(
     </defs>
   </svg>
 
-  <div class="rl-controls" data-rl-js hidden>
+  <div class="rl-controls" data-rl-js>
     <fieldset class="rl-days">
       <legend class="label">Day</legend>
       <div class="rl-chips">
@@ -164,11 +164,11 @@ const bands = bandsSentence(
     <p class="rl-capacity" data-rl-capacity>
       {roomText(routeData, day.orders, day.vans, capacity)}
     </p>
-    <p class="rl-status" data-rl-status data-rl-js hidden></p>
+    <p class="rl-status" data-rl-status data-rl-js></p>
     <p class="rl-say" role="status" data-rl-say></p>
   </div>
 
-  <fieldset class="rl-view" data-rl-js hidden>
+  <fieldset class="rl-view" data-rl-js>
     <legend class="rl-say">Which map</legend>
     <div class="rl-chips">
       {plans.map((plan) => (
@@ -226,7 +226,7 @@ const bands = bandsSentence(
     ))}
   </div>
 
-  <p class="rl-hint" data-rl-js hidden>
+  <p class="rl-hint" data-rl-js>
     Tap a place on a map, or tick it in the list below, to add or remove its order. VROOM plans
     again each time.
   </p>
@@ -285,7 +285,7 @@ const bands = bandsSentence(
     </p>
   </div>
 
-  <details class="rl-orders" data-rl-js hidden>
+  <details class="rl-orders" data-rl-js>
     <summary>All {places.length} places</summary>
     <fieldset>
       <legend class="label">Orders</legend>

@@ -377,6 +377,115 @@ test('known answer: a worker whose policy refuses WebAssembly fails, and the pag
 
 // Forced colors: the maps keep their colors, as an image does, and so does their key, or the
 // six band swatches would all be the page's own color (a11y review, 2026-10-25).
+// Two small states the controls and the header keep: another number of vans lets go of the day's
+// chip, so choosing the day again sets it back; and the header marks Lab on a page inside it.
+test('another number of vans lets go of the day, and the header marks the Lab section', async ({
+  page,
+}) => {
+  await page.goto(ROUTE_LAB);
+  await expect(page.locator('.site-nav a[href="/lab/"]')).toHaveAttribute('aria-current', 'true');
+  await plan(page, 'quiet');
+  await page.check('input[name="rl-vans"][value="3"]');
+  await expect(page.locator('input[name="rl-day"]:checked')).toHaveCount(0);
+  // Choosing the day again sets its vans back. If VROOM's plan for that day is still the one on
+  // show, the page says the day and plans nothing, so this waits for the controls, not an answer.
+  await page.check('input[name="rl-day"][value="quiet"]');
+  await expect(page.locator('input[name="rl-vans"][value="1"]')).toBeChecked();
+  await expect(status(page)).toContainText('A quiet Tuesday: 8 orders, 1 van.');
+});
+
+// Nothing moves when the boot module arrives: CSS shows the controls from the first paint wherever
+// script runs (route-lab.css, the scripting media feature). On a phone on a slow network the module
+// used to reveal them after the page had painted, a layout shift of 0.16 against a limit of 0.1.
+test('on a slow phone the page does not shift when the demo’s script arrives', async ({
+  browser,
+}) => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  const devtools = await context.newCDPSession(page);
+  await devtools.send('Network.enable');
+  await devtools.send('Network.emulateNetworkConditions', {
+    offline: false,
+    latency: 150,
+    downloadThroughput: 1.6e6 / 8,
+    uploadThroughput: 750e3 / 8,
+  });
+  await page.addInitScript(() => {
+    const shifts = { total: 0 };
+    Object.defineProperty(window, '__shifts', { value: shifts });
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries() as (PerformanceEntry & {
+        value: number;
+        hadRecentInput: boolean;
+      })[])
+        if (!entry.hadRecentInput) shifts.total += entry.value;
+    }).observe({ type: 'layout-shift', buffered: true });
+  });
+  await page.goto(ROUTE_LAB, { waitUntil: 'load' });
+  await expect(page.locator('.rl-controls')).toBeVisible();
+  await page.waitForTimeout(1_000);
+  const total = await page.evaluate(
+    () => (window as unknown as { __shifts: { total: number } }).__shifts.total,
+  );
+  expect(total).toBeLessThan(0.05);
+  await context.close();
+});
+
+// A load that fails is not kept (boot.ts): the route data's request is dropped once, the page says
+// the demo did not load and leaves the maps on the day it opened with, and the next change loads
+// and plans. Before 2026-10-25 the failure was cached, and only a reload recovered.
+test('a demo that failed to load tries again on the next change, and then plans', async ({
+  page,
+  context,
+}) => {
+  let dropped = 0;
+  await context.route('**/route-data*.json', (route) =>
+    dropped++ === 0 ? route.abort() : route.continue(),
+  );
+  await page.goto(ROUTE_LAB);
+  await page.check('input[name="rl-day"][value="quiet"]');
+  await expect(status(page)).toHaveText(
+    'The demo did not load, so the maps still show the day it opened with. Change anything to try again.',
+  );
+  await page.check('input[name="rl-vans"][value="2"]');
+  await expect(status(page)).toHaveText(PLANNED, { timeout: 20_000 });
+  await expect(status(page)).toContainText('2 vans.');
+  await expect(page.locator('[data-rl-plan="after"]')).not.toHaveAttribute('data-rl-stale');
+  expect(dropped).toBe(2);
+});
+
+// A solve that runs out of time is not a broken solver (app.ts): the worker's script never
+// arrives, the first solve's 60 s pass on the page's clock, the page says so, and the next change
+// starts a new worker that plans. Before 2026-10-25 the first limit was 15 s with the download in
+// it, and running out left the solver off for good.
+test('a solver that does not answer in time is tried again on the next change', async ({
+  page,
+  context,
+}) => {
+  let hold = true;
+  await context.route(`**${SOLVER}vroom-worker.mjs`, async (route) => {
+    while (hold) await new Promise((resolve) => setTimeout(resolve, 100));
+    await route.continue();
+  });
+  await page.clock.install();
+  await page.goto(ROUTE_LAB);
+  await page.check('input[name="rl-vans"][value="2"]');
+  await expect(status(page)).toHaveText('2 vans. Loading the solver…');
+  await page.clock.fastForward(59_000);
+  await expect(status(page)).toHaveText('2 vans. Loading the solver…');
+  await page.clock.fastForward(2_000);
+  await expect(status(page)).toHaveText(
+    '2 vans. The solver did not answer in time. Change anything to try again.',
+  );
+  await expect(page.locator('[data-rl-saved]')).toHaveText(
+    'VROOM’s plan on the map is for the previous orders.',
+  );
+  hold = false;
+  await page.check('input[name="rl-vans"][value="1"]');
+  await expect(status(page)).toHaveText(PLANNED, { timeout: 20_000 });
+  await expect(page.locator('[data-rl-plan="after"]')).not.toHaveAttribute('data-rl-stale');
+});
+
 test('in forced colors the band swatches keep their six colors', async ({ page }) => {
   await page.emulateMedia({ forcedColors: 'active', colorScheme: 'light' });
   await page.goto(ROUTE_LAB);
