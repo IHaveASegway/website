@@ -394,6 +394,43 @@ test('another number of vans lets go of the day, and the header marks the Lab se
   await expect(status(page)).toContainText('A quiet Tuesday: 8 orders, 1 van.');
 });
 
+// Nothing moves when the boot module arrives: CSS shows the controls from the first paint wherever
+// script runs (route-lab.css, the scripting media feature). On a phone on a slow network the module
+// used to reveal them after the page had painted, a layout shift of 0.16 against a limit of 0.1.
+test('on a slow phone the page does not shift when the demo’s script arrives', async ({
+  browser,
+}) => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  const devtools = await context.newCDPSession(page);
+  await devtools.send('Network.enable');
+  await devtools.send('Network.emulateNetworkConditions', {
+    offline: false,
+    latency: 150,
+    downloadThroughput: 1.6e6 / 8,
+    uploadThroughput: 750e3 / 8,
+  });
+  await page.addInitScript(() => {
+    const shifts = { total: 0 };
+    Object.defineProperty(window, '__shifts', { value: shifts });
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries() as (PerformanceEntry & {
+        value: number;
+        hadRecentInput: boolean;
+      })[])
+        if (!entry.hadRecentInput) shifts.total += entry.value;
+    }).observe({ type: 'layout-shift', buffered: true });
+  });
+  await page.goto(ROUTE_LAB, { waitUntil: 'load' });
+  await expect(page.locator('.rl-controls')).toBeVisible();
+  await page.waitForTimeout(1_000);
+  const total = await page.evaluate(
+    () => (window as unknown as { __shifts: { total: number } }).__shifts.total,
+  );
+  expect(total).toBeLessThan(0.05);
+  await context.close();
+});
+
 // A load that fails is not kept (boot.ts): the route data's request is dropped once, the page says
 // the demo did not load and leaves the maps on the day it opened with, and the next change loads
 // and plans. Before 2026-10-25 the failure was cached, and only a reload recovered.

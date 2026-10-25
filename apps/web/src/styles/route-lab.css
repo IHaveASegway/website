@@ -235,9 +235,26 @@
   border: 0;
 }
 
-@media screen and (width < 64rem) {
-  .rl[data-rl-live]:has(input[name='rl-view'][value='after']:checked) [data-rl-plan='before'],
-  .rl[data-rl-live]:has(input[name='rl-view'][value='before']:checked) [data-rl-plan='after'] {
+/* What script runs decides what shows, from the first paint: the controls, the status line and
+   the map switch where script runs; the line written for a visitor without it where it does not.
+   Revealing them from the boot module moved everything below them after the page had painted
+   (a layout shift of 0.16 on a phone on a slow network). The switch between the maps is CSS
+   alone, so it works before, and without, the module. */
+@media (scripting: none) {
+  .rl [data-rl-js] {
+    display: none;
+  }
+}
+
+@media (scripting: enabled) {
+  .rl [data-rl-nojs] {
+    display: none;
+  }
+}
+
+@media screen and (scripting: enabled) and (width < 64rem) {
+  .rl:has(input[name='rl-view'][value='after']:checked) [data-rl-plan='before'],
+  .rl:has(input[name='rl-view'][value='before']:checked) [data-rl-plan='after'] {
     display: none;
   }
 }
