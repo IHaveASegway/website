@@ -707,8 +707,11 @@ jobs:
               echo "The next merge to main deploys main again and re-arms the rebuild. Revert or fix on main first."
             fi
           } > "$body"
-          number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search 'Incident in:title' \
-            --json number,title --jq '[.[] | select(.title | startswith("Incident:"))][0].number // empty')"
+          # Only the issue this workflow opened: on a public repository anyone can open one titled
+          # "Incident: ...", and it would receive run URLs, version ids and rollback commands.
+          number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 \
+            --search 'Incident in:title' --json number,title,author \
+            --jq '[.[] | select(.author.is_bot and (.author.login == "app/github-actions" or .author.login == "github-actions") and (.title | startswith("Incident:")))][0].number // empty')"
           if [ -n "$number" ]; then
             gh issue comment "$number" --repo "$GITHUB_REPOSITORY" --body-file "$body"
           else

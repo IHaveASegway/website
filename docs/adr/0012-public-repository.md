@@ -1,10 +1,10 @@
 # ADR 0012: Public repository after the firewall audit
 
-Status: Proposed · 2026-10-22 · Deciders: Joseph Peterson
+Status: Accepted · 2026-10-25 (proposed 2026-10-22) · Deciders: Joseph Peterson
 
 ## Context
 
-**Pending Joseph's decision** (Q7 · Q-visibility in [product.md](../product.md)). This record holds the recommendation and its preconditions. It becomes Accepted only on his yes.
+**Decided by Joseph on 2026-10-25** (Q7 · Q-visibility in [product.md](../product.md)): he made the repository public. The record below is the recommendation as written; the postscript says what held at the switch.
 
 `IHaveASegway/website` is private, on a GitHub Free personal account. As of 2026-10-22, that means:
 
@@ -75,3 +75,7 @@ One-way. Once the repository is public, every commit, PR text and log can be cop
 - Hook bypasses become routine (agents, web edits): option D.
 - Spam or abuse in issues and pull requests costs more than an hour a month: use GitHub's interaction limits, or turn issues off.
 - The evidence goes unread: GitHub's traffic view of the repository (the last 14 days) shows no visits referred from the site in three monthly checks. Then the main benefit is not arriving, and option B or D deserves a second look.
+
+## Postscript, 2026-10-25
+
+Joseph made the repository public on 2026-10-25, between 12:57 UTC (a Dependabot run still recorded it as private) and about 13:45 UTC (an anonymous request returned it). Of the three preconditions, the third held. The first did not: `firewall` was red on `main` from the Route Lab merge on, for a WebAssembly file it cannot read and for chance runs of numbers in the route data, so nothing new deployed. The second, the full-history audit, ran only in part. What the switch still needs (the ruleset, push protection, private vulnerability reporting, and the checks the audit could not make) is in [roadmap.md](../roadmap.md#gate-repository-public) and [operations.md](../operations.md).
