@@ -142,6 +142,13 @@ integers only. Fill closed shapes with \`fill-rule="evenodd"\`.
 
 ### route-data.json
 
+One value per line: every array value and every object member is on its own line, with no
+indentation (\`formatRouteData\` in \`pipeline/lib/format.mjs\`). On one line, adjacent numbers run
+together as digits and commas, and by chance a run can read as one longer number, such as a phone
+number or an ID; the content firewall flagged such runs in the one-line file. On its own line, each
+number stands alone. Strings are as JSON.stringify writes them. \`apps/web/test/route-lab.test.ts\`
+checks that no line holds two numbers and that the file is exactly what \`formatRouteData\` writes.
+
 - \`points\`: \`{i, label, kind, order?, qty?, x, y}\`; \`i\` is the matrix index, 0 is the bakery.
 - \`serviceSeconds\`: ${C.SERVICE_SECONDS}, the time at each stop.
 - \`scenarios\`: ready-made days, \`{id, name, vans, capacity, stops}\`. \`stops\` is in the order the

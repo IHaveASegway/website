@@ -100,20 +100,31 @@ finding() {      # finding <rule> <surface> [file] [line] [commit]
   fi
 }
 
-# scan <surface> <directory to run in> <commit to report, or ""> <gitleaks arguments...>
+# scan [--known-line <n>] <surface> <directory to run in> <commit to report, or ""> <gitleaks arguments...>
 # Standard input passes through, for "gitleaks stdin". gitleaks exits 3 on a finding (its own
 # status 1 means both "found" and "failed"); anything other than 0 or 3 cannot prove clean. Its
 # own output is never shown: a malformed config makes it print the rules.
+# --known-line n: line n of the input is the run's canary. gitleaks must report it there, as
+# fw-canary, or the scan cannot prove it read the input; that one report is the known answer, not
+# a finding. Text this script extracts needs it (scan_wasm says why).
 scan() {
+  local known=""
+  if [ "$1" = --known-line ]; then
+    known="$2"
+    shift 2
+  fi
   local surface="$1" dir="$2" at="$3"
   shift 3
-  local out="$T/report.json" rc=0 n=0 rule file line commit
+  local out="$T/report.json" rc=0 n=0 seen=false rule file line commit
   rm -f "$out"
   (cd "$dir" && exec "$GL" "$@" --no-banner --redact --exit-code 3 --ignore-gitleaks-allow \
     --log-level error --gitleaks-ignore-path "$T/gitleaksignore" \
     --report-format json --report-path "$out") >/dev/null 2>&1 || rc=$?
   case "$rc" in
-    0) return 0 ;;
+    0)
+      [ -n "$known" ] || return 0
+      cannot_prove "gitleaks did not report the known answer at the end of $surface, so it skipped some or all of it"
+      ;;
     3) ;;
     *) cannot_prove "gitleaks could not scan $surface" ;;
   esac
@@ -122,9 +133,15 @@ scan() {
     "$out" >"$T/report.txt" 2>/dev/null || cannot_prove "gitleaks reported a finding in $surface, but its report could not be read"
   while IFS=$'\x1f' read -r rule file line commit; do
     n=$((n + 1))
+    if [ -n "$known" ] && ! $seen && [ "$rule" = fw-canary ] && [ "$line" = "$known" ]; then
+      seen=true
+      continue
+    fi
     finding "$rule" "$surface" "$file" "$line" "${commit:-$at}"
   done <"$T/report.txt"
   [ "$n" -gt 0 ] || cannot_prove "gitleaks reported a finding in $surface, but its report could not be read"
+  [ -z "$known" ] || $seen ||
+    cannot_prove "gitleaks did not report the known answer at the end of $surface, so it skipped some or all of it"
 }
 
 scan_text() { # scan_text <surface> <file> [commit]: a text file through "gitleaks stdin"
@@ -147,10 +164,312 @@ scan_pdf() { # scan_pdf <file> <label>: a PDF's text and metadata
   scan "PDF text and metadata, $2" "$T/empty" "" stdin <"$T/pdf.txt"
 }
 
+# --- WebAssembly (surface 5, ADR 0017) ------------------------------------------------------------
+# A module is compiled code around text: the names it imports and exports, its custom sections
+# (each a name and bytes: "name", "producers", "sourceMappingURL", "target_features" or any other)
+# and its data segments, active or passive, where a compiled program keeps its string literals.
+# read_wasm walks the binary format by its declared lengths and writes each of those as a line of
+# text. Control bytes (0x00-0x1f and 0x7f) become line breaks, so each string stands alone; bytes
+# from 0x80 stay, so a UTF-8 name reads whole. Every other section (types, functions, tables,
+# memories, tags, globals, start, elements, the data count and the code) is stepped over by its
+# length. Anything the reader does not expect cannot prove clean: a version other than 1, a section
+# it does not know, or out of order, or twice; a length past the end of its section or of the file;
+# a LEB128 cut short, or longer than its type allows; an import, export, segment or offset of a
+# kind it does not know; bytes left over at the end of a section; or a module past either cap.
+#
+# Why bash and od, not a parser in another language: every mode already runs on them (the canary
+# is made with od), and nothing else the hooks and CI all have can read bytes. jq reads only JSON;
+# node is optional for the pre-commit hook and not set up in the firewall job; python is not on
+# every Mac. od prints a window of the file as hex pairs into an array; text goes back out through
+# printf's \x escapes, and a long run is copied by dd from its own offset, so no byte is ever held
+# in a shell variable as itself, and no run costs more than its own length.
+#
+# Why the caps: bash spends microseconds on every string and on every byte of a short one, so a
+# module of many small strings reads at about 11 s per MiB (ADR 0017). The caps bound one read to
+# about 90 s at worst, well inside the firewall job's timeout, and past them the run exits 2
+# instead of timing out. vroom.wasm is 919,927 bytes and 1,145 strings. A real module past either
+# cap raises it, with an ADR.
+
+WASM_HEAD='WebAssembly text, as check.sh reads it' # the text's first line; scan_wasm says why
+WASM_WINDOW=65536                                  # bytes of the file in the array at a time
+WASM_RUN=512                                       # a run at least this long is copied by dd
+WASM_MAX=8388608                                   # the largest module it reads, in bytes: 8 MiB
+WASM_STRINGS=20000                                 # the most strings: names, custom sections, data segments
+
+wasm_fail() { cannot_prove "a WebAssembly file the reader cannot follow ($wa_label): $1"; }
+
+wasm_window() { # the file's bytes from wa_p, up to WASM_WINDOW of them, into wa_bytes
+  local n=$((wa_size - wa_p))
+  [ "$n" -le "$WASM_WINDOW" ] || n=$WASM_WINDOW
+  od -An -v -tx1 -j "$wa_p" -N "$n" "$wa_file" >"$T/wasm.hex" || cannot_prove "cannot read a WebAssembly file ($wa_label)"
+  wa_bytes=()
+  IFS=$' \t\n' read -r -d '' -a wa_bytes <"$T/wasm.hex" || true
+  [ "${#wa_bytes[@]}" -eq "$n" ] || cannot_prove "cannot read a WebAssembly file ($wa_label)"
+  wa_base=$wa_p
+  wa_top=$((wa_p + n))
+}
+
+wasm_u8() { # wasm_u8 <what>: the byte at wa_p into wa_v, inside the current section
+  [ "$wa_p" -lt "$wa_end" ] || wasm_fail "$1 runs past the end of its section"
+  if [ "$wa_p" -lt "$wa_base" ] || [ "$wa_p" -ge "$wa_top" ]; then wasm_window; fi
+  wa_v=$((16#${wa_bytes[wa_p - wa_base]}))
+  wa_p=$((wa_p + 1))
+}
+
+# wasm_leb <bits> <u|s> <what>: a LEB128 of at most <bits> bits, unsigned (its value into wa_v) or
+# signed (stepped over). The last byte it may take can hold only the bits the type has left: an
+# unsigned one's spare bits are 0, a signed one's copy its sign bit.
+wasm_leb() {
+  local bits="$1" kind="$2" what="$3" max=$((($1 + 6) / 7)) n=0 value=0 b used rest
+  while :; do
+    [ "$wa_p" -lt "$wa_end" ] || wasm_fail "$what: a LEB128 cut short"
+    wasm_u8 "$what"
+    b=$wa_v
+    n=$((n + 1))
+    if [ "$n" -eq "$max" ]; then
+      [ "$b" -lt 128 ] || wasm_fail "$what: a LEB128 longer than its type allows"
+      used=$((bits - 7 * (max - 1)))
+      rest=$((b >> used))
+      if [ "$kind" = s ] && [ $(((b >> (used - 1)) & 1)) -eq 1 ]; then
+        [ "$rest" -eq $((127 >> used)) ] || wasm_fail "$what: a LEB128 longer than its type allows"
+      else
+        [ "$rest" -eq 0 ] || wasm_fail "$what: a LEB128 longer than its type allows"
+      fi
+    fi
+    value=$((value | (b & 127) << (7 * (n - 1))))
+    [ "$b" -ge 128 ] || break
+  done
+  wa_v=$value
+}
+
+wasm_text() { # wasm_text <count> <what>: that many bytes from wa_p as a line of text
+  local stop=$((wa_p + $1)) i last s
+  [ "$stop" -le "$wa_end" ] || wasm_fail "$2 runs past the end of its section"
+  wa_strings=$((wa_strings + 1))
+  [ "$wa_strings" -le "$WASM_STRINGS" ] || wasm_fail "more than $WASM_STRINGS strings, too many to read in bounded time"
+  if [ "$1" -ge "$WASM_RUN" ]; then
+    # ibs=1 puts skip and count in bytes; dd seeks to the run instead of reading up to it
+    dd if="$wa_file" ibs=1 obs=65536 skip="$wa_p" count="$1" 2>/dev/null | tr '\000-\037\177' '\n' >>"$wa_out" ||
+      cannot_prove "cannot read a WebAssembly file ($wa_label)"
+    wa_p=$stop
+  fi
+  while [ "$wa_p" -lt "$stop" ]; do
+    if [ "$wa_p" -lt "$wa_base" ] || [ "$wa_p" -ge "$wa_top" ]; then wasm_window; fi
+    last=$stop
+    [ "$last" -le "$wa_top" ] || last=$wa_top
+    s=""
+    for ((i = wa_p - wa_base; i < last - wa_base; i++)); do
+      case "${wa_bytes[i]}" in
+        [01]? | 7f) s+='\n' ;;
+        *) s+="\\x${wa_bytes[i]}" ;;
+      esac
+    done
+    printf '%b' "$s" >>"$wa_out"
+    wa_p=$last
+  done
+  printf '\n' >>"$wa_out"
+}
+
+wasm_name() { # wasm_name <what>: a name (its length in bytes, then the bytes) as a line of text
+  wasm_leb 32 u "$1"
+  wasm_text "$wa_v" "$1"
+}
+
+wasm_limits() { # a table's or a memory's limits: a flag, the minimum, and the maximum if flagged
+  local bits=32
+  wasm_u8 "the limits"
+  case "$wa_v" in
+    0 | 1 | 2 | 3) ;;
+    4 | 5 | 6 | 7) bits=64 ;; # memory64
+    *) wasm_fail "limits of a kind it does not know" ;;
+  esac
+  wasm_leb "$bits" u "the limits"
+  if [ $((wa_v & 1)) -eq 1 ]; then wasm_leb "$bits" u "the limits"; fi
+}
+
+wasm_valtype() { # wasm_valtype <what>: a number, vector or reference type
+  wasm_u8 "$1"
+  case "$wa_v" in
+    127 | 126 | 125 | 124 | 123 | 112 | 111) ;; # i32 i64 f32 f64 v128 funcref externref
+    *) wasm_fail "$1: a type it does not know" ;;
+  esac
+}
+
+wasm_imports() { # the import section: each import's module and name
+  local count
+  wasm_leb 32 u "the import count"
+  count=$wa_v
+  while [ "$count" -gt 0 ]; do
+    wasm_name "an import's module"
+    wasm_name "an import's name"
+    wasm_u8 "an import's kind"
+    case "$wa_v" in
+      0) wasm_leb 32 u "an imported function's type" ;;
+      1)
+        wasm_valtype "an imported table's type"
+        case "$wa_v" in 112 | 111) ;; *) wasm_fail "an imported table of a type it does not know" ;; esac
+        wasm_limits
+        ;;
+      2) wasm_limits ;;
+      3)
+        wasm_valtype "an imported global's type"
+        wasm_u8 "an imported global's mutability"
+        [ "$wa_v" -le 1 ] || wasm_fail "an imported global of a kind it does not know"
+        ;;
+      4)
+        wasm_u8 "an imported tag"
+        [ "$wa_v" -eq 0 ] || wasm_fail "an imported tag of a kind it does not know"
+        wasm_leb 32 u "an imported tag's type"
+        ;;
+      *) wasm_fail "an import of a kind it does not know" ;;
+    esac
+    count=$((count - 1))
+  done
+}
+
+wasm_exports() { # the export section: each export's name
+  local count
+  wasm_leb 32 u "the export count"
+  count=$wa_v
+  while [ "$count" -gt 0 ]; do
+    wasm_name "an export's name"
+    wasm_u8 "an export's kind"
+    [ "$wa_v" -le 4 ] || wasm_fail "an export of a kind it does not know" # function, table, memory, global, tag
+    wasm_leb 32 u "an export's index"
+    count=$((count - 1))
+  done
+}
+
+wasm_offset() { # an active segment's offset: i32.const, i64.const or global.get, then end
+  wasm_u8 "a data segment's offset"
+  case "$wa_v" in
+    65) wasm_leb 32 s "a data segment's offset" ;;  # i32.const
+    66) wasm_leb 64 s "a data segment's offset" ;;  # i64.const, memory64
+    35) wasm_leb 32 u "a data segment's offset" ;;  # global.get
+    *) wasm_fail "a data segment's offset of a kind it does not know" ;;
+  esac
+  wasm_u8 "a data segment's offset"
+  [ "$wa_v" -eq 11 ] || wasm_fail "a data segment's offset of a kind it does not know" # end
+}
+
+wasm_data() { # the data section: every segment's bytes, active (0, 2) or passive (1)
+  local count
+  wasm_leb 32 u "the data segment count"
+  count=$wa_v
+  while [ "$count" -gt 0 ]; do
+    wasm_leb 32 u "a data segment's kind"
+    case "$wa_v" in
+      0) wasm_offset ;;
+      1) ;;
+      2)
+        wasm_leb 32 u "a data segment's memory"
+        wasm_offset
+        ;;
+      *) wasm_fail "a data segment of a kind it does not know" ;;
+    esac
+    wasm_leb 32 u "a data segment's length"
+    wasm_text "$wa_v" "a data segment"
+    count=$((count - 1))
+  done
+}
+
+read_wasm() { # read_wasm <file> <label> <text file>: the module's text, or exit 2
+  local id size rank last=0
+  wa_file="$1" wa_label="$2" wa_out="$3" wa_base=0 wa_top=0 wa_strings=0
+  wa_bytes=()
+  wa_size="$(wc -c <"$1" | tr -d ' ')" || cannot_prove "cannot read a WebAssembly file ($wa_label)"
+  printf '%s\n' "$WASM_HEAD" >"$wa_out"
+  wa_p=0 wa_end=$wa_size
+  [ "$wa_size" -le "$WASM_MAX" ] || wasm_fail "larger than $WASM_MAX bytes, too large to read in bounded time"
+  [ "$wa_size" -ge 8 ] || wasm_fail "the file ends inside its header"
+  wasm_window
+  [ "${wa_bytes[*]:0:4}" = "00 61 73 6d" ] || wasm_fail "no WebAssembly magic"
+  [ "${wa_bytes[*]:4:4}" = "01 00 00 00" ] || wasm_fail "a version other than 1"
+  wa_p=8
+  while [ "$wa_p" -lt "$wa_size" ]; do
+    wa_end=$wa_size
+    wasm_u8 "a section's id"
+    id=$wa_v
+    # Custom sections may come anywhere; every other one at most once, in the format's order.
+    case "$id" in
+      0) rank=0 ;;
+      1 | 2 | 3 | 4 | 5) rank=$id ;;     # type, import, function, table, memory
+      13) rank=6 ;;                      # tag
+      6 | 7 | 8 | 9) rank=$((id + 1)) ;; # global, export, start, element
+      12) rank=11 ;;                     # data count
+      10 | 11) rank=$((id + 2)) ;;       # code, data
+      *) wasm_fail "a section it does not know" ;;
+    esac
+    if [ "$rank" -gt 0 ]; then
+      [ "$rank" -gt "$last" ] || wasm_fail "a section out of order, or twice"
+      last=$rank
+    fi
+    wasm_leb 32 u "a section's length"
+    size=$wa_v
+    [ $((wa_p + size)) -le "$wa_size" ] || wasm_fail "a section runs past the end of the file"
+    wa_end=$((wa_p + size))
+    case "$id" in
+      0)
+        wasm_name "a custom section's name"
+        wasm_text $((wa_end - wa_p)) "a custom section"
+        ;;
+      2) wasm_imports ;;
+      7) wasm_exports ;;
+      11) wasm_data ;;
+      *) wa_p=$wa_end ;; # walked by its length
+    esac
+    [ "$wa_p" -eq "$wa_end" ] || wasm_fail "bytes left over at the end of a section"
+  done
+}
+
+# scan_wasm <file> <label> [commit]: a module's text through "gitleaks stdin". gitleaks reads the
+# first bytes of its input and skips, silently, whatever they type as application/*. Text taken
+# from a binary can look like that by chance: "ustar" 257 bytes in reads as a tar archive. So the
+# text opens with a fixed line, and the run's canary closes it as a known answer that must be
+# reported on its line, or the scan cannot prove it read the text.
+scan_wasm() {
+  read_wasm "$1" "$2" "$T/wasm.txt"
+  cat "$T/canary" >>"$T/wasm.txt"
+  scan --known-line "$(wc -l <"$T/wasm.txt" | tr -d ' ')" "WebAssembly text, $2" "$T/empty" "${3:-}" stdin <"$T/wasm.txt"
+}
+
+# range_wasm <surface> <git log arguments...>: every file the commits add or change that opens
+# with the WebAssembly magic, read as scan_wasm reads one in the tree, and reported with a commit
+# that adds it. The git scan reads such a file only as raw bytes, where a name's length byte can
+# be a letter that joins the name. Other packed formats are not typed in commit ranges yet
+# (security.md, surface 5).
+range_wasm() {
+  local surface="$1" entry path mode object sha="" seen=" " label
+  shift
+  git log -z --raw --no-abbrev --no-renames --format=%H --diff-merges=first-parent "$@" >"$T/raw.z" ||
+    cannot_prove "cannot list the files in $surface"
+  while IFS= read -r -d '' entry; do
+    while [ "${entry#$'\n'}" != "$entry" ]; do entry="${entry#$'\n'}"; done
+    case "$entry" in
+      :*) # ":<old mode> <new mode> <old object> <new object> <status>", then the path
+        IFS= read -r -d '' path || cannot_prove "cannot read the files in $surface"
+        read -r _ mode _ object _ <<<"${entry#:}"
+        case "$mode" in 100644 | 100755) ;; *) continue ;; esac # a deletion, a link or a submodule
+        case "$seen" in *" $object "*) continue ;; esac
+        seen="$seen$object "
+        git cat-file blob "$object" >"$T/blob" || cannot_prove "cannot read a file from git"
+        [ "$(od -An -tx1 -N4 "$T/blob" | tr -d ' \n')" = 0061736d ] || continue
+        label="$surface"
+        $hide_paths || label="$surface: $path"
+        scan_wasm "$T/blob" "$label" "$sha"
+        ;;
+      *)
+        is_sha "$entry" || cannot_prove "a commit record could not be read"
+        sha="$entry"
+        ;;
+    esac
+  done <"$T/raw.z"
+}
+
 # binary_surfaces <directory> <label>: files whose bytes the rules cannot read, found by their
 # first bytes rather than their names. gitleaks skips every file it types as application/*, so an
-# archive, an Office document or a database would pass unread. PDFs are extracted (surface 5);
-# everything else of the kind is refused, the way a PDF is when it cannot be extracted.
+# archive, an Office document or a database would pass unread. PDFs and WebAssembly are extracted
+# (surface 5); everything else of the kind is refused, the way a PDF is when it cannot be extracted.
 binary_surfaces() {
   local f rel magic tar label
   find "$1" -type f -print0 >"$T/files" || cannot_prove "cannot list $2"
@@ -164,13 +483,17 @@ binary_surfaces() {
         scan_pdf "$f" "$label"
         continue
         ;;
+      0061736d*) # \0asm, whatever the file is called
+        scan_wasm "$f" "$label"
+        continue
+        ;;
       504b0304* | 504b0506* | 504b0708* | 1f8b* | 1f9d* | 1fa0* | 425a68* | fd377a585a00* | 28b52ffd* | \
         377abcaf271c* | 526172211a07* | 4c5a4950* | 4d534346* | 213c617263683e* | d0cf11e0a1b11ae1* | \
-        7b5c727466* | 25215053* | 53514c6974652066* | 0061736d* | 7f454c46* | 4d5a* | \
+        7b5c727466* | 25215053* | 53514c6974652066* | 7f454c46* | 4d5a* | \
         feedface* | feedfacf* | cefaedfe* | cffaedfe* | cafebabe*)
         # zip and every format built on it (docx, xlsx, pptx, epub, jar), gzip, compress, bzip2,
-        # xz, zstd, 7z, rar, lzip, cab, ar, OLE (doc, xls, ppt), RTF, PostScript, SQLite,
-        # WebAssembly, and executables (ELF, PE, Mach-O, Java classes)
+        # xz, zstd, 7z, rar, lzip, cab, ar, OLE (doc, xls, ppt), RTF, PostScript, SQLite, and
+        # executables (ELF, PE, Mach-O, Java classes)
         cannot_prove "a file no rule can read ($label): an archive, an Office document or another packed format. Commit what it holds instead, or remove it"
         ;;
     esac
@@ -449,6 +772,7 @@ case "$mode" in
     fi
     git_known_answer
     scan "commits ${base:0:12}..${head_commit:0:12}" "$repo" "" git --log-opts="$LOG_OPTS $base..$head_commit" "$repo"
+    range_wasm "commits ${base:0:12}..${head_commit:0:12}" "$base..$head_commit"
     scan_messages "$base..$head_commit"
     check_identities "$base..$head_commit"
     scan_tag "$head"
@@ -465,6 +789,7 @@ case "$mode" in
     scan_text "ref names" "$T/refs"
     git_known_answer
     scan "history" "$repo" "" git --log-opts="$LOG_OPTS --all" "$repo"
+    range_wasm "history" --all
     scan_messages --all
     check_identities --all
     git for-each-ref --format='%(objectname)' refs/tags >"$T/tags" || cannot_prove "cannot list the tags"
@@ -528,10 +853,11 @@ case "$mode" in
     # construction
     scan "the tracked tree" "$T/tree" "" dir .
 
-    # 2 and 3: the commit range, and each commit's message
+    # 2, 3 and 5: the commit range, the WebAssembly it adds, and each commit's message
     if [ -n "$range" ]; then
       git_known_answer
       scan "commits in ${FW_BASE:0:12}..${FW_HEAD:0:12}" "$repo" "" git --log-opts="$LOG_OPTS $range" "$repo"
+      range_wasm "commits in ${FW_BASE:0:12}..${FW_HEAD:0:12}" "$range"
       scan_messages "$range"
     fi
 
@@ -541,7 +867,8 @@ case "$mode" in
     # 4: the built output, the bytes that will be published
     scan "the built site" "$repo" "" dir "$dist"
 
-    # 5: PDFs, and formats no rule can read, in the tree and in the built site
+    # 5: PDFs and WebAssembly, read, and formats no rule can read, refused, in the tree and in the
+    # built site
     binary_surfaces "$T/tree" "the tracked tree"
     binary_surfaces "$dist" "the built site"
 

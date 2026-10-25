@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
+import { formatRouteData } from '../../../tools/route-data/pipeline/lib/format.mjs';
 import { decodeLegs as referenceDecode } from '../../../tools/route-data/pipeline/lib/legs.mjs';
 import type { PackedLegs, RouteData } from '../src/lib/route-lab/data';
 import { DEFAULT_DAY, days } from '../src/lib/route-lab/days';
@@ -44,13 +45,47 @@ import { app } from './support/dist';
 // the page states: a busy Saturday dealt in turn drives 5 h 34 min and 148.8 mi; VROOM, solved
 // here from the files in apps/web/public, plans it in 3 h 12 min and 74.8 mi.
 
-const data = JSON.parse(
-  readFileSync(join(app, '../../tools/route-data/out/route-data.json'), 'utf8'),
-) as RouteData;
+const text = readFileSync(join(app, '../../tools/route-data/out/route-data.json'), 'utf8');
+const data = JSON.parse(text) as RouteData;
 const n = data.points.length;
 const NBSP = '\u00a0';
 const busy = days(data).find((d) => d.id === DEFAULT_DAY);
 if (!busy) throw new Error('no default day');
+
+/** The lines of a JSON text, counted from 1, that hold more than one number outside its strings. */
+function crowdedLines(json: string): number[] {
+  return json.split('\n').flatMap((line, k) => {
+    const outside = line.replace(/"(?:[^"\\]|\\.)*"/g, '""');
+    return (outside.match(/-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g) ?? []).length > 1 ? [k + 1] : [];
+  });
+}
+
+// route-data.json is written one value per line (tools/route-data/pipeline/lib/format.mjs says
+// why): on one line, adjacent numbers run together, and a run can read by chance as one longer
+// number, such as a phone number or an ID.
+describe('the route data file', () => {
+  test('parses, and no line holds two numbers', () => {
+    expect(() => JSON.parse(text)).not.toThrow();
+    expect(crowdedLines(text)).toEqual([]);
+  });
+
+  test('is exactly what the pipeline writes from its contents', () => {
+    expect(formatRouteData(JSON.parse(text))).toBe(text);
+  });
+
+  test('known answers: an array on one line fails; one value per line passes; a string is text', () => {
+    expect(crowdedLines('{"d":[1,2]}')).toEqual([1]);
+    expect(crowdedLines('{"x": 7, "y": 8}')).toEqual([1]);
+    // The same data on one line, as JSON.stringify writes it and as the pipeline wrote it
+    // until this change.
+    expect(crowdedLines(JSON.stringify(data))).toEqual([1]);
+    const formatted = formatRouteData({ d: [1, 2], p: { x: 7, y: 8 }, s: 'run 1,2 "3"' });
+    expect(formatted).toBe(
+      '{\n"d": [\n1,\n2\n],\n"p": {\n"x": 7,\n"y": 8\n},\n"s": "run 1,2 \\"3\\""\n}\n',
+    );
+    expect(crowdedLines(formatted)).toEqual([]);
+  });
+});
 
 describe('legs', () => {
   test('every one of the 4,032 legs decodes exactly as the pipeline’s reference decoder does', () => {

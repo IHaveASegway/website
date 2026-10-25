@@ -5,7 +5,7 @@ places, and VROOM, compiled to WebAssembly, plans the routes in the visitor's br
 here is computed offline from OpenStreetMap by `pipeline/build.mjs`; nothing is computed on a
 server at runtime.
 
-The three JSON files are what the site serves: 288.1 KB raw, **93.4 KB gzip -9**
+The three JSON files are what the site serves: 313.6 KB raw, **94.7 KB gzip -9**
 together, against a target of 250 KB gzip for everything the page loads except the WASM.
 
 ## Files
@@ -14,13 +14,13 @@ together, against a target of 250 KB gzip for everything the page loads except t
 | --- | --- | --- | ---: | ---: |
 | `basemap.json` | Water, parks, roads by class, labels: SVG path data in viewBox units | yes, or inlined at build | 65.2 KB | 29.0 KB |
 | `isochrones.json` | Areas the bakery reaches within 5, 10, 15, 20, 25, 30 minutes | yes, or inlined at build | 23.6 KB | 8.3 KB |
-| `route-data.json` | Points, ready-made days, the duration and distance matrix, packed leg geometry | yes, fetched by the page | 199.3 KB | 56.0 KB |
+| `route-data.json` | Points, ready-made days, the duration and distance matrix, packed leg geometry | yes, fetched by the page | 224.9 KB | 57.4 KB |
 | `preview.svg` | Every layer and the naive plan for one day, for a human eye | no | 140.4 KB | 55.7 KB |
 | `provenance.json` | Source checksums, tool versions, every point with its OSM element and coordinates | no: it has coordinates and a timestamp |  |  |
 | `sizes.json` | The sizes above, and raw characters per layer | no |  |  |
 | `fresh-run.json` | Time and disk use of the last fresh run, quoted under Rebuild | no |  |  |
 
-SHA-256 of the served files: `basemap.json` `48819c6a1e2301ac34ed0e8117eac756dc1330900a7161deb1d79e7aad3e99ea`; `isochrones.json` `579c54d95f37e60ceb6b5bdc9d9b06eb44cd91f83df5c642d02c8327f3b912af`; `route-data.json` `c20c78de094a58e769a23a4c7b430b3a2bf6aae81144c8542d26165097bdc611`. Two runs over
+SHA-256 of the served files: `basemap.json` `48819c6a1e2301ac34ed0e8117eac756dc1330900a7161deb1d79e7aad3e99ea`; `isochrones.json` `579c54d95f37e60ceb6b5bdc9d9b06eb44cd91f83df5c642d02c8327f3b912af`; `route-data.json` `9a1eb680ac2ebf875a50c42214e6c4e74a306cf79bde22fe93132c8cd1b6fcbd`. Two runs over
 the same OSRM graph write byte-identical files. OSRM's multi-threaded preprocessing is not
 bit-stable: over three fresh runs on 2026-10-25, one of the 4,096 distances (Westcrest Park to
 Northgate library) came out 24,625 m once and 24,626 m twice; every duration and every leg
@@ -177,6 +177,13 @@ integers only. Fill closed shapes with `fill-rule="evenodd"`.
   map in two shades.
 
 ### route-data.json
+
+One value per line: every array value and every object member is on its own line, with no
+indentation (`formatRouteData` in `pipeline/lib/format.mjs`). On one line, adjacent numbers run
+together as digits and commas, and by chance a run can read as one longer number, such as a phone
+number or an ID; the content firewall flagged such runs in the one-line file. On its own line, each
+number stands alone. Strings are as JSON.stringify writes them. `apps/web/test/route-lab.test.ts`
+checks that no line holds two numbers and that the file is exactly what `formatRouteData` writes.
 
 - `points`: `{i, label, kind, order?, qty?, x, y}`; `i` is the matrix index, 0 is the bakery.
 - `serviceSeconds`: 180, the time at each stop.
