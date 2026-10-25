@@ -63,6 +63,7 @@ The rule is **one owner per directive**. When a page has two policies, the brows
 | `Referrer-Policy` | `_headers` | `strict-origin-when-cross-origin` | Outbound links send only the origin. GitHub's traffic insights still list the site as a referrer. |
 | `Permissions-Policy` | `_headers` | `camera=(), microphone=(), geolocation=(), payment=(), usb=()` | Turns off features no page uses |
 | `Cross-Origin-Opener-Policy` | `_headers` | `same-origin` | A cross-origin window gets no handle on these pages through `window.opener` |
+| None of the page policy, `Permissions-Policy` or `Cross-Origin-Opener-Policy` on the hashed bundles, `/_astro/*` | `public/_headers`, on the bundles' rule, which detaches the three | — | A bundle is a script, a stylesheet or a font a page loads, never a document or a worker, and only those obey the three. Each cost about 570 B of header per bundle on every page view, which Lighthouse counts in a page's transfer: on 2026-10-25 they took the Route Lab's page past its 150 KB once the command menu added a bundle. `X-Content-Type-Options`, `Referrer-Policy` and `Vary` stay |
 | `Strict-Transport-Security` | The zone setting, nowhere else | Ramped to `max-age=31536000; includeSubDomains` | One owner for every response through the zone ([ADR 0011](adr/0011-dnssec-and-hsts-ramp.md)) |
 
 Never sent:

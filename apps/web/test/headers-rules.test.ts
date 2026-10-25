@@ -75,8 +75,9 @@ describe('public/_headers', () => {
   });
 });
 
-// The build's _headers, resolved for a path as the asset server does: one policy on every response,
-// the page policy on pages and on every other file, and the solver's own on its folder.
+// The build's _headers, resolved for a path as the asset server does: one policy on every response
+// but a hashed bundle's, the page policy on pages and on every other file, and the solver's own on
+// its folder.
 describe('dist/_headers, as the server resolves it', () => {
   const built = read('_headers');
   const policy = (path: string) => headersFor(built, path).get('content-security-policy') ?? '';
@@ -85,7 +86,7 @@ describe('dist/_headers, as the server resolves it', () => {
     expect(policy('/lab/routes/solver/x/vroom-worker.mjs')).toBe(SOLVER_POLICY);
   });
 
-  test('every response, the solver folder and its 404 included, refuses to be framed', () => {
+  test('every response that can be a document, the solver folder and its 404 included, refuses to be framed', () => {
     for (const path of [
       '/',
       '/lab/routes/',
@@ -98,11 +99,26 @@ describe('dist/_headers, as the server resolves it', () => {
   });
 
   test('every other response gets one page policy, with no wasm-unsafe-eval', () => {
-    for (const path of ['/', '/lab/routes/', '/nope/', '/_astro/x.css', '/rss.xml']) {
+    for (const path of ['/', '/lab/routes/', '/nope/', '/favicon.svg', '/rss.xml']) {
       expect(policy(path), path).toMatch(/^default-src 'self';/);
       expect(policy(path), path).not.toContain(',');
       expect(policy(path), path).not.toContain('wasm-unsafe-eval');
     }
+  });
+
+  // A hashed bundle is a script, a stylesheet or a font, never a document or a worker: the
+  // policies only those obey are detached, and the rest stay.
+  test('a hashed bundle carries no document policy, and keeps nosniff and its year of cache', () => {
+    const bundle = headersFor(built, '/_astro/Base.x.css');
+    for (const name of [
+      'content-security-policy',
+      'permissions-policy',
+      'cross-origin-opener-policy',
+    ])
+      expect(bundle.has(name), name).toBe(false);
+    expect(bundle.get('x-content-type-options')).toBe('nosniff');
+    expect(bundle.get('cache-control')).toBe('public, max-age=31536000, immutable');
+    expect(headersFor(built, '/').has('permissions-policy')).toBe(true);
   });
 });
 
