@@ -7,7 +7,15 @@ import type { PackedLegs, RouteData } from '../src/lib/route-lab/data';
 import { DEFAULT_DAY, days } from '../src/lib/route-lab/days';
 import { decodeLegs, networkPath, pathData, routeLine } from '../src/lib/route-lab/legs';
 import { loadSolver } from '../src/lib/route-lab/node-solver';
-import { contours, inside, rings } from '../src/lib/route-lab/contours';
+import {
+  bakeryLabelAt,
+  clearOfPlaces,
+  contours,
+  inside,
+  labelBox,
+  overlaps,
+  rings,
+} from '../src/lib/route-lab/contours';
 import type { Basemap, Isochrones } from '../src/lib/route-lab/data';
 import {
   capacityFor,
@@ -474,5 +482,48 @@ describe('the isochrones’ lines (build only)', () => {
       expect(wet.length / points.length, `${line.minutes}`).toBeLessThan(0.02);
     }
     expect(() => contours(iso, base, [], [7])).toThrow(/no isochrone at 7/);
+  });
+
+  test('no contour label and not the bakery’s covers a place, so every stop’s number reads whole', () => {
+    // Before 2026-10-25 "20 min" sat on Carkeek Park and "10 min" on Judkins Park, a stop on the
+    // default day, and "The bakery" covered International Fountain, another.
+    const places = data.points.slice(1);
+    const lines = contours(iso, base, base.labels, [10, 20], data.points);
+    for (const line of lines)
+      for (const at of line.labels)
+        expect(
+          clearOfPlaces(labelBox(at.x, at.y, 6, 'middle', 41), places),
+          `${line.minutes} min at ${at.x},${at.y}`,
+        ).toBe(true);
+    const bakery = data.points[0] ?? { x: 0, y: 0 };
+    const label = bakeryLabelAt(bakery, data.points);
+    expect(clearOfPlaces(labelBox(label.x, label.y, 10, label.anchor, 37), places)).toBe(true);
+  });
+
+  test('known answers: a label box, a place under it, and the bakery’s label moving right', () => {
+    expect(labelBox(100, 200, 10, 'end', 37)).toEqual({
+      left: -270,
+      right: 100,
+      top: 148,
+      bottom: 217,
+    });
+    expect(labelBox(100, 200, 6, 'middle', 41)).toEqual({
+      left: -23,
+      right: 223,
+      top: 148,
+      bottom: 217,
+    });
+    const box = labelBox(100, 200, 4, 'start', 25);
+    expect(clearOfPlaces(box, [{ x: 150, y: 190 }])).toBe(false);
+    expect(clearOfPlaces(box, [{ x: 150, y: 260 }])).toBe(true);
+    expect(overlaps(box, labelBox(150, 210, 4, 'start', 25))).toBe(true);
+    expect(overlaps(box, labelBox(400, 210, 4, 'start', 25))).toBe(false);
+    const at = { x: 1000, y: 1000 };
+    expect(bakeryLabelAt(at, [at]).anchor).toBe('end');
+    expect(bakeryLabelAt(at, [at, { x: 900, y: 990 }])).toEqual({
+      x: 1024,
+      y: 1011,
+      anchor: 'start',
+    });
   });
 });

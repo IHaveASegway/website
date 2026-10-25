@@ -3,7 +3,7 @@ import routeDataUrl from '../../../../../tools/route-data/out/route-data.json?ur
 import { days } from '../../lib/route-lab/days';
 import { networkPath } from '../../lib/route-lab/legs';
 import lock from '../../lib/route-lab/solver.lock.json';
-import { contours } from '../../lib/route-lab/contours';
+import { bakeryLabelAt, contours, labelBox, overlaps } from '../../lib/route-lab/contours';
 import { basemap, isochrones, leg, routeData, type Picture } from '../../lib/route-lab/picture';
 import { formatDuration } from '../../lib/route-lab/plan';
 import {
@@ -56,15 +56,19 @@ const vans = [0, 1, 2, 3].map((van) => ({ letter: vanClass(van), round: isRound(
 const UNDRAWN = new Set(['South Lake Union', 'Interbay', 'Wallingford']);
 const MINOR = new Set(['Union Bay', 'Portage Bay']);
 const bakery = routeData.points[0] ?? { x: 0, y: 0 };
+// The bakery's label goes where it covers no place (International Fountain is under its left
+// side), and a map label it would cover is left out, as South Lake Union is: the bakery's wins.
+const bakeryLabel = bakeryLabelAt(bakery, routeData.points);
+const bakeryBox = labelBox(bakeryLabel.x, bakeryLabel.y, 10, bakeryLabel.anchor, 37);
 const labels = basemap.labels
   .filter((l) => !UNDRAWN.has(l.text))
+  .filter((l) => !overlaps(labelBox(l.x, l.y, l.text.length, 'middle', 37), bakeryBox))
   .map((l) => ({ ...l, edge: l.x < 240, minor: MINOR.has(l.text) }));
-const bakeryLabel = { x: bakery.x - 24, y: bakery.y + 11 };
 // A line along every other band's edge on land, labelled, so the bands read at a glance
 // (lib/route-lab/contours.ts): 10 and 20 minutes, where most of the map's land lies. They are part
 // of the basemap. Every label but the bakery's sits under the routes: a route or a stop that
 // crosses a label wins.
-const lines = contours(isochrones, basemap, [...labels, bakeryLabel], [10, 20]);
+const lines = contours(isochrones, basemap, [...labels, bakeryLabel], [10, 20], routeData.points);
 const bands = bandsSentence(
   isochrones.minutes,
   lines.map((l) => l.minutes),
@@ -117,7 +121,11 @@ const bands = bandsSentence(
         )}
       </g>
       <g id="rl-top">
-        <text class="rl-label rl-label-bakery" x={bakeryLabel.x} y={bakeryLabel.y}>
+        <text
+          class={`rl-label rl-label-bakery${bakeryLabel.anchor === 'start' ? ' rl-label-edge' : ''}`}
+          x={bakeryLabel.x}
+          y={bakeryLabel.y}
+        >
           The bakery
         </text>
       </g>
