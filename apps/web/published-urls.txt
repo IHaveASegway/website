@@ -8,3 +8,6 @@
 # and a note is published; the feed is a file, not a page, and is not listed. A draft is never
 # listed: it is not published.
 /
+/lab/
+/lab/routes/
+/resume/

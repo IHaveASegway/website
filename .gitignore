@@ -6,6 +6,11 @@ dist-preview/
 .astro/
 .wrangler/
 
+# The solver's build output (tools/vroom-wasm/build/build.sh). The one committed copy is the
+# site's, apps/web/public/lab/routes/solver/, which tools/vroom-wasm/install.mjs writes (ADR 0016)
+tools/vroom-wasm/vroom.mjs
+tools/vroom-wasm/vroom.wasm
+
 # Test output
 playwright-report/
 playwright-report-writing/

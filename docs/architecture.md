@@ -143,7 +143,7 @@ Every datum the site touches. Read a row left to right: where it lives, who may 
 |---|---|---|---|---|---|---|
 | Posts and notes | Markdown and MDX in `apps/web/src/content/**` | Authoring | Joseph, by pull request | the build; visitors, as HTML, RSS, sitemap and OG images | build-time copy, Zod-validated (schema-on-write) | live minutes after merge; fixed per version |
 | ADRs | `docs/adr/*.md` | Authoring | Joseph, by pull request | repo readers; the build, which renders the ADRs on its publish allowlist at `/colophon/decisions/<nnnn-slug>/` ([content.md](content.md)) | rendered at build time from the same files; nothing is copied by hand | per deploy; the site cannot disagree with the repo |
-| Public profile: title, arc, skills, education, links | `apps/web/src/content/profile.json`, a JSON Resume subset with no employer field | Authoring | Joseph, by pull request | `/about/`, later `/resume/`, the JSON-LD | build-time copy | per deploy |
+| Public profile: title, arc (role titles and years, once Q8 is cleared), skills, education, links | `apps/web/src/content/profile.json`, a JSON Resume subset with no employer field | Authoring | Joseph, by pull request | `/resume/` (from 2026-10-25), `/about/` (PR 4), the JSON-LD | build-time copy | per deploy |
 | Employment history: employers, dates | LinkedIn and Joseph's private résumé | outside the system | Joseph, on LinkedIn | visitors who follow the link | a link only: never copied, never fetched | none: the site holds no copy, so it cannot be stale |
 | A project card's line, tag and figures | the project's repository, at the commit its check read (`checked.sha`) | Authoring | Joseph, by pull request, copying by hand into `profile.json` | the build | build-time copy | per deploy; the figures' age is `measured` |
 | Design tokens | `tokens.css` in `apps/web`: direction C's values (Petrol + Apricot), in the token structure first copied from Mission-AI | Presentation | Joseph, by pull request | pages, lab islands, the contrast unit test, the Open Graph card | same build | per deploy; never synced with Mission-AI, and no Mission-AI value remains |
@@ -200,6 +200,27 @@ sequenceDiagram
 ```
 
 This holds by construction: outside `/lab/api/*`, the only Worker on the hostname is the site Worker, and it has no script. A 100,000-visitor day costs $0 on Free and makes no Worker invocations ([cost.md](cost.md)). Rendering that HTML in a Worker would typically take 10 to 20 ms of CPU per view, Cloudflare's own figure for server-side rendering, against Free's 10 ms limit.[^limits]
+
+### A Route Lab solve (2026-10-25)
+
+The Route Lab is a page view like the one above, and nothing more: its route data and its solver are static assets too, and the solve runs on the visitor's CPU ([ADR 0016](adr/0016-route-lab-in-the-browser.md)).
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant B as Browser page
+  participant W as Module worker
+  participant S as Site Worker, assets only
+  B->>S: GET /lab/routes/, its CSS, fonts and one small module
+  Note over B: Without JavaScript, the page is both plans, solved at build.
+  B->>S: on intent (a focus, a mouse over the demo, a change): the app chunk and route-data.json
+  B->>W: on the first change: new Worker(/lab/routes/solver/vroom-…/vroom-worker.mjs)
+  W->>S: vroom-solver.mjs, vroom.mjs, vroom.wasm
+  Note over W,S: The worker's own response header allows 'wasm-unsafe-eval';<br/>the page's policy does not need to.
+  B->>W: the orders, the vans and the cut matrices, 150 ms after the last change, one solve at a time
+  W-->>B: VROOM's plan, and how long it took
+  Note over B,S: 0 Worker requests, 0 Durable Object requests:<br/>$0 at any traffic.
+```
 
 ### A lab session (Phase 4)
 

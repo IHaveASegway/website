@@ -6,12 +6,14 @@ import { app, dist, files, kindOf, kinds, type Kind } from './support/dist';
 // Every file the site serves is read by some check (spec B8: the scans cover every file). The text
 // scans (hold list, readiness, timestamps) read every file that is UTF-8 text, whatever its name.
 // A binary they cannot read must be a kind with a check of its own: PNG and ICO images here, WOFF2
-// fonts in fonts.test.ts. Anything else fails, so a new kind of file arrives with its check.
+// fonts in fonts.test.ts, WebAssembly in wasm.test.ts. Anything else fails, so a new kind of file
+// arrives with its check.
 
 const BINARY_CHECKS: Readonly<Record<Exclude<Kind, 'text' | 'unreadable'>, string>> = {
   png: 'the image metadata check below; og.test.ts reads the Open Graph image',
   ico: 'the image metadata check below',
   woff2: "fonts.test.ts: the lock, the WOFF2 header and the name table's strings",
+  wasm: 'wasm.test.ts: the lock, the sections, the imports and exports, its strings, and a golden solve',
 };
 
 test('every file in dist/ is UTF-8 text or a binary kind with its own check', () => {
@@ -46,6 +48,12 @@ describe('known answers: a file is classified by its bytes, not its name', () =>
     ['a PNG', bytes(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0), 'png'],
     ['an ICO', bytes(0, 0, 1, 0, 1, 0), 'ico'],
     ['a WOFF2', utf8('wOF2\u0000\u0001'), 'woff2'],
+    ['a WebAssembly module', bytes(0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01), 'wasm'],
+    [
+      'WebAssembly of another version',
+      bytes(0x00, 0x61, 0x73, 0x6d, 0x02, 0x00, 0x00, 0x00),
+      'unreadable',
+    ],
     ['UTF-8 text', utf8('Joseph Peterson · © 2026\n\tindented\r\n'), 'text'],
     ['an empty file', bytes(), 'text'],
     ['bytes that are not UTF-8', bytes(0xff, 0xfe, 0x41), 'unreadable'],

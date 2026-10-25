@@ -4,10 +4,16 @@ import { isNoindex } from '../src/lib/noindex.mjs';
 import {
   AUTHOR_KEYS,
   homeGraph,
+  OCCUPATION_KEYS,
   PERSON_KEYS,
   PERSON_OPTIONAL_KEYS,
   POSTING_KEYS,
   POSTING_OPTIONAL_KEYS,
+  PROFILE_PAGE_KEYS,
+  RESUME_PERSON_OPTIONAL_KEYS,
+  resumeGraph,
+  ROLE_KEYS,
+  ROLE_OPTIONAL_KEYS,
   serialize,
   WEBSITE_KEYS,
   WEBSITE_OPTIONAL_KEYS,
@@ -86,9 +92,85 @@ const isPost = (file: string) =>
   /^(writing|notes)\/[a-z0-9-]+\/index\.html$/.test(file) && !isNoindex(read(file));
 const posts = html.filter(isPost);
 
-test('structured data is on Home and on published posts only, so WebSite appears only at the root', () => {
-  for (const file of html.filter((f) => f !== 'index.html' && !isPost(f)))
+test('structured data is on Home, the résumé and published posts only, so WebSite appears only at the root', () => {
+  const own = ['index.html', 'resume/index.html'];
+  for (const file of html.filter((f) => !own.includes(f) && !isPost(f)))
     expect(blocks(read(file)), file).toEqual([]);
+  for (const file of html.filter((f) => f !== 'index.html'))
+    expect(JSON.stringify(blocks(read(file))), file).not.toContain('"WebSite"');
+});
+
+// The résumé (content.md, "Structured data and link previews"): a ProfilePage whose main entity is
+// Home's Person, by the same @id and keys, with a Role per entry in profile.json's work and nothing
+// more: no employer, place or description can join a role.
+describe("the résumé's ProfilePage", () => {
+  const [page, ...rest] = blocks(read('resume/index.html'));
+  const node = page ?? {};
+  const person = (node['mainEntity'] ?? {}) as Node;
+  const homePerson = ((blocks(read('index.html'))[0]?.['@graph'] ?? []) as Node[]).find(
+    (n) => n['@type'] === 'Person',
+  );
+  const roles = (person['hasOccupation'] ?? []) as Node[];
+
+  test('one block: a ProfilePage at its own URL, with exactly its keys', () => {
+    expect(rest).toEqual([]);
+    expect(keyProblems(node, PROFILE_PAGE_KEYS)).toEqual([]);
+    expect(node['@context']).toBe('https://schema.org');
+    expect(node['@type']).toBe('ProfilePage');
+    expect(node['url']).toBe('https://ihaveasegway.com/resume/');
+  });
+
+  test("its main entity is Home's Person, plus the roles profile.json holds and nothing else", () => {
+    const required = [
+      ...PERSON_KEYS,
+      ...RESUME_PERSON_OPTIONAL_KEYS.filter((k) =>
+        k === 'sameAs' ? checkedProfiles(profile).length > 0 : profile.work.length > 0,
+      ),
+    ];
+    expect(keyProblems(person, required)).toEqual([]);
+    const same = Object.fromEntries(Object.entries(person).filter(([k]) => k !== 'hasOccupation'));
+    expect(same).toEqual(homePerson);
+  });
+
+  test('each role is its years around its title, in profile order', () => {
+    expect(roles).toHaveLength(profile.work.length);
+    profile.work.forEach((role, i) => {
+      const node = roles[i] ?? {};
+      const required =
+        role.endDate === undefined ? ROLE_KEYS : [...ROLE_KEYS, ...ROLE_OPTIONAL_KEYS];
+      expect(keyProblems(node, required)).toEqual([]);
+      expect(node['@type']).toBe('Role');
+      expect(node['startDate']).toBe(role.startDate);
+      if (role.endDate !== undefined) expect(node['endDate']).toBe(role.endDate);
+      const occupation = (node['hasOccupation'] ?? {}) as Node;
+      expect(keyProblems(occupation, OCCUPATION_KEYS)).toEqual([]);
+      expect(occupation).toEqual({ '@type': 'Occupation', name: role.position });
+    });
+  });
+});
+
+test('known answers: the résumé graph adds roles only from work entries, an ended one with its end', () => {
+  const none = resumeGraph({ ...profile, work: [] }, '/resume/');
+  expect(none['mainEntity']).not.toHaveProperty('hasOccupation');
+  const two = resumeGraph(
+    {
+      ...profile,
+      work: [
+        { position: 'Now', startDate: '2021' },
+        { position: 'Before', startDate: '2019', endDate: '2021' },
+      ],
+    },
+    '/resume/',
+  );
+  expect((two['mainEntity'] as Node)['hasOccupation']).toEqual([
+    { '@type': 'Role', startDate: '2021', hasOccupation: { '@type': 'Occupation', name: 'Now' } },
+    {
+      '@type': 'Role',
+      startDate: '2019',
+      endDate: '2021',
+      hasOccupation: { '@type': 'Occupation', name: 'Before' },
+    },
+  ]);
 });
 
 /** The first match of a pattern in a page, with its character references decoded. */

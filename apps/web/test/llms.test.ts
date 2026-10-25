@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import { labArea } from '../src/lib/lab';
 import { llmsText } from '../src/lib/llms';
 import { isNoindex } from '../src/lib/noindex.mjs';
 import { writingArea, type Post } from '../src/lib/posts';
@@ -95,7 +96,13 @@ describe('known answers: lib/llms.ts', () => {
     ...extra,
   });
   const write = (posts: Post[], drafts = false) =>
-    llmsText({ profile, pages: [], area: writingArea(posts, drafts), projects: [] });
+    llmsText({
+      profile,
+      pages: [],
+      area: writingArea(posts, drafts),
+      lab: labArea([]),
+      projects: [],
+    });
 
   test('with no published post nothing about Writing is written, even with drafts included', () => {
     const out = write(
@@ -147,10 +154,26 @@ describe('known answers: lib/llms.ts', () => {
       profile,
       pages: [{ id: 'rss', label: 'RSS', href: '/rss.xml', footer: true }],
       area: writingArea([], false),
+      lab: labArea([]),
       projects: [],
     });
     expect(out).not.toContain('rss.xml');
     expect(out).not.toContain('## Projects');
     expect(out).not.toContain('## Writing');
+    expect(out).not.toContain('## Lab');
+  });
+
+  test('the Lab section lists each live demo with its summary, and its index is a page', () => {
+    const out = llmsText({
+      profile,
+      pages: [{ id: 'lab', label: 'Lab', href: '/lab/', header: true }],
+      area: writingArea([], false),
+      lab: labArea([
+        { slug: 'routes', title: 'A [demo]', summary: 'Its\nsummary.', decisions: [] },
+      ]),
+      projects: [],
+    });
+    expect(out).toContain(`- [Lab](${ORIGIN}/lab/)`);
+    expect(out).toContain(`## Lab\n\n- [A \\[demo\\]](${ORIGIN}/lab/routes/): Its summary.`);
   });
 });

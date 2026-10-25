@@ -8,6 +8,7 @@
   "exclude": [
     "dist",
     "dist-preview",
+    "public/lab/routes/solver",
     ".fixtures",
     "node_modules",
     "playwright-report",

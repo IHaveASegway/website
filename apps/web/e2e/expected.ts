@@ -36,14 +36,15 @@ export const SITE_PAGES: readonly string[] = (() => {
 
 /**
  * The pages of the test-only writing fixture build, .fixtures/fixture-many
- * (scripts/build-fixtures.mjs): Home, both indexes and the five published posts, and not the draft.
- * pnpm e2e:writing walks these, and test/writing.test.ts holds the build to them.
+ * (scripts/build-fixtures.mjs): Home, the résumé, both indexes and the five published posts, and
+ * not the draft. pnpm e2e:writing walks these, and test/writing.test.ts holds the build to them.
  */
 export const WRITING_FIXTURE_PAGES: readonly string[] = [
   '/',
   '/notes/',
   '/notes/fixture-small-note/',
   '/notes/fixture-trailing-slashes/',
+  '/resume/',
   '/writing/',
   '/writing/fixture-markdown-tour/',
   '/writing/fixture-measure-first/',
@@ -199,6 +200,21 @@ export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
 
 /** Headers this site never sends (security.md, "Never sent"). */
 export const NEVER_SENT = ['x-xss-protection', 'expect-ct', 'x-frame-options'] as const;
+
+/** The Route Lab's page and its solver's folder, named in the lock (ADR 0016). */
+export const ROUTE_LAB = '/lab/routes/';
+export const SOLVER = `/lab/routes/solver/${
+  (
+    JSON.parse(
+      readFileSync(new URL('../src/lib/route-lab/solver.lock.json', import.meta.url), 'utf8'),
+    ) as { folder: string }
+  ).folder
+}/`;
+
+/** The policy the solver's responses carry beside the site's: the one place on the site with
+ *  'wasm-unsafe-eval', which a worker takes from its own response (public/_headers). */
+export const SOLVER_POLICY =
+  "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'";
 
 /** The name public/_headers adds to Vary on every response, so a cache between the site and a
  *  reader keeps a compressed copy apart from the plain one (delivery.md, "Config as code"). */

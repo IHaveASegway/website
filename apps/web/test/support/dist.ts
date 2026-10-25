@@ -54,15 +54,17 @@ export const files = filesIn(dist);
 /**
  * What a file in dist/ is, from its bytes rather than its name, so a new extension, or none, cannot
  * slip past the scans. A binary the scans cannot read is one of the kinds below, each with a check
- * of its own: PNG and ICO images (image metadata, og.test.ts), WOFF2 fonts (fonts.test.ts). Any
- * other file must be UTF-8 text, which every text scan reads. dist-files.test.ts fails on the rest.
+ * of its own: PNG and ICO images (image metadata, og.test.ts), WOFF2 fonts (fonts.test.ts), and
+ * WebAssembly, the Route Lab's solver (wasm.test.ts, ADR 0016). Any other file must be UTF-8 text,
+ * which every text scan reads. dist-files.test.ts fails on the rest.
  */
-export type Kind = 'png' | 'ico' | 'woff2' | 'text' | 'unreadable';
+export type Kind = 'png' | 'ico' | 'woff2' | 'wasm' | 'text' | 'unreadable';
 
 const SIGNATURES: readonly [Exclude<Kind, 'text' | 'unreadable'>, readonly number[]][] = [
   ['png', [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]],
   ['ico', [0x00, 0x00, 0x01, 0x00]],
   ['woff2', [0x77, 0x4f, 0x46, 0x32]], // "wOF2"
+  ['wasm', [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]], // "\0asm", version 1
 ];
 
 export function kindOf(data: Uint8Array): Kind {

@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import { labArea, type LabEntry } from '../src/lib/lab';
 import { writingArea, type Post } from '../src/lib/posts';
 import type { ProjectCard } from '../src/lib/profile';
 import {
@@ -124,14 +125,21 @@ describe('withTargets: the rule every card meets', () => {
 
 describe("selectedWork: Home's cards, from the projects and the build's posts", () => {
   const teardownPost = post('trading-bot-teardown', { kind: 'postmortem' });
+  const noLab = labArea([]);
+  const demo: LabEntry = {
+    slug: 'routes',
+    title: 'A demo',
+    summary: 'Its summary.',
+    decisions: [],
+  };
 
   test('nothing to show: no card, so Home has no Selected work', () => {
-    expect(selectedWork([], writingArea([], false))).toEqual([]);
-    expect(selectedWork([], writingArea([post('other')], false))).toEqual([]);
+    expect(selectedWork([], writingArea([], false), noLab)).toEqual([]);
+    expect(selectedWork([], writingArea([post('other')], false), noLab)).toEqual([]);
   });
 
   test('the teardown, once published, gets a card after the project cards', () => {
-    const cards = selectedWork([project], writingArea([post('other'), teardownPost], false));
+    const cards = selectedWork([project], writingArea([post('other'), teardownPost], false), noLab);
     expect(cards.map((c) => c.link.href)).toEqual([
       'https://github.com/IHaveASegway/a-project',
       '/writing/trading-bot-teardown/',
@@ -140,14 +148,31 @@ describe("selectedWork: Home's cards, from the projects and the build's posts", 
 
   test('a draft teardown gets no card, even in a preview that builds its page', () => {
     const draft = post('trading-bot-teardown', { draft: true });
-    expect(selectedWork([], writingArea([post('other'), draft], true))).toEqual([]);
-    expect(selectedWork([], writingArea([draft], true))).toEqual([]);
+    expect(selectedWork([], writingArea([post('other'), draft], true), noLab)).toEqual([]);
+    expect(selectedWork([], writingArea([draft], true), noLab)).toEqual([]);
+  });
+
+  test('a live demo gets the first card, linking to its page in the lab, with the tag Lab', () => {
+    const cards = selectedWork([project], writingArea([teardownPost], false), labArea([demo]));
+    expect(cards.map((c) => c.link.href)).toEqual([
+      '/lab/routes/',
+      'https://github.com/IHaveASegway/a-project',
+      '/writing/trading-bot-teardown/',
+    ]);
+    expect(cards[0]).toEqual({
+      title: 'A demo',
+      text: 'Its summary.',
+      tag: 'Lab',
+      facts: [],
+      link: { href: '/lab/routes/', label: 'Try it', external: false },
+    });
+    expect(selectedWork([], writingArea([], false), labArea([demo]))).toHaveLength(1);
   });
 
   test('the preview and production builds of the same posts show the same cards', () => {
     const posts = [teardownPost, post('draft', { draft: true })];
-    expect(selectedWork([project], writingArea(posts, true))).toEqual(
-      selectedWork([project], writingArea(posts, false)),
+    expect(selectedWork([project], writingArea(posts, true), noLab)).toEqual(
+      selectedWork([project], writingArea(posts, false), noLab),
     );
   });
 });

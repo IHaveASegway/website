@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
-import { findHeld, normalize, parseHolds, UnreadableText } from '../src/lib/held-names';
+import { findHeld, normalize, parseHolds, readingOf, UnreadableText } from '../src/lib/held-names';
 import { app, files, read, textFiles } from './support/dist';
 
 // The hold list (not-on-site.txt): names public in the repository but held off the site until a
@@ -17,9 +17,10 @@ test('the hold list parses, and every name says what holds it', () => {
   for (const hold of holds) expect(hold.reason.length, hold.name).toBeGreaterThan(10);
 });
 
+// Each file as its type is read: a script as JavaScript, everything else as markup (ADR 0016).
 describe('no held name in any file the site serves', () => {
   for (const file of textFiles) {
-    test(file, () => expect(findHeld(read(file), holds)).toEqual([]));
+    test(file, () => expect(findHeld(read(file), holds, readingOf(file))).toEqual([]));
   }
 });
 
@@ -163,6 +164,43 @@ describe('known answers: every spelling a reader would see is caught', () => {
     ]) {
       expect(() => findHeld(text, sample), text).toThrow(UnreadableText);
     }
+  });
+
+  test('a script is read as JavaScript: "&&name" is code, and a name in it is still caught', () => {
+    expect(readingOf('_astro/app.D0LdBgLQ.js')).toBe('script');
+    expect(readingOf('lab/routes/solver/x/vroom.mjs')).toBe('script');
+    expect(readingOf('index.html')).toBe('markup');
+    expect(readingOf('llms.txt')).toBe('markup');
+    expect(readingOf('_astro/route-data.Bgyelr6y.json')).toBe('markup');
+    const minified = `let e=a${amp}${amp}document.body;`;
+    expect(findHeld(minified, sample, 'script')).toEqual([]);
+    expect(() => findHeld(minified, sample, 'markup')).toThrow(UnreadableText);
+    expect(findHeld(`${minified}t.textContent="zqquil mox"`, sample, 'script')).toEqual([QUILMOX]);
+    expect(findHeld(`a${amp}${amp}"ZQMORTAM"`, sample, 'script')).toEqual([MORTAM]);
+    // A script may write this text into innerHTML, where "&shy;" is a soft hyphen: the markup view
+    // decodes it, so the name is caught (until 2026-10-25 a script was read as written only).
+    expect(findHeld(`zqmor${amp}shy;tam`, sample, 'script')).toEqual([MORTAM]);
+  });
+
+  // What a script writes through innerHTML, the browser reads as markup: tags joined away and
+  // references decoded. A string escape is the character it names. Each probe passed the
+  // as-written reading alone (security review, 2026-10-25).
+  const bs = '\\';
+  for (const text of [
+    'x.innerHTML="zq<wbr>quil<b>mox</b>"',
+    `x.innerHTML="${amp}#90;qquilmox"`,
+    `x.textContent="${bs}u005Aqquilmox"`,
+    `x.textContent="zq${bs}u{71}uil${bs}x6dox"`,
+    `x.innerHTML="zqquil${bs}u003cwbr${bs}u003emox"`,
+  ]) {
+    test(`caught in a script, as the browser reads it: ${text}`, () => {
+      expect(findHeld(text, sample, 'script')).toEqual([QUILMOX]);
+      expect(findHeld(`let e=a${amp}${amp}b;${text}`, sample, 'script')).toEqual([QUILMOX]);
+    });
+  }
+  test('passed: a script with no name in any view, whose "&" never fails it', () => {
+    const text = `let e=a${amp}${amp}b;x.innerHTML="<b>quil</b>mox"+${amp}madeup;`;
+    expect(findHeld(text, sample, 'script')).toEqual([]);
   });
 
   test('references decode once, as a browser decodes them', () => {

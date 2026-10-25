@@ -33,8 +33,9 @@ async function measure(page: Page, fonts: Fonts) {
   ]);
   const web = Object.fromEntries(faces);
   // Every web face Home uses arrived, or every one failed: never a mix that would measure something
-  // else. Home sets nothing in JetBrains Mono today, so that face is never fetched ("unloaded");
-  // once a card sets its tag in mono, the face loads or fails with the sans.
+  // else. Home sets a card's tag and figures in JetBrains Mono, the Route Lab's since 2026-10-25,
+  // so that face loads or fails with the sans; a build whose Home has no card never fetches it
+  // ("unloaded").
   const status = fonts === 'loaded' ? 'loaded' : 'error';
   expect(web['Instrument Sans']).toBe(status);
   expect([status, 'unloaded']).toContain(web['JetBrains Mono']);

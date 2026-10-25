@@ -70,12 +70,65 @@ test('there is no slot for a region, a city, an address, an email or a phone num
   expect(refused((p) => (p.basics['phone'] = '555'))).toBe(true);
 });
 
-test('work, education and skills take no entry until their schema is cleared', () => {
-  expect(
-    refused((p) => p.work.push({ name: 'An employer', position: 'x', startDate: '2020' })),
-  ).toBe(true);
+// Experience (Q8 (a)): a role is its title and its years, and nothing else can be entered.
+const role = { position: 'Senior Software Engineer', startDate: '2019', endDate: '2024' };
+const skill = { name: 'WebAssembly', evidence: ['/lab/routes/'] };
+
+test('a role is a title and years: no employer, place, summary, highlight or month', () => {
+  expect(refused((p) => p.work.push(role))).toBe(false);
+  expect(refused((p) => p.work.push({ position: 'x', startDate: '2021' }))).toBe(false);
+  // JSON Resume's own employer field, and every other field a role could carry a name or a
+  // metric in, is refused: an employer cannot be entered at all.
+  for (const [key, value] of Object.entries({
+    name: 'An employer',
+    location: 'somewhere',
+    url: 'https://example.com/',
+    summary: 'Did a thing.',
+    highlights: ['Cut a metric by 40%.'],
+    description: 'x',
+  })) {
+    expect(
+      refused((p) => p.work.push({ ...role, [key]: value })),
+      key,
+    ).toBe(true);
+  }
+  // Years only: a month or a day narrows a role to the season someone joined or left.
+  expect(refused((p) => p.work.push({ ...role, startDate: '2019-06' }))).toBe(true);
+  expect(refused((p) => p.work.push({ ...role, endDate: '2024-01-31' }))).toBe(true);
+  expect(refused((p) => p.work.push({ ...role, startDate: '19' }))).toBe(true);
+  expect(refused((p) => p.work.push({ ...role, startDate: 2019 }))).toBe(true);
+  // An end before the start, an empty or a long title, and an eleventh role are refused too.
+  expect(refused((p) => p.work.push({ ...role, endDate: '2018' }))).toBe(true);
+  expect(refused((p) => p.work.push({ ...role, position: '' }))).toBe(true);
+  expect(refused((p) => p.work.push({ ...role, position: 'x'.repeat(61) }))).toBe(true);
+  expect(refused((p) => p.work.push(...Array(10).fill(role)))).toBe(false);
+  expect(refused((p) => p.work.push(...Array(11).fill(role)))).toBe(true);
+});
+
+test('a skill names the pages on this site that show it, and nothing else', () => {
+  expect(refused((p) => p.skills.push(skill))).toBe(false);
+  // A skill without evidence, with evidence off the site or on Home, or in another form, fails.
+  expect(refused((p) => p.skills.push({ name: 'Go' }))).toBe(true);
+  expect(refused((p) => p.skills.push({ ...skill, evidence: [] }))).toBe(true);
+  for (const page of ['https://example.com/', '/', '/lab/routes', 'lab/routes/', '/Lab/routes/'])
+    expect(
+      refused((p) => p.skills.push({ ...skill, evidence: [page] })),
+      page,
+    ).toBe(true);
+  expect(refused((p) => p.skills.push({ ...skill, evidence: Array(4).fill('/a/') }))).toBe(true);
+  // JSON Resume's level and keywords are not fields here; a name is at most 40 characters.
+  expect(refused((p) => p.skills.push({ ...skill, level: 'Expert' }))).toBe(true);
+  expect(refused((p) => p.skills.push({ ...skill, keywords: ['x'] }))).toBe(true);
+  expect(refused((p) => p.skills.push({ ...skill, name: 'x'.repeat(41) }))).toBe(true);
+  // Each skill once, and at most twelve.
+  expect(refused((p) => p.skills.push(skill, skill))).toBe(true);
+  const many = (n: number) => Array.from({ length: n }, (_, i) => ({ ...skill, name: `s${i}` }));
+  expect(refused((p) => p.skills.push(...many(12)))).toBe(false);
+  expect(refused((p) => p.skills.push(...many(13)))).toBe(true);
+});
+
+test('education takes no entry until its schema is cleared: an institution can name a region', () => {
   expect(refused((p) => p.education.push({ institution: 'A school' }))).toBe(true);
-  expect(refused((p) => p.skills.push({ name: 'Go', keywords: [] }))).toBe(true);
 });
 
 test('a readiness check must be complete: a GitHub record names its commit, a date is a date', () => {
@@ -237,16 +290,25 @@ test('no part of a card counts adoption: each word content.md names, in the line
 test('only a fixture name selects test projects; every real build reads profile.json alone', () => {
   expect(projectFixturePath(undefined)).toBeNull();
   expect(projectFixturePath('')).toBeNull();
-  expect(projectFixturePath('card')).toBe('test/fixtures/profile/card.json');
+  expect(projectFixturePath('resume')).toBe('test/fixtures/profile/resume.json');
   expect(() => projectFixturePath('../../etc')).toThrow(/not a fixture/);
   const data = {
     basics: { profiles: [{ network: 'GitHub' }, { network: 'LinkedIn' }] },
     projects: [{ name: 'x' }],
   };
   expect(withFixture(data, null)).toBe(data);
-  expect(withFixture(data, { githubChecked: checked, projects: [{ name: 'y' }] })).toEqual({
+  expect(
+    withFixture(data, {
+      githubChecked: checked,
+      projects: [{ name: 'y' }],
+      work: [role],
+      skills: [skill],
+    }),
+  ).toEqual({
     basics: { profiles: [{ network: 'GitHub', checked }, { network: 'LinkedIn' }] },
     projects: [{ name: 'x' }, { name: 'y' }],
+    work: [role],
+    skills: [skill],
   });
   // Nothing that builds or deploys the site sets PROFILE_FIXTURE: only the fixture script does.
   for (const file of ['package.json', '../../package.json', '../../.github/workflows/ci.yml']) {
@@ -254,9 +316,15 @@ test('only a fixture name selects test projects; every real build reads profile.
   }
 });
 
-test('the card fixture is valid: one made-up project, checked and held by nothing, and a GitHub check', () => {
-  const extra = JSON.parse(readFileSync(join(app, 'test/fixtures/profile/card.json'), 'utf8'));
+test('the résumé fixture is valid: one made-up project, checked and held by nothing, a GitHub check, and the most roles and skills the schema allows', () => {
+  const extra = JSON.parse(readFileSync(join(app, 'test/fixtures/profile/resume.json'), 'utf8'));
   const parsed = profileSchema.parse(withFixture(structuredClone(valid), extra));
   const cards = projectCards(parsed, realHolds);
   expect(cards.map((c) => c.title)).toEqual(['fixture-project']);
+  // At the limits, so the one-page print check (e2e/resume.spec.ts) holds for any profile the
+  // schema admits, the longest title and name included.
+  expect(parsed.work).toHaveLength(10);
+  expect(parsed.skills).toHaveLength(12);
+  expect(Math.max(...parsed.work.map((r) => r.position.length))).toBe(60);
+  expect(Math.max(...parsed.skills.map((k) => k.name.length))).toBe(40);
 });

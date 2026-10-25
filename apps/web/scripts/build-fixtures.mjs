@@ -12,9 +12,11 @@
 //   fixture-many           5 published + a draft, production: Home lists 3, the indexes all 5
 //   fixture-many-preview   the same, drafts included, as a pull request preview builds them
 //
-// The two fixture-many builds also take PROFILE_FIXTURE=card: one made-up project, checked and held
-// by nothing, is appended to the real profile's projects, so its card and repository link render
-// and meet every check over a build (test/fixtures/profile/card.json).
+// The two fixture-many builds also take PROFILE_FIXTURE=resume: one made-up project, checked and
+// held by nothing, is appended to the real profile's projects, so its card and repository link
+// render and meet every check over a build; and ten made-up roles and twelve skills, the schema's
+// limits, are appended too, so the résumé's Experience and Skills render, and print on one page,
+// before any real entry exists (test/fixtures/profile/resume.json).
 //
 // Each build gets the environment it needs and nothing inherited that could change it: DRAFTS and
 // NODE_ENV are set or removed explicitly, POST_FIXTURES names the set, and PROFILE_FIXTURE is set
@@ -32,8 +34,8 @@ const BUILDS = [
   { name: 'fixture-none-node-env', set: 'none', drafts: false, nodeEnv: 'development' },
   { name: 'fixture-one', set: 'one', drafts: false },
   { name: 'fixture-one-preview', set: 'one', drafts: true },
-  { name: 'fixture-many', set: 'many', drafts: false, profile: 'card' },
-  { name: 'fixture-many-preview', set: 'many', drafts: true, profile: 'card' },
+  { name: 'fixture-many', set: 'many', drafts: false, profile: 'resume' },
+  { name: 'fixture-many-preview', set: 'many', drafts: true, profile: 'resume' },
 ];
 
 for (const { name, set, drafts, nodeEnv, profile } of BUILDS) {

@@ -8,7 +8,8 @@ import {
   titleSize,
   type OgCard,
 } from '../src/lib/og';
-import { bytes, fileFor, files, html, profile, read } from './support/dist';
+import { demoPicture } from '../src/lib/route-lab/og-map';
+import { app, bytes, fileFor, files, html, profile, read } from './support/dist';
 
 // Link previews (content.md, "Structured data and link previews"). Pixels cannot be scanned for
 // held names or firewall terms, so the card draws only two strings, and they must be the page's
@@ -100,12 +101,25 @@ for (const file of previewed) {
       card,
       'og:title and og:image:alt must be "title · label" and "title, label"',
     ).not.toBeNull();
-    expect((await renderOg(card as OgCard)).equals(bytes(png))).toBe(true);
+    // A demo's card also carries its picture, which draws no word (lib/route-lab/og-map.ts).
+    const demo = /^lab\/([a-z0-9-]+)\/index\.html$/.exec(file)?.[1];
+    const picture = demo ? await demoPicture(demo, app) : undefined;
+    expect((await renderOg(card as OgCard, picture)).equals(bytes(png))).toBe(true);
     expect(meta(page, 'og:type')).toBe(
       /^(writing|notes)\/[a-z0-9-]+\//.test(file) ? 'article' : 'website',
     );
   });
 }
+
+test("the Route Lab's card carries its map, which draws no string, at the card's full height", async () => {
+  const picture = await demoPicture('routes', app);
+  if (!picture) throw new Error('the Route Lab has no picture');
+  expect([picture.readUInt32BE(16), picture.readUInt32BE(20)]).toEqual([491, OG_SIZE.height]);
+  const colors = { background: '', foreground: '', muted: '', accent: '' };
+  const tree = ogTree({ title: 'A', label: 'B' }, colors, { src: 'x', width: 491, height: 630 });
+  expect(drawnStrings(tree)).toEqual(['A', 'B']);
+  expect(demoPicture('another', app)).toBeUndefined();
+});
 
 test('known answers: a card is read back from its two strings, whatever they hold', () => {
   expect(cardFrom('A · B', 'A, B')).toEqual({ title: 'A', label: 'B' });

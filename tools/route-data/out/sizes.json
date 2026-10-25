@@ -1,0 +1,35 @@
+{
+  "sizes": {
+    "basemap.json": {
+      "raw": 65150,
+      "gzip": 29022,
+      "sha256": "48819c6a1e2301ac34ed0e8117eac756dc1330900a7161deb1d79e7aad3e99ea"
+    },
+    "isochrones.json": {
+      "raw": 23597,
+      "gzip": 8334,
+      "sha256": "579c54d95f37e60ceb6b5bdc9d9b06eb44cd91f83df5c642d02c8327f3b912af"
+    },
+    "route-data.json": {
+      "raw": 199320,
+      "gzip": 56049,
+      "sha256": "c20c78de094a58e769a23a4c7b430b3a2bf6aae81144c8542d26165097bdc611"
+    },
+    "preview.svg": {
+      "raw": 140430,
+      "gzip": 55687,
+      "sha256": "c414a9c50dd775584866e601d1c91816372d1890755592306a2be79327f7b267"
+    }
+  },
+  "parts": {
+    "basemap.water": 9385,
+    "basemap.parks": 11820,
+    "basemap.roads.motorway": 3362,
+    "basemap.roads.primary": 8897,
+    "basemap.roads.secondary": 11504,
+    "basemap.roads.tertiary": 17290,
+    "basemap.roads.tunnel": 786,
+    "route-data.legs": 149863,
+    "route-data.matrix": 41795
+  }
+}

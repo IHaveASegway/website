@@ -29,10 +29,12 @@ const DIST_CHECKS = [
   'project-cards',
   'readiness',
   'readouts',
+  'resume',
   'scripts',
   'theme-color',
   'tokens',
   'urls',
+  'wasm',
 ].map((name) => `test/${name}.test.ts`);
 
 // profile: the PROFILE_FIXTURE the build was made with (scripts/build-fixtures.mjs), so the checks
@@ -58,8 +60,8 @@ export default defineConfig({
         test: { name: 'site', include: ['test/**/*.test.ts'], env: { PROFILE_FIXTURE: '' } },
       },
       rerun('site preview', 'dist-preview', 'include'),
-      rerun('writing fixture', '.fixtures/fixture-many', 'exclude', 'card'),
-      rerun('writing fixture preview', '.fixtures/fixture-many-preview', 'include', 'card'),
+      rerun('writing fixture', '.fixtures/fixture-many', 'exclude', 'resume'),
+      rerun('writing fixture preview', '.fixtures/fixture-many-preview', 'include', 'resume'),
       rerun('writing fixture at one', '.fixtures/fixture-one-preview', 'include'),
       rerun('writing fixture, drafts only', '.fixtures/fixture-none-preview', 'include'),
     ],

@@ -177,7 +177,8 @@ A summary of [roadmap.md](roadmap.md), which owns scope, definitions of done and
 | 4 | PR 6 Lab platform + Presence | Lab Worker; admission; budgets; recordings; `/privacy/`; kill switch | 4–5 | Q13; spikes S1–S6, running from 2026-10-23 |
 | 4 | PR 7 Outbox Lab | The transactional outbox demo | 8–10 | Q12 |
 | 4 | PR 8 Migration Lab | The saved-plan migration demo | 6–8 | — |
-| 5 | Later | Route Lab, a public résumé edition, Pagefind search, Mission-AI references, terminal mode | — | Q9, Q24 |
+| — | Route Lab (built 2026-10-25, at Joseph's direction) | `/lab/` and `/lab/routes/`: VROOM in the visitor's browser, static, $0 to run ([ADR 0016](adr/0016-route-lab-in-the-browser.md)); it needs none of PR 6 | built | Q13; the merge gates in ADR 0016's Consequences |
+| 5 | Later | A résumé PDF, Pagefind search, Mission-AI references, terminal mode | — | Q9 (b), Q24 |
 
 Phases 1–3, a complete content site, added up to 9.5–12.5 focused days as first planned, and about 16–17 since PR 3's re-baseline and PR 4's re-estimate on 2026-10-23. Phase 4, the lab, adds 18–23. Content came first by design; on 2026-10-23 Joseph moved the blog ahead of the other content pages, made owned work cards instead of case studies, and started the lab's spikes alongside it ([roadmap.md](roadmap.md)).
 
@@ -200,14 +201,13 @@ None left: Q1 and Q2 were decided on 2026-10-22 ([Decided](#decided)).
 | # | Question | Options | Recommendation, and why | Door | Blocks · by |
 |---|---|---|---|---|---|
 | Q8 · Q-career-arc | What may the career arc say? | (a) Role titles and years, with no employer. (b) (a) plus one generic industry noun, such as "operations". (c) Exact titles, including rare ones | (a), then clear (b) item by item. The arc is the differentiator a recruiter remembers, but a rare title or an industry noun, next to a location and a LinkedIn link, can narrow to one company. Résumé metrics stay off until each is cleared in writing | One-way once published | At a glance on Home, `/about/`, JSON-LD · before PR 4 |
-| Q9 · Q-resume | A public résumé, or "on request"? | (a) A LinkedIn link plus "full résumé on request". (b) A public edition: HTML and a print-CSS PDF generated from `profile.json`, employer omitted, clean PDF metadata | (a) now; (b) once Q3 and Q8 are answered. (a) costs nothing and leaks nothing. The current résumé PDF is never hosted or committed either way | Two-way for the page; one-way for a PDF someone downloaded | The résumé line in PR 4; `/resume/` in Phase 5 · before PR 4 |
 | Q10 · Q-projects | Which work is featured? | (a) stillhere and gitops, plus one line for the upstream contribution to capacitor. (b) Other repositories as well | (a). Owned, checkable work, linked only after its readiness checks, with exact credit (gitops has outside contributions; capacitor is someone else's project). Partly answered on 2026-10-23: owned work shows as cards that link to the repositories, not case studies. stillhere's card waits on its readiness check and the GitHub profile's. gitops is private, so it stays off the site until it is public again. Still open: the capacitor line | Two-way | the project cards and the capacitor line in PR 4 · before PR 4 |
 
 ### Blocking PR 6 and later
 
 | # | Question | Options | Recommendation, and why | Door | Blocks · by |
 |---|---|---|---|---|---|
-| Q12 · Q-first-demo | Which demo follows Presence? | (a) Outbox Lab. (b) Migration Lab. (c) Route Lab | (a). It shows a failure and its fix side by side, a naive dual write that visibly loses events next to a transactional outbox, on synthetic data, and it needs no external map data or solver. (c) brings the most outside parts (a WASM solver, map data, a travel-time matrix) on top of 7–10 days of work, so it ships last ([lab.md](lab.md)) | Two-way | PR 7 · before PR 7 |
+| Q12 · Q-first-demo | Which demo follows Presence? | (a) Outbox Lab. (b) Migration Lab. (c) Route Lab | (a). It shows a failure and its fix side by side, a naive dual write that visibly loses events next to a transactional outbox, on synthetic data, and it needs no external map data or solver. (c) brought the most outside parts (a WASM solver, map data, a travel-time matrix) on top of 7–10 days of work, so it was to ship last ([lab.md](lab.md)). On 2026-10-25 Joseph directed (c) first ("Goal post is VROOM running"), built as a static demo that needs no platform ([ADR 0016](adr/0016-route-lab-in-the-browser.md), Proposed); this row moves to Decided when he accepts that record. Which demo follows Presence is still open | Two-way | PR 7 · before PR 7 |
 | Q13 · Q-ip | Has Joseph confirmed that his invention-assignment agreement does not reach his personal projects? | (a) Checked: it does not. (b) It might, or it is unclear | Read the agreement, and the statute of the state he works in, before any demo or Mission-AI reference is scheduled. Every one of them waits on (a). Not yet checked, as of 2026-10-23. Not legal advice.[^q13] | One-way: a published invention cannot be unpublished | Every demo, from PR 6; Q24 · before PR 6 |
 
 ### Non-blocking
@@ -225,7 +225,7 @@ These proceed on the recommendation until answered, ordered by when the answer i
 
 ### Decided
 
-Joseph answered these in chat on 2026-10-22 and 2026-10-23; each row dated 2026-10-23 says so. Where he did not pick an option himself, he took the recommendation, as the row says. When a question is answered, it moves here with the date, the option chosen and what ships, its door, and the evidence that would show it wrong. Detail the firewall touches stays in the private record ([Content firewall](#content-firewall)); for Q13, this section records only that the check is done, with the date. A one-way answer also gets an ADR. Each ADR stays Proposed until the pull request that [roadmap.md](roadmap.md) names accepts it.
+Joseph answered these in chat on 2026-10-22 and 2026-10-23; each row dated 2026-10-23 says so, and Q9's row, 2026-10-25, records a direction relayed to Claude. Where he did not pick an option himself, he took the recommendation, as the row says. When a question is answered, it moves here with the date, the option chosen and what ships, its door, and the evidence that would show it wrong. Detail the firewall touches stays in the private record ([Content firewall](#content-firewall)); for Q13, this section records only that the check is done, with the date. A one-way answer also gets an ADR. Each ADR stays Proposed until the pull request that [roadmap.md](roadmap.md) names accepts it.
 
 | Question | Answer | What ships | Door | Wrong if |
 |---|---|---|---|---|
@@ -247,6 +247,7 @@ Joseph answered these in chat on 2026-10-22 and 2026-10-23; each row dated 2026-
 | Q29 · Q-s1-timing | (a) Before PR 6, as planned. The account's other Worker logged no requests in the 30 days to 2026-10-22 | — | Two-way | That Worker starts serving traffic before PR 6: read its peak again |
 | Q27 · Q-agent-credit | Moot (2026-10-23): no case studies ship, so there is no role line to word. Owned work is a card that links to its repository (Q10) | — | Two-way | Case studies come back; then reopen it |
 | Owned work's form, from Q10 | Card → repo only (2026-10-23): each owned project is a card on Home that links to its repository; no case studies, recordings or lab companions | The card's code, ahead (2026-10-23); stillhere's card in PR 4 | Two-way: `/work/` stays reserved ([ADR 0005](adr/0005-url-scheme.md)'s postscript) | Proposed, for Joseph to confirm: after 8 weeks with the card live, GitHub's Insights → Traffic → Referring sites for stillhere shows fewer than N visits from ihaveasegway.com, or people who saw the site still ask what stillhere does. N is Joseph's to set. GitHub keeps 14 days of traffic, so the count is read every two weeks |
+| Q9 · Q-resume | (a) now, as a page (2026-10-25). Joseph's direction that day, relayed: "It should be a résumé". Read as the recommendation, (a) now, shaped as a page rather than a line; that reading is Claude's, for his confirmation. (b) stays open for the PDF | `/resume/`: the name, the title, the location line and every address; Experience with "Full history on LinkedIn." and "Full résumé on request"; role titles and years once Q8 is cleared and he adds them; skills with their evidence; Selected work and Writing as on Home. Print CSS gives one Letter page. No PDF is hosted ([content.md](content.md#résumé)) | Two-way for the page's content; the URL is permanent once deployed ([ADR 0005](adr/0005-url-scheme.md)); a PDF stays one-way and undecided | A recruiter cannot tell what the page adds to LinkedIn, or the thin page reads as unfinished before a role is on it: then build it only once `work` holds a role, a one-line change |
 
 ## Non-goals (v1)
 
@@ -259,7 +260,7 @@ Joseph answered these in chat on 2026-10-22 and 2026-10-23; each row dated 2026-
 - **Search before about 20 posts.** Then Pagefind: a static index with no runtime cost, which can also feed the ⌘K palette.
 - **Employer case studies.** The firewall rules them out. Depth comes from owned work.
 - **Mission-AI content at launch.** Later, by Joseph's decision (Q24).
-- **A hosted résumé PDF.** The current résumé is never hosted or committed. A public edition comes only after the firewall questions are answered (Q9).
+- **A hosted résumé PDF.** The current résumé is never hosted or committed. The public edition is an HTML page at `/resume/`, generated from `profile.json` (Q9 (a), 2026-10-25); a PDF of it comes only after the firewall questions are answered (Q9 (b)).
 
 ## How we will know it works
 

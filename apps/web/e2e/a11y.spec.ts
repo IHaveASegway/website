@@ -129,8 +129,19 @@ function largeTextFaults(): Fault[] {
       edge.left + parseFloat(style.paddingLeft),
       edge.right - parseFloat(style.paddingRight),
     ];
+    // The poster name's box starts its side bearing (--bearing, in em) left of the frame, so the
+    // stem of its first letter lines up with the frame's edge (design-system.md, "The poster
+    // setting"). The résumé sets that poster in its article's <header>: the bearing, and no more,
+    // is not past the frame.
+    const hang = (text: Text) => {
+      const name = text.parentElement?.closest('.hero-name');
+      if (!name) return 0;
+      const style = getComputedStyle(name);
+      const bearing = /^\s*([\d.]+)em\s*$/.exec(style.getPropertyValue('--bearing'))?.[1];
+      return bearing ? Number(bearing) * parseFloat(style.fontSize) : 0;
+    };
     const past = texts(region).filter((text) =>
-      boxes(text).some((r) => r.left < left - 0.5 || r.right > right + 0.5),
+      boxes(text).some((r) => r.left < left - hang(text) - 0.5 || r.right > right + 0.5),
     );
     for (const text of past)
       faults.push({ where: region.localName, what: `"${text.data.trim()}" past the frame` });
@@ -230,6 +241,27 @@ test('known answers: the larger-text check names each fault, and passes a name o
     wide.style.height = '1px';
   });
   expect((await page.evaluate(largeTextFaults))[0]?.what).toBe('scrolls 80 px sideways');
+});
+
+// The résumé's head is Home's poster inside an article's <header>, so the frame rule reads its name,
+// which starts its side bearing left of the frame by design. The known answer: the bearing passes,
+// and a box set further left than the bearing is still past the frame.
+test('known answers: the poster name may hang its side bearing past the frame, and no further', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  const view = (margin: string) =>
+    page.setContent(
+      '<body style="margin: 0; font: 20px monospace"><div class="frame" style="padding: 0 40px">' +
+        '<header><h1 class="hero-name" style="--bearing: 0.055em; ' +
+        `margin: 0 0 0 ${margin}; font-size: 40px">Joseph</h1></header></div></body>`,
+    );
+  await view('calc(var(--bearing) * -1)');
+  expect(await page.evaluate(largeTextFaults)).toEqual([]);
+  await view('-0.25em');
+  expect(await page.evaluate(largeTextFaults)).toEqual([
+    { where: 'header', what: '"Joseph" past the frame' },
+  ]);
 });
 
 // The skip link (SC 2.4.1), focused, covers the header's whole row, so nothing in the header shows
@@ -466,23 +498,56 @@ test('known answers: the target check names a short list link and a small button
   ]);
 });
 
+/**
+ * How many times Tab stops on a page: each visible link, button and control, except that a group
+ * of radio buttons (one name) is one stop, as browsers move through it with the arrow keys.
+ * Runs in the page.
+ */
+function tabStops(): number {
+  const groups = new Set<string>();
+  return [
+    ...document.querySelectorAll<HTMLElement & { disabled?: boolean }>(
+      'a[href], button, input, select, textarea, [tabindex]',
+    ),
+  ].filter((element) => {
+    if (element.tabIndex < 0 || element.disabled || !element.checkVisibility()) return false;
+    if (element instanceof HTMLInputElement && element.type === 'radio' && element.name) {
+      if (groups.has(element.name)) return false;
+      groups.add(element.name);
+    }
+    return true;
+  }).length;
+}
+
+test('known answer: a radio group is one Tab stop', async ({ page }) => {
+  await page.setContent(
+    [
+      '<a href="/a/">A</a>',
+      '<label><input type="radio" name="day" checked> One</label>',
+      '<label><input type="radio" name="day"> Two</label>',
+      '<label><input type="radio" name="vans"> 1</label>',
+      '<label><input type="radio" name="vans"> 2</label>',
+      '<button type="button">Go</button>',
+    ].join(''),
+  );
+  expect(await page.evaluate(tabStops)).toBe(4);
+  const reached: string[] = [];
+  for (let i = 0; i < 4; i++) {
+    await page.keyboard.press('Tab');
+    reached.push(await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 20) ?? ''));
+  }
+  expect(reached.every((html) => html !== '' && !html.startsWith('<body'))).toBe(true);
+});
+
 test('every focusable element shows a visible outline from the keyboard (SC 2.4.7)', async ({
   page,
 }) => {
   for (const path of ROUTES) {
     await page.goto(path);
     // Only what Tab reaches: a negative tabindex (a skip link's target, often <main tabindex="-1">),
-    // a disabled control or a hidden one is focusable by script but never by Tab.
-    const count = await page.evaluate(
-      () =>
-        [
-          ...document.querySelectorAll<HTMLElement & { disabled?: boolean }>(
-            'a[href], button, input, select, textarea, [tabindex]',
-          ),
-        ].filter(
-          (element) => element.tabIndex >= 0 && !element.disabled && element.checkVisibility(),
-        ).length,
-    );
+    // a disabled control or a hidden one is focusable by script but never by Tab, and a radio
+    // group is one stop (the Route Lab's day and vans).
+    const count = await page.evaluate(tabStops);
     for (let i = 0; i < count; i++) {
       await page.keyboard.press('Tab');
       const focus = await page.evaluate(() => {

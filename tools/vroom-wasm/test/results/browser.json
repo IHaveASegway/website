@@ -1,0 +1,185 @@
+{
+  "chromium": "153.0.8010.12",
+  "runs": {
+    "strict": {
+      "page": "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; connect-src 'self'",
+      "worker": "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; connect-src 'self'",
+      "expect": "pass",
+      "asExpected": true,
+      "rows": [
+        {
+          "name": "03-vrptw-25x3",
+          "x": 0,
+          "cost": 13990,
+          "solveMs": 41.7,
+          "sameAsNode": true
+        },
+        {
+          "name": "03-vrptw-25x3",
+          "x": 5,
+          "cost": 13765,
+          "solveMs": 233.8,
+          "sameAsNode": true
+        },
+        {
+          "name": "04-shipments-breaks",
+          "x": 0,
+          "cost": 23830,
+          "solveMs": 6.3,
+          "sameAsNode": true
+        },
+        {
+          "name": "04-shipments-breaks",
+          "x": 5,
+          "cost": 23830,
+          "solveMs": 36.7,
+          "sameAsNode": true
+        },
+        {
+          "name": "bench-25x3",
+          "x": 0,
+          "cost": 16084,
+          "solveMs": 13.2,
+          "sameAsNode": true
+        },
+        {
+          "name": "bench-25x3",
+          "x": 5,
+          "cost": 16084,
+          "solveMs": 182.6,
+          "sameAsNode": true
+        },
+        {
+          "name": "bench-60x4",
+          "x": 0,
+          "cost": 35390,
+          "solveMs": 74,
+          "sameAsNode": true
+        },
+        {
+          "name": "bench-60x4",
+          "x": 5,
+          "cost": 35088,
+          "solveMs": 1131.9,
+          "sameAsNode": true
+        }
+      ],
+      "cspErrors": [],
+      "console": []
+    },
+    "worker-only": {
+      "page": "default-src 'none'; script-src 'self'; worker-src 'self'; connect-src 'self'",
+      "worker": "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; connect-src 'self'",
+      "expect": "pass",
+      "asExpected": true,
+      "rows": [
+        {
+          "name": "03-vrptw-25x3",
+          "x": 0,
+          "cost": 13990,
+          "solveMs": 37.7,
+          "sameAsNode": true
+        },
+        {
+          "name": "03-vrptw-25x3",
+          "x": 5,
+          "cost": 13765,
+          "solveMs": 232.2,
+          "sameAsNode": true
+        },
+        {
+          "name": "04-shipments-breaks",
+          "x": 0,
+          "cost": 23830,
+          "solveMs": 5.9,
+          "sameAsNode": true
+        },
+        {
+          "name": "04-shipments-breaks",
+          "x": 5,
+          "cost": 23830,
+          "solveMs": 32.5,
+          "sameAsNode": true
+        },
+        {
+          "name": "bench-25x3",
+          "x": 0,
+          "cost": 16084,
+          "solveMs": 11.8,
+          "sameAsNode": true
+        },
+        {
+          "name": "bench-25x3",
+          "x": 5,
+          "cost": 16084,
+          "solveMs": 193.8,
+          "sameAsNode": true
+        },
+        {
+          "name": "bench-60x4",
+          "x": 0,
+          "cost": 35390,
+          "solveMs": 73.4,
+          "sameAsNode": true
+        },
+        {
+          "name": "bench-60x4",
+          "x": 5,
+          "cost": 35088,
+          "solveMs": 1091.1,
+          "sameAsNode": true
+        }
+      ],
+      "cspErrors": [],
+      "console": []
+    },
+    "page-only": {
+      "page": "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; connect-src 'self'",
+      "worker": "default-src 'none'; script-src 'self'; worker-src 'self'; connect-src 'self'",
+      "expect": "fail",
+      "asExpected": true,
+      "rows": [
+        {
+          "name": "03-vrptw-25x3",
+          "x": 0,
+          "failed": "RuntimeError: Aborted(CompileError: WebAssembly.instantiate(): Compiling or instantiating WebAssembly module violates the following Content Security policy directive because 'unsafe-eval' is not an allowed source of script in the following Content Security Policy directive: \"script-src 'self'\".). Build with -sASSERTIONS for more info."
+        }
+      ],
+      "cspErrors": [
+        "error: wasm streaming compile failed: CompileError: WebAssembly.instantiateStreaming(): Compiling or instantiating WebAssembly module violates the following Content Security policy directive because 'unsafe-eval' is not an allowed source of script in the following Content Security Policy directive: \"script-src 'self'\".",
+        "error: failed to asynchronously prepare wasm: CompileError: WebAssembly.instantiate(): Compiling or instantiating WebAssembly module violates the following Content Security policy directive because 'unsafe-eval' is not an allowed source of script in the following Content Security Policy directive: \"script-src 'self'\".",
+        "error: Aborted(CompileError: WebAssembly.instantiate(): Compiling or instantiating WebAssembly module violates the following Content Security policy directive because 'unsafe-eval' is not an allowed source of script in the following Content Security Policy directive: \"script-src 'self'\".)"
+      ],
+      "console": [
+        "error: wasm streaming compile failed: CompileError: WebAssembly.instantiateStreaming(): Compiling or instantiating WebAssembly module violates the following Content Security policy directive because 'unsafe-eval' is not an allowed source of script in the following Content Security Policy directive: \"script-src 'self'\".",
+        "error: falling back to ArrayBuffer instantiation",
+        "error: failed to asynchronously prepare wasm: CompileError: WebAssembly.instantiate(): Compiling or instantiating WebAssembly module violates the following Content Security policy directive because 'unsafe-eval' is not an allowed source of script in the following Content Security Policy directive: \"script-src 'self'\".",
+        "error: Aborted(CompileError: WebAssembly.instantiate(): Compiling or instantiating WebAssembly module violates the following Content Security policy directive because 'unsafe-eval' is not an allowed source of script in the following Content Security Policy directive: \"script-src 'self'\".)"
+      ]
+    },
+    "no-wasm": {
+      "page": "default-src 'none'; script-src 'self'; worker-src 'self'; connect-src 'self'",
+      "worker": "default-src 'none'; script-src 'self'; worker-src 'self'; connect-src 'self'",
+      "expect": "fail",
+      "asExpected": true,
+      "rows": [
+        {
+          "name": "03-vrptw-25x3",
+          "x": 0,
+          "failed": "RuntimeError: Aborted(CompileError: WebAssembly.instantiate(): Compiling or instantiating WebAssembly module violates the following Content Security policy directive because 'unsafe-eval' is not an allowed source of script in the following Content Security Policy directive: \"script-src 'self'\".). Build with -sASSERTIONS for more info."
+        }
+      ],
+      "cspErrors": [
+        "error: wasm streaming compile failed: CompileError: WebAssembly.instantiateStreaming(): Compiling or instantiating WebAssembly module violates the following Content Security policy directive because 'unsafe-eval' is not an allowed source of script in the following Content Security Policy directive: \"script-src 'self'\".",
+        "error: failed to asynchronously prepare wasm: CompileError: WebAssembly.instantiate(): Compiling or instantiating WebAssembly module violates the following Content Security policy directive because 'unsafe-eval' is not an allowed source of script in the following Content Security Policy directive: \"script-src 'self'\".",
+        "error: Aborted(CompileError: WebAssembly.instantiate(): Compiling or instantiating WebAssembly module violates the following Content Security policy directive because 'unsafe-eval' is not an allowed source of script in the following Content Security Policy directive: \"script-src 'self'\".)"
+      ],
+      "console": [
+        "error: wasm streaming compile failed: CompileError: WebAssembly.instantiateStreaming(): Compiling or instantiating WebAssembly module violates the following Content Security policy directive because 'unsafe-eval' is not an allowed source of script in the following Content Security Policy directive: \"script-src 'self'\".",
+        "error: falling back to ArrayBuffer instantiation",
+        "error: failed to asynchronously prepare wasm: CompileError: WebAssembly.instantiate(): Compiling or instantiating WebAssembly module violates the following Content Security policy directive because 'unsafe-eval' is not an allowed source of script in the following Content Security Policy directive: \"script-src 'self'\".",
+        "error: Aborted(CompileError: WebAssembly.instantiate(): Compiling or instantiating WebAssembly module violates the following Content Security policy directive because 'unsafe-eval' is not an allowed source of script in the following Content Security Policy directive: \"script-src 'self'\".)"
+      ]
+    }
+  }
+}

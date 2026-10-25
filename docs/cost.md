@@ -206,9 +206,21 @@ On Free, only a rule that runs before the Worker saves quota, and the one rate-l
 | D3: a bot holds 1,000 non-hibernating sockets for 72 h | The day's DO duration is gone in 102 s | 33.2M GB-s: $412.50 | Hibernation API only; a 15-minute hard TTL; a new session needs a new Turnstile token |
 | D4: a container endpoint kept busy for 72 h with `max_instances` 20 (the default), standard-2 | Not available | $185.07 | `max_instances` 1 and `sleepAfter` "30s": $8.56 on standard-2, $1.29 on basic |
 
+### The Route Lab: a solver in the browser
+
+Built on 2026-10-25 ([ADR 0016](adr/0016-route-lab-in-the-browser.md)). The page, its route data and its solver, VROOM compiled to WebAssembly, are static assets, and the solve runs on the visitor's CPU. A page view and any number of solves invoke no Worker and touch no meter, on either plan: **$0 a month at any traffic**, and no daily cap can turn a visitor away. What it relies on is the static-asset limits, as of 2026-10-25 ([Workers limits](https://developers.cloudflare.com/workers/platform/limits/)):
+
+| Limit | Free | Paid | The Route Lab uses |
+|---|---|---|---|
+| Files per Worker version | 20,000 | 100,000 | 7 more: two pages, two link previews, the route data, a script bundle and the solver's folder of five, less what it shares |
+| Size of one file | 25 MiB | 25 MiB | 919,927 B, the largest: `vroom.wasm` |
+| `_headers` rules | 100 | 100 | 1 more: the solver's folder |
+
+A visitor downloads about 545 KB gzip -9 for the page and one solve, most of it the solver, once; the solver's folder is cached for a year. Scenario E below prices the server-side alternative.
+
 ### E. A container-backed solver
 
-300 solves a month, 5 s each at 1 vCPU (5 vCPU-seconds of work plus 1 of start-up, 2 s of cold start). No planned demo needs this: the lab keeps solvers in the visitor's browser ([lab.md](lab.md)). The scenario prices the alternative, which would also fire upgrade trigger 1.
+300 solves a month, 5 s each at 1 vCPU (5 vCPU-seconds of work plus 1 of start-up, 2 s of cold start). No planned demo needs this: the lab keeps solvers in the visitor's browser ([lab.md](lab.md)), and the Route Lab does (above). The scenario prices the alternative, which would also fire upgrade trigger 1.
 
 The obvious shape, 1 vCPU with 1 GiB, is not valid. Custom instance types need at least 1 vCPU and at least 3 GiB per vCPU, and anything under 1 vCPU must use a predefined type. The valid shapes nearest to it:
 

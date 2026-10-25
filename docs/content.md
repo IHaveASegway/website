@@ -50,9 +50,9 @@ ihaveasegway.com
 ├── /notes/ · /notes/<slug>/               Field notes                         P3 (PR 5, from 1 note)
 ├── /rss.xml                               Essays and notes                    P3 (PR 5)
 ├── /privacy/                              Before the first lab                P4 (PR 6)
-├── /lab/ · /lab/<slug>/                   Demo write-ups, static pages        P4 (PR 6–8)
+├── /lab/ · /lab/<slug>/                   Demos and their write-ups, static   /lab/routes/ 2026-10-25; P4 (PR 6–8)
 │   └── /lab/api/*                         Lab Worker API, not pages           P4 (PR 6)
-└── /resume/                               Public edition (Q-resume)           later
+└── /resume/                               Résumé, the Q9 (a) edition          now (2026-10-25)
 ```
 
 `/work/` builds nothing. On 2026-10-23 Joseph chose cards over case studies: each owned project is a card on Home that links to its repository ([Owned work](#owned-work)). The prefix stays reserved ([ADR 0005](adr/0005-url-scheme.md)).
@@ -66,10 +66,10 @@ Render rules:
 |---|---|---|
 | About | the page exists | P3 |
 | Writing (with `/notes/` and `/rss.xml`) | at least 1 published post, essay or note; a draft never counts, and `/notes/` also waits for its first note. The bar was 3 posts until 2026-10-24; lowering it to 1 was proposed that day for Joseph's read, from his ask for a workable site from the content he has ([ADR 0005](adr/0005-url-scheme.md)'s postscript) | P3 |
-| Lab | at least 1 demo has `lifecycle: live` | P4 |
-| Résumé | the public edition exists | later |
+| Lab | at least 1 demo has `lifecycle: live`: the Route Lab, since 2026-10-25 ([ADR 0016](adr/0016-route-lab-in-the-browser.md)). Home shows each demo as the first card in Selected work; a Lab section of its own (row 6) waits for a second demo, so no page lists a demo twice | built |
+| Résumé | always: the page renders from the profile. Experience lists roles once Q8 is cleared and Joseph adds them; a skill shows once every page it names is built; Selected work and Writing render as on Home ([Résumé](#résumé)) | now (2026-10-25) |
 
-Header: Joseph's name, linking home, on every page but Home (whose `<h1>` is the name); Lab · Writing · About, each only when its rule holds; and the theme toggle. Owned work has no section of its own: its cards sit on Home. Footer, one line: the contact address; the links whose pages exist (RSS · Now · Colophon); the external profiles whose readiness check is recorded (GitHub, LinkedIn); and the copyright. ⌘K joins with the palette in PR 4. This is recognition over recall: the navigation is always visible, and ⌘K, once it exists, is a shortcut, never the only way in.
+Header: Joseph's name, linking home, on every page but Home (whose `<h1>` is the name); Lab · Writing · Résumé · About, each only when its rule holds; and the theme toggle. On a phone, when the name and the links do not fit one line, the links and the toggle move to a second line (2026-10-25, with Résumé); the name itself wraps, between its words, only when it alone is wider than the line, as with a larger text size. Owned work has no section of its own: its cards sit on Home. Footer, one line: the contact address; the links whose pages exist (RSS · Now · Colophon); the external profiles whose readiness check is recorded (GitHub, LinkedIn); and the copyright. ⌘K joins with the palette in PR 4. This is recognition over recall: the navigation is always visible, and ⌘K, once it exists, is a shortcut, never the only way in.
 
 ## URL scheme
 
@@ -85,7 +85,7 @@ Header: Joseph's name, linking home, on every page but Home (whose `<h1>` is the
 | `/lab/api/*` | The lab Worker's API, the only path that runs code ([ADR 0009](adr/0009-lab-worker-same-origin.md)) |
 | `/about/` · `/now/` · `/colophon/` · `/privacy/` | Single pages |
 | `/colophon/decisions/` · `/colophon/decisions/<nnnn-slug>/` | Published ADRs; the slug is the ADR's file name |
-| `/resume/` | Public résumé, later; its PDF is `/resume/joseph-peterson-resume.pdf` |
+| `/resume/` | The résumé, from 2026-10-25. A PDF, should Q9 (b) ever publish one, would be `/resume/joseph-peterson-resume.pdf`; none is hosted |
 | `/rss.xml` · `/sitemap-index.xml` · `/robots.txt` · `/llms.txt` · `/.well-known/security.txt` · `/favicon.ico` · `/apple-touch-icon.png` | Files; they keep their extensions, and the root ones sit where clients ask for them by name ([Files for crawlers](#files-for-crawlers)) |
 | `/404` | Not-found page |
 
@@ -105,9 +105,9 @@ As built on 2026-10-24, an element renders only when its source and its link tar
 | 1 | Hero | above | The recruiter's fields minus company: name, title, arc, what he does, contact | **Joseph Peterson** · "Senior Software Engineer" (Q-title) · "US · remote" (Q-location) · buttons, all one width: Email · Work (scrolls to Selected work, only while it renders) · each checked profile: LinkedIn today, GitHub once its check is recorded. Still to come: one sentence on what Joseph does, once he clears its wording. "I build developer tools and write down the decisions behind them." (proposed on 2026-10-24) left the same day: "developer tools" is a generic industry noun, which is ASK, and nothing on the site backed it or the decisions it promised. Then the arc line (Q-career-arc), and a proof line that names owned work once a project's card is on. No availability line (Q-availability) | always; the Work button with Selected work; each profile button only from a checked record |
 | 2 | This build (retired) | — | — | Retired on 2026-10-24: the readout row (`Build <commit>` · `Built <date>` · `JavaScript <KB>`) described the site, not Joseph. The deploy smoke reads the commit from the `X-Build` response header instead (a `<meta name="build">` tag, briefly, the same day), and the served-from readout planned for PR 4 is dropped | never |
 | 3 | At a glance | above | Stands in for the previous titles and dates | Still to come: `<role titles and years — Q-career-arc>` · "Full history on LinkedIn." · `<stack line — skills in profile.json>`. Not rendered in PR 3 | Q-career-arc is answered and the skills list is cleared (PR 4) |
-| 4 | Selected work | below | Proof through owned, checkable artifacts | one card per owned project, generated from `profile.json`, linking to its repository; then one card per featured post, linking to the post; the cards below. This site's card left on 2026-10-24 | a card's page exists: a project's card when its check and the GitHub profile's are recorded and its hold is lifted ([readiness checklist](#repo-readiness-checklist)); a post's card when the post is published in the build. With no card the section is not rendered |
+| 4 | Selected work | below | Proof through owned, checkable artifacts | one card per live demo, from its lab entry's title and summary, linking to its page; then one card per owned project, generated from `profile.json`, linking to its repository; then one card per featured post, linking to the post; the cards below. This site's card left on 2026-10-24; the Route Lab's card renders since 2026-10-25 | a card's page exists: a project's card when its check and the GitHub profile's are recorded and its hold is lifted ([readiness checklist](#repo-readiness-checklist)); a post's card when the post is published in the build. With no card the section is not rendered |
 | 5 | How I work (removed) | — | — | Removed on 2026-10-24: its four lines were the site's own build rules (decision records, one profile file, byte budgets, the deploy guard) restated as principles, with no evidence on the page, and the largest block on Home. If it returns, it is a small plain list, each line linked to evidence that exists (below) | never, as it stands |
-| 6 | Lab | below | Invite play; be plain about state | "Try `<demo>`. Its state is deleted within 15 minutes. How it works →" (logs are covered on `/privacy/`) | a demo has `lifecycle: live` |
+| 6 | Lab | below | Invite play; be plain about state | "Try `<demo>`. Its state is deleted within 15 minutes. How it works →" (logs are covered on `/privacy/`) | a second live demo. Until then the one demo, the Route Lab, is the first card of row 4, tagged "Lab", with "Try it →" (2026-10-25), so it is not listed twice |
 | 7 | Writing | below | Thinking and recency | the three latest posts (title, date, one line) that are not already a card in Selected work, so no post is listed twice on Home (`writingRow()` in `src/lib/work.ts`) · All writing · RSS | at least 1 published post |
 | 8 | Footer | bottom | One click to contact | one line: `hello@ihaveasegway.com` (Q-mail) · the links whose pages exist · the checked profiles · "© `<year>` Joseph Peterson". No "Contact" label, no display-size address and no theme toggle (it moved to the header on 2026-10-24). No "Updated" line and no build line: the site does not describe itself, and a post carries its own dates. RSS joins with Writing (PR 5); Now and Colophon as their pages ship, and ⌘K with the palette (PR 4) | always |
 
@@ -157,10 +157,10 @@ Content is code: Markdown, MDX and JSON in the repo, validated when the site bui
 
 | Collection | Source | Loader | Renders | Fields |
 |---|---|---|---|---|
-| `profile` | `apps/web/src/content/profile.json` | `file()` | `/about/`, Home rows 1, 3 and 4 (the project cards), JSON-LD; later `/resume/` | A JSON Resume subset, with `firewall_reviewed` in `meta`. No field exists for an employer, a city, an address, an email or a phone number |
+| `profile` | `apps/web/src/content/profile.json` | `file()` | `/resume/`, `/about/`, Home rows 1, 3 and 4 (the project cards), JSON-LD | A JSON Resume subset, with `firewall_reviewed` in `meta`. No field exists for an employer, a city, an address, an email or a phone number |
 | `writing` | `apps/web/src/content/writing/*.md`; `.mdx` with the first post that needs a shared component | `glob()` | `/writing/<slug>/`, `/rss.xml` | title, summary, published, updated, kind (essay, pattern, postmortem), tags, draft, firewall_reviewed |
 | `notes` | `apps/web/src/content/notes/*.md` | `glob()` | `/notes/<slug>/`, `/rss.xml` | title, summary, published, tags, source (optional link), draft, firewall_reviewed |
-| `lab` | `apps/web/src/content/lab/*.{md,mdx}` | `glob()` | `/lab/<slug>/` | title, summary, lifecycle (building, live, retired), recording, cost, state TTL (at most 15 minutes), decisions, firewall_reviewed |
+| `lab` | `apps/web/src/content/lab/*.md` | `glob()` | `/lab/` and `/lab/<slug>/`, the demo with its write-up | title, summary, lifecycle (`live` only, so far: building and retired join with the first demo that needs them), runtime (`browser`, with nothing more, or `lab-worker`, with its recording and a state TTL of at most 15 minutes), decisions, firewall_reviewed. As built on 2026-10-25 (`src/lib/lab.ts`); the fixture builds leave the lab out |
 | `now` | `apps/web/src/content/now.md` | `glob()` | `/now/` | updated, firewall_reviewed |
 | `decisions` | `docs/adr/NNNN-*.md`, outside `apps/web` | a small custom loader | `/colophon/decisions/<nnnn-slug>/` | None in the file. Number, title, status, date and deciders are parsed from the heading and the Status line |
 
@@ -252,11 +252,13 @@ const profile = defineCollection({
         z.strictObject({ network: z.literal('LinkedIn'), url: linkedInProfileUrl, checked: profileCheck.optional() }),
       ])),
     }),
-    // Empty until Joseph clears them in writing: role years are ASK, an institution can name a
-    // region, and the stack line waits on his list. A tuple of no items makes any entry a schema change.
-    work: z.tuple([]),
+    // Roles (Q8 (a)): a title and years, no employer (since 2026-10-25). Role years are ASK until
+    // Joseph clears them in writing; the review stamp holds the pull request that adds one.
+    work: z.array(z.strictObject({ position: z.string().max(60), startDate: year, endDate: year.optional() })).max(10),
+    // Empty until Joseph clears one: an institution can name a region. A tuple of no items makes any entry a schema change.
     education: z.tuple([]),
-    skills: z.tuple([]),
+    // Each skill names one to three pages on this site that show it (since 2026-10-25).
+    skills: z.array(z.strictObject({ name: z.string().max(40), evidence: z.array(sitePage).min(1).max(3) })).max(12),
     projects: z.array(z.strictObject({ name: z.string(), description: z.string(), url: repositoryUnderTheAccount, tag: z.string().optional(), facts: z.array(fact).max(3).optional(), checked: githubCheck.optional() })), // fact: { term, value }, never an adoption count
     meta: z.strictObject({ firewall_reviewed: day.nullable() }), // set by hand after the human review; null until then
   }),
@@ -278,10 +280,10 @@ export const collections = { profile, writing, notes, lab, now, decisions };
 
 Rules the sketch encodes:
 
-- **`profile` has no slot for the forbidden fields.** This is "make illegal states unrepresentable" applied to a data file. Every object in its schema is strict, so JSON Resume's own employer field (`work[].name`), a region, a `city`, an `address`, an `email` or a `phone` in `profile.json` fails the build. The location is a country and a remote flag, nothing finer, and JSON-LD names the country only. Free text is different: the title, the arc or a project description can still carry a name, and there the firewall scan is the only automated check. `work`, `education` and `skills` are empty tuples until Joseph clears them in writing, so adding an entry is a schema change, reviewed like code; an institution can name a region. The file stays valid JSON Resume ([schema](https://jsonresume.org/schema), MIT), so other résumé tools can read it.
+- **`profile` has no slot for the forbidden fields.** This is "make illegal states unrepresentable" applied to a data file. Every object in its schema is strict, so JSON Resume's own employer field (`work[].name`), a region, a `city`, an `address`, an `email` or a `phone` in `profile.json` fails the build. The location is a country and a remote flag, nothing finer, and JSON-LD names the country only. Free text is different: the title, the arc, a role's title or a project description can still carry a name, and there the firewall scan is the only automated check. `education` is an empty tuple until Joseph clears an entry in writing, so adding one is a schema change, reviewed like code; an institution can name a region. Since 2026-10-25 `work` and `skills` take entries in a shape that holds nothing else: a role is `position`, `startDate` and an optional `endDate`, years only (`YYYY`), at most 10, with no employer (`name`), `location`, `url`, `summary` or `highlights`; a skill is a `name` and one to three `evidence` pages on this site, at most 12, with no `level` or `keywords`. Role years stay ASK until Joseph clears them (Q8), so only he adds a role, and the review stamp holds the pull request to his read: before 2026-10-25 a role also needed a schema change. The file stays valid JSON Resume ([schema](https://jsonresume.org/schema), MIT), so other résumé tools can read it.
 - **A record renders only once its check is recorded.** An external profile or a project carries `checked` once it passes the [readiness checklist](#repo-readiness-checklist): the date, and for a GitHub record the commit the check read. Until then it renders nowhere: no link, no name in a link, no `sameAs`, no `rel="me"`. `test/readiness.test.ts` holds the gate on fixtures and over `dist/`.
 - **The slug is the file name.** There is no `slug` field: it would be a second source for the same fact. Renaming a file changes a URL, and the sitemap check catches that.
-- **`api` is reserved under `/lab/`.** The lab Worker owns `/lab/api/*` ([ADR 0009](adr/0009-lab-worker-same-origin.md)), so no lab entry may be named `api`: the URL check in `verify` fails on `apps/web/src/content/lab/api.*`.
+- **`api` is reserved under `/lab/`.** The lab Worker owns `/lab/api/*` ([ADR 0009](adr/0009-lab-worker-same-origin.md)), so no lab entry may be named `api`: the URL check in `verify` fails on `apps/web/src/content/lab/api.*`, and the build refuses one (`labArea()` in `src/lib/lab.ts`).
 - **Drafts** (`draft: true`) build in dev and on a pull request's preview, which the firewall job scans first, and never in production. Two builds make that explicit. `pnpm build` writes `dist/`, the build `main` deploys: it sets `DRAFTS=exclude` itself, the tests hold `dist/` to production's rules whatever the environment says, and the deploy job refuses an artifact with any `noindex` page but the 404 (`scripts/deploy-guard.mjs`). `pnpm build:preview` writes `dist-preview/`, which a pull request's preview serves: a superset of `dist/`, with the same files byte for byte but for the build's day, plus every draft. `test/superset.test.ts` holds that contract, which is what lets the pull request's `e2e`, run on the preview, stand for `dist/` ([ADR 0015](adr/0015-preview-build-superset-of-production.md)). `astro dev` includes drafts too, by the command Astro runs, never by `NODE_ENV`. A draft's page is `noindex` and says so ("Draft"); it carries no link-preview card and no JSON-LD, nothing lists it (not an index, Home, Selected work, the feed or the sitemap), no page but a draft may link a draft, at any post count, and a draft never counts toward the one published post Writing needs. Its author reaches it by URL, on the preview or in `astro dev`. A draft is hidden from the site, not from the repository: once the repository is public, a committed draft is public at `git push` ([ADR 0012](adr/0012-public-repository.md)).
 - **Dates are calendar days.** `published`, `updated` and `firewall_reviewed` are written `YYYY-MM-DD`, because an offset names a time zone, the reason commits are made in UTC. The schema refuses a value that is not midnight UTC, and `test/writing.test.ts` reads each post's front matter with the parser and options Astro uses and refuses any date not written as a bare day, wherever the YAML puts it: YAML turns an unquoted `2026-10-20T20:00:00-04:00` into midnight UTC on the 21st before the schema sees it. Front matter is YAML between two `---` lines at the top of the file, with no anchors, aliases or merge keys, so each date is read from the line that names it. The feed writes each day as midnight GMT. `updated` comes on or after `published`.
 - **MDX stays thin.** `.md` by default; `.mdx` only to use one of at most 5 shared components; no `client:*` in posts ([ADR 0003](adr/0003-astro-static-first.md)). No post needs a component yet, so Writing reads `.md` only and `@astrojs/mdx` is not installed; both arrive with the first post that does.
@@ -441,7 +443,7 @@ Some names are public in this repository but must not appear on the site until a
 | gitops | any | private since 2026-10-23: held until it is public again and its readiness check passes |
 
 - **Joins.** "-" and "_" split a name where it is written with them, and "|" marks where a one-word name splits. `any` catches the parts joined by nothing or by any run of spaces, hyphens and underscores. `no space` catches nothing, one hyphen or one underscore, but never a space, for a name whose spaced form is ordinary English.
-- **What the matcher reads** (`src/lib/held-names.ts`): a name in any case; behind an HTML character reference, with or without its ";"; split by markup such as `<wbr>` or `<b>`; with an invisible character (a soft hyphen, a zero-width character, any default-ignorable code point) or a typographic dash inside; or in a compatibility form such as a fullwidth letter (NFKC). Text it cannot read fails the check instead of passing unread: fail closed.
+- **What the matcher reads** (`src/lib/held-names.ts`): a name in any case; behind an HTML character reference, with or without its ";"; split by markup such as `<wbr>` or `<b>`; with an invisible character (a soft hyphen, a zero-width character, any default-ignorable code point) or a typographic dash inside; or in a compatibility form such as a fullwidth letter (NFKC). Text it cannot read fails the check instead of passing unread: fail closed. Since 2026-10-25 a `.js` or `.mjs` file is read as JavaScript, in four views: as written; with its string escapes (`\u0041`, `\u{41}`, `\x41`) decoded, as the engine decodes them; and as the markup it may write through `innerHTML`, with its references decoded, and with its tags removed as well. The Route Lab's minified scripts are full of `&&name`, which the markup reading refused as unreadable, so in the two markup views a `&` that starts no reference stays as written instead of failing. A name split by tags, behind a reference or behind an escape in a script is caught, with a known answer for each ([ADR 0016](adr/0016-route-lab-in-the-browser.md)); the URL checks in `test/readiness.test.ts` read scripts the same four ways.
 - **Where it runs.** `test/not-on-site.test.ts` scans every text file and every path in `dist/`, reading markup by each element's default display. CSS can change a display, so `e2e/not-on-site.spec.ts` also reads the text the browser draws on every page, the title included, with a known answer: a name split across two blocks that CSS sets inline is caught.
 - **Lifting a hold** means deleting its line in a reviewed pull request, together with the record's `checked` stamp where the rule was the readiness checklist.
 
@@ -449,14 +451,27 @@ Some names are public in this repository but must not appear on the site until a
 
 | When | What the site offers | System of record |
 |---|---|---|
-| Launch | A LinkedIn link (Q-threat-model) and "Full résumé on request" by email | LinkedIn and Joseph's private résumé |
-| Later (Q-resume, after the firewall questions) | A public edition at `/resume/`: HTML with print CSS, and a PDF rendered from that page | `profile.json`, the file that already renders `/about/` and the JSON-LD |
+| Until 2026-10-25 | A LinkedIn link (Q-threat-model) and "Full résumé on request" by email | LinkedIn and Joseph's private résumé |
+| Now (Q9 (a), as a page, on Joseph's direction of 2026-10-25) | `/resume/`: the name, the title, the location line and every address, then Experience, which holds "Full history on LinkedIn." and "Full résumé on request", and the sections below as their sources exist. HTML with print CSS; no PDF | `profile.json` and what the build already renders; LinkedIn and the private résumé for the rest |
+| Later (Q9 (b)) | A PDF printed from that page | the same page |
+
+What `/resume/` renders, each part only when its source exists (`src/pages/resume/index.astro`, `src/lib/resume.ts`):
+
+| Part | Renders when | From |
+|---|---|---|
+| The name (`<h1>`), the title and "US · remote" | always | `profile.json` `basics`, as Home's hero has them |
+| Contact: Email, Web, then each checked profile, each shown as its address | always; a profile only from a checked record | `site.ts`, `checkedProfiles()` |
+| Experience: one row per role, its years ("2019–2024", "Since 2021") in mono and its title; then "Full history on LinkedIn." and "Full résumé on request: hello@ihaveasegway.com." | always; a row per entry in `work`, none today; the LinkedIn line only while that record is checked | `profile.json` `work` (Q8 (a)) |
+| Skills: each skill, with a link to each page that shows it, labelled by that page's own title | a skill only when every page it names is listed in the build; the section only with a skill. None today | `profile.json` `skills` |
+| Selected work | the cards Home's Selected work draws, card for card: the same function feeds both (`loadSelectedWork()` in `src/lib/content.ts`). Today that is the Route Lab's card, as on Home (2026-10-25) | `lib/work.ts` |
+| Writing | the posts Home's Writing row lists, and "All writing". None today | `writingRow()` |
 
 - **The current résumé file is never hosted and never committed.** It names the employer, which the site never does.
 - **Generate, don't redact.** The public edition comes from a source that never held the employer's name. Redacting a file that holds it fails open: one missed text layer, metadata field or earlier revision leaks it. Generating from a clean source fails closed, and `profile.json` has no field meant for the employer.
-- **The PDF is built, not uploaded.** Playwright, already in the toolchain for e2e tests, prints `/resume/` at build. Title and Author are set explicitly; no metadata field names a machine, a path or an account. The firewall job reads the metadata with `pdfinfo`, scans the text with `pdftotext`, and fails on anything unexpected. The file is `/resume/joseph-peterson-resume.pdf`.
-- One printed page. Links appear as text so the PDF works on paper.
-- **Publishing it is a one-way door.** Crawlers and recruiters keep copies of a PDF after it is taken down, so the edition waits for Q-resume, and its first version is the strict one.
+- **One printed page.** `@media print` gives the page a named page, US Letter with half-inch margins, and leaves out the header, the skip link and the footer; the name prints at 40 px; the skills print as one line of names; and each link in Selected work and Writing prints its address after it (the site's own with the domain), so the page works on paper. `e2e/resume.spec.ts` prints the page in Chromium and requires one Letter page, on the site and on the writing fixture, whose profile holds ten roles and twelve skills, the schema's limits; its known answer, forty roles, prints on more than one page.
+- **Structured data.** A `ProfilePage` whose main entity is Home's Person, with a `Role` per entry in `work` ([Structured data and link previews](#structured-data-and-link-previews)).
+- **The PDF stays a later, one-way decision (Q9 (b)).** If it ships, it is built, not uploaded: Playwright prints `/resume/` at build, Title and Author are set explicitly, no metadata field names a machine, a path or an account, the firewall job reads the metadata with `pdfinfo` and the text with `pdftotext` and fails on anything unexpected, and the file is `/resume/joseph-peterson-resume.pdf`. Crawlers and recruiters keep copies of a PDF after it is taken down, so its first version is the strict one.
+- **If a thin page reads worse than none**, the fallback is one line of code: build `/resume/` only once `work` holds a role, everything else unchanged. The URL is in the published-URL ledger from its first deploy, so leaving later would take a 301.
 
 ## Structured data and link previews
 
@@ -515,11 +530,34 @@ Home, a `WebSite` published by a `Person`, as PR 3 built it (`src/lib/jsonld.ts`
 - `sameAs` lists exactly the profiles whose readiness check is recorded in `profile.json`, and is absent while there are none. In PR 3 that is LinkedIn alone: Q-threat-model allows a link to a profile that names the employer, and Joseph cleared this one in writing in the private record before the record was stamped. GitHub joins once its own check passes.
 - `rel="me"` goes on the same links, and only on them: the hero's profile buttons and the footer's links. The GitHub profile's website field points back to the site, and GitHub renders that link with `rel="nofollow me"` (checked on a public profile, 2026-10-22), so the identity link runs both ways once it is added (microformats, ["rel-me"](https://microformats.org/wiki/rel-me)). `test/readiness.test.ts` checks that `rel="me"`, `sameAs` and the links agree, and that each comes only from a checked record.
 
-Open Graph: one template per page type, rendered at build for each page as a 1200×630 PNG from the title and the section label in the site's tokens. No photos and no screenshots: nothing in an OG image that a reviewer has not read as text. Each page sets `og:title`, `og:description` (the front matter's `summary`), `og:url` (the canonical URL, trailing slash included), `og:image`, `og:image:alt` and `twitter:card` = `summary_large_image`.
+`/resume/`, a `ProfilePage` whose main entity is Home's Person, by the same `@id` and keys, as `src/lib/jsonld.ts` builds it since 2026-10-25. Each role in `profile.json` becomes a `Role` around an `Occupation` (schema.org's Role pattern), its years and its title, and nothing else: no employer, place or description can join one. With no role, `hasOccupation` is absent. `test/jsonld.test.ts` holds each node to its key list:
+
+```json
+{
+  "@context": "https://schema.org",
+  "@type": "ProfilePage",
+  "url": "https://ihaveasegway.com/resume/",
+  "mainEntity": {
+    "@type": "Person",
+    "@id": "https://ihaveasegway.com/#person",
+    "name": "Joseph Peterson",
+    "jobTitle": "Senior Software Engineer",
+    "homeLocation": { "@type": "Country", "name": "United States" },
+    "url": "https://ihaveasegway.com/",
+    "sameAs": ["https://www.linkedin.com/in/joseph-peterson-96b90b168/"],
+    "hasOccupation": [
+      { "@type": "Role", "startDate": "<year>", "endDate": "<year, once it ended>", "hasOccupation": { "@type": "Occupation", "name": "<role title>" } }
+    ]
+  }
+}
+```
+
+Open Graph: one template per page type, rendered at build for each page as a 1200×630 PNG from the title and the section label in the site's tokens. No photos and no screenshots: nothing in an OG image that a reviewer has not read as text. One exception since 2026-10-25: a lab demo's card may carry a picture of the demo drawn at build from its own data, with no word in it, at the card's right edge. The Route Lab's is its busy Saturday as VROOM plans it, over the bands and the water, with no label and no number (`lib/route-lab/og-map.ts`); `test/og.test.ts` redraws every card, that picture included, and compares the bytes, so the card's only words are still its title and its label. Each page sets `og:title`, `og:description` (the front matter's `summary`), `og:url` (the canonical URL, trailing slash included), `og:image`, `og:image:alt` and `twitter:card` = `summary_large_image`.
 
 | Page type | Image shows |
 |---|---|
 | Home | the name and `<title line — Q-title>` |
+| Résumé | the name and "Résumé", the header's label |
 | Writing, Notes, Lab | the section label and the entry's title |
 | About, Now, Colophon, Decisions | the section label and the page title |
 
@@ -552,7 +590,7 @@ A generated PNG of text sits far below LinkedIn's 5 MB limit. LinkedIn does not 
 
 `/robots.txt` welcomes every crawler, AI crawlers included (Q15 · Q-ai-crawlers in [product.md](product.md)), and points them at the sitemap. `/llms.txt` tells a language model what the site is, in the [llms.txt](https://llmstxt.org/) convention (as of 2026-10-24): an H1 with the site's name, a blockquote with a short summary, then sections of links, each a list of `[name](url)` with an optional note.
 
-- **What it holds.** The name as the H1, and Home's own description as the summary. Contact: the address and the checked profiles, as the footer has them. Pages: Home, each manifest page the build writes and each Writing index. Then the published posts, by section, with their title and summary, and the project cards Home renders. A section with nothing in it is left out, as on a page; a draft never appears.
+- **What it holds.** The name as the H1, and Home's own description as the summary. Contact: the address and the checked profiles, as the footer has them. Pages: Home, each manifest page the build writes and each Writing index. Then the lab's live demos, with their title and summary (from 2026-10-25), the published posts, by section, with their title and summary, and the project cards Home renders. A section with nothing in it is left out, as on a page; a draft never appears.
 - **One owner per fact.** `src/pages/llms.txt.ts` writes it at build from what the pages read, through the same functions (`src/lib/llms.ts`): `profile.json` through `homeDescription`, `checkedProfiles` and `projectCards`, `site.ts` for the address and the origin, the nav manifest and the posts. It copies no sentence from a page. The hero's sentence and the four principles are written in `index.astro`, so they stay there.
 - **Every scan of `dist/` reads it**: the hold list, the readiness check and the timestamps. So it can name nothing a page could not, which is what Q15's "Wrong if" asks: no AI answer joins the site to something the firewall keeps off it.
 - **Checked.** `test/llms.test.ts`, on every build: the shape; the summary is Home's description; Contact is the checked profiles; and every page in the sitemap is listed, and no other page, so a new page fails the build until it is listed. `e2e/llms.spec.ts` fetches it from the server under test, requires `text/plain; charset=utf-8`, which on the edge only the `_headers` rule gives it, and requests every page it names. The deploy smoke and `prod-smoke` leave it out: a rollback can promote a release from before the file existed.

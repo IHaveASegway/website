@@ -2,7 +2,8 @@
 import { Font } from 'astro:assets';
 import Footer from '../components/Footer.astro';
 import Header from '../components/Header.astro';
-import { loadProfile, loadWritingArea } from '../lib/content';
+import { loadLabArea, loadProfile, loadWritingArea } from '../lib/content';
+import { labRoutes } from '../lib/lab';
 import { NOINDEX } from '../lib/noindex.mjs';
 import { ogAlt, ogTitle, OG_SIZE, type OgCard } from '../lib/og';
 import { areaRoutes } from '../lib/posts';
@@ -36,10 +37,11 @@ const { title, description, path, noindex = false, og, ogType = 'website', jsonL
 const canonical = path === undefined ? undefined : new URL(path, Astro.site).href;
 const image = og && canonical ? new URL('og.png', canonical).href : undefined;
 const profile = await loadProfile();
-// Writing's pages and feed exist only from the first published post (lib/posts.ts): the header,
-// the footer and the feed link below learn from this which of them this build writes.
+// Writing's pages and feed exist only from the first published post (lib/posts.ts), and the lab's
+// from its first live demo (lib/lab.ts): the header, the footer and the feed link below learn from
+// this which of them this build writes.
 const area = await loadWritingArea();
-const generated = areaRoutes(area);
+const generated = [...areaRoutes(area), ...labRoutes(await loadLabArea())];
 
 // The theme script (src/scripts/theme.js) runs in <head>, before <body> exists, so no frame can
 // paint before a stored choice applies. In <body> it left a gap: when the HTML arrived in pieces,
@@ -52,10 +54,11 @@ const generated = areaRoutes(area);
 // ("Theme before first paint"). It applies a choice the visitor made in this tab, again when the
 // browser restores the page from its back-forward cache, and handles the toggle.
 
-// The faces (design-system.md, "The faces"): Instrument Sans draws every word of every page's first
-// screen, so it is preloaded. JetBrains Mono sets values only, a post's dates, a card's tag and
-// figures, and code, none of them on Home or the 404 today. So it is not preloaded, and a page
-// fetches it when it sets something in it, in the fitted fallback until then.
+// The faces (design-system.md, "The faces"): Instrument Sans draws the name, the headings and every
+// sentence of every page's first screen, so it is preloaded. JetBrains Mono sets values only, a
+// post's dates, a card's tag and figures, the lab's labels and figures, the résumé's addresses, and
+// code. So it is not preloaded, and a page fetches it when it sets something in it, in the fitted
+// fallback until then; the 404, which sets nothing in it, never does.
 
 // The skip link sits in the masthead, the header's frame, which it covers when focused (global.css).
 
