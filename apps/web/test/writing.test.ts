@@ -17,6 +17,7 @@ import {
   postLabel,
   postsBase,
   TAGS,
+  typeset,
   writingArea,
   type Post,
   type PostPage,
@@ -592,9 +593,11 @@ describe('fixture-many: five published posts and a draft, built for production',
       }
     });
 
-    test('known answer: "&", quotation marks and "<" arrive escaped', () => {
+    test('known answer: "&" and "<" arrive escaped, and quotation marks typeset', () => {
+      // Front matter's straight quotes become typographer's quotes (typeset() in lib/posts.ts),
+      // so the feed's title holds curly quotes, which XML does not escape.
       expect(feed).toContain(
-        '<title>Retries &amp; back-off, or why &quot;later&quot; beats &quot;now&quot;</title>',
+        '<title>Retries &amp; back-off, or why \u201clater\u201d beats \u201cnow\u201d</title>',
       );
       // The summary is HTML-escaped as RSS's description requires, then escaped for XML.
       expect(feed).toContain('so p99 &amp;lt; 2 s holds under load');
@@ -807,5 +810,19 @@ describe('the real posts, drafts included, before anything renders them', () => 
     ).toEqual([]);
     expect(isSlug('My_Post')).toBe(false);
     expect(isSlug('caches-and-queues')).toBe(true);
+  });
+});
+
+describe('typeset: front matter gets the quotes the Markdown body gets', () => {
+  test('known answers: apostrophes, opening and closing quotes, and text with none', () => {
+    expect(typeset("My 2024 trading bot's config")).toBe('My 2024 trading bot\u2019s config');
+    expect(typeset('why "later" beats "now"')).toBe('why \u201clater\u201d beats \u201cnow\u201d');
+    expect(typeset("the bots' keys")).toBe('the bots\u2019 keys');
+    expect(typeset('\'Quoted\' ("inner")')).toBe('\u2018Quoted\u2019 (\u201cinner\u201d)');
+    expect(typeset('a \u2014"dash"')).toBe('a \u2014\u201cdash\u201d');
+    expect(typeset('No quotes at all.')).toBe('No quotes at all.');
+    expect(typeset('Already \u201ccurly\u201d and \u2019')).toBe(
+      'Already \u201ccurly\u201d and \u2019',
+    );
   });
 });

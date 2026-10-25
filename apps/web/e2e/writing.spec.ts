@@ -42,8 +42,10 @@ test('/rss.xml parses as XML in the browser: RSS 2.0, five items, served as XML'
   expect(parsed.root).toBe('rss');
   expect(parsed.version).toBe('2.0');
   expect(parsed.items.map((i) => new URL(i.link ?? '').pathname)).toEqual(NEWEST_FIRST);
-  // The parser undid the XML escaping: the title reads as written, and the description is HTML.
-  expect(parsed.items[2]?.title).toBe('Retries & back-off, or why "later" beats "now"');
+  // The parser undid the XML escaping: the title reads as typeset, and the description is HTML.
+  expect(parsed.items[2]?.title).toBe(
+    'Retries & back-off, or why \u201clater\u201d beats \u201cnow\u201d',
+  );
   expect(parsed.items[2]?.description).toContain('p99 &lt; 2 s');
 });
 
