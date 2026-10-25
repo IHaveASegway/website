@@ -11,3 +11,5 @@
 /lab/
 /lab/routes/
 /resume/
+/writing/
+/writing/trading-bot-teardown/
