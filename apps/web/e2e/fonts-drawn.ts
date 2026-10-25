@@ -2,8 +2,9 @@ import type { Page } from '@playwright/test';
 
 // Which fonts drew a page's text (design-system.md, "Budgets as CI fitness functions"): Chromium
 // says which fonts drew each element's text (DevTools Protocol, CSS.getPlatformFontsForNode),
-// after text-transform. glyphs.spec.ts walks every page with it, and lab.spec.ts the Route Lab
-// after a solve, whose tables the browser writes.
+// after text-transform. glyphs.spec.ts walks every page with it, for glyph coverage and for the
+// faces a page fetches but never draws in, and lab.spec.ts the Route Lab after a solve, whose
+// tables the browser writes.
 
 interface DomNode {
   nodeId: number;
@@ -23,10 +24,11 @@ function textParents(node: DomNode, found: DomNode[] = []): DomNode[] {
   return found;
 }
 
-/** Each element whose text a font outside the self-hosted faces drew, with that font. */
+/** Each element whose text a font outside the self-hosted faces drew, with that font, and the
+ *  self-hosted families that drew any text. */
 export async function fallbacksOn(
   page: Page,
-): Promise<{ fallbacks: string[]; elements: number; painted: number }> {
+): Promise<{ fallbacks: string[]; elements: number; painted: number; drawn: Set<string> }> {
   await page.evaluate(() => document.fonts.ready);
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('DOM.enable');
@@ -36,12 +38,14 @@ export async function fallbacksOn(
     (node) => !['SCRIPT', 'STYLE', 'TITLE', 'NOSCRIPT'].includes(node.nodeName),
   );
   const fallbacks: string[] = [];
+  const drawn = new Set<string>();
   let painted = 0;
   for (const element of elements) {
     const { fonts } = (await cdp.send('CSS.getPlatformFontsForNode', {
       nodeId: element.nodeId,
     })) as { fonts: { familyName: string; isCustomFont: boolean; glyphCount: number }[] };
     if (fonts.length > 0) painted++;
+    for (const font of fonts.filter((f) => f.isCustomFont)) drawn.add(font.familyName);
     for (const font of fonts.filter((f) => !f.isCustomFont)) {
       const text = (element.children ?? [])
         .map((c) => c.nodeValue ?? '')
@@ -53,5 +57,5 @@ export async function fallbacksOn(
     }
   }
   await cdp.detach();
-  return { fallbacks, elements: elements.length, painted };
+  return { fallbacks, elements: elements.length, painted, drawn };
 }

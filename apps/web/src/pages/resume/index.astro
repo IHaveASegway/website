@@ -34,6 +34,9 @@ const pages = [
 ];
 const skills = shownSkills(profile.skills, evidencePages(cards, area.published, pages));
 const title = labelOf('resume');
+// The address may break after its "@" when a larger text size leaves it no room on one line, as
+// the footer's does, and inside a part only when that part alone is wider than the screen.
+const [mailbox, domain] = CONTACT_EMAIL.split('@');
 ---
 
 <Base
@@ -56,7 +59,10 @@ const title = labelOf('resume');
         <dl class="kv resume-contact">
           <dt>Email</dt>
           <dd>
-            <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+            <a href={`mailto:${CONTACT_EMAIL}`}>
+              {mailbox}@<wbr />
+              {domain}
+            </a>
           </dd>
           <dt>Web</dt>
           <dd>
@@ -93,7 +99,14 @@ const title = labelOf('resume');
           </p>
         )}
         <p>
-          Full résumé on request: <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
+          Full résumé on request:{' '}
+          <span class="resume-email">
+            <a href={`mailto:${CONTACT_EMAIL}`}>
+              {mailbox}@<wbr />
+              {domain}
+            </a>
+            .
+          </span>
         </p>
       </div>
     </section>

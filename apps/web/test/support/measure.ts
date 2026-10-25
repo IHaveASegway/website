@@ -1,5 +1,11 @@
 import { posix } from 'node:path';
-import { eagerScripts, gzipBytes, pageStyles, preloadedFonts } from '../../src/lib/weights';
+import {
+  declaredFonts,
+  eagerScripts,
+  gzipBytes,
+  pageStyles,
+  preloadedFonts,
+} from '../../src/lib/weights';
 import { bytes, fileFor, files, read } from './dist';
 
 // The byte budgets (design-system.md, "Budgets as CI fitness functions") and how a page is
@@ -25,6 +31,10 @@ export function measure(page: string) {
       styles.linked.reduce((sum, href) => sum + gzipBytes(bytes(fileFor(href))), 0) +
       styles.inline.reduce((sum, body) => sum + gzipBytes(body), 0),
     preloadedFonts: preloadedFonts(page).reduce(
+      (sum, href) => sum + bytes(fileFor(href)).byteLength,
+      0,
+    ),
+    declaredFonts: declaredFonts(page).reduce(
       (sum, href) => sum + bytes(fileFor(href)).byteLength,
       0,
     ),

@@ -176,7 +176,20 @@ test('changes made while VROOM plans are planned once it answers, as one', async
   const solves = () =>
     page.evaluate(() => (window as unknown as { __solves: number[] }).__solves.length);
   const before = await solves();
-  for (let k = 0; k < 10; k++) await page.check(`input[name="rl-vans"][value="${(k % 4) + 1}"]`);
+  // The first change, and once VROOM is planning it, nine more, 20 ms apart, made by the page
+  // itself, as quick hands make them. Playwright's own actions can each take longer than the 150 ms
+  // settle time on a loaded machine, so ten of them measured the runner's pace, not the page's:
+  // two runs in sixteen failed that way under four workers on feat/route-lab (a1fac9a).
+  await page.check('input[name="rl-vans"][value="1"]');
+  await expect.poll(solves).toBe(before + 1);
+  await page.evaluate(async () => {
+    for (let k = 1; k < 10; k++) {
+      document
+        .querySelector<HTMLInputElement>(`input[name="rl-vans"][value="${(k % 4) + 1}"]`)
+        ?.click();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+  });
   await expect(page.locator('[data-rl-plan="after"]')).not.toHaveAttribute('data-rl-stale', {
     timeout: 30_000,
   });

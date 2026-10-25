@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { eagerScripts, gzipBytes } from '../src/lib/weights';
+import { declaredFonts, eagerScripts, gzipBytes, preloadedFonts } from '../src/lib/weights';
 import { bytes, fileFor, files, html, kinds, read } from './support/dist';
 import { BUDGETS, FEATURES, featureOf, gz, importsOf, measure, reachable } from './support/measure';
 
@@ -78,12 +78,17 @@ describe('the Route Lab', () => {
     expect(gz(data ?? '')).toBeLessThanOrEqual(feature.data);
   });
 
+  // Its fonts are every face the page declares, not only the preloaded one: since 2026-10-25 the
+  // mono face is fetched where a page draws it, not preloaded, and the Route Lab draws it on its
+  // first screen (its labels, the days' notes, the vans), so a visitor fetches both faces before
+  // the page is complete. e2e/glyphs.spec.ts requires every face a page fetches to draw some text.
   test.runIf(page !== null)(
-    `its page's first view, HTML, CSS, preloaded fonts and eager JavaScript, stays within ${feature.firstView} B, and one solve within ${feature.firstSolve} B`,
+    `its page's first view, HTML, CSS, the fonts it declares and eager JavaScript, stays within ${feature.firstView} B, and one solve within ${feature.firstSolve} B`,
     () => {
       const figures = measure(page ?? '');
+      expect(declaredFonts(page ?? '')).toEqual(expect.arrayContaining(preloadedFonts(page ?? '')));
       const firstView =
-        gzipBytes(page ?? '') + figures.css + figures.preloadedFonts + figures.eagerJavaScript;
+        gzipBytes(page ?? '') + figures.css + figures.declaredFonts + figures.eagerJavaScript;
       expect(firstView).toBeLessThanOrEqual(feature.firstView);
       const firstSolve = firstView + gz(data ?? '') + lazyBytes + wasmBytes;
       expect(firstSolve).toBeLessThanOrEqual(feature.firstSolve);
@@ -99,6 +104,19 @@ test('known answers: the measure counts inline scripts and styles, and skips dat
   expect(figures.eagerJavaScript).toBe(gzipBytes('let a=1') + gzipBytes('let b=2'));
   expect(figures.css).toBe(gzipBytes('a{color:red}'));
   expect(figures.preloadedFonts).toBe(0);
+  expect(figures.declaredFonts).toBe(0);
+});
+
+test('known answers: a page declares each face its @font-face names once, preloaded or not', () => {
+  const face = (family: string, src: string) =>
+    `@font-face{font-family:"${family}";src:${src} format("woff2");font-display:swap}`;
+  const page =
+    `<style>${face('S', 'url("/_astro/fonts/s.woff2")')}${face('S', 'url("/_astro/fonts/s.woff2")')}` +
+    `${face('M', 'url(/_astro/fonts/m.woff2)')}</style>` +
+    '<link rel="preload" href="/_astro/fonts/s.woff2" as="font" type="font/woff2" crossorigin>';
+  expect(declaredFonts(page)).toEqual(['/_astro/fonts/s.woff2', '/_astro/fonts/m.woff2']);
+  expect(preloadedFonts(page)).toEqual(['/_astro/fonts/s.woff2']);
+  expect(declaredFonts('<p>no faces</p>')).toEqual([]);
 });
 
 test('known answers: a feature owns its paths, nothing else, and finds a chunk by its import', () => {

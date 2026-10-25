@@ -216,6 +216,18 @@ export const SOLVER = `/lab/routes/solver/${
 export const SOLVER_POLICY =
   "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'";
 
+/** The name public/_headers adds to Vary on every response, so a cache between the site and a
+ *  reader keeps a compressed copy apart from the plain one (delivery.md, "Config as code"). */
+export const VARY = 'accept-encoding';
+
+/** The request headers a Vary value names, lowercased, in order. */
+export function varyNames(value: string | undefined): string[] {
+  return (value ?? '')
+    .split(',')
+    .map((name) => name.trim().toLowerCase())
+    .filter(Boolean);
+}
+
 /** Content-hashed bundles under /_astro/ (delivery.md, "Config as code"). */
 export const IMMUTABLE = 'public, max-age=31536000, immutable';
 

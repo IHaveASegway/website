@@ -132,6 +132,10 @@
 .rl-chip-small .rl-chip-name {
   min-width: 1ch;
   font-family: var(--font-mono);
+  /* The mono face is taller than 1.25em, ascent to descent (20 px at 15 px), so at the name's 1.25
+     a selection's fill would paint past its line (e2e/a11y.spec.ts). At the label's 1.4 it does
+     not, and the chip, 2.75rem tall, keeps its size. */
+  line-height: 1.4;
 }
 
 .rl-more {
@@ -187,6 +191,15 @@
 
 .rl-readout[data-rl-stale] .rl-saved {
   color: var(--muted-foreground);
+}
+
+/* The headline and each plan's time are display type, set closer together than the face is tall,
+   as headings are: selected, they take no fill and turn apricot on the page, the pair global.css
+   gives every heading, so a fill never hides the foot of the line above. */
+:is(.rl-saved, .rl-time)::selection,
+:is(.rl-saved, .rl-time) *::selection {
+  background-color: transparent;
+  color: var(--primary);
 }
 
 .rl-saved {
@@ -303,6 +316,20 @@
   background-color: var(--background);
   /* A map is a picture: its colors are the information, and the tables carry it as text. */
   forced-color-adjust: none;
+  /* For the same reason its labels, its stops' numbers and its tip are not text to select: a drag
+     that starts on it, as a tap on a place does, selects nothing, and selecting the page around it
+     paints no fill over its routes and stops, which a fill under every label hid. Safari reads
+     the prefixed name only. */
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* The labels are drawn once, in the hidden defs, and shown through <use>, so their selection is
+   set by class, as every map style is. No fill; Chromium keeps an SVG text's own fill when it is
+   selected, so the color is the labels' ink. */
+.rl-label::selection {
+  background-color: transparent;
+  color: var(--map-label);
 }
 
 .rl-map[data-rl-near] {

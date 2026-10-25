@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { NOT_FOUND_PAGE, pages } from './expected';
 import { fallbacksOn } from './fonts-drawn';
 
@@ -33,4 +33,68 @@ test('known answer: a glyph outside the subsets is reported, with the system fon
   });
   const { fallbacks } = await fallbacksOn(page);
   expect(fallbacks.filter((line) => line.includes('"Łódź"')).length).toBeGreaterThan(0);
+});
+
+// A page fetches a face's file only if it draws text in that face (design-system.md, "The faces").
+// Instrument Sans draws every page's first screen and is preloaded; JetBrains Mono sets values and
+// code, so it is fetched where a page uses it. On 2026-10-24's build every page preloaded both, and
+// the 404, which sets nothing in mono, fetched its 8,156 B anyway.
+
+/** The font files a page fetched, and those of them whose face drew none of its text. `before`
+ *  runs once the page has loaded, before the faces are read. */
+async function unusedFonts(
+  page: Page,
+  path: string,
+  before?: () => Promise<unknown>,
+): Promise<{ fetched: string[]; unused: string[]; drawn: Set<string> }> {
+  const fetched: string[] = [];
+  page.on('request', (request) => {
+    if (request.resourceType() === 'font') fetched.push(new URL(request.url()).pathname);
+  });
+  await page.goto(path);
+  await before?.();
+  const { drawn } = await fallbacksOn(page);
+  // Each file's family, read from the page's own @font-face rules, without the Fonts API's hash.
+  const families = await page.evaluate(() =>
+    Object.fromEntries(
+      [...document.styleSheets]
+        .flatMap((sheet) => [...sheet.cssRules])
+        .filter((rule): rule is CSSFontFaceRule => rule instanceof CSSFontFaceRule)
+        .flatMap((rule) => {
+          const src = /url\("?([^")]+)"?\)/.exec(rule.style.getPropertyValue('src'))?.[1];
+          const family = rule.style.getPropertyValue('font-family').replace(/"/g, '');
+          return src
+            ? [[new URL(src, location.href).pathname, family.replace(/-[0-9a-f]+$/, '')]]
+            : [];
+        }),
+    ),
+  );
+  return { fetched, unused: fetched.filter((file) => !drawn.has(families[file] ?? file)), drawn };
+}
+
+for (const path of [...pages(), NOT_FOUND_PAGE]) {
+  test(`${path} fetches a font file only for a face it draws text in`, async ({ page }) => {
+    const { fetched, unused, drawn } = await unusedFonts(page, path);
+    expect(fetched.length, 'the page fetches its text face').toBeGreaterThan(0);
+    expect(unused, `drawn in: ${[...drawn].join(', ')}`).toEqual([]);
+  });
+}
+
+// The known answer: a page that fetches the mono file and draws nothing in it, as every page did
+// with the preload, is reported, with that one file. The 404 sets nothing in mono on every build;
+// Home on the writing fixture does, in a post's date.
+test('known answer: a font file fetched for a face that draws no text is reported', async ({
+  page,
+}) => {
+  const { unused } = await unusedFonts(page, NOT_FOUND_PAGE, () =>
+    page.evaluate(async () => {
+      const mono = [...document.fonts].find((face) =>
+        face.family.replace(/"/g, '').startsWith('JetBrains Mono-'),
+      );
+      if (!mono) throw new Error('the 404 declares no mono face');
+      await mono.load();
+    }),
+  );
+  expect(unused).toHaveLength(1);
+  expect(unused[0]).toMatch(/\.woff2$/);
 });

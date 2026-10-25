@@ -413,11 +413,16 @@ What 20 runs prove: with zero failures in 20 runs, the flake rate is below about
 
 ```text
 # apps/web/public/_headers, cache part (sketch — confirm against current docs when building)
+/*
+  Vary: Accept-Encoding
+
 /_astro/*
   Cache-Control: public, max-age=31536000, immutable
 ```
 
 The cache rule is cache-busting by content hash. Astro writes its bundled scripts and styles, and fonts that go through its Fonts API, under `/_astro/` with a content hash in each file name, so a changed file gets a new URL and an old URL never changes content: a year and `immutable` are safe. HTML keeps Cloudflare's default for assets, `public, max-age=0, must-revalidate`, so a promoted version is what the next page view gets. The security part of the same file belongs to [security.md](security.md). As of 2026-10-22, `_headers` allows 100 rules and applies only to asset responses ([Cloudflare](https://developers.cloudflare.com/workers/static-assets/headers/)).
+
+Every response also names `Accept-Encoding` in `Vary`, since 2026-10-25. The asset server compresses each response for the encodings the client accepts, and QA of the live build found the compressed responses without `Vary`, so a shared cache between the site and a reader could hand compressed bytes to a client that did not ask for them. `e2e/headers.spec.ts` requires it on a page, an asset and the 404 (`VARY` in `e2e/expected.ts`), with known answers for reading the header, in `e2e` and in the deploy job's smoke of the Version URL, so a version that loses it is never promoted. `wrangler dev` sends it once, on compressed and plain responses alike (checked with `wrangler dev` on 2026-10-25). Whether the zone adds or merges its own on the way out is not checked: prod-smoke does not assert it, and a failing prod-smoke rolls production back. The zone's choices stay the zone's: the ETag, and zstd before Brotli.
 
 ```jsonc
 // workers/lab/wrangler.jsonc, LATER (Phase 4): only the fields that change how it ships.

@@ -11,6 +11,8 @@ import {
   SECURITY_HEADERS,
   SOLVER,
   SOLVER_POLICY,
+  VARY,
+  varyNames,
 } from './expected';
 
 // Every value public/_headers sends, on a page, an asset and the 404 (security.md, "What CI
@@ -37,6 +39,22 @@ for (const { label, path, status } of responses) {
   });
 }
 
+for (const { label, path, status } of responses) {
+  test(`Vary names Accept-Encoding on ${label}`, async ({ request }) => {
+    test.fail(ON_WORKER_PREVIEW && status === 404, PREVIEW_404_GAP);
+    const response = await request.get(path, { maxRedirects: 0 });
+    expect(response.status()).toBe(status);
+    expect(varyNames(response.headers()['vary'])).toContain(VARY);
+  });
+}
+
+test('known answers: Vary is read as a list of names, in any case', () => {
+  expect(varyNames('Accept-Encoding')).toEqual([VARY]);
+  expect(varyNames('Origin,  accept-encoding ')).toEqual(['origin', VARY]);
+  expect(varyNames('Accept')).not.toContain(VARY);
+  expect(varyNames(undefined)).toEqual([]);
+});
+
 test('hashed bundles are cached for a year; HTML revalidates', async ({ request }) => {
   const page = await request.get('/');
   expect(page.headers()['cache-control']).toBe(REVALIDATE);
@@ -56,8 +74,9 @@ test('security.txt is plain UTF-8 text (RFC 9116)', async ({ request }) => {
 // headers the browser enforces together, and is cached for a year (its folder's name is a hash of
 // its code). The module worker's script needs a JavaScript type, and streaming compilation needs
 // application/wasm. The page that starts the worker carries the site's header policy only: its
-// script policy is Astro's <meta>, with no 'wasm-unsafe-eval'. A build from before the lab has
-// none of it, so a rollback's smoke skips this.
+// script policy is Astro's <meta>, with no 'wasm-unsafe-eval'. Each, and the page, names
+// Accept-Encoding in Vary, as every response does: the WebAssembly is the largest file the site
+// serves. A build from before the lab has none of it, so a rollback's smoke skips this.
 test("the Route Lab's solver: its own policy beside the site's, its types, a year's cache", async ({
   request,
 }) => {
@@ -81,7 +100,9 @@ test("the Route Lab's solver: its own policy beside the site's, its types, a yea
     );
     expect(response.headers()['content-type'], file).toMatch(type);
     expect(response.headers()['cache-control'], file).toBe(IMMUTABLE);
+    expect(varyNames(response.headers()['vary']), file).toContain(VARY);
   }
   const page = await request.get(ROUTE_LAB, { maxRedirects: 0 });
   expect(policies(page.headersArray())).toEqual([SECURITY_HEADERS['content-security-policy']]);
+  expect(varyNames(page.headers()['vary'])).toContain(VARY);
 });
