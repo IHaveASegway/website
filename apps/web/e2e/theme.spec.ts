@@ -143,6 +143,57 @@ for (const os of ['dark', 'light'] as const) {
   });
 }
 
+// The toggle shows which state it is in (design-system.md, "Theme before first paint"): an icon of
+// its own for System, Light and Dark, so every press changes what it shows, the return to System
+// included, which on 2026-10-24's build changed nothing visible. A pointer anywhere over it shows a
+// title with the same words as its name.
+test('every press changes what the toggle shows, and its title says what its name says', async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.goto('/');
+  const button = toggle(page);
+  const pictures: Buffer[] = [];
+  const titles: Record<string, (string | null | undefined)[]> = {};
+  for (const theme of ['system', 'light', 'dark']) {
+    await expect(button).toHaveAccessibleName(`Theme: ${theme}`);
+    await page.mouse.move(0, 0);
+    // The title a pointer would show: at two corners and at the center of the button.
+    titles[`Theme: ${theme}`] = await button.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      return [
+        [box.left + 1, box.top + 1],
+        [box.left + box.width / 2, box.top + box.height / 2],
+        [box.right - 1, box.bottom - 1],
+      ].map(([x = 0, y = 0]) =>
+        document.elementFromPoint(x, y)?.closest('[title]')?.getAttribute('title'),
+      );
+    });
+    pictures.push(await button.screenshot());
+    await button.click();
+  }
+  await expect(button).toHaveAccessibleName('Theme: system');
+  // System and Dark both paint a dark page on a dark OS: only the icon tells them apart.
+  const [system, light, dark] = pictures;
+  expect(system?.equals(dark ?? Buffer.alloc(0)), 'System and Dark look the same').toBe(false);
+  expect(system?.equals(light ?? Buffer.alloc(0)), 'System and Light look the same').toBe(false);
+  expect(light?.equals(dark ?? Buffer.alloc(0)), 'Light and Dark look the same').toBe(false);
+  for (const [name, seen] of Object.entries(titles)) expect(seen, name).toEqual([name, name, name]);
+});
+
+// Forced colors (a Windows contrast theme) replace both themes with the visitor's own colors, so
+// the toggle would change nothing there: it is not shown, and Tab never reaches it.
+test('in forced colors the toggle is not shown, since it would change nothing', async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: 'dark', forcedColors: 'active' });
+  await page.goto('/');
+  expect(await page.evaluate(() => document.documentElement.dataset['theme'])).toBe('system');
+  await expect(page.locator('[data-theme-toggle]')).toBeHidden();
+  await page.emulateMedia({ forcedColors: 'none' });
+  await expect(toggle(page)).toBeVisible();
+});
+
 test('a choice survives a reload and lasts for the tab only; storage that refuses it still applies it to the page', async ({
   page,
 }) => {

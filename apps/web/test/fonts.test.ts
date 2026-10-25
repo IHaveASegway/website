@@ -237,20 +237,50 @@ describe('axes and coverage', () => {
 });
 
 // Spike S9 (roadmap.md): what the Fonts API writes into every page. A regression here would
-// render the name at full width (no stretch range) or load the fonts late (no preload).
+// render the name at full width (no stretch range) or load the name's face late (no preload).
+// Since 2026-10-25 only Instrument Sans is preloaded: JetBrains Mono sets values and code, none of
+// them on Home or the 404 today, so a page fetches it when it uses it, and it keeps its @font-face
+// (design-system.md, "The faces").
 describe('what the Fonts API writes into every page', () => {
+  /** The file each @font-face of a family names, and every file a page preloads. */
+  const fontFile = (page: string, weights: string) =>
+    new RegExp(`@font-face\\{[^}]*src:url\\("([^"]+)"\\)[^}]*font-weight:${weights};`).exec(
+      page,
+    )?.[1];
+  const preloads = (page: string) =>
+    [
+      ...page.matchAll(
+        /<link rel="preload" href="(\/_astro\/fonts\/[^"]+\.woff2)" as="font" type="font\/woff2" crossorigin>/g,
+      ),
+    ].map(([, href]) => href);
+
   for (const file of html) {
     test(file, () => {
       const page = read(file);
       expect(page).toMatch(/@font-face\{[^}]*font-weight:400 700;[^}]*font-stretch:75% 100%;/);
       expect(page).toMatch(/@font-face\{[^}]*font-weight:400 500;/);
-      expect(
-        page.match(
-          /<link rel="preload" href="\/_astro\/fonts\/[^"]+\.woff2" as="font" type="font\/woff2" crossorigin>/g,
-        ),
-      ).toHaveLength(2);
+      const sans = fontFile(page, '400 700');
+      expect(sans, 'Instrument Sans has an @font-face').toBeDefined();
+      expect(fontFile(page, '400 500'), 'JetBrains Mono has an @font-face').toBeDefined();
+      expect(preloads(page)).toEqual([sans]);
     });
   }
+
+  test('known answers: the preload is read from the link, and the face from its @font-face', () => {
+    const face = (src: string, weights: string) =>
+      `<style>@font-face{font-family:"F";src:url("${src}") format("woff2");font-weight:${weights};}</style>`;
+    const link = (href: string) =>
+      `<link rel="preload" href="${href}" as="font" type="font/woff2" crossorigin>`;
+    const page =
+      face('/_astro/fonts/s.woff2', '400 700') + face('/_astro/fonts/m.woff2', '400 500');
+    expect(fontFile(page, '400 700')).toBe('/_astro/fonts/s.woff2');
+    expect(fontFile(page, '400 500')).toBe('/_astro/fonts/m.woff2');
+    expect(preloads(page + link('/_astro/fonts/s.woff2'))).toEqual(['/_astro/fonts/s.woff2']);
+    // The build before 2026-10-25 preloaded both faces.
+    expect(
+      preloads(page + link('/_astro/fonts/s.woff2') + link('/_astro/fonts/m.woff2')),
+    ).toHaveLength(2);
+  });
 });
 
 describe('the fallback faces', () => {

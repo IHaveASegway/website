@@ -1,24 +1,49 @@
 ---
 // Cycles System, the theme the OS is not showing, then the one it is: every press but the return to
 // System changes the page. The click handler lives in the pre-paint script (src/scripts/theme.js),
-// so the toggle adds no script of its own. It shows an icon; its name, which says the current
-// theme, is the one span CSS leaves displayed for the data-theme the script sets on <html>, read by
-// assistive technology and hidden on screen. The choice lasts for the tab (sessionStorage), so the
-// toggle needs no notice about storage (security.md, "Privacy and data inventory").
+// so the toggle adds no script of its own. Each state is a span with its own icon (a half-filled
+// circle for System, a sun for Light, a moon for Dark), so the return to System shows too; CSS
+// displays the one for the data-theme the script sets on <html>. The span's name, which says the
+// current theme, is read by assistive technology and hidden on screen, and its title carries the
+// same words for a pointer, over the whole button. The choice lasts for the tab (sessionStorage),
+// so the toggle needs no notice about storage (security.md, "Privacy and data inventory").
+const states = [
+  { theme: 'system', name: 'Theme: system' },
+  { theme: 'light', name: 'Theme: light' },
+  { theme: 'dark', name: 'Theme: dark' },
+] as const;
 ---
 
 <button type="button" class="theme-toggle" data-theme-toggle>
-  <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-    <circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
-    <path d="M8 1.75a6.25 6.25 0 0 1 0 12.5z" fill="currentColor"></path>
-  </svg>
-  <span class="theme-state" data-for="dark">
-    Theme: dark
-  </span>
-  <span class="theme-state" data-for="light">
-    Theme: light
-  </span>
-  <span class="theme-state" data-for="system">
-    Theme: system
-  </span>
+  {states.map(({ theme, name }) => (
+    <span class="theme-state" data-for={theme} title={name}>
+      <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+        {theme === 'system' && (
+          <>
+            <circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5" />
+            <path d="M8 1.75a6.25 6.25 0 0 1 0 12.5z" fill="currentColor" />
+          </>
+        )}
+        {theme === 'light' && (
+          <>
+            <circle cx="8" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="1.5" />
+            <path
+              d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3.05 3.05l1.06 1.06M11.89 11.89l1.06 1.06M3.05 12.95l1.06-1.06M11.89 4.11l1.06-1.06"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+            />
+          </>
+        )}
+        {theme === 'dark' && (
+          <path
+            d="M14.25 8.55A6.25 6.25 0 1 1 7.45 1.75a4.86 4.86 0 0 0 6.8 6.8z"
+            fill="currentColor"
+          />
+        )}
+      </svg>
+      <span class="theme-name">{name}</span>
+    </span>
+  ))}
 </button>

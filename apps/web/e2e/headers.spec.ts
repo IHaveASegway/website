@@ -7,6 +7,8 @@ import {
   PREVIEW_404_GAP,
   REVALIDATE,
   SECURITY_HEADERS,
+  VARY,
+  varyNames,
 } from './expected';
 
 // Every value public/_headers sends, on a page, an asset and the 404 (security.md, "What CI
@@ -32,6 +34,22 @@ for (const { label, path, status } of responses) {
     }
   });
 }
+
+for (const { label, path, status } of responses) {
+  test(`Vary names Accept-Encoding on ${label}`, async ({ request }) => {
+    test.fail(ON_WORKER_PREVIEW && status === 404, PREVIEW_404_GAP);
+    const response = await request.get(path, { maxRedirects: 0 });
+    expect(response.status()).toBe(status);
+    expect(varyNames(response.headers()['vary'])).toContain(VARY);
+  });
+}
+
+test('known answers: Vary is read as a list of names, in any case', () => {
+  expect(varyNames('Accept-Encoding')).toEqual([VARY]);
+  expect(varyNames('Origin,  accept-encoding ')).toEqual(['origin', VARY]);
+  expect(varyNames('Accept')).not.toContain(VARY);
+  expect(varyNames(undefined)).toEqual([]);
+});
 
 test('hashed bundles are cached for a year; HTML revalidates', async ({ request }) => {
   const page = await request.get('/');

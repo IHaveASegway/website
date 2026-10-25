@@ -71,8 +71,11 @@
      99 characters a line at 16px, and 31em measures 68 (e2e/writing.spec.ts checks it). */
   --measure: 31em;
   /* Poster sizes (design-system.md, "Type scale"). The name on Home: 64px up to 390px, 144px at
-     1440px, a ratio of 2.25, inside the 2.5 the zoom rule allows. It is set on two lines. */
-  --text-hero: clamp(4rem, 2.1429rem + 7.619vw, 9rem);
+     1440px, a ratio of 2.25, inside the 2.5 the zoom rule allows. It is set on two lines. It also
+     stops at 20vw, 64px at 320px, so at the default text size the cap never binds from 320px up
+     and zoom enlarges the name as before. With a larger default text size on a phone it binds, and
+     "Peterson", 3.13em wide, still fits the screen whole instead of breaking inside the word. */
+  --text-hero: min(clamp(4rem, 2.1429rem + 7.619vw, 9rem), 20vw);
   /* A work card's title, and a page's title: 30px to 52px. */
   --text-statement: clamp(1.875rem, 1.3643rem + 2.0952vw, 3.25rem);
   --text-statement--line-height: 1.02;
