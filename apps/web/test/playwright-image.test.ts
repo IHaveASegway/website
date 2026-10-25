@@ -4,7 +4,7 @@ import { expect, test } from 'vitest';
 import { parse } from 'yaml';
 import { app } from './support/dist';
 
-// e2e and prod-smoke run in Playwright's own image (delivery.md, "Actions minutes budget"):
+// e2e, lighthouse and prod-smoke run in Playwright's own image (delivery.md, "Actions minutes budget"):
 // Chromium and its libraries come with it, so no apt install runs, and its tag is the Playwright
 // version the lockfile installs, which verify reads (and the rollback job, when no build ran), so
 // the browser always matches @playwright/test. The verdict on production and the incident issue
@@ -42,6 +42,7 @@ export function imageProblems(workflow: Workflow): string[] {
     verify,
     rollback,
     e2e,
+    lighthouse,
     deploy,
     'prod-smoke': smoke,
     'prod-verdict': verdict,
@@ -66,6 +67,7 @@ export function imageProblems(workflow: Workflow): string[] {
   }
   const images: [string, Job | undefined, string, readonly string[]][] = [
     ['e2e', e2e, `${IMAGE}\${{ needs.verify.outputs.playwright }}-noble`, ['verify']],
+    ['lighthouse', lighthouse, `${IMAGE}\${{ needs.verify.outputs.playwright }}-noble`, ['verify']],
     [
       'prod-smoke',
       smoke,
@@ -108,7 +110,7 @@ const workflow = parse(
   readFileSync(join(app, '../../.github/workflows/ci.yml'), 'utf8'),
 ) as Workflow;
 
-test("e2e and prod-smoke run in Playwright's image, at the version the lockfile installs", () => {
+test("e2e, lighthouse and prod-smoke run in Playwright's image, at the version the lockfile installs", () => {
   expect(imageProblems(workflow)).toEqual([]);
 });
 

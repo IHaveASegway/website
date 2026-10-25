@@ -22,6 +22,8 @@ test-results/
 test-results-writing/
 blob-report/
 coverage/
+lighthouse-report/
+.lighthouseci/
 
 # Local configuration and secrets: never committed (security.md, "Secrets inventory")
 .env
