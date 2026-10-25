@@ -235,6 +235,10 @@
     --subtle-foreground: oklch(0.3 0 0);
     --primary: oklch(0 0 0);
     --primary-strong: oklch(0 0 0);
+    /* Rules in a gray a printer keeps, and underlines and fields at 3:1 or more: neither screen
+       theme's, whose hairlines are near-white on light and dark gray on dark. */
+    --border: oklch(0.75 0 0);
+    --input: oklch(0.55 0 0);
     /* The map prints in its light colors. */
     --map-water: oklch(0.85 0.065 245);
     --map-park: oklch(0.95 0.03 150);
