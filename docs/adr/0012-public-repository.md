@@ -26,7 +26,7 @@ Make the repository public once all three hold:
 
 On the same day, after the switch:
 
-- A ruleset on `main`: a pull request is required, with 0 approvals (GitHub does not let authors approve their own pull requests, and there is one maintainer); required checks `verify`, `firewall` and `e2e`; no force pushes; no deletion.
+- A ruleset on `main`: a pull request is required, with 0 approvals (GitHub does not let authors approve their own pull requests, and there is one maintainer); required checks `verify`, `firewall` and `e2e`, and `lighthouse` since 2026-10-25 ([ADR 0006](0006-github-actions-owns-deploys.md), postscript of that day); no force pushes; no deletion.
 - Secret scanning and push protection stay on. GitHub provides them on public repositories, and they recognize all three Cloudflare credential formats ([supported patterns](https://docs.github.com/en/code-security/reference/secret-security/supported-secret-scanning-patterns)).
 - "Require approval for all external contributors" for workflows from fork pull requests ([GitHub](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository)). The allowed-actions list does not change.
 - Private vulnerability reporting on, which gives `security.txt` a URL under either mail posture ([security.md](../security.md)).
