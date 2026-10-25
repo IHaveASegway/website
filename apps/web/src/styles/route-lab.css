@@ -157,10 +157,20 @@
   padding-inline: 0.875rem;
 }
 
+/* The line under the readout holds its height whatever it says, so VROOM's answer never moves the
+   maps under the reader: one line, before the first change too; on a phone, three, the most a
+   change and its answer take there. The room line above does the same with two. */
 .rl-status {
+  min-block-size: 1lh;
   margin: 0;
   font-size: var(--text-sm);
   line-height: var(--text-sm--line-height);
+}
+
+@media (width < 48rem) {
+  .rl-status {
+    min-block-size: 3lh;
+  }
 }
 
 /* Hidden on screen, read by assistive technology: the demo's heading and the line that says what
@@ -218,6 +228,14 @@
   color: var(--muted-foreground);
   font-size: var(--text-sm);
   line-height: var(--text-sm--line-height);
+}
+
+/* On a phone the room line takes one line or two, by the day: it keeps two, so a change of day does
+   not move the maps (the status line below does the same). */
+@media (width < 48rem) {
+  .rl-capacity {
+    min-block-size: 2lh;
+  }
 }
 
 /* Which map a phone shows: one at a time, in the same place, so the two compare at a glance.

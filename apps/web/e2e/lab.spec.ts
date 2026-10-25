@@ -394,6 +394,44 @@ test('another number of vans lets go of the day, and the header marks the Lab se
   await expect(status(page)).toContainText('A quiet Tuesday: 8 orders, 1 van.');
 });
 
+// The readout holds its height (route-lab.css) before the first change and for each answer in a
+// run of changes, so VROOM's answer never moves the maps: on a phone the room line keeps two lines
+// and the status line three, and wider each keeps one. Before 2026-10-25 the status line grew from
+// nothing on the first change, and on a phone both took one line or more by the day, so the maps
+// moved by 22 px or 44 px on most changes.
+for (const width of [390, 1440]) {
+  test(`at ${width} px the maps stay put from answer to answer`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(ROUTE_LAB);
+    const top = () =>
+      page.evaluate(() => {
+        const shown = [...document.querySelectorAll('[data-rl-plan]')].find((map) =>
+          map.checkVisibility(),
+        );
+        return (shown?.getBoundingClientRect().top ?? 0) + window.scrollY;
+      });
+    const tops = [await top()];
+    for (const day of ['quiet', 'busy', 'everything']) {
+      await plan(page, day);
+      tops.push(await top());
+    }
+    await page.check('input[name="rl-vans"][value="2"]');
+    await expect(status(page)).toHaveText(/^2 vans\. Planned in /, { timeout: 20_000 });
+    tops.push(await top());
+    await plan(page, 'quiet');
+    tops.push(await top());
+    // Discovery Park, from the list of places, which is folded away.
+    await page
+      .locator('input[name="rl-order"][value="3"]')
+      .evaluate((box: HTMLInputElement) => box.click());
+    await expect(status(page)).toHaveText(/^Added Discovery Park: .* Planned in /, {
+      timeout: 20_000,
+    });
+    tops.push(await top());
+    expect(new Set(tops).size, tops.join(', ')).toBe(1);
+  });
+}
+
 // Nothing moves when the boot module arrives: CSS shows the controls from the first paint wherever
 // script runs (route-lab.css, the scripting media feature). On a phone on a slow network the module
 // used to reveal them after the page had painted, a layout shift of 0.16 against a limit of 0.1.
