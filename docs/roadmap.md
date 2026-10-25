@@ -185,7 +185,7 @@ Phase 2 · estimate: about 2.5 focused days (about 12 of PR 3's 47 measured hour
 - [ ] Unless Q-analytics says no, the Web Analytics beacon is live with its CSP entries, and the request watcher allows exactly its path.
 - [x] Home transfer size and the Lighthouse CI assertions fail the build when exceeded. Done on 2026-10-25 by the `lighthouse` job, on every page of the build ([delivery.md](delivery.md#pipeline)).
 - [ ] How the field p75 is read from Web Analytics is settled ([delivery.md](delivery.md)).
-- [ ] The CSP owner is revisited: a header policy generated at build would govern the theme script too ([security.md](security.md#headers-and-content-security-policy)).
+- [x] The CSP owner is revisited: a header policy generated at build would govern the theme script too ([security.md](security.md#headers-and-content-security-policy)). Done on 2026-10-25: the build writes the page policy as a header, and the theme script is governed ([ADR 0018](adr/0018-page-policy-as-a-header.md)).
 
 **What it teaches.** **System of record**: the colophon reads `docs/adr/` at build time and never holds a copy. A **third-party allowance** as a trust decision: one origin, one exact path, a disclosure, and an ADR that says what it costs.
 

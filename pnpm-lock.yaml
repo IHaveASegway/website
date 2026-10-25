@@ -71,6 +71,9 @@ importers:
       culori:
         specifier: 4.0.2
         version: 4.0.2
+      parse5:
+        specifier: 8.0.1
+        version: 8.0.1
       satori:
         specifier: 0.63.2
         version: 0.63.2
@@ -102,9 +105,6 @@ importers:
       fontkitten:
         specifier: 1.0.3
         version: 1.0.3
-      parse5:
-        specifier: 8.0.1
-        version: 8.0.1
       typescript:
         specifier: 'catalog:'
         version: 6.0.3

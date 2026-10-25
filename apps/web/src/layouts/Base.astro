@@ -45,11 +45,10 @@ const generated = [...areaRoutes(area), ...labRoutes(await loadLabArea())];
 
 // The theme script (src/scripts/theme.js) runs in <head>, before <body> exists, so no frame can
 // paint before a stored choice applies. In <body> it left a gap: when the HTML arrived in pieces,
-// a frame came before the script had run (seen on the first Worker Preview). The cost: Astro
-// writes the CSP <meta> at the end of <head>, and a <meta> policy covers only what follows it, so
-// this one script, ours and generated at build, runs before the policy. Everything after it stays
-// covered, and test/csp.test.ts allows exactly this script, byte for byte, before the policy.
-// astro.config.mjs still hashes it into script-src, and JSON-LD closes <body>. The script carries
+// a frame came before the script had run (seen on the first Worker Preview). The page policy is a
+// header, written at build with a hash for this script (src/lib/csp.mjs), so it governs the script
+// here too: until 2026-10-25 it was a <meta> after it, and this one script ran uncovered. JSON-LD
+// closes <body>, as a data block the policy does not govern. The script carries
 // no comments, since it ships as written: what it does is told here and in design-system.md
 // ("Theme before first paint"). It applies a choice the visitor made in this tab, again when the
 // browser restores the page from its back-forward cache, and handles the toggle.

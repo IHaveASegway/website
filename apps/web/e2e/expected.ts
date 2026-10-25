@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { DIRECTIVES } from '../src/lib/csp.mjs';
 import { isNoindex } from '../src/lib/noindex.mjs';
 
 // What the site must serve. The e2e specs and the production smoke read these, so a change to a
@@ -189,14 +190,59 @@ export const NOT_FOUND_PAGE = ON_WORKER_PREVIEW ? '/404' : MISSING;
  * Playwright reports that as a failure: the sign to delete ON_WORKER_PREVIEW. */
 export const PREVIEW_404_GAP = 'Worker Previews ignore not_found_handling (expected.ts)';
 
-/** Response headers from public/_headers (security.md, "Headers and Content Security Policy"). */
+/** Response headers from public/_headers (security.md, "Headers and Content Security Policy"). The
+ *  page policy is the build's, with hashes that change with the pages: pagePolicyProblems reads it. */
 export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
-  'content-security-policy': "frame-ancestors 'none'",
   'x-content-type-options': 'nosniff',
   'referrer-policy': 'strict-origin-when-cross-origin',
   'permissions-policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
   'cross-origin-opener-policy': 'same-origin',
 };
+
+/** What a build before 2026-10-25 sent as its whole header policy: the rest was a <meta> in each
+ *  page (ADR 0018). A rollback to one serves this, and its pages carry the <meta>. */
+export const LEGACY_HEADER_POLICY = "frame-ancestors 'none'";
+
+/**
+ * Why the Content-Security-Policy headers on a response are not one page policy as the build writes
+ * it (src/lib/csp.mjs), one line each: the site's directives exactly, worker-src 'self' at most, and
+ * script-src and style-src with 'self' and SHA-256 hashes only. `legacy` is whether the page carries
+ * a <meta> policy, as a build before 2026-10-25 did; then its header is frame-ancestors alone.
+ */
+export function pagePolicyProblems(values: readonly string[], legacy = false): string[] {
+  if (values.length !== 1) return [`${values.length} policies, not 1`];
+  const [value = ''] = values;
+  if (legacy)
+    return value === LEGACY_HEADER_POLICY ? [] : [`a <meta> page sends ${value} as its header`];
+  const directives = new Map<string, string>();
+  const problems: string[] = [];
+  for (const part of value.split(';')) {
+    const [name = '', ...sources] = part.trim().split(/\s+/);
+    if (!name) continue;
+    // A browser enforces the first copy of a directive and ignores the rest.
+    if (directives.has(name)) problems.push(`${name} is named twice`);
+    else directives.set(name, sources.join(' '));
+  }
+  for (const directive of DIRECTIVES) {
+    const [name = ''] = directive.split(' ');
+    if (`${name} ${directives.get(name) ?? ''}` !== directive) problems.push(`not ${directive}`);
+    directives.delete(name);
+  }
+  for (const name of ['script-src', 'style-src']) {
+    const sources = (directives.get(name) ?? '').split(' ');
+    if (
+      sources[0] !== "'self'" ||
+      !sources.slice(1).every((s) => /^'sha256-[A-Za-z0-9+/]+={0,2}'$/.test(s))
+    )
+      problems.push(`${name} is not 'self' and hashes: ${directives.get(name) ?? 'missing'}`);
+    directives.delete(name);
+  }
+  if (directives.has('worker-src') && directives.get('worker-src') !== "'self'")
+    problems.push(`worker-src ${directives.get('worker-src') ?? ''}`);
+  directives.delete('worker-src');
+  for (const name of directives.keys()) problems.push(`an unknown directive: ${name}`);
+  return problems;
+}
 
 /** Headers this site never sends (security.md, "Never sent"). */
 export const NEVER_SENT = ['x-xss-protection', 'expect-ct', 'x-frame-options'] as const;
@@ -211,9 +257,15 @@ export const SOLVER = `/lab/routes/solver/${
   ).folder
 }/`;
 
-/** The policy the solver's responses carry beside the site's: the one place on the site with
- *  'wasm-unsafe-eval', which a worker takes from its own response (public/_headers). */
+/** The policy the solver's responses carry, alone, since their rule detaches the page policy: the
+ *  one place on the site with 'wasm-unsafe-eval', which a worker takes from its own response
+ *  (public/_headers). */
 export const SOLVER_POLICY =
+  "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+
+/** The solver's policy in a build from before 2026-10-25, which sent it beside
+ *  LEGACY_HEADER_POLICY: the three directives frame-ancestors joined it without (ADR 0018). */
+export const LEGACY_SOLVER_POLICY =
   "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'";
 
 /** The name public/_headers adds to Vary on every response, so a cache between the site and a

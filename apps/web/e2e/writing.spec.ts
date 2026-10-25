@@ -1,5 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { REVALIDATE, SECURITY_HEADERS, WRITING_FIXTURE_PAGES } from './expected';
+import {
+  pagePolicyProblems,
+  REVALIDATE,
+  SECURITY_HEADERS,
+  WRITING_FIXTURE_PAGES,
+} from './expected';
 
 // What only a build with posts can show (pnpm e2e:writing, on .fixtures/fixture-many). The page
 // list checks (axe, the CSP and the request watcher, glyphs, held names, the smoke) walk every
@@ -82,6 +87,11 @@ test('a post page carries the security headers and revalidates, like every page'
   const headers = response.headers();
   for (const [name, value] of Object.entries(SECURITY_HEADERS))
     expect(headers[name], name).toBe(value);
+  const policies = response
+    .headersArray()
+    .filter((h) => h.name.toLowerCase() === 'content-security-policy')
+    .map((h) => h.value);
+  expect(pagePolicyProblems(policies)).toEqual([]);
   expect(headers['cache-control']).toBe(REVALIDATE);
 });
 

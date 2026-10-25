@@ -50,11 +50,12 @@ test('the page policy is enforced: an injected inline script is refused', async 
   expect((await violations()).join('\n')).toContain('script-src');
 });
 
-// The theme script runs in <head>, before the policy's <meta>, so the policy does not govern it:
-// test/csp.test.ts allows exactly that script there, byte for byte. Everything after the <meta> is
-// governed. A copy of the theme script with one byte changed, placed after the policy, must be
-// refused: proof that the policy checks hashes, not merely that it is present.
-test('after the policy, a theme script with one byte changed is refused', async ({ page }) => {
+// The page policy is a header, so it governs every script, the theme script first in <head>
+// included (ADR 0018). A copy of the theme script with one byte changed, placed first in <head>,
+// before everything, must be refused: proof that the policy checks hashes, not merely that it is
+// present, and that nothing on the page runs before it. Until 2026-10-25 the policy was a <meta>
+// after the theme script, and a script there ran ungoverned.
+test('a theme script with one byte changed is refused, even first in <head>', async ({ page }) => {
   const violations = await watch(page);
   await page.route(
     (url) => url.pathname === '/',
@@ -66,7 +67,7 @@ test('after the policy, a theme script with one byte changed is refused', async 
       // One byte changed in a storage key, so the copy would still run cleanly, plus a marker, so
       // the page shows whether it ran.
       const tampered = `${original.replace("'theme'", "'themE'")};document.documentElement.setAttribute('data-tampered', '');`;
-      const changed = html.replace('<body', `<script>${tampered}</script><body`);
+      const changed = html.replace(/<head>/i, `<head><script>${tampered}</script>`);
       expect(changed).not.toBe(html);
       await route.fulfill({ response, body: changed });
     },
@@ -80,8 +81,8 @@ test('after the policy, a theme script with one byte changed is refused', async 
 
 // No request leaves the site's origin: stage A loads nothing from another origin, and the Web
 // Analytics beacon's exact path joins this check in the change that ships it. The policy does not
-// cover this alone: it governs only what follows its <meta>, and no directive stops a preconnect
-// (test/csp.test.ts scans the markup for those). This watches what Chromium actually asks for.
+// cover this alone: no directive stops a preconnect (test/csp.test.ts scans the markup for those).
+// This watches what Chromium actually asks for.
 async function requestsOffOrigin(page: Page, path: string, base: string): Promise<string[]> {
   const origin = new URL(base).origin;
   const seen: string[] = [];
@@ -111,11 +112,12 @@ test('known answer: a foreign request the policy does not stop is seen', async (
     async (route) => {
       const response = await route.fetch();
       const html = await response.text();
-      const changed = html
-        .replace(/<meta http-equiv="content-security-policy"[^>]*>/i, '')
-        .replace('</body>', `<img src="${foreign}" alt=""></body>`);
+      const changed = html.replace('</body>', `<img src="${foreign}" alt=""></body>`);
       expect(changed).not.toBe(html);
-      await route.fulfill({ response, body: changed });
+      // Without the page policy, which would refuse the image before it is asked for.
+      const headers = { ...response.headers() };
+      delete headers['content-security-policy'];
+      await route.fulfill({ response, body: changed, headers });
     },
   );
   expect(await requestsOffOrigin(page, '/', baseURL ?? '')).toEqual([foreign]);

@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
-import { NEVER_SENT, ORIGIN, pages, SECURITY_HEADERS } from './expected';
+import { NEVER_SENT, ORIGIN, pagePolicyProblems, pages, SECURITY_HEADERS } from './expected';
 
 // prod-smoke: https://ihaveasegway.com through the zone. A Version URL or a preview is served from
 // workers.dev and never passes through the zone, so these checks run only here and in the weekly
@@ -58,6 +58,14 @@ test('the security headers are present, and the forbidden ones absent', async ({
   for (const [name, value] of Object.entries(SECURITY_HEADERS))
     expect(headers[name], name).toBe(value);
   for (const name of NEVER_SENT) expect(headers[name], name).toBeUndefined();
+  // The page policy, as the build wrote it, or a <meta> and frame-ancestors from a build before
+  // 2026-10-25, which a rollback can serve (ADR 0018).
+  const legacy = /<meta http-equiv="content-security-policy"/i.test(await response.text());
+  const policies = response
+    .headersArray()
+    .filter((h) => h.name.toLowerCase() === 'content-security-policy')
+    .map((h) => h.value);
+  expect(pagePolicyProblems(policies, legacy)).toEqual([]);
 });
 
 test('no zone feature injected a script into the HTML', async ({ request }) => {

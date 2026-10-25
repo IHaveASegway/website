@@ -214,7 +214,7 @@ Built on 2026-10-25 ([ADR 0016](adr/0016-route-lab-in-the-browser.md)). The page
 |---|---|---|---|
 | Files per Worker version | 20,000 | 100,000 | 7 more: two pages, two link previews, the route data, a script bundle and the solver's folder of five, less what it shares |
 | Size of one file | 25 MiB | 25 MiB | 919,927 B, the largest: `vroom.wasm` |
-| `_headers` rules | 100 | 100 | 1 more: the solver's folder |
+| `_headers` rules | 100 | 100 | 2 more: the solver's folder, and the Route Lab page's own policy ([ADR 0018](adr/0018-page-policy-as-a-header.md)); the build refuses a file past 100 |
 
 A visitor downloads about 545 KB gzip -9 for the page and one solve, most of it the solver, once; the solver's folder is cached for a year. Scenario E below prices the server-side alternative.
 

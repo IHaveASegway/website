@@ -1,17 +1,13 @@
-import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { join, relative, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { satteri } from '@astrojs/markdown-satteri';
 import sitemap from '@astrojs/sitemap';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig, fontProviders } from 'astro/config';
 import { commit, withBuildHeader } from './src/lib/build.mjs';
+import { policyFor, withPagePolicies } from './src/lib/csp.mjs';
 import { isNoindex } from './src/lib/noindex.mjs';
-
-// The pre-paint theme script. Base.astro inlines this exact file, and its hash is computed here
-// from the same bytes, so an edit can never leave a stale hash behind (security.md, "The theme
-// script, from PR 3"). Astro does not hash is:inline scripts itself.
-const themeScript = readFileSync(new URL('./src/scripts/theme.js', import.meta.url), 'utf8');
-const themeHash = `sha256-${createHash('sha256').update(themeScript).digest('base64')}`;
 
 /** A self-hosted face cut by scripts/fonts/build.sh, preloaded on every page by Base.astro. */
 const font = (name, cssVariable, file, variant) => ({
@@ -50,6 +46,41 @@ const buildHeader = {
   },
 };
 
+// The page policy is a header (security.md, "Headers and Content Security Policy"; ADR 0018). Once
+// the pages are written, each one's policy is read from its own inline code, a hash for each
+// script and style it holds, and written into the build's _headers: the 404's on the "/*" rule,
+// which every response matches, and a rule of its own for a page whose policy differs
+// (src/lib/csp.mjs). The theme script in <head> is covered with the rest, and no <meta> is written.
+const pagePolicy = {
+  name: 'page-policy',
+  hooks: {
+    'astro:build:done': ({ dir }) => {
+      const root = fileURLToPath(dir);
+      const walk = (at) =>
+        readdirSync(at).flatMap((name) => {
+          const path = join(at, name);
+          return statSync(path).isDirectory() ? walk(path) : [path];
+        });
+      const policies = new Map(
+        walk(root)
+          .filter((file) => file.endsWith('.html'))
+          .map((file) => {
+            const rel = relative(root, file).split(sep).join('/');
+            // Pages are <path>/index.html (ADR 0005) and the 404 is at the root. Any other .html
+            // would be served at a path no rule here names, under the 404's policy.
+            if (rel !== '404.html' && rel !== 'index.html' && !rel.endsWith('/index.html'))
+              throw new Error(`page-policy: ${rel} is not a page this step knows how to serve`);
+            const path =
+              rel === '404.html' ? '/404.html' : `/${rel.slice(0, -'index.html'.length)}`;
+            return [path, policyFor(readFileSync(file, 'utf8'), path)];
+          }),
+      );
+      const file = new URL('_headers', dir);
+      writeFileSync(file, withPagePolicies(readFileSync(file, 'utf8'), policies));
+    },
+  },
+};
+
 // The sitemap lists indexable pages only. A draft in a pull request preview is noindex
 // (lib/posts.ts), and so is anything else that says so; the filter reads each built page's own
 // robots tag (lib/noindex.mjs) rather than keeping a second list. It runs once the pages are
@@ -74,10 +105,17 @@ export default defineConfig({
     // /_astro/ files are cached for a year by content hash (delivery.md, "Config as code").
     inlineStylesheets: 'never',
   },
-  integrations: [recordCommand, recordOutDir, buildHeader, sitemap({ filter: indexable })],
+  integrations: [
+    recordCommand,
+    recordOutDir,
+    buildHeader,
+    pagePolicy,
+    sitemap({ filter: indexable }),
+  ],
   // Spike S9 (roadmap.md): the Fonts API's local provider passes the width range through to
-  // font-stretch, writes both preload links, serves the files from /_astro/fonts/ and hashes the
-  // <style> it emits into style-src. So it serves the faces, with Astro's fallbacks off (above).
+  // font-stretch, writes both preload links, serves the files from /_astro/fonts/ and emits a
+  // <style> with the faces, which pagePolicy hashes into style-src (above). So it serves the faces,
+  // with Astro's fallbacks off.
   fonts: [
     font('Instrument Sans', '--font-instrument-sans', 'instrument-sans-latin.woff2', {
       weight: '400 700',
@@ -96,24 +134,9 @@ export default defineConfig({
     // font (the glyph check). Everything else is the processor's default.
     processor: satteri({ features: { gfm: { footnotes: { backContent: '↑' } } } }),
   },
-  // The page policy, delivered in a <meta> tag (security.md, "Headers and Content Security Policy").
-  // Astro adds script-src and style-src with 'self' and a hash for each inline script or style it
-  // emits. frame-ancestors cannot live in <meta>, so public/_headers sends it.
-  security: {
-    csp: {
-      algorithm: 'SHA-256',
-      directives: [
-        "default-src 'self'",
-        "img-src 'self'",
-        "font-src 'self'",
-        "connect-src 'self'",
-        "object-src 'none'",
-        "base-uri 'none'",
-        "form-action 'self'",
-      ],
-      scriptDirective: { hashes: [themeHash] },
-    },
-  },
+  // No security.csp: Astro's policy is a <meta>, which covers only what follows it and cannot
+  // carry frame-ancestors. The page policy is the header pagePolicy writes (above), and a <meta>
+  // beside it would be a second owner of the same directives.
   vite: {
     plugins: [tailwindcss()],
     // No asset becomes a data: URI, which img-src and font-src 'self' would refuse.

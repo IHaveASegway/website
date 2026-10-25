@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { describe, expect, test } from 'vitest';
 import { BUILD_HEADER, withBuildHeader } from '../src/lib/build.mjs';
 import { html, read, textFiles } from './support/dist';
+import { rules as headerRules } from './support/headers';
 
 // Nothing on the page describes the site (design-system.md): no commit, no build date and no byte
 // figure is shown to a reader, and no page carries one in its markup either. Which commit is live
@@ -24,8 +25,12 @@ describe('the build header: which commit is live, for machines only', () => {
     const header = lines.flatMap((line, i) => (line.includes(BUILD_HEADER) ? [i] : []));
     expect(header).toHaveLength(1);
     expect(lines[header[0] ?? 0]).toBe(`  X-Build: ${commit}`);
-    // It belongs to the "/*" rule, the one every response matches.
-    expect(lines[(header[0] ?? 0) - 1]).toBe('/*');
+    // It belongs to the "/*" rule, the one every response matches, beside the page policy the
+    // build also writes there (src/lib/csp.mjs).
+    const owners = headerRules(read(HEADERS)).filter((rule) =>
+      rule.lines.some((line) => !line.detach && line.name === BUILD_HEADER.toLowerCase()),
+    );
+    expect(owners.map((rule) => rule.path)).toEqual(['/*']);
   });
 
   test('no page names the commit, in <head> or anywhere else, in full or short', () => {
