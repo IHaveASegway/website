@@ -263,6 +263,11 @@ export const SOLVER = `/lab/routes/solver/${
 export const SOLVER_POLICY =
   "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
 
+/** The solver's policy in a build from before 2026-10-25, which sent it beside
+ *  LEGACY_HEADER_POLICY: the three directives frame-ancestors joined it without (ADR 0018). */
+export const LEGACY_SOLVER_POLICY =
+  "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'";
+
 /** The name public/_headers adds to Vary on every response, so a cache between the site and a
  *  reader keeps a compressed copy apart from the plain one (delivery.md, "Config as code"). */
 export const VARY = 'accept-encoding';

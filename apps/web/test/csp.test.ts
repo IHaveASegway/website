@@ -413,6 +413,14 @@ describe('known answers: the policy the build writes', () => {
     expect(() => withPagePolicies('/*\n  X-A: b\n\n/a/\n  X-C: d\n', policies)).toThrow(
       /already has a rule for \/a\//,
     );
+    // The server trims a line, so "/* " is the "/*" rule, but the policy is written under "/*" alone.
+    expect(() => withPagePolicies('/* \n  X-A: b\n', policies)).toThrow(
+      /no _headers line is "\/\*"/,
+    );
+    // A URL with a host opens a rule too, which would otherwise read as a header of the rule above.
+    expect(() =>
+      withPagePolicies('/*\n  X-A: b\nhttps://example.com/*\n  X-C: d\n', policies),
+    ).toThrow(/rule for a host, https:\/\/example\.com\/\*/);
     const long = new Map([
       ['/404.html', `default-src 'self'; script-src ${"'sha256-x' ".repeat(200)}`],
     ]);
@@ -427,22 +435,33 @@ describe('known answers: the policy the build writes', () => {
     expect(() => withPagePolicies('/*\n  X-A: b\n', many)).toThrow(/101 rules, over 100/);
   });
 
-  test("a page's added sources join its one script-src, and a directive named twice is refused", () => {
+  test("added sources join the page's one directive, and 'none' joins none", () => {
     const html = page('<script>a()</script>');
-    SITE_PAGE_DIRECTIVES['/beacon/' as keyof typeof SITE_PAGE_DIRECTIVES] = [
-      'script-src https://static.example.net',
-    ] as never;
-    SITE_PAGE_DIRECTIVES['/twice/' as keyof typeof SITE_PAGE_DIRECTIVES] = [
-      "default-src 'none'",
-    ] as never;
+    const pages = SITE_PAGE_DIRECTIVES as Record<string, string[]>;
+    // As security.md plans them: the beacon's origin on every page, Turnstile's on a lab page.
+    SITE_DIRECTIVES.push('script-src https://beacon.example.net');
+    pages['/turnstile/'] = [
+      'script-src https://challenges.example.net',
+      'connect-src https://challenges.example.net',
+    ];
+    pages['/twice/'] = ["default-src 'none'"];
+    pages['/framed/'] = ["frame-ancestors 'self'"];
     try {
-      const policy = policyFor(html, '/beacon/');
-      expect(policy.match(/script-src/g)).toHaveLength(1);
-      expect(policy).toContain("script-src 'self' https://static.example.net 'sha256-");
+      const site = policyFor(html, '/');
+      expect(site.match(/script-src/g)).toHaveLength(1);
+      expect(site).toContain("script-src 'self' https://beacon.example.net 'sha256-");
+      const lab = policyFor(html, '/turnstile/');
+      expect(lab.match(/script-src/g)).toHaveLength(1);
+      expect(lab).toContain(
+        "script-src 'self' https://beacon.example.net https://challenges.example.net 'sha256-",
+      );
+      expect(lab.match(/connect-src/g)).toHaveLength(1);
+      expect(lab).toContain("connect-src 'self' https://challenges.example.net;");
       expect(() => policyFor(html, '/twice/')).toThrow(/default-src is named twice/);
+      expect(() => policyFor(html, '/framed/')).toThrow(/frame-ancestors is named twice/);
     } finally {
-      delete (SITE_PAGE_DIRECTIVES as Record<string, unknown>)['/beacon/'];
-      delete (SITE_PAGE_DIRECTIVES as Record<string, unknown>)['/twice/'];
+      SITE_DIRECTIVES.pop();
+      for (const path of ['/turnstile/', '/twice/', '/framed/']) delete pages[path];
     }
   });
 

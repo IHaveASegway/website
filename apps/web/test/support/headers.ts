@@ -1,12 +1,16 @@
 // A _headers file as Cloudflare's asset server reads it (workers-shared: parseHeaders, then the
 // asset worker's attachCustomHeaders; wrangler dev runs the same code). Each line is trimmed;
-// comments and blank lines are skipped; a line starting with "/" opens a rule; "! Name", with the
+// comments and blank lines are skipped; a path or a URL with a host opens a rule; "! Name", with the
 // space, detaches a header; any other line with a colon is "Name: value", and one without is
 // ignored. A path defined twice keeps its first place and its last definition. For a request, every
 // matching rule applies in that order: first its detaches, then its headers, a header set earlier
 // in the same pass gaining the new value after a comma. A splat (*) matches anything, a placeholder
 // (:name) one path segment. headers-rules.test.ts and csp.test.ts read the files through this, and
 // e2e/headers.spec.ts checks the same rules as a server sends them.
+
+/** A line that opens a rule (workers-shared's LINE_IS_PROBABLY_A_PATH): a path, or a URL with a
+ *  host. Written here apart from src/lib/csp.mjs's, so the check does not share the build's code. */
+const RULE_LINE = /^(?:[^\s]+:\/\/|\/)/;
 
 export type HeaderLine =
   | { readonly detach: true; readonly name: string }
@@ -23,7 +27,7 @@ export function rules(text: string): Rule[] {
   for (const raw of text.split('\n')) {
     const line = raw.trim();
     if (line === '' || line.startsWith('#')) continue;
-    if (line.startsWith('/')) {
+    if (RULE_LINE.test(line)) {
       found.push({ path: line, lines: [] });
     } else if (line.startsWith('! ')) {
       found.at(-1)?.lines.push({ detach: true, name: line.slice(2).trim().toLowerCase() });

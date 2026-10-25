@@ -21,9 +21,11 @@ export const DIRECTIVES = [
   "frame-ancestors 'none'",
 ];
 
-/** Directives one page adds, by its path, merged the same way. The Route Lab starts a module worker
- *  and names this origin as the only place one may come from: worker-src allows nothing script-src
- *  'self' does not, and keeps a later script-src host from also becoming a worker source (ADR 0016). */
+/** Directives one page adds, by its path. One the site names too gets both lists' sources, so
+ *  Turnstile's script-src on a lab page joins the beacon's (security.md). The Route Lab starts a
+ *  module worker and names this origin as the only place one may come from: worker-src allows
+ *  nothing script-src 'self' does not, and keeps a later script-src host from also becoming a
+ *  worker source (ADR 0016). */
 export const PAGE_DIRECTIVES = { '/lab/routes/': ["worker-src 'self'"] };
 
 /** The script types this site hashes: the ones a browser runs or governs as inline script (HTML,
@@ -56,6 +58,10 @@ const SCRIPT_TYPES = new Set([
  *  rules past the hundredth are dropped, each with only a warning, so the build checks them. */
 export const MAX_LINE = 2000;
 export const MAX_RULES = 100;
+
+/** A line that opens a _headers rule, as Cloudflare tells one (LINE_IS_PROBABLY_A_PATH): a path,
+ *  or a URL with a host. */
+const RULE_LINE = /^(?:[^\s]+:\/\/|\/)/;
 
 /** A source expression for the SHA-256 of an inline element's text, as CSP writes it. */
 export const hashOf = (text) => `'sha256-${createHash('sha256').update(text).digest('base64')}'`;
@@ -90,10 +96,12 @@ export function inlineCode(html) {
 }
 
 /**
- * A page's policy: the site's directives and the page's own, each name once, then script-src and
+ * A page's policy: the site's directives and the page's own, each named once, then script-src and
  * style-src: 'self', any source the directives above add, and a hash for each inline script and
- * style the page holds, each hash once, in the order they appear. A browser enforces only the first
- * copy of a repeated directive, so a repeat here is an error, not a second line.
+ * style the page holds, each source once, in the order they appear. A browser enforces only the
+ * first copy of a repeated directive, so a directive both lists name is written once, with both
+ * lists' sources. 'none' joins no other source: beside one it means nothing, and the source would
+ * win, so that repeat is an error.
  * @param {string} html the built page
  * @param {string} path its path, such as "/lab/routes/"
  * @returns {string}
@@ -102,8 +110,10 @@ export function policyFor(html, path) {
   const directives = new Map();
   for (const directive of [...DIRECTIVES, ...(PAGE_DIRECTIVES[path] ?? [])]) {
     const [name = '', ...sources] = directive.trim().split(/\s+/);
-    if (directives.has(name)) throw new Error(`csp.mjs: ${name} is named twice for ${path}`);
-    directives.set(name, sources);
+    const before = directives.get(name);
+    if (before !== undefined && [...before, ...sources].includes("'none'"))
+      throw new Error(`csp.mjs: ${name} is named twice for ${path}, and 'none' joins no source`);
+    directives.set(name, [...new Set([...(before ?? []), ...sources])]);
   }
   const { scripts, styles } = inlineCode(html);
   const sources = (name, texts) => {
@@ -122,8 +132,8 @@ export function policyFor(html, path) {
 
 /**
  * The rules of a _headers file as Cloudflare reads it (workers-shared, parseHeaders): lines are
- * trimmed, comments and blank lines skipped, a line starting with "/" opens a rule, "! Name" detaches
- * a header, and any other line is "Name: value".
+ * trimmed, comments and blank lines skipped, a path or a URL with a host opens a rule (RULE_LINE),
+ * "! Name" detaches a header, and any other line is "Name: value".
  * @param {string} text
  * @returns {{ path: string, set: [string, string][], unset: string[] }[]}
  */
@@ -132,7 +142,7 @@ export function parseRules(text) {
   for (const raw of text.split('\n')) {
     const line = raw.trim();
     if (line === '' || line.startsWith('#')) continue;
-    if (line.startsWith('/')) {
+    if (RULE_LINE.test(line)) {
       rules.push({ path: line, set: [], unset: [] });
     } else if (line.startsWith('! ')) {
       rules.at(-1)?.unset.push(line.slice(2).trim().toLowerCase());
@@ -149,9 +159,10 @@ export function parseRules(text) {
  * which every response matches, so a path no page has gets the 404's own policy. A page whose
  * policy differs gets a rule of its own, which detaches the "/*" policy first: two policies would
  * both be enforced, each only restricting the other. It refuses, rather than write a file the asset
- * server would read otherwise: a "/*" rule that already sends a policy, or a second "/*" rule; a
- * rule for a page path the file already holds (the server keeps only the last rule for a path); and
- * a line or a rule count past Cloudflare's limits, which the server would drop with a warning.
+ * server would read otherwise: a "/*" rule that already sends a policy, a second "/*" rule, or one
+ * whose line holds more than "/*"; a rule for a page path the file already holds (the server keeps
+ * only the last rule for a path); a rule for a host, which the checks do not resolve; and a line or
+ * a rule count past Cloudflare's limits, which the server would drop with a warning.
  * @param {string} headers the _headers file public/ holds
  * @param {ReadonlyMap<string, string>} policies each page's path and policy, the 404's as "/404.html"
  * @returns {string}
@@ -165,6 +176,9 @@ export function withPagePolicies(headers, policies) {
     throw new Error(`csp.mjs: _headers has ${every.length} "/*" rules, not 1, for the policy`);
   if (every[0]?.set.some(([name]) => name === 'content-security-policy'))
     throw new Error('csp.mjs: the "/*" rule already sends a policy: the build owns it');
+  const host = before.find((rule) => !rule.path.startsWith('/'));
+  if (host !== undefined)
+    throw new Error(`csp.mjs: _headers has a rule for a host, ${host.path}: the checks read paths`);
   const own = [...policies]
     .filter(([path, policy]) => path !== '/404.html' && policy !== shared)
     .sort(([a], [b]) => a.localeCompare(b));
@@ -175,6 +189,8 @@ export function withPagePolicies(headers, policies) {
     /^\/\*\r?\n/m,
     (line) => `${line}  Content-Security-Policy: ${shared}\n`,
   );
+  if (written === headers)
+    throw new Error('csp.mjs: no _headers line is "/*" alone, so the policy has no place to go');
   const text =
     own.length === 0
       ? written

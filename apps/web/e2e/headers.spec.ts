@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import {
   IMMUTABLE,
   LEGACY_HEADER_POLICY,
+  LEGACY_SOLVER_POLICY,
   MISSING,
   NEVER_SENT,
   ON_WORKER_PREVIEW,
@@ -121,7 +122,7 @@ test('security.txt is plain UTF-8 text (RFC 9116)', async ({ request }) => {
 // 'self', and no 'wasm-unsafe-eval'. Each, and the page, names Accept-Encoding in Vary, as every
 // response does: the WebAssembly is the largest file the site serves. A build from before the lab
 // has none of it, so a rollback's smoke skips this; one from before 2026-10-25 sent the solver's
-// policy beside frame-ancestors (ADR 0018).
+// policy of then beside frame-ancestors (ADR 0018).
 test("the Route Lab's solver: its own policy alone, its types, a year's cache", async ({
   request,
 }) => {
@@ -137,7 +138,7 @@ test("the Route Lab's solver: its own policy alone, its types, a year's cache", 
     const response = await request.get(`${SOLVER}${file}`, { maxRedirects: 0 });
     expect(response.status(), file).toBe(200);
     expect(policies(response.headersArray()).sort(), file).toEqual(
-      legacy ? [SOLVER_POLICY, LEGACY_HEADER_POLICY].sort() : [SOLVER_POLICY],
+      legacy ? [LEGACY_SOLVER_POLICY, LEGACY_HEADER_POLICY].sort() : [SOLVER_POLICY],
     );
     expect(response.headers()['content-type'], file).toMatch(type);
     expect(response.headers()['cache-control'], file).toBe(IMMUTABLE);

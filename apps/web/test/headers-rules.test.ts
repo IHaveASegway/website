@@ -110,7 +110,7 @@ describe('known answers', () => {
   const solver = `${SOLVER_RULE}\n  ! Content-Security-Policy\n  Content-Security-Policy: ${SOLVER_POLICY}\n`;
   const every = '/*\n  X-Content-Type-Options: nosniff\n';
 
-  test('known answers: the server reads "! Name" only with the space, and a path defined twice by its last rule', () => {
+  test('known answers: the server reads "! Name" only with the space, a path defined twice by its last rule, and a host as a rule', () => {
     const page = "/*\n  Content-Security-Policy: default-src 'self'\n";
     const unspaced = `${SOLVER_RULE}\n  !Content-Security-Policy\n  Content-Security-Policy: ${SOLVER_POLICY}\n`;
     expect(
@@ -121,6 +121,10 @@ describe('known answers', () => {
     const twice = '/*\n  X-A: first\n\n/x\n  X-B: c\n\n/*\n  X-A: last\n';
     expect(headersFor(twice, '/x').get('x-a')).toBe('last');
     expect([...headersFor(twice, '/x').keys()]).toEqual(['x-a', 'x-b']);
+    // A URL with a host opens a rule of its own, so its header is not the rule above's.
+    const host = '/x\n  X-A: b\nhttps://example.com/x\n  X-C: d\n';
+    expect(rules(host).map((rule) => rule.path)).toEqual(['/x', 'https://example.com/x']);
+    expect([...headersFor(host, '/x').keys()]).toEqual(['x-a']);
   });
 
   test('a solver rule that does not detach the page policy fails, and resolves to two policies', () => {
