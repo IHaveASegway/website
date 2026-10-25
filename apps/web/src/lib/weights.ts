@@ -83,5 +83,6 @@ export function declaredFonts(html: string): string[] {
   return [...new Set(sources)];
 }
 
-/** The theme script exactly as Base.astro inlines it and astro.config.mjs hashes it. */
+/** The theme script exactly as Base.astro inlines it; the build hashes it with the rest of a page's
+ *  inline code into the page policy (src/lib/csp.mjs). */
 export const THEME_SCRIPT: string = themeSource;

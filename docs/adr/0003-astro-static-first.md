@@ -126,3 +126,7 @@ Two lines of the postscript above no longer hold, and neither changes the decisi
 
 - **The telemetry strip's data center** is dropped, not deferred: no page describes the site any more ([design-system.md](../design-system.md#nothing-on-the-page-describes-the-site)).
 - **Eager JavaScript** is 546 B on a content page, still the theme script alone. It ships without comments, and keeps the visitor's choice in `sessionStorage` for the tab instead of `localStorage` ([security.md](../security.md#privacy-and-data-inventory)). The script still runs in `<head>`, before the policy, pinned byte for byte by the same two tests.
+
+## Postscript 2026-10-25
+
+Astro no longer writes the page policy: `security.csp` is off, and the build writes the policy into `dist/_headers` as a header, with a hash for each page's inline code ([ADR 0018](0018-page-policy-as-a-header.md)). A header applies before the first byte of markup, so the theme script in `<head>` is governed like everything else, and the exception in the postscript of 2026-10-23 is closed. The decision stands; no Revisit if condition was met.

@@ -30,11 +30,9 @@ const { entry } = Astro.props;
 // The one demo so far. A second demo brings its own component here, by slug.
 if (entry.slug !== 'routes') throw new Error(`lab: no demo component for ${entry.slug}`);
 
-// A demo page names where its workers may come from: this origin only (ADR 0016). worker-src
-// allows nothing script-src 'self' does not; it keeps a later script-src host from also becoming a
-// worker source. 'wasm-unsafe-eval' is not here: the worker's own response carries it (_headers).
-if (!Astro.csp) throw new Error('lab: the page policy is off (astro.config.mjs, security.csp)');
-Astro.csp.insertDirective("worker-src 'self'");
+// A demo page names where its workers may come from, this origin only, in its policy's
+// worker-src: src/lib/csp.mjs adds it by the page's path (ADR 0016). 'wasm-unsafe-eval' is not in
+// the page's policy: the worker's own response carries it (public/_headers).
 
 const { name } = (await loadProfile()).basics;
 // Astro's root is the working directory: astro.config.mjs sets no other (node-solver.ts).
