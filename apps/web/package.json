@@ -31,6 +31,7 @@
   "devDependencies": {
     "@astrojs/check": "0.9.12",
     "@axe-core/playwright": "catalog:",
+    "@lhci/cli": "0.15.1",
     "@playwright/test": "catalog:",
     "@types/culori": "^4.0.1",
     "@types/node": "^26.6.5",

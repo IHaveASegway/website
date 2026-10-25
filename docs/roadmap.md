@@ -20,7 +20,7 @@ Status: Draft for review in PR 1 · 2026-10-22
 
 The per-PR checklists below add to this one.
 
-- [ ] CI is green: `verify`, `firewall`, `preview` and `e2e` on the pull request (from PR 2; PR 1 was scanned locally before commit). Until the first deploy from `main` creates production, `preview` publishes nothing and `e2e` runs on `wrangler dev` ([delivery.md](delivery.md#pipeline)).
+- [ ] CI is green: `verify`, `firewall`, `preview`, `e2e` and, since 2026-10-25, `lighthouse` on the pull request (from PR 2; PR 1 was scanned locally before commit). Until the first deploy from `main` creates production, `preview` publishes nothing and `e2e` runs on `wrangler dev` ([delivery.md](delivery.md#pipeline)).
 - [ ] Joseph has read the preview end to end on a phone-width screen and a desktop, against the pull request template's content checklist. A pull request with no preview, PR 2 among them, is read on `wrangler dev` serving the same `dist/`. That checklist covers what regex cannot see: paraphrase, screenshots, image metadata. A pull request that changes copy gets this read on a later day than it was written: with no second reviewer, a night's distance is the cheapest stand-in for one.
 - [ ] The doc that owns each topic the pull request touched is updated in the same pull request. If an ADR changed, so did the [ADR index](adr/README.md).
 - [ ] The ADRs the pull request builds on are Accepted, or rewritten and then Accepted.
@@ -183,7 +183,7 @@ Phase 2 · estimate: about 2.5 focused days (about 12 of PR 3's 47 measured hour
 **Done when:**
 - [ ] `/colophon/` is live, and the ADRs Joseph has opted in render at `/colophon/decisions/<nnnn-slug>/`. An ADR that is not opted in does not render.
 - [ ] Unless Q-analytics says no, the Web Analytics beacon is live with its CSP entries, and the request watcher allows exactly its path.
-- [ ] Home transfer size and the Lighthouse CI assertions fail the build when exceeded.
+- [x] Home transfer size and the Lighthouse CI assertions fail the build when exceeded. Done on 2026-10-25 by the `lighthouse` job, on every page of the build ([delivery.md](delivery.md#pipeline)).
 - [ ] How the field p75 is read from Web Analytics is settled ([delivery.md](delivery.md)).
 - [ ] The CSP owner is revisited: a header policy generated at build would govern the theme script too ([security.md](security.md#headers-and-content-security-policy)).
 
@@ -200,7 +200,7 @@ Phase 2 · estimate: 0.5 focused days · blocked by: [Q-visibility](product.md);
 - [ ] A full-history scan (`--log-opts=--all`) is clean, including commit identities. It runs on a clone that has also fetched every pull request head (`git fetch origin '+refs/pull/*/head:refs/remotes/origin/pr/*'`), because closed pull requests stay public through `refs/pull/` after their branches are deleted. No pull request timeline shows a force push; if one does, the commits it replaced are scanned by SHA first ([ADR 0012](adr/0012-public-repository.md)).
 - [ ] A read of every past pull request title, body, review, review comment and conversation comment, every issue and issue comment, each with its edit history, every branch name and every Actions log is clean (each can be listed with `gh api`), because the switch publishes all of them. A finding in an edit history is removed by deleting that revision, because editing the text leaves the old revision visible. Actions logs are also checked for the account ID and email addresses ([security.md](security.md#scrubbing-evidence)), or the runs from before the switch are deleted.
 - [ ] Joseph has said yes, and ADR 0012 is Accepted. License files match Q-license.
-- [ ] After the switch, a ruleset requires a pull request and the checks `verify`, `firewall` and `e2e`. GitHub rejects a direct push to `main` (tried once).
+- [ ] After the switch, a ruleset requires a pull request and the checks `verify`, `firewall`, `e2e` and `lighthouse`. GitHub rejects a direct push to `main` (tried once).
 - [ ] [security.md](security.md) records the new trust boundary.
 
 **What it teaches.** A **one-way door**: clones and forks keep whatever was public, so history must be clean before the switch, not after it. **Trust boundaries move**: in a private repository CI prevents publication; in a public one content is published at `git push` and CI can only detect, which leaves the local hooks as the only prevention. Choosing where prevention happens is the design decision here.

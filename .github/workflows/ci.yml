@@ -318,6 +318,77 @@ jobs:
             apps/web/test-results-writing
           retention-days: 14
 
+  lighthouse:
+    needs: [verify, firewall, preview]
+    # Synthetic performance (design-system.md, "Budgets"; delivery.md): Lighthouse CI on simulated
+    # mobile, 3 runs on every page of the build, against the preview, or wrangler dev serving the
+    # same dist/ when there is none, as e2e does. A job of its own, beside e2e rather than after it,
+    # so a run takes longer only by however much it outlasts e2e. A required check (ADR 0006).
+    if: >-
+      ${{ !cancelled() && github.event_name == 'pull_request'
+      && needs.firewall.result == 'success'
+      && (needs.preview.result == 'success' || needs.preview.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    # Playwright's image, as e2e: its Chromium is the browser Lighthouse drives.
+    container:
+      image: mcr.microsoft.com/playwright:v${{ needs.verify.outputs.playwright }}-noble
+      options: --user 1001
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: apps/web/dist
+      - name: Lighthouse CI, against the preview (or wrangler dev serving the same dist/)
+        working-directory: apps/web
+        shell: bash
+        env:
+          BASE_URL: ${{ needs.preview.outputs.url }}
+        # The pages are the ones e2e walks, read from the build by the same function (pagesIn),
+        # never a list kept here. The assertions are in lighthouserc.json, which
+        # test/lighthouse.test.ts holds to the budgets. lhci writes its reports to the filesystem
+        # only: never to its public upload storage.
+        run: |
+          set -euo pipefail
+          base="${BASE_URL:-http://127.0.0.1:8787}"
+          # An assignment, so a failed read stops the step (set -e); an empty one throws.
+          list="$(node --input-type=module -e "const { pagesIn } = await import('./e2e/expected.ts');
+            const pages = pagesIn('dist'); if (pages.length === 0) throw new Error('no page in dist/');
+            console.log(pages.join('\\n'))")"
+          mapfile -t pages <<<"$list"
+          # Playwright's Chromium, through the variable lhci's health check and launcher both read.
+          CHROME_PATH="$(node -p "require('@playwright/test').chromium.executablePath()")"
+          export CHROME_PATH
+          args=()
+          for page in "${pages[@]}"; do args+=(--collect.url="${base%/}$page"); done
+          if [ -z "${BASE_URL:-}" ]; then
+            # wrangler's line once it listens; 60 s, as playwright.config.ts gives the same command.
+            args+=(--collect.startServerCommand="pnpm run serve" --collect.startServerReadyPattern="Ready on"
+              --collect.startServerReadyTimeout=60000)
+          fi
+          pnpm exec lhci autorun "${args[@]}"
+      - name: Keep the reports (run artifacts only, never public storage)
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lighthouse-report
+          path: |
+            apps/web/lighthouse-report
+            apps/web/.lighthouseci
+          include-hidden-files: true
+          retention-days: 14
+
   deploy:
     needs: [verify, firewall] # the gate: nothing ships without both (ADR 0006)
     if: (github.event_name == 'push' || github.event_name == 'schedule') && github.ref == 'refs/heads/main'

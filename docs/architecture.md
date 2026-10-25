@@ -292,7 +292,7 @@ sequenceDiagram
   A->>A: verify, with no secrets
   A->>A: firewall, exit 0 or the run stops
   A->>P: wrangler preview --name pr-N
-  A->>P: e2e: Playwright, axe,<br/>headers, Lighthouse CI
+  A->>P: e2e: Playwright, axe, headers;<br/>lighthouse beside it
   J->>G: merge
   G->>A: push to main
   A->>A: verify, firewall
