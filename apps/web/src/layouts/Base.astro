@@ -49,8 +49,15 @@ const generated = areaRoutes(area);
 // covered, and test/csp.test.ts allows exactly this script, byte for byte, before the policy.
 // astro.config.mjs still hashes it into script-src, and JSON-LD closes <body>. The script carries
 // no comments, since it ships as written: what it does is told here and in design-system.md
-// ("Theme before first paint"). It applies a choice the visitor made in this tab, and handles the
-// toggle.
+// ("Theme before first paint"). It applies a choice the visitor made in this tab, again when the
+// browser restores the page from its back-forward cache, and handles the toggle.
+
+// The faces (design-system.md, "The faces"): Instrument Sans draws every word of every page's first
+// screen, so it is preloaded. JetBrains Mono sets values only, a post's dates, a card's tag and
+// figures, and code, none of them on Home or the 404 today. So it is not preloaded, and a page
+// fetches it when it sets something in it, in the fitted fallback until then.
+
+// The skip link sits in the masthead, the header's frame, which it covers when focused (global.css).
 
 // The browser chrome takes the page's background: one theme-color meta per OS scheme, resolved
 // from tokens.css at build (lib/tokens.ts). They come before the theme script, which points both
@@ -102,13 +109,13 @@ const chrome = (['dark', 'light'] as const).map((scheme) => ({
       />
     )}
     <Font cssVariable="--font-instrument-sans" preload />
-    <Font cssVariable="--font-jetbrains-mono" preload />
+    <Font cssVariable="--font-jetbrains-mono" />
   </head>
   <body class="flex min-h-dvh flex-col">
-    <a class="skip-link" href="#main">
-      Skip to content
-    </a>
-    <div class="frame">
+    <div class="frame masthead">
+      <a class="skip-link" href="#main">
+        Skip to content
+      </a>
       <Header name={profile.basics.name} generated={generated} />
     </div>
     <main id="main" class="frame flex-1">

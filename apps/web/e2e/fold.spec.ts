@@ -18,13 +18,26 @@ async function measure(page: Page, fonts: Fonts) {
   if (fonts === 'blocked') await page.route('**/*.woff2', (route) => route.abort());
   await page.goto('/');
   await page.evaluate(() => document.fonts.ready);
-  const web = await page.evaluate(() =>
+  const faces = await page.evaluate(() =>
     [...document.fonts]
       .filter((face) => /^(Instrument Sans|JetBrains Mono)-/.test(face.family.replace(/"/g, '')))
-      .map((face) => face.status),
+      .map(
+        (face) => [face.family.replace(/"/g, '').replace(/-[0-9a-f]+$/, ''), face.status] as const,
+      ),
   );
-  // Both web faces arrived, or both failed: never a mix that would measure something else.
-  expect(web).toEqual(fonts === 'loaded' ? ['loaded', 'loaded'] : ['error', 'error']);
+  // Each web face once, as before the mono preload left: a second face of one family, in another
+  // state, would otherwise go unseen.
+  expect(faces.map(([family]) => family).sort(), 'each web face once').toEqual([
+    'Instrument Sans',
+    'JetBrains Mono',
+  ]);
+  const web = Object.fromEntries(faces);
+  // Every web face Home uses arrived, or every one failed: never a mix that would measure something
+  // else. Home sets nothing in JetBrains Mono today, so that face is never fetched ("unloaded");
+  // once a card sets its tag in mono, the face loads or fails with the sans.
+  const status = fonts === 'loaded' ? 'loaded' : 'error';
+  expect(web['Instrument Sans']).toBe(status);
+  expect([status, 'unloaded']).toContain(web['JetBrains Mono']);
   return page.evaluate(() => {
     const rows = [...document.querySelectorAll<HTMLElement>('[data-row]')];
     const box = (selector: string) => document.querySelector(selector)?.getBoundingClientRect();

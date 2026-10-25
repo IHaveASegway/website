@@ -2,12 +2,16 @@
 # The page policy (default-src, script-src, style-src and the rest) is Astro's <meta> tag, built
 # from astro.config.mjs. A <meta> policy cannot carry frame-ancestors, so this file sends it.
 # Strict-Transport-Security is the zone's alone and never appears here (ADR 0011).
+# Vary tells a cache between here and the reader that a response compressed for one client is not
+# the bytes for another; the asset server compresses by Accept-Encoding without saying so
+# (delivery.md, "Config as code").
 /*
   Content-Security-Policy: frame-ancestors 'none'
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
   Cross-Origin-Opener-Policy: same-origin
+  Vary: Accept-Encoding
 
 # RFC 9116, section 3: security.txt is served as text/plain with charset=utf-8. Production's asset
 # server sends text types without a charset (wrangler dev adds one), so this rule sets it.

@@ -60,6 +60,311 @@ for (const fonts of ['loaded', 'blocked'] as const) {
   });
 }
 
+// A larger default text size (SC 1.4.4 with SC 1.4.10): a reader who sets the browser's text to
+// 24 or 32 px, 150% and 200% of the usual 16, on a phone. Chromium's own setting, through the
+// DevTools Protocol, so rem and the media queries grow as they do for that reader (a full-page
+// screenshot resets it). Nothing may scroll sideways, no button's label or icon may leave its border,
+// no text in the header or the footer may cross the frame's edge, and no word of the name may break
+// across lines, on Home's poster or in the header of every other page. The build of 2026-10-24 broke the name as "Peterso / n", put the LinkedIn arrow
+// outside its button, and scrolled 65 px sideways at 32 px and 320 px.
+const LARGER_TEXT = [24, 32] as const;
+
+interface Fault {
+  readonly where: string;
+  readonly what: string;
+}
+
+/** Everything a larger text size broke on the page. Runs in the page. */
+function largeTextFaults(): Fault[] {
+  const faults: Fault[] = [];
+  // Shown on screen: not inside an element that is not displayed or is clipped away, the way
+  // a name only assistive technology reads is hidden.
+  const shown = (node: Node) => {
+    for (let at = node instanceof Element ? node : node.parentElement; at; at = at.parentElement) {
+      const style = getComputedStyle(at);
+      if (style.display === 'none' || style.visibility === 'hidden' || style.clipPath !== 'none')
+        return false;
+    }
+    return true;
+  };
+  const rects = (range: Range) => [...range.getClientRects()].filter((r) => r.width && r.height);
+  const texts = (root: Node) => {
+    const found: Text[] = [];
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode())
+      if (node instanceof Text && node.data.trim() && shown(node)) found.push(node);
+    return found;
+  };
+  const boxes = (node: Text) => {
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    return rects(range);
+  };
+  const name = (element: Element) => (element.textContent ?? '').replace(/\s+/g, ' ').trim();
+
+  const overflow = document.documentElement.scrollWidth - innerWidth;
+  if (overflow > 0) faults.push({ where: 'page', what: `scrolls ${overflow} px sideways` });
+
+  for (const button of document.querySelectorAll('a.btn, button')) {
+    if (!button.checkVisibility()) continue;
+    const box = button.getBoundingClientRect();
+    const icons = [...button.querySelectorAll('svg')].filter(shown);
+    const parts = [
+      ...texts(button).flatMap(boxes),
+      ...icons.map((icon) => icon.getBoundingClientRect()),
+    ];
+    const outside = (r: DOMRect) =>
+      r.left < box.left - 0.5 ||
+      r.right > box.right + 0.5 ||
+      r.top < box.top - 0.5 ||
+      r.bottom > box.bottom + 0.5;
+    if (parts.some(outside)) faults.push({ where: name(button), what: 'content outside its box' });
+  }
+
+  for (const region of document.querySelectorAll('header, footer')) {
+    const frame = region.closest('.frame') ?? region;
+    const style = getComputedStyle(frame);
+    const edge = frame.getBoundingClientRect();
+    const [left, right] = [
+      edge.left + parseFloat(style.paddingLeft),
+      edge.right - parseFloat(style.paddingRight),
+    ];
+    const past = texts(region).filter((text) =>
+      boxes(text).some((r) => r.left < left - 0.5 || r.right > right + 0.5),
+    );
+    for (const text of past)
+      faults.push({ where: region.localName, what: `"${text.data.trim()}" past the frame` });
+  }
+
+  for (const heading of document.querySelectorAll('.hero-name, .wordmark')) {
+    for (const text of texts(heading)) {
+      for (const word of text.data.matchAll(/\S+/g)) {
+        const range = document.createRange();
+        range.setStart(text, word.index);
+        range.setEnd(text, word.index + word[0].length);
+        const lines = new Set(rects(range).map((r) => Math.round(r.top)));
+        if (lines.size > 1)
+          faults.push({ where: 'name', what: `"${word[0]}" breaks across ${lines.size} lines` });
+      }
+    }
+  }
+  return faults;
+}
+
+/** The browser's default text size, as a reader sets it in Chromium's settings. */
+async function setDefaultTextSize(page: Page, px: number) {
+  const devtools = await page.context().newCDPSession(page);
+  await devtools.send('Page.setFontSizes', {
+    fontSizes: { standard: px, fixed: Math.round((px * 13) / 16) },
+  });
+}
+
+for (const size of LARGER_TEXT) {
+  for (const width of [320, 390]) {
+    test(`at ${size} px default text and ${width} px wide, nothing scrolls sideways, leaves its box or breaks a word (SC 1.4.4, 1.4.10)`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await setDefaultTextSize(page, size);
+      for (const path of ROUTES) {
+        await page.goto(path);
+        await page.evaluate(() => document.fonts.ready);
+        const root = await page.evaluate(() => getComputedStyle(document.documentElement).fontSize);
+        expect(root, `${path}: the setting applies`).toBe(`${size}px`);
+        expect(await page.evaluate(largeTextFaults), path).toEqual([]);
+      }
+    });
+  }
+}
+
+test('known answers: the larger-text check names each fault, and passes a name only a reader hears', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  // Monospace, so the widths do not depend on the machine: 0.6em a character.
+  await page.setContent(
+    [
+      '<body style="margin: 0; font: 20px monospace">',
+      '<h1 class="hero-name" style="width: 90px; margin: 0; font-size: 20px; overflow-wrap: break-word">Joseph Peterson</h1>',
+      '<a class="btn" href="/x" style="display: inline-flex; width: 60px; white-space: nowrap; font-size: 16px">LinkedIn ↗</a>',
+      '<button type="button" style="width: 44px; height: 44px"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap">A name only a reader hears</span></button>',
+      '<div class="frame" style="padding: 0 80px"><footer style="white-space: nowrap; font-size: 16px">hello@ihaveasegway.com</footer></div>',
+      '</body>',
+    ].join(''),
+  );
+  const faults = await page.evaluate(largeTextFaults);
+  expect(faults.map(({ where, what }) => `${where}: ${what}`)).toEqual([
+    'LinkedIn ↗: content outside its box',
+    'footer: "hello@ihaveasegway.com" past the frame',
+    'name: "Peterson" breaks across 2 lines',
+  ]);
+  await page.setViewportSize({ width: 200, height: 640 });
+  expect((await page.evaluate(largeTextFaults))[0]?.what).toMatch(/^scrolls \d+ px sideways$/);
+});
+
+// The skip link (SC 2.4.1), focused, covers the header's whole row, so nothing in the header shows
+// around it in part. At 2026-10-24's build it covered most of the name in the 404's header and left
+// the last letters showing beside it.
+/** What the focused skip link covers in part, or why it is not there to cover anything: the
+ *  header's words and icons, as drawn, not the boxes around them. Runs in the page. */
+function partlyCovered(): string[] {
+  const link = document.activeElement;
+  if (!(link instanceof HTMLElement) || !link.matches('.skip-link')) return ['not focused'];
+  const cover = link.getBoundingClientRect();
+  if (cover.top < 0 || cover.bottom > innerHeight || !cover.height) return ['off screen'];
+  const header = document.querySelector('header');
+  if (!header) return [];
+  const clipped = (node: Node) => {
+    for (let at = node.parentElement; at; at = at.parentElement)
+      if (getComputedStyle(at).clipPath !== 'none') return true;
+    return false;
+  };
+  const drawn: { what: string; boxes: DOMRect[] }[] = [];
+  const walker = document.createTreeWalker(header, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const words = node.textContent?.trim() ?? '';
+    if (!words || clipped(node)) continue;
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    drawn.push({ what: words, boxes: [...range.getClientRects()] });
+  }
+  for (const icon of header.querySelectorAll('svg'))
+    if (icon.checkVisibility()) drawn.push({ what: 'icon', boxes: [icon.getBoundingClientRect()] });
+  const area = (r: DOMRect) => r.width * r.height;
+  const overlap = (r: DOMRect) =>
+    Math.max(0, Math.min(r.right, cover.right) - Math.max(r.left, cover.left)) *
+    Math.max(0, Math.min(r.bottom, cover.bottom) - Math.max(r.top, cover.top));
+  const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
+  return drawn
+    .filter(({ boxes }) => {
+      const covered = sum(boxes.map(overlap));
+      return covered > 0.5 && covered < sum(boxes.map(area)) - 0.5;
+    })
+    .map(({ what }) => what);
+}
+
+const SKIP_VIEWS = [
+  { width: 390, size: 16 },
+  { width: 1440, size: 16 },
+  { width: 320, size: 32 },
+] as const;
+
+for (const { width, size } of SKIP_VIEWS) {
+  test(`the focused skip link covers the header's row cleanly, ${width} px wide at ${size} px text`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 700 });
+    if (size !== 16) await setDefaultTextSize(page, size);
+    for (const path of ROUTES) {
+      await page.goto(path);
+      await page.evaluate(() => document.fonts.ready);
+      const root = await page.evaluate(() => getComputedStyle(document.documentElement).fontSize);
+      expect(root, `${path}: the text size applies`).toBe(`${size}px`);
+      await page.keyboard.press('Tab');
+      expect(await page.evaluate(partlyCovered), path).toEqual([]);
+    }
+  });
+}
+
+test('known answers: the cover check names what shows in part, and passes what is hidden whole', async ({
+  page,
+}) => {
+  // Monospace, so the name is 15 × 9.6 = 144 px wide on any machine.
+  const view = (cover: number) =>
+    page.setContent(
+      '<body style="margin: 0; font: 16px monospace">' +
+        `<a class="skip-link" href="#m" style="position: absolute; top: 0; left: 0; width: ${cover}px; height: 40px">Skip</a>` +
+        '<header><a href="/" style="white-space: nowrap">Joseph Peterson</a></header></body>',
+    );
+  await view(100);
+  await page.focus('.skip-link');
+  expect(await page.evaluate(partlyCovered)).toEqual(['Joseph Peterson']);
+  await view(400);
+  await page.focus('.skip-link');
+  expect(await page.evaluate(partlyCovered)).toEqual([]);
+  await page.focus('header a');
+  expect(await page.evaluate(partlyCovered)).toEqual(['not focused']);
+});
+
+// Selected text (design-system.md, "Measured contrast"). A browser paints a selection's fill over
+// the face's own height, ascent to descent, one line at a time, each over the line before it. Where
+// a block sets its lines closer than that, as display type does (0.86 for the name, 1.02 to 1.2 for
+// titles), a fill would hide the foot of the line above: on the first fix of 2026-10-25, with the
+// name selected, "Joseph" read as "Iosenh" and the 404's "Page" as "Paqe". So text set that close
+// has a selection with no fill, only a color (global.css).
+interface Selected {
+  /** Text in a block whose lines are closer together than the face is tall. */
+  readonly close: number;
+  /** Of those, each whose selection still paints a fill, with the fill. */
+  readonly filled: string[];
+}
+
+/** Text whose selection fill would cover part of the line above it. Runs in the page. */
+function selectionFills(): Selected {
+  const filled: string[] = [];
+  let close = 0;
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const element = node.parentElement;
+    const at = (node.nodeValue ?? '').search(/\S/);
+    if (!element || at < 0 || !element.checkVisibility()) continue;
+    // The face's height: what one character's box spans, ascent to descent.
+    const range = document.createRange();
+    range.setStart(node, at);
+    range.setEnd(node, at + 1);
+    const height = range.getClientRects()[0]?.height ?? 0;
+    // The distance between its lines: the line height of the block the text flows in.
+    let block: Element = element;
+    while (['inline', 'contents'].includes(getComputedStyle(block).display) && block.parentElement)
+      block = block.parentElement;
+    const pitch = parseFloat(getComputedStyle(block).lineHeight); // "normal" spaces by the face
+    if (!(height > pitch + 0.5)) continue;
+    close++;
+    const fill = getComputedStyle(element, '::selection').backgroundColor;
+    if (fill !== 'rgba(0, 0, 0, 0)' && fill !== 'transparent')
+      filled.push(`"${(node.nodeValue ?? '').trim().slice(0, 40)}": ${fill}`);
+  }
+  return { close, filled };
+}
+
+for (const width of [390, 1440]) {
+  test(`selected text set closer than its face is tall has no fill, ${width} px wide`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    for (const path of ROUTES) {
+      await page.goto(path);
+      await page.evaluate(() => document.fonts.ready);
+      const { close, filled } = await page.evaluate(selectionFills);
+      // Every page sets a title or the name that close, so the check always has text to read.
+      expect(close, `${path}: display type found`).toBeGreaterThan(0);
+      expect(filled, path).toEqual([]);
+    }
+  });
+}
+
+test('known answers: the selection check names close lines with a fill, and passes no fill or open lines', async ({
+  page,
+}) => {
+  await page.setContent(
+    [
+      '<style>::selection { background-color: rgb(200, 100, 0); color: white }',
+      '.clear::selection, .clear *::selection { background-color: transparent; color: rgb(200, 100, 0) }</style>',
+      '<body style="margin: 0; font: 40px monospace">',
+      '<h1 style="line-height: 0.8">Filled</h1>',
+      '<h1 class="clear" style="line-height: 0.8">Clear</h1>',
+      '<h2 style="line-height: 0.8"><a href="/a/">Inner</a></h2>',
+      '<h2 class="clear" style="line-height: 0.8"><a href="/b/">Inherited</a></h2>',
+      '<p style="line-height: 2">Open <sup style="line-height: 0">1</sup></p>',
+      '</body>',
+    ].join(''),
+  );
+  expect(await page.evaluate(selectionFills)).toEqual({
+    close: 4,
+    filled: ['"Filled": rgb(200, 100, 0)', '"Inner": rgb(200, 100, 0)'],
+  });
+});
+
 // Target size (design-system.md, "Accessibility rules"). axe's target-size rule passes a small
 // target through SC 2.5.8's spacing exception, which is how 19 px footer links went unnoticed; this
 // holds the site's own rule instead, at a phone's width. Every link and button is at least 24 × 24

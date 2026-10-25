@@ -12,8 +12,10 @@ interface Props {
 const { profile, generated } = Astro.props;
 // One line: the address, the pages that exist (RSS, Now, Colophon), the external profiles whose
 // readiness check is recorded (rel="me" pairs each with the profile's link back to this site), and
-// the copyright, in the build's year.
+// the copyright, in the build's year. The address may break after its "@" when a larger text size
+// leaves it no room on one line, and never elsewhere unless a part alone is wider than the screen.
 const year = new Date().getUTCFullYear();
+const [mailbox, domain] = CONTACT_EMAIL.split('@');
 const links = [
   ...navFor('footer', generated).map((item) => ({
     label: item.label,
@@ -27,7 +29,8 @@ const links = [
 <footer class="frame">
   <div class="site-footer">
     <a class="footer-email" href={`mailto:${CONTACT_EMAIL}`}>
-      {CONTACT_EMAIL}
+      {mailbox}@<wbr />
+      {domain}
     </a>
     {links.length > 0 && (
       <ul class="footer-links">

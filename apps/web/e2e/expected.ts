@@ -200,6 +200,18 @@ export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
 /** Headers this site never sends (security.md, "Never sent"). */
 export const NEVER_SENT = ['x-xss-protection', 'expect-ct', 'x-frame-options'] as const;
 
+/** The name public/_headers adds to Vary on every response, so a cache between the site and a
+ *  reader keeps a compressed copy apart from the plain one (delivery.md, "Config as code"). */
+export const VARY = 'accept-encoding';
+
+/** The request headers a Vary value names, lowercased, in order. */
+export function varyNames(value: string | undefined): string[] {
+  return (value ?? '')
+    .split(',')
+    .map((name) => name.trim().toLowerCase())
+    .filter(Boolean);
+}
+
 /** Content-hashed bundles under /_astro/ (delivery.md, "Config as code"). */
 export const IMMUTABLE = 'public, max-age=31536000, immutable';
 
