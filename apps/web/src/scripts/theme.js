@@ -14,8 +14,12 @@
       return null;
     }
   };
-  const stored = session((storage) => storage.getItem('theme'));
-  set(stored === 'dark' || stored === 'light' ? stored : 'system');
+  const read = () => session((storage) => storage.getItem('theme') ?? 'system');
+  const apply = (stored) => set(stored === 'dark' || stored === 'light' ? stored : 'system');
+  apply(read());
+  addEventListener('pageshow', (event) => {
+    if (event.persisted) apply(read() ?? root.dataset.theme);
+  });
 
   document.addEventListener('click', (event) => {
     if (!(event.target instanceof Element) || !event.target.closest('[data-theme-toggle]')) return;
