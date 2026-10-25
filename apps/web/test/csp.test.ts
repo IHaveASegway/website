@@ -9,9 +9,12 @@ import { attribute, elementsOf, markupOf } from './support/html';
 // Policy"). e2e/csp.spec.ts proves the same policy in a browser; this proves it on every build,
 // without one, so a Dependabot pull request that changes Astro's output is caught in verify.
 
+// 'wasm-unsafe-eval' is refused on every page, the Route Lab included: its worker carries it, in
+// the worker's own response header, and a page's policy never governs a worker (ADR 0016).
 const FORBIDDEN_SCRIPT_SOURCES = [
   "'unsafe-inline'",
   "'unsafe-eval'",
+  "'wasm-unsafe-eval'",
   '*',
   'data:',
   'https:',
@@ -21,7 +24,8 @@ const themeHash = `'sha256-${createHash('sha256').update(THEME_SCRIPT).digest('b
 
 /** The directives the policy holds, and no others (security.md, "Headers and Content Security
  *  Policy"). A new directive, or a host in any of them, is a change to this list in review. */
-const DIRECTIVES: Readonly<Record<string, readonly string[] | 'self and hashes'>> = {
+type Directives = Readonly<Record<string, readonly string[] | 'self and hashes'>>;
+const DIRECTIVES: Directives = {
   'default-src': ["'self'"],
   'img-src': ["'self'"],
   'font-src': ["'self'"],
@@ -33,6 +37,18 @@ const DIRECTIVES: Readonly<Record<string, readonly string[] | 'self and hashes'>
   'style-src': 'self and hashes',
 };
 const HASH = /^'sha256-[A-Za-z0-9+/]+={0,2}'$/;
+
+/** The one page whose policy adds a directive (ADR 0016): the Route Lab starts a module worker,
+ *  and names this origin as the only place one may come from. */
+const PAGE_DIRECTIVES: Readonly<Record<string, Directives>> = {
+  'lab/routes/index.html': { 'worker-src': ["'self'"] },
+};
+
+/** The directives a page's policy must hold: the site's, plus that page's own. */
+export const directivesFor = (file: string): Directives => ({
+  ...DIRECTIVES,
+  ...PAGE_DIRECTIVES[file],
+});
 
 /** Each element that carries a style attribute, as the browser's parser reads the page: a ">" in
  *  another attribute's value, a comment or a script's text cannot hide one or invent one. */
@@ -104,8 +120,9 @@ for (const file of html) {
     });
 
     test('the policy holds exactly the known directives, as security.md sets them', () => {
-      expect([...directives.keys()].sort()).toEqual(Object.keys(DIRECTIVES).sort());
-      for (const [name, value] of Object.entries(DIRECTIVES)) {
+      const expected = directivesFor(file);
+      expect([...directives.keys()].sort()).toEqual(Object.keys(expected).sort());
+      for (const [name, value] of Object.entries(expected)) {
         if (value !== 'self and hashes') expect(directives.get(name), name).toEqual(value);
       }
     });
@@ -246,6 +263,18 @@ test('known answers: a style attribute is found as the browser parses the page, 
   // None of these is a style attribute: another attribute's name or value, a comment, script text.
   expect(styled('<p data-style="x" title=" style=x">a</p>')).toEqual([]);
   expect(styled('<!-- <p style="x"> --><script>let s = "<p style=x>";</script>')).toEqual([]);
+});
+
+test('known answers: worker-src belongs to the Route Lab alone, and wasm-unsafe-eval to no page', () => {
+  expect(Object.keys(directivesFor('lab/routes/index.html'))).toContain('worker-src');
+  for (const file of ['index.html', 'lab/index.html', '404.html', 'writing/index.html'])
+    expect(Object.keys(directivesFor(file)), file).not.toContain('worker-src');
+  const page = (sources: string) =>
+    `<meta http-equiv="content-security-policy" content="script-src ${sources}; worker-src 'self'">`;
+  const sources = policy(page("'self' 'wasm-unsafe-eval'")).get('script-src') ?? [];
+  expect(sources.filter((s) => FORBIDDEN_SCRIPT_SOURCES.includes(s))).toEqual([
+    "'wasm-unsafe-eval'",
+  ]);
 });
 
 test('known answer: the parser reads a policy and the check sees a broad source', () => {

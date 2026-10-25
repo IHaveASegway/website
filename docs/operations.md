@@ -373,6 +373,8 @@ Each row carries an estimate of the minutes it costs a month, with quarterly and
 | Quarterly | Cloudflare members and API tokens; GitHub tokens, SSH keys and authorized apps. Delete anything unused. Also the zone's AI-crawler setting, which the token-free audit cannot read ([security.md](security.md)) | Dashboards | 5 |
 | Quarterly | Export the zone with `cf-terraforming` and a 7-day read-only token, kept outside the repo; copy any analytics numbers worth keeping into the repo, since Web Analytics keeps 6 months | By hand ([security.md](security.md)) | 7 |
 | Quarterly | ADR "Revisit if" triggers | [ADR index](adr/README.md) | 10 |
+| Quarterly, from 2026-10-25 | VROOM and Emscripten releases, which Dependabot cannot see: a new VROOM release is rebuilt with `tools/vroom-wasm/build/build.sh`, checked with its `test/run-all.sh` and installed with `install.mjs`, in a pull request of its own ([ADR 0016](adr/0016-route-lab-in-the-browser.md)) | Release pages; the README in `tools/vroom-wasm/` | 5 |
+| Yearly, from 2026-10-25 | Refresh the Route Lab's OpenStreetMap data: `node build.mjs --fresh` in `tools/route-data/pipeline/` (162 s on 4 CPUs, about 300 MB of work files, deleted after), then the golden figures in the tests move with it | `tools/route-data/out/README.md` | 2 |
 | Quarterly | Compare `profile.json`'s title, role names and years with LinkedIn, and edit by hand (Q-title, [ADR 0004](adr/0004-content-as-code.md)) | By hand | 2 |
 | When Cloudflare's changelog announces a pricing or limits change | Re-check the affected rows of the price sheet in [cost.md](cost.md); a full pass once a year | The changelog's [RSS feed](https://developers.cloudflare.com/changelog/rss/index.xml) | 8 |
 | Yearly, 30 days before the deploy token's end date (set in PR 2) | Rotate the deploy token, the lab read token (Phase 4) and the cron-breaker token (after an upgrade), which share its end date | [Rotate the Cloudflare token](#rotate-the-cloudflare-token) | 3 |
@@ -381,10 +383,10 @@ Each row carries an estimate of the minutes it costs a month, with quarterly and
 | Yearly | GitHub and Cloudflare recovery codes are offline and readable, each hardware key still signs in, and the primary and recovery emails on both accounts are personal addresses ([security.md](security.md)) | By hand | 2 |
 | Yearly | The Node LTS line (26 is supported until 2029-04-30) and the toolchain pins in [delivery.md](delivery.md) | Release schedules | 2 |
 | At any job change | The primary and recovery emails on GitHub and Cloudflare are personal addresses | Account settings | — |
-| **Before the lab** | | | **About 110: 1 h 50 min** |
+| **Before the lab** | | | **About 110: 1 h 50 min**, and 7 more for the Route Lab from 2026-10-25: about 1 h 57 min |
 | **Added from Phase 4, by hand** | The weekly reconciliation and a second `compatibility_date` bump | | **About 53** |
 
-Before the lab the plan fits the target with about 10 minutes to spare, which is thin; the time log decides. Three cuts got it there:
+Before the lab the plan fits the target with about 10 minutes to spare, which is thin, and the Route Lab's two rows leave about 3; the time log decides. Three cuts got it there:
 
 - **Dependabot's grouped PRs are merged every other Monday, not weekly.** Security updates still merge as soon as CI passes. The trade: routine updates can wait a week longer, and each merge carries two weeks of changes.
 - **The price sheet is re-checked when Cloudflare's changelog announces a change**, plus one full pass a year, instead of a full pass every quarter.

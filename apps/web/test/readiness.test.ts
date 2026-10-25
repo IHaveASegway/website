@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { normalize } from '../src/lib/held-names';
+import { normalize, readingOf, views, type Reading } from '../src/lib/held-names';
 import { homeGraph } from '../src/lib/jsonld';
 import { checkedProfiles, HANDLE, isChecked, recordUrls, type Profile } from '../src/lib/profile';
 import { html, profile, read, textFiles } from './support/dist';
@@ -26,15 +26,18 @@ const LICENSE_NOTICES = [
   { file: 'fonts/OFL-JetBrainsMono.txt', url: 'https://github.com/JetBrains/JetBrainsMono' },
 ];
 
-/** Text as the URL checks read it: references decoded, JSON's "\/" and percent-encoded slashes
- *  and colons undone, so an escaped or encoded URL is the same URL. */
-function readable(text: string): string {
-  return normalize(text).replace(/\\\//g, '/').replace(/%2f/gi, '/').replace(/%3a/gi, ':');
+/** Text as the URL checks read it: markup with its references decoded; a script in each of its
+ *  views (lib/held-names.ts: as written, its string escapes decoded, and the markup it may write),
+ *  one per line; then JSON's "\/" and percent-encoded slashes and colons undone, so an escaped or
+ *  encoded URL is the same URL. */
+function readable(text: string, reading: Reading = 'markup'): string {
+  const read = reading === 'script' ? views(text, 'script').join('\n') : normalize(text);
+  return read.replace(/\\\//g, '/').replace(/%2f/gi, '/').replace(/%3a/gi, ':');
 }
 
 /** Every URL-shaped string: with a scheme, protocol-relative, or a bare GitHub host and path. */
-export function urlsIn(text: string): string[] {
-  const plain = readable(text);
+export function urlsIn(text: string, reading: Reading = 'markup'): string[] {
+  const plain = readable(text, reading);
   const tidy = (url: string) => url.replace(/[.,;:!?]+$/, '');
   const full = [...plain.matchAll(/(?:https?:)?\/\/[^\s"'<>()\\]+/gi)].map(([url]) => tidy(url));
   // A bare host inside a URL already found is that URL again, not a second one.
@@ -92,8 +95,12 @@ export function recordsOf(p: Profile): LinkRecord[] {
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /** Each unchecked record a text gives away: its URL in any spelling, or a profile's slug alone. */
-export function recordLeaks(text: string, records: readonly LinkRecord[]): string[] {
-  const plain = readable(text).toLowerCase();
+export function recordLeaks(
+  text: string,
+  records: readonly LinkRecord[],
+  reading: Reading = 'markup',
+): string[] {
+  const plain = readable(text, reading).toLowerCase();
   return records
     .filter((record) => !record.checked)
     .flatMap((record) => {
@@ -127,7 +134,9 @@ export function verdict(
 describe('every URL in dist/ that reaches the account comes from a checked record', () => {
   for (const file of textFiles) {
     test(file, () => {
-      expect(urlsIn(read(file)).flatMap((url) => verdict(url, file) ?? [])).toEqual([]);
+      expect(
+        urlsIn(read(file), readingOf(file)).flatMap((url) => verdict(url, file) ?? []),
+      ).toEqual([]);
     });
   }
 });
@@ -135,7 +144,7 @@ describe('every URL in dist/ that reaches the account comes from a checked recor
 test('no record renders before its check, in any spelling: profiles and projects alike', () => {
   expect(records.length).toBeGreaterThan(0);
   const leaks = textFiles.flatMap((file) =>
-    recordLeaks(read(file), records).map((leak) => `${file}: ${leak}`),
+    recordLeaks(read(file), records, readingOf(file)).map((leak) => `${file}: ${leak}`),
   );
   expect(leaks).toEqual([]);
 });
@@ -151,7 +160,7 @@ test.runIf(noGithubChecked)(
   () => {
     const found = textFiles.flatMap((file) => {
       const text = read(file);
-      const urls = urlsIn(text)
+      const urls = urlsIn(text, readingOf(file))
         .filter((url) => !LICENSE_NOTICES.some((n) => n.file === file && n.url === url))
         .filter(
           (url) =>
@@ -160,7 +169,9 @@ test.runIf(noGithubChecked)(
         .map((url) => `${file}: ${url}`);
       // The handle in its own capitals is the account's name, link or not (WebSite's
       // alternateName was one); the lowercase domain is the site's.
-      const handle = normalize(text).includes(HANDLE) ? [`${file}: the text ${HANDLE}`] : [];
+      const handle = normalize(text, readingOf(file)).includes(HANDLE)
+        ? [`${file}: the text ${HANDLE}`]
+        : [];
       return [...urls, ...handle];
     });
     expect(found).toEqual([]);
@@ -320,6 +331,20 @@ describe('known answers for the matcher', () => {
   for (const text of caught) {
     test(`caught: ${text}`, () => {
       expect(urlsIn(text).flatMap((url) => verdict(url, 'index.html', none) ?? [])).not.toEqual([]);
+    });
+  }
+  // In a script: written through innerHTML, escaped as a string, or split by markup.
+  const bs = '\\';
+  const caughtInScript = [
+    `a${amp}${amp}b;x.href="https:${bs}u002f${bs}u002fgithub.com${bs}u002f${HANDLE}"`,
+    `x.innerHTML="<a href=https://github${amp}#46;com/${HANDLE}>"`,
+    `x.innerHTML="https://git<wbr>hub.com/${HANDLE}"`,
+    `x.href="https://github${bs}x2ecom/${HANDLE}"`,
+  ];
+  for (const text of caughtInScript) {
+    test(`caught in a script: ${text}`, () => {
+      const found = urlsIn(text, 'script').flatMap((url) => verdict(url, 'app.js', none) ?? []);
+      expect(found).not.toEqual([]);
     });
   }
   const passed = [

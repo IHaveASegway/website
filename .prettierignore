@@ -14,3 +14,13 @@ apps/web/src/styles/font-fallbacks.css
 
 # The plan is hand-formatted prose and tables, edited only in its own pull requests
 docs/
+
+# The Route Lab's solver and map data (ADR 0016): build outputs pinned byte for byte by
+# apps/web/src/lib/route-lab/solver.lock.json and by tools/route-data/out/README.md, the two
+# wrappers the solver's browser test measured, and the inputs and results its tests compare
+tools/vroom-wasm/vroom-solver.mjs
+tools/vroom-wasm/vroom-worker.mjs
+tools/vroom-wasm/test/fixtures/
+tools/vroom-wasm/test/results/
+tools/route-data/out/
+apps/web/public/lab/routes/solver/

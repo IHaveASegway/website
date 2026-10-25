@@ -1,15 +1,17 @@
 import satori from 'satori';
 import sharp from 'sharp';
 import tokensCss from '../styles/tokens.css?raw';
+import type { LabEntry } from './lab';
 import { SECTION_LABELS, type Post, type Section } from './posts';
 import type { Profile } from './profile';
 import { hex, themeColors } from './tokens';
 
 // Open Graph images (content.md, "Structured data and link previews"): 1200×630 PNGs drawn at
 // build time from a page's title and label, in the site's tokens. Satori lays the card out and
-// turns its text into paths; sharp rasterizes that SVG. Nothing else is drawn: the card takes
-// exactly two strings, and test/og.test.ts checks that they are the page's og:title and
-// og:image:alt, so every word in the picture is also text the build's scans read.
+// turns its text into paths; sharp rasterizes that SVG. The card takes exactly two strings, and
+// test/og.test.ts checks that they are the page's og:title and og:image:alt, so every word in the
+// picture is also text the build's scans read. A demo's card may also carry a picture of the demo
+// with no word in it (lib/route-lab/og-map.ts), at the card's right edge.
 
 export interface OgCard {
   readonly title: string;
@@ -23,6 +25,11 @@ export function homeCard(profile: Profile): OgCard {
   return { title: profile.basics.name, label: profile.basics.label };
 }
 
+/** The résumé's card: the name, and the page's own label, as the header names it. */
+export function resumeCard(profile: Profile, label: string): OgCard {
+  return { title: profile.basics.name, label };
+}
+
 /** A post's card: its title, and the section it belongs to (content.md, "Structured data and
  *  link previews": the section label and the entry's title). */
 export function postCard(post: Pick<Post, 'title' | 'section'>): OgCard {
@@ -32,6 +39,16 @@ export function postCard(post: Pick<Post, 'title' | 'section'>): OgCard {
 /** A section index's card: the section, and whose it is. */
 export function sectionCard(section: Section, profile: Profile): OgCard {
   return { title: SECTION_LABELS[section], label: profile.basics.name };
+}
+
+/** A demo's card: its title, and the section, Lab. */
+export function labCard(entry: Pick<LabEntry, 'title'>): OgCard {
+  return { title: entry.title, label: 'Lab' };
+}
+
+/** The lab index's card: the section, and whose it is. */
+export function labIndexCard(profile: Profile): OgCard {
+  return { title: 'Lab', label: profile.basics.name };
 }
 
 /**
@@ -52,7 +69,20 @@ export const ogAlt = (card: OgCard) => `${card.title}, ${card.label}`;
 
 export interface OgNode {
   type: string;
-  props: { style?: Record<string, string | number>; children?: (OgNode | string)[] };
+  props: {
+    style?: Record<string, string | number>;
+    children?: (OgNode | string)[];
+    src?: string;
+    width?: number;
+    height?: number;
+  };
+}
+
+/** A picture on a card: a PNG as a data URI, at its own size. */
+export interface OgPicture {
+  readonly src: string;
+  readonly width: number;
+  readonly height: number;
 }
 
 const node = (style: OgNode['props']['style'], ...children: (OgNode | string)[]): OgNode => ({
@@ -60,16 +90,18 @@ const node = (style: OgNode['props']['style'], ...children: (OgNode | string)[])
   props: { style: { display: 'flex', ...style }, children },
 });
 
-/** The card as satori's element tree. Colors come in, so the tree holds no literal of its own. */
+/** The card as satori's element tree. Colors come in, so the tree holds no literal of its own.
+ *  With a picture, the text keeps the left of the card and the picture fills the right edge. */
 export function ogTree(
   card: OgCard,
   colors: Record<'background' | 'foreground' | 'muted' | 'accent', string>,
+  picture?: OgPicture,
 ): OgNode {
-  return node(
+  const text = node(
     {
       // Satori sizes boxes as content-box: without border-box, the padding would push the card
       // past the canvas and clip its last line.
-      width: '100%',
+      width: picture ? OG_SIZE.width - picture.width : '100%',
       height: '100%',
       boxSizing: 'border-box',
       flexDirection: 'column',
@@ -102,6 +134,11 @@ export function ogTree(
       ),
     ),
   );
+  if (!picture) return text;
+  return node({ width: '100%', height: '100%', backgroundColor: colors.background }, text, {
+    type: 'img',
+    props: { src: picture.src, width: picture.width, height: picture.height },
+  });
 }
 
 /** Every string the tree draws, in order. */
@@ -140,20 +177,29 @@ export function stripPng(png: Buffer): Buffer {
   return Buffer.concat(parts);
 }
 
-/** The card as a PNG, with no metadata chunks (scripts/image-metadata.mjs checks it again). */
-export async function renderOg(card: OgCard): Promise<Buffer> {
+/** The card as a PNG, with no metadata chunks (scripts/image-metadata.mjs checks it again). A
+ *  picture, a PNG, sits at the card's right edge. */
+export async function renderOg(card: OgCard, picture?: Buffer): Promise<Buffer> {
   const colors = themeColors(tokensCss, 'dark');
   const token = (name: string) => {
     const value = colors.get(name);
     if (!value) throw new Error(`og.ts: tokens.css has no --${name}`);
     return hex(value);
   };
-  const tree = ogTree(card, {
-    background: token('background'),
-    foreground: token('foreground'),
-    muted: token('muted-foreground'),
-    accent: token('primary'),
-  });
+  const tree = ogTree(
+    card,
+    {
+      background: token('background'),
+      foreground: token('foreground'),
+      muted: token('muted-foreground'),
+      accent: token('primary'),
+    },
+    picture && {
+      src: `data:image/png;base64,${picture.toString('base64')}`,
+      width: picture.readUInt32BE(16),
+      height: picture.readUInt32BE(20),
+    },
+  );
   const svg = await satori(tree as unknown as Parameters<typeof satori>[0], {
     ...OG_SIZE,
     fonts: [

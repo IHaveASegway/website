@@ -9,9 +9,9 @@ import { FEATURED_POSTS } from '../src/lib/work';
 import { app, files, fixture, profile, read } from './support/dist';
 
 // Selected work on Home (content.md, "Owned work"; lib/work.ts): a card renders only when the page
-// it opens exists. That is the project cards whose check is recorded and whose hold is lifted,
-// linking to their repositories, then a card per featured post this build lists, linking to the
-// post. With no card, Home has no Selected work section and no Work button. This runs on every
+// it opens exists. That is a card per demo the lab builds, linking to its page (ADR 0016), then the
+// project cards whose check is recorded and whose hold is lifted, linking to their repositories,
+// then a card per featured post this build lists, linking to the post. With no card, Home has no Selected work section and no Work button. This runs on every
 // build vitest.config.ts names, so the real build (no card today) and the fixture builds (a made-up
 // project, checked and held by nothing) meet the same check. The expected post cards are read
 // from the build's own pages, not from lib/work.ts, so the rule is checked against what exists.
@@ -35,8 +35,16 @@ const lists = (path: string) => {
 const heading = (path: string) =>
   (/<h1\b[^>]*>([\s\S]*?)<\/h1>/.exec(read(`${path.slice(1)}index.html`))?.[1] ?? '').trim();
 
+/** The lab's demo pages this build lists, /lab/<slug>/, by slug. */
+const demos = files
+  .filter((file) => /^lab\/[a-z0-9-]+\/index\.html$/.test(file))
+  .map((file) => `/${file.slice(0, -'index.html'.length)}`)
+  .filter(lists)
+  .sort();
+
 /** The cards Home must render, in order, worked out from the profile and from this build's pages. */
 const expected: RenderedCard[] = [
+  ...demos.map((href) => ({ title: heading(href), href })),
   ...projects.map((card) => ({ title: card.title, href: card.link.href })),
   ...FEATURED_POSTS.map((post) => postPath(post))
     .filter(lists)
@@ -59,7 +67,7 @@ function homeCards(): RenderedCard[] {
   }));
 }
 
-test('Home renders exactly the cards whose page exists: checked, unheld projects, then listed featured posts', () => {
+test('Home renders exactly the cards whose page exists: the lab’s demos, checked, unheld projects, then listed featured posts', () => {
   expect(homeCards()).toEqual(expected);
 });
 
@@ -104,7 +112,7 @@ test.runIf(fixture === undefined)(
 );
 
 test.runIf(fixture?.includes('fixture-many') === true)(
-  'known answer: the card fixture renders its made-up project, linked to its repository',
+  'known answer: the profile fixture renders its made-up project, linked to its repository',
   () => {
     expect(projects.map((c) => c.title)).toEqual(['fixture-project']);
     expect(homeCards()).toEqual([

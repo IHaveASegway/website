@@ -26,14 +26,15 @@ const pages = html
 const indexable = pages.filter((page) => !noindex(page));
 
 /** The indexable pages this build must write: the ledger's for dist/ and dist-preview/, the
- *  fixture's for fixture-many (with drafts or without), for fixture-one-preview Home, /writing/
- *  and its one published post, and for fixture-none-preview, drafts only, Home alone. */
+ *  fixture's for fixture-many (with drafts or without), for fixture-one-preview Home, the résumé,
+ *  /writing/ and its one published post, and for fixture-none-preview, drafts only, Home and the
+ *  résumé, which every build writes whatever its posts. */
 const EXPECTED = fixture?.includes('fixture-many')
   ? WRITING_FIXTURE_PAGES
   : fixture?.includes('fixture-one')
-    ? ['/', '/writing/', '/writing/fixture-measure-first/']
+    ? ['/', '/resume/', '/writing/', '/writing/fixture-measure-first/']
     : fixture?.includes('fixture-none')
-      ? ['/']
+      ? ['/', '/resume/']
       : SITE_PAGES;
 
 /** Every href in a document, with the element and rel it came from. */

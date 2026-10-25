@@ -99,6 +99,33 @@
   --signal: var(--primary); /* one accent: the signal is the apricot */
   --destructive: var(--foreground); /* placeholder until a page shows an error state */
   --ring: var(--primary);
+  /* The Route Lab's map (design-system.md, "Map colors"). Fills: water, parks and the six
+     isochrone bands, band-1 the nearest to the bakery, a step toward the foreground each, so nearer
+     reads as more ink, and a step in hue, teal-green near to petrol far. Marks at 3:1 on every fill
+     and on the page: the four vans, the places, the bakery, the 10 and 20 minute lines. Text at
+     4.5:1 on every fill: the labels; a stop's number is the page's background on its van's color,
+     at 4.5:1 too. The marks are as light as they go, so the bands can span as much lightness as
+     3:1 leaves them. Streets and roads are decoration, drawn translucent so they read on every
+     band. */
+  --map-water: oklch(0.17 0.035 240);
+  --map-park: oklch(0.27 0.035 180);
+  --map-band-1: oklch(0.52 0.085 178);
+  --map-band-2: oklch(0.47 0.08 186);
+  --map-band-3: oklch(0.42 0.07 195);
+  --map-band-4: oklch(0.37 0.062 204);
+  --map-band-5: oklch(0.325 0.056 212);
+  --map-band-6: oklch(0.28 0.046 220);
+  --map-street: oklch(0.9 0.02 210 / 0.14);
+  --map-road: oklch(0.9 0.02 210 / 0.3);
+  --map-road-major: oklch(0.9 0.02 210 / 0.5);
+  --map-van-a: var(--primary);
+  --map-van-b: oklch(0.86 0.088 350);
+  --map-van-c: oklch(0.92 0.12 125);
+  --map-van-d: oklch(0.86 0.07 285);
+  --map-place: oklch(0.86 0.025 215);
+  --map-depot: var(--foreground);
+  --map-contour: oklch(0.88 0.03 190);
+  --map-label: oklch(0.95 0.012 210);
 }
 
 /* Light, chosen in this browser. */
@@ -118,6 +145,26 @@
   --signal: var(--primary);
   --destructive: var(--foreground);
   --ring: var(--primary);
+
+  --map-water: oklch(0.85 0.065 245);
+  --map-park: oklch(0.95 0.03 150);
+  --map-band-1: oklch(0.72 0.08 182);
+  --map-band-2: oklch(0.77 0.07 187);
+  --map-band-3: oklch(0.815 0.06 192);
+  --map-band-4: oklch(0.86 0.048 197);
+  --map-band-5: oklch(0.905 0.036 202);
+  --map-band-6: oklch(0.95 0.024 207);
+  --map-street: oklch(0.3 0.03 225 / 0.12);
+  --map-road: oklch(0.3 0.03 225 / 0.28);
+  --map-road-major: oklch(0.3 0.03 225 / 0.45);
+  --map-van-a: oklch(0.44 0.115 45); /* the apricot, darker than --primary: the bands go darker */
+  --map-van-b: oklch(0.43 0.16 355);
+  --map-van-c: oklch(0.43 0.11 140);
+  --map-van-d: oklch(0.43 0.15 290);
+  --map-place: oklch(0.42 0.03 222);
+  --map-depot: var(--foreground);
+  --map-contour: oklch(0.38 0.05 200);
+  --map-label: oklch(0.26 0.03 228);
 }
 
 /* Light, from the OS, unless "dark" is stored. :where() keeps this at :root's specificity, so a
@@ -139,6 +186,26 @@
     --signal: var(--primary);
     --destructive: var(--foreground);
     --ring: var(--primary);
+
+    --map-water: oklch(0.85 0.065 245);
+    --map-park: oklch(0.95 0.03 150);
+    --map-band-1: oklch(0.72 0.08 182);
+    --map-band-2: oklch(0.77 0.07 187);
+    --map-band-3: oklch(0.815 0.06 192);
+    --map-band-4: oklch(0.86 0.048 197);
+    --map-band-5: oklch(0.905 0.036 202);
+    --map-band-6: oklch(0.95 0.024 207);
+    --map-street: oklch(0.3 0.03 225 / 0.12);
+    --map-road: oklch(0.3 0.03 225 / 0.28);
+    --map-road-major: oklch(0.3 0.03 225 / 0.45);
+    --map-van-a: oklch(0.44 0.115 45);
+    --map-van-b: oklch(0.43 0.16 355);
+    --map-van-c: oklch(0.43 0.11 140);
+    --map-van-d: oklch(0.43 0.15 290);
+    --map-place: oklch(0.42 0.03 222);
+    --map-depot: var(--foreground);
+    --map-contour: oklch(0.38 0.05 200);
+    --map-label: oklch(0.26 0.03 228);
   }
 }
 
@@ -168,6 +235,26 @@
     --subtle-foreground: oklch(0.3 0 0);
     --primary: oklch(0 0 0);
     --primary-strong: oklch(0 0 0);
+    /* The map prints in its light colors. */
+    --map-water: oklch(0.85 0.065 245);
+    --map-park: oklch(0.95 0.03 150);
+    --map-band-1: oklch(0.72 0.08 182);
+    --map-band-2: oklch(0.77 0.07 187);
+    --map-band-3: oklch(0.815 0.06 192);
+    --map-band-4: oklch(0.86 0.048 197);
+    --map-band-5: oklch(0.905 0.036 202);
+    --map-band-6: oklch(0.95 0.024 207);
+    --map-street: oklch(0.3 0.03 225 / 0.12);
+    --map-road: oklch(0.3 0.03 225 / 0.28);
+    --map-road-major: oklch(0.3 0.03 225 / 0.45);
+    --map-van-a: oklch(0.44 0.115 45); /* apricot on paper: ink is the bakery's color */
+    --map-van-b: oklch(0.43 0.16 355);
+    --map-van-c: oklch(0.43 0.11 140);
+    --map-van-d: oklch(0.43 0.15 290);
+    --map-place: oklch(0.42 0.03 222);
+    --map-depot: var(--foreground);
+    --map-contour: oklch(0.38 0.05 200);
+    --map-label: oklch(0.26 0.03 228);
   }
 }
 

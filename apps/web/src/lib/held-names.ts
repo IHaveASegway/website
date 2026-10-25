@@ -6,7 +6,12 @@
 // <wbr> or <b>; with an invisible character (soft hyphen, zero-width characters, every other
 // Default_Ignorable_Code_Point) or a typographic dash inside; or in a compatibility form such as a
 // fullwidth letter (NFKC). Text the check cannot read fails it (UnreadableText) rather than
-// passing unread: fail closed.
+// passing unread: fail closed. A JavaScript file is read as JavaScript, in four views: as written;
+// with its string escapes (\u0041, \u{41}, \x41) decoded, as the engine decodes them; and as the
+// markup it may write through innerHTML, read as markup is, with its character references decoded
+// and then with its tags removed too. Minified code is full of "&&name", which no markup reading
+// can parse, so in those two views a "&" that starts no reference stays as written instead of
+// failing (ADR 0016).
 
 export interface Hold {
   /** The name as the list writes it, without its split markers. */
@@ -152,14 +157,19 @@ function fromCode(code: number): string {
 
 /** Character references decoded as a browser decodes them in text: numeric ones with or without
  *  their ";", named ones from the table above, and legacy names without ";". Anything else that
- *  starts like a reference is unreadable. */
-export function decodeReferences(text: string): string {
+ *  starts like a reference is unreadable, or, when `lenient`, left as written: a script's markup
+ *  view, where most "&" is code (findHeld). */
+export function decodeReferences(text: string, lenient = false): string {
   const reference = /&(#[xX][0-9a-fA-F]*|#\d*|[A-Za-z][A-Za-z0-9]*)(;?)/g;
   return text.replace(reference, (whole, body: string, semi: string) => {
+    const unreadable = () => {
+      if (lenient) return whole;
+      throw new UnreadableText(`a reference the check cannot read: ${whole}`);
+    };
     if (body.startsWith('#')) {
       const hex = body[1] === 'x' || body[1] === 'X';
       const digits = body.slice(hex ? 2 : 1);
-      if (!digits) throw new UnreadableText(`a reference the check cannot read: ${whole}`);
+      if (!digits) return unreadable();
       return fromCode(parseInt(digits, hex ? 16 : 10));
     }
     const value = ENTITIES[body];
@@ -170,16 +180,40 @@ export function decodeReferences(text: string): string {
       const legacy = ENTITIES[prefix];
       if (legacy !== undefined && LEGACY.has(prefix)) return legacy + body.slice(end) + semi;
     }
-    throw new UnreadableText(`a reference the check cannot read: ${whole}`);
+    return unreadable();
   });
+}
+
+/** JavaScript's string escapes decoded as the engine decodes them: \uXXXX (a surrogate pair joins
+ *  into its character), \u{X...} and \xXX. An escaped backslash before them is decoded too, which
+ *  can only show the matcher more, never less. */
+export function decodeEscapes(text: string): string {
+  return text.replace(
+    /\\u\{([0-9a-fA-F]{1,6})\}|\\u([0-9a-fA-F]{4})|\\x([0-9a-fA-F]{2})/g,
+    (_, point?: string, unit?: string, byte?: string) => {
+      if (point !== undefined) {
+        const code = parseInt(point, 16);
+        return code > 0x10ffff ? '\ufffd' : String.fromCodePoint(code);
+      }
+      return String.fromCharCode(parseInt(unit ?? byte ?? '0', 16));
+    },
+  );
 }
 
 const IGNORABLE = /\p{Default_Ignorable_Code_Point}/gu;
 
-/** Text as the matcher reads it: references decoded, NFKC, every dash a hyphen, and every
- *  default-ignorable character (soft hyphen, zero-width characters, joiners, BOM ...) removed. */
-export function normalize(text: string): string {
-  return decodeReferences(text)
+/** How a file's text is read: as markup, which every page, feed, sitemap and text file is, or as
+ *  a script a browser runs, where "&" starts no reference. */
+export type Reading = 'markup' | 'script';
+
+/** The reading for a file the site serves, by its name: .js and .mjs are scripts. */
+export const readingOf = (file: string): Reading => (/\.m?js$/i.test(file) ? 'script' : 'markup');
+
+/** Text as the matcher reads it: references decoded (in markup), NFKC, every dash a hyphen, and
+ *  every default-ignorable character (soft hyphen, zero-width characters, joiners, BOM ...)
+ *  removed. */
+export function normalize(text: string, reading: Reading = 'markup'): string {
+  return (reading === 'markup' ? decodeReferences(text) : text)
     .replace(IGNORABLE, '')
     .normalize('NFKC')
     .replace(/[\p{Pd}−]/gu, '-')
@@ -206,11 +240,29 @@ export function withoutMarkup(html: string): string {
   );
 }
 
-/** The held names a text contains, each once. The text is read twice: as written, which covers
- *  attribute values, scripts and styles, and as a reader sees it, with its markup removed. */
-export function findHeld(text: string, holds: readonly Hold[]): string[] {
-  const views = [normalize(text), normalize(withoutMarkup(text))];
+/** The ways a text is read, each normalized. Markup twice: as written, which covers attribute
+ *  values, scripts and styles, and as a reader sees it, with its markup removed. A script four
+ *  times: as written; with its string escapes decoded; and, from that, as the markup it may write,
+ *  both ways markup is read, with references decoded leniently (decodeReferences). */
+export function views(text: string, reading: Reading = 'markup'): string[] {
+  if (reading === 'markup') return [normalize(text), normalize(withoutMarkup(text))];
+  const decoded = decodeEscapes(text);
+  return [
+    normalize(text, 'script'),
+    normalize(decoded, 'script'),
+    normalize(decodeReferences(decoded, true), 'script'),
+    normalize(decodeReferences(withoutMarkup(decoded), true), 'script'),
+  ];
+}
+
+/** The held names a text contains, each once, in any of its views. */
+export function findHeld(
+  text: string,
+  holds: readonly Hold[],
+  reading: Reading = 'markup',
+): string[] {
+  const seen = views(text, reading);
   return holds
-    .filter((hold) => views.some((view) => new RegExp(hold.pattern).test(view)))
+    .filter((hold) => seen.some((view) => new RegExp(hold.pattern).test(view)))
     .map((hold) => hold.name);
 }

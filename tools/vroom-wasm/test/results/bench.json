@@ -1,0 +1,120 @@
+{
+  "node": "v22.22.0",
+  "dir": ".",
+  "initMs": 10.7,
+  "runs": 5,
+  "natives": [
+    "vroom-native",
+    "vroom-native-libcxx"
+  ],
+  "rows": [
+    {
+      "case": "bench-25x3",
+      "x": 0,
+      "cost": 16084,
+      "wasmWallMs": 10,
+      "wasmVroomMs": 9,
+      "native0VroomMs": 7,
+      "native1VroomMs": 7
+    },
+    {
+      "case": "bench-25x3",
+      "x": 1,
+      "cost": 16084,
+      "wasmWallMs": 14.3,
+      "wasmVroomMs": 13,
+      "native0VroomMs": 13,
+      "native1VroomMs": 13
+    },
+    {
+      "case": "bench-25x3",
+      "x": 2,
+      "cost": 16084,
+      "wasmWallMs": 30.7,
+      "wasmVroomMs": 30,
+      "native0VroomMs": 28,
+      "native1VroomMs": 26
+    },
+    {
+      "case": "bench-25x3",
+      "x": 3,
+      "cost": 16084,
+      "wasmWallMs": 47.9,
+      "wasmVroomMs": 47,
+      "native0VroomMs": 39,
+      "native1VroomMs": 43
+    },
+    {
+      "case": "bench-25x3",
+      "x": 4,
+      "cost": 16084,
+      "wasmWallMs": 87.5,
+      "wasmVroomMs": 87,
+      "native0VroomMs": 96,
+      "native1VroomMs": 85
+    },
+    {
+      "case": "bench-25x3",
+      "x": 5,
+      "cost": 16084,
+      "wasmWallMs": 140.5,
+      "wasmVroomMs": 140,
+      "native0VroomMs": 122,
+      "native1VroomMs": 115
+    },
+    {
+      "case": "bench-60x4",
+      "x": 0,
+      "cost": 35390,
+      "wasmWallMs": 80.4,
+      "wasmVroomMs": 79,
+      "native0VroomMs": 69,
+      "native1VroomMs": 70
+    },
+    {
+      "case": "bench-60x4",
+      "x": 1,
+      "cost": 35390,
+      "wasmWallMs": 167.8,
+      "wasmVroomMs": 166,
+      "native0VroomMs": 133,
+      "native1VroomMs": 146
+    },
+    {
+      "case": "bench-60x4",
+      "x": 2,
+      "cost": 35179,
+      "wasmWallMs": 288.1,
+      "wasmVroomMs": 287,
+      "native0VroomMs": 233,
+      "native1VroomMs": 224
+    },
+    {
+      "case": "bench-60x4",
+      "x": 3,
+      "cost": 35172,
+      "wasmWallMs": 468.3,
+      "wasmVroomMs": 467,
+      "native0VroomMs": 402,
+      "native1VroomMs": 391
+    },
+    {
+      "case": "bench-60x4",
+      "x": 4,
+      "cost": 35156,
+      "wasmWallMs": 796.8,
+      "wasmVroomMs": 795,
+      "native0VroomMs": 694,
+      "native1VroomMs": 660
+    },
+    {
+      "case": "bench-60x4",
+      "x": 5,
+      "cost": 35088,
+      "wasmWallMs": 1253.8,
+      "wasmVroomMs": 1252,
+      "native0VroomMs": 1076,
+      "native1VroomMs": 1026
+    }
+  ]
+}

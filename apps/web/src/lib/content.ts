@@ -1,4 +1,5 @@
 import { getCollection, getEntry } from 'astro:content';
+import { fromLab, labArea, type LabArea, type LabEntry } from './lab';
 import {
   draftsIncluded,
   fromEssay,
@@ -7,7 +8,10 @@ import {
   type Post,
   type WritingArea,
 } from './posts';
-import type { Profile } from './profile';
+import holdList from '../../not-on-site.txt?raw';
+import { parseHolds } from './held-names';
+import { projectCards, type Profile } from './profile';
+import { selectedWork, type WorkCard } from './work';
 
 /** The command Astro runs: 'dev', 'build', 'preview' or 'sync', fixed into the build by
  *  astro.config.mjs (recordCommand). Unlike NODE_ENV, no environment variable can change it. */
@@ -54,4 +58,35 @@ export async function postEntry(post: Post) {
   const entry = await getEntry(post.section, post.slug);
   if (!entry) throw new Error(`${post.section}/${post.slug}.md did not load`);
   return entry;
+}
+
+/**
+ * What this build writes for the lab (lib/lab.ts): every live demo. The fixture builds
+ * (scripts/build-fixtures.mjs, which names POST_FIXTURES) are Writing's test builds and hold no
+ * lab: the demo meets every check over a build on dist/ and dist-preview/, the builds that hold it.
+ */
+export async function loadLabArea(): Promise<LabArea> {
+  if (process.env['POST_FIXTURES']) return labArea([]);
+  const entries = await getCollection('lab');
+  return labArea(entries.map((entry) => fromLab(entry.id, entry.data)));
+}
+
+/** A lab entry's collection entry, for rendering its write-up. */
+export async function labEntry(entry: LabEntry) {
+  const found = await getEntry('lab', entry.slug);
+  if (!found) throw new Error(`lab/${entry.slug}.md did not load`);
+  return found;
+}
+
+/** Selected work as this build draws it (lib/work.ts): a card per live demo in the lab, then a
+ *  card per project whose check is recorded and whose hold is lifted, then a card per featured
+ *  post it publishes. Home's section and the résumé's read this one list, so the two can never
+ *  show different work. */
+export async function loadSelectedWork(): Promise<WorkCard[]> {
+  const profile = await loadProfile();
+  return selectedWork(
+    projectCards(profile, parseHolds(holdList)),
+    await loadWritingArea(),
+    await loadLabArea(),
+  );
 }

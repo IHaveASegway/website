@@ -1,0 +1,934 @@
+/*
+  The Route Lab (/lab/routes/): the demo's controls, its two maps, the legend and the tables
+  (design-system.md, "Route Lab"). Only that page links this file. Every color is a token from
+  tokens.css (--map-* and the semantic ones); a state the browser sets is an attribute
+  (data-rl-*), never a class, so every class here is one a built page carries
+  (test/css-classes.test.ts). Motion lives only under prefers-reduced-motion: no-preference.
+*/
+
+/* The demo sits on the frame's twelve columns, under the page head. */
+.rl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+@media (width >= 64rem) {
+  .rl {
+    margin-top: 2.5rem;
+    row-gap: 2rem;
+  }
+}
+
+/* The basemap and labels are drawn once, here, and each map uses them. */
+.rl-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+/* Controls: the day, the vans and a surprise. Without JavaScript they stay hidden (the hidden
+   attribute in the markup), so no control ever does nothing. Every change plans again: there is
+   no button to press. */
+.rl-controls {
+  display: grid;
+  gap: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--input);
+}
+
+@media (width >= 64rem) {
+  .rl-controls {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: var(--gutter);
+    align-items: start;
+  }
+
+  .rl-days {
+    grid-column: 1 / 9;
+  }
+
+  .rl-more {
+    grid-column: 9 / 13;
+  }
+}
+
+.rl-controls fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.rl-controls legend {
+  margin-bottom: 0.625rem;
+  padding: 0;
+}
+
+.rl-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* On a phone the days are one row that scrolls sideways inside itself, so the map comes sooner;
+   the page itself never scrolls sideways. */
+@media (width < 48rem) {
+  .rl-days .rl-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 0.375rem;
+  }
+
+  .rl-days .rl-chip {
+    flex: none;
+  }
+}
+
+/* A choice is a native radio inside its label: the radio keeps its own focus ring. */
+.rl-chip {
+  display: inline-grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 0.5rem;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0.375rem 0.875rem 0.375rem 0.625rem;
+  border: 1px solid var(--input);
+  cursor: pointer;
+}
+
+.rl-chip:hover,
+.rl-chip:has(:checked) {
+  border-color: var(--foreground);
+}
+
+.rl-chip:has(:checked) {
+  background-color: var(--surface-2);
+}
+
+.rl-chip input {
+  grid-row: 1 / span 2;
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: var(--primary);
+}
+
+.rl-chip-name {
+  font-size: var(--text-ui);
+  font-weight: 550;
+  line-height: 1.25;
+}
+
+.rl-chip-note {
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  line-height: 1.3;
+}
+
+.rl-chip-small .rl-chip-name {
+  min-width: 1ch;
+  font-family: var(--font-mono);
+  /* The mono face is taller than 1.25em, ascent to descent (20 px at 15 px), so at the name's 1.25
+     a selection's fill would paint past its line (e2e/a11y.spec.ts). At the label's 1.4 it does
+     not, and the chip, 2.75rem tall, keeps its size. */
+  line-height: 1.4;
+}
+
+.rl-more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.rl-chip-small {
+  padding-inline: 0.5rem;
+}
+
+.rl-vans .rl-chips {
+  gap: 0.375rem;
+}
+
+.rl-surprise {
+  padding-inline: 0.875rem;
+}
+
+.rl-status {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+}
+
+/* Hidden on screen, read by assistive technology: the demo's heading and the line that says what
+   each change did and what VROOM made of it. */
+.rl-say {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.rl-hint {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+}
+
+/* The readout: what VROOM saves, in the statement face, the vans' room and what the last change
+   did. While VROOM plans the orders again, the headline steps back to the muted ink. */
+.rl-readout {
+  position: relative;
+  display: grid;
+  row-gap: 0.375rem;
+}
+
+.rl-readout[data-rl-stale] .rl-saved {
+  color: var(--muted-foreground);
+}
+
+/* The headline and each plan's time are display type, set closer together than the face is tall,
+   as headings are: selected, they take no fill and turn apricot on the page, the pair global.css
+   gives every heading, so a fill never hides the foot of the line above. */
+:is(.rl-saved, .rl-time)::selection,
+:is(.rl-saved, .rl-time) *::selection {
+  background-color: transparent;
+  color: var(--primary);
+}
+
+.rl-saved {
+  max-width: 30em;
+  margin: 0;
+  font-size: var(--text-title);
+  font-weight: 620;
+  font-stretch: 85%;
+  line-height: var(--text-title--line-height);
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.rl-capacity {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+}
+
+/* Which map a phone shows: one at a time, in the same place, so the two compare at a glance.
+   From 64rem both sit side by side and the choice goes. Without JavaScript, and on paper, both
+   show, stacked. */
+.rl-view legend {
+  margin-bottom: 0.625rem;
+  padding: 0;
+}
+
+.rl-view {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+@media screen and (width < 64rem) {
+  .rl[data-rl-live]:has(input[name='rl-view'][value='after']:checked) [data-rl-plan='before'],
+  .rl[data-rl-live]:has(input[name='rl-view'][value='before']:checked) [data-rl-plan='after'] {
+    display: none;
+  }
+}
+
+@media (width >= 64rem) {
+  .rl-view {
+    display: none;
+  }
+}
+
+/* The two maps: stacked on a phone, side by side from 64rem, each with its figures on top. */
+.rl-maps {
+  display: grid;
+  gap: 2rem var(--gutter);
+}
+
+@media (width >= 64rem) {
+  .rl-maps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.rl-figure {
+  display: grid;
+  row-gap: 0.75rem;
+  margin: 0;
+  align-content: start;
+}
+
+.rl-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 1rem;
+  padding-top: 0.75rem;
+  border-top: 2px solid var(--foreground);
+}
+
+.rl-head .label {
+  flex-basis: 100%;
+}
+
+/* On a phone, where one map shows at a time, its name and its time share a line. */
+@media (width < 64rem) {
+  .rl-head .label {
+    flex-basis: auto;
+  }
+}
+
+.rl-time {
+  font-size: var(--text-statement);
+  font-weight: 620;
+  font-stretch: 80%;
+  line-height: var(--text-statement--line-height);
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+}
+
+.rl-line,
+.rl-back,
+.rl-note {
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  line-height: var(--text-meta--line-height);
+}
+
+.rl-note {
+  color: var(--muted-foreground);
+}
+
+.rl-map {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  background-color: var(--background);
+  /* A map is a picture: its colors are the information, and the tables carry it as text. */
+  forced-color-adjust: none;
+  /* For the same reason its labels, its stops' numbers and its tip are not text to select: a drag
+     that starts on it, as a tap on a place does, selects nothing, and selecting the page around it
+     paints no fill over its routes and stops, which a fill under every label hid. Safari reads
+     the prefixed name only. */
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* The labels are drawn once, in the hidden defs, and shown through <use>, so their selection is
+   set by class, as every map style is. No fill; Chromium keeps an SVG text's own fill when it is
+   selected, so the color is the labels' ink. */
+.rl-label::selection {
+  background-color: transparent;
+  color: var(--map-label);
+}
+
+.rl-map[data-rl-near] {
+  cursor: pointer;
+}
+
+/* A VROOM plan for orders that have since changed: dimmed until the next press. Opacity is a
+   state here; the fade below is the only movement. */
+.rl-figure[data-rl-stale] .rl-map {
+  opacity: 0.4;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .rl-map {
+    transition: opacity 0.22s ease-out;
+  }
+}
+
+/* Cartography. Every selector is a class alone: the basemap is drawn once and reused, and a
+   reused copy is styled by its own classes, never by where it sits. Strokes are in screen pixels
+   whatever the map's size (non-scaling), so a road or a route is as thick on a phone as on a
+   laptop. */
+.rl-park,
+.rl-band,
+.rl-water {
+  fill-rule: evenodd;
+  stroke: none;
+}
+
+.rl-park {
+  fill: var(--map-park);
+}
+
+.band-1 {
+  fill: var(--map-band-1);
+  background-color: var(--map-band-1);
+}
+
+.band-2 {
+  fill: var(--map-band-2);
+  background-color: var(--map-band-2);
+}
+
+.band-3 {
+  fill: var(--map-band-3);
+  background-color: var(--map-band-3);
+}
+
+.band-4 {
+  fill: var(--map-band-4);
+  background-color: var(--map-band-4);
+}
+
+.band-5 {
+  fill: var(--map-band-5);
+  background-color: var(--map-band-5);
+}
+
+.band-6 {
+  fill: var(--map-band-6);
+  background-color: var(--map-band-6);
+}
+
+.rl-water {
+  fill: var(--map-water);
+}
+
+.rl-street,
+.rl-road,
+.rl-route,
+.rl-place,
+.rl-stop,
+.rl-stop-casing,
+.rl-bakery,
+[data-rl-left] {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.rl-street {
+  stroke: var(--map-street);
+  stroke-width: 0.75px;
+}
+
+.rl-road {
+  stroke: var(--map-road);
+  stroke-width: 1px;
+  stroke-linejoin: round;
+}
+
+.rl-major {
+  stroke: var(--map-road-major);
+  stroke-width: 1.25px;
+}
+
+.rl-motorway {
+  stroke: var(--map-road-major);
+  stroke-width: 2px;
+}
+
+.rl-tunnel {
+  stroke-dasharray: 3px 3px;
+}
+
+/* The 10 and 20 minute edges on land, drawn over the bands as a dotted line, a boundary's mark,
+   unlike a road's solid one (lib/route-lab/contours.ts). */
+.rl-contour {
+  fill: none;
+  stroke: var(--map-contour);
+  stroke-width: 2px;
+  stroke-dasharray: 0 4px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Routes: one color per van, and a dash pattern per van as well, so color is never the only
+   signal (SC 1.4.1). */
+.rl-route {
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.van-a {
+  stroke: var(--map-van-a);
+  background-color: var(--map-van-a);
+}
+
+.van-b {
+  stroke: var(--map-van-b);
+  background-color: var(--map-van-b);
+}
+
+.van-c {
+  stroke: var(--map-van-c);
+  background-color: var(--map-van-c);
+}
+
+.van-d {
+  stroke: var(--map-van-d);
+  background-color: var(--map-van-d);
+}
+
+.rl-route.van-b {
+  stroke-dasharray: 10px 5px;
+}
+
+.rl-route.van-c {
+  stroke-dasharray: 2px 5px;
+}
+
+.rl-route.van-d {
+  stroke-dasharray: 10px 4px 2px 4px;
+}
+
+/* Places are squares, the site's corner: a zero-length subpath under a square cap. Vans B and C
+   mark their stops with circles, so no two vans that share a shape share a color under a
+   color-vision deficiency (lib/route-lab/render.ts, isRound). */
+.rl-place,
+.rl-stop,
+.rl-stop-casing,
+.rl-bakery,
+[data-rl-left] {
+  stroke-linecap: square;
+}
+
+.rl-round {
+  stroke-linecap: round;
+}
+
+.rl-place {
+  stroke: var(--map-place);
+  stroke-width: 5px;
+}
+
+.rl-stop-casing {
+  stroke: var(--background);
+  stroke-width: 12px;
+}
+
+.rl-stop {
+  stroke-width: 8px;
+}
+
+/* A plan with few enough stops draws them larger, each with its number in the order its van
+   drives them, in the page's background on the van's color. */
+.rl-big {
+  stroke-width: 17px;
+}
+
+.rl-stop-casing.rl-big {
+  stroke-width: 21px;
+}
+
+.rl-num {
+  fill: var(--background);
+  font-family: var(--font-mono);
+  font-size: 48px;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+
+[data-rl-left] {
+  stroke: var(--foreground);
+  stroke-width: 8px;
+}
+
+.rl-bakery {
+  stroke: var(--map-depot);
+  stroke-width: 13px;
+}
+
+.rl-label {
+  fill: var(--map-label);
+  font-family: var(--font-sans);
+  font-size: 68px;
+  font-weight: 500;
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: var(--background);
+  stroke-width: 11px;
+  stroke-linejoin: round;
+}
+
+.rl-label-contour {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.rl-label-water {
+  font-style: italic;
+  font-weight: 400;
+}
+
+.rl-label-area,
+.rl-label-bakery {
+  font-weight: 650;
+}
+
+.rl-label-bakery {
+  text-anchor: end;
+}
+
+.rl-label-edge {
+  text-anchor: start;
+}
+
+/* The tip over a place under the pointer: its name, its order and its stop, on a panel whose box
+   the browser measures (components/route-lab/app.ts). */
+.rl-tip {
+  display: none;
+  pointer-events: none;
+}
+
+.rl-tip[data-rl-show] {
+  display: inline;
+}
+
+.rl-tip-box {
+  fill: var(--background);
+  stroke: var(--input);
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+}
+
+.rl-tip-text {
+  fill: var(--foreground);
+  font-family: var(--font-sans);
+  font-size: 68px;
+}
+
+.rl-tip-name {
+  font-weight: 650;
+}
+
+/* Labels, numbers and the tip are set in the map's own units, so their size follows the map's
+   width: these steps keep labels at about 10 to 13 px on screen, from a 320 px phone up. Where a
+   map is too narrow for neighbourhood names (a phone, and two maps side by side below 80rem), it
+   keeps the water, the towns and the bakery, and a phone leaves out the two small bays. */
+@media (width >= 30rem) {
+  .rl-label,
+  .rl-tip-text {
+    font-size: 44px;
+    stroke-width: 8px;
+  }
+
+  .rl-num {
+    font-size: 34px;
+  }
+}
+
+@media (width >= 48rem) {
+  .rl-label,
+  .rl-tip-text {
+    font-size: 32px;
+    stroke-width: 7px;
+  }
+
+  .rl-num {
+    font-size: 26px;
+  }
+}
+
+@media (width >= 64rem) {
+  .rl-label,
+  .rl-tip-text {
+    font-size: 46px;
+    stroke-width: 9px;
+  }
+
+  .rl-num {
+    font-size: 36px;
+  }
+}
+
+@media (width >= 80rem) {
+  .rl-label,
+  .rl-tip-text {
+    font-size: 36px;
+    stroke-width: 8px;
+  }
+
+  .rl-label-place {
+    font-size: 32px;
+  }
+
+  .rl-num {
+    font-size: 30px;
+  }
+}
+
+@media (width < 48rem), (64rem <= width < 80rem) {
+  .rl-label-place {
+    display: none;
+  }
+}
+
+@media (width < 48rem) {
+  .rl-label-minor {
+    display: none;
+  }
+}
+
+/* The legend under the maps. */
+.rl-legend {
+  display: grid;
+  gap: 1rem var(--gutter);
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+@media (width >= 64rem) {
+  .rl-legend {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .rl-legend-bands {
+    grid-column: 1 / 6;
+  }
+
+  .rl-keys {
+    grid-column: 6 / 11;
+  }
+
+  .rl-attribution {
+    grid-column: 11 / 13;
+  }
+}
+
+.rl-legend .label {
+  margin: 0 0 0.5rem;
+}
+
+.rl-bands,
+.rl-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  line-height: 1.5rem;
+}
+
+.rl-bands {
+  gap: 0;
+}
+
+.rl-bands li {
+  display: grid;
+  row-gap: 0.25rem;
+  min-width: 3.25rem;
+}
+
+/* Each swatch has a 3:1 outline, so even the band nearest the page's own color reads as a box.
+   The swatches and keys keep their colors in forced colors, as the maps do: they are the map's
+   key, and the band list and the tables carry the same facts as text. */
+.rl-swatch {
+  display: block;
+  height: 0.875rem;
+  border: 1px solid var(--input);
+}
+
+.rl-swatch,
+.rl-key,
+.rl-keyline {
+  forced-color-adjust: none;
+}
+
+.rl-keys li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rl-keyline {
+  width: 2.5rem;
+  height: 0.75rem;
+  overflow: visible;
+}
+
+.rl-attribution {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+}
+
+.rl-caption {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: var(--text-sm);
+}
+
+/* Every place, as a list of checkboxes: the keyboard's way to the same orders the map toggles;
+   and both plans stop by stop. Each folds away under its summary. */
+.rl-orders,
+.rl-stops {
+  border-top: 1px solid var(--border);
+  padding-top: 0.5rem;
+}
+
+.rl-orders summary,
+.rl-stops summary {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  font-size: var(--text-ui);
+  font-weight: 550;
+  cursor: pointer;
+}
+
+.rl-orders fieldset {
+  margin: 0.5rem 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.rl-order-list {
+  display: grid;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (width >= 48rem) {
+  .rl-order-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--gutter);
+  }
+}
+
+@media (width >= 80rem) {
+  .rl-order-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.rl-order-list label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 0.625rem;
+  align-items: baseline;
+  min-height: 2.75rem;
+  padding-block: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.rl-order-list input {
+  grid-row: 1 / span 2;
+  align-self: center;
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: var(--primary);
+}
+
+.rl-order-place {
+  font-size: var(--text-sm);
+  font-weight: 550;
+}
+
+.rl-order-what {
+  color: var(--muted-foreground);
+  font-size: var(--text-sm);
+}
+
+/* Stop by stop: one table per plan, side by side from 64rem. */
+.rl-tables {
+  display: grid;
+  gap: 2rem var(--gutter);
+  margin-top: 0.5rem;
+}
+
+@media (width >= 64rem) {
+  .rl-tables {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.rl-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+  font-variant-numeric: tabular-nums;
+}
+
+.rl-table caption {
+  padding-bottom: 0.5rem;
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-align: start;
+  text-transform: uppercase;
+}
+
+.rl-table th,
+.rl-table td {
+  padding: 0.375rem 0.625rem 0.375rem 0;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.rl-table thead th {
+  border-bottom-color: var(--input);
+  font-weight: 600;
+}
+
+.rl-table tbody th {
+  padding-top: 1rem;
+  font-weight: 600;
+}
+
+.rl-table tbody th[scope='row'] {
+  padding-top: 0.375rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+}
+
+.rl-cell-place {
+  display: block;
+  font-weight: 550;
+}
+
+.rl-key {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-inline-end: 0.5rem;
+  vertical-align: -0.0625rem;
+}
+
+.rl-key.rl-round {
+  border-radius: 50%;
+}
+
+/* The write-up starts in column 3 from 64rem, as a post's body does. */
+@media (width >= 64rem) {
+  .rl-page > .prose {
+    margin-inline-start: calc((100% + var(--gutter)) / 6);
+  }
+}
+
+@media print {
+  .rl-controls,
+  .rl-view,
+  .rl-status,
+  .rl-orders {
+    display: none;
+  }
+}

@@ -1,0 +1,92 @@
+---
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { render } from 'astro:content';
+import PageHead from '../../components/PageHead.astro';
+import RouteLab from '../../components/route-lab/RouteLab.astro';
+import Base from '../../layouts/Base.astro';
+import { labEntry, loadLabArea, loadProfile } from '../../lib/content';
+import { labPath, type LabEntry } from '../../lib/lab';
+import { labCard } from '../../lib/og';
+import { solverDir } from '../../lib/route-lab/node-solver';
+import { routeData, routeLabPicture } from '../../lib/route-lab/picture';
+import { formatDuration } from '../../lib/route-lab/plan';
+import lock from '../../lib/route-lab/solver.lock.json';
+import { gzipBytes } from '../../lib/weights';
+
+// One page per live demo in the lab (ADR 0005 reserves /lab/<slug>/): the demo and its write-up
+// together (lab.md, "Every demo ships with a write-up"). /lab/ is [...index].astro, a page of its
+// own so it links none of a demo's styles; /lab/api/ is the lab Worker's, never a page (lib/lab.ts).
+export async function getStaticPaths() {
+  const lab = await loadLabArea();
+  return lab.entries.map((entry) => ({ params: { demo: entry.slug }, props: { entry } }));
+}
+
+interface Props {
+  entry: LabEntry;
+}
+
+const { entry } = Astro.props;
+// The one demo so far. A second demo brings its own component here, by slug.
+if (entry.slug !== 'routes') throw new Error(`lab: no demo component for ${entry.slug}`);
+
+// A demo page names where its workers may come from: this origin only (ADR 0016). worker-src
+// allows nothing script-src 'self' does not; it keeps a later script-src host from also becoming a
+// worker source. 'wasm-unsafe-eval' is not here: the worker's own response carries it (_headers).
+if (!Astro.csp) throw new Error('lab: the page policy is off (astro.config.mjs, security.csp)');
+Astro.csp.insertDirective("worker-src 'self'");
+
+const { name } = (await loadProfile()).basics;
+// Astro's root is the working directory: astro.config.mjs sets no other (node-solver.ts).
+const picture = await routeLabPicture(process.cwd());
+const { Content } = await render(await labEntry(entry));
+const lead = `VROOM, an open-source route optimizer compiled to WebAssembly, plans a Seattle bakery’s deliveries in your browser. On a busy Saturday, it cuts ${formatDuration(picture.before.measured.drive)} of driving to ${formatDuration(picture.after.measured.drive)}.`;
+// How it is built, in figures measured here from the files the page serves, so none is typed:
+// the solver's WebAssembly and the route data, gzip -9 as the budgets count them (ADR 0016).
+const kilobytes = (bytes: number) => `${Math.round(bytes / 1000)} KB`;
+const wasm = kilobytes(gzipBytes(readFileSync(join(solverDir(process.cwd()), 'vroom.wasm'))));
+const routeFile = kilobytes(
+  gzipBytes(readFileSync(join(process.cwd(), '../../tools/route-data/out/route-data.json'))),
+);
+const places = routeData.points.length;
+const legs = (places * (places - 1)).toLocaleString('en-US');
+---
+
+<Base
+  title={`${entry.title} · ${name}`}
+  description={entry.summary}
+  path={labPath(entry)}
+  og={labCard(entry)}
+>
+  <article class="page rl-page" aria-labelledby="page-title">
+    <PageHead label="Lab" heading={entry.title} lead={lead} />
+    <RouteLab picture={picture} />
+    <div class="prose">
+      <Content />
+      <h2>How it is built</h2>
+      <p>
+        VROOM is C++. Emscripten {lock.emsdk} compiles it to one WebAssembly file of {wasm}, gzip,
+        which the page fetches only once there is something to plan. It runs in a Web Worker, so the
+        page never waits on a solve. Only the solver’s own folder may compile WebAssembly: its files
+        carry a Content Security Policy of their own, and no page’s policy allows it.
+      </p>
+      <p>
+        The drive times and the roads for all {legs} legs between the {places} places were worked
+        out once, from OpenStreetMap with OSRM, and ship as one file of {routeFile}, gzip. Without
+        JavaScript, the page shows the plans the build made by running the same WebAssembly in Node.
+      </p>
+      <h2>Credits</h2>
+      <p>
+        Map data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>,
+        under the <a href="https://opendatacommons.org/licenses/odbl/">Open Database License</a>.
+        The places are public parks, gardens, beaches, viewpoints, libraries, markets and landmarks;
+        the bakery and every order are made up.
+      </p>
+      <p>
+        VROOM is © Julien Coupey and contributors, under the BSD 2-Clause License. The licences of
+        everything compiled into the solver are in{' '}
+        <a href={`/lab/routes/solver/${lock.folder}/LICENSES.txt`}>LICENSES.txt</a>.
+      </p>
+    </div>
+  </article>
+</Base>

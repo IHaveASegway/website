@@ -2,7 +2,8 @@
 // the command palette read it, so a page renamed in one place is renamed everywhere. Pages are
 // listed before they exist; only those this build writes are linked, so the rule "an element
 // renders only when its target exists" holds by construction rather than by review. Page files
-// say which static pages exist; content says the rest (Writing's indexes and feed, lib/posts.ts).
+// say which static pages exist; content says the rest (Writing's indexes and feed, lib/posts.ts;
+// the lab's pages, lib/lab.ts).
 
 export interface NavItem {
   readonly id: string;
@@ -15,13 +16,25 @@ export interface NavItem {
 }
 
 // No Work item: owned work is a card on Home that links to its repository, and /work/ builds
-// nothing (content.md, "Owned work", 2026-10-23).
+// nothing (content.md, "Owned work", 2026-10-23). Lab comes first, as content.md orders the header.
+// "Résumé" is set in the sans face, which has é; the mono subset does not (design-system.md,
+// "The faces").
 export const MANIFEST: readonly NavItem[] = [
+  { id: 'lab', label: 'Lab', href: '/lab/', header: true }, // from the first live demo (lib/lab.ts)
   { id: 'writing', label: 'Writing', href: '/writing/', header: true }, // PR 5, from the first post
+  { id: 'resume', label: 'Résumé', href: '/resume/', header: true }, // a page file: every build
   { id: 'about', label: 'About', href: '/about/', header: true }, // PR 4
   { id: 'rss', label: 'RSS', href: '/rss.xml', footer: true }, // PR 5, with Writing
   { id: 'colophon', label: 'Colophon', href: '/colophon/', header: true, footer: true }, // PR 3b
 ];
+
+/** An item's label, for a page that names itself the way the nav names it: its title and its
+ *  link preview say what its header link says. */
+export function labelOf(id: string): string {
+  const item = MANIFEST.find((i) => i.id === id);
+  if (item === undefined) throw new Error(`nav.ts: the manifest has no item "${id}"`);
+  return item.label;
+}
 
 /** Page URLs from page file paths: index.astro is "/", colophon/index.astro is "/colophon/". The
  *  404 page has no URL of its own, and endpoints such as og.png.ts are files, not pages. */

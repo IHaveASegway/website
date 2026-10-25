@@ -61,3 +61,7 @@ One-way-ish for each DO class's lifecycle. Once a class is deployed, it is renam
 - Lab deploys drop live sessions more than once a week. Then split into one Worker per demo, after checking how previews isolate cross-Worker DO bindings.
 - A demo ever renders visitor-supplied markup or third-party embeds. Then move the lab to `lab.ihaveasegway.com` for origin isolation.
 - Spike S1 fails: static assets stop serving once the account's daily cap trips. Then the lab's quota is the site's quota, and the lab stays dark until the plan changes ([ADR 0008](0008-workers-free-with-guardrails.md)).
+
+## Postscript 2026-10-25
+
+The Route Lab no longer needs the lab Worker. It runs VROOM in the visitor's browser from static files, with no server state and nothing to check ([ADR 0016](0016-route-lab-in-the-browser.md)), so `RouteRoom` is dropped from the classes this Worker will hold, and the Route Lab's column leaves the lab's quota plan. The rest of this record is unchanged: Presence, the Outbox Lab and the Migration Lab still need it, and a multiplayer Route Lab would bring `RouteRoom` back under this decision. No Revisit if condition was met.

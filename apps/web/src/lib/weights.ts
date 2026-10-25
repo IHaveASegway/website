@@ -72,5 +72,16 @@ export function preloadedFonts(html: string): string[] {
     .map((link) => link.attributes['href'] ?? '');
 }
 
+/** Every font file the @font-face rules a page carries inline name, once each: every face it can
+ *  fetch, preloaded or not (the Fonts API writes its @font-face into the page). */
+export function declaredFonts(html: string): string[] {
+  const sources = pageStyles(html).inline.flatMap((css) =>
+    [...css.matchAll(/@font-face\s*\{[^}]*?\bsrc\s*:\s*url\(\s*["']?([^"')]+)["']?\s*\)/g)].map(
+      ([, src = '']) => src,
+    ),
+  );
+  return [...new Set(sources)];
+}
+
 /** The theme script exactly as Base.astro inlines it and astro.config.mjs hashes it. */
 export const THEME_SCRIPT: string = themeSource;

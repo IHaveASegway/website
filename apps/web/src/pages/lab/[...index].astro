@@ -1,0 +1,46 @@
+---
+import PageHead from '../../components/PageHead.astro';
+import Base from '../../layouts/Base.astro';
+import { loadLabArea, loadProfile } from '../../lib/content';
+import { labPath } from '../../lib/lab';
+import { labIndexCard } from '../../lib/og';
+
+// /lab/, the lab's index: one row per live demo, like a list of posts, without a date (a demo has
+// no publish date on its page). A rest parameter, so the page builds only while a demo is live,
+// as Writing's indexes build only from the first post (lib/lab.ts); the demos' own pages are
+// [demo].astro.
+export async function getStaticPaths() {
+  const lab = await loadLabArea();
+  return lab.visible ? [{ params: { index: undefined } }] : [];
+}
+
+const profile = await loadProfile();
+const { name } = profile.basics;
+const lab = await loadLabArea();
+---
+
+<Base
+  title={`Lab · ${name}`}
+  description={`Demos by ${name} that run in your browser.`}
+  path="/lab/"
+  og={labIndexCard(profile)}
+>
+  <section class="page" aria-labelledby="page-title">
+    <PageHead
+      label={`${lab.entries.length} ${lab.entries.length === 1 ? 'demo' : 'demos'}`}
+      heading="Lab"
+      lead="Demos that run in your browser."
+    />
+    <ol class="post-list" role="list">
+      {lab.entries.map((demo) => (
+        <li>
+          <p class="post-meta">Demo</p>
+          <h2 class="post-title">
+            <a href={labPath(demo)}>{demo.title}</a>
+          </h2>
+          <p class="post-summary">{demo.summary}</p>
+        </li>
+      ))}
+    </ol>
+  </section>
+</Base>

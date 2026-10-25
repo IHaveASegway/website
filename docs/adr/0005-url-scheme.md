@@ -92,3 +92,7 @@ Nearly one-way. It is free to change until the first URL is shared, which happen
 ## Postscript 2026-10-24
 
 Writing now renders from the first published post, not the third: `MIN_POSTS` in `apps/web/src/lib/posts.ts` is 1, so the line "Writing renders only once at least 3 posts exist" under Decision no longer describes the code. The change was proposed on 2026-10-24 for Joseph's read, from his ask for a workable site from the content that exists; the threshold is [content.md](../content.md)'s to own. The URL scheme is unchanged: the same prefixes, slugs, trailing slashes and ledger, and a section still appears only when it has content. No Revisit if condition was met.
+
+## Postscript 2026-10-25
+
+`/resume/` now builds: the résumé as Q9 (a), a page generated from `profile.json`, on Joseph's direction of 2026-10-25 ([content.md](../content.md#résumé), [product.md](../product.md#decided)). It is a page file, so every build writes it, and the header links it; its URL joins `apps/web/published-urls.txt` in the same change, so once deployed it keeps its address for good. The PDF path, `/resume/joseph-peterson-resume.pdf`, stays reserved and unused: no PDF is hosted until Q9 (b). The URL scheme is unchanged, and no Revisit if condition was met.

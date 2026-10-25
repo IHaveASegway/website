@@ -238,9 +238,9 @@ describe('axes and coverage', () => {
 
 // Spike S9 (roadmap.md): what the Fonts API writes into every page. A regression here would
 // render the name at full width (no stretch range) or load the name's face late (no preload).
-// Since 2026-10-25 only Instrument Sans is preloaded: JetBrains Mono sets values and code, none of
-// them on Home or the 404 today, so a page fetches it when it uses it, and it keeps its @font-face
-// (design-system.md, "The faces").
+// Since 2026-10-25 only Instrument Sans is preloaded: JetBrains Mono sets values and code, so a
+// page fetches it when it uses it, and it keeps its @font-face (design-system.md, "The faces"). The
+// 404 never uses it; Home, the lab's pages and the résumé do.
 describe('what the Fonts API writes into every page', () => {
   /** The file each @font-face of a family names, and every file a page preloads. */
   const fontFile = (page: string, weights: string) =>

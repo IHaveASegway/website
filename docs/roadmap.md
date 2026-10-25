@@ -68,7 +68,8 @@ Solo estimates run optimistic. That is the planning fallacy, and the remedy is t
 | 4 | [PR 6 Lab platform + Presence](#pr-6-lab-platform-and-presence) | `workers/lab/`; admission; LabControl; recordings; `/privacy/`; kill switch; spikes S1–S6 first | 4–5 | — | spikes S1–S6 (running from 2026-10-23); Q-ip. Q-budget was decided on 2026-10-23: $50 |
 | 4 | [PR 7 Outbox Lab](#pr-7-outbox-lab) | The transactional outbox demo | 8–10 | — | Q-first-demo |
 | 4 | [PR 8 Migration Lab](#pr-8-migration-lab) | The saved-plan migration demo | 6–8 | — | — |
-| 5 | [Later](#explicitly-later) | Route Lab, public résumé edition, Pagefind, Mission-AI references, terminal mode | — | — | Joseph's decisions |
+| — | [Route Lab](#route-lab-static-built-2026-10-25) | `/lab/`, `/lab/routes/`: VROOM in the browser, static ([ADR 0016](adr/0016-route-lab-in-the-browser.md)) | 7–10 | built on 2026-10-25 by agents, at Joseph's direction | the merge gates below |
+| 5 | [Later](#explicitly-later) | A résumé PDF, Pagefind, Mission-AI references, terminal mode | — | — | Joseph's decisions |
 
 ```mermaid
 flowchart TB
@@ -93,6 +94,8 @@ flowchart TB
 
 The order is the plan's main decision. The ask led with Durable Objects. Starting with the lab would put the riskiest, costliest work first and show an unexplained demo before there is a page to explain it; an unexplained or broken demo is worse than none. A single launch with everything at once would ship nothing for months and get no feedback. Thin slices, content first, each one deployed, keep something real and current on the domain from PR 2 on. The order is a two-way door: it can change at any pull request boundary. Evidence that it was wrong: in conversations about his work, people ask for the lab more than for the writing or the projects.
 
+**Changed on 2026-10-25, as that rule allows.** Joseph directed the Route Lab first: "Goal post is VROOM running." Built as static files, it needs none of the lab platform, so it sits outside Phase 4's chain ([ADR 0016](adr/0016-route-lab-in-the-browser.md)).
+
 **Changed on 2026-10-23, as that rule allows.** Joseph asked for the blog and the playground (the lab) first. So:
 
 - PR 3 ships Home v1 as built, and the colophon, the Web Analytics beacon and Lighthouse CI become PR 3b.
@@ -102,6 +105,14 @@ The order is the plan's main decision. The ask led with Durable Objects. Startin
 - Owned work became cards on Home that link to their repositories: no `/work/` pages, terminal recordings or lab companions. stillhere's card waits on its readiness check and the GitHub profile's; gitops stays off the site until it is public again ([content.md](content.md#owned-work)). So PR 4 shrinks to `/about/`, `/now/` and turning stillhere's card on.
 
 ## Pull requests
+
+### Route Lab, static (built 2026-10-25)
+
+Scope: `/lab/` and `/lab/routes/`; VROOM 1.15.0 in WebAssembly with its build, tests and lock (`tools/vroom-wasm/`); the OpenStreetMap pipeline and its outputs (`tools/route-data/`); the domain core `apps/web/src/lib/route-lab/`; the lab collection and the Home card; the six page-scoped rule changes in [ADR 0016](adr/0016-route-lab-in-the-browser.md), each with its test and known answer.
+
+Definition of done: the repository's own (format, lint, types, the three builds, the unit suite, `e2e` and `e2e:writing` pass), plus `e2e/lab.spec.ts`: a solve in Chromium with no policy violation on the page or in the worker, a tap on the map, the keyboard's list, the page without JavaScript, axe and the glyph check after a solve, the motion rules before and after, and the known answer that a worker refused WebAssembly says so.
+
+Gates before merge, which only Joseph can clear (ADR 0016, Consequences): Q13 (Q-ip); the Seattle region, an ASK review under [lab.md](lab.md)'s "Rules for every demo"; the five markets among the places, run by organizations; reading the demo beside his résumé and LinkedIn; the credit line for work built with agents; ADR 0016's acceptance and Q12's answer; and the review stamp on `src/content/lab/routes.md`, which keeps `verify` red until he reads the entry.
 
 ### PR 1: The plan (docs/)
 
@@ -208,7 +219,7 @@ Owned work is cards, not pages (Joseph, 2026-10-23). stillhere's card links to i
 - [ ] stillhere's card renders on Home with its link, and `test/project-cards.test.ts` passes on the real build.
 - [ ] Credit is exact: other people's contributions are named as theirs.
 - [ ] `/about/` is generated from `profile.json`, which has no employer field, and carries ProfilePage and Person JSON-LD without `worksFor` ([ADR 0004](adr/0004-content-as-code.md)).
-- [ ] The résumé line follows Q-resume: by default a LinkedIn link and "full résumé on request". No résumé PDF is hosted or committed.
+- [x] The résumé line follows Q-resume: a LinkedIn link and "Full résumé on request", on `/resume/` since 2026-10-25 (Q9 (a), as a page). No résumé PDF is hosted or committed.
 - [ ] `/now/` shows the date it was written.
 - [ ] The header shows only sections that have content.
 
@@ -342,10 +353,9 @@ S1 and S3 to S6 ran on 2026-10-23 with two departures from the rules above: they
 
 | Item | Why it waits | What would bring it forward |
 |---|---|---|
-| Public résumé edition (HTML and a print-CSS PDF from `profile.json`, employer omitted, clean PDF metadata) | It needs the firewall answers first (Q-threat-model, Q-career-arc). "Full résumé on request" serves recruiters meanwhile | Joseph chooses it in [Q-resume](product.md) |
+| A résumé PDF (printed from `/resume/`, clean PDF metadata) | It needs the firewall answers first (Q-threat-model, Q-career-arc), and a PDF is a one-way door. The HTML edition, with "Full résumé on request", serves recruiters meanwhile: `/resume/` since 2026-10-25 | Joseph chooses it in [Q-resume](product.md), option (b) |
 | Pagefind search | No search until about 20 posts. Then a static index, $0 at runtime, which can also feed the ⌘K palette | The 20th post |
 | Terminal mode (lazy-loaded, opened with Ctrl and the backtick key, or from the palette) | An effect, not content. The launch effects are capped | Content pages complete and budgets green with room to spare |
-| Route Lab | 7–10 focused days, and the most outside parts of any demo: a WASM solver, map data and a travel-time matrix ([lab.md](lab.md)). Like every demo, it also waits on [Q-ip](product.md) | Outbox Lab and Migration Lab live and stable |
 | Mission-AI references | Off the site at launch ([Q-mission](product.md)) | Joseph's decision, after the IP check |
 | Containers | Paid-only, and the first Container-backed demo is itself an upgrade trigger ([ADR 0008](adr/0008-workers-free-with-guardrails.md)) | A demo that needs a native solver or a long-running process |
 | gitops back on the site | Private since 2026-10-23. Joseph's plan: clean its history the way stillhere's was cleaned, make it public, then turn its card on ([content.md](content.md#owned-work)) | His go-ahead for the history cleanup |

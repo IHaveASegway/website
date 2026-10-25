@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { MANIFEST, navFor, present, routesFrom } from '../src/lib/nav';
+import { labelOf, MANIFEST, navFor, present, routesFrom } from '../src/lib/nav';
 import { files, html, read } from './support/dist';
 
 // The nav manifest (design-system.md, "One nav manifest"): a link renders only when its page
@@ -24,13 +24,38 @@ test('a manifest item is linked only once its page exists', () => {
   expect(present(MANIFEST, new Set(['/', '/colophon/'])).map((i) => i.id)).toEqual(['colophon']);
 });
 
+// The résumé is a page file, so every build writes it and the header links it; Writing and RSS
+// join with the routes content generates, and Lab with its first live demo, before Writing.
 test('Writing joins the header, and RSS the footer, only with the routes content generates', () => {
-  expect(navFor('header').map((i) => i.id)).toEqual([]);
+  expect(navFor('header').map((i) => i.id)).toEqual(['resume']);
   expect(navFor('footer').map((i) => i.id)).toEqual([]);
   expect(navFor('header', ['/writing/', '/notes/', '/rss.xml']).map((i) => i.id)).toEqual([
     'writing',
+    'resume',
   ]);
   expect(navFor('footer', ['/writing/', '/notes/', '/rss.xml']).map((i) => i.id)).toEqual(['rss']);
+  expect(navFor('header', ['/lab/', '/writing/']).map((i) => i.id)).toEqual([
+    'lab',
+    'writing',
+    'resume',
+  ]);
+});
+
+test("the résumé names itself as the header does, and a missing item's label is an error", () => {
+  expect(labelOf('resume')).toBe('Résumé');
+  expect(() => labelOf('nowhere')).toThrow(/no item "nowhere"/);
+});
+
+// The résumé's page file is in every build, so it stands in each list; Lab is what changes.
+test('Lab joins the header, first, only with the routes the lab generates', () => {
+  expect(navFor('header', ['/lab/', '/lab/routes/']).map((i) => i.id)).toEqual(['lab', 'resume']);
+  expect(navFor('header', ['/lab/routes/']).map((i) => i.id)).toEqual(['resume']);
+  expect(navFor('header', ['/writing/', '/lab/']).map((i) => i.id)).toEqual([
+    'lab',
+    'writing',
+    'resume',
+  ]);
+  expect(navFor('footer', ['/lab/']).map((i) => i.id)).toEqual([]);
 });
 
 /** The links in a page's header nav and footer link row. */

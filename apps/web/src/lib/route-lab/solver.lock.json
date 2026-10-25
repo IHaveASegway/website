@@ -1,0 +1,56 @@
+{
+  "vroom": {
+    "version": "1.15.0",
+    "tag": "v1.15.0",
+    "commit": "43dd7d0b8b560431eb555bf335cf4797eb7343c4"
+  },
+  "rapidjson": "973dc9c06dcd3d035ebd039cfb9ea457721ec213",
+  "emsdk": "6.0.13",
+  "build": "tools/vroom-wasm/build/build.sh: -O3 -fwasm-exceptions, one thread, no routing engine",
+  "folder": "vroom-1.15.0-870d7d5e",
+  "files": {
+    "vroom.wasm": {
+      "bytes": 919927,
+      "sha256": "60086074ad9ffd3bfcf5afb053bdbd479e0356128b373c0e30dc9fa95f43af51"
+    },
+    "vroom.mjs": {
+      "bytes": 8403,
+      "sha256": "c50b16cb3418cc2dbc7ffa027e6a4781ae02fba16e672a7cf7f1b27754238d18"
+    },
+    "vroom-solver.mjs": {
+      "bytes": 1591,
+      "sha256": "1c77299019ea25849e4b57c01eef7c15fd5962ee0d9d59813819cc04f5810602"
+    },
+    "vroom-worker.mjs": {
+      "bytes": 1002,
+      "sha256": "77704759a073b21930da37a5f5852c4e82b13a9e26b5fa1d0cb61ff8bf9c8f30"
+    },
+    "LICENSES.txt": {
+      "bytes": 69442,
+      "sha256": "dd0bff4cd14773b2498cf7ceb59a5fca38e77ec85620a96bce8f86f7b24b6f14"
+    }
+  },
+  "wasm": {
+    "imports": [
+      "a.a:function",
+      "a.b:function",
+      "a.c:function",
+      "a.d:function",
+      "a.e:function",
+      "a.f:function"
+    ],
+    "exports": [
+      "g:memory",
+      "h:function",
+      "i:function",
+      "j:function",
+      "k:function",
+      "l:function",
+      "m:function"
+    ],
+    "paths": [
+      "/emsdk/emscripten/system/lib/libcxxabi/src/private_typeinfo.cpp",
+      "/emsdk/emscripten/system/lib/libcxxabi/src/fallback_malloc.cpp"
+    ]
+  }
+}

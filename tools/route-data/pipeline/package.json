@@ -1,0 +1,17 @@
+{
+  "name": "route-lab-map-data",
+  "private": true,
+  "type": "module",
+  "description": "Offline pipeline for the Route Lab map data: OSM extract -> OSRM matrix, leg geometry, isochrones and a stylised basemap",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "@project-osrm/osrm": "26.6.5",
+    "d3-contour": "4.0.2",
+    "polygon-clipping": "0.15.7"
+  },
+  "allowScripts": {
+    "@project-osrm/osrm@26.6.5": true
+  }
+}

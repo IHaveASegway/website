@@ -38,8 +38,9 @@ export default defineConfig({
     },
     // The deploy job's smoke of the Version URL: HTTP checks only, so no browser is installed.
     { name: 'smoke', testMatch: ['smoke.spec.ts', 'headers.spec.ts'] },
-    // The writing fixture: every check that walks the page list, plus what only posts have. Home's
-    // own checks (fold, motion, theme) run on the site, where Home is the same page.
+    // The writing fixture: every check that walks the page list, plus what only posts have, and
+    // the résumé printed with the most roles and skills its schema allows. Home's own checks
+    // (fold, motion, theme) run on the site, where Home is the same page.
     {
       name: 'writing-fixture',
       use: { ...devices['Desktop Chrome'] },
@@ -49,6 +50,7 @@ export default defineConfig({
         'glyphs.spec.ts',
         'llms.spec.ts',
         'not-on-site.spec.ts',
+        'resume.spec.ts',
         'smoke.spec.ts',
         'writing.spec.ts',
       ],

@@ -1,8 +1,10 @@
 # Lab
 
-How the live demos work. One Worker holds every Durable Object (DO) class behind `ihaveasegway.com/lab/api/*`. Admission and daily budgets keep the account inside the Workers Free plan. Every demo has a recorded run to fall back to. Four demos are designed far enough to estimate and build. Nothing here ships at launch: the lab platform is Phase 4 ([roadmap.md](roadmap.md)), after the work and writing pages, and only once the spikes at the end of this page pass.
+How the live demos work. One Worker holds every Durable Object (DO) class behind `ihaveasegway.com/lab/api/*`. Admission and daily budgets keep the account inside the Workers Free plan. Every demo has a recorded run to fall back to. Four demos are designed far enough to estimate and build. The lab platform is Phase 4 ([roadmap.md](roadmap.md)), after the work and writing pages, and only once the spikes at the end of this page pass.
 
-Status: Draft for review in PR 1 · 2026-10-22
+The Route Lab is the exception, and the first demo to ship: since 2026-10-25 it runs VROOM in the visitor's browser from static files, with no Worker, no Durable Object and no recording ([ADR 0016](adr/0016-route-lab-in-the-browser.md); [Route Lab](#route-lab-built-2026-10-25)). It needs none of the platform below.
+
+Status: Draft for review in PR 1 · 2026-10-22; the Route Lab built as a static demo · 2026-10-25
 
 Decision: [ADR 0009](adr/0009-lab-worker-same-origin.md) · Plan and spend: [ADR 0008](adr/0008-workers-free-with-guardrails.md), [cost.md](cost.md) · Request flow: [architecture.md](architecture.md) · Headers and privacy: [security.md](security.md) · Runbooks: [operations.md](operations.md)
 
@@ -34,7 +36,6 @@ flowchart LR
     P["PresenceRoom"]
     O["OutboxSandbox"]
     M["MigrationSandbox"]
-    R["RouteRoom, later"]
   end
   V -->|"page views: no Worker runs, no quota"| A
   V -->|"/lab/api/session, /lab/api/demo/ws"| W --> G
@@ -42,7 +43,6 @@ flowchart LR
   G -->|"name from the verified session"| P
   G --> O
   G --> M
-  G -.-> R
 ```
 
 Two Workers share one hostname:
@@ -86,7 +86,7 @@ No DO stores anything personal. Deleting is not erasing here: SQLite-backed obje
 5. **No timers.** No `setInterval` or `setTimeout` in a DO. A pending timer prevents hibernation and keeps duration billing on. Anything that must happen later is an alarm.
 6. **Every sandbox and room has a cleanup alarm, and ends with `deleteAll()`.** The hard deadline is the demo's TTL or the session cookie's expiry, whichever comes first, and never more than 15 minutes; the idle close comes after 3–5 minutes. With `compatibility_date` 2026-02-24 or later, `deleteAll()` also deletes the alarm, so a finished object holds nothing and costs nothing. All demo state is disposable. The two long-lived objects, `LabControl` and `presence:home`, are the exceptions by design.
 7. **Alarms run at least once, so handlers are idempotent.** A handler that throws is retried up to 6 times with exponential backoff from 2 s, and a retry starts from the top. Handlers re-read state and act from cursors and ledgers, never from in-memory counters, so a second run changes nothing. An alarm re-arms only for a later time and at most 100 times a day per object. That loop guard is the cheap defense against the runaway bills in [cost.md](cost.md).
-8. **Names come from the server.** Shared rooms are addressed by name (`presence:home`, `route:<code>`), private sandboxes by the verified session id (`outbox:<sid>`). A client can never name an object into existence. Leaked objects would fill the Free plan's 5 GB account storage cap, which has no daily reset.
+8. **Names come from the server.** Shared rooms are addressed by name (`presence:home`), private sandboxes by the verified session id (`outbox:<sid>`). A client can never name an object into existence. Leaked objects would fill the Free plan's 5 GB account storage cap, which has no daily reset.
 9. **Handlers stay O(n) and short** until spike S3 settles whether a DO handler on Free gets 30 s or 10 ms of CPU.
 
 What the rules look like in a sandbox, on PartyServer:
@@ -198,7 +198,7 @@ CREATE TABLE ledger (day TEXT NOT NULL, demo TEXT NOT NULL,     -- UTC date
                      PRIMARY KEY (day, demo));                  -- kept 35 days
 ```
 
-An example split of the rows-written share once three sandboxes run: Outbox Lab 30,000, Migration Lab 30,000, Presence and `LabControl` 3,000, held back for Route Lab 7,000. That is 70,000 of the 100,000 a day. Presence writes one ledger row a visit, so under this split it runs out of rows at about 3,000 visits a day, long before the request cap the [cost table](#per-session-cost-and-free-headroom) shows as its binding limit.
+An example split of the rows-written share once three sandboxes run: Outbox Lab 30,000, Migration Lab 30,000, Presence and `LabControl` 3,000, and 7,000 held back for a later demo (the Route Lab needs none: it runs in the browser). That is 70,000 of the 100,000 a day. Presence writes one ledger row a visit, so under this split it runs out of rows at about 3,000 visits a day, long before the request cap the [cost table](#per-session-cost-and-free-headroom) shows as its binding limit.
 
 ### Global limits
 
@@ -209,8 +209,8 @@ An example split of the rows-written share once three sandboxes run: Outbox Lab 
 | Session life | At most 15 minutes: the demo's TTL or the cookie's expiry, whichever comes first; 3–5 minutes idle | Cookie `Max-Age=900`; the DO's alarm | Close 4000 or 4001 |
 | Frame size | 4–8 KB, text frames only | The DO | Close 1009; 1008 for a binary frame |
 | Per-socket rate | A token bucket in the connection state, which survives hibernation | The DO | An `err` frame; close 1008 after 10 strikes |
-| Sockets per object | Presence 500, Route Lab 8, sandboxes 2 | The DO, on connect | Close 4002 |
-| Work per session | Outbox 100 commands; Migration 5 applies, one restore per apply and 3 inverse-plan rollbacks; Route 3 rooms an hour | The DO | `err` with code `limit` |
+| Sockets per object | Presence 500, sandboxes 2 | The DO, on connect | Close 4002 |
+| Work per session | Outbox 100 commands; Migration 5 applies, one restore per apply and 3 inverse-plan rollbacks | The DO | `err` with code `limit` |
 | Daily budget | Each demo's share, inside 70% of every Free cap | `LabControl` | Close 4003; the recorded run |
 | Visitor free text | None in v1; callsigns come from a fixed list | The protocol | — |
 
@@ -252,7 +252,7 @@ stateDiagram-v2
 
 - **Fallback triggers.** Any non-2xx answer: 429, 503, Error 1027, a WAF block's 403 under L3, the site's 404 once the route is gone under L4. Also a network error, a 3-second connect timeout, or close code 4003. The client then fetches the demo's recording, a static asset that is free and uses no quota, and replays it through the same reducer, labelled "recorded run".
 - **Reconnects.** The client uses PartySocket (1.3.0 as of 2026-10-22, MIT, [npm](https://www.npmjs.com/package/partysocket)), which reconnects with backoff. Every reconnect gets a fresh snapshot, so a lab deploy costs a visitor a pause, not their session.
-- **Route Lab degrades to solo offline mode.** Its solver already runs in the browser, so only sharing is lost. Presence degrades to a dash: a recorded number is never shown as a live one.
+- **The Route Lab has no live mode to lose.** It runs in the browser from static files; where the browser cannot run its solver, the page keeps the plan worked out at build and says so. Presence degrades to a dash: a recorded number is never shown as a live one.
 - **Recordings.** An NDJSON file per run: a header line `{"v":1,"t":"rec","demo":"outbox","app":"<git sha>","seed":42}`, then the server's frames, each with `dt` (milliseconds since the start) for pacing. Curated runs are Joseph's own sessions on synthetic data, recorded in the browser and committed beside the write-up. A visitor can download their own session; nothing a visitor does is uploaded.
 - **One domain core per demo.** `decide(command, state) → events` and `evolve(state, event) → state` are plain TypeScript with no platform imports ([ADR 0014](adr/0014-typescript-on-workers.md), Proposed). They run in three places: the DO (authoritative), the browser (offline mode and replay), and the tests. Replaying a curated recording through `evolve` must reproduce its snapshots, so every recording doubles as a golden test, and a refactor that changes behavior fails CI. Seeded randomness, such as the Outbox Lab's faults, makes a run reproducible, and that is what makes it recordable.
 
@@ -292,7 +292,7 @@ Ranked by score = 4 × signal + effort + abuse + Free fit, each from 1 to 5 with
 
 | Rank | Demo | The visitor | It proves | Signal | Effort | Abuse risk | Free capacity a day (binding limit) | DO |
 |---|---|---|---|---|---|---|---|---|
-| 1 | Route Lab | Drops stops on a stylized map; browsers race to improve the routes; the room accepts only plans it has checked | The vehicle routing problem (VRP); compute where it is free; optimistic concurrency | 5 | 7–10 d | Low to medium | ≈1,430 sessions (rows) | Room |
+| 1 | Route Lab (built 2026-10-25) | Picks a bakery's orders on a map of Seattle, chooses the vans and presses a button; VROOM plans the routes in the browser beside the orders dealt in turn | The vehicle routing problem (VRP); compute where it is free; a C++ solver compiled to WebAssembly | 5 | 7–10 d | None | Unlimited (static) | No |
 | 2 | Outbox Lab | Places, pays and cancels orders; crashes the service after commit; breaks subscribers; replays | Transactional outbox, CloudEvents, schema validation at the boundary, idempotency keys, consumer offsets, DLQ | 5 | 8–10 d | Low | ≈170–330 (rows) | Sandbox |
 | 3 | Migration Lab | Edits a declarative migration, reads the plan, applies it in batches, crashes it, verifies, rolls back | Saved-plan apply, expand/contract, idempotent batches, point-in-time recovery | 4 | 6–8 d | Low | ≈100–200 (rows) | Sandbox |
 | 4 | stillhere on stillhere (parked 2026-10-23) | Explores stillhere's report on its own public repos | His product, CQRS, the ADR habit | 3 | 3–5 d | None | Unlimited (static) | No |
@@ -308,10 +308,11 @@ Capacity is at 100% of the binding Free cap; the [cost table](#per-session-cost-
 
 Ship order is not rank order.
 
+0. **Route Lab**, built on 2026-10-25 as a static demo at Joseph's direction ([ADR 0016](adr/0016-route-lab-in-the-browser.md)): it needs none of the platform, so it ships whenever its gates clear. Like every demo, it waits on Q13 (Q-ip) in [product.md](product.md).
 1. **Presence**, in PR 6 with the platform. Its signal is the lowest, but it takes 1–2 days and exercises every platform piece with almost no domain logic: Turnstile, the cookie, both rate limits, `LabControl`, hibernation, the kill switch, recordings and logs. It is the lab's walking skeleton.
 2. **Outbox Lab**, PR 7. It has the deepest backend signal, needs no outside data or solver, and fits the rows budget. Q12 (Q-first-demo) in [product.md](product.md) recommends it.
 3. **Migration Lab**, PR 8.
-4. **Route Lab**, first by rank and last to ship. It takes 7–10 days and brings the most outside parts of any demo: a WASM solver that calls itself experimental, OpenStreetMap data under the ODbL, and a precomputed travel-time matrix. Like every demo, it waits on Q13 (Q-ip) in [product.md](product.md).
+Until 2026-10-25 the Route Lab came last: first by rank, with the most outside parts of any demo, a WASM solver that called itself experimental, OpenStreetMap data under the ODbL and a precomputed travel-time matrix, and a room in the lab Worker. Running VROOM itself in the browser removed the room, and with it the wait for the platform.
 
 The resilience simulator is a static companion: it needs no DO and can ship any time. The stillhere report and the gitops recordings are parked.
 
@@ -421,58 +422,34 @@ CREATE TABLE audit (seq INTEGER PRIMARY KEY AUTOINCREMENT, at INTEGER NOT NULL, 
 
 **Weaker designs:** raw SQL from visitors (unbounded CPU, and plans become impossible to compute); an apply without a plan hash (it can apply something other than what was reviewed); one transaction for the whole table (fine at 120 rows, the wrong habit at millions of rows).
 
-### Route Lab (last to ship)
+### Route Lab (built 2026-10-25)
 
-**Proves:** vehicle routing, and the architect's move of running the expensive part where it is free, the visitor's CPU, while the server only checks. Domain: parcel deliveries on public map data, with synthetic stops.
+**Proves:** vehicle routing, and the architect's move of running the expensive part where it is free, the visitor's CPU. Domain: a made-up bakery's deliveries to public places on OpenStreetMap data. Decision: [ADR 0016](adr/0016-route-lab-in-the-browser.md).
 
-- **Browser:** renders a stylized map, snaps clicks to nodes, and solves in a Web Worker with a WASM solver ([reinterpretcat/vrp](https://github.com/reinterpretcat/vrp), Apache-2.0, self-described as experimental) behind a `Solver` interface, so the solver can be swapped.
-- **DO:** `RouteRoom`, named `route:<code>`, where `code` is 8 Crockford base32 characters (40 random bits) minted by the lab Worker; a code nobody shares is solo mode. It owns the canonical stops, fleet and `stops_v`, checks submitted plans, and fans changes out. It never solves.
-- **Static data, built offline:** at most 400 snap points, stylized roads, and a travel-time matrix in uint16 seconds (400² × 2 B = 320 KB), computed once with OSRM from OpenStreetMap data. The same matrix ships inside the lab Worker for the check. Attribution on the page: "© OpenStreetMap contributors", under the ODbL ([copyright](https://www.openstreetmap.org/copyright)).
-- **The check, O(n):** every stop is visited exactly once; every vehicle stays within capacity; arrival times from the matrix fall inside each stop's time window; the recomputed cost is within 1 s of the claimed cost. A plan is accepted only if `stops_v` is current and it beats the best cost by more than 0.1%.
+- **Page:** `/lab/routes/`, the demo and its write-up together, from `apps/web/src/content/lab/routes.md` and `components/route-lab/`. Two maps side by side, the orders dealt to the vans in turn and the plan VROOM makes, over isochrone bands 5 to 30 minutes from the bakery. A visitor picks a day (five, from 8 orders with 1 van to all 63 with 4) or a surprise, changes the vans, and taps places on either map or ticks them in a list; every change plans again by itself, and the page says what changed and what VROOM saved. On a phone one map shows at a time, with a choice of which.
+- **Solver:** VROOM 1.15.0, compiled to WebAssembly by `tools/vroom-wasm/` and run in a module Web Worker from `/lab/routes/solver/vroom-<version>-<sha8>/`. Exploration level 5 up to 40 orders and 3 above, with a 5-second limit. In headless Chromium on 4 CPUs (2026-10-25), a solve took 10 to 60 ms for the four smaller days and 310 to 370 ms for every order at once.
+- **Static data, built offline** by `tools/route-data/`: 64 places, durations and distances for every ordered pair (4,032 legs) from OSRM's car profile, the legs' road geometry packed as one graph, the isochrones and a basemap, all in the map's own units, with no coordinates. Attribution next to the map: "© OpenStreetMap contributors", linked to the [copyright page](https://www.openstreetmap.org/copyright).
+- **No server.** No Worker, no Durable Object, no cookie, no Turnstile, no recording, no budget share: nothing is stored or sent, and the cost is $0 at any traffic.
+- **Without JavaScript** the page is the busy Saturday's two plans, solved at build by the same WebAssembly in Node, with their figures and tables.
+- **One domain core**, `lib/route-lab/`, runs in the build, the browser and the tests: the leg decoder (the pipeline's reference, ported, and checked against it on every leg), the dealt-in-turn plan, VROOM's input and output, the measures and the markup.
 
-<details>
-<summary>Schema sketch and messages; refined when Route Lab is built</summary>
-
-```sql
-CREATE TABLE room (id INTEGER PRIMARY KEY CHECK (id = 1),
-  schema_v INTEGER NOT NULL, created_at INTEGER NOT NULL, deadline INTEGER NOT NULL,
-  last_cmd_at INTEGER NOT NULL,
-  stops_v INTEGER NOT NULL,      -- optimistic-concurrency token; bumps on every stop or fleet change
-  stops_json TEXT NOT NULL,      -- at most 40 stops: id, node, demand, time window, service time
-  fleet_json TEXT NOT NULL,      -- at most 4 vehicles: capacity, shift, depot
-  best_json TEXT,                -- the best accepted plan: stops_v, routes, cost, solver, callsign
-  recent_cmd_ids TEXT NOT NULL DEFAULT '[]');  -- the last 64 command ids, to drop resends
-CREATE TABLE improvements (seq INTEGER PRIMARY KEY, at INTEGER NOT NULL, cost INTEGER NOT NULL,
-  solver TEXT NOT NULL, by TEXT NOT NULL);     -- at most 50 rows: the improvement timeline
-```
-
-One snapshot row per accepted change, instead of one row per stop, writes about a fifth of the rows.
-
-**Messages:** from the client, `stop.add`, `stop.move`, `stop.remove`, `fleet.set`, `scenario.load`, `solution.submit {stops_v, routes, claimed_cost, solver}`. From the server, `snapshot`, `stops.changed`, `solution.accepted {gain_pct}`, `peer.joined`, `peer.left`, `room.closing`. Error codes: `stale`, `invalid`, `rate_limited`, `limit`.
-
-</details>
-
-**Limits:** 8 sockets, 40 stops and 4 vehicles a room; frames up to 8 KB; a token bucket of 10, refilled at 2 a second; one submit every 2 s; 3 rooms an hour per session. An alarm every 3 minutes, an idle close at 5, the hard deadline at 15.
-
-**Cost per session:** 2 Worker requests, ≈8 DO requests, ≈70 rows written, ≈0.09 GB-s.
-
-**Not planned:** a native solver in a Container as a second opinion. Containers are Paid-only, so it would fire ADR 0008's first upgrade trigger; [cost.md](cost.md) prices a container-backed solver in scenario E.
+**Later, a multiplayer version.** The design this page held until 2026-10-25: a `RouteRoom` Durable Object per shared code, owning the stops and fleet, checking each submitted plan in O(n) and accepting one only if it beats the best by 0.1%, with browsers racing to improve it. It returns, under [ADR 0009](adr/0009-lab-worker-same-origin.md), if a race is wanted; the browser solver becomes its client. Its schema and limits are in this file's history.
 
 ## Per-session cost and Free headroom
 
 DO duration is billed at 128 MB per active object, written as 0.128 GB. Cloudflare's own example reads "1,000,000 seconds * 128 MB / 1 GB = 128,000 GB-s". Earlier estimates used 0.125 GB. [cost.md](cost.md) owns the correction and the formulas.
 
-| Per session, as of 2026-10-22 | Free cap a day | Presence visit | Route Lab | Outbox Lab | Migration Lab |
+| Per session, as of 2026-10-22 | Free cap a day | Presence visit | Route Lab, static since 2026-10-25 | Outbox Lab | Migration Lab |
 |---|---|---|---|---|---|
-| Worker requests | 100,000 | 2 | 2 | 3 | 4 |
-| DO requests: RPC, upgrades, alarms, incoming frames ÷ 20 | 100,000 | 2 | ≈8 | ≈29 | ≈12 |
-| DO active seconds (assumed, below) | — | ≈0.03 | ≈0.7 | ≈1.8 | ≈1.5 |
-| DO duration, GB-s: active seconds × 0.128 | 13,000 | ≈0.004 | ≈0.09 | ≈0.23 | ≈0.19 |
-| SQLite rows written, including `setAlarm`, deletes and `LabControl`'s ledger | 100,000 | 1 | ≈70 | ≈300–600 | ≈500–1,000 |
-| Binding limit | | Requests | Rows | Rows | Rows |
-| Sessions a day at 100% of the binding cap | | ≈50,000 | ≈1,430 | ≈170–330 | ≈100–200 |
-| Sessions a day inside the 70% share, if one demo held all of it | | ≈35,000 | ≈1,000 | ≈115–230 | ≈70–140 |
-| Workers Paid, per 1,000 sessions past the included amounts | | ≈$0.002 | ≈$0.07 | ≈$0.31–0.61 | ≈$0.51–1.01 |
+| Worker requests | 100,000 | 2 | 0 | 3 | 4 |
+| DO requests: RPC, upgrades, alarms, incoming frames ÷ 20 | 100,000 | 2 | 0 | ≈29 | ≈12 |
+| DO active seconds (assumed, below) | — | ≈0.03 | 0 | ≈1.8 | ≈1.5 |
+| DO duration, GB-s: active seconds × 0.128 | 13,000 | ≈0.004 | 0 | ≈0.23 | ≈0.19 |
+| SQLite rows written, including `setAlarm`, deletes and `LabControl`'s ledger | 100,000 | 1 | 0 | ≈300–600 | ≈500–1,000 |
+| Binding limit | | Requests | None: static assets | Rows | Rows |
+| Sessions a day at 100% of the binding cap | | ≈50,000 | Unlimited | ≈170–330 | ≈100–200 |
+| Sessions a day inside the 70% share, if one demo held all of it | | ≈35,000 | Unlimited | ≈115–230 | ≈70–140 |
+| Workers Paid, per 1,000 sessions past the included amounts | | ≈$0.002 | $0 | ≈$0.31–0.61 | ≈$0.51–1.01 |
 
 Assumptions: 10 ms of active time per handler run (an RPC, an upgrade, a frame, an alarm or a close), 50 ms to create a sandbox, and about 100 ms per Migration plan or verify. Row counts follow the schemas above. Whether `deleteAll()` bills one write per deleted row is not documented; the counts assume it does. Sources: [Workers limits](https://developers.cloudflare.com/workers/platform/limits/) · [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/) · [DO pricing](https://developers.cloudflare.com/durable-objects/platform/pricing/).
 
@@ -486,12 +463,12 @@ Assumptions: 10 ms of active time per handler run (an RPC, an upgrade, a frame, 
 - **Synthetic data only:** seeded generators or committed fixtures. No real people, companies or addresses.
 - **No employer code or numbers:** nothing carried over from any employer system, including code, schemas, data shapes and metrics. Public algorithms only, cited in the write-up.
 - **Cleared as a set, against the résumé.** Neutral nouns hide a domain, not a shape: a demo can still restate a résumé line through its pattern set, data shape, named tools or numbers. Before the first write-up ships, Joseph reads the demo list and every write-up beside his résumé and LinkedIn profile. A demo that restates a line is ASK ([content.md](content.md#firewall-classes-for-copy)), and the demos are cleared together, in writing, in the private record ([product.md](product.md#content-firewall)).
-- **Map data.** The map extract is a city with no tie to where Joseph lives or works, or a synthetic grid, chosen in an ASK review.
+- **Map data.** The map extract is a city with no tie to where Joseph lives or works, or a synthetic grid, chosen in an ASK review. The Route Lab's map is Seattle, inside the Washington State area Joseph named on 2026-10-25; that review has not happened, and it gates the merge ([ADR 0016](adr/0016-route-lab-in-the-browser.md), Consequences).
 - **No visitor free text in v1:** no chat, names or labels typed by visitors; callsigns come from a fixed list. Free text is where moderation, abuse and personal data all start.
 - **Location:** country or continent at most. City, region, postal code and coordinates from `request.cf` are never logged, stored or broadcast.
 - **IP addresses:** never stored or logged. Logs carry `HMAC(daily salt, IP)`. The salt is random, made per UTC day, and held only in memory: `LabControl` makes it and the Worker caches it until the date changes. It is never written to storage, because SQLite-backed objects keep 30 days of point-in-time recovery, so a deleted salt could be restored. Memory is not durable either: an idle `LabControl` is evicted after 70–140 seconds ([lifecycle](https://developers.cloudflare.com/durable-objects/concepts/durable-object-lifecycle/)) and makes a fresh salt when it next starts, so a quiet day can have several salts. Hashes made with different salts cannot be joined. That is acceptable, because the per-IP limit and the abuse queries only need to link requests within a burst, while the object is warm. A salt derived from a long-lived secret would let anyone holding the secret link every day's hashes. Plausible documents the same pattern: a salt "rotated and deleted every 24 hours" ([data policy](https://plausible.io/data-policy)).
 - **`/privacy/` ships before the first lab.** It covers Turnstile, the lab session cookie, hashed IPs with a daily salt, and log retention. [security.md](security.md) owns the data inventory.
-- **Every demo ships with** a write-up at `/lab/<slug>/`, a recorded run, per-session caps with a measured ceiling, a budget share in `LabControl`, and the retirement rule from [Why a lab](#why-a-lab).
+- **Every demo ships with** a write-up at `/lab/<slug>/`, a recorded run, per-session caps with a measured ceiling, a budget share in `LabControl`, and the retirement rule from [Why a lab](#why-a-lab). A demo that runs in the browser alone (`runtime: browser` in its entry) has no session, so it needs no recording, caps or budget share: its write-up, and its page without JavaScript, are the fallback.
 
 ## Observability
 
@@ -511,7 +488,7 @@ Assumptions: 10 ms of active time per handler run (an RPC, an upgrade, a frame, 
 
 ```jsonc
 // workers/lab/wrangler.jsonc: sketch; confirm against current docs when building.
-// End state after PR 8. RouteRoom joins when Route Lab ships.
+// End state after PR 8. The Route Lab runs in the browser and needs no class here (ADR 0016).
 {
   "name": "ihaveasegway-lab",
   "main": "src/index.ts",
@@ -579,6 +556,7 @@ Six questions the docs do not settle. Each is answered on a throwaway Worker bef
 | PartyServer as the room layer, Agents SDK deferred | The raw DO APIs; the Agents SDK | Gains delivery speed: lifecycle hooks, hibernation and addressing come built in. Costs operability: a 0.x dependency to pin and watch | Two-way, because the domain core imports neither | A PartyServer release breaks hibernation or addressing; a demo needs the state sync PartyServer lacks. Reopened for PR 6 on 2026-10-23: no commit since 2026-08-03 ([roadmap.md](roadmap.md#pr-6-lab-platform-and-presence)) |
 | Budgets at 70% of each Free cap, with reserve and settle | Workers Paid with budget alerts only; the Rate Limiting binding as the budget | Gains cost: a $0 ceiling that holds. Costs availability: past its budget, a demo plays recordings | Two-way | The breaker trips on more than 3 days a month: move to Paid ([ADR 0008](adr/0008-workers-free-with-guardrails.md)). Metered usage above the ledger: the ceilings are wrong |
 | Flags in Data Studio, no admin endpoint | A bearer-token admin endpoint; a flag in KV | Gains security: the public route has no admin surface. Costs operability: a manual, dashboard-only switch in a beta tool | Two-way | Data Studio loses write access or leaves beta badly, or flipping a flag takes more than a minute in an incident |
+| The Route Lab in the browser, static ([ADR 0016](adr/0016-route-lab-in-the-browser.md)) | A `RouteRoom` in the lab Worker; a native solver in a Container; a hosted routing API | Gains cost and availability: $0 and no quota at any traffic, and nothing to take down. Costs bytes on first use (about 250 KB brotli of solver) and a browser floor | Two-way for the files; one-way for the URL once shared | The largest day takes over 2 s on a phone; an engine applies the page's policy to a worker; a race between visitors is wanted |
 | Live demos at all | Recordings only | Gains evidence: the system runs, on inputs the visitor picks. Costs operability and security: a small production service with an abuse surface | Two-way: the recordings stay | Fewer than 20 live sessions a month after three months: recordings only. Abuse needs manual action more than once a month: add a WAF managed challenge in front |
 
 ## Weaker designs, and why

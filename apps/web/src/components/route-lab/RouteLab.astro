@@ -1,0 +1,330 @@
+---
+import routeDataUrl from '../../../../../tools/route-data/out/route-data.json?url';
+import { days } from '../../lib/route-lab/days';
+import { networkPath } from '../../lib/route-lab/legs';
+import lock from '../../lib/route-lab/solver.lock.json';
+import { contours } from '../../lib/route-lab/contours';
+import { basemap, isochrones, leg, routeData, type Picture } from '../../lib/route-lab/picture';
+import { formatDuration } from '../../lib/route-lab/plan';
+import {
+  away,
+  backLine,
+  bandsSentence,
+  isRound,
+  mapTitle,
+  placesMarkup,
+  planLine,
+  roomText,
+  routesMarkup,
+  savedText,
+  tableMarkup,
+  vanClass,
+} from '../../lib/route-lab/render';
+import '../../styles/route-lab.css';
+
+interface Props {
+  /** The default day's two plans, solved at build (lib/route-lab/picture.ts). */
+  picture: Picture;
+}
+
+const { picture } = Astro.props;
+const { day, capacity, before, after } = picture;
+const [x0, y0, width, height] = basemap.viewBox;
+const viewBox = `${x0} ${y0} ${width} ${height}`;
+const orders = day.orders.length;
+const DAYS = days(routeData);
+const places = routeData.points
+  .filter((p) => p.order !== undefined)
+  .sort((a, b) => a.label.localeCompare(b.label));
+// The solver's module worker, in its versioned folder beside this page (ADR 0016): _headers gives
+// that path the one policy on the site with 'wasm-unsafe-eval'.
+const solverBase = `/lab/routes/solver/${lock.folder}/`;
+// What the browser starts from: the plan VROOM made at build, so a press before any change is
+// already answered, and the browser knows which orders it answers.
+const solved = JSON.stringify({ vans: day.vans, orders: day.orders, routes: after.plan.routes });
+const fills = [...isochrones.within.keys()].reverse();
+const plans = [
+  { which: 'before', label: 'As the orders came in', short: 'As they came in', ...before },
+  { which: 'after', label: 'Planned by VROOM', short: 'VROOM’s plan', ...after },
+] as const;
+const vans = [0, 1, 2, 3].map((van) => ({ letter: vanClass(van), round: isRound(van) }));
+// Labels the map leaves out at its size: South Lake Union sits under the bakery, which has its own
+// label, and Interbay and Wallingford overlap Queen Anne and the University District. A label near
+// the left edge starts at the edge instead of centering, so it is never cut off. Union Bay and
+// Portage Bay are minor: a phone's map leaves them out, with the neighbourhoods, as they would
+// overlap Lake Union there.
+const UNDRAWN = new Set(['South Lake Union', 'Interbay', 'Wallingford']);
+const MINOR = new Set(['Union Bay', 'Portage Bay']);
+const bakery = routeData.points[0] ?? { x: 0, y: 0 };
+const labels = basemap.labels
+  .filter((l) => !UNDRAWN.has(l.text))
+  .map((l) => ({ ...l, edge: l.x < 240, minor: MINOR.has(l.text) }));
+const bakeryLabel = { x: bakery.x - 24, y: bakery.y + 11 };
+// A line along every other band's edge on land, labelled, so the bands read at a glance
+// (lib/route-lab/contours.ts): 10 and 20 minutes, where most of the map's land lies. They are part
+// of the basemap. Every label but the bakery's sits under the routes: a route or a stop that
+// crosses a label wins.
+const lines = contours(isochrones, basemap, [...labels, bakeryLabel], [10, 20]);
+const bands = bandsSentence(
+  isochrones.minutes,
+  lines.map((l) => l.minutes),
+);
+---
+
+<div
+  class="rl"
+  id="route-lab"
+  data-rl-data={routeDataUrl}
+  data-rl-worker={`${solverBase}vroom-worker.mjs`}
+  data-rl-solved={solved}
+  data-rl-bands={bands}
+>
+  <h2 class="rl-say">Plan the day</h2>
+  <svg class="rl-defs" aria-hidden="true" focusable="false" viewBox={viewBox}>
+    <defs>
+      <g id="rl-base">
+        <path class="rl-park" d={basemap.parks}></path>
+        {fills.map((k) => (
+          <path class={`rl-band band-${k + 1}`} d={isochrones.within[k]} />
+        ))}
+        <path class="rl-water" d={basemap.water}></path>
+        <path class="rl-street" d={networkPath(routeData.legs)}></path>
+        <path class="rl-road" d={basemap.roads.tertiary}></path>
+        <path class="rl-road" d={basemap.roads.secondary}></path>
+        <path class="rl-road rl-major" d={basemap.roads.primary}></path>
+        <path class="rl-road rl-motorway" d={basemap.roads.motorway}></path>
+        <path class="rl-road rl-tunnel" d={basemap.roads.tunnel}></path>
+        {lines.map((l) => (
+          <path class="rl-contour" d={l.d} />
+        ))}
+      </g>
+      <g id="rl-labels">
+        {labels.map((l) => (
+          <text
+            class={`rl-label rl-label-${l.kind}${l.edge ? ' rl-label-edge' : ''}${l.minor ? ' rl-label-minor' : ''}`}
+            x={l.edge ? 24 : l.x}
+            y={l.y}
+          >
+            {l.text}
+          </text>
+        ))}
+        {lines.flatMap((l) =>
+          l.labels.map((at) => (
+            <text class="rl-label rl-label-contour" x={at.x} y={at.y}>
+              {l.minutes} min
+            </text>
+          )),
+        )}
+      </g>
+      <g id="rl-top">
+        <text class="rl-label rl-label-bakery" x={bakeryLabel.x} y={bakeryLabel.y}>
+          The bakery
+        </text>
+      </g>
+    </defs>
+  </svg>
+
+  <div class="rl-controls" data-rl-js hidden>
+    <fieldset class="rl-days">
+      <legend class="label">Day</legend>
+      <div class="rl-chips">
+        {DAYS.map((d) => (
+          <label class="rl-chip">
+            <input type="radio" name="rl-day" value={d.id} checked={d.id === day.id} />
+            <span class="rl-chip-name">{d.name}</span>
+            <span class="rl-chip-note">
+              {d.orders.length} orders, {d.vans} {d.vans === 1 ? 'van' : 'vans'}
+            </span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+    <div class="rl-more">
+      <fieldset class="rl-vans">
+        <legend class="label">Vans</legend>
+        <div class="rl-chips">
+          {[1, 2, 3, 4].map((n) => (
+            <label class="rl-chip rl-chip-small">
+              <input type="radio" name="rl-vans" value={n} checked={n === day.vans} />
+              <span class="rl-chip-name">{n}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <button type="button" class="btn rl-surprise" data-rl-surprise>
+        Surprise me
+      </button>
+    </div>
+  </div>
+
+  <div class="rl-readout" data-rl-readout>
+    <p class="rl-saved" data-rl-saved>
+      {savedText(before.measured, after.measured)}
+    </p>
+    <p class="rl-capacity" data-rl-capacity>
+      {roomText(routeData, day.orders, day.vans, capacity)}
+    </p>
+    <p class="rl-status" data-rl-status data-rl-js hidden></p>
+    <p class="rl-say" role="status" data-rl-say></p>
+  </div>
+
+  <fieldset class="rl-view" data-rl-js hidden>
+    <legend class="rl-say">Which map</legend>
+    <div class="rl-chips">
+      {plans.map((plan) => (
+        <label class="rl-chip">
+          <input type="radio" name="rl-view" value={plan.which} checked={plan.which === 'after'} />
+          <span class="rl-chip-name">{plan.short}</span>
+        </label>
+      ))}
+    </div>
+  </fieldset>
+
+  <div class="rl-maps">
+    {plans.map((plan) => (
+      <figure class="rl-figure" data-rl-plan={plan.which}>
+        <figcaption class="rl-head">
+          <span class="label">{plan.label}</span>
+          <span class="rl-time" data-rl-time>
+            {formatDuration(plan.measured.drive)}
+          </span>
+          <span class="rl-line" data-rl-line>
+            {planLine(plan.plan, plan.measured)}
+          </span>
+          <span class="rl-back" data-rl-back>
+            {backLine(plan.measured)}
+          </span>
+          {plan.which === 'after' && (
+            <span class="rl-note" data-rl-note hidden>
+              For the previous orders
+            </span>
+          )}
+        </figcaption>
+        <svg
+          class="rl-map"
+          viewBox={viewBox}
+          role="img"
+          aria-labelledby={`rl-${plan.which}-title`}
+          data-rl-map
+        >
+          <title id={`rl-${plan.which}-title`}>
+            {mapTitle(plan.which, orders, day.vans, bands)}
+          </title>
+          <use href="#rl-base" />
+          <use href="#rl-labels" />
+          <g data-rl-routes set:html={routesMarkup(leg, plan.plan)} />
+          <g data-rl-places set:html={placesMarkup(routeData, plan.plan)} />
+          <use href="#rl-top" />
+          <g class="rl-tip" data-rl-tip>
+            <rect class="rl-tip-box"></rect>
+            <text class="rl-tip-text">
+              <tspan class="rl-tip-name"></tspan>
+            </text>
+          </g>
+        </svg>
+      </figure>
+    ))}
+  </div>
+
+  <p class="rl-hint" data-rl-js hidden>
+    Tap a place on a map, or tick it in the list below, to add or remove its order. VROOM plans
+    again each time.
+  </p>
+
+  <p class="rl-caption" data-rl-nojs>
+    Both plans for a busy Saturday, worked out in advance by the same solver. With JavaScript on,
+    you can change the orders and the vans.
+  </p>
+
+  <div class="rl-legend">
+    <div class="rl-legend-bands">
+      <p class="label" id="rl-bands-title">
+        Driving time from the bakery, without traffic
+      </p>
+      <ol class="rl-bands" aria-labelledby="rl-bands-title">
+        {isochrones.minutes.map((m, k) => (
+          <li>
+            <span class={`rl-swatch band-${k + 1}`} aria-hidden="true" />
+            {k === isochrones.minutes.length - 1 ? `${m} min` : m}
+          </li>
+        ))}
+      </ol>
+    </div>
+    <ul class="rl-keys" aria-label="Map key">
+      {vans.map((v) => (
+        <li>
+          <svg class="rl-keyline" viewBox="0 0 40 12" aria-hidden="true" focusable="false">
+            <path class={`rl-route van-${v.letter}`} d="M3 6h34" />
+            <path class={`rl-stop-casing${v.round ? ' rl-round' : ''}`} d="M20 6h0" />
+            <path class={`rl-stop van-${v.letter}${v.round ? ' rl-round' : ''}`} d="M20 6h0" />
+          </svg>
+          Van {v.letter.toUpperCase()}
+        </li>
+      ))}
+      <li>
+        <svg class="rl-keyline" viewBox="0 0 40 12" aria-hidden="true" focusable="false">
+          <path class="rl-bakery" d="M20 6h0" />
+        </svg>
+        The bakery
+      </li>
+      <li>
+        <svg class="rl-keyline" viewBox="0 0 40 12" aria-hidden="true" focusable="false">
+          <path class="rl-place" d="M20 6h0" />
+        </svg>
+        A place with no order
+      </li>
+      <li>
+        <svg class="rl-keyline" viewBox="0 0 40 12" aria-hidden="true" focusable="false">
+          <path class="rl-contour" d="M3 6h34" />
+        </svg>
+        {lines.map((l) => l.minutes).join(' and ')} min from the bakery
+      </li>
+    </ul>
+    <p class="rl-attribution">
+      Map data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>
+    </p>
+  </div>
+
+  <details class="rl-orders" data-rl-js hidden>
+    <summary>All {places.length} places</summary>
+    <fieldset>
+      <legend class="label">Orders</legend>
+      <ul class="rl-order-list">
+        {places.map((p) => (
+          <li>
+            <label>
+              <input
+                type="checkbox"
+                name="rl-order"
+                value={p.i}
+                data-x={p.x}
+                data-y={p.y}
+                checked={day.orders.includes(p.i)}
+              />
+              <span class="rl-order-place">{p.label}</span>
+              <span class="rl-order-what">
+                {p.order} · {p.qty} {p.qty === 1 ? 'box' : 'boxes'} · {away(routeData, p.i)}
+              </span>
+            </label>
+          </li>
+        ))}
+      </ul>
+    </fieldset>
+  </details>
+
+  <details class="rl-stops">
+    <summary>Stop by stop, both plans</summary>
+    <div class="rl-tables">
+      {plans.map((plan) => (
+        <div
+          data-rl-table={plan.which}
+          set:html={tableMarkup(routeData, plan.measured, plan.label)}
+        />
+      ))}
+    </div>
+  </details>
+</div>
+
+<script>
+  import './boot';
+</script>

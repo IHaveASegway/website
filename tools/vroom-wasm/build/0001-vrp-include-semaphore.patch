@@ -1,0 +1,11 @@
+diff -ruN a/src/problems/vrp.h b/src/problems/vrp.h
+--- a/src/problems/vrp.h
++++ b/src/problems/vrp.h
+@@ -14,6 +14,7 @@
+ #include <mutex>
+ #include <numeric>
+ #include <ranges>
++#include <semaphore>
+ #include <set>
+ #include <thread>
+ 
