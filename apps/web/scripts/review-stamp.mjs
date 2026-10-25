@@ -2,12 +2,16 @@
 // writes carries the day someone last read all of it: firewall_reviewed in an essay's, a note's,
 // a case study's, a lab write-up's or /now/'s front matter, and meta.firewall_reviewed in
 // profile.json. A pull request that changes such an entry must carry a stamp from a read made for
-// it, judged against two days, both in UTC: the day of the base commit and the day of the pull
-// request's head commit.
+// it, judged against days in UTC: the day of the base commit, the day of the pull request's head
+// commit, and the day of the last commit that touched the entry.
 //
 //   - A changed entry needs a new stamp, or an unchanged one equal to the head commit's day: an
 //     honest re-read on the day the stamp already names.
 //   - A stamp never moves backwards, and is never later than the head commit's day.
+//   - A stamp is on or after the day of the last commit that touched the entry, so an edit made on a
+//     later day than the read, in the same pull request, needs a new read. The comparison with the
+//     base sees only the pull request's end state; this reads its history, so CI checks out the
+//     whole of it (fetch-depth: 0), and a shallow clone is refused rather than misread.
 //   - An added entry's stamp is on or after the base commit's day. A renamed or copied entry is an
 //     added one (git's rename detection is off), so it cannot bring an old stamp along.
 //
@@ -56,11 +60,13 @@ export function stampOf(path, text) {
   return { stamp, rest };
 }
 
-const READ_AGAIN = 'Read the whole entry again, then set firewall_reviewed to the day you did.';
+const READ_AGAIN =
+  'Read the whole entry again, then set firewall_reviewed to the UTC day you commit it.';
 
 /**
  * Why one entry's change may not merge, or null. `before` is null for an added entry, `after` for
- * a removed one. `days` are the UTC days, YYYY-MM-DD, of the base commit and of the head commit.
+ * a removed one. `days` are UTC days, YYYY-MM-DD: the base commit's, the head commit's, and, when
+ * known, the day of the last commit that touched this entry (`touched`).
  */
 export function verdict(path, before, after, days) {
   if (after === null) return null;
@@ -70,14 +76,17 @@ export function verdict(path, before, after, days) {
   if (now.stamp > days.head) {
     return `${path}: firewall_reviewed ${now.stamp} is after the head commit's day, ${days.head}.`;
   }
-  if (before === null) {
+  const then = before === null ? null : stampOf(path, before);
+  if (then?.stamp && now.stamp < then.stamp) {
+    return `${path}: firewall_reviewed moved back, from ${then.stamp} to ${now.stamp}. A stamp only moves forward.`;
+  }
+  if (days.touched !== undefined && now.stamp < days.touched) {
+    return `${path} was last changed on ${days.touched}, after its firewall_reviewed date, ${now.stamp}. ${READ_AGAIN}`;
+  }
+  if (then === null) {
     return now.stamp < days.base
       ? `${path}: a new, renamed or copied entry stamped ${now.stamp}, before the base commit's day, ${days.base}. ${READ_AGAIN}`
       : null;
-  }
-  const then = stampOf(path, before);
-  if (then.stamp !== null && now.stamp < then.stamp) {
-    return `${path}: firewall_reviewed moved back, from ${then.stamp} to ${now.stamp}. A stamp only moves forward.`;
   }
   if (now.rest === then.rest || now.stamp !== then.stamp || now.stamp === days.head) return null;
   return `${path} changed, but its firewall_reviewed date is still ${now.stamp}. ${READ_AGAIN}`;
@@ -91,11 +100,18 @@ function gitIn(cwd) {
   return (args) => run(top, args);
 }
 
+/** A committer timestamp, in seconds, as a UTC day. */
+const utcDay = (seconds) => new Date(Number(seconds) * 1000).toISOString().slice(0, 10);
+
 /** A commit's committer date, as a UTC day. */
-const dayOf = (git, commit) =>
-  new Date(Number(git(['show', '-s', '--format=%ct', commit]).trim()) * 1000)
-    .toISOString()
-    .slice(0, 10);
+const dayOf = (git, commit) => utcDay(git(['show', '-s', '--format=%ct', commit]).trim());
+
+/** The UTC day of the last commit in `commit`'s history that touched `path`. */
+function touchedOn(git, commit, path) {
+  const seconds = git(['log', '-1', '--format=%ct', commit, '--', path]).trim();
+  if (!seconds) throw new Error(`no commit in ${commit}'s history touches ${path}`);
+  return utcDay(seconds);
+}
 
 /** Every stamped entry that changed from base to head: [path before, path after], null for none.
  *  Renames are off: a renamed entry is a removed one and an added one. */
@@ -125,6 +141,13 @@ export function changes(base, head, cwd = process.cwd()) {
 /** The problems between two commits, one line each. */
 export function check(base, head, cwd = process.cwd(), dayCommit = head) {
   const git = gitIn(cwd);
+  // A shallow clone ends at a commit that seems to add every file, so each entry would read as
+  // touched on that commit's day: refuse it rather than misread it.
+  if (git(['rev-parse', '--is-shallow-repository']).trim() === 'true') {
+    throw new Error(
+      'a shallow clone hides when each entry last changed: check out with fetch-depth: 0',
+    );
+  }
   const days = { base: dayOf(git, base), head: dayOf(git, dayCommit) };
   const textAt = (commit, path) => git(['show', `${commit}:${path}`]);
   return changes(base, head, cwd).flatMap(([from, to]) => {
@@ -132,7 +155,7 @@ export function check(base, head, cwd = process.cwd(), dayCommit = head) {
       to ?? from ?? '',
       from === null ? null : textAt(base, from),
       to === null ? null : textAt(head, to),
-      days,
+      to === null ? days : { ...days, touched: touchedOn(git, dayCommit, to) },
     );
     return problem === null ? [] : [problem];
   });

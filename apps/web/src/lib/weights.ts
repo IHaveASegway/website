@@ -1,18 +1,13 @@
 import { gzipSync } from 'node:zlib';
 import themeSource from '../scripts/theme.js?raw';
 
-// Byte figures have one owner: this module. Home's readouts call it at build time on the inputs
-// (the theme script, the font files), and test/budgets.test.ts and test/readouts.test.ts call it on
-// dist/, so a printed figure and the measured one cannot drift apart unnoticed (spec B13).
+// How a page's bytes are measured has one owner: this module. test/budgets.test.ts reads every page
+// of every build through it against the budgets (design-system.md, "Budgets as CI fitness
+// functions"), and Base.astro takes the theme script from it. No page prints a figure about itself.
 
 /** Bytes after gzip -9: the unit of the JavaScript and CSS budgets (design-system.md, "Budgets"). */
 export function gzipBytes(data: string | Uint8Array): number {
   return gzipSync(data, { level: 9 }).byteLength;
-}
-
-/** "0.4 KB": one decimal, and 1 KB is 1,000 B (design-system.md, "Units"). */
-export function kilobytes(bytes: number): string {
-  return `${(bytes / 1000).toFixed(1)} KB`;
 }
 
 export interface Tag {
@@ -79,25 +74,3 @@ export function preloadedFonts(html: string): string[] {
 
 /** The theme script exactly as Base.astro inlines it and astro.config.mjs hashes it. */
 export const THEME_SCRIPT: string = themeSource;
-
-/** At build: the eager JavaScript on a content page. In PR 3 that is the inline theme script
- *  alone, so the figure is exact; with the first bundled module it moves to astro:build:done. */
-export function pageJavaScriptBytes(): number {
-  return gzipBytes(THEME_SCRIPT);
-}
-
-// Every font in src/assets/fonts is preloaded (Base.astro). Inlined as data URLs here only to be
-// counted at build: this module never reaches the browser.
-const fontFiles = import.meta.glob<string>('../assets/fonts/*.woff2', {
-  query: '?inline',
-  import: 'default',
-  eager: true,
-});
-
-/** At build: the bytes of the preloaded font files, as served (woff2 is already compressed). */
-export function preloadedFontBytes(): number {
-  return Object.values(fontFiles).reduce((sum, dataUrl) => {
-    const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
-    return sum + Buffer.from(base64, 'base64').byteLength;
-  }, 0);
-}

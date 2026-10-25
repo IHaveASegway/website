@@ -41,8 +41,26 @@ const linkFirstCard = (page: Page) =>
   page.evaluate(() =>
     document
       .querySelector('.card')
-      ?.insertAdjacentHTML('beforeend', '<a class="card-more" href="#work">Read more</a>'),
+      ?.insertAdjacentHTML('beforeend', '<a class="card-more" href="#main">Read more</a>'),
   );
+
+/**
+ * Puts a card with nothing to activate first in <main>, styled by the site's own stylesheet. Home
+ * renders a card only when the page it opens exists (lib/work.ts), and every rendered card has a
+ * link, so on a Home with no card, or to see a card without a link, the test brings its own.
+ */
+const addCard = (page: Page) =>
+  page.evaluate(() =>
+    document
+      .querySelector('main')
+      ?.insertAdjacentHTML(
+        'afterbegin',
+        '<article class="card"><p class="card-tag label">Tag</p><h3 class="card-title">A card</h3><p class="card-text">Text.</p></article>',
+      ),
+  );
+
+/** How many cards the page as served renders. */
+const cardCount = (page: Page) => page.locator('.card').count();
 
 test('under reduce nothing would move, and nothing runs after a hover or any Tab', async ({
   page,
@@ -65,6 +83,7 @@ test('under reduce nothing would move, and nothing runs after a hover or any Tab
 
   // The state change survives without the movement: on a card with a link, the bar is drawn at
   // once on hover.
+  if ((await cardCount(page)) === 0) await addCard(page);
   await linkFirstCard(page);
   await page.hover('.card');
   expect(await running(page)).toBe(0);
@@ -76,6 +95,7 @@ test('a card with nothing to activate does not react to the pointer; one with a 
 }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' }); // states, not movement, are compared here
   await page.goto('/');
+  await addCard(page);
   const card = page.locator('.card').first();
   const border = () => card.evaluate((element) => getComputedStyle(element).borderTopColor);
   expect(await card.locator('a, button').count()).toBe(0);
@@ -90,10 +110,16 @@ test('a card with nothing to activate does not react to the pointer; one with a 
   expect(await border()).not.toBe(atRest.border);
 });
 
-test('known answer: with no preference, the same scan finds the card bar transition', async ({
+test('known answer: with no preference, the same scan finds the card bar transition, and nothing else', async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto('/');
-  expect(await moving(page)).toEqual(['article.card::before']);
+  // The one thing on Home that would move is a card's bar: one per card the page renders, none
+  // today, since no card has a target yet.
+  const cards = await cardCount(page);
+  expect(await moving(page)).toEqual(Array(cards).fill('article.card::before'));
+  // So the scan is shown to find a transition where there is one, on the site's own stylesheet.
+  await addCard(page);
+  expect(await moving(page)).toEqual(Array(cards + 1).fill('article.card::before'));
 });

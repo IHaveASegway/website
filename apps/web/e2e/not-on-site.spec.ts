@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 import { findHeld, parseHolds } from '../src/lib/held-names';
-import { NOT_FOUND_PAGE, PAGES } from './expected';
+import { NOT_FOUND_PAGE, pages } from './expected';
 
 // The hold list (not-on-site.txt), read off the page as the browser draws it. test/not-on-site.test.ts
 // scans every file in dist/, reading markup by each element's default display; CSS can change a
@@ -14,7 +14,7 @@ const holds = parseHolds(readFileSync(new URL('../not-on-site.txt', import.meta.
 const seen = (page: Page) =>
   page.evaluate(() => [document.title, document.body.innerText].join('\n'));
 
-for (const path of [...PAGES, NOT_FOUND_PAGE]) {
+for (const path of [...pages(), NOT_FOUND_PAGE]) {
   test(`no held name in the text ${path} draws`, async ({ page }) => {
     await page.goto(path);
     expect(findHeld(await seen(page), holds)).toEqual([]);

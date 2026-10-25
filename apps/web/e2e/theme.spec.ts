@@ -1,24 +1,28 @@
 import { expect, test, type Page } from '@playwright/test';
-import { converter, wcagContrast } from 'culori';
+import { converter, formatHex, wcagContrast } from 'culori';
 
 // The theme before first paint, the toggle, and the fail-safe (design-system.md, "Theme before
-// first paint"). The OS is the fail-safe: with no stored choice, storage that throws, or no
-// JavaScript at all, the page follows prefers-color-scheme.
+// first paint"). The OS is the fail-safe: with no choice made in this tab, storage that throws, or
+// no JavaScript at all, the page follows prefers-color-scheme. A choice lasts for the tab
+// (sessionStorage), never longer, so the toggle needs no notice about storage (security.md). The
+// browser chrome follows the page: in every state below, the theme-color the browser would use is
+// the body's background.
 
 type Scheme = 'dark' | 'light';
 type Stored = 'nothing' | 'light' | 'dark' | 'storage that throws';
 
-/** Records <html>'s theme and the body's background in the first frame that can paint the body. */
+/** Records <html>'s theme, the body's background and the browser chrome's color in the first
+ *  frame that can paint the body. */
 async function watchFirstFrame(page: Page, stored: Stored) {
   await page.addInitScript((choice) => {
     if (choice === 'storage that throws') {
-      Object.defineProperty(window, 'localStorage', {
+      Object.defineProperty(window, 'sessionStorage', {
         get() {
           throw new DOMException('blocked', 'SecurityError');
         },
       });
     } else if (choice !== 'nothing') {
-      localStorage.setItem('theme', choice);
+      sessionStorage.setItem('theme', choice);
     }
     const record = (): void => {
       if (!document.body) {
@@ -28,8 +32,12 @@ async function watchFirstFrame(page: Page, stored: Stored) {
       Object.defineProperty(window, '__firstFrame', {
         value: {
           theme: document.documentElement.dataset['theme'] ?? null,
-          saved: document.documentElement.hasAttribute('data-saved'),
           background: getComputedStyle(document.body).backgroundColor,
+          // The first theme-color meta whose media matches is the one a browser uses (HTML).
+          chrome:
+            [...document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')].find(
+              (meta) => matchMedia(meta.media).matches,
+            )?.content ?? null,
         },
       });
     };
@@ -47,22 +55,33 @@ function schemeOf(color: string): Scheme {
 
 const background = (page: Page) =>
   page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-// Chromium joins the toggle's visible spans with a space where it skips a hidden one, so the
-// accessible name can carry two spaces before the dot; the words are what is checked.
+/** The browser chrome's color: the first theme-color meta whose media matches (HTML). */
+const chrome = (page: Page) =>
+  page.evaluate(
+    () =>
+      [...document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')].find(
+        (meta) => matchMedia(meta.media).matches,
+      )?.content ?? null,
+  );
+/** The browser chrome shows the page's own background, as #rrggbb (lib/tokens.ts, chromeColor). */
+async function expectChromeIsBackground(page: Page) {
+  expect(await chrome(page)).toBe(formatHex(await background(page)));
+}
+// The toggle shows an icon; its name is the one state span CSS leaves displayed.
 const toggle = (page: Page) => page.getByRole('button', { name: /^Theme: / });
 
-const CASES: { os: Scheme; stored: Stored; theme: string; saved: boolean; looks: Scheme }[] = [
-  { os: 'dark', stored: 'nothing', theme: 'system', saved: false, looks: 'dark' },
-  { os: 'dark', stored: 'light', theme: 'light', saved: true, looks: 'light' },
-  { os: 'dark', stored: 'dark', theme: 'dark', saved: true, looks: 'dark' },
-  { os: 'dark', stored: 'storage that throws', theme: 'system', saved: false, looks: 'dark' },
-  { os: 'light', stored: 'nothing', theme: 'system', saved: false, looks: 'light' },
-  { os: 'light', stored: 'light', theme: 'light', saved: true, looks: 'light' },
-  { os: 'light', stored: 'dark', theme: 'dark', saved: true, looks: 'dark' },
-  { os: 'light', stored: 'storage that throws', theme: 'system', saved: false, looks: 'light' },
+const CASES: { os: Scheme; stored: Stored; theme: string; looks: Scheme }[] = [
+  { os: 'dark', stored: 'nothing', theme: 'system', looks: 'dark' },
+  { os: 'dark', stored: 'light', theme: 'light', looks: 'light' },
+  { os: 'dark', stored: 'dark', theme: 'dark', looks: 'dark' },
+  { os: 'dark', stored: 'storage that throws', theme: 'system', looks: 'dark' },
+  { os: 'light', stored: 'nothing', theme: 'system', looks: 'light' },
+  { os: 'light', stored: 'light', theme: 'light', looks: 'light' },
+  { os: 'light', stored: 'dark', theme: 'dark', looks: 'dark' },
+  { os: 'light', stored: 'storage that throws', theme: 'system', looks: 'light' },
 ];
 
-for (const { os, stored, theme, saved, looks } of CASES) {
+for (const { os, stored, theme, looks } of CASES) {
   test(`OS ${os}, ${stored} stored: the first frame is already ${looks}`, async ({ page }) => {
     await page.emulateMedia({ colorScheme: os });
     await watchFirstFrame(page, stored);
@@ -72,18 +91,15 @@ for (const { os, stored, theme, saved, looks } of CASES) {
     );
     const frame = (await first.jsonValue()) as {
       theme: string;
-      saved: boolean;
       background: string;
+      chrome: string | null;
     };
     // The script runs in <head>, so by the first frame that can paint <body> it has always run,
     // however the HTML arrives. In <body> it had a gap, seen on the first Worker Preview.
     expect(frame.theme).toBe(theme);
-    expect(frame.saved).toBe(saved);
     expect(schemeOf(frame.background)).toBe(looks);
-    const name = saved
-      ? new RegExp(`^Theme: ${theme}\\s+·\\s+saved in this browser$`)
-      : `Theme: ${theme}`;
-    await expect(toggle(page)).toHaveAccessibleName(name);
+    expect(frame.chrome, 'the browser chrome in the first frame').toBe(formatHex(frame.background));
+    await expect(toggle(page)).toHaveAccessibleName(`Theme: ${theme}`);
   });
 }
 
@@ -102,38 +118,45 @@ for (const os of ['dark', 'light'] as const) {
     expect(schemeOf(await background(page))).toBe(os);
 
     await button.click();
-    await expect(button).toHaveAccessibleName(
-      new RegExp(`^Theme: ${other}\\s+·\\s+saved in this browser$`),
-    );
-    expect(await page.evaluate(() => localStorage.getItem('theme'))).toBe(other);
+    await expect(button).toHaveAccessibleName(`Theme: ${other}`);
+    expect(await page.evaluate(() => sessionStorage.getItem('theme'))).toBe(other);
     expect(schemeOf(await background(page))).toBe(other);
+    await expectChromeIsBackground(page);
 
     await button.click();
-    await expect(button).toHaveAccessibleName(
-      new RegExp(`^Theme: ${os}\\s+·\\s+saved in this browser$`),
-    );
-    expect(await page.evaluate(() => localStorage.getItem('theme'))).toBe(os);
+    await expect(button).toHaveAccessibleName(`Theme: ${os}`);
+    expect(await page.evaluate(() => sessionStorage.getItem('theme'))).toBe(os);
     expect(schemeOf(await background(page))).toBe(os);
+    await expectChromeIsBackground(page);
 
     await button.click();
     await expect(button).toHaveAccessibleName('Theme: system');
-    expect(await page.evaluate(() => localStorage.getItem('theme'))).toBeNull();
+    expect(await page.evaluate(() => sessionStorage.getItem('theme'))).toBeNull();
     expect(schemeOf(await background(page))).toBe(os);
+    await expectChromeIsBackground(page);
 
-    // theme is the only key the site stores (security.md, "Privacy and data inventory").
+    // theme is the only key the site stores, and only for the tab: nothing reaches localStorage
+    // (security.md, "Privacy and data inventory").
     await button.click();
-    expect(await page.evaluate(() => Object.keys(localStorage))).toEqual(['theme']);
+    expect(await page.evaluate(() => Object.keys(sessionStorage))).toEqual(['theme']);
+    expect(await page.evaluate(() => Object.keys(localStorage))).toEqual([]);
   });
 }
 
-test('a choice survives a reload, and storage that refuses it is never called saved', async ({
+test('a choice survives a reload and lasts for the tab only; storage that refuses it still applies it to the page', async ({
   page,
 }) => {
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.goto('/');
   await toggle(page).click();
   await page.reload();
-  await expect(toggle(page)).toHaveAccessibleName(/^Theme: light\s+·\s+saved/);
+  await expect(toggle(page)).toHaveAccessibleName('Theme: light');
+
+  // A new tab starts from the OS again: nothing outlives the tab.
+  const fresh = await page.context().newPage();
+  await fresh.emulateMedia({ colorScheme: 'dark' });
+  await fresh.goto('/');
+  await expect(toggle(fresh)).toHaveAccessibleName('Theme: system');
 
   const blocked = await page.context().newPage();
   await blocked.emulateMedia({ colorScheme: 'dark' });
@@ -150,8 +173,10 @@ test('System follows an OS change live, with no reload and no listener', async (
   expect(schemeOf(await background(page))).toBe('dark');
   await page.emulateMedia({ colorScheme: 'light' });
   expect(schemeOf(await background(page))).toBe('light');
+  await expectChromeIsBackground(page);
   await page.emulateMedia({ colorScheme: 'dark' });
   expect(schemeOf(await background(page))).toBe('dark');
+  await expectChromeIsBackground(page);
 });
 
 // Paper is white, and browsers drop backgrounds by default, so every label must read in ink on
@@ -213,6 +238,7 @@ for (const os of ['dark', 'light'] as const) {
       false,
     );
     expect(schemeOf(await background(page))).toBe(os);
+    await expectChromeIsBackground(page);
     await expect(page.locator('[data-theme-toggle]')).toBeHidden();
     await context.close();
   });

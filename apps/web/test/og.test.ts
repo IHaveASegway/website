@@ -29,7 +29,7 @@ describe("Home's link preview", () => {
   const page = read('index.html');
   const card = homeCard(profile);
   const drawn = drawnStrings(
-    ogTree(card, { background: '', foreground: '', muted: '', border: '', accent: '' }),
+    ogTree(card, { background: '', foreground: '', muted: '', accent: '' }),
   );
 
   test('carries every tag LinkedIn and Slack read, with og:url the canonical URL', () => {

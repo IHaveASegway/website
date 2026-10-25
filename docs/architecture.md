@@ -20,7 +20,7 @@ C4 level 1, with one deviation. Strict C4 draws the system in scope as a single 
 flowchart TB
   subgraph visitors ["Visitors"]
     recruiter(["Recruiter<br/>name, title, proof<br/>and contact in about 7 s"])
-    engineer(["Engineer or hiring manager<br/>case studies, ADRs, demos"])
+    engineer(["Engineer or hiring manager<br/>repositories, ADRs, essays, demos"])
   end
   joseph(["Joseph<br/>author and sole operator"])
   linkedin["LinkedIn<br/>owns employment history"]
@@ -121,7 +121,7 @@ Six contexts. Each writes only its own data; the others get copies across one na
 | Context | Vocabulary | Owns | Boundary | Talks to the others by | It is not |
 |---|---|---|---|---|---|
 | Presentation (site) | page, section, island, token, budget | templates, components, design tokens, the build output | `apps/web` outside `src/content`; the site Worker | build-time reads of Authoring and of Delivery's build metadata; links to Lab pages and to Contact | A runtime. It holds no server-side state |
-| Authoring (content) | post, note, case study, profile, front matter | `apps/web/src/content/**`, `profile.json`, the ADRs in `docs/adr/` | the content collections and their Zod schemas | a build-time copy, validated on write: a file that fails its schema fails the build | A copy of LinkedIn |
+| Authoring (content) | post, note, project, profile, front matter | `apps/web/src/content/**`, `profile.json`, the ADRs in `docs/adr/` | the content collections and their Zod schemas | a build-time copy, validated on write: a file that fails its schema fails the build | A copy of LinkedIn |
 | Lab | session, budget, flag, room, sandbox, frame, recording | demo state, budgets and flags, recordings, protocol v1 | `workers/lab/` and each demo's island | protocol v1 with the browser; recordings ship as static assets through Presentation | Part of the site's availability |
 | Edge (zone) | zone, record, rule, redirect, certificate | DNS records, DNSSEC, TLS and HSTS settings, WAF rules, the `www` redirect | the Cloudflare dashboard | wraps every request before any Worker runs; changed by Joseph, audited weekly | Deployed by the pipeline, until an IaC trigger fires |
 | Delivery (pipeline) | job, gate, preview, version, artifact | workflows, the firewall check, build metadata, the deploy credential | `.github/`, `.githooks/`, `scripts/` | builds, gates and deploys the other contexts' artifacts | A second deployer. Workers Builds stays disconnected |
@@ -131,7 +131,7 @@ Six contexts. Each writes only its own data; the others get copies across one na
 
 **Nothing at runtime joins Presentation and Lab.** The site never calls the lab, and the lab never renders pages. The browser loads both, so the site's availability does not depend on the lab's.
 
-**GitHub reaches the build through one translation.** The build maps GitHub's release data to the site's own small record in one function, so a change in GitHub's API breaks one file, not every template. That is an anti-corruption layer the size of a function.
+**GitHub does not reach the build.** The plan was to map GitHub's release data to the site's own small record in one function, an anti-corruption layer the size of a function. That step was dropped on 2026-10-23: a card's figures are copied by hand into `profile.json`, so no API sits between GitHub and a page.
 
 **Edge and Delivery are operational contexts, not domain ones.** They are listed because they own data: the zone's settings and the deploy credential. Ownership matters most at a handover. The day IaC takes over the zone (OpenTofu, when a trigger in [operations.md](operations.md) fires), the dashboard has to stop writing whatever the code declares. Otherwise the zone has two writers and drifts.
 
@@ -141,15 +141,15 @@ Every datum the site touches. Read a row left to right: where it lives, who may 
 
 | Datum | System of record | Context | Writes it | Reads it | How it crosses | Consistency readers need |
 |---|---|---|---|---|---|---|
-| Posts, notes, case studies | Markdown and MDX in `apps/web/src/content/**` | Authoring | Joseph, by pull request | the build; visitors, as HTML, RSS, sitemap and OG images | build-time copy, Zod-validated (schema-on-write) | live minutes after merge; fixed per version |
+| Posts and notes | Markdown and MDX in `apps/web/src/content/**` | Authoring | Joseph, by pull request | the build; visitors, as HTML, RSS, sitemap and OG images | build-time copy, Zod-validated (schema-on-write) | live minutes after merge; fixed per version |
 | ADRs | `docs/adr/*.md` | Authoring | Joseph, by pull request | repo readers; the build, which renders the ADRs on its publish allowlist at `/colophon/decisions/<nnnn-slug>/` ([content.md](content.md)) | rendered at build time from the same files; nothing is copied by hand | per deploy; the site cannot disagree with the repo |
 | Public profile: title, arc, skills, education, links | `apps/web/src/content/profile.json`, a JSON Resume subset with no employer field | Authoring | Joseph, by pull request | `/about/`, later `/resume/`, the JSON-LD | build-time copy | per deploy |
 | Employment history: employers, dates | LinkedIn and Joseph's private résumé | outside the system | Joseph, on LinkedIn | visitors who follow the link | a link only: never copied, never fetched | none: the site holds no copy, so it cannot be stale |
-| Project facts: latest release, tag dates | GitHub | Presentation, as build input | each project's release workflow | the build | build-time snapshot through GitHub's REST API; a weekly scheduled rebuild | eventual, at most about a week old; pages print the snapshot date |
+| A project card's line, tag and figures | the project's repository, at the commit its check read (`checked.sha`) | Authoring | Joseph, by pull request, copying by hand into `profile.json` | the build | build-time copy | per deploy; the figures' age is `measured` |
 | Design tokens | `tokens.css` in `apps/web`: direction C's values (Petrol + Apricot), in the token structure first copied from Mission-AI | Presentation | Joseph, by pull request | pages, lab islands, the contrast unit test, the Open Graph card | same build | per deploy; never synced with Mission-AI, and no Mission-AI value remains |
-| Build metadata: commit SHA, build date, JavaScript bytes | git and the CI run; `src/lib/weights.ts` measures the bytes | Delivery | CI, at build | Home's readout row and the footer's build line on other pages | baked into the HTML | exact for that version |
-| Serving data center | none: Cloudflare's edge derives it per request | Edge | Cloudflare | the served-from readout, deferred from PR 3 to PR 4 | read in the browser after load, from the `colo` field of Cloudflare's `/cdn-cgi/trace` ([design-system.md](design-system.md)). Whether a Worker sees that request is undocumented, so the pull request that ships it checks that Workers requests stay at 0; the fallback is the `CF-RAY` header of a same-origin `HEAD`, which ends in the same code[^cfray] | per request; never stored |
-| Theme choice | the visitor's `localStorage` | Presentation | the visitor, through the toggle | the inline pre-paint script in `<head>`, the only code that reads or writes it; its hash is in the CSP, and it runs before the policy's `<meta>` ([security.md](security.md#headers-and-content-security-policy)) | never leaves the browser | per browser; if lost, the OS setting applies |
+| Build commit | git and the CI run | Delivery | CI, at build | the deploy smoke, through the `X-Build` response header the build writes into `_headers`; no page holds it (since 2026-10-24) | baked into `_headers` | exact for that version |
+| Serving data center | none: Cloudflare's edge derives it per request | Edge | Cloudflare | nothing: the served-from readout was dropped on 2026-10-24 ([design-system.md](design-system.md#nothing-on-the-page-describes-the-site)) | — | — |
+| Theme choice | the visitor's `sessionStorage`, for the tab | Presentation | the visitor, through the toggle | the inline pre-paint script in `<head>`, the only code that reads or writes it; its hash is in the CSP, and it runs before the policy's `<meta>` ([security.md](security.md#headers-and-content-security-policy)) | never leaves the browser | per tab; if lost, the OS setting applies |
 | Page-view analytics (from PR 3b) | Cloudflare Web Analytics | Presentation | the beacon in the visitor's browser | Joseph | cookieless beacon; six months of history[^wa] | approximate: ad blockers undercount developers, so capacity triggers use Workers and DO metrics |
 | Lab session (Phase 4) | a cookie in the visitor's browser, HMAC-signed by the lab Worker | Lab | the lab Worker, after Turnstile and the mint rate limit[^turnstile] | the lab Worker, on each `/lab/api/` call | cookie `Path=/lab/api; HttpOnly; Secure; SameSite=Strict`, 15 minutes | self-verifying; nothing stored on the server |
 | Demo state (Phase 4) | one DO per room or session, SQLite | Lab, per demo | that DO only | browsers in the room | WebSocket, protocol v1: a snapshot on join, then events | strong per object; deleted within 15 minutes |
@@ -163,7 +163,7 @@ Every datum the site touches. Read a row left to right: where it lives, who may 
 | Other Cloudflare tokens (Phase 4 on) | Cloudflare | Delivery; Lab | Joseph creates them | the nightly lab-objects step (`CLOUDFLARE_READ_TOKEN`, read-only); after an upgrade, the cron breaker | secret injection, one consumer each: an Actions secret; a Worker secret | each scoped to its one job ([security.md](security.md#secrets-inventory) lists readers and scopes); steps in [operations.md](operations.md). None can deploy code |
 | Zone settings | the Cloudflare dashboard | Edge | Joseph | Cloudflare's edge | none at runtime. [security.md](security.md) holds the target checklist, and `scripts/verify-zone.sh` checks the result weekly without a token | drift found within a week; IaC when a trigger fires |
 
-Each datum has one system of record and one writer. Three rows look like copies but add no second owner. The CI copies of the firewall rules have one writer (the sync script) and a canary that proves they loaded. The zone checklist describes the dashboard and never overrides it. Build metadata and project facts are snapshots that state their age.
+Each datum has one system of record and one writer. Three rows look like copies but add no second owner. The CI copies of the firewall rules have one writer (the sync script) and a canary that proves they loaded. The zone checklist describes the dashboard and never overrides it. Build metadata states its age, and a card's figures carry theirs in `measured`: a hand copy of the repository with one writer, not a second owner.
 
 Two values are copied on purpose. The design tokens fork Mission-AI's values. Divergence is accepted and nothing syncs them ([ADR 0010](adr/0010-quiet-console-design-tokens.md)). The current title lives in `profile.json` and on LinkedIn, and Q-title in [product.md](product.md) recommends they match. Nothing syncs these either. A title changes rarely, so editing both places by hand is cheaper than a sync job. Naming the copy here makes it a decision rather than drift.
 
@@ -189,14 +189,12 @@ sequenceDiagram
     Z-->>B: 301 to the apex, a Single Redirect, no Worker
   end
   Note over B,Z: DNS answers are signed with DNSSEC.<br/>TLS 1.2 or later. HSTS comes from the zone.
-  B->>Z: GET /work/stillhere/
+  B->>Z: GET /about/
   Z->>Z: WAF rules, no match
   Z->>S: custom domain, path matched to a file
   S-->>B: 200, HTML with the _headers rules applied
   B->>S: CSS, fonts, images
   S-->>B: 200, static assets
-  B->>Z: GET /cdn-cgi/trace, for the served-from readout (from PR 4)
-  Z-->>B: the colo code. Whether a Worker<br/>sees this request is checked when it ships
   B->>A: cookieless beacon (from PR 3b)
   Note over B,S: No Worker code ran, so 0 Worker requests<br/>count against the Free cap.
 ```

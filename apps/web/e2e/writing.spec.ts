@@ -83,26 +83,54 @@ test('a post page carries the security headers and revalidates, like every page'
   expect(headers['cache-control']).toBe(REVALIDATE);
 });
 
-test('at 320 px a code block and a table wrap instead of scrolling the page or themselves', async ({
+test('at 320 px code blocks and tables wrap instead of scrolling the page or themselves', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 640 });
-  for (const [path, selector] of [
-    [POST, '.prose pre'],
-    [TOUR, '.prose pre'],
-    [TOUR, '.prose table'],
+  for (const [path, selector, count] of [
+    [POST, '.prose pre', 1],
+    [TOUR, '.prose pre', 1],
+    [TOUR, '.prose table', 2],
   ] as const) {
     await page.goto(path);
-    const box = page.locator(selector).first();
-    await expect(box).toBeVisible();
-    const sizes = await box.evaluate((element) => ({
-      scroll: element.scrollWidth,
-      client: element.clientWidth,
-      page: document.documentElement.scrollWidth - window.innerWidth,
-    }));
-    expect(sizes.scroll, `${path} ${selector}`).toBeLessThanOrEqual(sizes.client);
-    expect(sizes.page, `${path}: the page scrolls sideways`).toBeLessThanOrEqual(0);
+    const boxes = page.locator(selector);
+    await expect(boxes).toHaveCount(count);
+    for (const box of await boxes.all()) {
+      await expect(box).toBeVisible();
+      const sizes = await box.evaluate((element) => ({
+        scroll: element.scrollWidth,
+        client: element.clientWidth,
+        // A table grows to fit its cells, so its own scroll width proves nothing: compare it with
+        // the column it sits in.
+        overhang:
+          element.getBoundingClientRect().right -
+          (element.closest('.prose')?.getBoundingClientRect().right ?? 0),
+        page: document.documentElement.scrollWidth - window.innerWidth,
+      }));
+      expect(sizes.scroll, `${path} ${selector}`).toBeLessThanOrEqual(sizes.client);
+      expect(sizes.overhang, `${path} ${selector}: wider than its column`).toBeLessThanOrEqual(0.5);
+      expect(sizes.page, `${path}: the page scrolls sideways`).toBeLessThanOrEqual(0);
+    }
   }
+});
+
+test("known answer: the tour's wide table needs the cell rule, so the check above exercises it", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.goto(TOUR);
+  // Undo global.css's overflow-wrap: anywhere on the cells, through the CSSOM, which the policy
+  // allows: without the rule the commit ids cannot break, and the table overhangs its column.
+  const overhang = await page
+    .locator('.prose table')
+    .last()
+    .evaluate((table) => {
+      for (const cell of table.querySelectorAll<HTMLElement>('th, td'))
+        cell.style.overflowWrap = 'normal';
+      const column = table.closest('.prose')?.getBoundingClientRect().right ?? 0;
+      return table.getBoundingClientRect().right - column;
+    });
+  expect(overhang).toBeGreaterThan(50);
 });
 
 test("a footnote's way back works, and the footnotes' heading is for assistive technology only", async ({

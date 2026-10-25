@@ -3,7 +3,7 @@ import { bytes, fileFor } from './dist';
 
 // The byte budgets (design-system.md, "Budgets as CI fitness functions") and how a page is
 // measured against them: gzip -9 for scripts and styles, served bytes for fonts (woff2 is already
-// compressed). lib/weights.ts owns the method, so Home's readouts and these checks cannot differ.
+// compressed). lib/weights.ts owns the method.
 
 export const BUDGETS = {
   eagerJavaScript: 5_000,
@@ -12,7 +12,7 @@ export const BUDGETS = {
   preloadedFonts: 70_000,
 } as const;
 
-/** One page's figures, measured with lib/weights.ts, the owner Home's readouts use too. */
+/** One page's figures, measured with lib/weights.ts. */
 export function measure(page: string) {
   const { inline, external } = eagerScripts(page);
   const styles = pageStyles(page);

@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
-import { NEVER_SENT, ORIGIN, PAGES, SECURITY_HEADERS } from './expected';
+import { NEVER_SENT, ORIGIN, pages, SECURITY_HEADERS } from './expected';
 
 // prod-smoke: https://ihaveasegway.com through the zone. A Version URL or a preview is served from
 // workers.dev and never passes through the zone, so these checks run only here and in the weekly
@@ -61,7 +61,7 @@ test('the security headers are present, and the forbidden ones absent', async ({
 });
 
 test('no zone feature injected a script into the HTML', async ({ request }) => {
-  for (const path of PAGES) {
+  for (const path of pages()) {
     expect(await (await request.get(path)).text(), path).not.toContain('/cdn-cgi/');
   }
 });
@@ -70,7 +70,7 @@ test('the served HTML is the deployed artifact, byte for byte', async ({ request
   // DIST_DIR is the dist/ this run deployed. A rollback or a manual run has none to compare.
   const dist = process.env.DIST_DIR;
   test.skip(!dist, 'no deployed artifact in this run');
-  for (const path of PAGES) {
+  for (const path of pages()) {
     const built = await readFile(join(dist ?? '', path, 'index.html'));
     const served = await (await request.get(path)).body();
     expect(served.equals(built), `${path} differs from the build: a zone feature rewrote it`).toBe(

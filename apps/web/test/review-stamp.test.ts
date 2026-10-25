@@ -55,6 +55,15 @@ describe('the rule', () => {
     expect(verdict(POST, null, '---\ntitle: A post\n---\n\nNew.\n', DAYS)).toMatch(/no firewall/);
   });
 
+  test('a stamp is on or after the day of the last commit that touched the entry', () => {
+    const touched = { ...DAYS, touched: '2026-10-22' };
+    expect(verdict(POST, before, post('2026-10-21', 'Two.'), touched)).toMatch(
+      /last changed on 2026-10-22, after its firewall_reviewed date, 2026-10-21/,
+    );
+    expect(verdict(POST, before, post('2026-10-22', 'Two.'), touched)).toBeNull();
+    expect(verdict(POST, null, post('2026-10-21', 'New.'), touched)).toMatch(/last changed/);
+  });
+
   test('a stamp-only change forward passes; a removed entry needs nothing', () => {
     expect(verdict(POST, before, post('2026-10-21', 'One.'), DAYS)).toBeNull();
     expect(verdict(POST, before, null, DAYS)).toBeNull();
@@ -103,9 +112,12 @@ describe('known answers on git, in throwaway repositories', () => {
   const env = { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
   let count = 0;
 
-  /** A repository with a base commit on 2026-10-20 and a head commit on 2026-10-23 (UTC): the
-   *  head writes `changes` over the base's files, and a null removes one. */
-  function scenario(base: Record<string, string>, changes: Record<string, string | null>) {
+  type Changes = Record<string, string | null>;
+
+  /** A repository with a base commit on 2026-10-20 (UTC), then the pull request's commits: one on
+   *  2026-10-23 that writes `changes` over the base's files (a null removes one), or each [day,
+   *  changes] in turn, the last of them the head. */
+  function scenario(base: Record<string, string>, changes: Changes | [string, Changes][]) {
     const repo = join(root, String(count++));
     mkdirSync(repo);
     const git = (date: string | null, ...args: string[]) =>
@@ -135,15 +147,20 @@ describe('known answers on git, in throwaway repositories', () => {
         }
       }
     };
+    const commit = (day: string, files: Changes, message: string) => {
+      write(files);
+      git(null, 'add', '-A');
+      git(`${day}T12:00:00Z`, 'commit', '-q', '--allow-empty', '-m', message);
+      return git(null, 'rev-parse', 'HEAD');
+    };
     git(null, 'init', '-q', '-b', 'main');
-    write(base);
-    git(null, 'add', '-A');
-    git('2026-10-20T12:00:00Z', 'commit', '-q', '-m', 'base');
-    const baseSha = git(null, 'rev-parse', 'HEAD');
-    write(changes);
-    git(null, 'add', '-A');
-    git('2026-10-23T12:00:00Z', 'commit', '-q', '--allow-empty', '-m', 'head');
-    return { repo, base: baseSha, head: git(null, 'rev-parse', 'HEAD') };
+    const baseSha = commit('2026-10-20', base, 'base');
+    const commits: [string, Changes][] = Array.isArray(changes)
+      ? changes
+      : [['2026-10-23', changes]];
+    let head = baseSha;
+    for (const [day, files] of commits) head = commit(day, files, `on ${day}`);
+    return { repo, base: baseSha, head, git, commit };
   }
   const problems = (s: ReturnType<typeof scenario>) => check(s.base, s.head, s.repo);
   const old = post('2026-10-15', 'One.');
@@ -197,6 +214,70 @@ describe('known answers on git, in throwaway repositories', () => {
     expect(problems(fresh)).toEqual([]);
   });
 
+  test('an edit on a later day than the stamp fails; a stamp after the edit passes (both orders)', () => {
+    // Stamped on the 21st, edited again on the 22nd: the read did not see the second edit.
+    const stampThenEdit = scenario({ [POST]: old }, [
+      ['2026-10-21', { [POST]: post('2026-10-21', 'Two.') }],
+      ['2026-10-22', { [POST]: post('2026-10-21', 'Three.') }],
+    ]);
+    expect(problems(stampThenEdit)).toEqual([
+      expect.stringContaining(`${POST} was last changed on 2026-10-22`),
+    ]);
+    // Edited on the 21st, read and stamped on the 22nd: the read saw every edit.
+    const editThenStamp = scenario({ [POST]: old }, [
+      ['2026-10-21', { [POST]: post('2026-10-15', 'Two.') }],
+      ['2026-10-22', { [POST]: post('2026-10-22', 'Two.') }],
+    ]);
+    expect(problems(editThenStamp)).toEqual([]);
+    // The same for a new entry, which the comparison with the base sees only as its end state.
+    const added = scenario({ [POST]: old }, [
+      ['2026-10-21', { [NOTE]: post('2026-10-21', 'New.') }],
+      ['2026-10-22', { [NOTE]: post('2026-10-21', 'New, edited.') }],
+    ]);
+    expect(problems(added)).toEqual([expect.stringContaining(`${NOTE} was last changed`)]);
+    // A later commit that touches only another file does not ask for a new read.
+    const elsewhere = scenario({ [POST]: old }, [
+      ['2026-10-21', { [POST]: post('2026-10-21', 'Two.') }],
+      ['2026-10-22', { 'README.md': 'Unrelated.\n' }],
+    ]);
+    expect(problems(elsewhere)).toEqual([]);
+  });
+
+  test("CI's layout: the merge commit against main, dated and traced by the pull request's head", () => {
+    // main and the pull request diverge; GitHub's merge commit has main as its first parent.
+    function merged(pr: [string, Changes][]) {
+      const s = scenario({ [POST]: old }, pr);
+      const prHead = s.head;
+      s.git(null, 'checkout', '-q', '-b', 'tip', s.base);
+      s.commit('2026-10-22', { 'README.md': 'main moved on.\n' }, 'main');
+      s.git('2026-10-23T12:00:00Z', 'merge', '-q', '--no-ff', '-m', 'merge', prHead);
+      return { ...s, merge: s.git(null, 'rev-parse', 'HEAD') };
+    }
+    const stale = merged([
+      ['2026-10-21', { [POST]: post('2026-10-21', 'Two.') }],
+      ['2026-10-22', { [POST]: post('2026-10-21', 'Three.') }],
+    ]);
+    expect(check(`${stale.merge}^1`, stale.merge, stale.repo, `${stale.merge}^2`)).toEqual([
+      expect.stringContaining('was last changed on 2026-10-22'),
+    ]);
+    const fresh = merged([
+      ['2026-10-21', { [POST]: post('2026-10-15', 'Two.') }],
+      ['2026-10-22', { [POST]: post('2026-10-22', 'Two.') }],
+    ]);
+    expect(check(`${fresh.merge}^1`, fresh.merge, fresh.repo, `${fresh.merge}^2`)).toEqual([]);
+  });
+
+  test('a shallow clone is refused, exit 2, rather than read as touched on its oldest day', () => {
+    const full = scenario({ [POST]: old }, { [POST]: post('2026-10-23', 'Two.') });
+    const shallow = join(root, `shallow-${count++}`);
+    execFileSync('git', ['clone', '-q', '--depth', '1', `file://${full.repo}`, shallow], { env });
+    expect(() => check('HEAD', 'HEAD', shallow)).toThrow(/fetch-depth: 0/);
+    const script = join(app, 'scripts/review-stamp.mjs');
+    expect(
+      spawnSync(process.execPath, [script, 'HEAD', 'HEAD'], { cwd: shallow, env }).status,
+    ).toBe(2);
+  });
+
   test('two entries at once: each is judged, and only the failing one is named', () => {
     const both = scenario(
       { [POST]: old, [NOTE]: old },
@@ -229,7 +310,8 @@ describe('known answers on git, in throwaway repositories', () => {
 test("CI runs it on every pull request, against the merge's base, dated by the PR's head", () => {
   const ci = readFileSync(join(app, '../../.github/workflows/ci.yml'), 'utf8');
   const verify = ci.slice(ci.indexOf('\n  verify:'), ci.indexOf('\n  firewall:'));
-  expect(verify).toContain('fetch-depth: 2');
+  // The whole history: when each entry last changed is read from the pull request's commits.
+  expect(verify).toContain('fetch-depth: 0');
   expect(verify).toMatch(
     /- name: Review stamp[^\n]*\n\s+if: github\.event_name == 'pull_request'\n\s+run: node apps\/web\/scripts\/review-stamp\.mjs HEAD\^1 HEAD HEAD\^2\n/,
   );

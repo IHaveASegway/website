@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import { isNoindex } from '../src/lib/noindex.mjs';
 import { tags, THEME_SCRIPT } from '../src/lib/weights';
 import { html, read } from './support/dist';
 
@@ -39,9 +40,7 @@ for (const file of html) {
     });
 
     test('JSON-LD is on Home and on published posts only, one block each', () => {
-      const post =
-        /^(writing|notes)\/[a-z0-9-]+\/index\.html$/.test(file) &&
-        !page.includes('<meta name="robots" content="noindex">');
+      const post = /^(writing|notes)\/[a-z0-9-]+\/index\.html$/.test(file) && !isNoindex(page);
       expect(verdicts.filter((v) => v === 'json-ld')).toHaveLength(
         file === 'index.html' || post ? 1 : 0,
       );

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { NOT_FOUND_PAGE, PAGES } from './expected';
+import { NOT_FOUND_PAGE, pages } from './expected';
 
 // Zero Content Security Policy violations, from the browser's own event and from the console
 // (security.md, "What CI checks"). Enforced from the first deploy, with no Report-Only phase.
@@ -27,7 +27,7 @@ async function watch(page: Page): Promise<() => Promise<string[]>> {
   };
 }
 
-for (const path of [...PAGES, NOT_FOUND_PAGE]) {
+for (const path of [...pages(), NOT_FOUND_PAGE]) {
   test(`no CSP violation on ${path}`, async ({ page }) => {
     const violations = await watch(page);
     await page.goto(path, { waitUntil: 'load' });
@@ -62,9 +62,10 @@ test('after the policy, a theme script with one byte changed is refused', async 
       const response = await route.fetch();
       const html = await response.text();
       const original = /<script>([\s\S]*?)<\/script>/.exec(html)?.[1] ?? '';
-      expect(original).toContain('Pre-paint theme');
-      // One byte changed, plus a marker, so the page shows whether the copy ran.
-      const tampered = `${original.replace('Pre-paint theme', 'Pre-paint themE')};document.documentElement.setAttribute('data-tampered', '');`;
+      expect(original).toContain("'theme'");
+      // One byte changed in a storage key, so the copy would still run cleanly, plus a marker, so
+      // the page shows whether it ran.
+      const tampered = `${original.replace("'theme'", "'themE'")};document.documentElement.setAttribute('data-tampered', '');`;
       const changed = html.replace('<body', `<script>${tampered}</script><body`);
       expect(changed).not.toBe(html);
       await route.fulfill({ response, body: changed });
@@ -93,7 +94,7 @@ async function requestsOffOrigin(page: Page, path: string, base: string): Promis
   return seen;
 }
 
-for (const path of [...PAGES, NOT_FOUND_PAGE]) {
+for (const path of [...pages(), NOT_FOUND_PAGE]) {
   test(`every request ${path} makes stays on the site's origin`, async ({ page, baseURL }) => {
     expect(await requestsOffOrigin(page, path, baseURL ?? '')).toEqual([]);
   });

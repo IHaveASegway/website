@@ -2,7 +2,7 @@
 
 Source for [ihaveasegway.com](https://ihaveasegway.com): Joseph Peterson's site. Astro builds it as static files and an assets-only Cloudflare Worker serves them, so a page view runs no code and costs nothing. GitHub Actions is the only thing that deploys: each change is built once, checked (format, lint, types, fitness functions, and a content firewall that fails closed), previewed, smoke-tested on Cloudflare's edge, and only then promoted. Interactive demos come later, in a separate Worker, so a busy demo cannot take the site down.
 
-**Status:** foundation (PR 2): a minimal Home in the chosen design direction (C, "Instrument", in Petrol + Apricot), the pipeline, the local hooks and the zone audit. The typefaces and the full Home arrive in PR 3.
+**Status:** Home v1 (PR 3) is built in design direction C, "Instrument", in Petrol + Apricot, set as a poster on 2026-10-24: the self-hosted typefaces, the theme toggle, link previews and structured data, with its byte, contrast, fold, theme and motion budgets enforced in CI. No page describes how the site is built ([design-system.md](docs/design-system.md#nothing-on-the-page-describes-the-site)). Writing (PR 5) is built and appears with the first published post; none is yet. Project cards are built too, and each waits on its readiness check. What comes next, and what blocks it, is in [docs/roadmap.md](docs/roadmap.md).
 
 - [docs/README.md](docs/README.md) is the index and gives a reading order.
 - [docs/product.md](docs/product.md) covers why the site exists, who it is for, and the open decisions.

@@ -2,11 +2,13 @@
 import { Font } from 'astro:assets';
 import Footer from '../components/Footer.astro';
 import Header from '../components/Header.astro';
-import Ruler from '../components/Ruler.astro';
 import { loadProfile, loadWritingArea } from '../lib/content';
+import { NOINDEX } from '../lib/noindex.mjs';
 import { ogAlt, ogTitle, OG_SIZE, type OgCard } from '../lib/og';
 import { areaRoutes } from '../lib/posts';
+import { chromeColor } from '../lib/tokens';
 import { THEME_SCRIPT } from '../lib/weights';
+import tokensCss from '../styles/tokens.css?raw';
 import '../styles/global.css';
 
 interface Props {
@@ -17,35 +19,25 @@ interface Props {
   /** The canonical path, such as "/". A page with no canonical URL (the 404) leaves it out. */
   path?: string;
   /**
-   * Keeps the page out of search results. Only the 404 sets it: Workers serves that page with
-   * status 404 for unknown paths, but with status 200 at /404 itself, a soft 404 a crawler could index.
+   * Keeps the page out of search results. The 404 sets it: Workers serves that page with status 404
+   * for unknown paths, but with status 200 at /404 itself, a soft 404 a crawler could index. A draft
+   * sets it through Prose.astro. The tag is lib/noindex.mjs's, byte for byte.
    */
   noindex?: boolean;
   /** The link preview: the two strings og.png.ts draws beside this page (lib/og.ts). */
   og?: OgCard;
   /** Open Graph's type: a post is an article; every other page is the website. */
   ogType?: 'website' | 'article';
-  /** The footer's build line. Home turns it off: its readout row is the page's telemetry strip. */
-  telemetry?: boolean;
   /** Structured data for this page, already serialized (lib/jsonld.ts). */
   jsonLd?: string;
 }
 
-const {
-  title,
-  description,
-  path,
-  noindex = false,
-  og,
-  ogType = 'website',
-  telemetry = true,
-  jsonLd,
-} = Astro.props;
+const { title, description, path, noindex = false, og, ogType = 'website', jsonLd } = Astro.props;
 const canonical = path === undefined ? undefined : new URL(path, Astro.site).href;
 const image = og && canonical ? new URL('og.png', canonical).href : undefined;
 const profile = await loadProfile();
-// Writing's pages and feed exist only at 3 published posts (lib/posts.ts): the header, the footer
-// and the feed link below learn from this which of them this build writes.
+// Writing's pages and feed exist only from the first published post (lib/posts.ts): the header,
+// the footer and the feed link below learn from this which of them this build writes.
 const area = await loadWritingArea();
 const generated = areaRoutes(area);
 
@@ -55,7 +47,18 @@ const generated = areaRoutes(area);
 // writes the CSP <meta> at the end of <head>, and a <meta> policy covers only what follows it, so
 // this one script, ours and generated at build, runs before the policy. Everything after it stays
 // covered, and test/csp.test.ts allows exactly this script, byte for byte, before the policy.
-// astro.config.mjs still hashes it into script-src, and JSON-LD closes <body>.
+// astro.config.mjs still hashes it into script-src, and JSON-LD closes <body>. The script carries
+// no comments, since it ships as written: what it does is told here and in design-system.md
+// ("Theme before first paint"). It applies a choice the visitor made in this tab, and handles the
+// toggle.
+
+// The browser chrome takes the page's background: one theme-color meta per OS scheme, resolved
+// from tokens.css at build (lib/tokens.ts). They come before the theme script, which points both
+// at a chosen theme's color before the first paint, and again on every press of the toggle.
+const chrome = (['dark', 'light'] as const).map((scheme) => ({
+  media: `(prefers-color-scheme: ${scheme})`,
+  color: chromeColor(tokensCss, scheme),
+}));
 ---
 
 <!doctype html>
@@ -64,10 +67,13 @@ const generated = areaRoutes(area);
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark light" />
+    {chrome.map(({ media, color }) => (
+      <meta name="theme-color" media={media} content={color} />
+    ))}
     <script is:inline set:html={THEME_SCRIPT} />
     <title>{title}</title>
     <meta name="description" content={description} />
-    {noindex && <meta name="robots" content="noindex" />}
+    {noindex && <Fragment set:html={NOINDEX} />}
     {canonical && <link rel="canonical" href={canonical} />}
     {og && canonical && image && (
       <>
@@ -103,13 +109,12 @@ const generated = areaRoutes(area);
       Skip to content
     </a>
     <div class="frame">
-      <Ruler />
-      <Header generated={generated} />
+      <Header name={profile.basics.name} generated={generated} />
     </div>
     <main id="main" class="frame flex-1">
       <slot />
     </main>
-    <Footer profile={profile} telemetry={telemetry} generated={generated} />
+    <Footer profile={profile} generated={generated} />
     {jsonLd && <script is:inline type="application/ld+json" set:html={jsonLd} />}
   </body>
 </html>

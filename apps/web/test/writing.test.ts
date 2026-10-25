@@ -1,8 +1,10 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
+import { isAlias, isScalar } from 'yaml';
 import { WRITING_FIXTURE_PAGES } from '../e2e/expected';
 import { findHeld, parseHolds } from '../src/lib/held-names';
+import { isNoindex, NOINDEX } from '../src/lib/noindex.mjs';
 import {
   asDay,
   draftsIncluded,
@@ -20,11 +22,12 @@ import {
   type PostPage,
 } from '../src/lib/posts';
 import { app, dist, files as distFiles, filesIn, kindOf } from './support/dist';
+import { frontMatter, indirection, valueNode } from './support/front-matter';
 
 // Writing (roadmap.md, PR 5): the rules in lib/posts.ts with known answers, then the test-only
 // fixture builds that scripts/build-fixtures.mjs writes, then the real build and the real posts.
 // vitest.config.ts runs every other check over a build on fixture-many, fixture-many-preview and
-// fixture-two-preview as well; this file holds what only a known set of posts can prove.
+// fixture-one-preview as well; this file holds what only a known set of posts can prove.
 
 /** Every fixture post's summary carries this; no file the real builds write may. */
 const SENTINEL = 'A test fixture, never published';
@@ -53,21 +56,26 @@ const slugs = (posts: readonly Post[]) => posts.map((p) => p.slug);
 const pageSlugs = (pages: readonly PostPage[]) => pages.map((p) => `${p.post.slug}:${p.exposure}`);
 
 describe(`the ${MIN_POSTS}-post rule (content.md, "Sitemap and phases")`, () => {
-  test('0 and 2 published posts, without drafts, build nothing: no index, no page, no feed', () => {
-    for (const posts of [[], [post('a'), note('b')]]) {
-      const area = writingArea(posts, false);
-      expect(area.visible).toBe(false);
-      expect(area.sections).toEqual([]);
-      expect(area.pages).toEqual([]);
-      expect(feedItems(area)).toEqual([]);
-    }
+  test('the rule is one published post: Writing renders from the first', () => {
+    expect(MIN_POSTS).toBe(1);
   });
 
-  test('3 render it: /writing/, /notes/ once a note is published, and a listed page per post', () => {
-    const essays = writingArea([post('a'), post('b'), post('c')], false);
-    expect(essays.visible).toBe(true);
-    expect(essays.sections).toEqual(['writing']);
-    expect(pageSlugs(essays.pages).sort()).toEqual(['a:listed', 'b:listed', 'c:listed']);
+  test('0 published posts, without drafts, build nothing: no index, no page, no feed', () => {
+    const area = writingArea([], false);
+    expect(area.visible).toBe(false);
+    expect(area.sections).toEqual([]);
+    expect(area.pages).toEqual([]);
+    expect(feedItems(area)).toEqual([]);
+  });
+
+  test('1 renders it: /writing/, /notes/ once a note is published, and a listed page per post', () => {
+    const one = writingArea([post('a')], false);
+    expect(one.visible).toBe(true);
+    expect(one.sections).toEqual(['writing']);
+    expect(pageSlugs(one.pages)).toEqual(['a:listed']);
+    expect(feedItems(one).map((i) => i.link)).toEqual(['/writing/a/']);
+    // A note alone renders Writing too, with both indexes: /writing/ lists everything.
+    expect(writingArea([note('b')], false).sections).toEqual(['writing', 'notes']);
     expect(writingArea([post('a'), post('b'), note('c')], false).sections).toEqual([
       'writing',
       'notes',
@@ -75,18 +83,22 @@ describe(`the ${MIN_POSTS}-post rule (content.md, "Sitemap and phases")`, () => 
   });
 
   test('a draft never counts toward the rule, even where drafts are included', () => {
-    const posts = [post('a'), note('b'), post('c', { draft: true })];
+    const posts = [post('a', { draft: true }), note('b', { draft: true })];
     expect(writingArea(posts, false).visible).toBe(false);
+    expect(writingArea(posts, false).pages).toEqual([]);
     expect(writingArea(posts, true).visible).toBe(false);
+    expect(writingArea(posts, true).sections).toEqual([]);
+    expect(pageSlugs(writingArea(posts, true).pages)).toEqual(['a:draft', 'b:draft']);
   });
 
-  test('with drafts, a build is a superset of production: the same pages, drafts, and unlisted posts below 3', () => {
+  test('with drafts, a build is a superset of production: the same pages, plus the drafts', () => {
     const cases: Post[][] = [
       [],
       [post('a')],
       [post('a'), note('b', { draft: true })],
       [post('a'), post('b'), note('c'), note('d', { draft: true })],
       [post('a'), post('b'), note('c', { draft: true }), post('e', { draft: true })],
+      [post('a', { draft: true }), note('c', { draft: true })],
     ];
     for (const posts of cases) {
       const production = pageSlugs(writingArea(posts, false).pages);
@@ -95,18 +107,16 @@ describe(`the ${MIN_POSTS}-post rule (content.md, "Sitemap and phases")`, () => 
       const drafts = posts.filter((p) => p.draft).map((p) => `${p.slug}:draft`);
       expect(preview).toEqual(expect.arrayContaining(drafts));
     }
-    // Below 3 a preview writes the published posts unlisted, so a draft's links to them resolve.
-    const below = writingArea([post('a'), note('d', { draft: true })], true);
-    expect(pageSlugs(below.pages)).toEqual(['a:unlisted', 'd:draft']);
-    expect(below.visible).toBe(false);
-    // At 3 they are listed in both builds, and the draft is the only addition.
-    const at = writingArea([post('a'), post('b'), note('c'), note('d', { draft: true })], true);
-    expect(pageSlugs(at.pages).filter((p) => !p.endsWith(':listed'))).toEqual(['d:draft']);
+    // At one published post it is listed in both builds, so a draft's link to it resolves, and
+    // the draft is the only addition.
+    const at = writingArea([post('a'), note('d', { draft: true })], true);
+    expect(pageSlugs(at.pages)).toEqual(['a:listed', 'd:draft']);
+    expect(at.visible).toBe(true);
   });
 
-  test('a page says what it is: the kind, with Draft or Unlisted first when it is not listed', () => {
+  test('a page says what it is: the kind, with Draft first on a draft', () => {
     expect(postLabel({ post: post('a'), exposure: 'listed' })).toBe('Essay');
-    expect(postLabel({ post: note('a'), exposure: 'unlisted' })).toBe('Unlisted · Field note');
+    expect(postLabel({ post: note('a'), exposure: 'listed' })).toBe('Field note');
     expect(postLabel({ post: post('a', { kind: 'pattern' }), exposure: 'draft' })).toBe(
       'Draft · Pattern',
     );
@@ -263,7 +273,7 @@ describe('drafts: in astro dev and pull request previews, never in production', 
   test('the fixture switch is off unless a set is named, and names only a set', () => {
     expect(postsBase(undefined)).toBe('./src/content');
     expect(postsBase('')).toBe('./src/content');
-    expect(postsBase('three')).toBe('./test/fixtures/posts/three');
+    expect(postsBase('one')).toBe('./test/fixtures/posts/one');
     expect(() => postsBase('../../etc')).toThrow(/not a fixture set/);
   });
 });
@@ -279,7 +289,7 @@ function fixtureBuild(name: string) {
   const files = filesIn(dir);
   const text = (file: string) => readFileSync(join(dir, file), 'utf8');
   const textFiles = files.filter((file) => kindOf(readFileSync(join(dir, file))) === 'text');
-  const noindex = (file: string) => text(file).includes('<meta name="robots" content="noindex">');
+  const noindex = (file: string) => isNoindex(text(file));
   const pages = files
     .filter((f) => f.endsWith('index.html'))
     .map((f) => `/${f.slice(0, -'index.html'.length)}`)
@@ -308,34 +318,74 @@ const listed = (page: string, level: 2 | 3) =>
     ([, href = '']) => href,
   );
 
-/** The fixture drafts, read from their files: what must never reach a production build. */
-const FIXTURE_DRAFTS = ['two', 'three', 'many'].flatMap((set) =>
+/** The fixture drafts, read from their front matter as Astro reads it (a quoted title is the title,
+ *  not the title in quotes): what must never reach a production build. */
+const FIXTURE_DRAFTS = (['none', 'one', 'many'] as const).flatMap((set) =>
   ['writing', 'notes'].flatMap((section) => {
     const dir = join(app, 'test/fixtures/posts', set, section);
     return readdirSync(dir).flatMap((name) => {
-      const source = readFileSync(join(dir, name), 'utf8');
-      if (!/^draft: true$/m.test(source)) return [];
-      const field = (key: string) => new RegExp(`^${key}: (.+)$`, 'm').exec(source)?.[1] ?? '';
-      return [
-        { set, slug: name.replace(/\.md$/, ''), title: field('title'), summary: field('summary') },
-      ];
+      const read = frontMatter(readFileSync(join(dir, name), 'utf8'));
+      if ('problem' in read) throw new Error(`${set}/${section}/${name}: ${read.problem}`);
+      if (read.data['draft'] !== true) return [];
+      const slug = name.replace(/\.md$/, '');
+      const { title, summary } = read.data;
+      return [{ set, page: `${section}/${slug}/index.html`, slug, title, summary }];
     });
   }),
 );
 
+/** The forms a draft's text takes in a build: as written, and escaped for HTML or XML. */
+const escaped = (text: string) =>
+  text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+const holds = (text: string, needle: unknown) =>
+  typeof needle === 'string' && [needle, escaped(needle)].some((form) => text.includes(form));
+
+/** The preview build of each fixture set: where its draft renders. */
+const PREVIEW_OF = {
+  none: 'fixture-none-preview',
+  one: 'fixture-one-preview',
+  many: 'fixture-many-preview',
+} as const;
+
 describe('the fixture drafts', () => {
   test('there are drafts in every set, each with a title and a summary to look for', () => {
-    expect(new Set(FIXTURE_DRAFTS.map((d) => d.set))).toEqual(new Set(['two', 'three', 'many']));
+    expect(new Set(FIXTURE_DRAFTS.map((d) => d.set))).toEqual(new Set(['none', 'one', 'many']));
     for (const draft of FIXTURE_DRAFTS) {
-      expect(draft.title.length, draft.slug).toBeGreaterThan(5);
-      expect(draft.summary.length, draft.slug).toBeGreaterThan(5);
+      expect(String(draft.title).length, draft.slug).toBeGreaterThan(5);
+      expect(String(draft.summary).length, draft.slug).toBeGreaterThan(5);
     }
+  });
+
+  // The positive control: the same needles, matched the same way, are found where the draft does
+  // render, its page in the set's preview build. A needle that can never match (a title read with
+  // its quotes, or escaped differently from the build) fails here, instead of passing below.
+  test('positive control: each draft is found, by the same needles, on its page in a preview', () => {
+    for (const draft of FIXTURE_DRAFTS) {
+      const page = fixtureBuild(PREVIEW_OF[draft.set]).text(draft.page);
+      for (const needle of [draft.title, draft.summary, draft.slug]) {
+        expect(holds(page, needle), `${draft.page}: ${String(needle)}`).toBe(true);
+      }
+    }
+  });
+
+  test('known answers: a needle is found as written and escaped, and a quoted title as its text', () => {
+    expect(holds('<h1>Retries &amp; back-off</h1>', 'Retries & back-off')).toBe(true);
+    expect(holds('<title>A &quot;quoted&quot; title</title>', 'A "quoted" title')).toBe(true);
+    expect(holds('<h1>Another title</h1>', 'A title')).toBe(false);
+    expect(holds('<h1>A title</h1>', undefined)).toBe(false);
+    const quoted = frontMatter('---\ntitle: "An unfinished thought"\ndraft: true\n---\n');
+    expect('data' in quoted && quoted.data['title']).toBe('An unfinished thought');
   });
 
   // Every text file a production build writes, whatever its kind (HTML, XML, JSON, text), for
   // every draft's title, summary and slug: a draft that reached a data file or a feed is caught
   // as surely as one that reached a page.
-  for (const name of ['fixture-two', 'fixture-two-node-env', 'fixture-three', 'fixture-many']) {
+  for (const name of ['fixture-none', 'fixture-none-node-env', 'fixture-one', 'fixture-many']) {
     test(`${name}, built for production, holds no draft's title, summary or slug anywhere`, () => {
       const build = fixtureBuild(name);
       expect(build.textFiles.length).toBeGreaterThan(5);
@@ -347,7 +397,7 @@ describe('the fixture drafts', () => {
         for (const file of build.textFiles) {
           const text = build.text(file);
           for (const needle of [draft.title, draft.summary, draft.slug]) {
-            expect(text.includes(needle), `${file}: ${needle}`).toBe(false);
+            expect(holds(text, needle), `${file}: ${String(needle)}`).toBe(false);
           }
         }
       }
@@ -355,8 +405,8 @@ describe('the fixture drafts', () => {
   }
 });
 
-describe('fixture-two: two published posts and a draft, built for production', () => {
-  for (const name of ['fixture-two', 'fixture-two-node-env']) {
+describe('fixture-none: two drafts and nothing published, built for production', () => {
+  for (const name of ['fixture-none', 'fixture-none-node-env']) {
     test(`${name}: Writing builds nothing, NODE_ENV=development or not: only Home`, () => {
       const build = fixtureBuild(name);
       expect(build.pages).toEqual(['/']);
@@ -374,30 +424,22 @@ describe('fixture-two: two published posts and a draft, built for production', (
   }
 });
 
-describe('fixture-two-preview: the same posts with drafts included, below 3', () => {
-  const build = fixtureBuild('fixture-two-preview');
+describe('fixture-none-preview: the same drafts, with drafts included', () => {
+  const build = fixtureBuild('fixture-none-preview');
 
-  test('the two published posts build unlisted, and the draft builds: all noindex', () => {
+  test('both drafts build, noindex and labelled Draft, and nothing else does', () => {
     expect(build.pages).toEqual([
       '/',
-      '/notes/fixture-trailing-slashes/',
+      '/notes/fixture-unfinished-thought/',
       '/writing/fixture-draft-essay/',
-      '/writing/fixture-measure-first/',
     ]);
     expect(build.indexable).toEqual(['/']);
-    expect(build.text('writing/fixture-measure-first/index.html')).toContain(
-      '<p class="label">Unlisted · Essay</p>',
-    );
     expect(build.text('writing/fixture-draft-essay/index.html')).toContain(
       '<p class="label">Draft · Essay</p>',
     );
-  });
-
-  test("the draft's link to an earlier, unlisted post resolves in the preview", () => {
-    expect(build.text('writing/fixture-draft-essay/index.html')).toContain(
-      'href="/writing/fixture-measure-first/"',
+    expect(build.text('notes/fixture-unfinished-thought/index.html')).toContain(
+      '<p class="label">Draft · Field note</p>',
     );
-    expect(build.files).toContain('writing/fixture-measure-first/index.html');
   });
 
   test('nothing lists them: no index, no feed, no header link, no Home row, no card', () => {
@@ -415,21 +457,45 @@ describe('fixture-two-preview: the same posts with drafts included, below 3', ()
   });
 });
 
-describe('fixture-three: exactly three published posts, built for production', () => {
-  const build = fixtureBuild('fixture-three');
+describe('fixture-one: one published post and two drafts, built for production', () => {
+  const build = fixtureBuild('fixture-one');
 
-  test('Writing renders at the minimum: both indexes, three listed posts and the feed', () => {
-    expect(build.pages).toEqual([
-      '/',
-      '/notes/',
-      '/notes/fixture-trailing-slashes/',
-      '/writing/',
-      '/writing/fixture-measure-first/',
-      '/writing/fixture-retries-and-back-off/',
-    ]);
+  test('Writing renders at the minimum: /writing/, the one listed post and the feed, no /notes/', () => {
+    expect(build.pages).toEqual(['/', '/writing/', '/writing/fixture-measure-first/']);
     expect(build.indexable).toEqual(build.pages);
+    expect(build.sitemap).toEqual(build.pages);
     expect(build.files).toContain('rss.xml');
     expect(headerLinks(build.text('index.html'))).toEqual(['/writing/']);
+    const row =
+      /<section class="section" id="writing"[\s\S]*?<\/section>/.exec(
+        build.text('index.html'),
+      )?.[0] ?? '';
+    expect(listed(row, 3)).toEqual(['/writing/fixture-measure-first/']);
+  });
+});
+
+describe('fixture-one-preview: the same posts, with drafts included', () => {
+  const build = fixtureBuild('fixture-one-preview');
+
+  test('the published post is listed as in production, and the two drafts are added, noindex', () => {
+    expect(build.pages).toEqual([
+      '/',
+      '/notes/fixture-unfinished-thought/',
+      '/writing/',
+      '/writing/fixture-draft-essay/',
+      '/writing/fixture-measure-first/',
+    ]);
+    expect(build.indexable).toEqual(['/', '/writing/', '/writing/fixture-measure-first/']);
+    expect(build.text('writing/fixture-measure-first/index.html')).toContain(
+      '<p class="label">Essay</p>',
+    );
+  });
+
+  test("the draft's link to the listed post resolves in the preview", () => {
+    expect(build.text('writing/fixture-draft-essay/index.html')).toContain(
+      'href="/writing/fixture-measure-first/"',
+    );
+    expect(build.files).toContain('writing/fixture-measure-first/index.html');
   });
 });
 
@@ -547,7 +613,7 @@ describe('fixture-many-preview: the same posts, with drafts included as a previe
 
   test('the draft page is noindex, says Draft, and carries no preview card or structured data', () => {
     const page = build.text(draft);
-    expect(page).toContain('<meta name="robots" content="noindex">');
+    expect(page).toContain(NOINDEX);
     expect(page).toContain('<p class="label">Draft · Field note</p>');
     expect(page).not.toContain('property="og:');
     expect(page).not.toContain('application/ld+json');
@@ -610,16 +676,43 @@ function prose(markdown: string): string {
     .replace(/`[^`\n]*`/g, '');
 }
 
-/** Each front-matter date that is not written as a bare day, YYYY-MM-DD. */
-function datesWithTimes(markdown: string): string[] {
-  const front = /^---\n([\s\S]*?)\n---\n/.exec(markdown)?.[1] ?? '';
-  return front
-    .split('\n')
-    .filter((line) => /^(published|updated|firewall_reviewed)\s*:/.test(line))
-    .filter((line) => !/^[a-z_]+\s*:\s*(['"]?)\d{4}-\d{2}-\d{2}\1\s*(#.*)?$/.test(line));
+const DATE_KEYS = ['published', 'updated', 'firewall_reviewed'] as const;
+const BARE_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Why a post's dates are not each written as a bare day, YYYY-MM-DD, one line per problem. It reads
+ * the front matter as Astro does (support/front-matter.ts), so a date is found however the YAML
+ * writes it: a flow mapping, a value on the next line, an alias or a merge key, none of which a line
+ * of text shows. Then each date's source text must be a bare day, and the value Astro hands the
+ * schema must be that day: an unquoted 2026-10-20T20:00:00-04:00 is midnight UTC on the 21st.
+ */
+function dateProblems(source: string): string[] {
+  const read = frontMatter(source);
+  if ('problem' in read) return [read.problem];
+  const problems = indirection(read.doc).map((what) => `${what}: write each value out in full`);
+  for (const key of DATE_KEYS) {
+    const node = valueNode(read.doc, key);
+    if (node === undefined) continue;
+    if (!isScalar(node) || typeof node.source !== 'string' || !BARE_DAY.test(node.source)) {
+      const written = isScalar(node)
+        ? `"${String(node.source)}"`
+        : isAlias(node)
+          ? 'as an alias'
+          : 'as a list or a mapping';
+      problems.push(`${key} is written ${written}, not as a bare day, YYYY-MM-DD`);
+      continue;
+    }
+    const value = read.data[key];
+    const day = value instanceof Date ? value.toISOString().slice(0, 10) : value;
+    if (day !== node.source) problems.push(`${key} reads as ${String(day)}, not ${node.source}`);
+  }
+  return problems;
 }
 
-/** The images a post's body would show: Markdown images, and HTML images or pictures. */
+/** The images a post's source names inline: Markdown images, and HTML images or pictures. An early,
+ *  readable message only: a shortcut reference (![a chart], defined elsewhere) passes it, so
+ *  test/prose.test.ts reads the rendered body on every build, which catches every form Markdown
+ *  writes. Neither refuses raw HTML, which can show an image another way. */
 function imagesIn(markdown: string): string[] {
   return [...prose(markdown).matchAll(/!\[[^\]]*\]\s*[([]|<(img|picture|source)\b/gi)].map(
     ([match]) => match,
@@ -658,7 +751,7 @@ describe('the real posts, drafts included, before anything renders them', () => 
   });
 
   test('every date is written as a bare day: a time or an offset in the file names a time zone', () => {
-    for (const { name, path } of sources) expect(datesWithTimes(read(path)), name).toEqual([]);
+    for (const { name, path } of sources) expect(dateProblems(read(path)), name).toEqual([]);
   });
 
   test('no images in posts yet', () => {
@@ -668,7 +761,7 @@ describe('the real posts, drafts included, before anything renders them', () => 
   });
 
   test('known answers: the fixtures pass, and each check sees what it looks for', () => {
-    for (const set of ['two', 'three', 'many']) {
+    for (const set of ['none', 'one', 'many']) {
       for (const section of ['writing', 'notes']) {
         const dir = join(app, 'test/fixtures/posts', set, section);
         for (const file of readdirSync(dir)) {
@@ -676,16 +769,34 @@ describe('the real posts, drafts included, before anything renders them', () => 
           expect(isSlug(file.replace(/\.md$/, '')), file).toBe(true);
           expect(file.startsWith(FIXTURE_PREFIX), file).toBe(true);
           expect(findHeld(text, holds), file).toEqual([]);
-          expect(datesWithTimes(text), file).toEqual([]);
+          expect(dateProblems(text), file).toEqual([]);
           expect(imagesIn(text), file).toEqual([]);
         }
       }
     }
-    const front = (line: string) => `---\ntitle: x\n${line}\n---\n\nBody.\n`;
-    expect(datesWithTimes(front('published: 2026-10-20'))).toEqual([]);
-    expect(datesWithTimes(front("published: '2026-10-20'"))).toEqual([]);
-    expect(datesWithTimes(front('published: 2026-10-20T20:00:00-04:00'))).toHaveLength(1);
-    expect(datesWithTimes(front('updated: 2026-10-20 09:00'))).toHaveLength(1);
+    const front = (yaml: string) => `---\ntitle: x\n${yaml}\n---\n\nBody.\n`;
+    expect(dateProblems(front('published: 2026-10-20'))).toEqual([]);
+    expect(dateProblems(front("published: '2026-10-20'"))).toEqual([]);
+    expect(dateProblems(front('published: 2026-10-20 # read twice'))).toEqual([]);
+    expect(dateProblems(front('published: 2026-10-20T20:00:00-04:00'))).toHaveLength(1);
+    expect(dateProblems(front('updated: 2026-10-20 09:00'))).toHaveLength(1);
+    // What a line of text does not show: each of these hands the schema midnight UTC on the 21st.
+    expect(
+      dateProblems('---\n{title: x, published: 2026-10-20T20:00:00-04:00}\n---\n'),
+    ).toHaveLength(1);
+    expect(dateProblems(front('published:\n  2026-10-20T20:00:00-04:00'))).toHaveLength(1);
+    expect(dateProblems(front('x: &d 2026-10-20T20:00:00-04:00\npublished: *d'))).toEqual([
+      'an anchor, &d: write each value out in full',
+      'an alias, *d: write each value out in full',
+      'published is written as an alias, not as a bare day, YYYY-MM-DD',
+    ]);
+    expect(dateProblems(front('<<: {published: 2026-10-20T20:00:00-04:00}'))).toEqual([
+      'a merge key, <<: write each value out in full',
+    ]);
+    // Front matter Astro would read another way, or not at all, is refused rather than skipped.
+    expect(dateProblems('+++\npublished = 2026-10-20T20:00:00-04:00\n+++\n')).toHaveLength(1);
+    expect(dateProblems('\n---\npublished: 2026-10-20\n---\n')).toHaveLength(1);
+    expect(dateProblems(front('published: 2026-10-20\npublished: 2026-10-21'))).toHaveLength(1);
     expect(imagesIn('---\ntitle: x\n---\n\n![a chart](./chart.png)\n')).toHaveLength(1);
     expect(imagesIn('Text <img src="/a.webp" alt=""> text')).toHaveLength(1);
     expect(

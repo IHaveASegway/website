@@ -68,3 +68,9 @@ Two-way while only SQLite-backed DOs are used. Upgrading takes minutes and lifts
 - Spike S2 fails: WAF rules run after the Worker, so the kill rule and the breaker would not stop billing. Move the breaker to removing the route (kill switch L4) before the upgrade.
 - After an upgrade, overage above $5 in a month that traffic does not explain, or a budget alert nobody expected: a guardrail failed.
 - Cloudflare adds a hard spend cap to Paid, or changes the Free caps. A real cap on Paid would remove most of the reason to stay on Free.
+
+## Postscript 2026-10-23
+
+Spike S3 answered the question this record left open ("plan for 10 ms", under Consequences). On Free, a SQLite-backed DO handler ran about 250 ms of CPU per call with no limit error, while the stateless Worker in front used under 1 ms ([roadmap.md](../roadmap.md#spikes), S3). Proposed planning assumption, for Joseph to confirm: the stateless Worker keeps the 10 ms budget, which is also what the third upgrade trigger measures; a DO handler plans against [ADR 0014](0014-typescript-on-workers.md)'s trigger of 100 ms at p99, kept well under the 250 ms seen because a long handler stalls everyone in its room. This changes no decision here, and no Revisit if condition was met.
+
+Spike S1 ran the same day and was inconclusive. Cloudflare counted 124,061 Worker requests for the account (24% over the documented 100,000 a day) with no Error 1027 in about 11 minutes past the cap ([roadmap.md](../roadmap.md#spikes), S1). So the bulkhead question this record's $0 plan rests on, whether static assets keep serving once the cap trips, is still open, and the cap is not a precise ceiling to plan against. `LabControl`'s ledger, at 70% of each Free cap, stays the primary control, which is already the design. No Revisit if condition was met.

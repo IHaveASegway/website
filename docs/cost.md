@@ -285,7 +285,7 @@ Year 1 runs from 2026-10-22. Prices as of 2026-10-22.
 |---|---|---|
 | Workers plan | $0 | $60.00 |
 | .com renewal (auto-renew runs about 30 days before the 2027-10-18 expiry) | $11.17 | $11.17 |
-| GitHub Actions: about 675 of the 2,000 included minutes a month, about 1,025 in a busy month ([delivery.md](delivery.md)); $0 if the repo is public ([ADR 0012](adr/0012-public-repository.md)) | $0 | $0 |
+| GitHub Actions: about 865 of the 2,000 included minutes a month, about 1,312 in a busy month, modelled from job times measured on 2026-10-23 ([delivery.md](delivery.md)); $0 if the repo is public ([ADR 0012](adr/0012-public-repository.md)) | $0 | $0 |
 | Workers Builds: disconnected ([ADR 0006](adr/0006-github-actions-owns-deploys.md)) | $0 | $0 |
 | Turnstile, Web Analytics, Email Routing, DNS, certificates | $0 | $0 |
 | **Year 1** | **$11.17** | **$71.17** |

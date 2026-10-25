@@ -119,3 +119,10 @@ Practice now differs from the decision in four places, all from PR 3; none chang
 - **The theme script runs before the policy.** It moved into `<head>`, ahead of the `<meta>` where Astro writes the CSP, so no frame paints before a stored theme applies. Its hash is still in `script-src`, but a `<meta>` policy covers only what follows it, so this one script is outside it; two tests pin it byte for byte ([security.md](../security.md#headers-and-content-security-policy)).
 
 The field p75 question under Revisit if, where real-user LCP and INP come from, moved with the Web Analytics beacon to PR 3b.
+
+## Postscript 2026-10-24
+
+Two lines of the postscript above no longer hold, and neither changes the decision; no Revisit if condition was met.
+
+- **The telemetry strip's data center** is dropped, not deferred: no page describes the site any more ([design-system.md](../design-system.md#nothing-on-the-page-describes-the-site)).
+- **Eager JavaScript** is 546 B on a content page, still the theme script alone. It ships without comments, and keeps the visitor's choice in `sessionStorage` for the tab instead of `localStorage` ([security.md](../security.md#privacy-and-data-inventory)). The script still runs in `<head>`, before the policy, pinned byte for byte by the same two tests.

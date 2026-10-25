@@ -8,7 +8,10 @@ import { defineConfig } from 'vitest/config';
 //   site preview              dist-preview/, the real posts with drafts, which pull requests preview
 //   writing fixture           five published posts, both indexes and the feed
 //   writing fixture preview   the same with a draft, as a preview builds it
-//   writing fixture unlisted  two published posts and a draft with drafts included: unlisted pages
+//   writing fixture at one    one published post and two drafts, drafts included: Writing at its
+//                             minimum, and a draft that links the listed post
+//   writing fixture, drafts   two drafts and nothing published, drafts included: what a pull
+//     only                    request's preview builds while its one post is still a draft
 // so every page type meets every check before a real post exists.
 const DIST_CHECKS = [
   'budgets',
@@ -18,19 +21,29 @@ const DIST_CHECKS = [
   'glyph-coverage',
   'headings',
   'jsonld',
+  'llms',
   'nav',
   'not-on-site',
   'og',
+  'prose',
+  'project-cards',
   'readiness',
   'readouts',
   'scripts',
+  'theme-color',
   'tokens',
   'urls',
 ].map((name) => `test/${name}.test.ts`);
 
-const rerun = (name: string, build: string, drafts: 'include' | 'exclude') => ({
+// profile: the PROFILE_FIXTURE the build was made with (scripts/build-fixtures.mjs), so the checks
+// read the same profile the build did.
+const rerun = (name: string, build: string, drafts: 'include' | 'exclude', profile = '') => ({
   extends: true,
-  test: { name, include: DIST_CHECKS, env: { TEST_DIST: build, DRAFTS: drafts } },
+  test: {
+    name,
+    include: DIST_CHECKS,
+    env: { TEST_DIST: build, DRAFTS: drafts, PROFILE_FIXTURE: profile },
+  },
 });
 
 export default defineConfig({
@@ -40,11 +53,15 @@ export default defineConfig({
     // tokens.css with a ?raw import, as the build does, so that one file is passed through.
     css: { include: [/src\/styles\/tokens\.css/] },
     projects: [
-      { extends: true, test: { name: 'site', include: ['test/**/*.test.ts'] } },
+      {
+        extends: true,
+        test: { name: 'site', include: ['test/**/*.test.ts'], env: { PROFILE_FIXTURE: '' } },
+      },
       rerun('site preview', 'dist-preview', 'include'),
-      rerun('writing fixture', '.fixtures/fixture-many', 'exclude'),
-      rerun('writing fixture preview', '.fixtures/fixture-many-preview', 'include'),
-      rerun('writing fixture unlisted', '.fixtures/fixture-two-preview', 'include'),
+      rerun('writing fixture', '.fixtures/fixture-many', 'exclude', 'card'),
+      rerun('writing fixture preview', '.fixtures/fixture-many-preview', 'include', 'card'),
+      rerun('writing fixture at one', '.fixtures/fixture-one-preview', 'include'),
+      rerun('writing fixture, drafts only', '.fixtures/fixture-none-preview', 'include'),
     ],
   },
 });

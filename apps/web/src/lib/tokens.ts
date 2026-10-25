@@ -100,3 +100,11 @@ export function themeColors(css: string, theme: 'dark' | 'light'): Map<string, C
 export function hex(color: Color): string {
   return formatHex(color);
 }
+
+/** The browser chrome's color in one theme (`<meta name="theme-color">`): the page's own
+ *  background, as #rrggbb, so the bar above the page never shows a color the page does not. */
+export function chromeColor(css: string, theme: 'dark' | 'light'): string {
+  const background = themeColors(css, theme).get('background');
+  if (!background) throw new Error(`tokens.css has no --background in the ${theme} theme`);
+  return hex(background);
+}

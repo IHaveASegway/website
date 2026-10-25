@@ -1,5 +1,9 @@
-/* Tailwind reads class names from src/ only: tests and scripts mention utilities they never use. */
+/* Tailwind reads class names from src/ only: tests and scripts mention utilities they never use.
+   Every word under src/, comments included, can become a rule, so test/css-classes.test.ts names
+   any class the built stylesheet holds and no built page uses. Content is not read at all: a post's
+   or a draft's words never change the stylesheet, and src/content/README.md is the canary. */
 @import 'tailwindcss' source('../');
+@source not '../content';
 @import './tokens.css';
 @import './font-fallbacks.css';
 
@@ -82,11 +86,13 @@
     transform: none;
   }
 
-  /* Direction C, "Instrument" (design-system.md): a 12-column frame, a ruler over it, a poster-size
-     name, and a mono voice for labels and readouts. The mockup's frame is 1312px of content inside
-     64px margins. Tailwind's preflight makes every box border-box, so the padding counts inside
-     max-width here: 90rem is 1312px of content plus 2 × 4rem. */
+  /* Direction C, "Instrument", set as a poster (design-system.md, "Chosen direction"): every row
+     sits on a 12-column frame, four columns on a phone. The frame is 1312px of content inside 64px
+     margins. Tailwind's preflight makes every box border-box, so the padding counts inside
+     max-width here: 90rem is 1312px of content plus 2 × 4rem. --gutter is the space between
+     columns. */
   .frame {
+    --gutter: 1rem;
     width: 100%;
     max-width: 90rem;
     margin-inline: auto;
@@ -99,64 +105,43 @@
     }
   }
 
-  .ruler {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    height: 1.625rem;
-    border-inline-end: 1px solid var(--border);
-    background: repeating-linear-gradient(90deg, var(--border) 0 1px, transparent 1px 8px) bottom
-      left / 100% 5px no-repeat;
-  }
-
-  .ruler > span {
-    padding: 5px 0 0 5px;
-    border-inline-start: 1px solid var(--border);
-    color: var(--subtle-foreground);
-    font-family: var(--font-mono);
-    font-size: 0.625rem; /* decoration, hidden from assistive technology */
-    line-height: 1;
-    letter-spacing: 0.06em;
-  }
-
-  .ruler > span:nth-child(n + 5) {
-    display: none;
-  }
-
-  @media (width >= 48rem) {
-    .ruler {
-      grid-template-columns: repeat(12, minmax(0, 1fr));
-    }
-
-    .ruler > span:nth-child(n + 5) {
-      display: block;
+  @media (width >= 64rem) {
+    .frame {
+      --gutter: 1.75rem;
     }
   }
 
+  /* The header: the name, linking home, on every page but Home; then the nav and the toggle. */
   .site-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 1.5rem;
     min-height: 2.75rem;
-    padding-block: 0.875rem;
+    padding-block: 0.75rem;
   }
 
   @media (width >= 48rem) {
     .site-header {
-      padding-block: 1.375rem;
+      padding-block: 1.25rem;
     }
   }
 
   .wordmark {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
     font-size: 1.125rem;
     font-weight: 650;
     letter-spacing: -0.01em;
     text-decoration-line: none;
   }
 
-  .wordmark > span {
-    color: var(--muted-foreground);
-    font-weight: 500;
+  .header-end {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    margin-inline-start: auto;
   }
 
   .site-nav ul {
@@ -180,6 +165,7 @@
     text-decoration-line: underline;
   }
 
+  /* A value beside the words: a post's kind and date over its title, a card's tag. */
   .label {
     color: var(--muted-foreground);
     font-family: var(--font-mono);
@@ -190,74 +176,57 @@
     text-transform: uppercase;
   }
 
-  /* Row 1: the hero. */
+  /* Row 1: the poster. The name on two lines: its box is as wide as its widest line
+     (min-content), so "Joseph Peterson" never fits on one. Two lines of the same height with
+     either face, so the hero is as tall before the font arrives as after it, and the name never
+     moves. The box starts 0.055em left of the frame, the side bearing of "P" in both faces, so the
+     stem of "P" lines up with the frame's edge. */
   .hero {
-    padding-block: 1.875rem 1.375rem;
+    padding-block: 1.75rem 1.5rem;
     border-top: 1px solid var(--border);
   }
 
   .hero-name {
-    margin: 0;
+    --bearing: 0.055em;
+    inline-size: min-content;
+    max-inline-size: 100%;
+    margin: 0 0 0 calc(var(--bearing) * -1);
     font-size: var(--text-hero);
     font-weight: 620;
     font-stretch: 80%;
-    line-height: 0.9;
+    line-height: 0.86;
     letter-spacing: -0.035em;
-    text-wrap: balance;
     overflow-wrap: break-word;
   }
 
-  .hero-below {
+  .hero-side {
     display: grid;
-    gap: 0.875rem;
-    margin-top: 1.125rem;
+    gap: 1.125rem;
+    margin-top: 1.5rem;
   }
 
   .hero-who {
     display: flex;
     flex-direction: column;
-    gap: 0.625rem;
+    gap: 0.375rem;
   }
 
   .hero-title {
     margin: 0;
     font-size: var(--text-title);
-    font-weight: 550;
+    font-weight: 600;
     line-height: var(--text-title--line-height);
     letter-spacing: -0.01em;
   }
 
   .where {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
     margin: 0;
     color: var(--muted-foreground);
-    font-family: var(--font-mono);
-    font-size: 0.78125rem;
-    font-weight: 500;
-    line-height: 1;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    font-size: var(--text-ui);
+    line-height: var(--text-ui--line-height);
   }
 
-  .dot {
-    display: inline-block;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background-color: var(--signal);
-  }
-
-  .hero-proof {
-    margin: 0;
-    max-width: 40rem;
-    color: var(--muted-foreground);
-    font-size: var(--text-lead);
-    line-height: var(--text-lead--line-height);
-    text-wrap: pretty;
-  }
-
+  /* The actions, all the same width: two a row on a phone, as many as fit from 48rem. */
   .hero-actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -266,43 +235,42 @@
 
   @media (width >= 48rem) {
     .hero {
-      padding-block: 4rem 2.5rem;
+      padding-block: 3rem 2.5rem;
     }
 
-    .hero-name {
-      line-height: 0.86;
-    }
-
-    .hero-below {
-      gap: 1.25rem;
-      margin-top: 2.5rem;
+    .hero-side {
+      margin-top: 2rem;
     }
 
     .hero-actions {
-      grid-template-columns: repeat(3, minmax(0, 15rem));
+      grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+      max-width: 34rem;
     }
   }
 
+  /* From 64rem the facts stand beside the name, in columns 9 to 12, and their last line sits on
+     the baseline of "Peterson": 0.07em of the name's size above the bottom of its line. */
   @media (width >= 64rem) {
-    .hero-below {
+    .hero {
+      display: grid;
       grid-template-columns: repeat(12, minmax(0, 1fr));
-      column-gap: 1.75rem;
-      align-items: start;
+      column-gap: var(--gutter);
+      align-items: end;
     }
 
-    .hero-who {
-      grid-column: 1 / 5;
+    .hero-name {
+      grid-column: 1 / 9;
     }
 
-    .hero-proof {
-      grid-column: 5 / 10;
+    .hero-side {
+      grid-column: 9 / 13;
+      margin-top: 0;
+      padding-bottom: calc(var(--text-hero) * 0.07);
     }
 
     .hero-actions {
-      display: flex;
-      flex-direction: column;
-      grid-column: 10 / 13;
-      gap: 0.625rem;
+      grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+      max-width: none;
     }
   }
 
@@ -339,18 +307,11 @@
     color: var(--primary-foreground);
   }
 
-  /* The key on a button (hello@, ↓, ↗) is a desktop detail; phones show the word alone. */
+  /* The arrow on a button: ↗ leaves the site, ↓ goes down the page. */
   .btn .hint {
-    display: none;
     font-family: var(--font-mono);
     font-size: var(--text-label);
     font-weight: 500;
-  }
-
-  @media (width >= 48rem) {
-    .btn .hint {
-      display: inline;
-    }
   }
 
   /* Forced colors (Windows contrast themes) replace the apricot fill with the user's background,
@@ -377,60 +338,9 @@
     }
   }
 
-  /* Row 2: facts about this build, read from the build itself. The readouts wrap instead of
-     squeezing: each takes at least 6.5rem, a row shares its width, and the 1px gaps between them
-     show the border color as rules, wherever the rows break. */
-  .readouts {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1px;
-    margin: 0;
-    overflow: hidden;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    background-color: var(--border);
-  }
-
-  .readout {
-    display: flex;
-    flex: 1 1 6.5rem;
-    flex-direction: column;
-    gap: 0.3125rem;
-    padding: 0.625rem 0.75rem;
-    background-color: var(--surface-1);
-  }
-
-  .readout dd {
-    margin: 0;
-    font-family: var(--font-mono);
-    font-size: var(--text-sm);
-    font-weight: 500;
-    line-height: 1.2;
-    font-variant-numeric: tabular-nums;
-  }
-
-  @media (width >= 48rem) {
-    .readout {
-      gap: 0.5rem;
-      padding: 0.875rem 1.125rem;
-    }
-
-    .readout dd {
-      font-size: var(--text-base);
-    }
-  }
-
-  /* Forced colors paint every background in the system's Canvas color, so the rules drawn by the
-     row's background showing through the gaps disappear. Each readout draws its own instead. */
-  @media (forced-colors: active) {
-    .readout {
-      outline: 1px solid CanvasText;
-    }
-  }
-
-  /* Sections below the fold, each with a number assigned at build. */
+  /* Sections below the hero: Selected work and Writing, each under a 2px rule. */
   .section {
-    padding-top: 2.75rem;
+    padding-top: 3rem;
   }
 
   @media (width >= 48rem) {
@@ -440,48 +350,22 @@
   }
 
   .section-title {
-    display: flex;
-    align-items: baseline;
-    gap: 1rem;
-    margin: 0 0 1.625rem;
-    font-size: var(--text-ui);
-    font-weight: 600;
-    line-height: var(--text-ui--line-height);
-    letter-spacing: 0.01em;
+    margin: 0 0 1.25rem;
+    padding-top: 0.875rem;
+    border-top: 2px solid var(--foreground);
+    font-size: var(--text-title);
+    font-weight: 620;
+    font-stretch: 90%;
+    line-height: var(--text-title--line-height);
+    letter-spacing: -0.01em;
   }
 
-  .section-n {
-    color: var(--primary);
-    font-family: var(--font-mono);
-    font-size: var(--text-meta);
-    font-weight: 500;
-  }
-
-  .section-rule {
-    flex: 1;
-    align-self: center;
-    height: 1px;
-    background-color: var(--border);
-  }
-
+  /* Selected work, as an index: one card a row, each under a rule. */
   .cards {
     display: grid;
-    gap: 1.25rem;
   }
 
-  @media (width >= 48rem) {
-    .cards {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-  }
-
-  @media (width >= 64rem) {
-    .cards {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-  }
-
-  /* A card's hover: a 2px accent bar sweeps across its top edge, the sign that the card leads
+  /* A card's hover: a 2px accent bar sweeps across its rule, the sign that the card leads
      somewhere. So only a card that holds a link reacts to the pointer; a card with nothing to
      activate stays still. The state change is here; the movement is in the no-preference block
      below, so reduced motion shows the bar at once. :focus-within mirrors hover for the keyboard,
@@ -489,21 +373,18 @@
      without :has() still keeps the keyboard state. */
   .card {
     position: relative;
-    display: flex;
-    flex-direction: column;
-    gap: 0.875rem;
-    overflow: hidden;
-    padding: 1.5rem;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    background-color: var(--surface-1);
+    display: grid;
+    row-gap: 0.75rem;
+    align-items: start;
+    padding-block: 1rem 1.75rem;
+    border-top: 1px solid var(--input);
   }
 
   .card::before {
     content: '';
     position: absolute;
     inset-inline: 0;
-    top: 0;
+    top: -1px;
     height: 2px;
     background-color: var(--primary);
     transform: scaleX(0);
@@ -511,11 +392,11 @@
   }
 
   .card:focus-within {
-    border-color: var(--muted-foreground);
+    border-color: var(--foreground);
   }
 
   .card:has(.card-more):hover {
-    border-color: var(--muted-foreground);
+    border-color: var(--foreground);
   }
 
   .card:focus-within::before {
@@ -532,19 +413,18 @@
     }
   }
 
-  .card-idx {
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
+  .card-tag {
+    margin: 0;
+    padding-top: 0.25rem;
   }
 
   .card-title {
     margin: 0;
-    font-size: var(--text-card-title);
+    font-size: var(--text-statement);
     font-weight: 620;
-    font-stretch: 90%;
-    line-height: var(--text-card-title--line-height);
-    letter-spacing: -0.02em;
+    font-stretch: 80%;
+    line-height: var(--text-statement--line-height);
+    letter-spacing: -0.025em;
   }
 
   .card-text {
@@ -557,7 +437,7 @@
 
   /* A card's link keeps its underline: inline links are marked by it, not by color (SC 1.4.1). */
   .card-more {
-    margin-top: auto;
+    justify-self: start;
     font-size: var(--text-sm);
     font-weight: 600;
   }
@@ -566,9 +446,7 @@
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     gap: 0.4375rem 1.125rem;
-    margin: 0.375rem 0 0;
-    padding-top: 0.875rem;
-    border-top: 1px solid var(--border);
+    margin: 0;
   }
 
   .kv dt {
@@ -590,179 +468,120 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* How I work: the <ol> numbers the items for assistive technology, so the visible number is
-     hidden from it. role="list" in the markup keeps the list in Safari, which drops it otherwise. */
-  .principles {
-    display: grid;
-    gap: 1.25rem;
-    margin: 0;
-    padding: 0;
-    list-style: none;
+  /* From 64rem a card is a row of an index, like a post in a list: its tag in columns 1 and 2,
+     its title in 3 to 8, its line, figures and link in 9 to 12. */
+  @media (width >= 64rem) {
+    .card {
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      column-gap: var(--gutter);
+    }
+
+    .card-tag {
+      grid-column: 1 / 3;
+      grid-row: 1 / span 4;
+    }
+
+    .card-title {
+      grid-column: 3 / 9;
+      grid-row: 1 / span 4;
+    }
+
+    .card-text,
+    .kv,
+    .card-more {
+      grid-column: 9 / 13;
+    }
+  }
+
+  /* The footer, one line: the address, the links whose pages exist, the copyright. */
+  .site-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 1.375rem;
+    margin-top: 3rem;
+    padding-block: 0.5rem 1.5rem;
+    border-top: 1px solid var(--border);
+    font-size: var(--text-ui);
+    font-weight: 500;
   }
 
   @media (width >= 48rem) {
-    .principles {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-  }
-
-  @media (width >= 64rem) {
-    .principles {
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
-  }
-
-  .principles > li {
-    display: flex;
-    flex-direction: column;
-    gap: 0.625rem;
-    padding-top: 1rem;
-    border-top: 2px solid var(--foreground);
-  }
-
-  .principle-n {
-    color: var(--primary);
-    font-family: var(--font-mono);
-    font-size: var(--text-meta);
-    font-weight: 500;
-    line-height: 1;
-  }
-
-  .principle-title {
-    margin: 0;
-    font-size: var(--text-principle);
-    font-weight: 620;
-    line-height: var(--text-principle--line-height);
-    letter-spacing: -0.01em;
-  }
-
-  .principle-text {
-    margin: 0;
-    color: var(--muted-foreground);
-    font-size: 0.96875rem;
-    line-height: 1.55;
-    text-wrap: pretty;
-  }
-
-  /* The footer: contact, links that exist, the theme toggle and the build line. */
-  .site-footer {
-    display: grid;
-    row-gap: 1.25rem;
-    margin-top: 3.5rem;
-    padding-block: 1.75rem 3.5rem;
-    border-top: 1px solid var(--border);
-  }
-
-  @media (width >= 64rem) {
     .site-footer {
-      grid-template-columns: repeat(12, minmax(0, 1fr));
-      column-gap: 1.75rem;
-      align-items: end;
-      margin-top: 5.5rem;
+      margin-top: 4.5rem;
     }
-
-    .site-footer .contact {
-      grid-column: 1 / 7;
-    }
-
-    .site-footer .side {
-      grid-column: 7 / 13;
-      align-items: flex-end;
-    }
-  }
-
-  .contact {
-    display: flex;
-    flex-direction: column;
-    gap: 0.625rem;
-  }
-
-  .contact-email {
-    font-size: var(--text-email);
-    font-weight: 620;
-    font-stretch: 90%;
-    line-height: var(--text-email--line-height);
-    letter-spacing: -0.02em;
-    overflow-wrap: anywhere;
-  }
-
-  .side {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.75rem;
   }
 
   .footer-links {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem 1.375rem;
+    gap: 0 1.375rem;
     margin: 0;
     padding: 0;
     list-style: none;
-    font-size: var(--text-ui);
-    font-weight: 500;
   }
 
-  .tele {
-    margin: 0;
+  /* 44 px tall, like the nav and the buttons (design-system.md, "Accessibility rules"). */
+  .footer-email,
+  .footer-links a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+
+  .fine-print {
+    margin: 0 0 0 auto;
     color: var(--muted-foreground);
-    font-family: var(--font-mono);
-    font-size: var(--text-meta);
-    line-height: var(--text-meta--line-height);
+    font-weight: 400;
   }
 
-  /* The theme toggle cycles System, then the theme the OS is not showing, then the one it is, and
-     back to System (src/scripts/theme.js). Its label comes from the two attributes the script sets
-     on <html>, so the visible words and the accessible name are the same text. Without the script nothing sets data-theme, and the toggle stays hidden: there is
-     never a control that does nothing. */
+  /* The theme toggle, an icon: it cycles System, then the theme the OS is not showing, then the one
+     it is, and back to System (src/scripts/theme.js). Its name is the one state span CSS displays
+     for the data-theme the script sets on <html>, clipped so only assistive technology reads it.
+     Without the script nothing sets data-theme, and the toggle stays hidden: there is never a
+     control that does nothing. */
   .theme-toggle {
     display: none;
-    min-height: 2.75rem;
-    padding: 0 0.875rem;
-    border: 1px solid var(--input);
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    margin-inline-end: -0.75rem;
+    padding: 0;
+    border: 0;
     border-radius: var(--radius-md);
     background-color: transparent;
     color: var(--foreground);
-    font-family: var(--font-mono);
-    font-size: var(--text-meta);
-    font-weight: 500;
-    line-height: 1.25; /* room between the lines when a narrow screen wraps the saved note */
     cursor: pointer;
   }
 
   .theme-toggle:hover {
-    border-color: var(--foreground);
     background-color: var(--surface-2);
   }
 
   :root[data-theme] .theme-toggle {
-    display: inline-block;
+    display: inline-flex;
   }
 
   .theme-toggle svg {
-    display: inline-block;
-    width: 0.875rem;
-    height: 0.875rem;
-    margin-inline-end: 0.5rem;
-    vertical-align: -0.125rem;
+    width: 1.125rem;
+    height: 1.125rem;
   }
 
-  .theme-state,
-  .theme-saved {
+  .theme-state {
     display: none;
   }
 
   :root[data-theme='dark'] .theme-state[data-for='dark'],
   :root[data-theme='light'] .theme-state[data-for='light'],
   :root[data-theme='system'] .theme-state[data-for='system'] {
-    display: inline;
-  }
-
-  /* One unit, so a narrow screen (320px) breaks the label before "· saved in this browser" rather
-     than inside it. */
-  :root[data-saved] .theme-saved {
-    display: inline-block;
+    display: block;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   /* Paper gets no control: the toggle does nothing there. The :root[data-theme] prefix outranks
@@ -774,42 +593,79 @@
   }
 
   /* Long-form pages and the lists that lead to them: posts, /writing/ and /notes/ now, the colophon
-     next (layouts/Prose.astro). The head is a label, the page's one <h1> and a lead. Body text is
-     the base size at 16/26, about 68 characters a line (--measure, tokens.css). */
-  .page {
+     next (layouts/Prose.astro). The head is a label, the page's one <h1> in the condensed display
+     face, and a lead; from 64rem the label stands in columns 1 and 2 and everything else starts in
+     column 3, as a post's title does in a list. Body text is the base size at 16/26, about 68
+     characters a line (--measure, tokens.css). The 404 takes the same head, without a label. */
+  .page,
+  .notice {
     padding-block: 1.875rem 1.5rem;
     border-top: 1px solid var(--border);
   }
 
   @media (width >= 48rem) {
-    .page {
-      padding-block: 4rem 2.5rem;
+    .page,
+    .notice {
+      padding-block: 3.5rem 2.5rem;
     }
   }
 
-  .page-head {
-    display: flex;
-    flex-direction: column;
-    gap: 0.875rem;
-    max-width: var(--measure);
+  .page-head,
+  .notice {
+    display: grid;
+    align-content: start;
+    row-gap: 0.875rem;
   }
 
-  .page-title {
+  .page-head > *,
+  .notice > * {
+    max-width: var(--measure);
     margin: 0;
-    font-size: var(--text-h1);
-    font-weight: 600;
-    line-height: var(--text-h1--line-height);
-    letter-spacing: -0.02em;
+  }
+
+  .page-title,
+  .notice-title {
+    max-width: none;
+    font-size: var(--text-statement);
+    font-weight: 620;
+    font-stretch: 80%;
+    line-height: var(--text-statement--line-height);
+    letter-spacing: -0.025em;
     text-wrap: balance;
     overflow-wrap: break-word;
   }
 
-  .page-lead {
-    margin: 0;
+  .page-lead,
+  .notice-text {
     color: var(--muted-foreground);
     font-size: var(--text-lead);
     line-height: var(--text-lead--line-height);
     text-wrap: pretty;
+  }
+
+  @media (width >= 64rem) {
+    .page-head {
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      column-gap: var(--gutter);
+    }
+
+    .page-head > * {
+      grid-column: 3 / 11;
+    }
+
+    .page-head > .label {
+      grid-column: 1 / 3;
+      grid-row: 1 / span 2;
+      padding-top: 0.5rem;
+    }
+
+    /* The body, the lists and the links after them start in column 3 too. Percentages of a
+       margin are of the page's width. */
+    .page > .prose,
+    .page > .post-list,
+    .page > .post-links {
+      margin-inline-start: calc((100% + var(--gutter)) / 6);
+    }
   }
 
   /* A post's body, as Markdown renders it. Tailwind's preflight removes every margin, list marker
@@ -827,7 +683,8 @@
   .prose h2 {
     margin-top: 2.75rem;
     font-size: var(--text-h2);
-    font-weight: 600;
+    font-weight: 620;
+    font-stretch: 80%;
     line-height: var(--text-h2--line-height);
     letter-spacing: -0.015em;
   }
@@ -971,10 +828,11 @@
     white-space: nowrap;
   }
 
-  /* Lists of posts, newest first: on Home, /writing/ and /notes/. */
+  /* Lists of posts, newest first: on Home, /writing/ and /notes/. Each post is a row of an index,
+     like a card on Home: from 64rem its date and kind in columns 1 and 2, its title in 3 to 8 and
+     its summary in 9 to 12. */
   .post-list {
-    max-width: var(--measure);
-    margin: 2rem 0 0;
+    margin: 2.5rem 0 0;
     padding: 0;
     list-style: none;
   }
@@ -983,16 +841,47 @@
     margin-top: 0;
   }
 
+  /* From 64rem, the links under Home's Writing list start in column 3, under the titles. */
+  @media (width >= 64rem) {
+    .section > .post-list + .post-links {
+      margin-inline-start: calc((100% + var(--gutter)) / 6);
+    }
+
+    .page > .post-list {
+      margin-inline-start: 0;
+    }
+  }
+
   .post-list > li {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-    padding-block: 1.25rem;
-    border-top: 1px solid var(--border);
+    display: grid;
+    row-gap: 0.375rem;
+    padding-block: 1rem 1.5rem;
+    border-top: 1px solid var(--input);
   }
 
   .post-list > li:last-child {
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--input);
+  }
+
+  @media (width >= 64rem) {
+    .post-list > li {
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      column-gap: var(--gutter);
+      align-items: start;
+    }
+
+    .post-list .post-meta {
+      grid-column: 1 / 3;
+      padding-top: 0.375rem;
+    }
+
+    .post-list .post-title {
+      grid-column: 3 / 9;
+    }
+
+    .post-list .post-summary {
+      grid-column: 9 / 13;
+    }
   }
 
   .post-meta {
@@ -1005,10 +894,11 @@
 
   .post-title {
     margin: 0;
-    font-size: var(--text-h3);
-    font-weight: 600;
-    line-height: var(--text-h3--line-height);
-    letter-spacing: -0.01em;
+    font-size: var(--text-title);
+    font-weight: 620;
+    font-stretch: 80%;
+    line-height: var(--text-title--line-height);
+    letter-spacing: -0.015em;
     text-wrap: balance;
   }
 
@@ -1029,6 +919,10 @@
     font-weight: 500;
   }
 
+  .section-title + .post-links {
+    margin-top: 0;
+  }
+
   .page > .post-links {
     max-width: var(--measure);
     margin-top: 3rem;
@@ -1040,36 +934,8 @@
     min-height: 2.75rem;
   }
 
-  /* The 404 page. */
-  .notice {
-    padding-block: 1.875rem 1.5rem;
-    border-top: 1px solid var(--border);
-  }
-
-  @media (width >= 48rem) {
-    .notice {
-      padding-block: 4rem 2.5rem;
-    }
-  }
-
-  .notice-title {
-    margin: 1rem 0 0;
-    font-size: var(--text-display);
-    font-weight: 620;
-    font-stretch: 90%;
-    line-height: var(--text-display--line-height);
-    letter-spacing: -0.03em;
-    text-wrap: balance;
-  }
-
-  .notice-text {
-    margin: 1rem 0 0;
-    color: var(--muted-foreground);
-    font-size: var(--text-lead);
-    line-height: var(--text-lead--line-height);
-  }
-
-  .notice-actions {
-    margin: 2.5rem 0 0;
+  /* The 404 page: its heading and a line, then the way home. */
+  .notice > .notice-actions {
+    margin-top: 1.25rem;
   }
 }

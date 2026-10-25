@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { ORIGIN, SITE_PAGES, WRITING_FIXTURE_PAGES } from '../e2e/expected';
+import { isNoindex, NOINDEX } from '../src/lib/noindex.mjs';
 import { app, dist, files, fixture, previewBuild } from './support/dist';
 
 // The URL scheme as a fitness function over the build output (ADR 0005, delivery.md "Quality
@@ -12,27 +13,28 @@ import { app, dist, files, fixture, previewBuild } from './support/dist';
 const html = files.filter((file) => file.endsWith('.html'));
 const fixtureBuild = fixture?.startsWith('.fixtures/') ?? false;
 
-const NOINDEX = '<meta name="robots" content="noindex">';
 const noindex = (page: string) =>
-  readFileSync(join(dist, page.slice(1), 'index.html'), 'utf8').includes(NOINDEX);
+  isNoindex(readFileSync(join(dist, page.slice(1), 'index.html'), 'utf8'));
 
 /** URL path of each built page: "index.html" is "/", "a/b/index.html" is "/a/b/". */
 const pages = html
   .filter((file) => file.endsWith('index.html'))
   .map((file) => `/${file.slice(0, -'index.html'.length)}`);
 
-/** The pages a reader and a crawler can find: every page but a draft or an unlisted post, which are
- *  noindex and exist only in a preview build (lib/posts.ts). The sitemap, the e2e list and the
- *  ledger hold these. */
+/** The pages a reader and a crawler can find: every page but a draft, which is noindex and exists
+ *  only in a preview build (lib/posts.ts). The sitemap, the e2e list and the ledger hold these. */
 const indexable = pages.filter((page) => !noindex(page));
 
 /** The indexable pages this build must write: the ledger's for dist/ and dist-preview/, the
- *  fixture's for fixture-many (with drafts or without), and Home alone below 3 posts. */
+ *  fixture's for fixture-many (with drafts or without), for fixture-one-preview Home, /writing/
+ *  and its one published post, and for fixture-none-preview, drafts only, Home alone. */
 const EXPECTED = fixture?.includes('fixture-many')
   ? WRITING_FIXTURE_PAGES
-  : fixture?.includes('fixture-two')
-    ? ['/']
-    : SITE_PAGES;
+  : fixture?.includes('fixture-one')
+    ? ['/', '/writing/', '/writing/fixture-measure-first/']
+    : fixture?.includes('fixture-none')
+      ? ['/']
+      : SITE_PAGES;
 
 /** Every href in a document, with the element and rel it came from. */
 function links(file: string): { tag: string; rel: string; href: string }[] {
@@ -66,9 +68,9 @@ interface LinkedPage {
 
 /**
  * Each link from a page that is not a draft to a draft: "<from> links <to>". The guarantee: no
- * page but a draft links a draft, whatever the post count, so no published post does, listed or
- * unlisted below 3 posts. Only a preview build holds drafts, so that is where it bites; a draft is
- * told by its label, not by noindex, which an unlisted post has too.
+ * page but a draft links a draft, whatever the post count, so no published post does. Only a
+ * preview build holds drafts, so that is where it bites; a draft is told by its label, the rule's
+ * own words, rather than by noindex, which the 404 has too.
  */
 function draftLinks(built: readonly LinkedPage[]): string[] {
   const drafts = new Set(built.filter((p) => p.draft).map((p) => new URL(p.url).pathname));
@@ -167,11 +169,11 @@ describe('the page list the e2e checks walk', () => {
     }
   });
 
-  test('a noindex page is a draft or an unlisted post, and only a preview build has one', () => {
+  test('a noindex page is a draft, and only a preview build has one', () => {
     for (const page of pages.filter(noindex)) {
       expect(page, 'only posts can be drafts').toMatch(/^\/(writing|notes)\/[a-z0-9-]+\/$/);
       expect(readFileSync(join(dist, page.slice(1), 'index.html'), 'utf8')).toMatch(
-        /<p class="label">(Draft|Unlisted) · /,
+        /<p class="label">Draft · /,
       );
     }
     // The backstop: dist/ is the build that deploys, so it holds none whatever DRAFTS says.
@@ -194,9 +196,9 @@ describe('every internal link resolves in this build', () => {
     });
   }
 
-  // A preview builds drafts, so a published page linking one resolves there, and below 3 posts
-  // dist/ builds no post at all. So the rule is checked on every build, by label.
-  test('no page but a draft links a draft: no published post does, listed or unlisted', () => {
+  // A preview builds drafts, so a published page linking one resolves there, and with no post
+  // published dist/ builds no post at all. So the rule is checked on every build, by label.
+  test('no page but a draft links a draft: no published post does', () => {
     const built = html.map((file) => ({
       url: pageUrl(file),
       draft: readFileSync(join(dist, file), 'utf8').includes('<p class="label">Draft · '),
@@ -228,7 +230,7 @@ describe('every internal link resolves in this build', () => {
     expect(draftLinks([draft, page('/', false, 'writing/part-two/#a')])).toEqual([
       '/ links /writing/part-two/',
     ]);
-    // Below 3 posts a published post is unlisted, and noindex, and still may not link a draft.
+    // A note links a draft essay across sections, and is named too.
     expect(draftLinks([draft, page('/notes/cool-uris/', false, '/writing/part-two/')])).toEqual([
       '/notes/cool-uris/ links /writing/part-two/',
     ]);

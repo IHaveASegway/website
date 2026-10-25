@@ -63,9 +63,8 @@ const node = (style: OgNode['props']['style'], ...children: (OgNode | string)[])
 /** The card as satori's element tree. Colors come in, so the tree holds no literal of its own. */
 export function ogTree(
   card: OgCard,
-  colors: Record<'background' | 'foreground' | 'muted' | 'border' | 'accent', string>,
+  colors: Record<'background' | 'foreground' | 'muted' | 'accent', string>,
 ): OgNode {
-  const tick = () => node({ flex: 1, height: 18, borderLeft: `1px solid ${colors.border}` });
   return node(
     {
       // Satori sizes boxes as content-box: without border-box, the padding would push the card
@@ -74,20 +73,11 @@ export function ogTree(
       height: '100%',
       boxSizing: 'border-box',
       flexDirection: 'column',
-      justifyContent: 'space-between',
-      padding: '56px 72px 72px',
+      justifyContent: 'flex-end',
+      padding: '72px',
       backgroundColor: colors.background,
       color: colors.foreground,
     },
-    // The ruler: twelve columns, as on every page. Decoration only.
-    node(
-      {
-        width: '100%',
-        borderRight: `1px solid ${colors.border}`,
-        borderBottom: `1px solid ${colors.border}`,
-      },
-      ...Array.from({ length: 12 }, tick),
-    ),
     node(
       { flexDirection: 'column', gap: 28 },
       node(
@@ -162,7 +152,6 @@ export async function renderOg(card: OgCard): Promise<Buffer> {
     background: token('background'),
     foreground: token('foreground'),
     muted: token('muted-foreground'),
-    border: token('border'),
     accent: token('primary'),
   });
   const svg = await satori(tree as unknown as Parameters<typeof satori>[0], {

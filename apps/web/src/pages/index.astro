@@ -1,90 +1,60 @@
 ---
 import Hero from '../components/Hero.astro';
 import PostList from '../components/PostList.astro';
-import Principles from '../components/Principles.astro';
-import Readouts from '../components/Readouts.astro';
 import SectionTitle from '../components/SectionTitle.astro';
 import WorkCard from '../components/WorkCard.astro';
 import Base from '../layouts/Base.astro';
 import { loadProfile, loadWritingArea } from '../lib/content';
 import { homeGraph, serialize } from '../lib/jsonld';
 import { homeCard } from '../lib/og';
-import { locationLine } from '../lib/profile';
-import { kilobytes, pageJavaScriptBytes, preloadedFontBytes } from '../lib/weights';
+import { parseHolds } from '../lib/held-names';
+import { homeDescription, projectCards } from '../lib/profile';
+import { selectedWork, writingRow } from '../lib/work';
+import holdList from '../../not-on-site.txt?raw';
 
-// Home v1 (content.md, "Home page"). An element renders only when its source and its link target
-// exist, and a figure only when a reader can check it; until then the line is left out, never
-// filled with a placeholder. So the proof line names no project, the cards hold only this site,
-// and How I work links to nothing until its evidence pages exist.
+// Home (content.md, "Home page"): who Joseph is, his work, his writing and how to reach him. An
+// element renders only when its source and its link target exist; until then it is left out,
+// never filled with a placeholder.
 const profile = await loadProfile();
 const { name, label } = profile.basics;
-const javascript = kilobytes(pageJavaScriptBytes());
-const fonts = kilobytes(preloadedFontBytes());
-
-// Below the fold, numbered at build in the order the sections render.
-const numbered = (position: number) => String(position).padStart(2, '0');
-const work = { title: 'Selected work', number: numbered(1) };
-const how = { title: 'How I work', number: numbered(2) };
-// Writing (row 7 in content.md): the three latest posts, only while Writing renders at all.
 const area = await loadWritingArea();
-const writing = { title: 'Writing', number: numbered(3) };
-
-const PRINCIPLES = [
-  {
-    title: 'Write the decision down.',
-    text: 'A choice that is costly to undo gets a record: the options, what each one costs, and what would show it was wrong.',
-  },
-  {
-    title: 'One owner per piece of data.',
-    text: 'Each fact is written in one place, and everything else reads it from there instead of keeping a copy.',
-  },
-  {
-    title: 'Measure before building.',
-    text: 'Find where the time goes before changing anything, then change what the numbers point at.',
-  },
-  {
-    title: 'Fail closed.',
-    text: 'When a check cannot prove a change is safe, the change does not ship.',
-  },
-];
+// Selected work: a card per project whose check is recorded and whose hold is lifted, then a card
+// per featured post once it is published (lib/work.ts).
+const cards = selectedWork(projectCards(profile, parseHolds(holdList)), area);
+// Writing: the latest posts that are not already a card above.
+const latest = writingRow(area.published, cards);
 ---
 
 <Base
   title={`${name} · ${label}`}
-  description={`${name}, ${label}. ${locationLine(profile)}.`}
+  description={homeDescription(profile)}
   path="/"
   og={homeCard(profile)}
-  telemetry={false}
   jsonLd={serialize(homeGraph(profile))}
 >
-  <Hero profile={profile} proof="This site's hard-to-reverse decisions are written down." />
-  <Readouts javascript={javascript} />
+  <Hero profile={profile} work={cards.length > 0 ? '#work' : undefined} />
 
-  <section class="section" id="work" aria-labelledby="work-title">
-    <SectionTitle id="work-title" number={work.number} title={work.title} />
-    <div class="cards">
-      <WorkCard
-        index={`${work.number}.1`}
-        tag="Astro"
-        title="This site"
-        text="Static HTML from Astro, served by Cloudflare. A page that goes over its byte budget fails the build."
-        facts={[
-          { term: 'JavaScript', value: `${javascript} on this page` },
-          { term: 'Fonts', value: `${fonts}, self-hosted` },
-        ]}
-      />
-    </div>
-  </section>
-
-  <section class="section" aria-labelledby="how-title">
-    <SectionTitle id="how-title" number={how.number} title={how.title} />
-    <Principles items={PRINCIPLES} />
-  </section>
+  {cards.length > 0 && (
+    <section class="section" id="work" aria-labelledby="work-title">
+      <SectionTitle id="work-title" title="Selected work" />
+      <div class="cards">
+        {cards.map((card) => (
+          <WorkCard
+            tag={card.tag}
+            title={card.title}
+            text={card.text}
+            facts={card.facts}
+            link={card.link}
+          />
+        ))}
+      </div>
+    </section>
+  )}
 
   {area.visible && (
     <section class="section" id="writing" aria-labelledby="writing-title">
-      <SectionTitle id="writing-title" number={writing.number} title={writing.title} />
-      <PostList posts={area.published.slice(0, 3)} level={3} />
+      <SectionTitle id="writing-title" title="Writing" />
+      {latest.length > 0 && <PostList posts={latest} level={3} />}
       <ul class="post-links">
         <li>
           <a href="/writing/">All writing</a>

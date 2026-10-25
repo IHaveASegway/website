@@ -15,7 +15,7 @@ The question to answer first is what a live demo adds over a recording. Two thin
 - **Inputs the visitor chooses.** A recording shows the run Joseph picked. A live demo runs the one the visitor asks for, including the failure they inject.
 - **Proof that the system runs**, on infrastructure Joseph operates, inside limits he set.
 
-Anything without visitor input ships as static assets: the stillhere-on-stillhere report, a resilience simulator that runs in the browser, and gitops terminal recordings. They cost $0, use no quota, and [content.md](content.md) owns them.
+Anything without visitor input ships as static assets, such as a resilience simulator that runs in the browser. It costs $0, uses no quota, and [content.md](content.md) owns it. The stillhere-on-stillhere report and gitops' terminal recordings were parked on 2026-10-23, when owned work became cards that link to repositories.
 
 A live demo is a small production service, with a quota, an abuse surface and one person on call. So the static-by-default principle in [product.md](product.md) applies here too: code runs at the edge only where a visitor's input matters. An unexplained or broken demo is worse than none, so every demo ships with a write-up and a recorded run. A demo with fewer than 20 live sessions a month after three months keeps its recording and loses its live mode.
 
@@ -254,7 +254,7 @@ stateDiagram-v2
 - **Reconnects.** The client uses PartySocket (1.3.0 as of 2026-10-22, MIT, [npm](https://www.npmjs.com/package/partysocket)), which reconnects with backoff. Every reconnect gets a fresh snapshot, so a lab deploy costs a visitor a pause, not their session.
 - **Route Lab degrades to solo offline mode.** Its solver already runs in the browser, so only sharing is lost. Presence degrades to a dash: a recorded number is never shown as a live one.
 - **Recordings.** An NDJSON file per run: a header line `{"v":1,"t":"rec","demo":"outbox","app":"<git sha>","seed":42}`, then the server's frames, each with `dt` (milliseconds since the start) for pacing. Curated runs are Joseph's own sessions on synthetic data, recorded in the browser and committed beside the write-up. A visitor can download their own session; nothing a visitor does is uploaded.
-- **One domain core per demo.** `decide(command, state) → events` and `evolve(state, event) → state` are plain TypeScript with no platform imports. They run in three places: the DO (authoritative), the browser (offline mode and replay), and the tests. Replaying a curated recording through `evolve` must reproduce its snapshots, so every recording doubles as a golden test, and a refactor that changes behavior fails CI. Seeded randomness, such as the Outbox Lab's faults, makes a run reproducible, and that is what makes it recordable.
+- **One domain core per demo.** `decide(command, state) → events` and `evolve(state, event) → state` are plain TypeScript with no platform imports ([ADR 0014](adr/0014-typescript-on-workers.md), Proposed). They run in three places: the DO (authoritative), the browser (offline mode and replay), and the tests. Replaying a curated recording through `evolve` must reproduce its snapshots, so every recording doubles as a golden test, and a refactor that changes behavior fails CI. Seeded randomness, such as the Outbox Lab's faults, makes a run reproducible, and that is what makes it recordable.
 
 ## Protocol v1
 
@@ -295,14 +295,14 @@ Ranked by score = 4 × signal + effort + abuse + Free fit, each from 1 to 5 with
 | 1 | Route Lab | Drops stops on a stylized map; browsers race to improve the routes; the room accepts only plans it has checked | The vehicle routing problem (VRP); compute where it is free; optimistic concurrency | 5 | 7–10 d | Low to medium | ≈1,430 sessions (rows) | Room |
 | 2 | Outbox Lab | Places, pays and cancels orders; crashes the service after commit; breaks subscribers; replays | Transactional outbox, CloudEvents, schema validation at the boundary, idempotency keys, consumer offsets, DLQ | 5 | 8–10 d | Low | ≈170–330 (rows) | Sandbox |
 | 3 | Migration Lab | Edits a declarative migration, reads the plan, applies it in batches, crashes it, verifies, rolls back | Saved-plan apply, expand/contract, idempotent batches, point-in-time recovery | 4 | 6–8 d | Low | ≈100–200 (rows) | Sandbox |
-| 4 | stillhere on stillhere | Explores stillhere's report on its own public repos | His product, CQRS, the ADR habit | 3 | 3–5 d | None | Unlimited (static) | No |
+| 4 | stillhere on stillhere (parked 2026-10-23) | Explores stillhere's report on its own public repos | His product, CQRS, the ADR habit | 3 | 3–5 d | None | Unlimited (static) | No |
 | 5 | Job Lab | Submits a small job, injects faults, approves a waiting step | Durable execution, retry policy, a human approval step | 4 | 4–6 d | Medium | ≈375 runs (Workflow steps) | Room plus Workflows |
 | 6 | Resilience simulator | Turns knobs on a deterministic simulation: jittered retries, a breaker, bulkheads, AIMD, load shedding | Overload control, with numbers | 3 | 4–6 d | None | Unlimited (static) | No |
-| 7 | gitops in the browser | Runs the TUI, compiled to WASM, against fake repos | Go, TUI craft, ports and adapters | 3 | 6–10 d; a terminal recording takes 0.5 d | None | Unlimited (static) | No |
+| 7 | gitops in the browser (parked 2026-10-23) | Runs the TUI, compiled to WASM, against fake repos | Go, TUI craft, ports and adapters | 3 | 6–10 d; a terminal recording takes 0.5 d | None | Unlimited (static) | No |
 | 8 | Rate-limit playground | Compares token bucket, sliding window and GCRA under bursts | Rate limiting and its consistency trade-offs | 3 | 3–4 d | Medium: a load generator unless simulated | ≈1,000 if live | Optional |
 | 9 | Presence | Sees "N here now" and a per-continent count; cursors are opt-in | Real-time basics, hibernation, cost control | 2 | 1–2 d | Medium | ≈50,000 visits (requests) | Singleton |
 
-Capacity is at 100% of the binding Free cap; the [cost table](#per-session-cost-and-free-headroom) shows it inside the 70% share. Job Lab's figure assumes 8 Workflow steps a run against Free's 3,000 steps a day, as of 2026-10-22 ([Workflows pricing](https://developers.cloudflare.com/workflows/reference/pricing/)). Days are focused days.
+Capacity is at 100% of the binding Free cap; the [cost table](#per-session-cost-and-free-headroom) shows it inside the 70% share. Job Lab's figure assumes 8 Workflow steps a run against Free's 3,000 steps a day, as of 2026-10-22 ([Workflows pricing](https://developers.cloudflare.com/workflows/reference/pricing/)). Days are focused days. Rows 4 and 7 were parked on 2026-10-23: owned work shows as cards on Home that link to repositories ([content.md](content.md#owned-work)), and gitops is private.
 
 ### Ship order
 
@@ -313,7 +313,7 @@ Ship order is not rank order.
 3. **Migration Lab**, PR 8.
 4. **Route Lab**, first by rank and last to ship. It takes 7–10 days and brings the most outside parts of any demo: a WASM solver that calls itself experimental, OpenStreetMap data under the ODbL, and a precomputed travel-time matrix. Like every demo, it waits on Q13 (Q-ip) in [product.md](product.md).
 
-The stillhere report, the resilience simulator and the gitops recordings are static companions. They need no DO and can ship any time.
+The resilience simulator is a static companion: it needs no DO and can ship any time. The stillhere report and the gitops recordings are parked.
 
 ## Designs, condensed
 
@@ -576,7 +576,7 @@ Six questions the docs do not settle. Each is answered on a throwaway Worker bef
 | One lab Worker on `/lab/api/*` ([ADR 0009](adr/0009-lab-worker-same-origin.md)) | A lab subdomain; one Worker per demo; DOs in the site Worker | Gains operability and security: one config, one enforcement point, no CORS. Costs availability: every lab deploy drops every lab socket | Two-way: no state outlives 15 minutes | Lab deploys drop live sessions more than once a week; a demo renders visitor markup; spike S1 fails |
 | DO classes declared with `exports` | The legacy `migrations` array of tags | Gains evolvability: each class's state is declared in one place, not replayed from a log. Costs maturity: a 2026-06-30 feature that many templates and examples do not use yet | One-way-ish per class: renames and deletions are tombstones, and rollback is blocked across them | A class needs renaming more than once; then the class split was wrong, not the mechanism |
 | Protocol v1 and the recording format | Screen recordings of runs | Gains testability: recordings replay through the reducer and double as golden tests. Costs evolvability: what v1 means is frozen | One-way: recordings freeze what `v` means | A v2 within six months of the first recording |
-| PartyServer as the room layer, Agents SDK deferred | The raw DO APIs; the Agents SDK | Gains delivery speed: lifecycle hooks, hibernation and addressing come built in. Costs operability: a 0.x dependency to pin and watch | Two-way, because the domain core imports neither | A PartyServer release breaks hibernation or addressing; a demo needs the state sync PartyServer lacks |
+| PartyServer as the room layer, Agents SDK deferred | The raw DO APIs; the Agents SDK | Gains delivery speed: lifecycle hooks, hibernation and addressing come built in. Costs operability: a 0.x dependency to pin and watch | Two-way, because the domain core imports neither | A PartyServer release breaks hibernation or addressing; a demo needs the state sync PartyServer lacks. Reopened for PR 6 on 2026-10-23: no commit since 2026-08-03 ([roadmap.md](roadmap.md#pr-6-lab-platform-and-presence)) |
 | Budgets at 70% of each Free cap, with reserve and settle | Workers Paid with budget alerts only; the Rate Limiting binding as the budget | Gains cost: a $0 ceiling that holds. Costs availability: past its budget, a demo plays recordings | Two-way | The breaker trips on more than 3 days a month: move to Paid ([ADR 0008](adr/0008-workers-free-with-guardrails.md)). Metered usage above the ledger: the ceilings are wrong |
 | Flags in Data Studio, no admin endpoint | A bearer-token admin endpoint; a flag in KV | Gains security: the public route has no admin surface. Costs operability: a manual, dashboard-only switch in a beta tool | Two-way | Data Studio loses write access or leaves beta badly, or flipping a flag takes more than a minute in an incident |
 | Live demos at all | Recordings only | Gains evidence: the system runs, on inputs the visitor picks. Costs operability and security: a small production service with an abuse surface | Two-way: the recordings stay | Fewer than 20 live sessions a month after three months: recordings only. Abuse needs manual action more than once a month: add a WAF managed challenge in front |

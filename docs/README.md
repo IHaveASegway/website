@@ -2,9 +2,9 @@
 
 This folder is the plan and the decision record for ihaveasegway.com, Joseph Peterson's personal site. It says what the site is for, how it is built, shipped, secured, paid for and run, and why each choice beat its alternatives. It is also a study guide: every decision names its pattern, the quality attributes it trades, whether it is a one-way or a two-way door, and a source to read next.
 
-Status: Draft for review in PR 1 · 2026-10-22
+Status: Updated after PR 5 (Writing) · 2026-10-24
 
-PR 1 is docs only: no code, no workflow, nothing deployed. Every ADR in [adr/](adr/README.md) is Proposed until Joseph accepts it in review. Until then nothing here is a commitment, and every recommendation is open to argument.
+PR 1 wrote these docs before any code; PR 2, PR 3 and PR 5 have built on them since. An Accepted ADR is a commitment and a Proposed one is still open to argument, and the [ADR index](adr/README.md) is the one place that says which is which. Everything else here changes by pull request, in the doc that owns the topic.
 
 ## Start here in 10 minutes
 
@@ -27,7 +27,7 @@ Purpose first, then the shape, then the parts, then how the parts ship, stay saf
 | 1 | [product.md](product.md) | Why build it, for whom, and what is still undecided? Principles, the content firewall policy, milestones, open decisions Q1–Q29, non-goals, how we will know it works, glossary |
 | 2 | [architecture.md](architecture.md) | What is the shape? Context and container diagrams, bounded contexts, who owns each piece of data, request flows, bulkheads and failure modes |
 | 3 | [stack.md](stack.md) | Which technologies, pinned how, and why? What each owns, what came second, what was rejected, the upgrade policy |
-| 4 | [content.md](content.md) | What is on the site? Sitemap, URL scheme summary, Home sections, the case-study template, content model, voice, firewall classes for copy, writing plan |
+| 4 | [content.md](content.md) | What is on the site? Sitemap, URL scheme summary, Home sections, the rules every page follows, content model, voice, firewall classes for copy, writing plan |
 | 5 | [design-system.md](design-system.md) | What does it look like? Instrument, direction C: tokens, contrast, type, motifs, motion, effects, budgets, accessibility rules, Home row by row |
 | 6 | [lab.md](lab.md) | How do the live demos work? Durable Objects topology, admission and guardrails, kill switch, recorded fallbacks, protocol v1, the ranked demo backlog |
 | 7 | [delivery.md](delivery.md) | How does a change reach production? Repo layout, toolchain pins, the CI/CD job graph, environments, deploy and rollback, quality gates, dependency policy |
@@ -35,7 +35,7 @@ Purpose first, then the shape, then the parts, then how the parts ship, stay saf
 | 9 | [cost.md](cost.md) | What does it cost, and what keeps it there? Price sheet, formulas, scenarios, Free versus Paid, guardrails, upgrade triggers, annual totals |
 | 10 | [operations.md](operations.md) | How is it run alone? Access setup, observability, alerting, runbooks, the maintenance calendar |
 | 11 | [roadmap.md](roadmap.md) | In what order? Phases and PRs with scope, definition of done, estimates and blockers; spikes S1–S9; the WIP limit |
-| 12 | [adr/README.md](adr/README.md) | Which decisions are hard to reverse? The ADR format and the index of ADRs 0001–0012 |
+| 12 | [adr/README.md](adr/README.md) | Which decisions are hard to reverse? The ADR format, and the index of every ADR with its status |
 | 13 | [reading-list.md](reading-list.md) | Where do I learn more? Every pattern named in these docs, with one canonical source and why it is worth the time |
 
 This table lists docs, not ADRs. The ADR index is the one owner of ADR titles and statuses. Copying it here would give the same facts two owners, the drift this plan avoids everywhere else (principle 3 in product.md).
@@ -45,6 +45,7 @@ This table lists docs, not ADRs. The ADR index is the one owner of ADR titles an
 | Status | Used on | Meaning | What may change |
 |---|---|---|---|
 | Draft for review | Docs (the line under each title) | Written for PR 1 and under review | Anything, in a PR |
+| Updated in or after PR N | Docs | Revised since PR 1's review; the date is the latest revision | Anything, in a PR |
 | Proposed | ADRs | Argued, not yet accepted. Every ADR starts here | The decision itself, in a PR |
 | Accepted | ADRs | Joseph accepted it in review; the Status line carries the date | Typo fixes and dated postscripts only. A changed decision gets a new ADR |
 | Superseded by NNNN | ADRs | Replaced by a later ADR, which links back | Nothing. It stays as the record of what was believed, and why |

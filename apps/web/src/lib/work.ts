@@ -1,0 +1,83 @@
+import { KIND_LABELS, postPath, type Post, type Section, type WritingArea } from './posts';
+import type { ProjectCard } from './profile';
+
+// Selected work on Home (content.md, "Home page", row 4, and "Owned work"). A card opens a page: a
+// project's repository, or a post on this site. The rule every card meets is that its page exists
+// in this build: a card never links to nothing, and a card with nowhere to go is not drawn. When no
+// card has a target, Home has no Selected work section at all.
+
+/** A card as WorkCard.astro renders it. */
+export interface WorkCard {
+  readonly title: string;
+  readonly text: string;
+  readonly tag?: string;
+  readonly facts: readonly { readonly term: string; readonly value: string }[];
+  readonly link: { readonly href: string; readonly label: string; readonly external: boolean };
+}
+
+/** A post with a card of its own in Selected work. The card's words are the post's own title,
+ *  summary and kind, so the post's front matter stays their one owner; this names which post, and
+ *  the words of the card's link. */
+export interface FeaturedPost {
+  readonly section: Section;
+  readonly slug: string;
+  readonly label: string;
+}
+
+/** The posts Selected work features, in order. The auto-trader teardown is a postmortem: its card
+ *  appears with the post, and links to it on this site, never to a repository. */
+export const FEATURED_POSTS: readonly FeaturedPost[] = [
+  { section: 'writing', slug: 'trading-bot-teardown', label: 'Read the teardown' },
+];
+
+/** A card for each featured post that is published in this build; a draft, or a post that does not
+ *  exist, gets none. */
+export function postCards(
+  featured: readonly FeaturedPost[],
+  published: readonly Post[],
+): WorkCard[] {
+  return featured.flatMap(({ section, slug, label }) => {
+    const post = published.find((p) => p.section === section && p.slug === slug && !p.draft);
+    if (post === undefined) return [];
+    return [
+      {
+        title: post.title,
+        text: post.summary,
+        tag: KIND_LABELS[post.kind],
+        facts: [],
+        link: { href: postPath(post), label, external: false },
+      },
+    ];
+  });
+}
+
+/** The cards whose link names a target this build vouches for, in their order: the rule every
+ *  card meets, whatever made it. */
+export function withTargets(cards: readonly WorkCard[], targets: ReadonlySet<string>): WorkCard[] {
+  return cards.filter((card) => targets.has(card.link.href));
+}
+
+/**
+ * Home's Selected work: the project cards, then the featured posts. The targets are the post pages
+ * this build lists, and the repositories of the projects projectCards() returned, which are the
+ * records whose check is recorded and whose hold is lifted (lib/profile.ts). A preview's draft
+ * page is no target: nothing but a draft may link a draft.
+ */
+export function selectedWork(projects: readonly ProjectCard[], area: WritingArea): WorkCard[] {
+  const targets = new Set([
+    ...area.pages.filter((page) => page.exposure === 'listed').map((page) => postPath(page.post)),
+    ...projects.map((project) => project.link.href),
+  ]);
+  return withTargets([...projects, ...postCards(FEATURED_POSTS, area.published)], targets);
+}
+
+/** Home's Writing row: the latest published posts, newest first, less any post Selected work
+ *  already shows as a card, so one page never lists a post twice (content.md, "Home page"). */
+export function writingRow(
+  published: readonly Post[],
+  cards: readonly WorkCard[],
+  count = 3,
+): Post[] {
+  const shown = new Set(cards.map((card) => card.link.href));
+  return published.filter((post) => !shown.has(postPath(post))).slice(0, count);
+}

@@ -82,3 +82,9 @@ The pipeline PR 2 built differs in two places from "every merge deploys, and the
 - The first deploy creates the Worker and attaches the domain with `wrangler deploy`, and goes live without a Version URL smoke, because the domain serves nothing yet; `prod-smoke` checks it. Until then `preview` publishes nothing, because `wrangler preview` would create the Worker itself, without its domain.
 
 The decision stands, and no Revisit if condition was met.
+
+## Postscript 2026-10-23
+
+The Actions minutes this record cites (an estimated 675 a month, about 1,025 in a busy month) were a model written before the jobs had a run history. Modelled again from job times measured on 2026-10-23, from the Actions API, the pipeline uses about 865 minutes in a typical month and about 1,312 in a busy one ([delivery.md](../delivery.md#actions-minutes-budget)). The change is in two jobs. `verify` bills 6 minutes, not 3: 3 more on each of a typical month's 71 runs, +213 (busy month: +321). `deploy` bills 1, not 3, while `prod-smoke` bills 2, not 1: 1 fewer on each of 23 runs on `main`, −23 (busy month: −32). `e2e` is 4 in both models. It did bill 9 to 13 minutes whenever `playwright install --with-deps` met a slow Ubuntu mirror, until pull request #8 (PR 5's hardening) moved it into Playwright's own image. The totals multiply measured job times by assumed event counts, so they are a model, not a meter.
+
+The decision stands. The Revisit if condition on minutes, more than 1,500 a month on a private repository, is not met: a busy month models 188 minutes under it.

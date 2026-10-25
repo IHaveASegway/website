@@ -1,22 +1,21 @@
 ---
 interface Props {
-  index: string;
-  tag: string;
+  /** A short label above the title, such as a post's kind. Left out when there is none. */
+  tag?: string | undefined;
   title: string;
   text: string;
   facts: readonly { term: string; value: string }[];
-  /** The page it opens. Left out until that page exists: a card never links to nothing. */
-  link?: { href: string; label: string };
+  /** The page it opens, which must exist: a card is drawn only with a target (lib/work.ts,
+   *  selectedWork). An external link, a project's repository, draws ↗ as the hero's profile links
+   *  do; a page on this site draws →. */
+  link: { href: string; label: string; external: boolean };
 }
 
-const { index, tag, title, text, facts, link } = Astro.props;
+const { tag, title, text, facts, link } = Astro.props;
 ---
 
 <article class="card">
-  <div class="card-idx">
-    <span class="label">{index}</span>
-    <span class="label">{tag}</span>
-  </div>
+  {tag && <p class="card-tag label">{tag}</p>}
   <h3 class="card-title">{title}</h3>
   <p class="card-text">{text}</p>
   {facts.length > 0 && (
@@ -29,9 +28,7 @@ const { index, tag, title, text, facts, link } = Astro.props;
       ))}
     </dl>
   )}
-  {link && (
-    <a class="card-more" href={link.href}>
-      {link.label} <span aria-hidden="true">→</span>
-    </a>
-  )}
+  <a class="card-more" href={link.href}>
+    {link.label} <span aria-hidden="true">{link.external ? '↗' : '→'}</span>
+  </a>
 </article>

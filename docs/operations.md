@@ -134,7 +134,7 @@ A page view runs no Worker code, so until the lab ships there is little to obser
 | Lab cleanup | The nightly `lab-objects` job | Did any sandbox object keep its state past its 15-minute life? | Inside the Actions minutes, about 30 a month | Phase 4 | [lab.md](lab.md) |
 | Platform usage | Cloudflare dashboard, Workers and Durable Objects (DO) metrics | Worker requests a day against the 100,000 cap; DO requests, GB-s, rows written | Free | Now | [Workers limits](https://developers.cloudflare.com/workers/platform/limits/) |
 | Uptime, from outside | Better Stack, free tier | Can the internet reach the site? | 10 monitors and heartbeats combined, 1 status page, email and Slack alerts, "free for personal projects". The pricing page does not state the free check interval; third-party comparisons say 3 minutes | PR 2 | [Better Stack](https://betterstack.com/pricing) |
-| Deploys | The `deploy` job summary; the issue `prod-smoke` opens | Did the deploy work, and what is the rollback command? | Inside the Actions minutes | PR 2 | [delivery.md](delivery.md) |
+| Deploys | The `deploy` job summary; the issue `prod-verdict` opens when `prod-smoke` fails | Did the deploy work, and what is the rollback command? | Inside the Actions minutes | PR 2 | [delivery.md](delivery.md) |
 | Zone drift | `scripts/verify-zone.sh`, weekly | Did a zone setting, a record or the registration change? | Free, token-free | PR 2 | [security.md](security.md) |
 | Errors, later | Sentry, free Developer plan | Exceptions in lab Worker code | 1 user, 5k errors, 5M spans, 30-day lookback; needs `nodejs_compat` | The first lab with server logic | [Sentry](https://sentry.io/pricing/) |
 
@@ -154,7 +154,7 @@ Where alerts go is an open decision (Q26 · Q-alerts in [product.md](product.md)
 | Alert | Fires when | Source | Runbook |
 |---|---|---|---|
 | Site down | The uptime monitor's check fails | Better Stack | [Incident: site down](#incident-site-down) |
-| Deploy or `prod-smoke` failed | The job fails; `prod-smoke` also opens an issue | GitHub Actions | [Rollback](#rollback) |
+| Deploy or `prod-smoke` failed | The job fails; after `prod-smoke`, `prod-verdict` opens an issue, unless `main` moved on | GitHub Actions | [Rollback](#rollback) |
 | Firewall failed | `firewall` exits 1 (a finding) or 2 (cannot prove clean) | GitHub Actions | [Leak response](#leak-response) for exit 1; [access setup step 5](#5-local-hooks-and-the-private-firewall-file-pr-2) for exit 2 |
 | Weekly audit failed | Zone drift, a dead external link, `security.txt` within 30 days of its `Expires`, the domain within 60 days of expiry, `compatibility_date` missing (past 180 days it only warns, in the run's log) | `scheduled.yml` | [DNS or mail change](#dns-or-mail-change), [compatibility_date bump](#compatibility_date-bump), [maintenance calendar](#maintenance-calendar) |
 | Vulnerable dependency | A Dependabot alert | GitHub | [Dependency update](#dependency-update) |
@@ -172,10 +172,10 @@ Deploys happen on merge, and on the weekly rebuild every Monday ([delivery.md](d
 
 1. Merge the PR. `ci.yml` runs on `main`: `verify`, `firewall`, `deploy`, `prod-smoke`.
 2. Read the `deploy` job summary: the version that was live before, the new version id, its Version URL, and the smoke result.
-3. Wait for `prod-smoke`. Green means done.
+3. Wait for `prod-smoke`. Green means done: production passed, and `prod-verdict` is skipped (it runs on a pass only to comment when the weekly guard stopped).
 4. If the Version URL smoke failed, nothing changed: production still serves the old version. Fix forward in a new PR.
-5. If the summary says "Not deployed" or "Not promoted", `main` moved on during the run. The newer commit's run deploys it; nothing needs doing.
-6. If `prod-smoke` failed, follow [Rollback](#rollback). If its issue says production did not answer at all, a rollback cannot help: the custom domain is not attached, or the zone is not serving, and the issue says what to check.
+5. If the summary says "Not deployed" or "Not promoted", `main` moved on during the run. The newer commit's run deploys it; nothing needs doing. A red `prod-smoke` whose `prod-verdict` notice says `main` has moved on is the same case: the newer run's `prod-smoke` owns the verdict, and no issue opens.
+6. If `prod-smoke` failed, `prod-verdict` opened an issue: follow [Rollback](#rollback). If the issue says production did not answer at all, a rollback cannot help: the custom domain is not attached, or the zone is not serving, and the issue says what to check.
 7. If GitHub Actions is down, wait. New content can wait, and a broken production can be rolled back from the Cloudflare dashboard without Actions.
 
 PR 2 only: the first deploy creates the Worker and attaches the custom domain with `wrangler deploy`, and goes live without a Version URL smoke, since the domain serves nothing yet ([delivery.md](delivery.md#deploy-verify-roll-back)). If attaching the domain failed for a missing permission (spike S7), add only the permission the error names ([access setup step 1](#1-deploy-token-pr-2)), then re-run the deploy job: it applies the routes again whenever the apex does not answer.
@@ -184,10 +184,10 @@ The lab, from Phase 4: a lab deploy drops every live WebSocket, and clients fall
 
 ### Rollback
 
-1. Find the target. The issue `prod-smoke` opened names it, and so does the previous `deploy` job summary. Never roll back without an explicit version id ([delivery.md](delivery.md) explains why).
+1. Find the target. The issue `prod-verdict` opened names it, and so does the previous `deploy` job summary. Never roll back without an explicit version id ([delivery.md](delivery.md) explains why).
 2. Run the rollback through the pipeline, from `main`: `gh workflow run ci.yml -f rollback_to=<version-id>`, plus `-f reason=<why>` when the reason is not "prod-smoke failed". The `rollback` job checks that the input is a version id, runs `wrangler rollback <version-id> --message "rollback: <reason>" --yes` with the scoped deploy token, waits for any deploy in progress, and `prod-smoke` follows. This is the path PR 2 rehearses.
 3. If GitHub or Actions is down, use the dashboard: Workers & Pages → `ihaveasegway-web` → Deployments → ⋯ on the target version → Rollback. It runs under Joseph's login and its second factor. Never `wrangler rollback` from the laptop: it would need an edit credential at rest there.
-4. Confirm `prod-smoke` passes against the rolled-back version. After a dashboard rollback, re-run the failed job: `gh run rerun <run-id> --failed`. The re-run skips the byte-for-byte check, which only the run attempt that promoted a version can make. A rollback run does not know which build is live, so it checks Home only, plus the files every release since launch serves and the `og:image` and the feed Home names, and skips the Build readout check; after a rollback to a version from before PR 3, which names no `og:image`, it reports those checks as skipped and passes.
+4. Confirm `prod-smoke` passes against the rolled-back version. After a dashboard rollback, re-run the failed jobs: `gh run rerun <run-id> --failed` runs `prod-smoke` again, against production as it is now, and `prod-verdict` after it. The re-run skips the byte-for-byte check, which only the run attempt that promoted a version can make. A rollback run does not know which build is live, so it walks the pages production's own sitemap lists, read once before the checks start, plus the files every release since launch serves and the `og:image` and the feed each page names, and skips the build commit check; after a rollback to a version from before PR 3, which names no `og:image`, it reports those checks as skipped and passes.
 5. Revert or fix on `main` first. The Monday rebuild skips while a rollback is live, but the next merge deploys `main` again, broken commit included.
 6. Close the issue with one line: the cause, and which check would have caught it before production.
 
@@ -290,10 +290,12 @@ A validation fault (the weekly `AD` check fails, SERVFAIL reports, DNSViz errors
 Four steps over about five weeks after PR 2, each held at least as long as its own max-age with no HTTPS fault before the next: 300 seconds until PR 2's first deploy passes `prod-smoke`, then 1 week, 1 month, and 12 months, all with `includeSubDomains` ([ADR 0011](adr/0011-dnssec-and-hsts-ramp.md)). Each served max-age is a one-way door for its own duration.
 
 1. Confirm the current step has been held for its full max-age, and nothing has served plain HTTP or a bad certificate in that time.
-2. Nothing changes in the repository: `prod-smoke` and `scripts/verify-zone.sh` accept any step of the ramp, with `includeSubDomains` and without `preload`.
+2. No code changes: `prod-smoke` and row 8 of `scripts/verify-zone.sh` accept any step of the ramp, with `includeSubDomains` and without `preload`. The one change in the repository is the calendar row, in step 5.
 3. Steps 1 and 2 go through the API, since the dashboard starts at 1 month: a 1-day token with Zone Settings Edit ([access setup step 2](#2-short-lived-tokens-for-inspection-and-one-off-changes-as-needed)), a `PATCH` of the zone setting `security_header` whose `value.strict_transport_security` carries `enabled`, `max_age` in seconds and `include_subdomains` ([API reference](https://developers.cloudflare.com/api/resources/zones/subresources/settings/methods/edit/), as of 2026-10-22), then delete the token. If the API refuses a value under a month, the ramp starts at step 3, as [ADR 0011](adr/0011-dnssec-and-hsts-ramp.md) allows. Steps 3 and 4: SSL/TLS → Edge Certificates → HSTS.
 4. `curl -sI https://ihaveasegway.com/` shows the new `Strict-Transport-Security` value.
-5. Put the date of the next step in the [maintenance calendar](#maintenance-calendar). Preload is not a step: it is reconsidered no earlier than 3 months after step 4, in a new ADR.
+5. Put the date of the next step in the [maintenance calendar](#maintenance-calendar)'s HSTS row, as `Next: step <n>, due <YYYY-MM-DD>`: the day this step was taken plus its own max-age. After step 4, remove it. Preload is not a step: it is reconsidered no earlier than 3 months after step 4, in a new ADR.
+
+The weekly audit reads that row. Its row 8b names the step the zone serves and warns once the recorded day has passed, or when no date is recorded for the next step. A warning never fails the audit and never touches a deploy: a stalled ramp is noticed and blocks nothing. Step 2's date is the day step 1's hold ended, when `prod-smoke` passed against production after PR 2's first deploy: 2026-10-23, the day of that deploy and of the rollback rehearsal, which ended with a passing `prod-smoke` ([Rollback](#rollback)). Steps 3 and 4 get their dates when the step before them is taken.
 
 ### Upgrade to Workers Paid
 
@@ -358,11 +360,11 @@ Each row carries an estimate of the minutes it costs a month, with quarterly and
 | When | Task | How | Minutes a month |
 |---|---|---|---|
 | Weekly, Monday | Zone audit (DNS, TLS, registration), external links, `security.txt` expiry, `compatibility_date` age | Automatic (`scheduled.yml`); a failure emails | 0 while green |
-| Weekly, Monday | Rebuild and redeploy `main`, so the project facts read from GitHub are at most a week old ([ADR 0004](adr/0004-content-as-code.md)) | Automatic (`ci.yml` schedule); a failure emails | 0 while green |
+| Weekly, Monday | Rebuild and redeploy `main`, which proves it still builds and deploys from scratch. Its first reason, keeping GitHub facts at most a week old ([ADR 0004](adr/0004-content-as-code.md)), went with the facts step on 2026-10-23 | Automatic (`ci.yml` schedule); a failure emails | 0 while green |
 | Every other Monday | Dependabot's grouped PRs; security updates as they arrive | [Dependency update](#dependency-update), about 15 minutes a sitting | 32 |
 | Weekly, from Phase 4 | `LabControl`'s ledger against the account's metered usage; metered above the ledger means the per-session ceilings are wrong | Cloudflare dashboard ([lab.md](lab.md)), about 10 minutes | 43, until PR 6 changes it |
 | Nightly, from Phase 4 | `lab-objects`: sandbox state that outlived its 15 minutes | Automatic; an issue on a finding | 0 while green |
-| After PR 2, about 5 weeks | The HSTS ramp: 300 s, 1 week, 1 month, 12 months | [HSTS ramp step](#hsts-ramp-step) | Once: about an hour in all |
+| After PR 2, about 5 weeks. Next: step 2, due 2026-10-23 | The HSTS ramp: 300 s, 1 week, 1 month, 12 months | [HSTS ramp step](#hsts-ramp-step); the weekly audit warns when the date has passed | Once: about an hour in all |
 | Monthly | One sitting: Actions minutes used (above 1,500 of the 2,000, the deploy owner is revisited, [ADR 0006](adr/0006-github-actions-owns-deploys.md)); Worker requests (the site should be near zero) and, from Phase 4, DO usage; real-user LCP, INP and CLS against the limits in [design-system.md](design-system.md), read the way PR 3b settles ([delivery.md](delivery.md)); firewall false positives (more than one a month: tighten the rules); once the repository is public, its traffic view ([ADR 0012](adr/0012-public-repository.md)) | GitHub billing and traffic pages, Cloudflare dashboard, Web Analytics | 15 |
 | Monthly | A web search for the site and for Joseph's name, looking for anything the firewall should have caught | By hand | 5 |
 | Monthly | `git bundle create website.bundle --all`, kept with personal backups; GitHub is otherwise the only remote copy ([security.md](security.md)) | By hand | 3 |

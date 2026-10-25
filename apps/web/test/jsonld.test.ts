@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { decodeReferences } from '../src/lib/held-names';
+import { isNoindex } from '../src/lib/noindex.mjs';
 import {
   AUTHOR_KEYS,
   homeGraph,
@@ -82,8 +83,7 @@ describe("Home's graph", () => {
 
 /** A published post's page: /writing/<slug>/ or /notes/<slug>/, and not a draft. */
 const isPost = (file: string) =>
-  /^(writing|notes)\/[a-z0-9-]+\/index\.html$/.test(file) &&
-  !read(file).includes('<meta name="robots" content="noindex">');
+  /^(writing|notes)\/[a-z0-9-]+\/index\.html$/.test(file) && !isNoindex(read(file));
 const posts = html.filter(isPost);
 
 test('structured data is on Home and on published posts only, so WebSite appears only at the root', () => {

@@ -1,6 +1,6 @@
 # Content
 
-This document plans the words on ihaveasegway.com: who reads them and how fast, which pages exist and when, what Home says and in what order, the template every case study follows, how content is stored and validated, the voice, how the content firewall applies to copy, which owned work the site features, and the writing habit that keeps the site alive. Two of these choices are hard to reverse and have their own records: where content lives ([ADR 0004](adr/0004-content-as-code.md)) and the URL scheme ([ADR 0005](adr/0005-url-scheme.md)).
+This document plans the words on ihaveasegway.com: who reads them and how fast, which pages exist and when, what Home says and in what order, the rules every page follows, how content is stored and validated, the voice, how the content firewall applies to copy, which owned work the site features, and the writing habit that keeps the site alive. Two of these choices are hard to reverse and have their own records: where content lives ([ADR 0004](adr/0004-content-as-code.md)) and the URL scheme ([ADR 0005](adr/0005-url-scheme.md)).
 
 Status: Draft for review in PR 1 · 2026-10-22
 
@@ -23,7 +23,7 @@ What follows for the site:
 - The content firewall removes one of the six fields: current company. The first screen has to carry the rest and replace the missing one. Name and title stay. A one-line arc stands in for the dates. Proof stands in for the company's signal: owned work, with a number a stranger can check.
 - For most visitors the first screen is the whole site. Rows 1–3 of Home must be visible without scrolling ([Home page](#home-page)).
 - Low contrast is the most common failure on the web's home pages. Every token pair on this site passes WCAG 2.2 AA ([design-system.md](design-system.md)), so the few seconds go to reading.
-- Depth is for the visitors who stay past 10 seconds: case studies, decisions, demos. It sits one click down. That is progressive disclosure, and each page is written as an inverted pyramid: conclusion first, evidence after.
+- Depth is for the visitors who stay past 10 seconds: the projects' own repositories, decisions, essays and demos. It sits one click down. That is progressive disclosure, and each page is written as an inverted pyramid: conclusion first, evidence after.
 
 These studies are directional. Ladders is a vendor study, and NN/g measured the web at large, not portfolios. The test that would show Home is wrong: before PR 3 merges, show Home for 7 seconds to five recruiters or hiring managers. If two or more cannot recall the name, the title, one proof point and how to make contact, rewrite the hero.
 
@@ -38,18 +38,16 @@ ihaveasegway.com
 ├── /.well-known/security.txt              Contact and Expires                 P1
 ├── /sitemap-index.xml                     Generated at build                  P1
 ├── /robots.txt                            Sitemap line; crawlers per Q15      P1
+├── /llms.txt                              The site for language models        P3
 ├── /favicon.ico · /apple-touch-icon.png   Root icons, asked for by name       P1
 ├── /favicon.svg                           Tab icon; favicon.ico drawn from it P1
 ├── /colophon/                             How it is built, what it costs      P2
 │   └── /colophon/decisions/               Published ADRs                      P2
 │       └── <nnnn-slug>/                   One ADR, rendered from docs/adr     P2
-├── /work/                                 Case studies                        P3 (PR 4)
-│   ├── /work/stillhere/                                                       P3 (PR 4)
-│   └── /work/gitops/                                                          P3 (PR 4)
 ├── /about/                                Arc, how I work                     P3 (PR 4)
 ├── /now/                                  What I am doing now, dated          P3 (PR 4)
-├── /writing/ · /writing/<slug>/           Essays                              P3 (PR 5, at 3+ posts)
-├── /notes/ · /notes/<slug>/               Field notes                         P3 (PR 5, at 3+ posts)
+├── /writing/ · /writing/<slug>/           Essays                              P3 (PR 5, from 1 post)
+├── /notes/ · /notes/<slug>/               Field notes                         P3 (PR 5, from 1 note)
 ├── /rss.xml                               Essays and notes                    P3 (PR 5)
 ├── /privacy/                              Before the first lab                P4 (PR 6)
 ├── /lab/ · /lab/<slug>/                   Demo write-ups, static pages        P4 (PR 6–8)
@@ -57,20 +55,21 @@ ihaveasegway.com
 └── /resume/                               Public edition (Q-resume)           later
 ```
 
+`/work/` builds nothing. On 2026-10-23 Joseph chose cards over case studies: each owned project is a card on Home that links to its repository ([Owned work](#owned-work)). The prefix stays reserved ([ADR 0005](adr/0005-url-scheme.md)).
+
 Render rules:
 
 - **A section exists when it has content.** No "coming soon" pages and no empty nav items: a reserved prefix with nothing in it builds nothing. Empty or stale sections read as abandonment; `/now/` carries freshness instead.
-- **Every prefix of a page URL is itself a page.** A visitor who trims `/work/gitops/` to `/work/` gets the index (Nielsen, ["URL as UI"](https://www.nngroup.com/articles/url-as-ui/), 1999). `/lab/api/` is the exception: it is an API.
+- **Every prefix of a page URL is itself a page.** A visitor who trims `/writing/<slug>/` to `/writing/` gets the index (Nielsen, ["URL as UI"](https://www.nngroup.com/articles/url-as-ui/), 1999). `/lab/api/` is the exception: it is an API.
 
 | Section | In the header and on Home when | Phase |
 |---|---|---|
-| Work | at least 1 case study is published | P3 |
 | About | the page exists | P3 |
-| Writing (with `/notes/` and `/rss.xml`) | at least 3 published posts, essays and notes together; a draft never counts, and `/notes/` also waits for its first note | P3 |
+| Writing (with `/notes/` and `/rss.xml`) | at least 1 published post, essay or note; a draft never counts, and `/notes/` also waits for its first note. The bar was 3 posts until 2026-10-24; lowering it to 1 was proposed that day for Joseph's read, from his ask for a workable site from the content he has ([ADR 0005](adr/0005-url-scheme.md)'s postscript) | P3 |
 | Lab | at least 1 demo has `lifecycle: live` | P4 |
 | Résumé | the public edition exists | later |
 
-Header: Work · Lab · Writing · About, each only when its rule holds. Footer: the contact address; the links whose pages exist (RSS · Now · Colophon); the external profiles whose readiness check is recorded (GitHub, LinkedIn); the theme toggle; and the build line. ⌘K joins with the palette in PR 4. This is recognition over recall: the navigation is always visible, and ⌘K, once it exists, is a shortcut, never the only way in.
+Header: Joseph's name, linking home, on every page but Home (whose `<h1>` is the name); Lab · Writing · About, each only when its rule holds; and the theme toggle. Owned work has no section of its own: its cards sit on Home. Footer, one line: the contact address; the links whose pages exist (RSS · Now · Colophon); the external profiles whose readiness check is recorded (GitHub, LinkedIn); and the copyright. ⌘K joins with the palette in PR 4. This is recognition over recall: the navigation is always visible, and ⌘K, once it exists, is a shortcut, never the only way in.
 
 ## URL scheme
 
@@ -79,7 +78,7 @@ Header: Work · Lab · Writing · About, each only when its rule holds. Footer: 
 | Pattern | What lives there |
 |---|---|
 | `/` | Home |
-| `/work/` · `/work/<slug>/` | Case studies |
+| `/work/` · `/work/<slug>/` | Nothing: reserved, unused since 2026-10-23 ([Owned work](#owned-work)) |
 | `/writing/` · `/writing/<slug>/` | Essays |
 | `/notes/` · `/notes/<slug>/` | Field notes |
 | `/lab/` · `/lab/<slug>/` | Demo write-ups, static pages |
@@ -87,7 +86,7 @@ Header: Work · Lab · Writing · About, each only when its rule holds. Footer: 
 | `/about/` · `/now/` · `/colophon/` · `/privacy/` | Single pages |
 | `/colophon/decisions/` · `/colophon/decisions/<nnnn-slug>/` | Published ADRs; the slug is the ADR's file name |
 | `/resume/` | Public résumé, later; its PDF is `/resume/joseph-peterson-resume.pdf` |
-| `/rss.xml` · `/sitemap-index.xml` · `/robots.txt` · `/.well-known/security.txt` · `/favicon.ico` · `/apple-touch-icon.png` | Files; they keep their extensions, and the root ones sit where clients ask for them by name |
+| `/rss.xml` · `/sitemap-index.xml` · `/robots.txt` · `/llms.txt` · `/.well-known/security.txt` · `/favicon.ico` · `/apple-touch-icon.png` | Files; they keep their extensions, and the root ones sit where clients ask for them by name ([Files for crawlers](#files-for-crawlers)) |
 | `/404` | Not-found page |
 
 - Page URLs always end in `/`. Internal links, canonical tags, `og:url`, the sitemap and the feed all use that form.
@@ -99,109 +98,57 @@ Header: Work · Lab · Writing · About, each only when its rule holds. Footer: 
 
 Budget: 7 seconds. Rows 1–3 must be visible without scrolling at 390×844 (a phone) and 1440×900 (a laptop). A line that waits on an open decision or an unchecked source is left out until it can render; it is never a placeholder on the page ([product.md](product.md) lists the decisions). Lines about owned work are drafted here; Joseph's wording wins.
 
-As PR 3 built it, an element renders only when its source and its link target exist, and a figure only when a reader can check it. So the proof line names no project, Selected work holds only this site, and How I work links to nothing until its evidence pages exist. [design-system.md](design-system.md#home-row-by-row) has the layout row by row.
+As built on 2026-10-24, an element renders only when its source and its link target exist, and a figure only when a reader can check it. Nothing on a page describes the site itself: no build readout, no figure about its bytes, no card for it ([design-system.md](design-system.md#nothing-on-the-page-describes-the-site)). So the hero carries no sentence until Joseph clears one, Selected work renders only when a card has a page to open (none yet, so the section is not rendered), and How I work, which restated the site's own build rules as principles with no evidence on the page, left on 2026-10-24. Until a post is published or a project's checks pass, production's Home is the hero and the footer: everything else that exists waits on a read or a check that only Joseph can make. [design-system.md](design-system.md#home-row-by-row) has the layout row by row.
 
 | # | Section | Fold | Copy intent | As built in PR 3, or still to come | Renders when |
 |---|---|---|---|---|---|
-| 1 | Hero | above | The recruiter's fields minus company: name, title, arc, proof, contact | **Joseph Peterson** · "Senior Software Engineer" (Q-title) · "US · remote" (Q-location) · proof line: "This site's hard-to-reverse decisions are written down." · buttons: Email · Work (scrolls to Selected work) · each checked profile: LinkedIn today, GitHub once its check is recorded. Still to come: the arc line (Q-career-arc). No availability line (Q-availability) | always; each profile button only from a checked record |
-| 2 | This build | above; a row of readouts that wraps on a phone | "Cyber" as real data: the telemetry strip, which closes the footer on other pages | `Build <commit>` · `Built <date>` · `JavaScript <KB>`. "Built", not "Deployed": a rollback promotes an older build, whose date this is. Still to come: the serving data center (PR 4) | always |
+| 1 | Hero | above | The recruiter's fields minus company: name, title, arc, what he does, contact | **Joseph Peterson** · "Senior Software Engineer" (Q-title) · "US · remote" (Q-location) · buttons, all one width: Email · Work (scrolls to Selected work, only while it renders) · each checked profile: LinkedIn today, GitHub once its check is recorded. Still to come: one sentence on what Joseph does, once he clears its wording. "I build developer tools and write down the decisions behind them." (proposed on 2026-10-24) left the same day: "developer tools" is a generic industry noun, which is ASK, and nothing on the site backed it or the decisions it promised. Then the arc line (Q-career-arc), and a proof line that names owned work once a project's card is on. No availability line (Q-availability) | always; the Work button with Selected work; each profile button only from a checked record |
+| 2 | This build (retired) | — | — | Retired on 2026-10-24: the readout row (`Build <commit>` · `Built <date>` · `JavaScript <KB>`) described the site, not Joseph. The deploy smoke reads the commit from the `X-Build` response header instead (a `<meta name="build">` tag, briefly, the same day), and the served-from readout planned for PR 4 is dropped | never |
 | 3 | At a glance | above | Stands in for the previous titles and dates | Still to come: `<role titles and years — Q-career-arc>` · "Full history on LinkedIn." · `<stack line — skills in profile.json>`. Not rendered in PR 3 | Q-career-arc is answered and the skills list is cleared (PR 4) |
-| 4 | Selected work | below | Proof through owned, checkable artifacts | one card in PR 3: this site; the others below | per card: its repo passed the [readiness checklist](#repo-readiness-checklist) |
-| 5 | How I work | below | Architect signal in four lines, each linked to its evidence | four lines, below; no links yet | always; each link once its evidence exists |
+| 4 | Selected work | below | Proof through owned, checkable artifacts | one card per owned project, generated from `profile.json`, linking to its repository; then one card per featured post, linking to the post; the cards below. This site's card left on 2026-10-24 | a card's page exists: a project's card when its check and the GitHub profile's are recorded and its hold is lifted ([readiness checklist](#repo-readiness-checklist)); a post's card when the post is published in the build. With no card the section is not rendered |
+| 5 | How I work (removed) | — | — | Removed on 2026-10-24: its four lines were the site's own build rules (decision records, one profile file, byte budgets, the deploy guard) restated as principles, with no evidence on the page, and the largest block on Home. If it returns, it is a small plain list, each line linked to evidence that exists (below) | never, as it stands |
 | 6 | Lab | below | Invite play; be plain about state | "Try `<demo>`. Its state is deleted within 15 minutes. How it works →" (logs are covered on `/privacy/`) | a demo has `lifecycle: live` |
-| 7 | Writing | below | Thinking and recency | the three latest posts (title, date, one line) · All writing · RSS | at least 3 posts |
-| 8 | Footer | bottom | One click to contact; freshness | "Contact" and `hello@ihaveasegway.com` (Q-mail) · the links whose pages exist · the checked profiles · the theme toggle · "© `<year>` Joseph Peterson", plus the build line on every page but Home. No separate "Updated" line: on Home, row 2 carries the build date. RSS joins with Writing (PR 5); Now and Colophon as their pages ship, and ⌘K with the palette (PR 4) | always |
+| 7 | Writing | below | Thinking and recency | the three latest posts (title, date, one line) that are not already a card in Selected work, so no post is listed twice on Home (`writingRow()` in `src/lib/work.ts`) · All writing · RSS | at least 1 published post |
+| 8 | Footer | bottom | One click to contact | one line: `hello@ihaveasegway.com` (Q-mail) · the links whose pages exist · the checked profiles · "© `<year>` Joseph Peterson". No "Contact" label, no display-size address and no theme toggle (it moved to the header on 2026-10-24). No "Updated" line and no build line: the site does not describe itself, and a post carries its own dates. RSS joins with Writing (PR 5); Now and Colophon as their pages ship, and ⌘K with the palette (PR 4) | always |
 
-Selected work (row 4). Numbers are re-measured at publish time. The page's JavaScript and font weights are computed at build, by the same module the byte budgets use, so they cannot drift.
+Selected work (row 4). A project's line is its `description` in `profile.json`, and its proof is its `facts`, copied by hand from the repository and dated by `measured`, in the pull request that turns its card on. Numbers are re-measured at publish time. A featured post's card takes its line from the post's own summary, so the post stays its one owner.
 
 | Card | Line | Proof | Links to | State on 2026-10-23 |
 |---|---|---|---|---|
-| This site | "Static HTML from Astro, served by Cloudflare. A page that goes over its byte budget fails the build." | JavaScript `<js>` on this page · Fonts `<KB>`, self-hosted | `/colophon/` once it exists (PR 3b) | live, with no link yet |
-| stillhere | "What landed, what lasted, who knows the code. Every number traces back to its commits." | 15 decision records · 181 tests · publishes its own failed metric | `/work/stillhere/` (P3) | held until its readiness check passes ([Names held off the site](#names-held-off-the-site)) |
-| gitops | "One git command across every repository in a directory. A TUI for people, a CLI for scripts." | signed checksums · CI on Linux, macOS and Windows | `/work/gitops/` (P3) | held. The repository went private on 2026-10-23, so its card and case study need Joseph's decision before PR 4 |
+| This site | removed | — | — | removed on 2026-10-24: a card about the site is the site describing itself ([design-system.md](design-system.md#nothing-on-the-page-describes-the-site)) |
+| The auto-trader teardown | the post's own summary, under its title; tag: its kind, "Postmortem" | none | the post, `/writing/trading-bot-teardown/`, as "Read the teardown →"; never its repository | the card's code shipped on 2026-10-24 (`FEATURED_POSTS` in `src/lib/work.ts`); it renders once the post is published in the build |
+| stillhere | "What landed, what lasted, who knows the code. Every number traces back to its commits." | 15 decision records · 181 tests · publishes its own failed metric | its repository on GitHub | held until its readiness check and the GitHub profile's pass ([Names held off the site](#names-held-off-the-site)); the card's code shipped ahead, on 2026-10-23. The check run on 2026-10-24 did not pass: its commit identities need Joseph's call (Q-threat-model); the secret scan with default rules, over all non-merge history, is not clean (2 findings in one test file, to triage); its tests were not seen passing on a clean machine; its commit dates carry a non-UTC offset, which the identity call covers too; and the firewall scan with the private rules, the CI state and the GitHub profile's check could not be read outside his own access. Both scans read `git log -p`, which shows no diff for a merge commit, so a merge's own changes still need a pass. No `checked` stamp was recorded |
+| gitops | "One git command across every repository in a directory. A TUI for people, a CLI for scripts." | signed checksums · CI on Linux, macOS and Windows | its repository on GitHub, once public again | held: private since 2026-10-23. Joseph's plan: clean its history, make it public, then turn its card on |
 
-How I work (row 5). Each line links to evidence that exists when the link ships; until then the line renders without a link and without figures.
+How I work (row 5), as it stood before 2026-10-24. Should a plain list of these lines return, each line links to evidence that exists when it ships, and a line without evidence stays off the page.
 
 | Line | Evidence it links to, once it exists |
 |---|---|
 | "Write the decision down." | `/colophon/decisions/` (PR 3b) |
 | "One owner per piece of data." | [ADR 0004](adr/0004-content-as-code.md), rendered on the site (PR 3b) |
-| "Measure before building." | `/work/stillhere/`: profiling put 97% of a scan's CPU in git, so the blame cache was deferred; commit-graph filters cut a 30-repository scan from 297.7 s to 104.0 s (2.85×), the public benchmark in stillhere's issue #16. The figures wait for stillhere's readiness check |
+| "Measure before building." | stillhere's public benchmark, its issue #16, once stillhere's card is on: profiling put 97% of a scan's CPU in git, so the blame cache was deferred; commit-graph filters cut a 30-repository scan from 297.7 s to 104.0 s (2.85×). The figures wait for stillhere's readiness check |
 | "Fail closed." | the content firewall ([ADR 0007](adr/0007-content-firewall.md)) and the Free plan's hard cap ([ADR 0008](adr/0008-workers-free-with-guardrails.md)), rendered on the site (PR 3b) |
 
 "Apply only what was reviewed." joins the list when the Migration Lab or its essay exists.
 
 Fold rules:
 
-- Rows 1–3 are visible without scrolling at both sizes: the bottom edge of the last rendered row of 1–3 is at or above the bottom of the viewport at 390×844 and at 1440×900. A row with nothing to show is not rendered, so in PR 3 the last row is row 2: it ends at 495.5 px of 844 on a phone and 545.7 px of 900 on a laptop (2026-10-23), which leaves row 3 room. The e2e check loads Home at both sizes, with the web fonts and with them blocked, and also requires the hero to be the same height either way, within 1 px. That is a fitness function: the rule is tested on every pull request instead of argued in review. A Playwright viewport is the whole screen, while a phone's browser bars hide part of it, so Joseph also checks the fold once in Safari on a real phone, before PR 3 merges, and records the visible height in the pull request.
-- Nothing above the fold waits for JavaScript. Home is static HTML, and no value is filled in after load. The serving data center, which would be, waits for PR 4 ([design-system.md](design-system.md)).
+- Rows 1–3 are visible without scrolling at both sizes: the bottom edge of the last rendered row of 1–3 is at or above the bottom of the viewport at 390×844 and at 1440×900. A row with nothing to show is not rendered, so since 2026-10-24 the last row is row 1, the hero: it ends at 368.2 px of 844 on a phone and 420.7 px of 900 on a laptop (459.1 and 541.0 with the larger name earlier on 2026-10-24; 560.3 and 599.6 with row 2 in the first poster setting; 495.5 and 545.7 in PR 3), which leaves row 3 room. The e2e check loads Home at both sizes, with the web fonts and with them blocked, and also requires the hero to be the same height either way, within 1 px. That is a fitness function: the rule is tested on every pull request instead of argued in review. A Playwright viewport is the whole screen, while a phone's browser bars hide part of it, so Joseph also checks the fold once in Safari on a real phone, before PR 3 merges, and records the visible height in the pull request.
+- Nothing above the fold waits for JavaScript. Home is static HTML, and no value is filled in after load.
 - A value that cannot be read is left out, never faked.
 - No photo in the hero (Q-photo), no intro animation, and no city, coordinates or UTC offset anywhere. `test/readouts.test.ts` reads every file the site serves for a time of day or a zone, in every common way to write one: ISO 8601 in its extended and basic forms, RFC 2822 and HTTP dates, month-first dates with a time, a bare time with an offset, 12-hour clocks, a time beside a zone abbreviation, IANA zone names and PDF dates. Only midnight UTC passes, which is how `security.txt` writes the date RFC 9116 requires.
 - If a line's decision is still open when its row ships, the line is omitted, not filled with a guess.
 
-## Case-study template
+## Rules for every page
 
-One file per case study, `apps/web/src/content/work/<slug>.md` (or `.mdx`), rendered at `/work/<slug>/`. The shape borrows from two kinds of writing that hiring loops already trust. Design docs at Google treat "Alternatives considered" as one of the most important sections (Ubl, ["Design docs at Google"](https://www.industrialempathy.com/posts/design-docs-at-google/), 2020). Promotion packets keep the summary short and link out to design documents ([StaffEng](https://staffeng.com/guides/promo-packets/)).
+The case-study template planned here was retired on 2026-10-23. Joseph chose to show owned work as cards on Home that link to their repositories ([Owned work](#owned-work)), so each repository's README and docs carry its story. The template is in this file's history (PR 1) if case studies come back. These rules, written with it, hold for every page a person writes:
 
-```markdown
----
-title: "gitops: one git command across every repository"
-summary: "At most 160 characters. Becomes the meta description and og:description."
-published: <YYYY-MM-DD>
-role: "Author and maintainer, with outside contributions"
-period: "2026-03 to 2026-09"
-status: shipped                  # shipped | in-progress | archived
-stack: [Go, Bubble Tea, GoReleaser, cosign]
-outcome: "<one number, its unit, how it was measured>"
-repo: "https://github.com/IHaveASegway/gitops"
-decisions: []                    # ids from the decisions collection, e.g. 0004-content-as-code
-tags: [go, tools]
-firewall_reviewed: <YYYY-MM-DD>  # set by hand after the human review
----
-
-> **At a glance.** Problem · Constraint · Decision · Result · My role · Links. Readable in 30 seconds.
-
-## Problem
-Who had it, what it cost them, what happens if nothing is done.
-
-## Constraints
-Time, money, people, what already existed, non-goals.
-
-## Options considered
-| Option | What it trades | Verdict |
-|---|---|---|
-Two or three real options. Name the quality attributes: consistency, availability,
-latency, cost, operability, security, evolvability.
-
-## Decision
-What was chosen and why. One-way or two-way door. Link the ADR.
-
-## Architecture
-One diagram. For each piece of data: system of record, who writes it, who reads it,
-how it crosses a boundary.
-
-## Build notes
-Two or three details worth a reviewer's time. Short snippets are fine.
-
-## Numbers
-Before and after. Each number has a unit, a method and a link to public evidence.
-
-## What I'd do differently
-Specific. The strongest senior signal on the page.
-
-## What's next
-```
-
-Rules:
-
-- 800–1,500 words and one diagram (mermaid, or a static SVG in the site's tokens).
 - Every number has a unit, a method and a link to public evidence: a commit, a pull request, a CI run, a line in the repo's docs. Résumé metrics are not published until cleared.
-- Owned work only. The role line states the credit boundary: outside contributions are called outside contributions, and nothing they built is claimed.
-- Recommended, pending Joseph's wording (Q27 · Q-agent-credit in [product.md](product.md)): say how the work was built, including any tool that wrote code (a coding agent, for example), and what the author owned: decisions, specs, tests. A reader who opens the history will work it out anyway; saying it first turns a question into a strength.
+- Owned work only, and credit is exact: outside contributions are called outside contributions, and nothing they built is claimed.
 - Lead with the decision and the evidence, including what failed. A published failure, such as stillhere's own metric, is worth more than one more success.
 - The [firewall classes](#firewall-classes-for-copy) apply to every surface: text, diagrams, alt text, screenshots, code samples.
-- Screenshots show owned work only, cropped to the content: no browser chrome, tabs, bookmarks or account names. The telemetry strip's colo is hidden or cropped in any screenshot or recording of the live site, because it names the data center nearest the person taking it. Images are stripped of metadata before they are committed, because a public repository publishes a file at `git push`, before any build runs: the pre-commit hook and `verify` reject an image or PDF that still carries EXIF, XMP or IPTC, and the build strips again ([security.md](security.md)).
-- `firewall_reviewed` is the date a person last read the whole page, images and alt text included. Every collection a person writes carries it: case studies, essays, notes, lab write-ups, `/now/` and `profile.json`. `profile.json` keeps it inside JSON Resume's `meta` object, the place the schema leaves for tooling, so the file stays valid JSON Resume. CI fails a pull request that changes an entry, or any field of `profile.json`, unless that date is current: moved forward to the day of the read, or already the day of the pull request's head commit (`apps/web/scripts/review-stamp.mjs`, from PR 5; every rule is in step 3 of [Publishing a post](#publishing-a-post)). The check needs no secret, so it runs in `verify` ([delivery.md](delivery.md#quality-gates-and-budgets-as-fitness-functions)).
+- Screenshots show owned work only, cropped to the content: no browser chrome, tabs, bookmarks or account names. Images are stripped of metadata before they are committed, because a public repository publishes a file at `git push`, before any build runs: the pre-commit hook and `verify` reject an image or PDF that still carries EXIF, XMP or IPTC, and the build strips again ([security.md](security.md)).
+- `firewall_reviewed` is the date a person last read the whole page, images and alt text included. Every collection a person writes carries it: essays, notes, lab write-ups, `/now/` and `profile.json`. `profile.json` keeps it inside JSON Resume's `meta` object, the place the schema leaves for tooling, so the file stays valid JSON Resume. CI fails a pull request that changes an entry, or any field of `profile.json`, unless that date is current: moved forward to the UTC day the read is committed, or already the day of the pull request's head commit (`apps/web/scripts/review-stamp.mjs`, from PR 5; every rule is in step 3 of [Publishing a post](#publishing-a-post)). The check needs no secret, so it runs in `verify` ([delivery.md](delivery.md#quality-gates-and-budgets-as-fitness-functions)).
 - The OG image is generated from the title at build. Nobody hand-makes one.
 
 ## Content model
@@ -210,8 +157,7 @@ Content is code: Markdown, MDX and JSON in the repo, validated when the site bui
 
 | Collection | Source | Loader | Renders | Fields |
 |---|---|---|---|---|
-| `profile` | `apps/web/src/content/profile.json` | `file()` | `/about/`, Home rows 1 and 3, JSON-LD; later `/resume/` | A JSON Resume subset, with `firewall_reviewed` in `meta`. No field exists for an employer, a city, an address, an email or a phone number |
-| `work` | `apps/web/src/content/work/*.{md,mdx}` | `glob()` | `/work/<slug>/` | The case-study front matter above |
+| `profile` | `apps/web/src/content/profile.json` | `file()` | `/about/`, Home rows 1, 3 and 4 (the project cards), JSON-LD; later `/resume/` | A JSON Resume subset, with `firewall_reviewed` in `meta`. No field exists for an employer, a city, an address, an email or a phone number |
 | `writing` | `apps/web/src/content/writing/*.md`; `.mdx` with the first post that needs a shared component | `glob()` | `/writing/<slug>/`, `/rss.xml` | title, summary, published, updated, kind (essay, pattern, postmortem), tags, draft, firewall_reviewed |
 | `notes` | `apps/web/src/content/notes/*.md` | `glob()` | `/notes/<slug>/`, `/rss.xml` | title, summary, published, tags, source (optional link), draft, firewall_reviewed |
 | `lab` | `apps/web/src/content/lab/*.{md,mdx}` | `glob()` | `/lab/<slug>/` | title, summary, lifecycle (building, live, retired), recording, cost, state TTL (at most 15 minutes), decisions, firewall_reviewed |
@@ -222,7 +168,7 @@ Content is code: Markdown, MDX and JSON in the repo, validated when the site bui
 flowchart LR
   subgraph repo [The repo: system of record for site content]
     profile[profile.json]
-    md[work, writing, notes, lab, now: Markdown and MDX]
+    md[writing, notes, lab, now: Markdown and MDX]
     adr[docs/adr: ADRs]
   end
   gh[GitHub: releases and tags]
@@ -261,20 +207,6 @@ const post = {
   tags: z.array(z.enum(TAGS)).max(3).default([]),
   firewall_reviewed: day, // set by hand after the human review
 };
-
-const work = defineCollection({
-  loader: glob({ base: './src/content/work', pattern: '*.{md,mdx}' }),
-  schema: z.strictObject({
-    ...post,
-    role: z.string(),
-    period: z.string().regex(/^\d{4}-\d{2} to (\d{4}-\d{2}|present)$/),
-    status: z.enum(['shipped', 'in-progress', 'archived']),
-    stack: z.array(z.string()).max(6),
-    outcome: z.string(),
-    repo: z.url().optional(),
-    decisions: z.array(reference('decisions')).default([]),
-  }),
-});
 
 const writing = defineCollection({
   loader: glob({ base: './src/content/writing', pattern: '*.md' }), // .mdx joins with its first use
@@ -325,7 +257,7 @@ const profile = defineCollection({
     work: z.tuple([]),
     education: z.tuple([]),
     skills: z.tuple([]),
-    projects: z.array(z.strictObject({ name: z.string(), description: z.string(), url: repositoryUnderTheAccount, checked: githubCheck.optional() })),
+    projects: z.array(z.strictObject({ name: z.string(), description: z.string(), url: repositoryUnderTheAccount, tag: z.string().optional(), facts: z.array(fact).max(3).optional(), checked: githubCheck.optional() })), // fact: { term, value }, never an adoption count
     meta: z.strictObject({ firewall_reviewed: day.nullable() }), // set by hand after the human review; null until then
   }),
 });
@@ -341,7 +273,7 @@ const decisions = defineCollection({
   }),
 });
 
-export const collections = { profile, work, writing, notes, lab, now, decisions };
+export const collections = { profile, writing, notes, lab, now, decisions };
 ```
 
 Rules the sketch encodes:
@@ -350,13 +282,13 @@ Rules the sketch encodes:
 - **A record renders only once its check is recorded.** An external profile or a project carries `checked` once it passes the [readiness checklist](#repo-readiness-checklist): the date, and for a GitHub record the commit the check read. Until then it renders nowhere: no link, no name in a link, no `sameAs`, no `rel="me"`. `test/readiness.test.ts` holds the gate on fixtures and over `dist/`.
 - **The slug is the file name.** There is no `slug` field: it would be a second source for the same fact. Renaming a file changes a URL, and the sitemap check catches that.
 - **`api` is reserved under `/lab/`.** The lab Worker owns `/lab/api/*` ([ADR 0009](adr/0009-lab-worker-same-origin.md)), so no lab entry may be named `api`: the URL check in `verify` fails on `apps/web/src/content/lab/api.*`.
-- **Drafts** (`draft: true`) build in dev and on a pull request's preview, which the firewall job scans first, and never in production. Two builds make that explicit. `pnpm build` writes `dist/`, the build `main` deploys: it sets `DRAFTS=exclude` itself, the tests hold `dist/` to production's rules whatever the environment says, and the deploy job refuses an artifact with any `noindex` page but the 404. `pnpm build:preview` writes `dist-preview/`, which a pull request's preview serves: a superset of `dist/`, with the same pages, every draft, and below 3 posts the published posts as unlisted pages, so a draft's links to them resolve. `astro dev` includes drafts too, by the command Astro runs, never by `NODE_ENV`. A draft's page and an unlisted one are `noindex` and say so ("Draft", "Unlisted"); they carry no link-preview card and no JSON-LD, nothing lists them (not an index, Home, the feed or the sitemap), no page but a draft may link a draft, at any post count, and a draft never counts toward the 3 posts Writing needs. Its author reaches it by URL, on the preview or in `astro dev`. A draft is hidden from the site, not from the repository: once the repository is public, a committed draft is public at `git push` ([ADR 0012](adr/0012-public-repository.md)).
-- **Dates are calendar days.** `published`, `updated` and `firewall_reviewed` are written `YYYY-MM-DD`, because an offset names a time zone, the reason commits are made in UTC. The schema refuses a value that is not midnight UTC, and `test/writing.test.ts` reads each post's file and refuses any time or offset written there: YAML turns an unquoted `2026-10-20T20:00:00-04:00` into midnight UTC before the schema sees it. The feed writes each day as midnight GMT. `updated` comes on or after `published`.
+- **Drafts** (`draft: true`) build in dev and on a pull request's preview, which the firewall job scans first, and never in production. Two builds make that explicit. `pnpm build` writes `dist/`, the build `main` deploys: it sets `DRAFTS=exclude` itself, the tests hold `dist/` to production's rules whatever the environment says, and the deploy job refuses an artifact with any `noindex` page but the 404 (`scripts/deploy-guard.mjs`). `pnpm build:preview` writes `dist-preview/`, which a pull request's preview serves: a superset of `dist/`, with the same files byte for byte but for the build's day, plus every draft. `test/superset.test.ts` holds that contract, which is what lets the pull request's `e2e`, run on the preview, stand for `dist/` ([ADR 0015](adr/0015-preview-build-superset-of-production.md)). `astro dev` includes drafts too, by the command Astro runs, never by `NODE_ENV`. A draft's page is `noindex` and says so ("Draft"); it carries no link-preview card and no JSON-LD, nothing lists it (not an index, Home, Selected work, the feed or the sitemap), no page but a draft may link a draft, at any post count, and a draft never counts toward the one published post Writing needs. Its author reaches it by URL, on the preview or in `astro dev`. A draft is hidden from the site, not from the repository: once the repository is public, a committed draft is public at `git push` ([ADR 0012](adr/0012-public-repository.md)).
+- **Dates are calendar days.** `published`, `updated` and `firewall_reviewed` are written `YYYY-MM-DD`, because an offset names a time zone, the reason commits are made in UTC. The schema refuses a value that is not midnight UTC, and `test/writing.test.ts` reads each post's front matter with the parser and options Astro uses and refuses any date not written as a bare day, wherever the YAML puts it: YAML turns an unquoted `2026-10-20T20:00:00-04:00` into midnight UTC on the 21st before the schema sees it. Front matter is YAML between two `---` lines at the top of the file, with no anchors, aliases or merge keys, so each date is read from the line that names it. The feed writes each day as midnight GMT. `updated` comes on or after `published`.
 - **MDX stays thin.** `.md` by default; `.mdx` only to use one of at most 5 shared components; no `client:*` in posts ([ADR 0003](adr/0003-astro-static-first.md)). No post needs a component yet, so Writing reads `.md` only and `@astrojs/mdx` is not installed; both arrive with the first post that does.
 - **Tags come from a fixed list** of 10. Adding one is a pull request. There are no tag pages: they are not in the URL scheme, and adding them is an amendment to ADR 0005, best made with search (Pagefind) at about 20 posts.
 - **A lab write-up does not copy runtime state.** `lifecycle` says whether a demo is published. Whether it is taking live sessions right now belongs to the lab's control object and is read when the page is viewed ([lab.md](lab.md)). A hand-edited `status: live` field that someone forgets to flip would be a second owner of that fact.
 - **Decisions render from the same files; nothing is copied.** The loader reads `docs/adr/NNNN-*.md`, parses the `# ADR NNNN: <decision>` heading and the `Status:` line, validates them with Zod, and renders the body. It rewrites links: one ADR to another becomes `/colophon/decisions/<nnnn-slug>/`; an ADR to another doc becomes the file on GitHub once the repo is public ([ADR 0012](adr/0012-public-repository.md)), and plain text before that. Publication is an allowlist in the loader's options. An ADR renders only when its number is listed, so a new ADR cannot reach the site by accident. Astro's `glob()` loader can read `docs/adr` directly, but it validates only YAML front matter, which the ADR template does not have; the custom part is the parser for the heading and the Status line. The weaker alternative, front matter in every ADR, would store the number, title and status twice in one file.
-- **Project facts** (latest release, tag dates) are read from GitHub's API once per build, never when a visitor loads a page. If GitHub does not answer, the card drops the line; the build neither fails nor guesses. The unattended weekly rebuild is the exception: it fails instead, so the live page keeps its facts ([delivery.md](delivery.md#pipeline)). The build reads with the job's own `GITHUB_TOKEN` (`contents: read`), which adds no secret and allows 1,000 requests an hour per repository. Unauthenticated reads allow 60 an hour per IP address, and GitHub-hosted runners share their addresses with other customers' jobs, so an unauthenticated build could find the limit already spent (as of 2026-10-22, [GitHub](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api)). A build needs a handful.
+- **Card figures have one owner and one age.** `profile.json` owns them: Joseph copies them by hand from the project's repository, at the commit its check read, in a pull request, and `measured` is the day they were read; the schema refuses figures without it. The site reads nothing from GitHub's API. The GitHub facts step planned for PR 4 (latest release, tag dates, read at build) was dropped on 2026-10-23: stillhere has no tagged release to read, and two writers into one card's figures would need a boundary nobody owns.
 
 ## Voice
 
@@ -398,9 +330,17 @@ Published means permanent. Crawlers, the Wayback Machine and the LinkedIn and Sl
 
 ## Owned work
 
-The site features three things and nothing else. The numbers below were measured on 2026-10-22 from public sources: the repositories, their docs, issues and CI. Re-measure each one at publish time. Never cite adoption (stars, downloads).
+Owned work shows as cards on Home, one per project, each linking to its repository: "Card → repo only", Joseph's decision on 2026-10-23. There are no case-study pages, terminal recordings or lab companions for it. A card renders from its record in `profile.json` once its checks are recorded and its hold is lifted ([How a project's card turns on](#how-a-projects-card-turns-on)).
+
+A post on this site can have a card too, after the projects' cards. `FEATURED_POSTS` in `src/lib/work.ts` names it by section and slug, with the words of its link; the card's title, line and tag are the post's own title, summary and kind, so the post stays their one owner. It renders once the post is published in the build, and never for a draft. The first is the auto-trader teardown, a postmortem being finalised, at `/writing/trading-bot-teardown/`: its card links to the post and never to the repository.
+
+One rule covers every card, whatever made it: a card renders only when the page it opens exists in this build (`selectedWork()` and `withTargets()` in `src/lib/work.ts`). `test/work.test.ts` holds the rule with known answers (published, draft, not written yet, a target the build does not vouch for), and `test/project-cards.test.ts` holds every build's Home to it, reading the expected post cards from the build's own pages. With no card, Home has no Selected work section and no Work button.
+
+Of owned work, the site features three things and nothing else, besides the posts named above. The numbers below were measured on 2026-10-22 from public sources: the repositories, their docs, issues and CI. Re-measure each one at publish time. Never cite adoption (stars, downloads).
 
 ### stillhere (lead)
+
+**Card → repo only.** stillhere's card links to its repository, so its README is the page a reader lands on, and the README carries the pitch: what it does, its limits statement, and the public numbers below. The tables below are the brief for that README pass, made in stillhere's own repository before its card turns on.
 
 Change analytics for git and GitHub: what landed, what lasted, who knows the code. Every number traces back to its commits. Apache-2.0, pre-release (no tagged release on 2026-10-22).
 
@@ -435,7 +375,7 @@ Framing: lead with its limits statement and its published failed metric. stillhe
 
 One git command across every repository in a directory, in parallel. A TUI for people, a CLI for scripts. MIT; 5 releases from 2026-03 to 2026-09, then v1.2.2 on 2026-10-23. Role: author and maintainer, with outside contributions.
 
-**Private since 2026-10-23.** Joseph made the repository private after its last public release, so the site cannot link it, and its name stays on the [hold list](#names-held-off-the-site). Whether `/work/gitops/` is written without links, or dropped, is his decision before PR 4. The plan below is kept for that decision.
+**Private since 2026-10-23, and off the site until it is public again.** Joseph made the repository private after its last public release, so the site cannot link it, and its name stays on the [hold list](#names-held-off-the-site). His plan, from 2026-10-23: clean its history the way stillhere's was cleaned, make the repository public, then turn its card on like stillhere's. The tables below are kept as the brief for its README.
 
 What it shows a hiring manager:
 
@@ -480,6 +420,16 @@ A link from the site sends readers to everything a repository holds, so linking 
 - [ ] **The linked GitHub profile passes too.** Its name, bio, company and location fields, profile README, public organization memberships, gists, pinned items, and every public repository and fork pass the firewall classes above; the profile's local-time field is off; and it pins the featured repositories. Anything else is made private or deleted before the link ships; archiving is not enough, because an archived repository stays public.
 - [ ] **The check is recorded** in `profile.json`, in the pull request that adds the link: the record gets `checked: {date, sha}`, the date and the commit the check read. A profile elsewhere has no commit, so a LinkedIn record gets `checked: {date}`, and it joins only with Joseph's written clearance in the private record. A record without `checked` renders nowhere ([Content model](#content-model)).
 
+### How a project's card turns on
+
+A card renders on Home when three things hold, each in a reviewed pull request:
+
+1. The project's check is recorded in `profile.json`: `checked: {date, sha}`. The same pull request adds its `tag`, up to three `facts` and `measured`, the day the facts were read. A fact's term comes from a fixed list (`FACT_TERMS` in `src/lib/profile.ts`: Tests, Decisions, Releases, Commands, Code, Benchmark, Validation, Signing, CI, License). No part of a card, its line, its tag or a figure, counts adoption: the schema refuses stars, starred, stargazers, downloads, downloaded, forks, forked, installs, installed, clones, cloned, watchers, dependents, users, "used by", ★ and ⭐, and a test names each. A word list cannot catch every phrasing, so review reads the card too.
+2. The GitHub profile's check is recorded too. A repository's page links its owner's profile, and its URL names the account, so the profile is checked before any repository is linked.
+3. The project's hold is lifted: its line leaves `not-on-site.txt` ([Names held off the site](#names-held-off-the-site)).
+
+`projectCards()` in `src/lib/profile.ts` owns the rule. `test/project-cards.test.ts` checks that Home shows exactly the cards it returns, then the featured posts' cards, on the real build (none today, so no Selected work section) and on a fixture build where a made-up project, checked and held by nothing, renders its card and its link. So the path is tested before any real project is on.
+
 ## Names held off the site
 
 Some names are public in this repository but must not appear on the site until a rule lifts them. `apps/web/not-on-site.txt` lists them, with three columns: the name, how its parts may be joined, and the rule that holds it. The list keeps no secret, so it can live in the repository; secret terms belong only in the content firewall's private rules ([ADR 0007](adr/0007-content-firewall.md)).
@@ -488,7 +438,7 @@ Some names are public in this repository but must not appear on the site until a
 |---|---|---|
 | Mission-AI | any | Q24 · Q-mission in [product.md](product.md): not on the site at launch |
 | stillhere | no space | the readiness checklist above, until its check passes |
-| gitops | any | the readiness checklist above; the repository went private on 2026-10-23 |
+| gitops | any | private since 2026-10-23: held until it is public again and its readiness check passes |
 
 - **Joins.** "-" and "_" split a name where it is written with them, and "|" marks where a one-word name splits. `any` catches the parts joined by nothing or by any run of spaces, hyphens and underscores. `no space` catches nothing, one hyphen or one underscore, but never a space, for a name whose spaced form is ordinary English.
 - **What the matcher reads** (`src/lib/held-names.ts`): a name in any case; behind an HTML character reference, with or without its ";"; split by markup such as `<wbr>` or `<b>`; with an invisible character (a soft hyphen, a zero-width character, any default-ignorable code point) or a typographic dash inside; or in a compatibility form such as a fullwidth letter (NFKC). Text it cannot read fails the check instead of passing unread: fail closed.
@@ -570,7 +520,7 @@ Open Graph: one template per page type, rendered at build for each page as a 120
 | Page type | Image shows |
 |---|---|
 | Home | the name and `<title line — Q-title>` |
-| Work, Writing, Notes, Lab | the section label and the entry's title |
+| Writing, Notes, Lab | the section label and the entry's title |
 | About, Now, Colophon, Decisions | the section label and the page title |
 
 | Consumer | Requirement or behavior (as of 2026-10-22) | Source |
@@ -598,6 +548,15 @@ A published post also carries one `BlogPosting`, built from its front matter wit
 
 A generated PNG of text sits far below LinkedIn's 5 MB limit. LinkedIn does not document how long it caches a card, so re-inspect a changed page in its [Post Inspector](https://www.linkedin.com/post-inspector/) before sharing it. If Slack unfurled a link shortly before a change, it shows the old card for up to about 30 minutes.
 
+## Files for crawlers
+
+`/robots.txt` welcomes every crawler, AI crawlers included (Q15 · Q-ai-crawlers in [product.md](product.md)), and points them at the sitemap. `/llms.txt` tells a language model what the site is, in the [llms.txt](https://llmstxt.org/) convention (as of 2026-10-24): an H1 with the site's name, a blockquote with a short summary, then sections of links, each a list of `[name](url)` with an optional note.
+
+- **What it holds.** The name as the H1, and Home's own description as the summary. Contact: the address and the checked profiles, as the footer has them. Pages: Home, each manifest page the build writes and each Writing index. Then the published posts, by section, with their title and summary, and the project cards Home renders. A section with nothing in it is left out, as on a page; a draft never appears.
+- **One owner per fact.** `src/pages/llms.txt.ts` writes it at build from what the pages read, through the same functions (`src/lib/llms.ts`): `profile.json` through `homeDescription`, `checkedProfiles` and `projectCards`, `site.ts` for the address and the origin, the nav manifest and the posts. It copies no sentence from a page. The hero's sentence and the four principles are written in `index.astro`, so they stay there.
+- **Every scan of `dist/` reads it**: the hold list, the readiness check and the timestamps. So it can name nothing a page could not, which is what Q15's "Wrong if" asks: no AI answer joins the site to something the firewall keeps off it.
+- **Checked.** `test/llms.test.ts`, on every build: the shape; the summary is Home's description; Contact is the checked profiles; and every page in the sitemap is listed, and no other page, so a new page fails the build until it is listed. `e2e/llms.spec.ts` fetches it from the server under test, requires `text/plain; charset=utf-8`, which on the edge only the `_headers` rule gives it, and requests every page it names. The deploy smoke and `prod-smoke` leave it out: a rollback can promote a release from before the file existed.
+
 ## Writing plan
 
 Budget: about 8–10 hours a month. Q-writing-budget asks whether that is realistic.
@@ -619,12 +578,12 @@ That is 7.25 h of writing; editing and review make up the rest.
 
 Why write at all: "Your goal is to be known for good things while minimizing the organizational bandwidth you consume to do so" (Larson, ["Being visible"](https://lethain.com/being-visible/), 2020). The same essay: "There are a huge number of successful Staff-plus engineers with no external presence, but many find external visibility contributes to their career." Writing is a lever, not a requirement, which is why the fallback above is notes only rather than a forced schedule.
 
-First 90 days, counted from PR 1's merge and assuming about 40 hours a month for the site ([roadmap.md](roadmap.md), time budget), in the order Joseph set on 2026-10-23: Writing before the case studies. At 20 hours a month the same steps take about 6–8 months:
+First 90 days, counted from PR 1's merge and assuming about 40 hours a month for the site ([roadmap.md](roadmap.md), time budget), in the order Joseph set on 2026-10-23: Writing before the other content pages. At 20 hours a month the same steps take about 6–8 months:
 
 | Days | Ships ([roadmap.md](roadmap.md)) | Writing |
 |---|---|---|
-| 1–30 | PR 2 Foundation; PR 3 Home v1; PR 5's machinery (`/writing/`, `/notes/`, `/rss.xml`), hidden until 3 posts exist | Two notes drafted from the build; Writing renders once Joseph's third post merges |
-| 31–60 | PR 3b: `/colophon/`, with the ADRs rendered; then PR 4: `/work/stillhere/`, `/about/`, `/now/` | The case studies are the long writing; the first essay is drafted |
+| 1–30 | PR 2 Foundation; PR 3 Home v1; PR 5's machinery (`/writing/`, `/notes/`, `/rss.xml`), hidden until a post is published | Two notes drafted from the build; Writing renders with Joseph's first published post (the bar was 3 posts until 2026-10-24) |
+| 31–60 | PR 3b: `/colophon/`, with the ADRs rendered; then PR 4: `/about/`, `/now/`, and stillhere's card once its checks pass | The first essay is drafted; stillhere's README pass, in its own repository, carries its story |
 | 61–90 | The lab's platform, once Q-ip is answered ([roadmap.md](roadmap.md)) | An essay a month and two notes, per the plan above |
 
 Backlog. Owned work and general architecture only; nothing about the day job.
@@ -648,12 +607,14 @@ Backlog. Owned work and general architecture only; nothing about the day job.
 ### Publishing a post
 
 1. Write `apps/web/src/content/writing/<slug>.md` for an essay, or `apps/web/src/content/notes/<slug>.md` for a field note. The file name is the slug and the URL, for good; slugs that start with `fixture-` are reserved for test posts. Front matter: `title` (at most 70 characters), `summary` (at most 160; it is the meta description, the card's text and the feed's), `published` (`YYYY-MM-DD`), `tags` (up to 3 from the list above), `kind` for an essay (`essay`, `pattern` or `postmortem`), an optional https `source` for a note, `draft: true` while it is a draft, and `firewall_reviewed`.
-2. Open a pull request. The firewall scans it before anything is published, and the draft builds on the pull request's preview at `/writing/<slug>/` or `/notes/<slug>/`, `noindex`, listed nowhere. Below 3 posts the published ones build there too, unlisted, so links between posts resolve.
-3. Read the whole post against the [firewall classes](#firewall-classes-for-copy), then set `firewall_reviewed` to that day and remove `draft: true`. Any later change to a post needs a read too, and the review stamp in `verify` holds the date to it, in UTC days: a changed post's stamp moves forward to the day of the read, and may stay as it is only when it already names the day of the pull request's head commit, a same-day re-read. A stamp never moves back and never names a later day than the head commit. A new post, or one renamed or copied, needs a stamp no earlier than the day of the base commit.
-4. Writing appears with the third published post. That pull request adds every new page URL to `apps/web/published-urls.txt`: the posts, `/writing/`, and `/notes/`, which exists only while Writing renders and a note is published. Every later post adds its own. `test/urls.test.ts` names any URL missing there. The e2e checks walk the pages of the build they serve, so a new page meets axe, the CSP and the smoke checks on its own preview.
+2. Open a pull request. The firewall scans it before anything is published, and the draft builds on the pull request's preview at `/writing/<slug>/` or `/notes/<slug>/`, `noindex`, listed nowhere, beside every published post, so its links to them resolve.
+3. Read the whole post against the [firewall classes](#firewall-classes-for-copy), then set `firewall_reviewed` to the UTC day you commit it and remove `draft: true`. Any later change to a post needs a read too, and the review stamp in `verify` holds the date to it, in UTC days: a changed post's stamp moves forward to the UTC day the read is committed, and may stay as it is only when it already names the day of the pull request's head commit, a same-day re-read. A stamp never moves back and never names a later day than the head commit. It is never earlier than the day of the last commit that touched the post, and the commit that writes the stamp is one, which is why the stamp is the day of that commit, after the read. An edit committed on a later day, in the same pull request, needs another read. A new post, or one renamed or copied, needs a stamp no earlier than the day of the base commit, which is `main`'s tip when CI last ran. CI does not run again when `main` moves on, and a re-run reuses the old merge commit, so update the branch from `main` before merging a new post: if `main` has moved to a later day, the check then fails until the post is read and stamped again.
+4. Writing appears with the first published post. That pull request adds every new page URL to `apps/web/published-urls.txt`: the posts, `/writing/`, and `/notes/`, which exists only while Writing renders and a note is published. Every later post adds its own. `test/urls.test.ts` names any URL missing there. The e2e checks walk the pages of the build they serve, so a new page meets axe, the CSP and the smoke checks on its own preview.
 5. Merge. The deploy builds the same posts without drafts, and the feed and the sitemap pick the post up.
 
-What a post can hold today: paragraphs, h2 and h3 headings (the title is the page's one `<h1>`), lists, quotations, code (plain mono, wrapped), tables with unaligned columns, and footnotes. Column alignment (`:--:`) writes a style attribute, which the policy refuses, and `test/csp.test.ts` names it. Every character must be in the font subsets, and `test/glyph-coverage.test.ts` names any that is not, with its code point. Not yet: images. They need a check for WebP, an image budget and an asset pipeline that keeps a draft's images out of production, so until that pull request `test/writing.test.ts` refuses an image in any post, a draft included.
+The auto-trader teardown, `apps/web/src/content/writing/trading-bot-teardown.md`, is in the repository as a draft since 2026-10-24, with a placeholder stamp that the review stamp refuses, so its pull request stays red until Joseph reads it. Publishing it is steps 3 and 4 and nothing else: set `published` and `firewall_reviewed` to the day of the read, remove `draft: true`, and add `/writing/` and `/writing/trading-bot-teardown/` to `published-urls.txt`. Home then shows its card under Selected work, with a Writing section that holds the "All writing" and "RSS feed" links (the post is not listed twice), and the header gains Writing. No test pins its absence.
+
+What a post can hold today: paragraphs, h2 and h3 headings (the title is the page's one `<h1>`), lists, quotations, code (plain mono, wrapped), tables with unaligned columns, and footnotes. Column alignment (`:--:`) writes a style attribute, which the policy refuses, and `test/csp.test.ts` names it. Every character must be in the font subsets, and `test/glyph-coverage.test.ts` names any that is not, with its code point. A table wraps its cells inside the column at 320 px; the fixture tour's wide table proves the rule in `e2e`. Not yet: images. They need a check for WebP, an image budget and an asset pipeline that keeps a draft's images out of production, so until that pull request `test/writing.test.ts` refuses a Markdown image in a post's source, and `test/prose.test.ts` refuses an `img`, `picture` or `source` inside the rendered `div.prose`, which catches every form Markdown writes, a shortcut reference included, a draft included. Raw HTML is not refused yet: it can close that `div` early, or show an image another way (an SVG `image`, an `input type=image`, a video's poster), so write none in a post until a check refuses it.
 
 ## Patterns and further reading
 
@@ -666,6 +627,6 @@ What a post can hold today: paragraphs, h2 and h3 headings (the title is the pag
 - Fail-safe defaults (generate, don't redact; the ADR publish allowlist): Saltzer and Schroeder, ["The Protection of Information in Computer Systems"](https://web.mit.edu/Saltzer/www/publications/protection/) (1975).
 - Mosaic effect: OMB Memorandum M-13-13, "Open Data Policy: Managing Information as an Asset" (2013).
 - Fitness functions (the fold check, the sitemap check): Ford, Parsons, Kua and Sadalage, *Building Evolutionary Architectures*, 2nd ed., ch. 2.
-- Case studies shaped like design docs: Ubl, ["Design docs at Google"](https://www.industrialempathy.com/posts/design-docs-at-google/) (2020).
+- Decisions written like design docs, alternatives first: Ubl, ["Design docs at Google"](https://www.industrialempathy.com/posts/design-docs-at-google/) (2020).
 
 The full list, one source per pattern: [reading-list.md](reading-list.md).

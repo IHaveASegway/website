@@ -15,7 +15,7 @@ with the repository.
       [content.md](https://github.com/IHaveASegway/website/blob/main/docs/content.md#firewall-classes-for-copy)). Every ASK item is cleared in
       the private record.
 - [ ] Images and screenshots show owned work only, cropped to the content, with no work tool, no
-      browser chrome and no colo in the telemetry strip.
+      browser chrome and no colo.
 - [ ] Every image and PDF is free of EXIF, XMP and IPTC metadata (the pre-commit hook and verify
       check it too).
 - [ ] No PDF was added, or each one's text and metadata was read.

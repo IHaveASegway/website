@@ -1,51 +1,93 @@
 import { execFileSync } from 'node:child_process';
 import { describe, expect, test } from 'vitest';
-import { kilobytes } from '../src/lib/weights';
-import { read, textFiles } from './support/dist';
-import { measure } from './support/measure';
+import { BUILD_HEADER, withBuildHeader } from '../src/lib/build.mjs';
+import { html, read, textFiles } from './support/dist';
 
-// Every figure Home prints is computed at build, and this test measures dist/ again and requires
-// the two to agree (spec B13): a readout that drifts from what it describes fails the build.
+// Nothing on the page describes the site (design-system.md): no commit, no build date and no byte
+// figure is shown to a reader, and no page carries one in its markup either. Which commit is live
+// is a machine's question, answered by a response header, X-Build, that the build writes into
+// dist/_headers for the deploy smoke (e2e/smoke.spec.ts). The byte budgets are still measured on
+// every build (test/budgets.test.ts); they are just not printed.
 
-const home = read('index.html');
-const figures = measure(home);
+/** The commit this checkout builds, read here from git, not from lib/build.mjs. */
+const commit = (
+  process.env['GITHUB_SHA'] ?? execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' })
+).trim();
 
-/** The <dd> after the <dt> that reads `term`, in either list on the page. */
-function readout(term: string): string {
-  const match = new RegExp(`<dt[^>]*>${term}</dt>\\s*<dd>(.*?)</dd>`).exec(home);
-  if (!match?.[1]) throw new Error(`Home has no "${term}" readout`);
-  return match[1].replace(/<[^>]+>/g, '');
+/** The build's _headers: Workers reads it, and never serves it (e2e/smoke.spec.ts). */
+const HEADERS = '_headers';
+
+describe('the build header: which commit is live, for machines only', () => {
+  test('_headers sends X-Build with the commit this checkout builds, once, on every path', () => {
+    const rules = read(HEADERS);
+    const lines = rules.split('\n');
+    const header = lines.flatMap((line, i) => (line.includes(BUILD_HEADER) ? [i] : []));
+    expect(header).toHaveLength(1);
+    expect(lines[header[0] ?? 0]).toBe(`  X-Build: ${commit}`);
+    // It belongs to the "/*" rule, the one every response matches.
+    expect(lines[(header[0] ?? 0) - 1]).toBe('/*');
+  });
+
+  test('no page names the commit, in <head> or anywhere else, in full or short', () => {
+    for (const file of html) expect(read(file), file).not.toMatch(/<meta name="build"/);
+    for (const file of textFiles.filter((f) => f !== HEADERS)) {
+      expect(read(file).includes(commit.slice(0, 7)), file).toBe(false);
+    }
+  });
+
+  test('known answers: the header joins the "/*" rule, and a file without one is refused', () => {
+    const sha = 'a'.repeat(40);
+    expect(withBuildHeader('# c\n/*\n  A: b\n\n/x\n  C: d\n', sha)).toBe(
+      `# c\n/*\n  X-Build: ${sha}\n  A: b\n\n/x\n  C: d\n`,
+    );
+    expect(() => withBuildHeader('/x\n  C: d\n', sha)).toThrow(/no "\/\*" rule/);
+  });
+});
+
+/** What a reader can see of a page: its body's text, without markup, scripts or JSON-LD. */
+function visibleText(page: string): string {
+  const body = /<body\b[^>]*>([\s\S]*)<\/body>/.exec(page)?.[1] ?? '';
+  return body
+    .replace(/<script\b[\s\S]*?<\/script>/g, ' ')
+    .replace(/<style\b[\s\S]*?<\/style>/g, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ');
 }
-/** Every <dd> after a <dt> that reads `term`. */
-const all = (term: string) =>
-  [...home.matchAll(new RegExp(`<dt[^>]*>${term}</dt>\\s*<dd>(.*?)</dd>`, 'g'))].map(
-    ([, value = '']) => value.replace(/<[^>]+>/g, ''),
-  );
 
-describe("Home's readouts", () => {
-  test('Build is the commit this checkout builds, read here from git, not from build.ts', () => {
-    const commit = (
-      process.env['GITHUB_SHA'] ?? execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' })
-    ).trim();
-    expect(readout('Build')).toBe(commit.slice(0, 7));
-  });
+/** A figure about bytes, as a readout or a card would print one: "0.8 KB", "64,140 B". */
+const BYTE_FIGURE = /\b\d[\d,.]*\s?(?:[kKMG]i?B|B|bytes?)\b/;
+/** A build readout: "Build 8c2067e", "built 2026-10-24", "commit cd5f2f7". */
+const BUILD_READOUT = /\b(?:build|built|commit)\s*:?\s+(?:[0-9a-f]{7,40}|\d{4}-\d{2}-\d{2})\b/i;
 
-  test('Built is a UTC date with no time of day, and not in the future', () => {
-    const built = readout('Built');
-    expect(built).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(home).toContain(`<time datetime="${built}">${built}</time>`);
-    expect(Date.parse(`${built}T00:00:00Z`)).toBeLessThanOrEqual(Date.now());
-  });
+describe('nothing on the page describes the site', () => {
+  for (const file of ['index.html', '404.html']) {
+    test(`${file} shows no byte figure, no build readout and no card about this site`, () => {
+      const text = visibleText(read(file));
+      expect(BYTE_FIGURE.exec(text)?.[0] ?? null, file).toBeNull();
+      expect(BUILD_READOUT.exec(text)?.[0] ?? null, file).toBeNull();
+      expect(text, file).not.toContain('This site');
+      expect(read(file), file).not.toMatch(/class="readouts?"/);
+    });
+  }
 
-  test(`JavaScript is the page's eager JavaScript, measured: ${figures.eagerJavaScript} B`, () => {
-    expect(all('JavaScript')).toEqual([
-      kilobytes(figures.eagerJavaScript),
-      `${kilobytes(figures.eagerJavaScript)} on this page`,
-    ]);
-  });
-
-  test(`Fonts on the This site card is the preloaded fonts, measured: ${figures.preloadedFonts} B`, () => {
-    expect(readout('Fonts')).toBe(`${kilobytes(figures.preloadedFonts)}, self-hosted`);
+  test('known answers: what the checks catch, and what they let through', () => {
+    for (const sample of [
+      'JavaScript 0.8 KB',
+      'Fonts 64.1 KB, self-hosted',
+      '6,420 B',
+      '120 bytes',
+    ])
+      expect(BYTE_FIGURE.test(sample), sample).toBe(true);
+    for (const sample of ['Build 8c2067e', 'built 2026-10-24', 'commit: cd5f2f70522d'])
+      expect(BUILD_READOUT.test(sample), sample).toBe(true);
+    for (const sample of ['I build developer tools', 'p99 < 2 s', 'US · remote', '© 2026']) {
+      expect(BYTE_FIGURE.test(sample), sample).toBe(false);
+      expect(BUILD_READOUT.test(sample), sample).toBe(false);
+    }
+    expect(
+      visibleText('<head><meta name="build" content="x"></head><body><p>a <b>b</b></p></body>'),
+    ).toBe(' a b ');
   });
 });
 

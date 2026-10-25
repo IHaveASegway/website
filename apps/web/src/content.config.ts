@@ -1,14 +1,27 @@
+import { readFileSync } from 'node:fs';
 import { defineCollection } from 'astro:content';
 import { file, glob } from 'astro/loaders';
 import { essaySchema, noteSchema, postsBase } from './lib/posts';
-import { profileSchema } from './lib/profile';
+import { profileSchema, projectFixturePath, withFixture, type ProfileFixture } from './lib/profile';
 
 // Content is code, validated when the site builds (ADR 0004; content.md, "Content model"). The
-// profile came first; essays and notes arrive with Writing (roadmap.md, PR 5). The work, lab and
-// now collections arrive with the pages that render them.
+// profile came first; essays and notes arrive with Writing (roadmap.md, PR 5). The lab and now
+// collections arrive with the pages that render them. There is no work collection: owned work is a
+// card on Home, generated from the profile's projects (content.md, "Owned work").
+
+// Every real build reads src/content/profile.json alone. Only scripts/build-fixtures.mjs names
+// PROFILE_FIXTURE, which adds made-up projects and a GitHub check to the real profile
+// (lib/profile.ts, withFixture), so a fixture build shows a project's card before any real one does.
+const fixturePath = projectFixturePath(process.env['PROFILE_FIXTURE']);
+const fixture: ProfileFixture | null = fixturePath
+  ? JSON.parse(readFileSync(fixturePath, 'utf8'))
+  : null;
+
 const profile = defineCollection({
   // One JSON Resume document, under the id "profile".
-  loader: file('src/content/profile.json', { parser: (text) => ({ profile: JSON.parse(text) }) }),
+  loader: file('src/content/profile.json', {
+    parser: (text) => ({ profile: withFixture(JSON.parse(text), fixture) }),
+  }),
   schema: profileSchema,
 });
 

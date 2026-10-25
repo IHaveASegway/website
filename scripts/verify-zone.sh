@@ -3,8 +3,12 @@
 # posture A. Token-free by design: DNS over HTTPS, RDAP, HTTP and TLS handshakes, the same view
 # anyone on the internet has. It never needs, or sees, a Cloudflare credential.
 #
-# One line per check: PASS, FAIL, or SKIP for what cannot be seen from outside. Exit 1 on any
-# FAIL, 2 when a tool is missing. Values that could locate a person are never printed.
+# One line per check: PASS, FAIL, SKIP for what cannot be seen from outside, or WARN for a planned
+# step that is late, which never fails the audit. Exit 1 on any FAIL, 2 when a tool is missing.
+# Values that could locate a person are never printed.
+#
+# `verify-zone.sh --hsts-ramp <max-age>` prints row 8b alone, for that max-age, and touches no
+# network: the known answers in apps/web/test/hsts-ramp.test.ts run it with TODAY and HSTS_CALENDAR.
 set -uo pipefail # not -e: every check runs and reports its own result
 
 ZONE="${ZONE:-ihaveasegway.com}" # overridable only to exercise the script against another domain
@@ -15,9 +19,66 @@ DOH="${DOH:-https://dns.google/resolve}"
 # the zone would prove nothing (security.md, the TLS row's note).
 TLS11_CONTROL="${TLS11_CONTROL:-example.com}"
 HSTS_RAMP="300 604800 2592000 31536000" # ADR 0011, in seconds
+# When the next step of the ramp is due: the HSTS row of the maintenance calendar, the one place
+# the runbook "HSTS ramp step" writes it. Overridable only for the known answers.
+HSTS_CALENDAR="${HSTS_CALENDAR:-$(dirname "$0")/../docs/operations.md}"
 EXPECTED_MX="route1.mx.cloudflare.net route2.mx.cloudflare.net route3.mx.cloudflare.net"
 EXPECTED_SPF="v=spf1 include:_spf.mx.cloudflare.net ~all"
 EXPECTED_DMARC="v=DMARC1;p=reject;sp=reject;adkim=s;aspf=s"
+
+failures=0
+pass() { printf 'PASS  %-3s %s\n' "$1" "$2"; }
+fail() {
+  printf 'FAIL  %-3s %s\n' "$1" "$2"
+  failures=$((failures + 1))
+}
+skip() { printf 'SKIP  %-3s %s\n' "$1" "$2"; }
+warn() { # counts toward nothing; in Actions it also annotates the run
+  printf 'WARN  %-3s %s\n' "$1" "$2"
+  if [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::warning::verify-zone row $1: $2"; fi
+}
+check() { # check <row> <what it proves> <command...>
+  local row="$1" what="$2"
+  shift 2
+  if "$@" > /dev/null 2>&1; then pass "$row" "$what"; else fail "$row" "$what"; fi
+}
+
+# Row 8b: does the ramp move? ADR 0011 holds each step before the next, and the calendar row reads
+# "Next: step <n>, due <YYYY-MM-DD>" once that date is known. A late step, or no date for the next
+# one, is a WARN and never a FAIL: whether to take a one-way step is Joseph's call, and a stalled
+# ramp blocks nothing. The script keeps no date of its own.
+ramp_watch() { # ramp_watch <max-age the zone serves, or empty>
+  local age="$1" today="${TODAY:-$(date -u +%Y-%m-%d)}" steps step=0 i next row record
+  read -r -a steps <<< "$HSTS_RAMP"
+  for i in "${!steps[@]}"; do [ "${steps[$i]}" = "$age" ] && step=$((i + 1)); done
+  if [ "$step" -eq 0 ]; then
+    skip 8b "HSTS ramp: the zone serves no step of it, so no next step to watch (row 8)"
+    return
+  fi
+  local at="at step $step of ${#steps[@]} (max-age $age)"
+  if [ "$step" -eq "${#steps[@]}" ]; then
+    pass 8b "HSTS ramp: $at, the last; nothing is due (preload would be a new ADR)"
+    return
+  fi
+  next=$((step + 1))
+  row="$(grep -m 1 '^|[^|]*|[[:space:]]*The HSTS ramp' "$HSTS_CALENDAR" 2> /dev/null)"
+  record="$(printf '%s' "$row" | sed -n 's/.*Next: step \([0-9]\), due \([0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}\).*/\1 \2/p')"
+  local calendar="operations.md's maintenance calendar"
+  if [ -z "$record" ]; then
+    warn 8b "HSTS ramp: $at; no date recorded for step $next in $calendar"
+  elif [ "${record% *}" != "$next" ]; then
+    warn 8b "HSTS ramp: $at, but $calendar names step ${record% *}: no date recorded for step $next"
+  elif [ "${today//-/}" -gt "$(printf '%s' "${record#* }" | tr -d -)" ]; then
+    warn 8b "HSTS ramp: $at; step $next (max-age ${steps[$step]}) has been due since ${record#* }, by $calendar"
+  else
+    pass 8b "HSTS ramp: $at; step $next (max-age ${steps[$step]}) is due ${record#* }"
+  fi
+}
+
+if [ "${1:-}" = --hsts-ramp ]; then
+  ramp_watch "${2:-}"
+  exit 0
+fi
 
 for tool in curl jq openssl; do
   command -v "$tool" > /dev/null || {
@@ -28,18 +89,6 @@ done
 
 T="$(mktemp -d)"
 trap 'rm -rf "$T"' EXIT
-failures=0
-pass() { printf 'PASS  %-3s %s\n' "$1" "$2"; }
-fail() {
-  printf 'FAIL  %-3s %s\n' "$1" "$2"
-  failures=$((failures + 1))
-}
-skip() { printf 'SKIP  %-3s %s\n' "$1" "$2"; }
-check() { # check <row> <what it proves> <command...>
-  local row="$1" what="$2"
-  shift 2
-  if "$@" > /dev/null 2>&1; then pass "$row" "$what"; else fail "$row" "$what"; fi
-}
 
 now="$(date -u +%s)"
 fetch() { curl -fsS --max-time 15 "$@"; }
@@ -135,6 +184,7 @@ if [ -n "$age" ] && [[ " $HSTS_RAMP " == *" $age "* ]] && [[ "$hsts" =~ [Ii]nclu
 else
   fail 8 "HSTS missing or off the ramp (ADR 0011): ${hsts:-none}"
 fi
+ramp_watch "$age"
 skip 9 "SSL/TLS mode Full (strict): not observable without an origin; read in the dashboard"
 check 10 "no zone feature rewrote the HTML: no /cdn-cgi/ in the page" sh -c "[ -s '$T/home.html' ] && ! grep -q '/cdn-cgi/' '$T/home.html'"
 check 11 "no managed security-header transform: no X-XSS-Protection, Expect-CT or X-Frame-Options" \
