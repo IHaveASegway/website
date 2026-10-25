@@ -21,6 +21,7 @@ Status: Draft for review in PR 1 · 2026-10-22
 | [0014](0014-typescript-on-workers.md) | TypeScript for code that runs on Workers | Proposed |
 | [0015](0015-preview-build-superset-of-production.md) | A preview build holds the production build, byte for byte | Proposed |
 | [0016](0016-route-lab-in-the-browser.md) | The Route Lab runs VROOM in the visitor's browser, from static files | Proposed |
+| [0017](0017-firewall-reads-webassembly.md) | The firewall reads WebAssembly | Proposed |
 
 0013 is reserved for protocol v1 and the recording format, written in PR 6 ([roadmap.md](../roadmap.md#pr-6-lab-platform-and-presence)).
 
