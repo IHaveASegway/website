@@ -1,8 +1,7 @@
 ---
 title: Four locks, none of them closed
 summary: My 2024 trading bot's config describes four security controls, and none of them could take effect. A teardown, two years later.
-published: 2026-10-24 # the day this draft was written: set it to the day the post publishes
-draft: true
+published: 2026-10-25
 kind: postmortem
 tags:
   - security
