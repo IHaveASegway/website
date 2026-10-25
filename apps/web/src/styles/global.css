@@ -556,8 +556,9 @@
 
   /* The links take the rest of their line, which puts the copyright at the end of a line it
      shares and at the start of one it has alone, as on a phone: every line starts at the frame's
-     edge. With no links (no page or checked profile to list), the address's end margin takes that
-     room instead, so the copyright still ends the line. */
+     edge. The list is on every page, since it holds the command menu's button, so with no link to
+     list (no page or checked profile) it still takes that room, button or not, and the copyright
+     still ends the line. */
   .footer-links {
     display: flex;
     flex: 1 1 auto;
@@ -659,6 +660,193 @@
 
   @media (forced-colors: active) {
     :root[data-theme] .theme-toggle {
+      display: none;
+    }
+  }
+
+  /* The command menu's button, last in the footer's row (Footer.astro). It shows where a pointer
+     can hover, so a keyboard is likely at hand, and only once the menu's script has bound it: until
+     then it holds its place unseen, so nothing moves, and without the script it is not there. On a
+     touch screen the nav, the toggle and the footer hold everything the menu offers. Its keys are
+     set in mono, the face that has ⌘ (design-system.md, "The faces"). */
+  .palette-item {
+    display: none;
+  }
+
+  @media (scripting: enabled) and (hover: hover) and (pointer: fine) {
+    .palette-item {
+      display: flex;
+      visibility: hidden;
+    }
+
+    :root[data-palette] .palette-item {
+      visibility: visible;
+    }
+  }
+
+  .palette-open {
+    display: inline-flex;
+    align-items: center;
+    min-inline-size: 3.5rem;
+    min-height: 2.75rem;
+    padding: 0;
+    border: 0;
+    background-color: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .palette-open:hover {
+    color: var(--primary);
+  }
+
+  .palette-open kbd {
+    font-family: var(--font-mono);
+    font-size: var(--text-meta);
+    line-height: var(--text-meta--line-height);
+  }
+
+  .palette-name,
+  .palette-say {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* The command menu (Palette.astro, src/scripts/palette.js): a native <dialog> near the top of the
+     screen, where an on-screen keyboard does not cover it. It opens at once, with no animation
+     (design-system.md, "Motion"). Preflight takes away the browser's margin and border, so both are
+     set here; the backdrop dims the page in its own background. Only its list scrolls. */
+  .palette {
+    inline-size: min(36rem, 100% - 2rem);
+    max-block-size: min(32rem, 100% - 5rem);
+    margin: 4rem auto auto;
+    padding: 0;
+    border: 1px solid var(--input);
+    border-radius: var(--radius-sm);
+    background-color: var(--surface-1);
+    color: var(--foreground);
+    font-size: var(--text-ui);
+  }
+
+  .palette[open] {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .palette::backdrop {
+    background-color: color-mix(in oklab, var(--background) 70%, transparent);
+  }
+
+  /* 16 px, so a phone does not zoom the page when the input takes focus. The focus outline is drawn
+     inside the input, which the dialog's edge would otherwise clip. */
+  .palette-input {
+    inline-size: 100%;
+    padding: 0.875rem 1rem;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    background-color: transparent;
+    color: var(--foreground);
+    font: inherit;
+    font-size: var(--text-base);
+  }
+
+  .palette-input::placeholder {
+    color: var(--muted-foreground);
+    opacity: 1;
+  }
+
+  .palette-input:focus-visible {
+    outline-offset: -0.375rem;
+  }
+
+  .palette-list {
+    flex: 1 1 auto;
+    min-block-size: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-block: 0.25rem 0.5rem;
+  }
+
+  .palette-group {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .palette-heading {
+    padding: 0.75rem 1rem 0.25rem;
+  }
+
+  /* 44 px rows. The selected row is marked by an outline as well as a fill, so it shows without
+     color too (SC 1.4.11), and in forced colors, which keep the outline. */
+  .palette-option {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0 1rem;
+    min-height: 2.75rem;
+    padding-inline: 1rem;
+    cursor: pointer;
+  }
+
+  .palette-option:hover {
+    background-color: var(--surface-2);
+  }
+
+  .palette-option[aria-selected='true'] {
+    outline: 2px solid var(--ring);
+    outline-offset: -2px;
+    background-color: var(--surface-2);
+  }
+
+  .palette-value {
+    color: var(--muted-foreground);
+    font-family: var(--font-mono);
+    font-size: var(--text-meta);
+    line-height: var(--text-meta--line-height);
+    overflow-wrap: anywhere;
+  }
+
+  .palette-theme {
+    display: none;
+  }
+
+  :root[data-theme='dark'] .palette-theme[data-for='dark'],
+  :root[data-theme='light'] .palette-theme[data-for='light'],
+  :root[data-theme='system'] .palette-theme[data-for='system'] {
+    display: inline;
+  }
+
+  .palette-empty,
+  .palette-note {
+    margin: 0;
+    padding: 0.5rem 1rem;
+    color: var(--muted-foreground);
+    overflow-wrap: anywhere;
+  }
+
+  .palette-note:empty {
+    display: none;
+  }
+
+  .palette-help {
+    margin: 0;
+    padding: 0.625rem 1rem;
+    border-top: 1px solid var(--border);
+    color: var(--muted-foreground);
+    font-family: var(--font-mono);
+    font-size: var(--text-meta);
+    line-height: var(--text-meta--line-height);
+  }
+
+  @media (forced-colors: active) {
+    .palette-option[data-act='theme'] {
       display: none;
     }
   }
@@ -1146,7 +1334,8 @@
 }
 
 /* Every page on paper, in ink on white (tokens.css, the print block). Paper gets no control: the
-   skip link and the header's nav go, and so does the header on Home, where it holds nothing else.
+   skip link, the header's nav and the command menu, open or not, and its button go, and so does
+   the header on Home, where it holds nothing else.
    A link whose words are not its address prints the address after it, so the page works on paper:
    the site's own links with the domain, which is site.ts's ORIGIN (test/resume.test.ts holds the
    two to each other). A button does not: the footer prints the same addresses. Beside a title or
@@ -1156,6 +1345,9 @@
 @media print {
   .skip-link,
   .site-nav,
+  .palette-item,
+  .palette,
+  .palette::backdrop,
   .site-header:not(:has(.wordmark)) {
     display: none;
   }

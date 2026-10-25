@@ -173,7 +173,7 @@ A summary of [roadmap.md](roadmap.md), which owns scope, definitions of done and
 | 3 | PR 5 Writing, next | `/writing/`, `/notes/`, `/rss.xml`; first posts (Writing renders at ≥3) | 2 | — |
 | 2 | PR 3b Colophon, analytics, LHCI | `/colophon/` with the ADRs Joseph opts in; Web Analytics; Lighthouse CI | about 2.5 | PR 5; his ADR opt-ins and analytics site token |
 | 2 | Gate: repository public | [ADR 0012](adr/0012-public-repository.md) | 0.5 | Q7 |
-| 3 | PR 4 About + Now | `/about/`, `/now/`; stillhere's card turned on; the ⌘K palette | about 2 | Q8–Q10; stillhere's and the GitHub profile's readiness checks |
+| 3 | PR 4 About + Now | `/about/`, `/now/`; stillhere's card turned on; the ⌘K palette (shipped ahead on 2026-10-25 as the command menu) | about 2 | Q8–Q10; stillhere's and the GitHub profile's readiness checks |
 | 4 | PR 6 Lab platform + Presence | Lab Worker; admission; budgets; recordings; `/privacy/`; kill switch | 4–5 | Q13; spikes S1–S6, running from 2026-10-23 |
 | 4 | PR 7 Outbox Lab | The transactional outbox demo | 8–10 | Q12 |
 | 4 | PR 8 Migration Lab | The saved-plan migration demo | 6–8 | — |
@@ -257,7 +257,7 @@ Joseph answered these in chat on 2026-10-22 and 2026-10-23; each row dated 2026-
 - **Internationalization.** English only, ISO dates.
 - **User accounts.** There is nothing to sign in to. The site sets no cookies and stores only the theme choice, in sessionStorage, for the tab.
 - **Server-side rendering.** Every page is built ahead of time. A page view runs no code, which is why the site survives a 100,000-visitor day on Workers Free ([cost.md](cost.md)).
-- **Search before about 20 posts.** Then Pagefind: a static index with no runtime cost, which can also feed the ⌘K palette.
+- **Search before about 20 posts.** Then Pagefind: a static index with no runtime cost, which can also feed the command menu.
 - **Employer case studies.** The firewall rules them out. Depth comes from owned work.
 - **Mission-AI content at launch.** Later, by Joseph's decision (Q24).
 - **A hosted résumé PDF.** The current résumé is never hosted or committed. The public edition is an HTML page at `/resume/`, generated from `profile.json` (Q9 (a), 2026-10-25); a PDF of it comes only after the firewall questions are answered (Q9 (b)).

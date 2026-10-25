@@ -1,9 +1,9 @@
-// The one nav manifest (design-system.md, "One nav manifest"). The header, the footer and, later,
-// the command palette read it, so a page renamed in one place is renamed everywhere. Pages are
-// listed before they exist; only those this build writes are linked, so the rule "an element
-// renders only when its target exists" holds by construction rather than by review. Page files
-// say which static pages exist; content says the rest (Writing's indexes and feed, lib/posts.ts;
-// the lab's pages, lib/lab.ts).
+// The one nav manifest (design-system.md, "One nav manifest"). The header, the footer and the
+// command menu (components/Palette.astro) read it, so a page renamed in one place is renamed
+// everywhere. Pages are listed before they exist; only those this build writes are linked, so the
+// rule "an element renders only when its target exists" holds by construction rather than by
+// review. Page files say which static pages exist; content says the rest (Writing's indexes and
+// feed, lib/posts.ts; the lab's pages, lib/lab.ts).
 
 export interface NavItem {
   readonly id: string;

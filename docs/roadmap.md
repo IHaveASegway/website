@@ -64,7 +64,7 @@ Solo estimates run optimistic. That is the planning fallacy, and the remedy is t
 | 3 | [PR 5 Writing](#pr-5-writing), next | `/writing/`, `/notes/`, `/rss.xml`, first posts (Writing renders from the first published post) | 2 | — | — |
 | 2 | [PR 3b Colophon, Web Analytics, Lighthouse CI](#pr-3b-colophon-web-analytics-and-lighthouse-ci) | `/colophon/` rendering opted-in ADRs; the Web Analytics beacon with its disclosure; LHCI | about 2.5 | — | PR 5's prose layout; Joseph's ADR opt-ins and analytics site token |
 | 2 | [Gate: repository public](#gate-repository-public) | [ADR 0012](adr/0012-public-repository.md) | 0.5 | — | Q-visibility |
-| 3 | [PR 4 About + Now](#pr-4-about-and-now) | `/about/`, `/now/`; stillhere's card turned on (its code shipped ahead, on 2026-10-23); the ⌘K palette, moved from PR 3 (the served-from readout was dropped on 2026-10-24) | about 2, re-estimated on 2026-10-23 | — | stillhere's and the GitHub profile's readiness checks; Q-career-arc, Q-resume, Q-projects |
+| 3 | [PR 4 About + Now](#pr-4-about-and-now) | `/about/`, `/now/`; stillhere's card turned on (its code shipped ahead, on 2026-10-23); the ⌘K palette, moved from PR 3 and shipped ahead on 2026-10-25 as the command menu (the served-from readout was dropped on 2026-10-24) | about 2, re-estimated on 2026-10-23 | — | stillhere's and the GitHub profile's readiness checks; Q-career-arc, Q-resume, Q-projects |
 | 4 | [PR 6 Lab platform + Presence](#pr-6-lab-platform-and-presence) | `workers/lab/`; admission; LabControl; recordings; `/privacy/`; kill switch; spikes S1–S6 first | 4–5 | — | spikes S1–S6 (running from 2026-10-23); Q-ip. Q-budget was decided on 2026-10-23: $50 |
 | 4 | [PR 7 Outbox Lab](#pr-7-outbox-lab) | The transactional outbox demo | 8–10 | — | Q-first-demo |
 | 4 | [PR 8 Migration Lab](#pr-8-migration-lab) | The saved-plan migration demo | 6–8 | — | — |
@@ -164,7 +164,7 @@ Phase 2 · estimate: 2–3 focused days, re-baselined to about 7 ([time budget](
 - [ ] Before merge, Joseph runs the 7-second test on the preview, as [product.md](product.md) defines it. If it fails, the hero is rewritten first.
 - [x] Components are built from the tokens, and a unit test computes the contrast of every token pair from the tokens themselves and requires WCAG 2.2 AA.
 - [x] The budgets in design-system.md fail the build when exceeded: eager JavaScript, lazy JavaScript per feature, CSS, preloaded fonts, glyph coverage, the fold, the theme states, reduced motion and axe violations. Home transfer size and the Lighthouse CI assertions moved to PR 3b.
-- [ ] The theme toggle passes Joseph's manual keyboard and screen-reader check, VoiceOver on macOS and NVDA on Windows, noted in the pull request. axe does not cover a custom widget's behavior. The ⌘K palette gets the same check in PR 4.
+- [ ] The theme toggle passes Joseph's manual keyboard and screen-reader check, VoiceOver on macOS and NVDA on Windows, noted in the pull request. axe does not cover a custom widget's behavior. The command menu, which shipped on 2026-10-25 ahead of PR 4, gets the same check.
 - [x] External links render only from records whose readiness check is recorded in `profile.json` ([content.md](content.md#repo-readiness-checklist)), and `test/readiness.test.ts` holds that gate on fixtures and over `dist/`. LinkedIn is checked, with Joseph's written clearance; the GitHub profile's button, `sameAs` and `rel="me"` wait for its own check.
 - [x] Open Graph images (1200×630) are built at build time, one per page that names a card: Home's in PR 3, drawn from the same strings as its `og:title` and `og:image:alt`.
 - [ ] After merge, Joseph checks one unfurl in LinkedIn's Post Inspector and one in a Slack message, against production.
@@ -209,7 +209,7 @@ Phase 2 · estimate: 0.5 focused days · blocked by: [Q-visibility](product.md);
 
 Phase 3 · estimate: about 2 focused days, re-estimated on 2026-10-23 when the case studies were dropped · blocked by: stillhere's readiness check and the GitHub profile's (stillhere's is in progress); [Q-career-arc](product.md), [Q-resume](product.md), [Q-projects](product.md)
 
-**Scope.** `/about/` and `/now/`, and stillhere's card on Home turned on: its record checked, the GitHub profile checked, its hold lifted, and its tag and facts added ([content.md](content.md#how-a-projects-card-turns-on)). The card's code shipped ahead, on 2026-10-23. From PR 3's plan: the ⌘K palette. The served-from readout is dropped: since 2026-10-24 no page describes the site ([design-system.md](design-system.md#nothing-on-the-page-describes-the-site)). The GitHub facts step that was to feed project cards is dropped: a card's figures are copied by hand into `profile.json`, with the day they were measured ([content.md](content.md#how-a-projects-card-turns-on)). Details: [content.md](content.md). Also due before it, though not blocking: [Q-photo](product.md), [Q-segway](product.md), [Q-other-repos](product.md).
+**Scope.** `/about/` and `/now/`, and stillhere's card on Home turned on: its record checked, the GitHub profile checked, its hold lifted, and its tag and facts added ([content.md](content.md#how-a-projects-card-turns-on)). The card's code shipped ahead, on 2026-10-23. From PR 3's plan: the ⌘K palette, which shipped ahead on 2026-10-25 as the command menu ([design-system.md](design-system.md#the-command-menu)). The served-from readout is dropped: since 2026-10-24 no page describes the site ([design-system.md](design-system.md#nothing-on-the-page-describes-the-site)). The GitHub facts step that was to feed project cards is dropped: a card's figures are copied by hand into `profile.json`, with the day they were measured ([content.md](content.md#how-a-projects-card-turns-on)). Details: [content.md](content.md). Also due before it, though not blocking: [Q-photo](product.md), [Q-segway](product.md), [Q-other-repos](product.md).
 
 Owned work is cards, not pages (Joseph, 2026-10-23). stillhere's card links to its repository, whose README carries its story, and gitops stays off the site until it is public again ([content.md](content.md#owned-work)). Q-projects stays open for the capacitor line.
 
@@ -222,6 +222,7 @@ Owned work is cards, not pages (Joseph, 2026-10-23). stillhere's card links to i
 - [x] The résumé line follows Q-resume: a LinkedIn link and "Full résumé on request", on `/resume/` since 2026-10-25 (Q9 (a), as a page). No résumé PDF is hosted or committed.
 - [ ] `/now/` shows the date it was written.
 - [ ] The header shows only sections that have content.
+- [x] The ⌘K palette lists the pages that exist, from the nav manifest, the actions and the checked profiles, from `profile.json`. Done on 2026-10-25, ahead of the rest of this pull request, as the command menu ([design-system.md](design-system.md#the-command-menu)); Joseph's VoiceOver and NVDA pass over it is the one PR 3 lists beside the toggle's.
 
 **What it teaches.** **System of record** again, for people data: LinkedIn owns the employment history, the repository owns the public profile, and nothing is copied between them, so nothing drifts. And for project stories: the repository owns its README and decisions, and the site links to them instead of keeping a second copy. The **mosaic effect** applied to a career arc.
 
@@ -354,8 +355,8 @@ S1 and S3 to S6 ran on 2026-10-23 with two departures from the rules above: they
 | Item | Why it waits | What would bring it forward |
 |---|---|---|
 | A résumé PDF (printed from `/resume/`, clean PDF metadata) | It needs the firewall answers first (Q-threat-model, Q-career-arc), and a PDF is a one-way door. The HTML edition, with "Full résumé on request", serves recruiters meanwhile: `/resume/` since 2026-10-25 | Joseph chooses it in [Q-resume](product.md), option (b) |
-| Pagefind search | No search until about 20 posts. Then a static index, $0 at runtime, which can also feed the ⌘K palette | The 20th post |
-| Terminal mode (lazy-loaded, opened with Ctrl and the backtick key, or from the palette) | An effect, not content. The launch effects are capped | Content pages complete and budgets green with room to spare |
+| Pagefind search | No search until about 20 posts. Then a static index, $0 at runtime, which can also feed the command menu | The 20th post |
+| Terminal mode (lazy-loaded, opened with Ctrl and the backtick key, or from the command menu) | An effect, not content. The launch effects are capped | Content pages complete and budgets green with room to spare |
 | Mission-AI references | Off the site at launch ([Q-mission](product.md)) | Joseph's decision, after the IP check |
 | Containers | Paid-only, and the first Container-backed demo is itself an upgrade trigger ([ADR 0008](adr/0008-workers-free-with-guardrails.md)) | A demo that needs a native solver or a long-running process |
 | gitops back on the site | Private since 2026-10-23. Joseph's plan: clean its history the way stillhere's was cleaned, make it public, then turn its card on ([content.md](content.md#owned-work)) | His go-ahead for the history cleanup |

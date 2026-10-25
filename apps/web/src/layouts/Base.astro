@@ -2,6 +2,7 @@
 import { Font } from 'astro:assets';
 import Footer from '../components/Footer.astro';
 import Header from '../components/Header.astro';
+import Palette from '../components/Palette.astro';
 import { loadLabArea, loadProfile, loadWritingArea } from '../lib/content';
 import { labRoutes } from '../lib/lab';
 import { NOINDEX } from '../lib/noindex.mjs';
@@ -56,10 +57,14 @@ const generated = [...areaRoutes(area), ...labRoutes(await loadLabArea())];
 // The faces (design-system.md, "The faces"): Instrument Sans draws the name, the headings and every
 // sentence of every page's first screen, so it is preloaded. JetBrains Mono sets values only, a
 // post's dates, a card's tag and figures, the lab's labels and figures, the résumé's addresses, and
-// code. So it is not preloaded, and a page fetches it when it sets something in it, in the fitted
-// fallback until then; the 404, which sets nothing in it, never does.
+// code, and the command menu's keys in the footer, under a pointer that can hover. So it is not
+// preloaded, and a page fetches it when it sets something in it, in the fitted fallback until then;
+// the 404 on a touch screen, which sets nothing in it, never does.
 
 // The skip link sits in the masthead, the header's frame, which it covers when focused (global.css).
+
+// The command menu (components/Palette.astro) follows the footer, whose button opens it: a closed
+// <dialog> the page does not draw, and the one module every page loads (src/scripts/palette.js).
 
 // The browser chrome takes the page's background: one theme-color meta per OS scheme, resolved
 // from tokens.css at build (lib/tokens.ts). They come before the theme script, which points both
@@ -124,6 +129,7 @@ const chrome = (['dark', 'light'] as const).map((scheme) => ({
       <slot />
     </main>
     <Footer profile={profile} generated={generated} />
+    <Palette profile={profile} generated={generated} />
     {jsonLd && <script is:inline type="application/ld+json" set:html={jsonLd} />}
   </body>
 </html>

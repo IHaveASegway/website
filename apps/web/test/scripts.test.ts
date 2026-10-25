@@ -12,14 +12,21 @@ import { html, read } from './support/dist';
 // own module, the bundle Astro builds from its component's script (components/route-lab/boot.ts),
 // from /_astro/ and never inline. It shows the demo's controls and loads the rest on first use;
 // test/budgets.test.ts holds it to the eager budget every page has.
+//
+// And every page has a fourth, once (design-system.md, "The command menu"): the command menu's
+// module, the bundle Astro builds from components/Palette.astro's script (src/scripts/palette.js),
+// from /_astro/ and never inline, after the theme script and in <body>.
 
-type Verdict = 'theme' | 'json-ld' | 'route-lab' | string;
+type Verdict = 'theme' | 'json-ld' | 'route-lab' | 'palette' | string;
 
 /** The one page allowed a module of its own, and the name Astro gives that module's bundle. */
 export const ROUTE_LAB = {
   page: 'lab/routes/index.html',
   src: /^\/_astro\/RouteLab\.astro_astro_type_script_index_0_lang\.[\w-]+\.js$/,
 } as const;
+
+/** The name Astro gives the command menu's bundle, which every page loads. */
+export const PALETTE = /^\/_astro\/Palette\.astro_astro_type_script_index_0_lang\.[\w-]+\.js$/;
 
 export function classify(
   script: {
@@ -39,6 +46,13 @@ export function classify(
     script.body === ''
   )
     return 'route-lab';
+  if (
+    names === 'src type' &&
+    script.attributes['type'] === 'module' &&
+    PALETTE.test(script.attributes['src'] ?? '') &&
+    script.body === ''
+  )
+    return 'palette';
   return `not allowed: <script ${names}> ${script.body.slice(0, 60)}`;
 }
 
@@ -47,13 +61,16 @@ for (const file of html) {
     const page = read(file);
     const verdicts = tags(page, 'script').map((script) => classify(script, file));
 
-    test('every script is the theme script or JSON-LD, and on the Route Lab its own module, once', () => {
-      expect(verdicts.filter((v) => v !== 'theme' && v !== 'json-ld' && v !== 'route-lab')).toEqual(
-        [],
-      );
+    test("every script is the theme script, JSON-LD or the command menu's module, once, and on the Route Lab its own module", () => {
+      const known = ['theme', 'json-ld', 'route-lab', 'palette'];
+      expect(verdicts.filter((v) => !known.includes(v))).toEqual([]);
       expect(verdicts.filter((v) => v === 'route-lab')).toHaveLength(
         file === ROUTE_LAB.page ? 1 : 0,
       );
+      expect(verdicts.filter((v) => v === 'palette')).toHaveLength(1);
+      // In <body>, so the theme script in <head> still runs first.
+      const body = page.slice(page.indexOf('<body'));
+      expect(tags(body, 'script').filter((s) => classify(s, file) === 'palette')).toHaveLength(1);
     });
 
     test('the theme script is there once, in <head> before any stylesheet, so it runs before <body> exists', () => {
@@ -121,5 +138,45 @@ test('known answers: the Route Lab module is allowed on its page only, from /_as
       },
       ROUTE_LAB.page,
     ),
+  ).toMatch(/^not allowed/);
+});
+
+test("known answers: the command menu's module is allowed on any page, from /_astro/, never inline", () => {
+  const menu = {
+    attributes: {
+      type: 'module',
+      src: '/_astro/Palette.astro_astro_type_script_index_0_lang.BlEyArqa.js',
+    },
+    body: '',
+  };
+  expect(classify(menu)).toBe('palette');
+  expect(classify(menu, ROUTE_LAB.page)).toBe('palette');
+  expect(classify(menu, '404.html')).toBe('palette');
+  // Its code inline, a classic script, an extra attribute or a foreign host: refused.
+  expect(classify({ attributes: { type: 'module' }, body: 'import "./palette.js"' })).toMatch(
+    /^not allowed/,
+  );
+  expect(classify({ attributes: { src: menu.attributes.src }, body: '' })).toMatch(/^not allowed/);
+  expect(classify({ ...menu, attributes: { ...menu.attributes, async: '' } })).toMatch(
+    /^not allowed/,
+  );
+  expect(
+    classify({
+      attributes: {
+        type: 'module',
+        src: 'https://cdn.example.net/Palette.astro_astro_type_script_index_0_lang.x.js',
+      },
+      body: '',
+    }),
+  ).toMatch(/^not allowed/);
+  // The Route Lab's module stays its page's alone.
+  expect(
+    classify({
+      attributes: {
+        type: 'module',
+        src: '/_astro/RouteLab.astro_astro_type_script_index_0_lang.BW_ExEQE.js',
+      },
+      body: '',
+    }),
   ).toMatch(/^not allowed/);
 });
