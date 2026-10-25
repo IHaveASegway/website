@@ -1025,6 +1025,26 @@
     overflow-wrap: anywhere;
   }
 
+  /* Each address stands beside its label while the list is wide enough for the longest one, about
+     25.2em, as it is beside the name from 75rem; narrower, on a phone or with a larger text size,
+     the label goes above its address, which then has the list's whole width. Beside a label there,
+     LinkedIn's address took two lines at the default size, and at 32 px every address broke inside
+     a word, "ihaveasegw / ay.com" among them. */
+  .resume .hero-side {
+    container: contact / inline-size;
+  }
+
+  @container contact (width < 25.5em) {
+    .resume-contact {
+      grid-template-columns: minmax(0, 1fr);
+      row-gap: 0;
+    }
+
+    .resume-contact dd + dt {
+      margin-top: 0.75rem;
+    }
+  }
+
   /* The address in the notes, with its full stop, is one box: it moves whole to the next line when
      it does not fit after the words before it, and breaks after its "@" (resume/index.astro) only
      when it alone is wider than the line, and inside a part only as a last resort, as the footer's. */
@@ -1253,10 +1273,10 @@
      default text size: together they need about 40.5em. From a larger text size they go under it,
      where beside it the name would break inside a word. */
   .resume {
-    container-type: inline-size;
+    container: resume / inline-size;
   }
 
-  @container (width < 41em) {
+  @container resume (width < 41em) {
     .resume .hero {
       grid-template-columns: minmax(0, 1fr);
     }
