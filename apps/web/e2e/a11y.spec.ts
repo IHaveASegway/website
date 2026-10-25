@@ -181,25 +181,55 @@ test('known answers: the larger-text check names each fault, and passes a name o
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 640 });
-  // Monospace, so the widths do not depend on the machine: 0.6em a character.
   await page.setContent(
     [
       '<body style="margin: 0; font: 20px monospace">',
-      '<h1 class="hero-name" style="width: 90px; margin: 0; font-size: 20px; overflow-wrap: break-word">Joseph Peterson</h1>',
-      '<a class="btn" href="/x" style="display: inline-flex; width: 60px; white-space: nowrap; font-size: 16px">LinkedIn ↗</a>',
+      '<h1 class="hero-name" style="margin: 0; font-size: 20px; overflow-wrap: break-word">Joseph Peterson</h1>',
+      '<a class="btn" href="/x" style="display: inline-flex; white-space: nowrap; font-size: 16px">LinkedIn ↗</a>',
       '<button type="button" style="width: 44px; height: 44px"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap">A name only a reader hears</span></button>',
-      '<div class="frame" style="padding: 0 80px"><footer style="white-space: nowrap; font-size: 16px">hello@ihaveasegway.com</footer></div>',
+      '<div class="frame"><footer style="white-space: nowrap; font-size: 16px">hello@ihaveasegway.com</footer></div>',
       '</body>',
     ].join(''),
   );
+  // Each box is sized from the face this machine draws, never from an assumed character width:
+  // CI's monospace face is narrower than 0.6em, and there "Peterson" fit a fixed 90 px box.
+  const measured = await page.evaluate(() => {
+    const width = (element: HTMLElement, words: string) => {
+      const probe = element.appendChild(document.createElement('span'));
+      probe.style.whiteSpace = 'nowrap';
+      probe.textContent = words;
+      const drawn = probe.getBoundingClientRect().width;
+      probe.remove();
+      return drawn;
+    };
+    const [heading, button, frame, footer] = ['.hero-name', '.btn', '.frame', 'footer'].map(
+      (selector) => document.querySelector<HTMLElement>(selector),
+    );
+    if (!heading || !button || !frame || !footer) throw new Error('the fixture lost an element');
+    const [joseph, peterson] = [width(heading, 'Joseph'), width(heading, 'Peterson')];
+    heading.style.width = `${(joseph + peterson) / 2}px`; // "Joseph" fits, "Peterson" does not
+    button.style.width = `${width(button, 'LinkedIn ↗') / 2}px`;
+    // Half the address fits the frame, and all of it the page, so the page does not scroll.
+    const email = width(footer, 'hello@ihaveasegway.com');
+    frame.style.padding = `0 ${innerWidth - email / 2}px 0 0`;
+    return { joseph, peterson, email };
+  });
+  expect(measured.peterson - measured.joseph, '"Peterson" is wider than "Joseph"').toBeGreaterThan(
+    4,
+  );
+  expect(measured.email, 'the address fits the page').toBeLessThan(320);
   const faults = await page.evaluate(largeTextFaults);
   expect(faults.map(({ where, what }) => `${where}: ${what}`)).toEqual([
     'LinkedIn ↗: content outside its box',
     'footer: "hello@ihaveasegway.com" past the frame',
     'name: "Peterson" breaks across 2 lines',
   ]);
-  await page.setViewportSize({ width: 200, height: 640 });
-  expect((await page.evaluate(largeTextFaults))[0]?.what).toMatch(/^scrolls \d+ px sideways$/);
+  await page.evaluate(() => {
+    const wide = document.body.appendChild(document.createElement('div'));
+    wide.style.width = '400px';
+    wide.style.height = '1px';
+  });
+  expect((await page.evaluate(largeTextFaults))[0]?.what).toBe('scrolls 80 px sideways');
 });
 
 // The skip link (SC 2.4.1), focused, covers the header's whole row, so nothing in the header shows
