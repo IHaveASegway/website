@@ -11,6 +11,10 @@ dist-preview/
 tools/vroom-wasm/vroom.mjs
 tools/vroom-wasm/vroom.wasm
 
+# The solver's test inputs: generated, never committed (tools/vroom-wasm/test/gen-fixtures.mjs is
+# seeded, so they are the same bytes every run; fixtures.sha256 records them)
+tools/vroom-wasm/test/fixtures/
+
 # Test output
 playwright-report/
 playwright-report-writing/

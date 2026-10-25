@@ -12,11 +12,11 @@ DIST=$(cd "$HERE/.." && pwd)
 WORK=${WORK:-/tmp/vroom-wasm-build}
 cd "$DIST"
 
-echo "== fixtures are deterministic"
-before=$(cat test/fixtures/*.json | sha256sum)
+echo "== fixtures are the recorded ones"
+# Generated, not committed: the seeded generator must give the bytes the results were made from.
 node test/gen-fixtures.mjs >/dev/null
-after=$(cat test/fixtures/*.json | sha256sum)
-[ "$before" = "$after" ] || { echo "gen-fixtures.mjs changed the fixtures" >&2; exit 1; }
+got=$(cat test/fixtures/*.json | sha256sum | cut -d' ' -f1)
+[ "$got" = "$(cat test/fixtures.sha256)" ] || { echo "gen-fixtures.mjs no longer gives the recorded fixtures" >&2; exit 1; }
 
 echo "== wasm vs native g++/libstdc++ (unpatched upstream)"
 VROOM_NATIVE="$WORK/vroom-native/bin/vroom" LABEL=gcc node test/verify.mjs | tail -3

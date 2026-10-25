@@ -144,7 +144,7 @@ All checks pass. The last full run of `test/run-all.sh` took 6 min 38 s on 2026-
 
 | Check                                                                                                                                    | Result                                                                                                                               |
 | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Fixtures regenerate byte-identically (`gen-fixtures.mjs`, seeded)                                                                        | pass                                                                                                                                 |
+| Fixtures regenerate to the recorded bytes (`gen-fixtures.mjs`, seeded; `test/fixtures.sha256`)                                           | pass                                                                                                                                 |
 | wasm vs unpatched upstream g++ CLI, `-t 1`, timings removed: 7 inputs × levels 0–5, the 200-stop input at x=0, 3 error inputs (46 cases) | 34 byte-identical, 12 differ only in the order of `unassigned`, 0 other differences                                                  |
 | wasm vs clang/libc++ CLI (upstream plus patch 0001), same 46 cases                                                                       | 46 byte-identical                                                                                                                    |
 | AddressSanitizer + UBSan + `STACK_OVERFLOW_CHECK=2` + `ASSERTIONS=2` build vs clang/libc++                                               | 46 byte-identical, 0 ASan reports, 0 stack overflows; 1 UBSan site, upstream, outside patched code (below)                           |
@@ -155,7 +155,7 @@ All checks pass. The last full run of `test/run-all.sh` took 6 min 38 s on 2026-
 | Headless Chromium 153, module worker, 4 CSP combinations (below)                                                                         | every combination behaves as expected; all 8 browser answers equal Node's                                                            |
 | Memory (`memory.mjs`): 30 solves of 25×3 at x=5, 10 of 60×4 at x=5, 200 of 60×4 at x=0, 3 of 200×8, one module                           | wasm memory stays 17.2 MiB throughout (no growth, no leak)                                                                           |
 
-The inputs (`test/fixtures/`), all synthetic, around a depot in Seattle, with matrices from straight-line distance × 1.3 at trip-length-dependent speeds:
+The inputs (`test/fixtures/`, written by `node test/gen-fixtures.mjs` and not committed; `run-all.sh` writes them first and checks them against `test/fixtures.sha256`, and the other test scripts read them from there), all synthetic, around a depot in Seattle, with matrices from straight-line distance × 1.3 at trip-length-dependent speeds:
 
 1. `01-tsp-12`: 1 van, 12 stops, durations only (VROOM's TSP path).
 2. `02-cvrp-20x2`: 2 vans with capacity, 20 stops, durations and distances.
