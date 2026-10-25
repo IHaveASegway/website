@@ -7,8 +7,8 @@
 // about 350 KB, loads only when VROOM has something to plan (app.ts). A touch that only scrolls
 // the page loads nothing.
 
-const FAILED =
-  'This browser could not run the solver. VROOM’s plan on the map is the last one it made.';
+const UNLOADED =
+  'The demo did not load, so the maps still show the day it opened with. Change anything to try again.';
 const LOADING = 'Loading the solver…';
 
 /** The order checkbox nearest a point on a map, within 24 px, or null: the map's targets are the
@@ -40,15 +40,22 @@ if (root) {
   // or the surprise. Which map a phone shows is not a change to the plan.
   const queued: Element[] = [];
   let ready = false;
+  let failed = false;
   let started: Promise<void> | undefined;
+  // A load that fails (a dropped connection, or a deploy that retired the files this page names)
+  // is not kept: the next change tries again. A focus or a mouse over the demo does not, so a
+  // failure costs one request per change, not one per movement.
   const start = () => {
     started ??= import('./app')
       .then((app) => app.start(root, queued, nearest))
       .then(() => {
         ready = true;
+        failed = false;
       })
       .catch(() => {
-        if (status) status.textContent = FAILED;
+        started = undefined;
+        failed = true;
+        if (status) status.textContent = UNLOADED;
       });
   };
   const queue = (element: Element) => {
@@ -57,9 +64,11 @@ if (root) {
     if (status) status.textContent = LOADING;
   };
 
-  root.addEventListener('focusin', start);
+  root.addEventListener('focusin', () => {
+    if (!failed) start();
+  });
   root.addEventListener('pointerover', (event) => {
-    if (event.pointerType !== 'touch') start();
+    if (event.pointerType !== 'touch' && !failed) start();
   });
   root.addEventListener('change', (event) => {
     const input = event.target;

@@ -4,6 +4,7 @@ import { pathData, routeLine } from './legs';
 import {
   BAKERY,
   SHARE,
+  shareCapacity,
   boxesOf,
   formatDuration,
   formatMiles,
@@ -172,9 +173,12 @@ export function bandsSentence(minutes: readonly number[], lines: readonly number
 
 /** The headline under the controls: what VROOM saves against the order the orders came in. */
 export function savedText(before: Measured, after: Measured): string {
-  const time = before.drive - after.drive;
+  // The difference of the totals as the page shows them, so the headline and the two big figures
+  // agree: whole minutes and tenths of a mile, each rounded before subtracting.
+  const time = (Math.round(before.drive / 60) - Math.round(after.drive / 60)) * 60;
   if (time < 60) return 'These orders came in an order VROOM could not beat.';
-  const metres = Math.max(0, before.metres - after.metres);
+  const tenths = (metres: number) => Math.round(metres / 160.9344);
+  const metres = Math.max(0, tenths(before.metres) - tenths(after.metres)) * 160.9344;
   return `VROOM saves ${formatDuration(time)} of driving and ${formatMiles(metres)}, ${percentLess(before.drive, after.drive)}% less.`;
 }
 
@@ -190,8 +194,13 @@ export function roomText(
   if (orders.length === 0) return '';
   const all = `${boxes} ${boxes === 1 ? 'box' : 'boxes'}`;
   if (vans === 1) return `One van takes all ${all}.`;
+  const share = shareCapacity(data, orders, vans);
   const why =
-    capacity > Math.ceil((boxes / vans) * SHARE) ? 'the largest order' : `${SHARE} times its share`;
+    capacity > share
+      ? 'room for every order, dealt in turn'
+      : capacity > Math.ceil((boxes / vans) * SHARE)
+        ? 'the largest order'
+        : `${SHARE} times its share`;
   return `Each van takes at most ${capacity} of the ${all}: ${why}.`;
 }
 

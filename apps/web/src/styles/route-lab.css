@@ -887,6 +887,7 @@
 .rl-table thead th {
   border-bottom-color: var(--input);
   font-weight: 600;
+  overflow-wrap: normal; /* a header is one short word: "Stop", "Boxes"; it never breaks inside */
 }
 
 .rl-table tbody th {

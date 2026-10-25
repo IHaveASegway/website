@@ -21,13 +21,22 @@ export interface Plan {
 /** How much more than its share of the day's boxes a van may take. */
 export const SHARE = 1.3;
 
-/** Boxes a van holds: 1.3 times its share of the day's boxes, rounded up, and never fewer than
- *  the largest order, so every plan fits and VROOM still has to balance the loads. The pipeline's
- *  ready-made days use the same rule. */
-export function capacityFor(data: RouteData, orders: readonly number[], vans: number): number {
+/** Boxes a van holds before dealing is checked: 1.3 times its share of the day's boxes, rounded
+ *  up, and never fewer than the largest order. The pipeline's ready-made days use this rule. */
+export function shareCapacity(data: RouteData, orders: readonly number[], vans: number): number {
   const qty = orders.map((i) => data.points[i]?.qty ?? 0);
   const boxes = qty.reduce((sum, q) => sum + q, 0);
   return Math.max(1, ...qty, Math.ceil((boxes / Math.max(1, vans)) * SHARE));
+}
+
+/** Boxes a van holds: the share rule above, raised until the orders dealt in turn all fit. Dealing
+ *  can leave an order no van has room for while the vans hold enough between them (2, 2 and 2 boxes,
+ *  then 3, in three vans of 4), and then the two plans would not serve the same orders. VROOM still
+ *  has to balance the loads. The ready-made days need no raise. */
+export function capacityFor(data: RouteData, orders: readonly number[], vans: number): number {
+  let capacity = shareCapacity(data, orders, vans);
+  while (dealtInTurn(data, orders, vans, capacity).unassigned.length > 0) capacity++;
+  return capacity;
 }
 
 /**
