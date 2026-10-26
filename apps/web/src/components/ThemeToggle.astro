@@ -1,4 +1,6 @@
 ---
+import { THEME_STATES as states } from '../lib/theme';
+
 // Cycles System, the theme the OS is not showing, then the one it is: every press but the return to
 // System changes the page. The click handler lives in the pre-paint script (src/scripts/theme.js),
 // so the toggle adds no script of its own. Each state is a span with its own icon (a half-filled
@@ -6,12 +8,8 @@
 // displays the one for the data-theme the script sets on <html>. The span's name, which says the
 // current theme, is read by assistive technology and hidden on screen, and its title carries the
 // same words for a pointer, over the whole button. The choice lasts for the tab (sessionStorage),
-// so the toggle needs no notice about storage (security.md, "Privacy and data inventory").
-const states = [
-  { theme: 'system', name: 'Theme: system' },
-  { theme: 'light', name: 'Theme: light' },
-  { theme: 'dark', name: 'Theme: dark' },
-] as const;
+// so the toggle needs no notice about storage (security.md, "Privacy and data inventory"). The
+// command menu's theme entry presses this button, and shows the same names (lib/theme.ts).
 ---
 
 <button type="button" class="theme-toggle" data-theme-toggle>

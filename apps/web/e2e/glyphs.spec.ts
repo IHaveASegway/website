@@ -81,11 +81,18 @@ for (const path of [...pages(), NOT_FOUND_PAGE]) {
 }
 
 // The known answer: a page that fetches the mono file and draws nothing in it, as every page did
-// with the preload, is reported, with that one file. The 404 sets nothing in mono on every build;
-// Home on the writing fixture does, in a post's date.
+// with the preload, is reported, with that one file. The 404 sets nothing in mono on every build
+// but the command menu's keys in its footer, which this copy of it leaves out; Home on the writing
+// fixture sets a post's date in it too.
 test('known answer: a font file fetched for a face that draws no text is reported', async ({
   page,
 }) => {
+  await page.route(`**${NOT_FOUND_PAGE}`, async (route) => {
+    const response = await route.fetch();
+    const body = (await response.text()).replace(/<li class="palette-item">.*?<\/li>/s, '');
+    expect(body).not.toContain('palette-item');
+    await route.fulfill({ response, body });
+  });
   const { unused } = await unusedFonts(page, NOT_FOUND_PAGE, () =>
     page.evaluate(async () => {
       const mono = [...document.fonts].find((face) =>

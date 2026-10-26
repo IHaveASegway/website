@@ -130,3 +130,5 @@ Two lines of the postscript above no longer hold, and neither changes the decisi
 ## Postscript 2026-10-25
 
 Astro no longer writes the page policy: `security.csp` is off, and the build writes the policy into `dist/_headers` as a header, with a hash for each page's inline code ([ADR 0018](0018-page-policy-as-a-header.md)). A header applies before the first byte of markup, so the theme script in `<head>` is governed like everything else, and the exception in the postscript of 2026-10-23 is closed. The decision stands; no Revisit if condition was met.
+
+The ⌘K palette shipped the same day as the command menu ([design-system.md](../design-system.md#the-command-menu)): one vanilla module on every page, 1,519 B gzip against the 1.2 KB this record estimated, which brings a content page's eager JavaScript to 2,110 B with the theme script, under the 5 KB budget. It is an opt-in module as **Zero JavaScript by default** allows, with no framework, so the decision stands.

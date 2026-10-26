@@ -24,8 +24,15 @@
   Content-Type: text/plain; charset=utf-8
 
 # Bundles named by content hash never change at their URL, so a year and immutable are safe.
-# HTML keeps Cloudflare's default, so a promoted version is what the next page view gets.
+# HTML keeps Cloudflare's default, so a promoted version is what the next page view gets. A bundle
+# is a script, a stylesheet or a font a page loads, never a document or a worker, so the policies
+# that only those obey are detached here: the page policy (the worker comes from the solver's
+# folder, below), Permissions-Policy and Cross-Origin-Opener-Policy. On every page they cost about
+# 570 B of header per bundle, which Lighthouse counts in a page's transfer (design-system.md).
 /_astro/*
+  ! Content-Security-Policy
+  ! Permissions-Policy
+  ! Cross-Origin-Opener-Policy
   Cache-Control: public, max-age=31536000, immutable
 
 # The Route Lab's solver (ADR 0016): VROOM compiled to WebAssembly, run in a module Web Worker. A

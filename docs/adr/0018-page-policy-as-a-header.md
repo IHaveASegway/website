@@ -48,7 +48,7 @@ Cloudflare's asset server and `wrangler dev` both apply every matching rule in o
 - The theme script's exception is gone, and with it the check that allowed it. `frame-ancestors` joins the page policy.
 - The policy shrinks to what the pages hold: Astro's 5 unused `script-src` hashes and its 1 `style-src` hash are gone, leaving 1 and 2.
 - The build owns about 200 lines of policy code, with known answers, where Astro's config held 20. A page that adds inline code gets its hash without an edit; a page that needs a new directive gets a line in `PAGE_DIRECTIVES`.
-- Every response but the solver's files carries the page policy, files as well as pages. A stylesheet, a font or an image ignores it.
+- Every response but the solver's files and the hashed bundles carries the page policy, files as well as pages; an image or a feed ignores it. The bundles under `/_astro/`, scripts, stylesheets and fonts, which are never a document or a worker, carry none, nor `Permissions-Policy` or `Cross-Origin-Opener-Policy`, since 2026-10-25: about 570 B of header each, on every page view, which Lighthouse counts in a page's transfer and which took the Route Lab's page past its 150 KB once the command menu added a bundle ([security.md](../security.md#headers-and-content-security-policy)).
 - Violation reports become possible, since a header can name an endpoint. None is collected yet.
 - A page with a policy of its own costs a `_headers` rule, and the asset server allows 100. Every page shares the 404's policy today but the Route Lab's.
 

@@ -1,0 +1,134 @@
+---
+import { navAll } from '../lib/nav';
+import { checkedProfiles, type Profile } from '../lib/profile';
+import { CONTACT_EMAIL } from '../lib/site';
+import { THEME_STATES } from '../lib/theme';
+
+interface Props {
+  profile: Profile;
+  /** URLs content adds to this build (lib/posts.ts, areaRoutes; lib/lab.ts, labRoutes). */
+  generated: readonly string[];
+}
+
+const { profile, generated } = Astro.props;
+
+// The command menu (design-system.md, "The command menu"), written into every page and opened by
+// src/scripts/palette.js. Its rows, in three groups: Go to, Home and the manifest's pages this
+// build writes, as the header and the footer list them (lib/nav.ts; a feed is a file, not a page);
+// Actions, copying the address and the theme, whose entry shows the toggle's names; and Links, the
+// profiles whose readiness check is recorded, as the footer lists them. Every row also exists
+// elsewhere on the page, in the nav, the toggle or the footer: the menu is a shortcut, never the
+// only way in (content.md, "Sitemap and phases"). The page's own text is all it shows: what a
+// visitor types narrows the rows and is never written back (security.md, "Threat model").
+const KEYWORDS: Readonly<Record<string, string>> = {
+  home: 'start',
+  lab: 'demos',
+  writing: 'posts articles',
+  resume: 'cv experience',
+  about: 'bio',
+  colophon: 'decisions',
+};
+const pages = [
+  { id: 'home', label: 'Home', href: '/' },
+  ...navAll(generated).filter((item) => item.href.endsWith('/')),
+];
+const profiles = checkedProfiles(profile);
+---
+
+<dialog class="palette" data-palette aria-label="Command menu">
+  <input
+    class="palette-input"
+    type="text"
+    role="combobox"
+    aria-label="Find a page or an action"
+    aria-expanded="true"
+    aria-controls="palette-list"
+    aria-autocomplete="list"
+    autocomplete="off"
+    spellcheck="false"
+    autocapitalize="none"
+    enterkeyhint="go"
+    placeholder="Find a page or an action"
+  />
+  <div
+    class="palette-list"
+    id="palette-list"
+    role="listbox"
+    aria-label="Command menu"
+    tabindex="-1"
+  >
+    <ul class="palette-group" role="group" aria-labelledby="palette-go">
+      <li class="label palette-heading" id="palette-go" role="presentation">
+        Go to
+      </li>
+      {pages.map((page) => (
+        <li
+          class="palette-option"
+          role="option"
+          id={`palette-${page.id}`}
+          data-href={page.href}
+          data-keys={KEYWORDS[page.id]}
+        >
+          {page.label}
+        </li>
+      ))}
+    </ul>
+    <ul class="palette-group" role="group" aria-labelledby="palette-actions">
+      <li class="label palette-heading" id="palette-actions" role="presentation">
+        Actions
+      </li>
+      <li
+        class="palette-option"
+        role="option"
+        id="palette-copy"
+        data-act="copy"
+        data-copy={CONTACT_EMAIL}
+        data-keys="mail contact"
+      >
+        {'Copy email address '}
+        <span class="palette-value">{CONTACT_EMAIL}</span>
+      </li>
+      <li
+        class="palette-option"
+        role="option"
+        id="palette-theme"
+        data-act="theme"
+        data-keys="light dark mode"
+      >
+        {THEME_STATES.map(({ theme, name }) => (
+          <span class="palette-theme" data-for={theme}>
+            {name}
+          </span>
+        ))}
+      </li>
+    </ul>
+    {profiles.length > 0 && (
+      <ul class="palette-group" role="group" aria-labelledby="palette-links">
+        <li class="label palette-heading" id="palette-links" role="presentation">
+          Links
+        </li>
+        {profiles.map((p) => (
+          <li
+            class="palette-option"
+            role="option"
+            id={`palette-${p.network.toLowerCase()}`}
+            data-href={p.url}
+            data-keys="profile"
+          >
+            {p.network}
+          </li>
+        ))}
+      </ul>
+    )}
+  </div>
+  <p class="palette-empty" data-palette-empty hidden>
+    No matches
+  </p>
+  <p class="palette-note" data-palette-note></p>
+  <p class="palette-say" role="status" data-palette-say></p>
+  <p class="palette-help">↑/↓ move · enter open · esc close</p>
+</dialog>
+
+<script>
+  import '../scripts/palette.js';
+</script>

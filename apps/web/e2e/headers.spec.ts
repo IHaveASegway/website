@@ -99,7 +99,9 @@ test('known answers: Vary is read as a list of names, in any case', () => {
   expect(varyNames(undefined)).toEqual([]);
 });
 
-test('hashed bundles are cached for a year; HTML revalidates', async ({ request }) => {
+test('hashed bundles are cached for a year, without the document policies; HTML revalidates', async ({
+  request,
+}) => {
   const page = await request.get('/');
   expect(page.headers()['cache-control']).toBe(REVALIDATE);
   const stylesheet = /href="(\/_astro\/[^"]+\.css)"/.exec(await page.text())?.[1];
@@ -107,6 +109,15 @@ test('hashed bundles are cached for a year; HTML revalidates', async ({ request 
   const bundle = await request.get(stylesheet ?? '');
   expect(bundle.status()).toBe(200);
   expect(bundle.headers()['cache-control']).toBe(IMMUTABLE);
+  // A bundle is never a document or a worker, so it carries none of the policies only those obey
+  // (public/_headers), and keeps the rest.
+  for (const name of [
+    'content-security-policy',
+    'permissions-policy',
+    'cross-origin-opener-policy',
+  ])
+    expect(bundle.headers()[name], name).toBeUndefined();
+  expect(bundle.headers()['x-content-type-options']).toBe('nosniff');
 });
 
 test('security.txt is plain UTF-8 text (RFC 9116)', async ({ request }) => {

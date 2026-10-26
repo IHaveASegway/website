@@ -22,7 +22,9 @@ for (const path of ROUTES) {
       const shown = (e: Element) => e.checkVisibility();
       const links = [...document.querySelectorAll<HTMLAnchorElement>('a[href]')].filter(shown);
       return {
-        controls: [...document.querySelectorAll('.skip-link, .site-nav, .theme-toggle')]
+        controls: [
+          ...document.querySelectorAll('.skip-link, .site-nav, .theme-toggle, .palette-item'),
+        ]
           .filter(shown)
           .map((e) => e.className),
         header: [...document.querySelectorAll('.site-header')].filter(shown).length,
