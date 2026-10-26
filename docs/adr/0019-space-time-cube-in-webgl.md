@@ -40,7 +40,7 @@ The rules change, each with its test:
 | Rule | Before | After | Test |
 |---|---|---|---|
 | Principle 6 and the rejected list | no WebGL; a WebGL hero rejected | interactive 3D is allowed where it shows the work, on intent, over a picture that stands without it; a decorative WebGL hero stays rejected | review; this record |
-| The Route Lab's budgets | lazy JavaScript ≤ 12,000 B, everything the page reaches | the same 12,000 B for the app and the solver alone (10,833 B), and the cube's own: its chunk and what only it reaches ≤ 150,000 B (142,233 B), and its first view with the app, the route data and the cube ≤ 400,000 B (353,507 B). The first view stays ≤ 150,000 B (147,449 B) and the first solve ≤ 600,000 B (559,297 B) | `test/budgets.test.ts` |
+| The Route Lab's budgets | lazy JavaScript ≤ 12,000 B, everything the page reaches | the same 12,000 B for the app and the solver alone (10,833 B), and the cube's own: its chunk and what only it reaches ≤ 150,000 B (142,233 B), and its first view with the app, the route data and the cube ≤ 400,000 B (353,564 B). The first view stays ≤ 150,000 B (147,506 B) and the first solve ≤ 600,000 B (559,354 B) | `test/budgets.test.ts` |
 | Dependencies | no runtime library in the browser | `three` 0.186.1, MIT, pinned exactly, bundled into the cube's chunk only | `test/budgets.test.ts` (the chunk is the cube's alone) |
 
 The weaker budget design was to raise the Route Lab's 12,000 B to about 155,000 B. It would let the solver's own code grow twelvefold before any check noticed. A budget per part keeps each number's meaning.
@@ -61,7 +61,7 @@ The weaker budget design was to raise the Route Lab's 12,000 B to about 155,000 
 ## Consequences
 
 - **A runtime dependency.** three.js ships a release a month; Dependabot sees it. Its chunk is the largest file the site serves after the solver's WebAssembly.
-- **The Route Lab's first view has 2,551 B of headroom** under 150,000 B, after 2,724 B of HTML for the two pictures, 335 B of eager JavaScript and 605 B of CSS (against main's 143,785 B on 2026-10-26). The next addition to that page will need to take something out or amend that budget here.
+- **The Route Lab's first view has 2,494 B of headroom** under 150,000 B, after 2,724 B of HTML for the two pictures, 335 B of eager JavaScript and 605 B of CSS (against 143,785 B before), and 57 B more CSS from the wide frame (#28). The next addition to that page will need to take something out or amend that budget here.
 - **A GPU cost only for a visitor who asks for it.** Nothing draws without a change, so an idle cube costs nothing.
 - **Headless Chromium draws WebGL through SwiftShader**, so CI tests the real scene: screenshots of the canvas change with a drag, a key and the slider, and come back with Reset and Home; a lost context is forced with `WEBGL_lose_context`.
 - **A review before the first push** (2026-10-26) found a canvas that could replace the picture before any plan arrived, a touch scroll that loaded the scene, a live region that spoke every frame of Play, a GPU program compiled again on every frame and change, a lost context that later changes undid, and vans B and D told apart by color alone. Each is fixed above and has a test.
