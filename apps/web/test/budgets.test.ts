@@ -1,7 +1,16 @@
 import { describe, expect, test } from 'vitest';
 import { declaredFonts, eagerScripts, gzipBytes, preloadedFonts } from '../src/lib/weights';
 import { bytes, fileFor, files, html, kinds, read } from './support/dist';
-import { BUDGETS, FEATURES, featureOf, gz, importsOf, measure, reachable } from './support/measure';
+import {
+  BUDGETS,
+  cubeFiles,
+  FEATURES,
+  featureOf,
+  gz,
+  importsOf,
+  measure,
+  reachable,
+} from './support/measure';
 
 // The byte budgets, measured on dist/ (support/measure.ts). This replaces PR 2's "no JavaScript at
 // all" check, as that check said it would: the theme script is the site's first JavaScript.
@@ -45,8 +54,11 @@ describe('the Route Lab', () => {
   const feature = FEATURES['route-lab'];
   const own = files.filter((file) => featureOf(file) === 'route-lab');
   // Its lazy JavaScript: every script it owns but its entry bundle, which its page loads eagerly
-  // and the eager budget above counts.
-  const ownJs = own.filter((file) => /\.m?js$/.test(file) && !feature.entry.test(file));
+  // and the eager budget above counts, and the space-time cube's, which has its own (ADR 0019).
+  const cube = cubeFiles();
+  const ownJs = own.filter(
+    (file) => /\.m?js$/.test(file) && !feature.entry.test(file) && !cube.includes(file),
+  );
   const wasm = files.filter((file) => kinds.get(file) === 'wasm');
   const page = files.includes(feature.page) ? read(feature.page) : null;
   const data = page ? fileFor(/data-rl-data="([^"]+)"/.exec(page)?.[1] ?? '') : null;
@@ -92,6 +104,28 @@ describe('the Route Lab', () => {
       expect(firstView).toBeLessThanOrEqual(feature.firstView);
       const firstSolve = firstView + gz(data ?? '') + lazyBytes + wasmBytes;
       expect(firstSolve).toBeLessThanOrEqual(feature.firstSolve);
+    },
+  );
+
+  // The space-time cube (ADR 0019): three.js in one chunk, loaded on intent at the cube, never on
+  // a scroll. A visitor who turns it has fetched the first view, the app, the route data and it.
+  const cubeBytes = cube.reduce((sum, file) => sum + gz(file), 0);
+  test(`the cube's lazy JavaScript: ${cubeBytes} B of ${feature.cube.lazyJavaScript}`, () => {
+    expect(cube.length).toBeGreaterThan(0);
+    for (const file of cube) expect(eager.has(file), file).toBe(false);
+    expect(cubeBytes).toBeLessThanOrEqual(feature.cube.lazyJavaScript);
+  });
+
+  test.runIf(page !== null)(
+    `its first view, the app, the route data and the cube stay within ${feature.cube.firstCube} B`,
+    () => {
+      const figures = measure(page ?? '');
+      const firstView =
+        gzipBytes(page ?? '') + figures.css + figures.declaredFonts + figures.eagerJavaScript;
+      const appBytes = ownJs.filter((f) => !f.endsWith('.mjs')).reduce((s, f) => s + gz(f), 0);
+      expect(firstView + appBytes + gz(data ?? '') + cubeBytes).toBeLessThanOrEqual(
+        feature.cube.firstCube,
+      );
     },
   );
 });

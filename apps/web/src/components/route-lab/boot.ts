@@ -73,6 +73,7 @@ if (root) {
   root.addEventListener('change', (event) => {
     const input = event.target;
     if (!(input instanceof HTMLInputElement) || input.name === 'rl-view') return;
+    if (input.closest('[data-rl-cube]')) return; // the cube's own controls plan nothing
     queue(input);
     start();
   });
@@ -89,4 +90,39 @@ if (root) {
     const map = target?.closest('svg[data-rl-map]');
     if (map instanceof SVGSVGElement) nearest(root, map, event.clientX, event.clientY)?.click();
   });
+
+  // The space-time cube (ADR 0019): three.js, about 140 KB, loads on intent at the cube itself, a
+  // mouse over it, a focus or a press inside it, and never on a scroll. The app loads with it,
+  // since the cube draws the app's plans. A press of Play before it arrives is kept for it.
+  const cube = root.querySelector<HTMLElement>('[data-rl-cube]');
+  if (cube) {
+    let cubed: Promise<unknown> | undefined;
+    let live = false;
+    const open = () => {
+      start();
+      cubed ??= import('./cube')
+        .then((scene) => {
+          live = scene.start(root);
+          if (!live)
+            for (const part of cube.querySelectorAll<HTMLElement>('[data-rl-cube-controls]'))
+              part.hidden = true;
+        })
+        .catch(() => {
+          cubed = undefined;
+        });
+    };
+    cube.addEventListener('pointerover', (event) => {
+      if (event.pointerType !== 'touch') open();
+    });
+    cube.addEventListener('focusin', open);
+    cube.addEventListener('pointerdown', open);
+    cube.addEventListener('input', open);
+    cube.addEventListener('click', (event) => {
+      const play = event.target instanceof Element && event.target.closest('[data-rl-cube-play]');
+      if (play instanceof HTMLElement && !live) {
+        play.dataset['rlCubeWant'] = '1';
+        open();
+      }
+    });
+  }
 }

@@ -20,6 +20,7 @@ import {
   tableMarkup,
   vanClass,
 } from '../../lib/route-lab/render';
+import SpaceTime from './SpaceTime.astro';
 import '../../styles/route-lab.css';
 
 interface Props {
@@ -292,6 +293,8 @@ const bands = bandsSentence(
       Map data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>
     </p>
   </div>
+
+  <SpaceTime picture={picture} />
 
   <details class="rl-orders" data-rl-js>
     <summary>All {places.length} places</summary>
