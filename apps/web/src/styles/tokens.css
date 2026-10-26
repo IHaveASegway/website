@@ -81,6 +81,19 @@
   --text-statement--line-height: 1.02;
 }
 
+/* Wide screens (2026-10-26): from 1440px, where the sizes above stop, the display sizes grow again
+   on a gentler slope to 1920px, where the frame stops, so a wide screen gets the poster a laptop
+   gets rather than the laptop's page in a wider margin. Below 1440px nothing changes. The name ends
+   at 160px, 2.5 times its 64px floor, the most the zoom rule allows; the statement at 58px and the
+   title at 28px to 30px. No cap in vw: these apply only from 90rem. */
+@media (width >= 90rem) {
+  :root {
+    --text-hero: clamp(9rem, 6rem + 3.3333vw, 10rem); /* 144px to 160px */
+    --text-statement: clamp(3.25rem, 2.125rem + 1.25vw, 3.625rem); /* 52px to 58px */
+    --text-title: clamp(1.75rem, 1.375rem + 0.4167vw, 1.875rem); /* 28px to 30px */
+  }
+}
+
 /* Dark: the designed default, and what a stored "dark" asks for. */
 :root,
 :root[data-theme='dark'] {

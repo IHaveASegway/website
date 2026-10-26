@@ -110,16 +110,50 @@ test('a card with nothing to activate does not react to the pointer; one with a 
   expect(await border()).not.toBe(atRest.border);
 });
 
-test('known answer: with no preference, the same scan finds the card bar transition, and nothing else', async ({
+/** What Home would move with no preference: each card's bar, and each card's and post's title,
+ *  which rises as it scrolls into view (design-system.md, "Motion"), in document order. */
+const expectedMotion = (page: Page) =>
+  page.evaluate(() =>
+    [...document.querySelectorAll('.card, .post-title')].flatMap((element) =>
+      element.classList.contains('card')
+        ? ['article.card::before', 'h3.card-title']
+        : [`${element.tagName.toLowerCase()}.post-title`],
+    ),
+  );
+
+test('known answer: with no preference, the same scan finds the card bar and the rising titles, and nothing else', async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto('/');
-  // The one thing on Home that would move is a card's bar: one per card the page renders, none
-  // today, since no card has a target yet.
-  const cards = await cardCount(page);
-  expect(await moving(page)).toEqual(Array(cards).fill('article.card::before'));
-  // So the scan is shown to find a transition where there is one, on the site's own stylesheet.
+  expect(await moving(page)).toEqual(await expectedMotion(page));
+  // So the scan is shown to find motion where there is some, on the site's own stylesheet.
   await addCard(page);
-  expect(await moving(page)).toEqual(Array(cards + 1).fill('article.card::before'));
+  expect(await moving(page)).toEqual(await expectedMotion(page));
+});
+
+test('with no preference, a title rises on a scroll timeline, and one on screen at load stands still', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  if ((await cardCount(page)) === 0) await addCard(page);
+  // A declaration the browser refused would leave no animation at all: the build's minifier once
+  // folded the longhands into a shorthand Chromium refuses, and every check above still passed.
+  const title = await page.evaluate(() => {
+    const element = document.querySelector('.card-title') as HTMLElement;
+    const [animation] = element.getAnimations();
+    return {
+      scroll: animation?.timeline instanceof ViewTimeline,
+      onScreen: element.getBoundingClientRect().bottom < innerHeight,
+      transform: getComputedStyle(element).transform,
+      progress: animation?.effect?.getComputedTiming().progress,
+    };
+  });
+  expect(title.scroll).toBe(true);
+  // At 1440 × 900 the first card's title is on the first screen, so it is already in place.
+  expect(title.onScreen).toBe(true);
+  expect(title.progress).toBe(1);
+  expect(title.transform).toBe(SHOWN);
 });

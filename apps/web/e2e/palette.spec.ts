@@ -34,13 +34,19 @@ async function rows(page: Page): Promise<{ shown: string[]; active: string | nul
 
 test('Ctrl+K and ⌘K open it at once, with focus in its input; Esc closes it', async ({ page }) => {
   // With motion allowed, as most visitors have it: the menu still opens with no animation, its
-  // backdrop's included (design-system.md, "Motion").
+  // backdrop's included (design-system.md, "Motion"). Home's titles rise on scroll timelines, which
+  // exist from load and move only with the scroll, so only an animation on time is counted.
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await ready(page);
   for (const keys of ['Control+k', 'Meta+k']) {
     await page.keyboard.press(keys);
     await expect(menu(page)).toHaveJSProperty('open', true);
-    expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
+    expect(
+      await page.evaluate(
+        () =>
+          document.getAnimations().filter((a) => !(a.timeline instanceof ScrollTimeline)).length,
+      ),
+    ).toBe(0);
     await expect(input(page)).toBeFocused();
     await expect(input(page)).toHaveValue('');
     await page.keyboard.press('Escape');
