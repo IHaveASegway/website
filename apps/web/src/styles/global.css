@@ -115,15 +115,15 @@
   }
 
   /* Direction C, "Instrument", set as a poster (design-system.md, "Chosen direction"): every row
-     sits on a 12-column frame, four columns on a phone. The frame is 1792px of content inside 64px
-     margins, so a 1920px screen is filled as a 1440px one is; until 2026-10-26 it stopped at 1312px,
-     which left a third of a wide screen empty. Tailwind's preflight makes every box border-box, so
-     the padding counts inside max-width here: 120rem is 1792px of content plus 2 × 4rem. --gutter
-     is the space between columns. */
+     sits on a 12-column frame, four columns on a phone. The frame is 1312px of content inside 64px
+     margins, inside the 1,200 to 1,320 px most sites hold their content to; a wider screen gets a
+     wider margin, not longer rows (2026-10-26: a 1,792 px frame read as too wide). Tailwind's
+     preflight makes every box border-box, so the padding counts inside max-width here: 90rem is
+     1312px of content plus 2 × 4rem. --gutter is the space between columns. */
   .frame {
     --gutter: 1rem;
     width: 100%;
-    max-width: 120rem;
+    max-width: 90rem;
     margin-inline: auto;
     padding-inline: 1.125rem;
   }
