@@ -64,7 +64,8 @@ export const FEATURES = {
     lazyJavaScript: 12_000,
     wasm: 360_000,
     data: 60_000,
-    firstView: 150_000,
+    // 160 KB since the space-time cube's pictures (ADR 0019); every other page keeps 150 KB.
+    firstView: 160_000,
     firstSolve: 600_000,
     cube: {
       entry: /^_astro\/cube\.[\w-]+\.js$/,

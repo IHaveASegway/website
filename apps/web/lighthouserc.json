@@ -8,17 +8,51 @@
       }
     },
     "assert": {
-      "assertions": {
-        "largest-contentful-paint": [
-          "error",
-          { "maxNumericValue": 2500, "aggregationMethod": "median" }
-        ],
-        "cumulative-layout-shift": [
-          "error",
-          { "maxNumericValue": 0.1, "aggregationMethod": "median" }
-        ],
-        "total-byte-weight": ["error", { "maxNumericValue": 150000, "aggregationMethod": "median" }]
-      }
+      "assertMatrix": [
+        {
+          "matchingUrlPattern": ".*",
+          "assertions": {
+            "largest-contentful-paint": [
+              "error",
+              {
+                "maxNumericValue": 2500,
+                "aggregationMethod": "median"
+              }
+            ],
+            "cumulative-layout-shift": [
+              "error",
+              {
+                "maxNumericValue": 0.1,
+                "aggregationMethod": "median"
+              }
+            ]
+          }
+        },
+        {
+          "matchingUrlPattern": "^(?!.*/lab/routes/$).*$",
+          "assertions": {
+            "total-byte-weight": [
+              "error",
+              {
+                "maxNumericValue": 150000,
+                "aggregationMethod": "median"
+              }
+            ]
+          }
+        },
+        {
+          "matchingUrlPattern": "/lab/routes/$",
+          "assertions": {
+            "total-byte-weight": [
+              "error",
+              {
+                "maxNumericValue": 160000,
+                "aggregationMethod": "median"
+              }
+            ]
+          }
+        }
+      ]
     },
     "upload": {
       "target": "filesystem",
