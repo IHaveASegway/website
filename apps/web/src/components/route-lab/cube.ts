@@ -16,47 +16,64 @@ import {
   SRGBColorSpace,
   Scene,
   WebGLRenderer,
+  type Material,
   type Object3D,
+  type Texture,
 } from 'three';
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { formatDuration } from '../../lib/route-lab/plan';
-import { vanClass } from '../../lib/route-lab/render';
+import { isRound, vanClass } from '../../lib/route-lab/render';
 import {
   axes,
   boxFor,
   DEFAULT_VIEW,
-  frame,
   hourMarks,
-  project,
+  onCanvas,
+  pose,
+  VAN_DASHES,
   type Box,
   type View,
 } from '../../lib/route-lab/space-time';
 import { positionAt, tracks, type Track } from '../../lib/route-lab/timeline';
 import type { PlansDetail } from './app';
 
-// The space-time cube in WebGL (ADR 0019), loaded when a visitor shows intent at the cube (boot.ts).
-// It is a view, not a model: both plans come from the Route Lab's app on 'rl:plans', the same
-// plans the maps draw, and nothing here plans, stores or sends anything. One camera turns both
-// cubes, from the angle the build's pictures were drawn at (lib/route-lab/space-time.ts), so each
-// canvas takes its picture's place without a jump. It draws only when something changes: a drag,
-// a key, the time slider, a new plan or a theme. Nothing moves by itself but "Play the day", which
-// the visitor starts, which stops at the day's end, and which the same button pauses.
+// The space-time cube in WebGL (ADR 0019), loaded when a visitor shows intent at the cube and once
+// the Route Lab's app has its plans (boot.ts). It is a view, not a model: both plans come from the
+// app on 'rl:plans', the plans the maps draw, and nothing here plans, stores or sends anything.
+// One camera turns both cubes, from the angle the build's pictures were drawn at
+// (lib/route-lab/space-time.ts, pose), so each canvas takes its picture's place, with the first
+// plans, without a jump. It draws only when something changes: a drag, a key, the time slider, a
+// new plan or a theme. Nothing moves by itself but "Play the day", which the visitor starts, which
+// stops at the day's end, and which the same button pauses; under reduced motion it steps.
 
-/** How long "Play the day" takes from leaving to the end of the time axis. */
+/** "Play the day" crosses the whole time axis in this long; from half way, in half of it. */
 const PLAY_MS = 12_000;
+/** Under reduced motion, Play steps half an hour a second instead of gliding. */
+const STEP_SECONDS = 1800;
+const STEP_MS = 1000;
 /** Radians a press of an arrow key turns the cube. */
 const STEP = Math.PI / 24;
 /** The camera never goes under the floor, nor straight overhead, where the time axis vanishes. */
 const LOWEST = 0.12;
 const HIGHEST = 1.4;
+/** The floor texture's width: about one and a half times a cube's canvas at a 2× pixel ratio. */
+const FLOOR_PX = 1536;
 /** How many of the floor texture's pixels draw one screen pixel of a map's stroke. */
-const FLOOR_STROKE = 4;
-/** Dash and gap per van, in map units, so color is never the only signal (SC 1.4.1). */
-const DASHES: readonly (readonly [number, number] | null)[] = [null, [36, 18], [6, 16], [36, 14]];
+const FLOOR_STROKE = 3;
+const PLAY = 'Play the day';
+const PAUSE = 'Pause';
 
 type Which = 'before' | 'after';
+
+/** What a plan puts in one cube: its tracks, and the "now" marks moved as time changes. */
+interface Drawn {
+  readonly group: Group;
+  readonly tracks: readonly Track[];
+  readonly level: Group;
+  readonly vans: readonly { drop: LineSegments; dot: Points }[];
+}
 
 interface Stage {
   readonly which: Which;
@@ -71,11 +88,13 @@ interface Stage {
   readonly camera: OrthographicCamera;
   /** Width over height, the picture's, so the canvas takes exactly its room. */
   readonly aspect: number;
-  content: Group;
-  /** The map's floor: the same for every plan, painted again only for a new theme. */
+  /** The canvas's CSS size, from the ResizeObserver: no layout is read while drawing. */
+  size: { width: number; height: number };
+  drawn: Drawn | null;
   floor: Mesh | null;
-  now: Group;
-  tracks: Track[];
+  /** Each material a plan draws with, by role and van, kept for the theme's life: a plan with
+   *  fewer vans never frees one, so the next plan never makes the GPU compile it again. */
+  readonly materials: Map<string, Material>;
 }
 
 const LABELS: Record<Which, string> = {
@@ -84,16 +103,23 @@ const LABELS: Record<Which, string> = {
 };
 
 /** Starts the cube, or returns false and leaves the pictures as they are when this browser cannot
- *  draw WebGL. */
+ *  draw WebGL. Call it once the app has started: the canvases replace the pictures with the first
+ *  plans the app sends. */
 export function start(root: HTMLElement): boolean {
   const found = root.querySelector<HTMLElement>('[data-rl-cube]');
   if (!found) return false;
   const section: HTMLElement = found;
   const $ = <T extends Element>(selector: string) => section.querySelector<T>(selector);
   const slider = $<HTMLInputElement>('[data-rl-cube-time]');
-  const clock = $<HTMLOutputElement>('[data-rl-cube-clock]');
+  const clock = $<HTMLElement>('[data-rl-cube-clock]');
   const play = $<HTMLButtonElement>('[data-rl-cube-play]');
   const reset = $<HTMLButtonElement>('[data-rl-cube-reset]');
+  const hint = $<HTMLElement>('[data-rl-cube-hint]');
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+  // Every listener and observer this module adds, so a lost context can take them all away.
+  const life = new AbortController();
+  const { signal } = life;
+  const observers: { disconnect(): void }[] = [];
 
   // Colors are the theme's tokens, read where the page sets them (tokens.css owns every value).
   // WebGL takes numbers, and three.js does not read the tokens' OKLCH, so a one-pixel canvas turns
@@ -113,10 +139,9 @@ export function start(root: HTMLElement): boolean {
   const stages: Stage[] = [];
   for (const host of section.querySelectorAll<HTMLElement>('[data-rl-cube-plan]')) {
     const which = host.dataset['rlCubePlan'] as Which;
-    const holder = host.querySelector<HTMLElement>('[data-rl-cube-stage]');
     const picture = host.querySelector<SVGSVGElement>('[data-rl-cube-picture]');
     const marks = host.querySelector<HTMLUListElement>('[data-rl-cube-marks]');
-    if (!holder || !picture || !marks) continue;
+    if (!picture || !marks) continue;
     const canvas = document.createElement('canvas');
     let renderer: WebGLRenderer;
     try {
@@ -129,6 +154,7 @@ export function start(root: HTMLElement): boolean {
     const [, , w = 1, h = 1] = (picture.getAttribute('viewBox') ?? '').split(' ').map(Number);
     canvas.tabIndex = 0;
     canvas.setAttribute('role', 'img');
+    if (hint?.id) canvas.setAttribute('aria-describedby', hint.id);
     stages.push({
       which,
       label: LABELS[which],
@@ -141,105 +167,95 @@ export function start(root: HTMLElement): boolean {
       scene: new Scene(),
       camera: new OrthographicCamera(),
       aspect: w / h,
-      content: new Group(),
+      size: { width: 0, height: 0 },
+      drawn: null,
       floor: null,
-      now: new Group(),
-      tracks: [],
+      materials: new Map(),
     });
   }
   if (stages.length === 0) return false;
+  // What the build wrote under each cube, put back if the scene goes.
+  const captions = stages.map((s) => s.back?.textContent ?? '');
 
   let view: View = DEFAULT_VIEW;
   let box: Box | null = null;
   let time = Number(slider?.value ?? 0);
   let latest: PlansDetail | null = null;
-  let playing: { from: number; at: number; frame: number } | null = null;
-  /** Where the camera looks, on the screen, from the box's center: the frame's middle. */
-  let mid = { u: 0, v: 0 };
-
-  /** Frames the camera on the box from the current view, at the stage's own aspect: the frame
-   *  from space-time.ts, widened on one axis until it matches. */
-  function aim(stage: Stage) {
-    if (!box) return;
-    const f = frame(view, box);
-    let half = { w: (f.right - f.left) / 2, h: (f.top - f.bottom) / 2 };
-    mid = { u: (f.right + f.left) / 2, v: (f.top + f.bottom) / 2 };
-    half =
-      half.w / half.h > stage.aspect
-        ? { w: half.w, h: half.w / stage.aspect }
-        : { w: half.h * stage.aspect, h: half.h };
-    const { right, up, back } = axes(view);
-    const c = box.center;
-    const far = 4 * Math.max(box.width, box.depth);
-    const camera = stage.camera;
-    camera.left = -half.w;
-    camera.right = half.w;
-    camera.top = half.h;
-    camera.bottom = -half.h;
-    camera.near = 0;
-    camera.far = 2 * far;
-    // Look at the frame's middle rather than the box's, so the cube stays centered as it turns.
-    const target = [
-      c[0] + mid.u * right[0] + mid.v * up[0],
-      c[1] + mid.u * right[1] + mid.v * up[1],
-      c[2] + mid.u * right[2] + mid.v * up[2],
-    ] as const;
-    camera.position.set(
-      target[0] + back[0] * far,
-      target[1] + back[1] * far,
-      target[2] + back[2] * far,
-    );
-    camera.up.set(0, 1, 0);
-    camera.lookAt(target[0], target[1], target[2]);
-    camera.updateProjectionMatrix();
-  }
-
-  /** The hour labels, placed over the canvas where the scene draws each mark on the pillar. */
-  function place(stage: Stage) {
-    if (!box || !latest) return;
-    const bakery = latest.data.points[0] ?? { x: 0, y: 0 };
-    const width = stage.canvas.clientWidth;
-    const height = stage.canvas.clientHeight;
-    const cam = stage.camera;
-    const b = box;
-    const items = [...stage.marks.children] as HTMLElement[];
-    hourMarks(b).forEach((s, k) => {
-      // project() measures from the box's center; the camera looks at the frame's middle.
-      const [u, v] = project(view, b, [bakery.x, s * b.scale, bakery.y]);
-      const li = items[k];
-      if (!li) return;
-      li.style.left = `${((u - mid.u - cam.left) / (cam.right - cam.left)) * width}px`;
-      li.style.top = `${((cam.top - (v - mid.v)) / (cam.top - cam.bottom)) * height}px`;
-    });
-  }
+  let swapped = false;
+  let dead = false;
+  let playing: { from: number; at: number; frame: number; timer: number } | null = null;
+  let wantPlay = false;
+  /** Groups a new plan replaced: their geometry is freed after the next draw. Their materials are
+   *  the stage's own and stay (Stage.materials). */
+  let retired: Object3D[] = [];
 
   function draw(stage: Stage) {
-    if (stage.canvas.clientWidth === 0) return; // the plan a phone does not show
-    aim(stage);
-    stage.renderer.render(stage.scene, stage.camera);
-    place(stage);
-  }
-
-  const drawAll = () => stages.forEach(draw);
-
-  function dispose(object: Object3D) {
-    object.traverse((child) => {
-      const thing = child as Partial<Mesh>;
-      thing.geometry?.dispose();
-      const materials = thing.material;
-      for (const m of Array.isArray(materials) ? materials : materials ? [materials] : []) {
-        (m as MeshBasicMaterial).map?.dispose();
-        m.dispose();
-      }
+    if (!box || stage.size.width === 0) return; // no plans yet, or the plan a phone does not show
+    const at = pose(view, box, stage.aspect);
+    const { back } = axes(view);
+    const far = 4 * Math.max(box.width, box.depth);
+    const camera = stage.camera;
+    camera.left = -at.half.w;
+    camera.right = at.half.w;
+    camera.top = at.half.h;
+    camera.bottom = -at.half.h;
+    camera.near = 0;
+    camera.far = 2 * far;
+    const [tx, ty, tz] = at.target;
+    camera.position.set(tx + back[0] * far, ty + back[1] * far, tz + back[2] * far);
+    camera.up.set(0, 1, 0);
+    camera.lookAt(tx, ty, tz);
+    camera.updateProjectionMatrix();
+    stage.renderer.render(stage.scene, camera);
+    // The hour labels, where the scene draws each mark on the bakery's pillar.
+    const bakery = latest?.data.points[0] ?? { x: 0, y: 0 };
+    const items = stage.marks.children;
+    hourMarks(box).forEach((s, k) => {
+      const li = items[k] as HTMLElement | undefined;
+      if (!li || !box) return;
+      const [x, y] = onCanvas(view, box, at, [bakery.x, s * box.scale, bakery.y]);
+      li.style.left = `${x * stage.size.width}px`;
+      li.style.top = `${y * stage.size.height}px`;
     });
   }
 
-  /** The map's floor, painted from the page's own basemap: Path2D reads the SVG path data the
-   *  maps draw from (#rl-base), in the colors the theme gives it, so there is no second copy. */
-  function floor(b: Box): Mesh {
+  function drawAll() {
+    if (dead) return;
+    stages.forEach(draw);
+    for (const object of retired)
+      object.traverse((child) => (child as Partial<Mesh>).geometry?.dispose());
+    retired = [];
+  }
+
+  /** The stage's material for a role, made the first time it is asked for. */
+  function made<T extends Material>(stage: Stage, key: string, make: () => T): T {
+    let material = stage.materials.get(key) as T | undefined;
+    if (!material) {
+      material = make();
+      stage.materials.set(key, material);
+    }
+    return material;
+  }
+
+  /** Frees a stage's materials, their textures with them: a theme change recolors everything. */
+  function forget(stage: Stage) {
+    for (const m of stage.materials.values()) {
+      (m as MeshBasicMaterial).map?.dispose();
+      (m as MeshBasicMaterial).alphaMap?.dispose();
+      m.dispose();
+    }
+    stage.materials.clear();
+  }
+
+  /** The map's floor, painted once per theme from the page's own basemap and shared by both
+   *  cubes: Path2D reads the SVG path data the maps draw from (#rl-base), with each shape's own
+   *  fill rule and the theme's colors, so there is no second copy of the map. */
+  let floorCanvas: HTMLCanvasElement | null = null;
+  function paintFloor(b: Box): HTMLCanvasElement {
+    if (floorCanvas) return floorCanvas;
     const canvas = document.createElement('canvas');
-    canvas.width = 2048;
-    canvas.height = Math.round((2048 * b.depth) / b.width);
+    canvas.width = FLOOR_PX;
+    canvas.height = Math.round((FLOOR_PX * b.depth) / b.width);
     const ctx = canvas.getContext('2d');
     const k = canvas.width / b.width;
     if (ctx) {
@@ -251,12 +267,12 @@ export function start(root: HTMLElement): boolean {
         const shape = new Path2D(path.getAttribute('d') ?? '');
         if (style.fill !== 'none') {
           ctx.fillStyle = style.fill;
-          ctx.fill(shape);
+          ctx.fill(shape, style.fillRule === 'evenodd' ? 'evenodd' : 'nonzero');
         }
         if (style.stroke !== 'none') {
           ctx.strokeStyle = style.stroke;
-          // The maps' strokes are screen pixels on a map about a third of this canvas's width;
-          // the floor is drawn smaller again, so they are drawn about four times as wide here.
+          // The maps' strokes are screen pixels; the floor is drawn smaller than a map, so they
+          // are drawn a few texture pixels wide here.
           const px = (value: string) => ((parseFloat(value) || 0) * FLOOR_STROKE) / k;
           ctx.lineWidth = px(style.strokeWidth) || FLOOR_STROKE / k;
           ctx.setLineDash(
@@ -267,72 +283,97 @@ export function start(root: HTMLElement): boolean {
         }
       }
     }
-    const texture = new CanvasTexture(canvas);
+    floorCanvas = canvas;
+    return canvas;
+  }
+
+  function floorMesh(stage: Stage, b: Box): Mesh {
+    const texture = new CanvasTexture(paintFloor(b));
     texture.colorSpace = SRGBColorSpace;
-    texture.anisotropy = stages[0]?.renderer.capabilities.getMaxAnisotropy() ?? 1;
+    texture.anisotropy = stage.renderer.capabilities.getMaxAnisotropy();
     const geometry = new PlaneGeometry(b.width, b.depth);
     geometry.rotateX(-Math.PI / 2);
     geometry.translate(b.width / 2, -0.5, b.depth / 2);
     return new Mesh(geometry, new MeshBasicMaterial({ map: texture }));
   }
 
-  function segments(points: number[], css: string, opacity = 1): LineSegments {
+  /** A round mark for the vans whose map stops are circles: a disc the points cut out. */
+  let disc: HTMLCanvasElement | null = null;
+  function discTexture(): Texture {
+    if (!disc) {
+      disc = document.createElement('canvas');
+      disc.width = disc.height = 64;
+      const ctx = disc.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.arc(32, 32, 30, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+    }
+    return new CanvasTexture(disc);
+  }
+
+  const dots = (stage: Stage, van: number, size: number) =>
+    made(
+      stage,
+      `dots-${van}-${size}`,
+      () =>
+        new PointsMaterial({
+          color: rgbOf(token(`--map-van-${vanClass(van)}`)),
+          size,
+          sizeAttenuation: false,
+          ...(isRound(van) ? { alphaMap: discTexture(), alphaTest: 0.5, transparent: true } : {}),
+        }),
+    );
+
+  /** Line segments through `points`, in a token's color, with the stage's material for `key`. */
+  function segments(
+    stage: Stage,
+    key: string,
+    points: number[],
+    css: string,
+    opacity = 1,
+  ): LineSegments {
     const geometry = new BufferGeometry();
     geometry.setAttribute('position', new Float32BufferAttribute(points, 3));
     return new LineSegments(
       geometry,
-      new LineBasicMaterial({ color: rgbOf(css), transparent: opacity < 1, opacity }),
+      made(
+        stage,
+        key,
+        () =>
+          new LineBasicMaterial({ color: rgbOf(token(css)), transparent: opacity < 1, opacity }),
+      ),
     );
   }
 
-  /** Everything that follows from a plan: the floor, its edge, the bakery's pillar and its hour
-   *  marks, and each van's track with its stops. */
+  /** A rectangle at height y over the whole floor, as line segments. */
+  const rim = (w: number, d: number, y: number) => [
+    ...[0, y, 0, w, y, 0],
+    ...[w, y, 0, w, y, d],
+    ...[w, y, d, 0, y, d],
+    ...[0, y, d, 0, y, 0],
+  ];
+
+  /** Everything that follows from a plan: the box, the bakery's pillar and its hour marks, each
+   *  van's track with its stops, and the "now" level with a mark per van. */
   function build(stage: Stage, plan: PlansDetail['dealt'], detail: PlansDetail, b: Box) {
-    dispose(stage.content);
-    stage.scene.remove(stage.content);
-    const group = new Group();
-    // The floor depends on the theme alone, not on the plan: every change on the maps sends new
-    // plans, and painting 2,048 px of basemap again each time would hold up the page's response.
+    if (stage.drawn) {
+      stage.scene.remove(stage.drawn.group);
+      retired.push(stage.drawn.group);
+    }
     if (!stage.floor) {
-      stage.floor = floor(b);
+      stage.floor = floorMesh(stage, b);
       stage.scene.add(stage.floor);
     }
+    const group = new Group();
     const top = b.seconds * b.scale;
     const bakery = detail.data.points[0] ?? { x: 0, y: 0 };
     const { width: w, depth: d } = b;
-    group.add(
-      segments(
-        [0, 0, 0, w, 0, 0, w, 0, 0, w, 0, d, w, 0, d, 0, 0, d, 0, 0, d, 0, 0, 0],
-        token('--input'),
-      ),
-    );
+    group.add(segments(stage, 'edge', rim(w, d, 0), '--input'));
     // The box's top at the last hour and its four upright edges, fainter than the floor's.
-    const cage = [
-      0,
-      top,
-      0,
-      w,
-      top,
-      0,
-      w,
-      top,
-      0,
-      w,
-      top,
-      d,
-      w,
-      top,
-      d,
-      0,
-      top,
-      d,
-      0,
-      top,
-      d,
-      0,
-      top,
-      0,
-    ];
+    const cage = rim(w, d, top);
     for (const [x, z] of [
       [0, 0],
       [w, 0],
@@ -340,18 +381,17 @@ export function start(root: HTMLElement): boolean {
       [0, d],
     ] as const)
       cage.push(x, 0, z, x, top, z);
-    group.add(segments(cage, token('--input'), 0.55));
+    group.add(segments(stage, 'cage', cage, '--input', 0.55));
     const tick = 0.012 * Math.max(w, d);
     const axis = [bakery.x, 0, bakery.y, bakery.x, top, bakery.y];
     for (const s of hourMarks(b)) {
       const y = s * b.scale;
       axis.push(bakery.x - tick, y, bakery.y, bakery.x + tick, y, bakery.y);
     }
-    group.add(segments(axis, token('--foreground')));
+    group.add(segments(stage, 'axis', axis, '--foreground'));
 
-    stage.tracks = tracks(detail.data, detail.leg, plan);
-    for (const track of stage.tracks) {
-      const css = token(`--map-van-${vanClass(track.van)}`);
+    const planned = tracks(detail.data, detail.leg, plan);
+    for (const track of planned) {
       const positions: number[] = [];
       for (let k = 0; k < track.points.length; k += 3)
         positions.push(
@@ -361,16 +401,23 @@ export function start(root: HTMLElement): boolean {
         );
       const geometry = new LineGeometry();
       geometry.setPositions(positions);
-      const dash = DASHES[track.van] ?? null;
-      const material = new LineMaterial({
-        color: rgbOf(css).getHex(),
-        linewidth: 3,
-        worldUnits: false,
-        dashed: dash !== null,
-        dashSize: dash?.[0] ?? 1,
-        gapSize: dash?.[1] ?? 1,
-      });
-      const line = new Line2(geometry, material);
+      const dash = VAN_DASHES[track.van] ?? null;
+      const line = new Line2(
+        geometry,
+        made(
+          stage,
+          `line-${track.van}`,
+          () =>
+            new LineMaterial({
+              color: rgbOf(token(`--map-van-${vanClass(track.van)}`)).getHex(),
+              linewidth: 3,
+              worldUnits: false,
+              dashed: dash !== null,
+              dashSize: dash?.[0] ?? 1,
+              gapSize: dash?.[1] ?? 1,
+            }),
+        ),
+      );
       if (dash) line.computeLineDistances();
       group.add(line);
       const stops = new BufferGeometry();
@@ -381,14 +428,43 @@ export function start(root: HTMLElement): boolean {
           3,
         ),
       );
-      group.add(
-        new Points(
-          stops,
-          new PointsMaterial({ color: rgbOf(css), size: 7, sizeAttenuation: false }),
-        ),
-      );
+      group.add(new Points(stops, dots(stage, track.van, 8)));
     }
-    stage.content = group;
+
+    // "Now": made once per plan, then only moved as time changes.
+    const level = new Group();
+    const sheet = new PlaneGeometry(w, d);
+    sheet.rotateX(-Math.PI / 2);
+    sheet.translate(w / 2, 0, d / 2);
+    level.add(
+      new Mesh(
+        sheet,
+        made(
+          stage,
+          'level',
+          () =>
+            new MeshBasicMaterial({
+              color: rgbOf(token('--foreground')),
+              transparent: true,
+              opacity: 0.07,
+              depthWrite: false,
+              side: DoubleSide,
+            }),
+        ),
+      ),
+    );
+    level.add(segments(stage, 'level-edge', rim(w, d, 0), '--foreground', 0.5));
+    group.add(level);
+    const vans = planned.map((track) => {
+      const css = `--map-van-${vanClass(track.van)}`;
+      const drop = segments(stage, `drop-${track.van}`, [0, 0, 0, 0, 0, 0], css, 0.6);
+      const at = new BufferGeometry();
+      at.setAttribute('position', new Float32BufferAttribute([0, 0, 0], 3));
+      const dot = new Points(at, dots(stage, track.van, 14));
+      group.add(drop, dot);
+      return { drop, dot };
+    });
+    stage.drawn = { group, tracks: planned, level, vans };
     stage.scene.add(group);
 
     // The marks' labels: one per hour, placed on every draw.
@@ -399,9 +475,8 @@ export function start(root: HTMLElement): boolean {
         return li;
       }),
     );
-    stage.marks.hidden = false;
 
-    const back = Math.max(0, ...stage.tracks.map((t) => t.back));
+    const back = Math.max(0, ...planned.map((t) => t.back));
     const stale = stage.which === 'after' && !detail.fresh ? ', for the previous orders' : '';
     if (stage.back) stage.back.textContent = `Last van back after ${formatDuration(back)}${stale}`;
     stage.canvas.setAttribute(
@@ -410,53 +485,29 @@ export function start(root: HTMLElement): boolean {
     );
   }
 
-  /** "Now": a level through the cube at the slider's time, where each van is, and a line down to
-   *  the place on the map under it. Left out at time 0, when every van is at the bakery. */
+  /** Moves "now" to the slider's time: the level, and each van's mark and its line down to the
+   *  map. Hidden at time 0, when every van is at the bakery. */
   function moment(stage: Stage) {
-    dispose(stage.now);
-    stage.scene.remove(stage.now);
-    const group = new Group();
-    if (box && time > 0) {
-      const y = time * box.scale;
-      const { width: w, depth: d } = box;
-      const level = new PlaneGeometry(w, d);
-      level.rotateX(-Math.PI / 2);
-      level.translate(w / 2, y, d / 2);
-      group.add(
-        new Mesh(
-          level,
-          new MeshBasicMaterial({
-            color: rgbOf(token('--foreground')),
-            transparent: true,
-            opacity: 0.07,
-            depthWrite: false,
-            side: DoubleSide,
-          }),
-        ),
-      );
-      group.add(
-        segments(
-          [0, y, 0, w, y, 0, w, y, 0, w, y, d, w, y, d, 0, y, d, 0, y, d, 0, y, 0],
-          token('--foreground'),
-          0.5,
-        ),
-      );
-      for (const track of stage.tracks) {
-        const [x, z] = positionAt(track, time);
-        const css = token(`--map-van-${vanClass(track.van)}`);
-        group.add(segments([x, 0, z, x, y, z], css, 0.6));
-        const at = new BufferGeometry();
-        at.setAttribute('position', new Float32BufferAttribute([x, y, z], 3));
-        group.add(
-          new Points(
-            at,
-            new PointsMaterial({ color: rgbOf(css), size: 13, sizeAttenuation: false }),
-          ),
-        );
-      }
-    }
-    stage.now = group;
-    stage.scene.add(group);
+    const drawn = stage.drawn;
+    if (!drawn || !box) return;
+    const y = time * box.scale;
+    drawn.level.visible = time > 0;
+    drawn.level.position.y = y;
+    drawn.tracks.forEach((track, k) => {
+      const marks = drawn.vans[k];
+      if (!marks) return;
+      const [x, z] = positionAt(track, time);
+      const drop = marks.drop.geometry.getAttribute('position');
+      drop.setXYZ(0, x, 0, z);
+      drop.setXYZ(1, x, y, z);
+      drop.needsUpdate = true;
+      marks.drop.geometry.computeBoundingSphere();
+      const dot = marks.dot.geometry.getAttribute('position');
+      dot.setXYZ(0, x, y, z);
+      dot.needsUpdate = true;
+      marks.dot.geometry.computeBoundingSphere();
+      marks.drop.visible = marks.dot.visible = time > 0;
+    });
   }
 
   function setTime(seconds: number) {
@@ -478,40 +529,79 @@ export function start(root: HTMLElement): boolean {
       ),
       0,
     );
+    const seconds = box?.seconds;
     box = boxFor(detail.data.viewBox, longest);
     if (slider) slider.max = String(box.seconds);
     for (const stage of stages)
       build(stage, stage.which === 'before' ? detail.dealt : detail.solved, detail, box);
+    if (!swapped) swap();
+    // A plan that changes the time axis while the day plays: carry on from where it stands.
+    if (playing && seconds !== box.seconds) {
+      playing.from = Math.min(time, box.seconds);
+      playing.at = performance.now();
+    }
     setTime(time);
+    if (wantPlay) {
+      wantPlay = false;
+      go();
+    }
   }
 
-  // The plans, now and on every change. The app may still be loading: its first redraw sends them.
-  root.addEventListener('rl:plans', (event) => plans((event as CustomEvent<PlansDetail>).detail));
+  // The app sends its plans on every redraw, inside the handler of the change that caused it; the
+  // cube builds them on the next frame, once, however many arrived, so the change answers first.
+  let pending: PlansDetail | null = null;
+  root.addEventListener(
+    'rl:plans',
+    (event) => {
+      const first = pending === null;
+      pending = (event as CustomEvent<PlansDetail>).detail;
+      if (first)
+        requestAnimationFrame(() => {
+          const detail = pending;
+          pending = null;
+          if (detail && !dead) plans(detail);
+        });
+    },
+    { signal },
+  );
 
-  // The canvas takes the picture's place: the picture leaves the page's tree, the canvas carries
-  // its name, and both have one aspect, so nothing below moves.
-  for (const stage of stages) {
-    stage.picture.after(stage.canvas);
-    stage.picture.setAttribute('hidden', '');
-    new ResizeObserver(() => {
-      const width = stage.canvas.parentElement?.clientWidth ?? 0;
-      if (width === 0) return;
-      stage.renderer.setSize(width, width / stage.aspect, false);
-      draw(stage);
-    }).observe(stage.host);
-    stage.canvas.addEventListener('webglcontextlost', () => fallBack());
-  }
-
-  function fallBack() {
-    stop();
+  /** The canvas takes the picture's place, with the first plans: the picture leaves the page's
+   *  tree, the canvas carries its name, and both have one aspect, so nothing below moves. */
+  function swap() {
+    swapped = true;
     for (const stage of stages) {
+      stage.picture.after(stage.canvas);
+      stage.picture.setAttribute('hidden', '');
+      stage.marks.hidden = false;
+      const observer = new ResizeObserver(() => {
+        const width = stage.canvas.parentElement?.clientWidth ?? 0;
+        stage.size = { width, height: width / stage.aspect };
+        if (width === 0 || dead) return;
+        stage.renderer.setSize(width, width / stage.aspect, false);
+        draw(stage);
+      });
+      observer.observe(stage.host);
+      observers.push(observer);
+      stage.canvas.addEventListener('webglcontextlost', fallBack, { signal });
+    }
+  }
+
+  /** A lost context: the pictures come back as the build drew them, with their captions, and the
+   *  cube's controls hide; nothing here listens any more. */
+  function fallBack() {
+    if (dead) return;
+    stop();
+    dead = true;
+    life.abort();
+    for (const observer of observers) observer.disconnect();
+    stages.forEach((stage, k) => {
       stage.canvas.remove();
       stage.marks.hidden = true;
       stage.picture.removeAttribute('hidden');
+      if (stage.back) stage.back.textContent = captions[k] ?? '';
       stage.renderer.dispose();
-    }
-    for (const part of section.querySelectorAll<HTMLElement>('[data-rl-cube-controls]'))
-      part.hidden = true;
+    });
+    hideControls(section);
   }
 
   // Turning: a drag sideways turns both cubes; with a mouse, a drag up or down tilts them. A
@@ -526,93 +616,141 @@ export function start(root: HTMLElement): boolean {
   };
   for (const stage of stages) {
     const canvas = stage.canvas;
-    canvas.addEventListener('pointerdown', (event) => {
-      if (event.button !== 0) return;
-      drag = { x: event.clientX, y: event.clientY, view, id: event.pointerId };
-      canvas.setPointerCapture(event.pointerId);
-    });
-    canvas.addEventListener('pointermove', (event) => {
-      if (!drag || event.pointerId !== drag.id) return;
-      const tilt = event.pointerType === 'mouse' ? (event.clientY - drag.y) * 0.006 : 0;
-      turn({
-        azimuth: drag.view.azimuth - (event.clientX - drag.x) * 0.008,
-        elevation: drag.view.elevation + tilt,
-      });
-    });
+    canvas.addEventListener(
+      'pointerdown',
+      (event) => {
+        if (event.button !== 0) return;
+        drag = { x: event.clientX, y: event.clientY, view, id: event.pointerId };
+        canvas.setPointerCapture(event.pointerId);
+      },
+      { signal },
+    );
+    canvas.addEventListener(
+      'pointermove',
+      (event) => {
+        if (!drag || event.pointerId !== drag.id) return;
+        const tilt = event.pointerType === 'mouse' ? (event.clientY - drag.y) * 0.006 : 0;
+        turn({
+          azimuth: drag.view.azimuth - (event.clientX - drag.x) * 0.008,
+          elevation: drag.view.elevation + tilt,
+        });
+      },
+      { signal },
+    );
     const end = () => {
       drag = null;
     };
-    canvas.addEventListener('pointerup', end);
-    canvas.addEventListener('pointercancel', end);
-    canvas.addEventListener('keydown', (event) => {
-      const moves: Record<string, View> = {
-        ArrowLeft: { ...view, azimuth: view.azimuth + STEP },
-        ArrowRight: { ...view, azimuth: view.azimuth - STEP },
-        ArrowUp: { ...view, elevation: view.elevation + STEP },
-        ArrowDown: { ...view, elevation: view.elevation - STEP },
-        Home: DEFAULT_VIEW,
-      };
-      const next = moves[event.key];
-      if (!next) return;
-      event.preventDefault();
-      turn(next);
-    });
+    canvas.addEventListener('pointerup', end, { signal });
+    canvas.addEventListener('pointercancel', end, { signal });
+    canvas.addEventListener(
+      'keydown',
+      (event) => {
+        const moves: Record<string, View> = {
+          ArrowLeft: { ...view, azimuth: view.azimuth + STEP },
+          ArrowRight: { ...view, azimuth: view.azimuth - STEP },
+          ArrowUp: { ...view, elevation: view.elevation + STEP },
+          ArrowDown: { ...view, elevation: view.elevation - STEP },
+          Home: DEFAULT_VIEW,
+        };
+        const next = moves[event.key];
+        if (!next) return;
+        event.preventDefault();
+        turn(next);
+      },
+      { signal },
+    );
   }
-  reset?.addEventListener('click', () => turn(DEFAULT_VIEW));
+  reset?.addEventListener('click', () => turn(DEFAULT_VIEW), { signal });
 
-  slider?.addEventListener('input', () => {
-    stop();
-    setTime(Number(slider.value));
-  });
+  slider?.addEventListener(
+    'input',
+    () => {
+      stop();
+      setTime(Number(slider.value));
+    },
+    { signal },
+  );
 
-  // "Play the day": the slider runs to the end of the time axis in PLAY_MS, from where it stands,
-  // or from the start when it is at the end. The same button pauses it (SC 2.2.2).
+  // "Play the day": the slider crosses the whole time axis in PLAY_MS, from where it stands, or
+  // from the start when it is at the end; under reduced motion it steps half an hour a second.
+  // The same button pauses it (SC 2.2.2), and its words say what a press does.
   function stop() {
-    if (playing) cancelAnimationFrame(playing.frame);
+    if (playing) {
+      cancelAnimationFrame(playing.frame);
+      clearTimeout(playing.timer);
+    }
     playing = null;
-    play?.setAttribute('aria-pressed', 'false');
-    if (play) play.textContent = 'Play the day';
+    wantPlay = false;
+    if (play) play.textContent = PLAY;
   }
   function go() {
-    if (!box) return;
+    if (playing || dead) return;
+    if (play) play.textContent = PAUSE;
+    if (!box) {
+      wantPlay = true; // the first plans start it
+      return;
+    }
     if (time >= box.seconds) setTime(0);
-    play?.setAttribute('aria-pressed', 'true');
-    if (play) play.textContent = 'Pause';
-    const step = (now: number) => {
+    playing = { from: time, at: performance.now(), frame: 0, timer: 0 };
+    if (reduced.matches) {
+      const tick = () => {
+        if (!playing || !box) return;
+        setTime(Math.min(box.seconds, (Math.floor(time / STEP_SECONDS) + 1) * STEP_SECONDS));
+        if (time >= box.seconds) return stop();
+        playing.timer = window.setTimeout(tick, STEP_MS);
+      };
+      playing.timer = window.setTimeout(tick, STEP_MS);
+      return;
+    }
+    const glide = (now: number) => {
       if (!playing || !box) return;
       const t = playing.from + ((now - playing.at) / PLAY_MS) * box.seconds;
       setTime(t);
       if (t >= box.seconds) return stop();
-      playing.frame = requestAnimationFrame(step);
+      playing.frame = requestAnimationFrame(glide);
     };
-    playing = { from: time, at: performance.now(), frame: requestAnimationFrame(step) };
+    playing.frame = requestAnimationFrame(glide);
   }
-  play?.addEventListener('click', () => (playing ? stop() : go()));
+  play?.addEventListener('click', () => (playing || wantPlay ? stop() : go()), { signal });
 
-  // A theme change repaints the floor and recolors the lines from the new tokens.
-  const repaint = () => {
-    for (const stage of stages) {
-      if (stage.floor) {
-        dispose(stage.floor);
-        stage.scene.remove(stage.floor);
+  // A theme change repaints the floor and recolors the lines from the new tokens, on the next
+  // frame, after the toggle has answered.
+  const repaint = () =>
+    requestAnimationFrame(() => {
+      if (dead) return;
+      floorCanvas = null;
+      for (const stage of stages) {
+        if (stage.floor) {
+          stage.scene.remove(stage.floor);
+          retired.push(stage.floor);
+          const material = stage.floor.material as MeshBasicMaterial;
+          material.map?.dispose();
+          material.dispose();
+        }
+        stage.floor = null;
+        forget(stage);
       }
-      stage.floor = null;
-    }
-    if (latest) plans(latest);
-  };
-  new MutationObserver(repaint).observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ['data-theme'],
-  });
+      if (latest) plans(latest);
+    });
+  const themes = new MutationObserver(repaint);
+  themes.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  observers.push(themes);
   for (const query of ['(prefers-color-scheme: dark)', '(prefers-contrast: more)'])
-    matchMedia(query).addEventListener('change', repaint);
+    matchMedia(query).addEventListener('change', repaint, { signal });
 
-  // A press of Play before the scene loaded is kept (boot.ts), and so is the slider's place.
-  root.dispatchEvent(new Event('rl:ask'));
+  // A press of Play before the scene loaded is kept (boot.ts).
   if (play?.dataset['rlCubeWant']) {
     delete play.dataset['rlCubeWant'];
-    if (box) go();
-    else root.addEventListener('rl:plans', () => go(), { once: true });
+    go();
   }
+  root.dispatchEvent(new Event('rl:ask'));
   return true;
+}
+
+/** Hides the cube's controls, moving focus to the cube's section first if it was in them, so a
+ *  keyboard user is not left on the page's body. */
+export function hideControls(section: HTMLElement): void {
+  const parts = section.querySelectorAll<HTMLElement>('[data-rl-cube-controls]');
+  if ([...parts].some((part) => part.contains(document.activeElement))) section.focus();
+  for (const part of parts) part.hidden = true;
 }

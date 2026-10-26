@@ -11,9 +11,12 @@ import {
   floorMatrix,
   frame,
   hourMarks,
+  onCanvas,
+  pose,
   project,
   screenLine,
   simplify,
+  VAN_DASHES,
 } from '../src/lib/route-lab/space-time';
 import { positionAt, tracks } from '../src/lib/route-lab/timeline';
 
@@ -189,5 +192,65 @@ describe('simplifying a line', () => {
       expect(kept.slice(0, 2)).toEqual(full.slice(0, 2));
       expect(kept.slice(-2)).toEqual(full.slice(-2));
     }
+  });
+});
+
+describe('the 3D camera’s pose', () => {
+  const box = boxFor([0, 0, 2000, 2564], 3 * 3600);
+  const f = frame(DEFAULT_VIEW, box);
+  const aspect = (f.right - f.left) / (f.top - f.bottom);
+
+  test('at the default view and the picture’s aspect, every point lands where the picture draws it', () => {
+    const at = pose(DEFAULT_VIEW, box, aspect);
+    for (const p of [
+      [0, 0, 0],
+      [2000, 0, 2564],
+      [1000, 3 * 3600 * box.scale, 300],
+      [123, 4567, 890],
+    ] as const) {
+      const [u, v] = project(DEFAULT_VIEW, box, p);
+      // The picture's viewBox starts at (left, -top) and is as wide and tall as the frame.
+      const picture = [(u - f.left) / (f.right - f.left), (-v + f.top) / (f.top - f.bottom)];
+      const [x, y] = onCanvas(DEFAULT_VIEW, box, at, p);
+      expect(x).toBeCloseTo(picture[0] ?? 0, 9);
+      expect(y).toBeCloseTo(picture[1] ?? 0, 9);
+    }
+  });
+
+  test('a wider canvas widens the frame, never crops it: the box’s corners stay inside', () => {
+    for (const a of [aspect / 2, aspect * 2]) {
+      const view = { azimuth: 1.1, elevation: 0.3 };
+      const at = pose(view, box, a);
+      expect(at.half.w / at.half.h).toBeCloseTo(a, 9);
+      for (const x of [0, 2000])
+        for (const z of [0, 2564])
+          for (const y of [0, box.seconds * box.scale]) {
+            const [cx, cy] = onCanvas(view, box, at, [x, y, z]);
+            for (const c of [cx, cy]) {
+              expect(c).toBeGreaterThanOrEqual(0);
+              expect(c).toBeLessThanOrEqual(1);
+            }
+          }
+    }
+  });
+});
+
+describe('the vans’ lines in 3D', () => {
+  test('known answer: van A is solid, and every other van has a rhythm of its own', () => {
+    expect(VAN_DASHES[0]).toBeNull();
+    const rhythms = VAN_DASHES.slice(1).map((d) => {
+      const [dash = 0, gap = 0] = d ?? [];
+      return { period: dash + gap, duty: dash / (dash + gap) };
+    });
+    // Two patterns read apart when their dash share or their period differs by a third or more.
+    for (let i = 0; i < rhythms.length; i++)
+      for (let j = i + 1; j < rhythms.length; j++) {
+        const a = rhythms[i];
+        const b = rhythms[j];
+        if (!a || !b) continue;
+        const duty = Math.abs(a.duty - b.duty) / Math.max(a.duty, b.duty);
+        const period = Math.abs(a.period - b.period) / Math.max(a.period, b.period);
+        expect(Math.max(duty, period), `vans ${i + 1} and ${j + 1}`).toBeGreaterThanOrEqual(1 / 3);
+      }
   });
 });

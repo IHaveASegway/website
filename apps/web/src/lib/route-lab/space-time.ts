@@ -159,3 +159,51 @@ const round = (line: Line): Line => line.map((v) => Math.round(v));
 
 /** SVG path data for a screen line, as integers: the units are a few tenths of a pixel. */
 export const screenPath = (line: Line): string => pathData(round(line));
+
+/** Where the 3D scene's orthographic camera stands and what it holds, at a canvas's aspect: the
+ *  frame, widened on one axis until it matches, around the frame's middle, so the cube stays
+ *  centered as it turns. At DEFAULT_VIEW and the picture's own aspect this is exactly the picture
+ *  (test/space-time.test.ts), which is why the canvas takes the picture's place without a jump. */
+export interface Pose {
+  /** The point the camera looks at, in world units. */
+  readonly target: Vec3;
+  /** Half the width and height the camera holds, in screen units. */
+  readonly half: { readonly w: number; readonly h: number };
+  /** The frame's middle, on the screen, from the box's center. */
+  readonly mid: { readonly u: number; readonly v: number };
+}
+
+export function pose(view: View, box: Box, aspect: number): Pose {
+  const f = frame(view, box);
+  const mid = { u: (f.right + f.left) / 2, v: (f.top + f.bottom) / 2 };
+  const w = (f.right - f.left) / 2;
+  const h = (f.top - f.bottom) / 2;
+  const half = w / h > aspect ? { w, h: w / aspect } : { w: h * aspect, h };
+  const { right, up } = axes(view);
+  const c = box.center;
+  const target: Vec3 = [
+    c[0] + mid.u * right[0] + mid.v * up[0],
+    c[1] + mid.u * right[1] + mid.v * up[1],
+    c[2] + mid.u * right[2] + mid.v * up[2],
+  ];
+  return { target, half, mid };
+}
+
+/** Where a world point falls on a canvas the pose fills, as fractions from its left and top. */
+export function onCanvas(view: View, box: Box, at: Pose, p: Vec3): readonly [number, number] {
+  const [u, v] = project(view, box, p);
+  return [
+    (u - at.mid.u + at.half.w) / (2 * at.half.w),
+    (at.half.h - (v - at.mid.v)) / (2 * at.half.h),
+  ];
+}
+
+/** Each van's line in 3D: a dash and a gap in map units, or none, so color is never the only
+ *  signal (SC 1.4.1). WebGL's dashed line takes one dash and one gap, so the maps' dash-dot for
+ *  van D becomes an even dash: solid, long dashes, dots and even dashes, each a different rhythm. */
+export const VAN_DASHES: readonly (readonly [number, number] | null)[] = [
+  null,
+  [48, 16],
+  [6, 16],
+  [24, 24],
+];

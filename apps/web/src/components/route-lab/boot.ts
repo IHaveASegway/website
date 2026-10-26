@@ -92,20 +92,32 @@ if (root) {
   });
 
   // The space-time cube (ADR 0019): three.js, about 140 KB, loads on intent at the cube itself, a
-  // mouse over it, a focus or a press inside it, and never on a scroll. The app loads with it,
-  // since the cube draws the app's plans. A press of Play before it arrives is kept for it.
+  // mouse over it, a focus inside it, a click or a tap, a touch of its slider, and never on a
+  // scroll: a finger that lands on the cube to scroll fires no click. The app loads with it, since
+  // the cube draws the app's plans, and the cube starts only once the app has started: an app that
+  // failed leaves the pictures, and the next intent tries again. A press of Play is kept for it.
   const cube = root.querySelector<HTMLElement>('[data-rl-cube]');
   if (cube) {
     let cubed: Promise<unknown> | undefined;
     let live = false;
-    const open = () => {
+    // A mouse or a focus does not try again after a failed load; a click, a tap or the slider
+    // does, as a change does for the maps: one request per press, not one per movement.
+    const open = (again = false) => {
+      if (failed && !again) return;
       start();
-      cubed ??= import('./cube')
-        .then((scene) => {
+      cubed ??= Promise.all([import('./cube'), started])
+        .then(([scene]) => {
+          if (!ready) {
+            cubed = undefined;
+            return;
+          }
           live = scene.start(root);
-          if (!live)
-            for (const part of cube.querySelectorAll<HTMLElement>('[data-rl-cube-controls]'))
-              part.hidden = true;
+          if (!live) {
+            // No WebGL here: the pictures stay, and so does the visitor's focus.
+            const parts = cube.querySelectorAll<HTMLElement>('[data-rl-cube-controls]');
+            if ([...parts].some((p) => p.contains(document.activeElement))) cube.focus();
+            for (const part of parts) part.hidden = true;
+          }
         })
         .catch(() => {
           cubed = undefined;
@@ -114,15 +126,15 @@ if (root) {
     cube.addEventListener('pointerover', (event) => {
       if (event.pointerType !== 'touch') open();
     });
-    cube.addEventListener('focusin', open);
-    cube.addEventListener('pointerdown', open);
-    cube.addEventListener('input', open);
+    cube.addEventListener('pointerdown', (event) => {
+      if (event.pointerType !== 'touch') open(true);
+    });
+    cube.addEventListener('focusin', () => open());
+    cube.addEventListener('input', () => open(true));
     cube.addEventListener('click', (event) => {
       const play = event.target instanceof Element && event.target.closest('[data-rl-cube-play]');
-      if (play instanceof HTMLElement && !live) {
-        play.dataset['rlCubeWant'] = '1';
-        open();
-      }
+      if (play instanceof HTMLElement && !live) play.dataset['rlCubeWant'] = '1';
+      open(true);
     });
   }
 }

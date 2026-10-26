@@ -85,11 +85,12 @@ const plans = [
     stops: t.stops.map((s) => at(s.x, s.arrives, s.y)),
   })),
 }));
+const NBSP = '\u00a0';
 const name = (label: string, back: number) =>
   `${label}, in time: the map lies flat, time rises from it, and each van’s line climbs as its day goes on. The last van is back after ${formatDuration(back)}.`;
 ---
 
-<section class="rl-cube" aria-labelledby="rl-cube-title" data-rl-cube>
+<section class="rl-cube" aria-labelledby="rl-cube-title" tabindex="-1" data-rl-cube>
   <div class="rl-cube-head">
     <h2 class="rl-cube-title" id="rl-cube-title">
       The same day, in time
@@ -149,29 +150,32 @@ const name = (label: string, back: number) =>
   </div>
 
   <div class="rl-cube-controls" data-rl-cube-controls data-rl-js>
-    <label class="rl-cube-time">
-      <span class="label">Time after leaving</span>
+    <div class="rl-cube-time">
+      <label class="label" for="rl-cube-time">
+        Time after leaving
+      </label>
       <input
         type="range"
+        id="rl-cube-time"
         min="0"
         max={box.seconds}
         step="60"
         value="0"
         data-rl-cube-time
-        aria-valuetext="0 min"
+        aria-valuetext={`0${NBSP}min`}
       />
-      <output class="rl-cube-clock" data-rl-cube-clock>
-        0 min
-      </output>
-    </label>
-    <button type="button" class="btn rl-cube-play" data-rl-cube-play aria-pressed="false">
+      <span class="rl-cube-clock" aria-hidden="true" data-rl-cube-clock>
+        0{NBSP}min
+      </span>
+    </div>
+    <button type="button" class="btn rl-cube-play" data-rl-cube-play>
       Play the day
     </button>
     <button type="button" class="btn rl-cube-reset" data-rl-cube-reset>
       Reset the view
     </button>
   </div>
-  <p class="rl-cube-hint" data-rl-cube-controls data-rl-js>
+  <p class="rl-cube-hint" id="rl-cube-hint" data-rl-cube-hint data-rl-cube-controls data-rl-js>
     Drag a cube sideways to turn both, or focus one and use the arrow keys.
   </p>
 </section>

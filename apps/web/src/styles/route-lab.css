@@ -1106,9 +1106,36 @@
 .rl-cube-hour {
   fill: var(--foreground);
   font-family: var(--font-mono);
-  font-size: 56px;
+  font-size: 120px;
   text-anchor: end;
   dominant-baseline: central;
+}
+
+/* The picture's hour labels are in its own units, about 3,250 across, so their size follows the
+   picture's width, as the maps' labels do: these steps keep them about 11 to 13 px on screen, a
+   full-width picture on a phone, one column on a tablet, two side by side from 64rem. */
+@media (width >= 30rem) {
+  .rl-cube-hour {
+    font-size: 72px;
+  }
+}
+
+@media (width >= 48rem) {
+  .rl-cube-hour {
+    font-size: 52px;
+  }
+}
+
+@media (width >= 64rem) {
+  .rl-cube-hour {
+    font-size: 72px;
+  }
+}
+
+@media (width >= 90rem) {
+  .rl-cube-hour {
+    font-size: 60px;
+  }
 }
 
 /* The hour labels over the canvas: placed by the script where the scene draws each mark. */
