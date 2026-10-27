@@ -301,6 +301,7 @@ Ranked by score = 4 × signal + effort + abuse + Free fit, each from 1 to 5 with
 | 7 | gitops in the browser (parked 2026-10-23) | Runs the TUI, compiled to WASM, against fake repos | Go, TUI craft, ports and adapters | 3 | 6–10 d; a terminal recording takes 0.5 d | None | Unlimited (static) | No |
 | 8 | Rate-limit playground | Compares token bucket, sliding window and GCRA under bursts | Rate limiting and its consistency trade-offs | 3 | 3–4 d | Medium: a load generator unless simulated | ≈1,000 if live | Optional |
 | 9 | Presence | Sees "N here now" and a per-continent count; cursors are opt-in | Real-time basics, hibernation, cost control | 2 | 1–2 d | Medium | ≈50,000 visits (requests) | Singleton |
+| — | Raft Lab (built 2026-10-27) | Runs five Raft servers, crashes and restarts them, cuts and heals the network, loses messages, and sends writes, in a deterministic simulation in the browser | Consensus: leader election, log replication, the commit rule of Figure 8, and the five safety properties checked after every event | 5 | built | None | Unlimited (static) | No |
 
 Capacity is at 100% of the binding Free cap; the [cost table](#per-session-cost-and-free-headroom) shows it inside the 70% share. Job Lab's figure assumes 8 Workflow steps a run against Free's 3,000 steps a day, as of 2026-10-22 ([Workflows pricing](https://developers.cloudflare.com/workflows/reference/pricing/)). Days are focused days. Rows 4 and 7 were parked on 2026-10-23: owned work shows as cards on Home that link to repositories ([content.md](content.md#owned-work)), and gitops is private.
 
@@ -314,7 +315,7 @@ Ship order is not rank order.
 3. **Migration Lab**, PR 8.
 Until 2026-10-25 the Route Lab came last: first by rank, with the most outside parts of any demo, a WASM solver that called itself experimental, OpenStreetMap data under the ODbL and a precomputed travel-time matrix, and a room in the lab Worker. Running VROOM itself in the browser removed the room, and with it the wait for the platform.
 
-The resilience simulator is a static companion: it needs no DO and can ship any time. The stillhere report and the gitops recordings are parked.
+The resilience simulator is a static companion: it needs no DO and can ship any time. The Raft Lab, built on 2026-10-27 at Joseph's direction, is another, outside this order for the same reason: it needs none of the platform ([ADR 0020](adr/0020-raft-lab-deterministic-simulation.md)). It supersedes nothing; the resilience simulator stays a separate demo, about overload rather than agreement. The stillhere report and the gitops recordings are parked.
 
 ## Designs, condensed
 
@@ -435,6 +436,17 @@ CREATE TABLE audit (seq INTEGER PRIMARY KEY AUTOINCREMENT, at INTEGER NOT NULL, 
 - **The same day, in time** (2026-10-26, [ADR 0019](adr/0019-space-time-cube-in-webgl.md)): a space-time cube per plan under the maps, on one scale, so the plan that keeps its vans out longer stands taller. The build draws each as a picture; on intent at the cube, three.js draws them in WebGL, turned by one camera, with a time slider and "Play the day". The cube is a view of the app's two plans, sent on one DOM event, `rl:plans`; it plans and keeps nothing of its own. `lib/route-lab/timeline.ts` and `space-time.ts` are its domain core.
 
 **Later, a multiplayer version.** The design this page held until 2026-10-25: a `RouteRoom` Durable Object per shared code, owning the stops and fleet, checking each submitted plan in O(n) and accepting one only if it beats the best by 0.1%, with browsers racing to improve it. It returns, under [ADR 0009](adr/0009-lab-worker-same-origin.md), if a race is wanted; the browser solver becomes its client. Its schema and limits are in this file's history.
+
+### Raft Lab (built 2026-10-27)
+
+**Proves:** consensus, and that its safety holds under the faults a visitor picks, checked rather than claimed. Domain: five servers that keep one log of numbered writes. Decision: [ADR 0020](adr/0020-raft-lab-deterministic-simulation.md).
+
+- **Page:** `/lab/raft/`, from `apps/web/src/content/lab/raft.md` and `components/raft-lab/`, a page file of its own (`pages/lab/raft/[...index].astro`, which `[demo].astro` leaves out through `lib/lab.ts`'s `OWN_PAGE`), so it links none of the Route Lab's styles or code. Five servers on a circle with their election timers, the messages in flight, each log as a row of cells colored by term, and an event log. A visitor runs and pauses time, steps one event, sends writes, cuts off the leader, splits the cluster two and three, heals it, loses up to half of all messages, and crashes or restarts any server.
+- **One domain core**, `lib/raft/`, runs in the build, the browser and the tests: `core.ts`, the servers, after Figure 2 of the Raft paper; `sim.ts`, virtual time, one seeded random stream and recorded actions; `check.ts`, the five safety properties after every event; `view.ts`, what the page draws.
+- **Deterministic.** The same seed and the same actions replay the same run. The build draws the opening run (seed 7, three writes) and the browser replays it to take over; Start over moves to the next seed and puts it in the address (`#seed-8`), which opens that run again.
+- **The sweep:** 3,000 seeded runs with random faults in `test/raft.test.ts`, about 2 s; every run keeps all five properties and commits a write within 2.75 s of healing. Two broken servers, one that votes without the up-to-date check and one that commits an old term's entry by counting (Figure 8), must each break a property within those seeds: 550 runs and 2 runs did on 2026-10-27.
+- **No server.** No Worker, no Durable Object, no cookie, no Turnstile, no recording, no budget share, no visitor text: nothing is stored or sent, and the cost is $0 at any traffic.
+- **Without JavaScript** the page is the opening run's picture, its logs and its last events.
 
 ## Per-session cost and Free headroom
 

@@ -19,14 +19,17 @@ export const BUDGETS = {
   preloadedFonts: 70_000,
 } as const;
 
-/** One page's figures, measured with lib/weights.ts. */
+/** One page's figures, measured with lib/weights.ts. Its eager JavaScript is every script it
+ *  names and every chunk those import statically: the browser fetches them all before any intent.
+ *  Since 2026-10-27 two demos' entries share Vite's preload helper as a chunk of its own, which a
+ *  count of <script src> alone would miss. */
 export function measure(page: string) {
-  const { inline, external } = eagerScripts(page);
+  const { inline } = eagerScripts(page);
   const styles = pageStyles(page);
   return {
     eagerJavaScript:
       inline.reduce((sum, body) => sum + gzipBytes(body), 0) +
-      external.reduce((sum, src) => sum + gzipBytes(bytes(fileFor(src))), 0),
+      eagerFiles(page).reduce((sum, file) => sum + gzipBytes(bytes(file)), 0),
     css:
       styles.linked.reduce((sum, href) => sum + gzipBytes(bytes(fileFor(href))), 0) +
       styles.inline.reduce((sum, body) => sum + gzipBytes(body), 0),
@@ -44,7 +47,7 @@ export function measure(page: string) {
 /**
  * Features with budgets of their own (ADR 0016; design-system.md, "Budgets as CI fitness
  * functions"). A feature owns the files under its paths, its entry bundle and every chunk that
- * bundle reaches through its imports. Only the Route Lab has one: its lazy JavaScript (the app
+ * bundle reaches through its imports. The Route Lab's are its lazy JavaScript (the app
  * chunk and the solver's three modules), its WebAssembly, the route data it fetches, and its
  * page's first view with and without one solve. Every other lazy file keeps the 2,000 B a feature
  * budget. Astro writes a component's bundles into every build, so a build without the page (the
@@ -55,6 +58,8 @@ export function measure(page: string) {
  * it counts in neither the lab's lazy JavaScript nor its first solve, and those keep their
  * meaning: a solver that grew would still fail them. Its own ceiling, the first view with the app,
  * the route data and the cube, is what a visitor who turns the cube has fetched.
+ *
+ * The Raft Lab (ADR 0020) has one too: its app chunk, and the first view of its page.
  */
 export const FEATURES = {
   'route-lab': {
@@ -72,6 +77,15 @@ export const FEATURES = {
       lazyJavaScript: 150_000,
       firstCube: 400_000,
     },
+  },
+  // The Raft Lab (ADR 0020): its app, the servers, the simulator, the checker and what it draws,
+  // in one chunk loaded on intent. No data file and no WebAssembly; its page keeps 150 KB.
+  'raft-lab': {
+    page: 'lab/raft/index.html',
+    entry: /^_astro\/RaftLab\.astro_astro_type_script_index_0_lang\.[\w-]+\.js$/,
+    paths: [],
+    lazyJavaScript: 8_000,
+    firstView: 150_000,
   },
 } as const;
 
@@ -102,6 +116,34 @@ function reachableFromExcept(eager: readonly string[], skip: readonly string[]):
 
 export type Feature = keyof typeof FEATURES;
 
+/** The relative modules a script imports statically: `import "./x.js"` and `from "./x.js"`, never
+ *  import(), which loads only when the code reaches it. */
+export function staticImportsOf(script: string): string[] {
+  return [...script.matchAll(/\b(?:from|import)\s*[`'"](\.{1,2}\/[^`'"]+)[`'"]/g)].map(
+    ([, spec]) => spec ?? '',
+  );
+}
+
+/** Scripts and every chunk they import statically, as dist/ files: what loads with them. */
+export function staticClosure(scripts: readonly string[]): string[] {
+  const seen = new Set<string>(scripts);
+  const queue = [...scripts];
+  for (let file = queue.shift(); file !== undefined; file = queue.shift()) {
+    for (const spec of staticImportsOf(read(file))) {
+      const target = posix.normalize(posix.join(posix.dirname(file), spec));
+      if (!seen.has(target) && files.includes(target)) {
+        seen.add(target);
+        queue.push(target);
+      }
+    }
+  }
+  return [...seen];
+}
+
+/** A page's eager JavaScript files: the scripts it names and their static imports. */
+export const eagerFiles = (page: string): string[] =>
+  staticClosure(eagerScripts(page).external.map(fileFor));
+
 /** The relative modules a script imports, statically or with import(): "./x.js" and the like. */
 export function importsOf(script: string): string[] {
   return [
@@ -112,16 +154,17 @@ export function importsOf(script: string): string[] {
 }
 
 /** Every chunk some scripts reach through their imports, as dist/ files, without the scripts
- *  themselves: the lazy JavaScript a page's eager scripts can load. */
+ *  themselves or what they import statically: the lazy JavaScript a page's eager scripts can load. */
 const reached = new Map<string, string[]>();
 export function reachable(page: string): string[] {
   return reachableFrom(eagerScripts(read(page)).external.map(fileFor));
 }
 
-export function reachableFrom(eager: readonly string[]): string[] {
-  const key = eager.join(' ');
+export function reachableFrom(scripts: readonly string[]): string[] {
+  const key = scripts.join(' ');
   const known = reached.get(key);
   if (known) return known;
+  const eager = staticClosure(scripts);
   const seen = new Set<string>(eager);
   const queue = [...eager];
   for (let file = queue.shift(); file !== undefined; file = queue.shift()) {

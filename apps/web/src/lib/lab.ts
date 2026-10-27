@@ -55,6 +55,10 @@ export const fromLab = (slug: string, data: LabData): LabEntry => ({
   decisions: data.decisions,
 });
 
+/** The demos with a page file of their own under src/pages/lab/, which [demo].astro leaves out,
+ *  so neither demo's page links the other's styles or code. */
+export const OWN_PAGE: ReadonlySet<string> = new Set(['raft']);
+
 /** A lab entry's page URL (ADR 0005). `api` is never a slug: the lab Worker owns /lab/api/. */
 export const labPath = (entry: Pick<LabEntry, 'slug'>): string => `/lab/${entry.slug}/`;
 

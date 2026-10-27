@@ -1,0 +1,61 @@
+---
+import { render } from 'astro:content';
+import PageHead from '../../../components/PageHead.astro';
+import RaftLab from '../../../components/raft-lab/RaftLab.astro';
+import Base from '../../../layouts/Base.astro';
+import { labEntry, loadLabArea, loadProfile } from '../../../lib/content';
+import { labPath, type LabEntry } from '../../../lib/lab';
+import { labCard } from '../../../lib/og';
+import { SEEDS_IN_CI } from '../../../lib/raft/view';
+
+// The Raft Lab (ADR 0020), a page of its own so it links none of the Route Lab's styles or code
+// ([demo].astro leaves it out, lib/lab.ts OWN_PAGE). Static: the simulation runs in the browser,
+// with no Worker and no Durable Object. A rest parameter, so the page builds only while its lab
+// entry is live, as /lab/ does ([...index].astro beside [demo].astro).
+export async function getStaticPaths() {
+  const lab = await loadLabArea();
+  const entry = lab.entries.find((e) => e.slug === 'raft');
+  return entry ? [{ params: { index: undefined }, props: { entry } }] : [];
+}
+
+interface Props {
+  entry: LabEntry;
+}
+
+const { entry } = Astro.props;
+
+const { name } = (await loadProfile()).basics;
+const { Content } = await render(await labEntry(entry));
+const lead =
+  'Five servers agree on one log with Raft. Crash them, cut the network and lose messages, and watch the five safety properties hold.';
+---
+
+<Base
+  title={`${entry.title} · ${name}`}
+  description={entry.summary}
+  path={labPath(entry)}
+  og={labCard(entry)}
+>
+  <article class="page rf-page" aria-labelledby="page-title">
+    <PageHead label="Lab" heading={entry.title} lead={lead} />
+    <RaftLab />
+    <div class="prose">
+      <Content />
+      <h2>How it is built</h2>
+      <p>
+        The servers are one TypeScript module that follows Figure 2 of the Raft paper. Time, the
+        network and every random choice belong to a simulator around them: virtual time, one seeded
+        random stream, and your presses recorded at the moment they happened. The same seed and the
+        same presses give the same run, every time. That is how the page opens with a picture the
+        build drew, and how the browser then takes over at the exact same moment.
+      </p>
+      <p>
+        After every event, a checker tests the five safety properties of Figure 3. The same
+        simulator runs {SEEDS_IN_CI.toLocaleString('en-US')} seeded runs of crashes, splits and lost
+        messages in the site's tests, and two deliberately broken servers prove those runs can find
+        a real bug: one that votes without checking the candidate's log, and one that commits an old
+        term's entry by counting copies.
+      </p>
+    </div>
+  </article>
+</Base>

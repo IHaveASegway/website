@@ -24,6 +24,7 @@ Status: Draft for review in PR 1 · 2026-10-22
 | [0017](0017-firewall-reads-webassembly.md) | The firewall reads WebAssembly | Proposed |
 | [0018](0018-page-policy-as-a-header.md) | The page policy is a header the build writes | Proposed |
 | [0019](0019-space-time-cube-in-webgl.md) | Interactive 3D where it shows the work: the Route Lab's space-time cube in WebGL | Proposed |
+| [0020](0020-raft-lab-deterministic-simulation.md) | The Raft Lab is a deterministic simulation in the browser, with its own Raft and a safety checker | Proposed |
 
 0013 is reserved for protocol v1 and the recording format, written in PR 6 ([roadmap.md](../roadmap.md#pr-6-lab-platform-and-presence)).
 
