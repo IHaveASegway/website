@@ -91,6 +91,7 @@ describe('the rule', () => {
       'apps/web/src/content/work/a-case.mdx',
       'apps/web/src/content/lab/a-demo.md',
       'apps/web/src/content/now.md',
+      'apps/web/src/content/about.md',
       PROFILE,
     ]) {
       expect(isStamped(path), path).toBe(true);
@@ -99,6 +100,7 @@ describe('the rule', () => {
       'apps/web/src/content/writing/sub/a.md',
       'apps/web/test/fixtures/posts/three/writing/fixture-measure-first.md',
       'apps/web/src/lib/posts.ts',
+      'apps/web/src/content/about-me.md',
       'docs/content.md',
     ]) {
       expect(isStamped(path), path).toBe(false);

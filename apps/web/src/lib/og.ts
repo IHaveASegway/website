@@ -46,6 +46,11 @@ export function labCard(entry: Pick<LabEntry, 'title'>): OgCard {
   return { title: entry.title, label: 'Lab' };
 }
 
+/** About's card: the page, and whose it is, as the lab index's is. */
+export function aboutCard(profile: Profile): OgCard {
+  return { title: 'About', label: profile.basics.name };
+}
+
 /** The lab index's card: the section, and whose it is. */
 export function labIndexCard(profile: Profile): OgCard {
   return { title: 'Lab', label: profile.basics.name };

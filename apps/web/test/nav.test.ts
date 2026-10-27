@@ -79,3 +79,17 @@ test('this build links no manifest page it does not write', () => {
     }
   }
 });
+
+// The bio takes the résumé's place in the header once it is published, and the résumé moves to
+// the footer, so it is one click away from every page but never in both rows (lib/about.ts).
+test('About takes Résumé’s place in the header once it exists, and Résumé moves to the footer', () => {
+  expect(navFor('header', ['/lab/', '/writing/', '/about/']).map((i) => i.id)).toEqual([
+    'lab',
+    'writing',
+    'about',
+  ]);
+  expect(navFor('footer', ['/about/', '/rss.xml']).map((i) => i.id)).toEqual(['resume', 'rss']);
+  // Without it, the header keeps Résumé and the footer does not repeat it.
+  expect(navFor('header', ['/lab/']).map((i) => i.id)).toEqual(['lab', 'resume']);
+  expect(navFor('footer', ['/rss.xml']).map((i) => i.id)).toEqual(['rss']);
+});

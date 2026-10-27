@@ -19,7 +19,7 @@ import { files, read } from './support/dist';
 // every surface: the cross product, not a hand-picked list, because a fitness function only
 // guards what it declares (design-system.md, "Measured contrast").
 
-const SURFACES = ['background', 'surface-1', 'surface-2'];
+const SURFACES = ['background', 'surface-1', 'surface-2', 'ground'];
 /** Text: 4.5:1 on every surface (SC 1.4.3). */
 const TEXT = [
   'foreground',

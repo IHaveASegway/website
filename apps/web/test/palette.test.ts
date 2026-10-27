@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { MANIFEST } from '../src/lib/nav';
+import { isNoindex } from '../src/lib/noindex.mjs';
 import { checkedProfiles } from '../src/lib/profile';
 import { CONTACT_EMAIL } from '../src/lib/site';
 import { THEME_STATES } from '../src/lib/theme';
@@ -105,8 +106,12 @@ function textOf(element: Element, first = false): string {
   return parts.join('').replace(/\s+/g, ' ').trim();
 }
 
+// The pages a visitor can reach: a draft (noindex, in a preview only) is built but linked from
+// nowhere, the menu included (lib/about.ts, aboutRoutes).
 const built = new Set(
-  files.filter((f) => f.endsWith('index.html')).map((f) => `/${f.replace(/index\.html$/, '')}`),
+  files
+    .filter((f) => f.endsWith('index.html') && !isNoindex(read(f)))
+    .map((f) => `/${f.replace(/index\.html$/, '')}`),
 );
 
 for (const file of html) {

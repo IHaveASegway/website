@@ -27,7 +27,7 @@ import { pathToFileURL } from 'node:url';
 /** The entries that carry a stamp, as repository paths. */
 export const STAMPED = [
   /^apps\/web\/src\/content\/(writing|notes|work|lab)\/[^/]+\.mdx?$/,
-  /^apps\/web\/src\/content\/now\.md$/,
+  /^apps\/web\/src\/content\/(now|about)\.md$/,
   /^apps\/web\/src\/content\/profile\.json$/,
 ];
 
