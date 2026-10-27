@@ -4,6 +4,9 @@
    or a draft's words never change the stylesheet, and src/content/README.md is the canary. */
 @import 'tailwindcss' source('../');
 @source not '../content';
+/* An SVG attribute's name, not a class: the space-time cube's picture lays the map down with it
+   (components/route-lab/SpaceTime.astro). */
+@source not inline('transform');
 @import './tokens.css';
 @import './font-fallbacks.css';
 

@@ -49,6 +49,12 @@ export function measure(page: string) {
  * page's first view with and without one solve. Every other lazy file keeps the 2,000 B a feature
  * budget. Astro writes a component's bundles into every build, so a build without the page (the
  * writing fixtures) still holds them, and they still belong to the feature.
+ *
+ * The space-time cube (ADR 0019) is a part of the Route Lab with a budget of its own: its chunk,
+ * which holds three.js, and every chunk only it reaches. It loads only on intent at the cube, so
+ * it counts in neither the lab's lazy JavaScript nor its first solve, and those keep their
+ * meaning: a solver that grew would still fail them. Its own ceiling, the first view with the app,
+ * the route data and the cube, is what a visitor who turns the cube has fetched.
  */
 export const FEATURES = {
   'route-lab': {
@@ -58,10 +64,41 @@ export const FEATURES = {
     lazyJavaScript: 12_000,
     wasm: 360_000,
     data: 60_000,
-    firstView: 150_000,
+    // 160 KB since the space-time cube's pictures (ADR 0019); every other page keeps 150 KB.
+    firstView: 160_000,
     firstSolve: 600_000,
+    cube: {
+      entry: /^_astro\/cube\.[\w-]+\.js$/,
+      lazyJavaScript: 150_000,
+      firstCube: 400_000,
+    },
   },
 } as const;
+
+/** The cube's files: its chunk, and every chunk it reaches that the app does not reach without
+ *  passing through the cube. A chunk the app and the cube share is the app's. */
+export function cubeFiles(): string[] {
+  const entries = files.filter((f) => FEATURES['route-lab'].cube.entry.test(f));
+  const app = files.filter((f) => FEATURES['route-lab'].entry.test(f));
+  const viaApp = reachableFromExcept(app, entries);
+  return [...entries, ...reachableFrom(entries).filter((f) => !viaApp.includes(f))];
+}
+
+/** What some scripts reach without passing through any of `skip`. */
+function reachableFromExcept(eager: readonly string[], skip: readonly string[]): string[] {
+  const seen = new Set<string>(eager);
+  const queue = [...eager];
+  for (let file = queue.shift(); file !== undefined; file = queue.shift()) {
+    for (const spec of importsOf(read(file))) {
+      const target = posix.normalize(posix.join(posix.dirname(file), spec));
+      if (!seen.has(target) && !skip.includes(target) && files.includes(target)) {
+        seen.add(target);
+        queue.push(target);
+      }
+    }
+  }
+  return [...seen].filter((file) => !eager.includes(file));
+}
 
 export type Feature = keyof typeof FEATURES;
 

@@ -1,0 +1,181 @@
+---
+import { formatDuration } from '../../lib/route-lab/plan';
+import { leg, routeData, type Picture } from '../../lib/route-lab/picture';
+import { vanClass, isRound } from '../../lib/route-lab/render';
+import {
+  boxFor,
+  DEFAULT_VIEW,
+  floorMatrix,
+  frame,
+  hourMarks,
+  project,
+  screenLine,
+  screenPath,
+} from '../../lib/route-lab/space-time';
+import { tracks } from '../../lib/route-lab/timeline';
+
+// The space-time cube (ADR 0019): the default day's two plans in time, side by side on one scale,
+// so the plan that takes longer stands taller. The build draws each as a picture from the camera
+// the browser's 3D scene starts from (lib/route-lab/space-time.ts); with JavaScript and WebGL, a
+// canvas takes each picture's place at the same angle, and the visitor can turn it and move
+// through the day (cube.ts). The picture is the page without JavaScript, and its name says what
+// it shows; the stop-by-stop tables above hold every figure as text.
+
+interface Props {
+  picture: Picture;
+}
+
+const { picture } = Astro.props;
+const box = boxFor(
+  routeData.viewBox,
+  Math.max(picture.before.measured.back, picture.after.measured.back),
+);
+const f = frame(DEFAULT_VIEW, box);
+const viewBox = `${Math.round(f.left)} ${Math.round(-f.top)} ${Math.round(f.right - f.left)} ${Math.round(f.top - f.bottom)}`;
+const matrix = floorMatrix(DEFAULT_VIEW, box)
+  .map((v) => Number(v.toFixed(5)))
+  .join(' ');
+const at = (x: number, t: number, y: number) => {
+  const [u, v] = project(DEFAULT_VIEW, box, [x, t * box.scale, y]);
+  return [Math.round(u), Math.round(-v)] as const;
+};
+const { width, depth } = box;
+// The cube's box: the floor's edge, its top at the last hour, and the four edges between, so the
+// space above the map reads as time rather than as empty paper.
+const corners = [
+  [0, 0],
+  [width, 0],
+  [width, depth],
+  [0, depth],
+] as const;
+const level = (t: number) =>
+  corners
+    .map(([x, y], k) => {
+      const [u, v] = at(x, t, y);
+      return `${k === 0 ? 'M' : 'L'}${u} ${v}`;
+    })
+    .join('')
+    .concat('Z');
+const edge = level(0);
+const cage = level(box.seconds).concat(
+  corners
+    .map(([x, y]) => {
+      const [u0, v0] = at(x, 0, y);
+      const [u1, v1] = at(x, box.seconds, y);
+      return `M${u0} ${v0}L${u1} ${v1}`;
+    })
+    .join(''),
+);
+const bakery = routeData.points[0] ?? { x: 0, y: 0 };
+const [px0, py0] = at(bakery.x, 0, bakery.y);
+const [px1, py1] = at(bakery.x, box.seconds, bakery.y);
+const marks = hourMarks(box).map((s) => {
+  const [u, v] = at(bakery.x, s, bakery.y);
+  return { u, v, label: `${s / 3600} h` };
+});
+const plans = [
+  { which: 'before', label: 'As the orders came in', ...picture.before },
+  { which: 'after', label: 'Planned by VROOM', ...picture.after },
+].map((plan) => ({
+  ...plan,
+  tracks: tracks(routeData, leg, plan.plan).map((t) => ({
+    van: vanClass(t.van),
+    round: isRound(t.van),
+    d: screenPath(screenLine(DEFAULT_VIEW, box, t, 3)),
+    stops: t.stops.map((s) => at(s.x, s.arrives, s.y)),
+  })),
+}));
+const NBSP = '\u00a0';
+const name = (label: string, back: number) =>
+  `${label}, in time: the map lies flat, time rises from it, and each van’s line climbs as its day goes on. The last van is back after ${formatDuration(back)}.`;
+---
+
+<section class="rl-cube" aria-labelledby="rl-cube-title" tabindex="-1" data-rl-cube>
+  <div class="rl-cube-head">
+    <h2 class="rl-cube-title" id="rl-cube-title">
+      The same day, in time
+    </h2>
+    <p class="rl-cube-lead">
+      Up is time. A van’s line leans while it drives and climbs straight up while it hands an order
+      over, so the plan that keeps its vans out longer stands taller.
+    </p>
+  </div>
+
+  <div class="rl-cube-pair">
+    {plans.map((plan) => (
+      <figure class="rl-cube-figure" data-rl-cube-plan={plan.which}>
+        <figcaption class="rl-cube-caption">
+          <span class="label">{plan.label}</span>
+          <span class="rl-cube-back" data-rl-cube-back>
+            Last van back after {formatDuration(plan.measured.back)}
+          </span>
+        </figcaption>
+        <div class="rl-cube-stage" data-rl-cube-stage>
+          <svg
+            class="rl-cube-picture"
+            viewBox={viewBox}
+            role="img"
+            aria-labelledby={`rl-cube-${plan.which}-title`}
+            data-rl-cube-picture
+          >
+            <title id={`rl-cube-${plan.which}-title`}>{name(plan.label, plan.measured.back)}</title>
+            <use href="#rl-base" transform={`matrix(${matrix})`} />
+            <path class="rl-cube-edge" d={edge} />
+            <path class="rl-cube-cage" d={cage} />
+            <path class="rl-cube-axis" d={`M${px0} ${py0}L${px1} ${py1}`} />
+            {marks.map((m) => (
+              <>
+                <path class="rl-cube-tick" d={`M${m.u} ${m.v}l${-24} 0`} />
+                <text class="rl-cube-hour" x={m.u - 36} y={m.v}>
+                  {m.label}
+                </text>
+              </>
+            ))}
+            {plan.tracks.map((t) => (
+              <path class={`rl-route van-${t.van}`} d={t.d} />
+            ))}
+            {plan.tracks.flatMap((t) =>
+              t.stops.map(([u, v]) => (
+                <path
+                  class={`rl-stop van-${t.van}${t.round ? ' rl-round' : ''}`}
+                  d={`M${u} ${v}h0`}
+                />
+              )),
+            )}
+          </svg>
+          <ul class="rl-cube-marks" aria-hidden="true" data-rl-cube-marks hidden></ul>
+        </div>
+      </figure>
+    ))}
+  </div>
+
+  <div class="rl-cube-controls" data-rl-cube-controls data-rl-js>
+    <div class="rl-cube-time">
+      <label class="label" for="rl-cube-time">
+        Time after leaving
+      </label>
+      <input
+        type="range"
+        id="rl-cube-time"
+        min="0"
+        max={box.seconds}
+        step="60"
+        value="0"
+        data-rl-cube-time
+        aria-valuetext={`0${NBSP}min`}
+      />
+      <span class="rl-cube-clock" aria-hidden="true" data-rl-cube-clock>
+        0{NBSP}min
+      </span>
+    </div>
+    <button type="button" class="btn rl-cube-play" data-rl-cube-play>
+      Play the day
+    </button>
+    <button type="button" class="btn rl-cube-reset" data-rl-cube-reset>
+      Reset the view
+    </button>
+  </div>
+  <p class="rl-cube-hint" id="rl-cube-hint" data-rl-cube-hint data-rl-cube-controls data-rl-js>
+    Drag a cube sideways to turn both, or focus one and use the arrow keys.
+  </p>
+</section>

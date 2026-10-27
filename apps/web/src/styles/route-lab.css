@@ -968,3 +968,236 @@
     display: none;
   }
 }
+
+/* The same day, in time: the space-time cube (ADR 0019). Two pictures side by side on one scale
+   from 64rem, one on a phone, where the map switch above chooses it, so the maps and the cubes
+   always show the same plan. With JavaScript and WebGL a canvas takes each picture's place at the
+   same angle (components/route-lab/cube.ts). The controls show from the first paint wherever
+   script runs, as the lab's others do, so nothing moves when the scene arrives; touching one is
+   the intent that loads it. A browser that cannot draw WebGL hides them (the hidden attribute). */
+.rl-cube {
+  display: grid;
+  row-gap: 1.25rem;
+  padding-top: 1rem;
+  border-top: 2px solid var(--foreground);
+}
+
+@media (width >= 64rem) {
+  .rl-cube-head {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: var(--gutter);
+  }
+
+  .rl-cube-title {
+    grid-column: 1 / 5;
+  }
+
+  .rl-cube-lead {
+    grid-column: 5 / 11;
+  }
+}
+
+.rl-cube-title {
+  margin: 0;
+  font-size: var(--text-title);
+  font-weight: 620;
+  font-stretch: 90%;
+  line-height: var(--text-title--line-height);
+  letter-spacing: -0.01em;
+}
+
+.rl-cube-lead {
+  margin: 0;
+  color: var(--muted-foreground);
+  max-width: var(--measure);
+  text-wrap: pretty;
+}
+
+.rl-cube-pair {
+  display: grid;
+  gap: 2rem var(--gutter);
+}
+
+@media (width >= 64rem) {
+  .rl-cube-pair {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media screen and (scripting: enabled) and (width < 64rem) {
+  .rl:has(input[name='rl-view'][value='after']:checked) [data-rl-cube-plan='before'],
+  .rl:has(input[name='rl-view'][value='before']:checked) [data-rl-cube-plan='after'] {
+    display: none;
+  }
+}
+
+.rl-cube-figure {
+  display: grid;
+  row-gap: 0.5rem;
+  margin: 0;
+}
+
+.rl-cube-caption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 1rem;
+}
+
+.rl-cube-back {
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  line-height: var(--text-meta--line-height);
+}
+
+/* The stage holds the picture, then the canvas in its place: a drag sideways turns the cube, and a
+   swipe up or down still scrolls the page (touch-action), so the cube never holds the page. */
+.rl-cube-stage {
+  position: relative;
+  touch-action: pan-y;
+}
+
+.rl-cube-stage canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  cursor: grab;
+}
+
+.rl-cube-stage canvas:active {
+  cursor: grabbing;
+}
+
+.rl-cube-picture {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* The browser's own [hidden] rule reaches HTML elements only, not an SVG root. */
+.rl-cube-picture[hidden] {
+  display: none;
+}
+
+.rl-cube-edge,
+.rl-cube-cage,
+.rl-cube-axis,
+.rl-cube-tick {
+  fill: none;
+  stroke: var(--foreground);
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+}
+
+.rl-cube-edge,
+.rl-cube-cage {
+  stroke: var(--input);
+}
+
+.rl-cube-cage {
+  stroke-opacity: 0.55;
+}
+
+.rl-cube-axis {
+  stroke-width: 2px;
+}
+
+.rl-cube-hour {
+  fill: var(--foreground);
+  font-family: var(--font-mono);
+  font-size: 120px;
+  text-anchor: end;
+  dominant-baseline: central;
+}
+
+/* The picture's hour labels are in its own units, about 3,250 across, so their size follows the
+   picture's width, as the maps' labels do: these steps keep them about 11 to 13 px on screen, a
+   full-width picture on a phone, one column on a tablet, two side by side from 64rem. */
+@media (width >= 30rem) {
+  .rl-cube-hour {
+    font-size: 72px;
+  }
+}
+
+@media (width >= 48rem) {
+  .rl-cube-hour {
+    font-size: 52px;
+  }
+}
+
+@media (width >= 64rem) {
+  .rl-cube-hour {
+    font-size: 72px;
+  }
+}
+
+@media (width >= 90rem) {
+  .rl-cube-hour {
+    font-size: 60px;
+  }
+}
+
+/* The hour labels over the canvas: placed by the script where the scene draws each mark. */
+.rl-cube-marks {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  pointer-events: none;
+}
+
+.rl-cube-marks li {
+  position: absolute;
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  line-height: 1;
+  transform: translate(-100%, -50%);
+  padding-right: 0.5rem;
+}
+
+.rl-cube-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 1rem var(--gutter);
+}
+
+.rl-cube-controls[hidden],
+.rl-cube-hint[hidden] {
+  display: none;
+}
+
+.rl-cube-time {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.375rem 1rem;
+  flex: 1 1 18rem;
+}
+
+.rl-cube-time .label {
+  grid-column: 1 / -1;
+}
+
+.rl-cube-time input {
+  width: 100%;
+  min-height: 2.75rem;
+  accent-color: var(--primary);
+}
+
+.rl-cube-clock {
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  font-variant-numeric: tabular-nums;
+  min-width: 7ch;
+  text-align: end;
+}
+
+.rl-cube-hint {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+}

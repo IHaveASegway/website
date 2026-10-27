@@ -52,6 +52,16 @@ const LIMIT_MS = 15_000;
 const FIRST_LIMIT_MS = 60_000;
 const SLOW = 'The solver did not answer in time. Change anything to try again.';
 
+/** What 'rl:plans' carries: the data and both plans as the maps draw them. */
+export interface PlansDetail {
+  readonly data: RouteData;
+  readonly leg: (i: number, j: number) => number[];
+  readonly dealt: Plan;
+  readonly solved: Plan;
+  /** Whether VROOM's plan is for the orders as they stand. */
+  readonly fresh: boolean;
+}
+
 interface Solved {
   readonly key: string;
   readonly orders: readonly number[];
@@ -182,7 +192,18 @@ export async function start(root: HTMLElement, queued: Element[], nearest: Neare
     const room = $<HTMLElement>('[data-rl-capacity]');
     text(room, roomText(data, orders, vans, capacity));
     if (room) room.hidden = orders.length === 0;
+    emit();
   }
+
+  /** Tells the page's other views what the maps now show: the space-time cube reads both plans
+   *  from here, the one model, and never plans or keeps a copy of its own (ADR 0019). */
+  const emit = () =>
+    root.dispatchEvent(
+      new CustomEvent<PlansDetail>('rl:plans', {
+        detail: { data, leg, dealt, solved: solved.plan, fresh: fresh() },
+      }),
+    );
+  root.addEventListener('rl:ask', emit);
 
   /** What VROOM saves on these orders, and when the last van is back in each plan. */
   const result = () =>
