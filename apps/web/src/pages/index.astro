@@ -1,5 +1,6 @@
 ---
 import Hero from '../components/Hero.astro';
+import Motion from '../components/Motion.astro';
 import PostList from '../components/PostList.astro';
 import SectionTitle from '../components/SectionTitle.astro';
 import WorkCard from '../components/WorkCard.astro';
@@ -64,4 +65,5 @@ const latest = writingRow(area.published, cards);
       </ul>
     </section>
   )}
+  <Motion />
 </Base>

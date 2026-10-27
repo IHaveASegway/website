@@ -81,6 +81,13 @@
   @view-transition {
     navigation: auto;
   }
+
+  /* A page's one title carries the name, so the title a visitor followed on an index flies to it:
+     src/scripts/motion.js gives the followed title the same name as the index is left, and takes it
+     from the index's own title. With nothing followed, the titles crossfade as before. */
+  .page-title {
+    view-transition-name: page-title;
+  }
 }
 
 @layer components {
@@ -200,6 +207,20 @@
   /* The page itself, or a page inside the section: /lab/routes/ marks Lab, a post marks Writing. */
   .site-nav a[aria-current] {
     text-decoration-line: underline;
+  }
+
+  /* Hidden on screen, read by assistive technology: a decoding tag's word, which
+     src/scripts/motion.js adds beside the letters it cycles. */
+  .card-tag > [data-word] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    border-width: 0;
+    white-space: nowrap;
   }
 
   /* A value beside the words: a post's kind and date over its title, a card's tag. */
@@ -486,6 +507,44 @@
         to {
           transform: none;
           clip-path: inset(0 0 0 0);
+        }
+      }
+    }
+  }
+
+  /* A section's rule draws itself from the left as the section scrolls in, on the same timeline as
+     the rising titles: it moves only with the scroll, and a rule on screen at load is drawn. The
+     border stays the rule everywhere else: with reduced motion, without scroll timelines, in a
+     contrast theme (which would paint the bar's fill over), on the résumé and on paper. */
+  @media screen and (prefers-reduced-motion: no-preference) and (forced-colors: none) {
+    @supports (animation-timeline: view()) {
+      .section-title:not(.resume *) {
+        position: relative;
+        border-top-color: transparent;
+      }
+
+      .section-title:not(.resume *)::before {
+        content: '';
+        position: absolute;
+        inset-inline: 0;
+        top: -2px;
+        height: 2px;
+        background-color: var(--foreground);
+        transform-origin: left;
+        animation-name: draw;
+        animation-timing-function: linear;
+        animation-fill-mode: both;
+        animation-timeline: view();
+        animation-range: entry 15% entry 85%;
+      }
+
+      @keyframes draw {
+        from {
+          transform: scaleX(0);
+        }
+
+        to {
+          transform: none;
         }
       }
     }

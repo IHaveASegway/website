@@ -16,8 +16,12 @@ import { html, read } from './support/dist';
 // And every page has a fourth, once (design-system.md, "The command menu"): the command menu's
 // module, the bundle Astro builds from components/Palette.astro's script (src/scripts/palette.js),
 // from /_astro/ and never inline, after the theme script and in <body>.
+//
+// And Home and the indexes have a fifth, once (design-system.md, "Motion"): the module of
+// components/Motion.astro (src/scripts/motion.js), which decodes a card's tag and hands a followed
+// title to the next page. A post, a demo, the résumé and the 404 carry none.
 
-type Verdict = 'theme' | 'json-ld' | 'route-lab' | 'palette' | string;
+type Verdict = 'theme' | 'json-ld' | 'route-lab' | 'palette' | 'motion' | string;
 
 /** The one page allowed a module of its own, and the name Astro gives that module's bundle. */
 export const ROUTE_LAB = {
@@ -27,6 +31,12 @@ export const ROUTE_LAB = {
 
 /** The name Astro gives the command menu's bundle, which every page loads. */
 export const PALETTE = /^\/_astro\/Palette\.astro_astro_type_script_index_0_lang\.[\w-]+\.js$/;
+
+/** The pages that carry the motion module, Home and the indexes, and the name of its bundle. */
+export const MOTION = {
+  pages: /^(?:(?:writing|notes|lab)\/)?index\.html$/,
+  src: /^\/_astro\/Motion\.astro_astro_type_script_index_0_lang\.[\w-]+\.js$/,
+} as const;
 
 export function classify(
   script: {
@@ -53,6 +63,14 @@ export function classify(
     script.body === ''
   )
     return 'palette';
+  if (
+    MOTION.pages.test(page) &&
+    names === 'src type' &&
+    script.attributes['type'] === 'module' &&
+    MOTION.src.test(script.attributes['src'] ?? '') &&
+    script.body === ''
+  )
+    return 'motion';
   return `not allowed: <script ${names}> ${script.body.slice(0, 60)}`;
 }
 
@@ -61,8 +79,9 @@ for (const file of html) {
     const page = read(file);
     const verdicts = tags(page, 'script').map((script) => classify(script, file));
 
-    test("every script is the theme script, JSON-LD or the command menu's module, once, and on the Route Lab its own module", () => {
-      const known = ['theme', 'json-ld', 'route-lab', 'palette'];
+    test("every script is the theme script, JSON-LD or the command menu's module, once, on the Route Lab its own module, and on Home and the indexes the motion module", () => {
+      const known = ['theme', 'json-ld', 'route-lab', 'palette', 'motion'];
+      expect(verdicts.filter((v) => v === 'motion').length).toBeLessThanOrEqual(1);
       expect(verdicts.filter((v) => !known.includes(v))).toEqual([]);
       expect(verdicts.filter((v) => v === 'route-lab')).toHaveLength(
         file === ROUTE_LAB.page ? 1 : 0,
@@ -178,5 +197,33 @@ test("known answers: the command menu's module is allowed on any page, from /_as
       },
       body: '',
     }),
+  ).toMatch(/^not allowed/);
+});
+
+test('known answers: the motion module is allowed on Home and the indexes only, from /_astro/, never inline', () => {
+  const motion = {
+    attributes: {
+      type: 'module',
+      src: '/_astro/Motion.astro_astro_type_script_index_0_lang.BXQDCniR.js',
+    },
+    body: '',
+  };
+  for (const page of ['index.html', 'writing/index.html', 'notes/index.html', 'lab/index.html'])
+    expect(classify(motion, page), page).toBe('motion');
+  // A post, a demo, the résumé and the 404 carry none, nor does a page this test does not name.
+  for (const page of [
+    'writing/a-post/index.html',
+    ROUTE_LAB.page,
+    'resume/index.html',
+    '404.html',
+    'xindex.html',
+    '',
+  ])
+    expect(classify(motion, page), page).toMatch(/^not allowed/);
+  expect(
+    classify({ attributes: { type: 'module' }, body: 'import "./motion.js"' }, 'index.html'),
+  ).toMatch(/^not allowed/);
+  expect(
+    classify({ ...motion, attributes: { ...motion.attributes, defer: '' } }, 'index.html'),
   ).toMatch(/^not allowed/);
 });
