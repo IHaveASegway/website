@@ -110,14 +110,17 @@ test('a card with nothing to activate does not react to the pointer; one with a 
   expect(await border()).not.toBe(atRest.border);
 });
 
-/** What Home would move with no preference: each card's bar, and each card's and post's title,
- *  which rises as it scrolls into view (design-system.md, "Motion"), in document order. */
+/** What Home would move with no preference: each section's rule, which draws itself in, each
+ *  card's bar, and each card's and post's title, which rises as it scrolls into view
+ *  (design-system.md, "Motion"), in document order. */
 const expectedMotion = (page: Page) =>
   page.evaluate(() =>
-    [...document.querySelectorAll('.card, .post-title')].flatMap((element) =>
-      element.classList.contains('card')
-        ? ['article.card::before', 'h3.card-title']
-        : [`${element.tagName.toLowerCase()}.post-title`],
+    [...document.querySelectorAll('.section-title, .card, .post-title')].flatMap((element) =>
+      element.classList.contains('section-title')
+        ? ['h2.section-title::before']
+        : element.classList.contains('card')
+          ? ['article.card::before', 'h3.card-title']
+          : [`${element.tagName.toLowerCase()}.post-title`],
     ),
   );
 
@@ -156,4 +159,83 @@ test('with no preference, a title rises on a scroll timeline, and one on screen 
   expect(title.onScreen).toBe(true);
   expect(title.progress).toBe(1);
   expect(title.transform).toBe(SHOWN);
+});
+
+/** A card's tag as drawn, and as assistive technology reads it. */
+const tag = (page: Page) =>
+  page.evaluate(() => {
+    const element = document.querySelector('.card:has(.card-more) .card-tag') as HTMLElement;
+    const shown = element.querySelector('[aria-hidden="true"]');
+    return {
+      drawn: (shown ?? element).textContent?.trim() ?? '',
+      read: element.querySelector('[data-word]')?.textContent ?? element.textContent?.trim() ?? '',
+      width: element.getBoundingClientRect().width,
+    };
+  });
+
+test('with no preference, a hovered card decodes its tag and settles on the word, at one width', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto('/');
+  test.skip((await page.locator('.card:has(.card-more)').count()) === 0, 'Home renders no card');
+  const before = await tag(page);
+  const card = page.locator('.card:has(.card-more)').first();
+  await card.hover();
+  await page.waitForTimeout(90);
+  const during = await tag(page);
+  expect(during.read).toBe(before.drawn);
+  expect(during.drawn).toHaveLength(before.drawn.length);
+  expect(during.width).toBe(before.width);
+  // Within the decode's 360 ms and a frame or two, the word is back.
+  await expect.poll(async () => (await tag(page)).drawn, { timeout: 1_000 }).toBe(before.drawn);
+  expect((await tag(page)).width).toBe(before.width);
+});
+
+test('under reduce, a hovered or focused card keeps its tag as it is', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  test.skip((await page.locator('.card:has(.card-more)').count()) === 0, 'Home renders no card');
+  const html = () => page.locator('.card:has(.card-more) .card-tag').first().innerHTML();
+  const before = await html();
+  await page.locator('.card:has(.card-more)').first().hover();
+  await page.locator('.card:has(.card-more) .card-more').first().focus();
+  await page.waitForTimeout(120);
+  expect(await html()).toBe(before);
+});
+
+test('with no preference, the followed title takes the page title’s name as Home is left, and the next page’s title has it', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto('/');
+  const link = page.locator('.card .card-more[href^="/"]').first();
+  test.skip((await link.count()) === 0, 'Home renders no card that opens a page here');
+  // Registered after the motion module's own listener, so it sees what that listener set.
+  await page.evaluate(() =>
+    addEventListener('pageswap', (event) => {
+      const names = [...document.querySelectorAll<HTMLElement>('.card-title, .page-title')]
+        .map((element) => getComputedStyle(element).viewTransitionName)
+        .filter((name) => name !== 'none');
+      sessionStorage.setItem(
+        'swap',
+        JSON.stringify({ transition: Boolean(event.viewTransition), names }),
+      );
+    }),
+  );
+  const title = await link.evaluate((a) =>
+    a.closest('.card')?.querySelector('.card-title')?.textContent?.trim(),
+  );
+  await link.click();
+  await page.waitForURL((url) => url.pathname !== '/');
+  const swap = JSON.parse((await page.evaluate(() => sessionStorage.getItem('swap'))) ?? '{}');
+  expect(swap.transition).toBe(true);
+  // One name on the page being left, on the followed card's title.
+  expect(swap.names).toEqual(['page-title']);
+  const next = await page.locator('h1').evaluate((h1) => ({
+    name: getComputedStyle(h1).viewTransitionName,
+    text: h1.textContent?.trim(),
+  }));
+  expect(next.name).toBe('page-title');
+  expect(title).toBeTruthy();
 });

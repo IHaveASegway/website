@@ -1,4 +1,5 @@
 ---
+import Motion from '../../components/Motion.astro';
 import PageHead from '../../components/PageHead.astro';
 import Base from '../../layouts/Base.astro';
 import { loadLabArea, loadProfile } from '../../lib/content';
@@ -43,4 +44,5 @@ const lab = await loadLabArea();
       ))}
     </ol>
   </section>
+  <Motion />
 </Base>
