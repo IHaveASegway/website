@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { defineCollection } from 'astro:content';
 import { file, glob } from 'astro/loaders';
+import { aboutSchema } from './lib/about';
 import { labSchema } from './lib/lab';
 import { essaySchema, noteSchema, postsBase } from './lib/posts';
 import { profileSchema, projectFixturePath, withFixture, type ProfileFixture } from './lib/profile';
@@ -54,4 +55,11 @@ const lab = defineCollection({
   schema: labSchema,
 });
 
-export const collections = { profile, writing, notes, lab };
+// /about/, one entry whose file name is its id (lib/about.ts). It is Joseph's to write, and a draft
+// until he turns the flag off.
+const about = defineCollection({
+  loader: glob({ base: './src/content', pattern: 'about.md', generateId: fileName }),
+  schema: aboutSchema,
+});
+
+export const collections = { profile, writing, notes, lab, about };

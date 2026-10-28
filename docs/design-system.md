@@ -2,7 +2,7 @@
 
 Instrument is how ihaveasegway.com looks and moves: a Swiss-style 12-column frame, a poster-size condensed name and small mono labels for dates and figures, in petrol and apricot. Its feel comes from structure and type, not from neon, glitch or sound, and nothing on a page describes how the site is built ([Nothing on the page describes the site](#nothing-on-the-page-describes-the-site)). This doc owns the tokens, the palette and its measured contrast, typography, the motifs, motion, the effects catalog, the design budgets, the accessibility rules and the layout of Home. Why the tokens are a copy owned by this repository, and how the direction was chosen, is [ADR 0010](adr/0010-quiet-console-design-tokens.md). Home's sections and copy belong to [content.md](content.md); the policy that admits the theme script belongs to [security.md](security.md); where each check runs belongs to [delivery.md](delivery.md).
 
-Status: Updated in PR 3 (Home v1) · 2026-10-23; after PR 5 (Writing), with Home set as a poster, with the site's description of itself removed, and with the decoration that showed the grid and the build removed · 2026-10-24; with the Route Lab's map, its budgets and its one fade, and that map revised after its reviews; with the fixes from QA of the live build (a4ee70b): larger text sizes on phones, the back-forward cache, the toggle's states, the skip link, the hero between a phone and a laptop, the mono preload, selected text and the touch icon; and with the two merged, the QA checks run on the lab's pages and the résumé · 2026-10-25; with an index's titles rising on scroll, and the frame widened to 1,920 px and set back to 1,312 px the same day · 2026-10-26; with wave 1 of the motion pass: tags that decode, titles that fly to the next page and rules that draw themselves, and the tuning name held for layout shift · 2026-10-27
+Status: Updated in PR 3 (Home v1) · 2026-10-23; after PR 5 (Writing), with Home set as a poster, with the site's description of itself removed, and with the decoration that showed the grid and the build removed · 2026-10-24; with the Route Lab's map, its budgets and its one fade, and that map revised after its reviews; with the fixes from QA of the live build (a4ee70b): larger text sizes on phones, the back-forward cache, the toggle's states, the skip link, the hero between a phone and a laptop, the mono preload, selected text and the touch icon; and with the two merged, the QA checks run on the lab's pages and the résumé · 2026-10-25; with an index's titles rising on scroll, and the frame widened to 1,920 px and set back to 1,312 px the same day · 2026-10-26; with wave 1 of the motion pass: tags that decode, titles that fly to the next page and rules that draw themselves, and the tuning name held for layout shift; with page geometry and the tinted light paper · 2026-10-27
 
 Units: 1 KB = 1,000 bytes. JS and CSS sizes are gzip -9 of the bytes as served unless stated: the stylesheet is minified, and the theme script ships as written, which since 2026-10-24 means without comments. Figures dated 2026-10-23 come from PR 3's build, or PR 5's where they say so; figures dated 2026-10-24 come from that day's builds, which added the theme-color metas and the footer's 44 px links, set Home as a poster, removed the build readouts, and then removed the ruler, the step, the numerals and How I work, each named where it matters. The checks below re-measure them on every pull request. Figures dated 2026-10-22 come from the research prototypes and say so.
 
@@ -106,18 +106,21 @@ Dark-first, light fully supported, following the OS by default ([Theme before fi
 
 ### Tokens
 
+**The tinted light paper (2026-10-27).** Joseph read the light theme as "plain white everywhere". From a live demo he took a deeper paper over the near-white one: the background went from lightness 0.981 to 0.955, and the two surfaces with it. The darker paper took contrast from every text token, so the muted, subtle, accent and input tokens went darker by 0.016 to 0.04 in lightness, keeping the accent's hue (48, the one-way part of [ADR 0010](adr/0010-quiet-console-design-tokens.md)). Every pair passes with more room than before: the tightest light text pair went from 4.66:1 to 4.97:1, and the tightest light non-text pair from 3.14:1 to 3.49:1. Dark is unchanged.
+
 | Token | Role | Dark | Light |
 |---|---|---|---|
-| `--background` | page | `oklch(0.233 0.035 225)` `#08212a` | `oklch(0.981 0.007 220)` `#f4fafc` |
-| `--surface-1` | panels: code in a post | `oklch(0.272 0.041 225)` `#0c2b36` | `oklch(0.951 0.011 211)` `#e7f1f3` |
-| `--surface-2` | a step above: hover, the skip link | `oklch(0.31 0.044 225)` `#143541` | `oklch(0.925 0.014 212)` `#dce9ec` |
+| `--background` | page | `oklch(0.233 0.035 225)` `#08212a` | `oklch(0.955 0.012 215)` `#e8f2f5` |
+| `--surface-1` | panels: code in a post | `oklch(0.272 0.041 225)` `#0c2b36` | `oklch(0.932 0.014 212)` `#dfebee` |
+| `--surface-2` | a step above: hover, the skip link | `oklch(0.31 0.044 225)` `#143541` | `oklch(0.91 0.016 212)` `#d6e4e7` |
 | `--foreground` | body text | `oklch(0.961 0.01 205)` `#ebf4f5` | `oklch(0.219 0.03 231)` `#0a1d26` |
-| `--muted-foreground` | secondary text and labels | `oklch(0.8 0.025 216)` `#adc2c8` | `oklch(0.471 0.03 225)` `#495f68` |
-| `--subtle-foreground` | nothing since the ruler left on 2026-10-24; kept in the tested set | `oklch(0.72 0.03 218)` `#90aab1` | `oklch(0.505 0.03 222)` `#526971` |
+| `--muted-foreground` | secondary text and labels | `oklch(0.8 0.025 216)` `#adc2c8` | `oklch(0.455 0.03 225)` `#455a63` |
+| `--subtle-foreground` | nothing since the ruler left on 2026-10-24; kept in the tested set | `oklch(0.72 0.03 218)` `#90aab1` | `oklch(0.475 0.03 222)` `#4a6068` |
 | `--border` | hairline rules only | `oklch(0.431 0.04 223)` `#375560` | `oklch(0.861 0.015 213)` `#c7d4d7` |
-| `--input` | functional borders and link underlines (3:1) | `oklch(0.6 0.035 220)` `#69868f` | `oklch(0.6 0.03 220)` `#6d858d` |
-| `--primary` | the accent | `oklch(0.84 0.095 60)` `#f9bc8b` | `oklch(0.52 0.126 48)` `#a14e1b` |
-| `--primary-strong` | accent on hover | `oklch(0.88 0.068 62)` `#f9ceaa` | `oklch(0.46 0.115 46)` `#8a3f15` |
+| `--ground` | a page's background lines ([Page geometry](#page-geometry)); a surface every text token reads on | `oklch(0.3 0.042 224)` `#13323d` | `oklch(0.905 0.016 213)` `#d4e3e6` |
+| `--input` | functional borders and link underlines (3:1) | `oklch(0.6 0.035 220)` `#69868f` | `oklch(0.56 0.03 220)` `#617981` |
+| `--primary` | the accent | `oklch(0.84 0.095 60)` `#f9bc8b` | `oklch(0.49 0.12 48)` `#954717` |
+| `--primary-strong` | accent on hover | `oklch(0.88 0.068 62)` `#f9ceaa` | `oklch(0.43 0.11 46)` `#7f3810` |
 | `--primary-foreground` | text on an apricot fill | `oklch(0.2 0.029 60)` `#201308` | `oklch(0.991 0.005 211)` `#f8fdfe` |
 | `--signal`, `--ring` | attention, the focus outline | `var(--primary)` | `var(--primary)` |
 | `--destructive` | errors | `var(--foreground)`, until a page shows an error state | the same |
@@ -126,20 +129,20 @@ The light accent is apricot darkened to text contrast on the light surfaces. In 
 
 ### Measured contrast
 
-Method: OKLCH to OKLab to linear sRGB ([Ottosson's matrices](https://bottosson.github.io/posts/oklab/)), then WCAG 2.2 [relative luminance](https://www.w3.org/TR/WCAG22/#dfn-relative-luminance), with [culori](https://culorijs.org/api/) 4.0.2. Every token is inside the sRGB gamut, so no browser clips it. `test/tokens.test.ts` computes the full cross product from `tokens.css` on every pull request: every text token against every surface at 4.5:1, every non-text token at 3:1, and the label on each accent fill. The values below are from 2026-10-23, dark / light.
+Method: OKLCH to OKLab to linear sRGB ([Ottosson's matrices](https://bottosson.github.io/posts/oklab/)), then WCAG 2.2 [relative luminance](https://www.w3.org/TR/WCAG22/#dfn-relative-luminance), with [culori](https://culorijs.org/api/) 4.0.2. Every token is inside the sRGB gamut, so no browser clips it. `test/tokens.test.ts` computes the full cross product from `tokens.css` on every pull request: every text token against every surface at 4.5:1, every non-text token at 3:1, and the label on each accent fill. The values below are from 2026-10-27, dark / light.
 
-| Token | Need | on background | on surface-1 | on surface-2 |
-|---|---|---|---|---|
-| foreground (also `destructive`, for now) | 4.5 | 14.92 / 16.39 | 13.29 / 15.03 | 11.65 / 13.91 |
-| muted-foreground | 4.5 | 8.98 / 6.38 | 8.00 / 5.85 | 7.02 / 5.42 |
-| subtle-foreground | 4.5 | 6.78 / 5.51 | 6.04 / 5.05 | 5.30 / 4.68 |
-| primary (also `signal` and the focus `ring`) | 4.5 | 9.99 / 5.49 | 8.90 / 5.03 | 7.81 / 4.66 |
-| primary-strong | 4.5 | 11.46 / 7.09 | 10.21 / 6.50 | 8.96 / 6.01 |
-| input (borders, underlines) | 3.0 | 4.27 / 3.70 | 3.80 / 3.40 | 3.34 / 3.14 |
+| Token | Need | on background | on surface-1 | on surface-2 | on ground |
+|---|---|---|---|---|---|
+| foreground (also `destructive`, for now) | 4.5 | 14.92 / 15.21 | 13.29 / 14.21 | 11.65 / 13.29 | 12.08 / 13.09 |
+| muted-foreground | 4.5 | 8.98 / 6.35 | 8.00 / 5.93 | 7.02 / 5.55 | 7.28 / 5.46 |
+| subtle-foreground | 4.5 | 6.78 / 5.82 | 6.04 / 5.43 | 5.30 / 5.08 | 5.49 / 5.01 |
+| primary (also `signal` and the focus `ring`) | 4.5 | 9.99 / 5.78 | 8.90 / 5.40 | 7.81 / 5.05 | 8.10 / 4.97 |
+| primary-strong | 4.5 | 11.46 / 7.47 | 10.21 / 6.97 | 8.96 / 6.52 | 9.28 / 6.42 |
+| input (borders, underlines) | 3.0 | 4.27 / 4.05 | 3.80 / 3.79 | 3.34 / 3.54 | 3.46 / 3.49 |
 
-On the accent fills: `primary-foreground` on `primary` measures 10.91 / 5.65, and on `primary-strong` 12.51 / 7.29. `border` is decoration and carries no claim (2.09 / 1.44 on the background); it is still checked for gamut.
+On the accent fills: `primary-foreground` on `primary` measures 10.91 / 6.41, and on `primary-strong` 12.51 / 8.28. `border` is decoration and carries no claim (2.09 / 1.34 on the background); it is still checked for gamut. `ground` is a surface, so every text and non-text token is held to it: its lines are faint (1.23 / 1.16 on the background), and a word that crosses one keeps its contrast.
 
-Every pair passes in both themes, and the test lists no forbidden pair. The tightest text pairs are 5.30:1 in dark (`subtle-foreground` on `surface-2`) and 4.66:1 in light (`primary` on `surface-2`); the tightest non-text pair is `input` on `surface-2` in light, 3.14:1. The test also fails when a color token has no declared role, and when the light block for a stored choice and the light block for the OS differ.
+Every pair passes in both themes, and the test lists no forbidden pair. The tightest text pairs are 5.30:1 in dark (`subtle-foreground` on `surface-2`) and 4.97:1 in light (`primary` on `ground`); the tightest non-text pair is `input` on `surface-2` in dark, 3.34:1. The test also fails when a color token has no declared role, and when the light block for a stored choice and the light block for the OS differ.
 
 **Selected text.** Every `::selection` rule, in `global.css` or the Route Lab's own sheet, sets both a text color and a fill, each a token, so the pair holds whatever color the text had: `primary-foreground` on `primary`, 10.91 / 5.65, and on the Email button, whose label already sits on that fill, `background` on `foreground`, 14.92 / 16.39. Display type, every heading and the title under the name, is the one exception, and sets no fill: most of it sets its lines closer together than the face is tall (0.86 for the name, 1.02 to 1.2 for titles), and a browser paints each line's fill over the line before it, so the first fix of 2026-10-25, a fill everywhere, hid the foot of the line above: with the name selected, "Joseph" read as "Iosenh". Selected display type turns `primary` on the surface it sits on instead, 9.99 / 5.49 on the background and 7.81 / 4.66 on `surface-2`; the Route Lab's display type, its headline and each plan's time, set at 1.15 and 1.02, does the same. Its maps are pictures, whose facts the tables carry: their labels, numbers and tip cannot be selected (`user-select: none`), since a fill under every label hid the routes and stops beneath it, and the labels, drawn once in hidden defs, set no fill either. The chips for the vans set their mono numbers at a line height of 1.4, more than the face is tall, where 1.25 was less. Until 2026-10-25 the selection was a 30% apricot tint over the page and the text kept its own color: muted text on it measured 4.41 / 4.11 over the background and 3.61 / 3.59 over `surface-2`, under 4.5:1 in both themes. `test/tokens.test.ts` holds every `::selection` rule in every stylesheet to 4.5:1 in both themes, a rule with no fill on every surface, and keeps the old tint as a known answer; `e2e/a11y.spec.ts` finds any text, on every page, whose block sets its lines closer than its face is tall and whose selection still has a fill, with known answers. The lesson Quiet Console's audit taught stands: check the cross product, not a hand-picked list, because a fitness function only guards what it declares.
 
@@ -281,8 +284,32 @@ The feel comes from structure. Each motif is CSS or real text, and each one surv
 - **The card bar.** The 2 px apricot bar that sweeps across a card's rule when the card leads somewhere ([Chosen direction](#chosen-direction)).
 - **Timestamps.** ISO 8601 dates, with no time of day and no zone: midnight UTC carries neither, and anything else would tell a reader when or where the build ran. A post's dates are the only dates a page shows. `test/readouts.test.ts` scans every served file for a time of day or an offset in every common form. No ticking clock: a clock is auto-updating content under SC 2.2.2, and it says nothing about the work.
 - **Removed: coordinates and a fixed UTC offset.** The research wireframe put one-decimal coordinates and a UTC offset in the hero label. Both are gone. One decimal of latitude and longitude resolves to about 11 km, which is city scale; next to a title, years and an industry, that narrows the search to one employer, which is the mosaic effect the content firewall exists to prevent ([ADR 0007](adr/0007-content-firewall.md)). A fixed offset is also wrong for half the year: a US offset moves by one hour at each daylight saving change (the next one is 2026-11-01). The hero carries only the location line Joseph chose (Q5 · Q-location in [product.md](product.md)).
+- **Page geometry (2026-10-27).** Each section draws its own fine lines behind the page's top right ([Page geometry](#page-geometry)).
 - **Removed on 2026-10-24:** the ruler, the step and its field, section numbers, the location mark and How I work's field ([The poster setting](#the-poster-setting)).
 - **Removed with Quiet Console:** the hairline grid, corner brackets, status LEDs, scanlines and the hero's terminal panel ([Lineage](#lineage)).
+
+## Page geometry
+
+Set on 2026-10-27, from Joseph's read of the light theme as bland, and chosen from a live demo. Each section of the site draws its own lines behind the top right of its pages. The drawing tells a visitor which section they are in, the way a transit line's color does, and it is drawn from that section's subject, so it is not decoration for its own sake (MIT Media Lab's 2014 identity by Pentagram, one generated system with a variant per group, is the best-known precedent).
+
+| Section | The drawing | Why this one |
+|---|---|---|
+| Home | travel-time contours around a depot, every third line heavier as index contours are on a survey map, and the depot as the one accent mark | the Route Lab's isochrones, the work Home leads with |
+| Writing, its indexes and posts | a ruled sheet: baselines every 24 units, a margin rule, crop marks | where you read |
+| Lab, its index and demos | two street plans meeting at a seam, the second turned 32 degrees | the map the demos run on |
+| About | two wheels with 36 spokes and the T of a handlebar | the site's scooter, on the one page about Joseph |
+| 404 | a field of stops, a route that turns back short, and the one stop it never reaches as the accent mark | VROOM's "unassigned": the page no route reaches |
+| Résumé | none | it is read and printed, not browsed |
+
+**How it is made.** `src/lib/ground.ts` generates each drawing at build from the section and the page's path, through a seeded generator, so the same page always draws the same lines and its markup changes only when the drawing does. `components/Ground.astro` writes it as an inline SVG in `<body>`, before the masthead: hidden from assistive technology, no pointer events, classes and never style attributes (the page policy refuses those), and hidden in print. It sits at its natural size behind the top right from 75rem, cut by the window below that, and two masks fade it toward the text column and toward the fold. Nothing moves.
+
+**Why generated and not traced from the map.** The Route Lab's isochrones and streets come from OpenStreetMap. Drawn on every page, they would be a produced work under the ODbL, and every page would need its notice. They would also cost about 30 KB gzip of map data where the generated drawing costs about 2 KB. A generated drawing has neither cost and looks the same at this weight.
+
+**Contrast.** Every line is `--ground`, a token the contrast test treats as a surface, so every text token reads on it at 4.5:1 and a word that crosses a line keeps its contrast ([Measured contrast](#measured-contrast)). The one accent mark is `--primary`, which is not a surface, so `e2e/ground.spec.ts` requires every mark to touch no text on every kind of page at 320, 390, 768 and 1440 px, with a known answer that moves a mark onto the name.
+
+**Weight.** At most 2,500 B gzip of path data per drawing, in `test/ground.test.ts`. Home's contours are the heaviest, at 2,318 B: 13 lines of 72 points each. Every coordinate is a whole number.
+
+**Weaker designs.** A CSS background image would be cached, but it cannot read the page's color tokens, so it would need one file per theme and a mask to recolor it. A canvas or WebGL drawing would cost JavaScript and battery on every visit for a picture that never changes. Real map data would bring the license notice and the bytes. A drawing under the whole page would sit under body text, where the faint lines would compete with reading.
 
 ## Motion
 

@@ -1,9 +1,12 @@
 ---
 import { Font } from 'astro:assets';
 import Footer from '../components/Footer.astro';
+import Ground from '../components/Ground.astro';
 import Header from '../components/Header.astro';
 import Palette from '../components/Palette.astro';
-import { loadLabArea, loadProfile, loadWritingArea } from '../lib/content';
+import { aboutRoutes } from '../lib/about';
+import { loadAbout, loadLabArea, loadProfile, loadWritingArea } from '../lib/content';
+import { groundKindFor } from '../lib/ground';
 import { labRoutes } from '../lib/lab';
 import { NOINDEX } from '../lib/noindex.mjs';
 import { ogAlt, ogTitle, OG_SIZE, type OgCard } from '../lib/og';
@@ -42,7 +45,13 @@ const profile = await loadProfile();
 // from its first live demo (lib/lab.ts): the header, the footer and the feed link below learn from
 // this which of them this build writes.
 const area = await loadWritingArea();
-const generated = [...areaRoutes(area), ...labRoutes(await loadLabArea())];
+const generated = [
+  ...areaRoutes(area),
+  ...labRoutes(await loadLabArea()),
+  ...aboutRoutes((await loadAbout()).data),
+];
+// The page's drawing, from its section (lib/ground.ts); the résumé has none.
+const ground = groundKindFor(path);
 
 // The theme script (src/scripts/theme.js) runs in <head>, before <body> exists, so no frame can
 // paint before a stored choice applies. In <body> it left a gap: when the HTML arrived in pieces,
@@ -119,6 +128,7 @@ const chrome = (['dark', 'light'] as const).map((scheme) => ({
     <Font cssVariable="--font-jetbrains-mono" />
   </head>
   <body class="flex min-h-dvh flex-col">
+    {ground && <Ground kind={ground} seed={path ?? '/404/'} />}
     <div class="frame masthead">
       <a class="skip-link" href="#main">
         Skip to content

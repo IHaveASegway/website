@@ -22,7 +22,7 @@ export interface NavItem {
 export const MANIFEST: readonly NavItem[] = [
   { id: 'lab', label: 'Lab', href: '/lab/', header: true }, // from the first live demo (lib/lab.ts)
   { id: 'writing', label: 'Writing', href: '/writing/', header: true }, // PR 5, from the first post
-  { id: 'resume', label: 'Résumé', href: '/resume/', header: true }, // a page file: every build
+  { id: 'resume', label: 'Résumé', href: '/resume/', header: true, footer: true }, // every build
   { id: 'about', label: 'About', href: '/about/', header: true }, // PR 4
   { id: 'rss', label: 'RSS', href: '/rss.xml', footer: true }, // PR 5, with Writing
   { id: 'colophon', label: 'Colophon', href: '/colophon/', header: true, footer: true }, // PR 3b
@@ -62,7 +62,13 @@ export function navAll(generated: Iterable<string> = []): NavItem[] {
   return present(MANIFEST, new Set([...ROUTES, ...generated]));
 }
 
-/** The manifest items for the header or the footer. */
+/** The manifest items for the header or the footer. Résumé is in the header until /about/ exists
+ *  and in the footer from then on, so it is always one click from every page but never in both
+ *  rows: the bio takes its place, and links it (lib/about.ts, Joseph's choice of 2026-10-27). */
 export function navFor(place: 'header' | 'footer', generated: Iterable<string> = []): NavItem[] {
-  return navAll(generated).filter((item) => item[place]);
+  const items = navAll(generated);
+  const about = items.some((item) => item.id === 'about');
+  return items.filter(
+    (item) => item[place] && (item.id !== 'resume' || (place === 'header') !== about),
+  );
 }
