@@ -5,7 +5,7 @@ lifecycle: live
 runtime:
   kind: browser
 decisions: ['0020']
-firewall_reviewed: 1970-01-01 # NOT A REVIEW: no person has read this entry. Set the UTC day of the read; the review stamp in verify refuses this value until then.
+firewall_reviewed: 2026-10-28
 ---
 
 ## What Raft promises
