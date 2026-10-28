@@ -1,15 +1,17 @@
 import { describe, expect, test } from 'vitest';
-import { declaredFonts, eagerScripts, gzipBytes, preloadedFonts } from '../src/lib/weights';
+import { declaredFonts, gzipBytes, preloadedFonts } from '../src/lib/weights';
 import { bytes, fileFor, files, html, kinds, read } from './support/dist';
 import {
   BUDGETS,
   cubeFiles,
+  eagerFiles,
   FEATURES,
   featureOf,
   gz,
   importsOf,
   measure,
   reachable,
+  staticImportsOf,
 } from './support/measure';
 
 // The byte budgets, measured on dist/ (support/measure.ts). This replaces PR 2's "no JavaScript at
@@ -31,7 +33,8 @@ for (const file of html) {
 }
 
 /** Every script no page loads eagerly: the lazy JavaScript a feature loads when it is used. */
-const eager = new Set(html.flatMap((file) => eagerScripts(read(file)).external.map(fileFor)));
+/** Every script some page loads eagerly: those it names, and what they import statically. */
+const eager = new Set(html.flatMap((file) => eagerFiles(read(file))));
 const lazy = files.filter((file) => /\.m?js$/.test(file) && !eager.has(file));
 
 /** The lazy files over the general budget: each one outside a feature with a budget of its own
@@ -128,6 +131,49 @@ describe('the Route Lab', () => {
       );
     },
   );
+});
+
+// The Raft Lab's own budgets (ADR 0020): one app chunk, loaded on intent, and its page's first
+// view within the 150 KB every page but the Route Lab's keeps.
+describe('the Raft Lab', () => {
+  const feature = FEATURES['raft-lab'];
+  const own = files.filter((file) => featureOf(file) === 'raft-lab');
+  const ownJs = own.filter((file) => /\.m?js$/.test(file) && !feature.entry.test(file));
+  const page = files.includes(feature.page) ? read(feature.page) : null;
+
+  test('owns one lazy chunk, and nothing a page loads eagerly', () => {
+    expect(ownJs).toHaveLength(1);
+    for (const file of ownJs) expect(eager.has(file), file).toBe(false);
+  });
+
+  const lazyBytes = ownJs.reduce((sum, file) => sum + gz(file), 0);
+  test(`lazy JavaScript: ${lazyBytes} B of ${feature.lazyJavaScript}`, () => {
+    expect(lazyBytes).toBeLessThanOrEqual(feature.lazyJavaScript);
+  });
+
+  test.runIf(page !== null)('the page reaches its app through import(), and nothing else', () => {
+    const chunks = reachable(feature.page);
+    expect(chunks.length).toBeGreaterThan(0);
+    for (const chunk of chunks) expect(featureOf(chunk)).toBe('raft-lab');
+  });
+
+  test.runIf(page !== null)(
+    `its first view, and with its app, stays within ${feature.firstView} B`,
+    () => {
+      const figures = measure(page ?? '');
+      const firstView =
+        gzipBytes(page ?? '') + figures.css + figures.declaredFonts + figures.eagerJavaScript;
+      expect(firstView + lazyBytes).toBeLessThanOrEqual(feature.firstView);
+    },
+  );
+});
+
+test('known answers: eager JavaScript counts what a named script imports statically, not import()', () => {
+  expect(staticImportsOf('import{t as e}from"./preload-helper.x.js";import"./b.js"')).toEqual([
+    './preload-helper.x.js',
+    './b.js',
+  ]);
+  expect(staticImportsOf('e(()=>import(`./app.x.js`))')).toEqual([]);
 });
 
 test('known answers: the measure counts inline scripts and styles, and skips data blocks', () => {

@@ -6,7 +6,7 @@ import PageHead from '../../components/PageHead.astro';
 import RouteLab from '../../components/route-lab/RouteLab.astro';
 import Base from '../../layouts/Base.astro';
 import { labEntry, loadLabArea, loadProfile } from '../../lib/content';
-import { labPath, type LabEntry } from '../../lib/lab';
+import { labPath, OWN_PAGE, type LabEntry } from '../../lib/lab';
 import { labCard } from '../../lib/og';
 import { solverDir } from '../../lib/route-lab/node-solver';
 import { routeData, routeLabPicture } from '../../lib/route-lab/picture';
@@ -17,9 +17,13 @@ import { gzipBytes } from '../../lib/weights';
 // One page per live demo in the lab (ADR 0005 reserves /lab/<slug>/): the demo and its write-up
 // together (lab.md, "Every demo ships with a write-up"). /lab/ is [...index].astro, a page of its
 // own so it links none of a demo's styles; /lab/api/ is the lab Worker's, never a page (lib/lab.ts).
+// A demo with a page file of its own is left to it, so this page imports none of its styles or
+// code: the Raft Lab is raft/[...index].astro (lib/lab.ts, OWN_PAGE).
 export async function getStaticPaths() {
   const lab = await loadLabArea();
-  return lab.entries.map((entry) => ({ params: { demo: entry.slug }, props: { entry } }));
+  return lab.entries
+    .filter((entry) => !OWN_PAGE.has(entry.slug))
+    .map((entry) => ({ params: { demo: entry.slug }, props: { entry } }));
 }
 
 interface Props {

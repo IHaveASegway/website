@@ -1,0 +1,188 @@
+---
+import {
+  cutLine,
+  flightsMarkup,
+  logMarkup,
+  logWords,
+  NODE_RADIUS,
+  nodeText,
+  openingRun,
+  OPENING,
+  place,
+  ROLE_WORD,
+  seconds,
+  SIZE,
+  statusText,
+  summary,
+  timerShare,
+} from '../../lib/raft/view';
+import '../../styles/raft-lab.css';
+
+// The Raft Lab (ADR 0020): five servers, the messages between them and each one's log, drawn at
+// build from the opening run (lib/raft/view.ts), so the page is complete without JavaScript. The
+// controls show only where script runs (raft-lab.css), and boot.ts loads the simulation on the
+// visitor's first intent; it replays the same opening, so it takes over exactly where this stands.
+const sim = openingRun();
+const cut = cutLine(sim.groups);
+const lines = sim.lines.slice(-12);
+const dial = NODE_RADIUS + 5;
+---
+
+<div class="rf" id="raft-lab" data-rf-opening={JSON.stringify(OPENING)}>
+  <div class="rf-stage">
+    <figure class="rf-figure">
+      <svg
+        class="rf-map"
+        viewBox={`0 0 ${SIZE} ${SIZE}`}
+        role="img"
+        aria-labelledby="rf-summary"
+        data-rf-map
+      >
+        <line
+          class="rf-cut"
+          data-rf-cut
+          data-off={cut ? undefined : ''}
+          x1={cut?.x1 ?? 0}
+          y1={cut?.y1 ?? 0}
+          x2={cut?.x2 ?? 0}
+          y2={cut?.y2 ?? 0}
+        ></line>
+        {sim.servers.map((s) => {
+          const { x, y } = place(s.id, sim.servers.length);
+          return (
+            <g class="rf-node" data-rf-node={s.id} data-role={s.role} data-up={String(s.up)}>
+              <circle class="rf-track" cx={x} cy={y} r={dial} />
+              <circle
+                class="rf-dial"
+                cx={x}
+                cy={y}
+                r={dial}
+                pathLength="1"
+                stroke-dasharray={`${timerShare(s, sim.now).toFixed(3)} 1`}
+                data-rf-dial
+              />
+              <circle class="rf-body" cx={x} cy={y} r={NODE_RADIUS} />
+              <text class="rf-name" x={x} y={y + 7}>
+                {s.id + 1}
+              </text>
+              <text class="rf-role" x={x} y={y + dial + 14} data-rf-role>
+                {s.up ? ROLE_WORD[s.role] : 'down'}
+              </text>
+              <text class="rf-term" x={x} y={y + dial + 26} data-rf-term>
+                term {s.term}
+              </text>
+            </g>
+          );
+        })}
+        <g class="rf-flights" data-rf-flights set:html={flightsMarkup(sim, false)} />
+      </svg>
+      <figcaption class="rf-summary" id="rf-summary" data-rf-summary>
+        {summary(sim)}
+      </figcaption>
+    </figure>
+
+    <div class="rf-side">
+      <h2 class="rf-heading">Logs</h2>
+      <ol class="rf-logs" role="list">
+        {sim.servers.map((s) => (
+          <li class="rf-log">
+            <span class="rf-log-name">Node {s.id + 1}</span>
+            <ol
+              class="rf-cells"
+              role="list"
+              aria-label={`Node ${s.id + 1}: ${logWords(s)}`}
+              data-rf-log={s.id}
+              set:html={logMarkup(s)}
+            />
+          </li>
+        ))}
+      </ol>
+      <p class="rf-legend">
+        A cell is one entry, with its term under it. Each term has its own color. A filled cell is
+        committed: a majority holds it, and it can never be lost. An outlined cell is not, yet.
+      </p>
+      <p class="rf-status" data-rf-status>
+        {statusText(sim)}
+      </p>
+      <p class="rf-clock" data-rf-js>
+        <span data-rf-clock>Virtual time {seconds(sim.now)}</span> · seed{' '}
+        <span data-rf-seed>{sim.seed}</span>
+      </p>
+    </div>
+  </div>
+
+  <div class="rf-controls" data-rf-js>
+    <div class="rf-row" role="group" aria-label="Time">
+      <button type="button" class="btn btn-primary rf-run" data-rf-run>
+        Run
+      </button>
+      <button type="button" class="btn" data-rf-step>
+        Next event
+      </button>
+      <label class="rf-field">
+        <span>Speed</span>
+        <select data-rf-speed>
+          <option value="0.025">Slow</option>
+          <option value="0.05" selected>
+            Steady
+          </option>
+          <option value="0.1">Quick</option>
+        </select>
+      </label>
+      <button type="button" class="btn" data-rf-reset>
+        Start over
+      </button>
+    </div>
+    <div class="rf-row" role="group" aria-label="The network">
+      <button type="button" class="btn" data-rf-write>
+        Send a write
+      </button>
+      <button type="button" class="btn" data-rf-lone>
+        Cut off the leader
+      </button>
+      <button type="button" class="btn" data-rf-split>
+        Split 2 and 3
+      </button>
+      <button type="button" class="btn" data-rf-heal>
+        Heal the network
+      </button>
+      <label class="rf-field">
+        <span>Messages lost</span>
+        <input type="range" min="0" max="50" step="5" value="0" data-rf-loss />
+        <output data-rf-loss-out>0%</output>
+      </label>
+    </div>
+    <div class="rf-row" role="group" aria-label="Crash or restart a node">
+      {sim.servers.map((s) => (
+        <button
+          type="button"
+          class="btn rf-toggle"
+          data-rf-toggle={s.id}
+          aria-label={`Crash node ${s.id + 1}, now ${nodeText(s).split(', ').slice(1).join(', ')}`}
+        >
+          Crash node {s.id + 1}
+        </button>
+      ))}
+    </div>
+    <p class="rf-sr" role="status" data-rf-said></p>
+  </div>
+
+  <div class="rf-events">
+    <h2 class="rf-heading" id="rf-events">
+      What happened
+    </h2>
+    <div class="rf-lines" role="log" aria-live="off" aria-labelledby="rf-events" tabindex="0">
+      <ol class="rf-list" data-rf-lines>
+        {lines.map((line) => (
+          <li>
+            <span class="rf-at">{seconds(line.at)}</span> {line.text}
+          </li>
+        ))}
+      </ol>
+    </div>
+  </div>
+</div>
+
+<script>
+  import './boot';
+</script>
