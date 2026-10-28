@@ -308,8 +308,9 @@ function fixtureBuild(name: string) {
   return { files, text, textFiles, pages, indexable, sitemap, html };
 }
 
-/** The pages every build writes, whatever its posts: Home, and the résumé, a page file. */
-const ALWAYS = ['/', '/resume/'];
+/** The pages every build writes, whatever its posts: Home, and /about/, which holds the résumé, a
+ *  page file. */
+const ALWAYS = ['/', '/about/'];
 
 /** The header nav's links on a page. */
 const headerLinks = (page: string) =>
@@ -420,7 +421,7 @@ describe('fixture-none: two drafts and nothing published, built for production',
       expect(build.sitemap).toEqual(ALWAYS);
       for (const file of build.html) {
         const page = build.text(file);
-        expect(headerLinks(page), file).toEqual(['/resume/']);
+        expect(headerLinks(page), file).toEqual(['/about/']);
         expect(page, file).not.toContain('/rss.xml');
         expect(page, file).not.toContain('id="writing"');
       }
@@ -450,11 +451,14 @@ describe('fixture-none-preview: the same drafts, with drafts included', () => {
         (f) => f === 'rss.xml' || /^(writing|notes)\/(index\.html|og\.png)$/.test(f),
       ),
     ).toEqual([]);
-    // Home and the résumé draw their link previews; no draft has one.
-    expect(build.files.filter((f) => f.endsWith('og.png'))).toEqual(['og.png', 'resume/og.png']);
+    // Home and /about/ draw their link previews; no draft has one.
+    expect(build.files.filter((f) => f.endsWith('og.png')).sort()).toEqual([
+      'about/og.png',
+      'og.png',
+    ]);
     expect(build.sitemap).toEqual(ALWAYS);
     const home = build.text('index.html');
-    expect(headerLinks(home)).toEqual(['/resume/']);
+    expect(headerLinks(home)).toEqual(['/about/']);
     expect(home).not.toContain('id="writing"');
     expect(home).not.toContain('fixture-');
   });
@@ -468,7 +472,7 @@ describe('fixture-one: one published post and two drafts, built for production',
     expect(build.indexable).toEqual(build.pages);
     expect(build.sitemap).toEqual(build.pages);
     expect(build.files).toContain('rss.xml');
-    expect(headerLinks(build.text('index.html'))).toEqual(['/writing/', '/resume/']);
+    expect(headerLinks(build.text('index.html'))).toEqual(['/writing/', '/about/']);
     const row =
       /<section class="section" id="writing"[\s\S]*?<\/section>/.exec(
         build.text('index.html'),
@@ -483,8 +487,8 @@ describe('fixture-one-preview: the same posts, with drafts included', () => {
   test('the published post is listed as in production, and the two drafts are added, noindex', () => {
     expect(build.pages).toEqual([
       '/',
+      '/about/',
       '/notes/fixture-unfinished-thought/',
-      '/resume/',
       '/writing/',
       '/writing/fixture-draft-essay/',
       '/writing/fixture-measure-first/',
@@ -522,7 +526,7 @@ describe('fixture-many: five published posts and a draft, built for production',
   test('the header links Writing on every page, and the footer and <head> link the feed', () => {
     for (const file of build.html.filter((f) => f !== '404.html')) {
       const page = build.text(file);
-      expect(headerLinks(page), file).toEqual(['/writing/', '/resume/']);
+      expect(headerLinks(page), file).toEqual(['/writing/', '/about/']);
       expect(page, file).toMatch(/<ul class="footer-links">[\s\S]*?href="\/rss\.xml"/);
       expect(page, file).toContain(
         '<link rel="alternate" type="application/rss+xml" title="Joseph Peterson: writing" href="/rss.xml">',

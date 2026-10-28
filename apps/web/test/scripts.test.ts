@@ -4,7 +4,7 @@ import { tags, THEME_SCRIPT } from '../src/lib/weights';
 import { html, read } from './support/dist';
 
 // The script allowlist (spec B13): a page may carry the inline theme script, exactly as
-// src/scripts/theme.js has it and first in <head>, and JSON-LD, which Home, the résumé and each
+// src/scripts/theme.js has it and first in <head>, and JSON-LD, which Home, /about/ and each
 // published post carry. Anything else fails, whatever wrote it: a component, an integration, a
 // dependency. The Web Analytics beacon joins the list in the pull request that ships it.
 //
@@ -22,7 +22,7 @@ import { html, read } from './support/dist';
 //
 // And Home and the indexes have a fifth, once (design-system.md, "Motion"): the module of
 // components/Motion.astro (src/scripts/motion.js), which decodes a card's tag and hands a followed
-// title to the next page. A post, a demo, the résumé and the 404 carry none.
+// title to the next page. A post, a demo, /about/ and the 404 carry none.
 
 type Verdict = 'theme' | 'json-ld' | 'route-lab' | 'raft-lab' | 'palette' | 'motion' | string;
 
@@ -120,9 +120,9 @@ for (const file of html) {
       expect(page.slice(page.indexOf('<body'))).not.toMatch(/<script>(?!\s*\{)/);
     });
 
-    test('JSON-LD is on Home, the résumé and published posts only, one block each', () => {
+    test('JSON-LD is on Home, /about/ and published posts only, one block each', () => {
       const post = /^(writing|notes)\/[a-z0-9-]+\/index\.html$/.test(file) && !isNoindex(page);
-      const own = ['index.html', 'resume/index.html'].includes(file);
+      const own = ['index.html', 'about/index.html'].includes(file);
       expect(verdicts.filter((v) => v === 'json-ld')).toHaveLength(own || post ? 1 : 0);
     });
   });
@@ -228,11 +228,11 @@ test('known answers: the motion module is allowed on Home and the indexes only, 
   };
   for (const page of ['index.html', 'writing/index.html', 'notes/index.html', 'lab/index.html'])
     expect(classify(motion, page), page).toBe('motion');
-  // A post, a demo, the résumé and the 404 carry none, nor does a page this test does not name.
+  // A post, a demo, /about/ and the 404 carry none, nor does a page this test does not name.
   for (const page of [
     'writing/a-post/index.html',
     ROUTE_LAB.page,
-    'resume/index.html',
+    'about/index.html',
     '404.html',
     'xindex.html',
     '',

@@ -1,0 +1,4 @@
+# Moved pages (ADR 0005: "Slugs never change. A rename adds a 301."). Each old URL stays in
+# published-urls.txt; test/urls.test.ts requires a stated status, since the default is a 302.
+/resume/ /about/ 301
+/resume/og.png /about/og.png 301

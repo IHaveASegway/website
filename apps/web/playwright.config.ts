@@ -51,7 +51,7 @@ export default defineConfig({
         'llms.spec.ts',
         'not-on-site.spec.ts',
         'print.spec.ts',
-        'resume.spec.ts',
+        'about-print.spec.ts',
         'smoke.spec.ts',
         'writing.spec.ts',
       ],

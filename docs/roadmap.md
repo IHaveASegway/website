@@ -218,8 +218,8 @@ Owned work is cards, not pages (Joseph, 2026-10-23). stillhere's card links to i
 - [ ] stillhere's README leads with what it does, its limits statement and its public numbers ([content.md](content.md#stillhere-lead)), in a pull request in its own repository.
 - [ ] stillhere's card renders on Home with its link, and `test/project-cards.test.ts` passes on the real build.
 - [ ] Credit is exact: other people's contributions are named as theirs.
-- [ ] `/about/` is generated from `profile.json`, which has no employer field, and carries ProfilePage and Person JSON-LD without `worksFor` ([ADR 0004](adr/0004-content-as-code.md)).
-- [x] The résumé line follows Q-resume: a LinkedIn link and "Full résumé on request", on `/resume/` since 2026-10-25 (Q9 (a), as a page). No résumé PDF is hosted or committed.
+- [x] `/about/` is generated from `profile.json`, which has no employer field, and carries ProfilePage and Person JSON-LD without `worksFor` ([ADR 0004](adr/0004-content-as-code.md)): since 2026-10-28 it holds the résumé, under the bio in `about.md`.
+- [x] The résumé line follows Q-resume: a LinkedIn link and "Full résumé on request", on `/resume/` from 2026-10-25 (Q9 (a), as a page) and on `/about/` since 2026-10-28, with `/resume/` a 301. A Print button saves the page as a PDF in the visitor's browser; no résumé PDF is hosted or committed.
 - [ ] `/now/` shows the date it was written.
 - [ ] The header shows only sections that have content.
 - [x] The ⌘K palette lists the pages that exist, from the nav manifest, the actions and the checked profiles, from `profile.json`. Done on 2026-10-25, ahead of the rest of this pull request, as the command menu ([design-system.md](design-system.md#the-command-menu)); Joseph's VoiceOver and NVDA pass over it is the one PR 3 lists beside the toggle's.
@@ -354,7 +354,7 @@ S1 and S3 to S6 ran on 2026-10-23 with two departures from the rules above: they
 
 | Item | Why it waits | What would bring it forward |
 |---|---|---|
-| A résumé PDF (printed from `/resume/`, clean PDF metadata) | It needs the firewall answers first (Q-threat-model, Q-career-arc), and a PDF is a one-way door. The HTML edition, with "Full résumé on request", serves recruiters meanwhile: `/resume/` since 2026-10-25 | Joseph chooses it in [Q-resume](product.md), option (b) |
+| A hosted résumé PDF (printed from `/about/`, clean PDF metadata) | It needs the firewall answers first (Q-threat-model, Q-career-arc), and a PDF is a one-way door. The HTML edition, with "Full résumé on request" and a Print button that saves it as a PDF in the visitor's browser, serves recruiters meanwhile: `/resume/` from 2026-10-25, `/about/` since 2026-10-28 | Joseph chooses it in [Q-resume](product.md), option (b) |
 | Pagefind search | No search until about 20 posts. Then a static index, $0 at runtime, which can also feed the command menu | The 20th post |
 | Terminal mode (lazy-loaded, opened with Ctrl and the backtick key, or from the command menu) | An effect, not content. The launch effects are capped | Content pages complete and budgets green with room to spare |
 | Mission-AI references | Off the site at launch ([Q-mission](product.md)) | Joseph's decision, after the IP check |

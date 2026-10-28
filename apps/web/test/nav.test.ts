@@ -24,38 +24,44 @@ test('a manifest item is linked only once its page exists', () => {
   expect(present(MANIFEST, new Set(['/', '/colophon/'])).map((i) => i.id)).toEqual(['colophon']);
 });
 
-// The résumé is a page file, so every build writes it and the header links it; Writing and RSS
-// join with the routes content generates, and Lab with its first live demo, before Writing.
+// About, which holds the résumé, is a page file, so every build writes it and the header links it;
+// Writing and RSS join with the routes content generates, and Lab with its first live demo, before
+// Writing.
 test('Writing joins the header, and RSS the footer, only with the routes content generates', () => {
-  expect(navFor('header').map((i) => i.id)).toEqual(['resume']);
+  expect(navFor('header').map((i) => i.id)).toEqual(['about']);
   expect(navFor('footer').map((i) => i.id)).toEqual([]);
   expect(navFor('header', ['/writing/', '/notes/', '/rss.xml']).map((i) => i.id)).toEqual([
     'writing',
-    'resume',
+    'about',
   ]);
   expect(navFor('footer', ['/writing/', '/notes/', '/rss.xml']).map((i) => i.id)).toEqual(['rss']);
   expect(navFor('header', ['/lab/', '/writing/']).map((i) => i.id)).toEqual([
     'lab',
     'writing',
-    'resume',
+    'about',
   ]);
 });
 
-test("the résumé names itself as the header does, and a missing item's label is an error", () => {
-  expect(labelOf('resume')).toBe('Résumé');
+test("About names itself as the header does, and a missing item's label is an error", () => {
+  expect(labelOf('about')).toBe('About');
   expect(() => labelOf('nowhere')).toThrow(/no item "nowhere"/);
 });
 
-// The résumé's page file is in every build, so it stands in each list; Lab is what changes.
+// About's page file is in every build, so it stands in each list; Lab is what changes.
 test('Lab joins the header, first, only with the routes the lab generates', () => {
-  expect(navFor('header', ['/lab/', '/lab/routes/']).map((i) => i.id)).toEqual(['lab', 'resume']);
-  expect(navFor('header', ['/lab/routes/']).map((i) => i.id)).toEqual(['resume']);
+  expect(navFor('header', ['/lab/', '/lab/routes/']).map((i) => i.id)).toEqual(['lab', 'about']);
+  expect(navFor('header', ['/lab/routes/']).map((i) => i.id)).toEqual(['about']);
   expect(navFor('header', ['/writing/', '/lab/']).map((i) => i.id)).toEqual([
     'lab',
     'writing',
-    'resume',
+    'about',
   ]);
   expect(navFor('footer', ['/lab/']).map((i) => i.id)).toEqual([]);
+});
+
+// /about/ took /resume/'s place on 2026-10-28; /resume/ answers with a 301 (public/_redirects).
+test('the manifest has no Résumé: no row links /resume/', () => {
+  expect(MANIFEST.map((i) => i.href)).not.toContain('/resume/');
 });
 
 /** The links in a page's header nav and footer link row. */
@@ -78,18 +84,4 @@ test('this build links no manifest page it does not write', () => {
       expect(targets.has(href), `${file}: ${href}`).toBe(true);
     }
   }
-});
-
-// The bio takes the résumé's place in the header once it is published, and the résumé moves to
-// the footer, so it is one click away from every page but never in both rows (lib/about.ts).
-test('About takes Résumé’s place in the header once it exists, and Résumé moves to the footer', () => {
-  expect(navFor('header', ['/lab/', '/writing/', '/about/']).map((i) => i.id)).toEqual([
-    'lab',
-    'writing',
-    'about',
-  ]);
-  expect(navFor('footer', ['/about/', '/rss.xml']).map((i) => i.id)).toEqual(['resume', 'rss']);
-  // Without it, the header keeps Résumé and the footer does not repeat it.
-  expect(navFor('header', ['/lab/']).map((i) => i.id)).toEqual(['lab', 'resume']);
-  expect(navFor('footer', ['/rss.xml']).map((i) => i.id)).toEqual(['rss']);
 });

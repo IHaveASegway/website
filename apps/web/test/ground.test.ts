@@ -22,7 +22,6 @@ test('known answers: which drawing a path carries, and none on the résumé', ()
   expect(groundKindFor('/lab/routes/')).toBe('lab');
   expect(groundKindFor('/about/')).toBe('about');
   expect(groundKindFor(undefined)).toBe('lost');
-  expect(groundKindFor('/resume/')).toBeNull();
   expect(groundKindFor('/colophon/')).toBeNull();
 });
 

@@ -17,13 +17,11 @@ export interface NavItem {
 
 // No Work item: owned work is a card on Home that links to its repository, and /work/ builds
 // nothing (content.md, "Owned work", 2026-10-23). Lab comes first, as content.md orders the header.
-// "Résumé" is set in the sans face, which has é; the mono subset does not (design-system.md,
-// "The faces").
+// No Résumé item either: /about/ holds the résumé since 2026-10-28, and /resume/ is a 301 to it.
 export const MANIFEST: readonly NavItem[] = [
   { id: 'lab', label: 'Lab', href: '/lab/', header: true }, // from the first live demo (lib/lab.ts)
   { id: 'writing', label: 'Writing', href: '/writing/', header: true }, // PR 5, from the first post
-  { id: 'resume', label: 'Résumé', href: '/resume/', header: true, footer: true }, // every build
-  { id: 'about', label: 'About', href: '/about/', header: true }, // PR 4
+  { id: 'about', label: 'About', href: '/about/', header: true }, // every build; the footer's line is full
   { id: 'rss', label: 'RSS', href: '/rss.xml', footer: true }, // PR 5, with Writing
   { id: 'colophon', label: 'Colophon', href: '/colophon/', header: true, footer: true }, // PR 3b
 ];
@@ -62,13 +60,7 @@ export function navAll(generated: Iterable<string> = []): NavItem[] {
   return present(MANIFEST, new Set([...ROUTES, ...generated]));
 }
 
-/** The manifest items for the header or the footer. Résumé is in the header until /about/ exists
- *  and in the footer from then on, so it is always one click from every page but never in both
- *  rows: the bio takes its place, and links it (lib/about.ts, Joseph's choice of 2026-10-27). */
+/** The manifest items for the header or the footer. */
 export function navFor(place: 'header' | 'footer', generated: Iterable<string> = []): NavItem[] {
-  const items = navAll(generated);
-  const about = items.some((item) => item.id === 'about');
-  return items.filter(
-    (item) => item[place] && (item.id !== 'resume' || (place === 'header') !== about),
-  );
+  return navAll(generated).filter((item) => item[place]);
 }

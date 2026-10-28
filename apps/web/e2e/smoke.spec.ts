@@ -1,6 +1,14 @@
 import { expect, test } from '@playwright/test';
 import { NOINDEX } from '../src/lib/noindex.mjs';
-import { FILES, MISSING, ON_WORKER_PREVIEW, ORIGIN, pages, PREVIEW_404_GAP } from './expected';
+import {
+  FILES,
+  MISSING,
+  MOVED,
+  ON_WORKER_PREVIEW,
+  ORIGIN,
+  pages,
+  PREVIEW_404_GAP,
+} from './expected';
 
 // The smoke: run against every preview, against each Version URL before it takes traffic, against
 // production through the zone (prod-smoke), and locally against wrangler dev. HTTP only, so it
@@ -56,6 +64,18 @@ test('a page URL in any other form redirects to its slash form', async ({ reques
   for (const [from, to] of forms) {
     const response = await request.get(from, { maxRedirects: 0 });
     expect([301, 307, 308], `${from} status`).toContain(response.status());
+    const location = response.headers()['location'] ?? '';
+    expect(new URL(location, response.url()).pathname, `${from} location`).toBe(to);
+  }
+});
+
+// A page that moved keeps its old URL for good (ADR 0005): /resume/, which /about/ replaced on
+// 2026-10-28, answers 301 with the new address, as does every other move public/_redirects lists.
+test('a moved page answers 301 with its new address', async ({ request }) => {
+  expect(MOVED.length).toBeGreaterThan(0);
+  for (const [from, to] of MOVED) {
+    const response = await request.get(from, { maxRedirects: 0 });
+    expect(response.status(), from).toBe(301);
     const location = response.headers()['location'] ?? '';
     expect(new URL(location, response.url()).pathname, `${from} location`).toBe(to);
   }

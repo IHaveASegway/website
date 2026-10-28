@@ -31,7 +31,7 @@ export const POSTING_KEYS = [
 export const POSTING_OPTIONAL_KEYS = ['dateModified'] as const;
 /** The author, by the same @id as Home's Person, with the name and url Google wants inline. */
 export const AUTHOR_KEYS = ['@type', '@id', 'name', 'url'] as const;
-/** The résumé: a ProfilePage whose main entity is Home's Person, by the same @id and keys
+/** /about/, which holds the résumé: a ProfilePage whose main entity is Home's Person, by the same @id and keys
  *  ([Profile page](https://developers.google.com/search/docs/appearance/structured-data/profile-page)). */
 export const PROFILE_PAGE_KEYS = ['@context', '@type', 'url', 'mainEntity'] as const;
 /** hasOccupation joins the résumé's Person only once profile.json holds a role (Q8). */
@@ -43,7 +43,7 @@ export const ROLE_OPTIONAL_KEYS = ['endDate'] as const;
 /** An occupation is its title and nothing else: no employer, place or salary can join it. */
 export const OCCUPATION_KEYS = ['@type', 'name'] as const;
 
-/** The Person, as Home and the résumé write it. */
+/** The Person, as Home and /about/ write it. */
 function personNode(profile: Profile): Record<string, unknown> {
   const { name, label, url, location } = profile.basics;
   const sameAs = checkedProfiles(profile).map((p) => p.url);
@@ -80,9 +80,9 @@ export function homeGraph(profile: Profile): Record<string, unknown> {
   return { '@context': 'https://schema.org', '@graph': [website, person] };
 }
 
-/** The résumé's ProfilePage: Home's Person as its main entity, with a Role per entry in
- *  profile.json's work, its title and years only. With no role, the Person is Home's exactly. */
-export function resumeGraph(profile: Profile, path: string): Record<string, unknown> {
+/** /about/'s ProfilePage: Home's Person as its main entity, with a Role per entry in profile.json's
+ *  work, its title and years only. With no role, the Person is Home's exactly. */
+export function profilePageGraph(profile: Profile, path: string): Record<string, unknown> {
   const roles = profile.work.map((role) => ({
     '@type': 'Role',
     startDate: role.startDate,

@@ -194,7 +194,7 @@ export function groundFor(kind: GroundKind, seed: string): Ground {
   }
 }
 
-/** The drawing a page path carries, or null: the résumé carries none. */
+/** The drawing a page path carries, or null for a page outside the five, such as /colophon/. */
 export function groundKindFor(path: string | undefined): GroundKind | null {
   if (path === undefined) return 'lost';
   if (path === '/') return 'home';

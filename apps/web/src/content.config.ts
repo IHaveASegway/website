@@ -55,8 +55,7 @@ const lab = defineCollection({
   schema: labSchema,
 });
 
-// /about/, one entry whose file name is its id (lib/about.ts). It is Joseph's to write, and a draft
-// until he turns the flag off.
+// /about/'s bio, one entry whose file name is its id (lib/about.ts). It is Joseph's to write.
 const about = defineCollection({
   loader: glob({ base: './src/content', pattern: 'about.md', generateId: fileName }),
   schema: aboutSchema,

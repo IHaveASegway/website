@@ -14,3 +14,4 @@
 /writing/
 /writing/trading-bot-teardown/
 /lab/raft/
+/about/

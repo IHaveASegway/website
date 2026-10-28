@@ -1,12 +1,13 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// The résumé on paper (content.md, "Résumé"): one US Letter page, with nothing of the site's own
-// chrome on it and every link's address printed after it. It runs on the site and on the writing
-// fixture, whose profile holds ten roles and twelve skills, the schema's limits, and a card and
-// posts, so the one-page rule holds for any profile the schema admits, not only today's. The site
-// hosts no PDF: this prints the page in the browser and reads the result.
+// /about/ on paper, the résumé (content.md, "Résumé"): one US Letter page, with nothing of the
+// site's own chrome on it and every link's address printed after it. It runs on the site and on the
+// writing fixture, whose profile holds ten roles and twelve skills, the schema's limits, and a card
+// and posts, so the one-page rule holds for any profile the schema admits, not only today's. The
+// site hosts no PDF: this prints the page in the browser and reads the result, as a visitor's Print
+// button does. (At /resume/ until 2026-10-28; the file was resume.spec.ts.)
 
-const RESUME = '/resume/';
+const RESUME = '/about/';
 
 /** The page printed as Chromium prints it, Letter unless the page's CSS names a size. */
 async function print(page: Page): Promise<{ pages: number; boxes: string[] }> {
@@ -20,7 +21,7 @@ async function print(page: Page): Promise<{ pages: number; boxes: string[] }> {
   };
 }
 
-test('/resume/ prints on exactly one US Letter page', async ({ page }) => {
+test('/about/ prints on exactly one US Letter page', async ({ page }) => {
   await page.goto(RESUME);
   const printed = await print(page);
   expect(printed.pages).toBe(1);
@@ -160,14 +161,47 @@ for (const size of [16, 32]) {
   });
 }
 
-test('on screen the header links the résumé, marked as the current page there', async ({
+test('on screen the header links About, marked as the current page there, and no Résumé', async ({
   page,
 }) => {
   await page.goto('/');
-  await expect(page.locator('.site-nav a[href="/resume/"]')).toHaveText('Résumé');
+  await expect(page.locator('.site-nav a[href="/about/"]')).toHaveText('About');
+  await expect(page.locator('a[href="/resume/"]')).toHaveCount(0);
   await page.goto(RESUME);
-  await expect(page.locator('.site-nav a[href="/resume/"]')).toHaveAttribute(
-    'aria-current',
-    'page',
-  );
+  await expect(page.locator('.site-nav a[href="/about/"]')).toHaveAttribute('aria-current', 'page');
+});
+
+// The bio prints its first paragraph, the summary a printed résumé opens with, and nothing else of
+// it: the page stays one sheet whatever the profile holds (global.css, "The résumé on paper"). The
+// fixture builds hold no bio, so there the check has nothing to read.
+test('on paper the bio keeps its first paragraph only, and the Print button is gone', async ({
+  page,
+}) => {
+  await page.goto(RESUME);
+  await page.emulateMedia({ media: 'print' });
+  const paper = await page.evaluate(() => ({
+    bio: [...document.querySelectorAll('.bio .prose > *')].map((e) => e.checkVisibility()),
+    button: [...document.querySelectorAll('[data-print]')].map((e) => e.checkVisibility()),
+  }));
+  if (paper.bio.length > 0) expect(paper.bio).toEqual(paper.bio.map((_, i) => i === 0));
+  expect(paper.button).toEqual([false]);
+});
+
+// The Print button opens the browser's own print, whose dialog saves a PDF (content.md, "Résumé"):
+// it shows once src/scripts/palette.js has bound it, and the command menu's Print row presses it.
+test("the Print button, and the menu's Print row, open the browser's print", async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as unknown as { printed: number }).printed = 0;
+    window.print = () => void ((window as unknown as { printed: number }).printed += 1);
+  });
+  await page.goto(RESUME);
+  const button = page.getByRole('button', { name: 'Print or save as PDF' });
+  await expect(page.locator(':root[data-palette]')).toHaveCount(1);
+  await expect(button).toBeVisible();
+  await button.click();
+  await page.keyboard.press('Control+k');
+  await page.getByRole('combobox').fill('pdf');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('dialog[data-palette]')).not.toHaveAttribute('open');
+  expect(await page.evaluate(() => (window as unknown as { printed: number }).printed)).toBe(2);
 });
