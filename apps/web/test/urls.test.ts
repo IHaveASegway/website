@@ -172,7 +172,10 @@ describe('the page list the e2e checks walk', () => {
 
   test('a noindex page is a draft, and only a preview build has one', () => {
     for (const page of pages.filter(noindex)) {
-      expect(page, 'only posts can be drafts').toMatch(/^\/(writing|notes)\/[a-z0-9-]+\/$/);
+      // A post, or the bio before Joseph turns its draft off (lib/about.ts).
+      expect(page, 'only posts and /about/ can be drafts').toMatch(
+        /^\/(?:(?:writing|notes)\/[a-z0-9-]+|about)\/$/,
+      );
       expect(readFileSync(join(dist, page.slice(1), 'index.html'), 'utf8')).toMatch(
         /<p class="label">Draft · /,
       );

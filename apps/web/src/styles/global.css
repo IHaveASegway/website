@@ -209,6 +209,66 @@
     text-decoration-line: underline;
   }
 
+  /* Page geometry (design-system.md, "Page geometry"): a page's drawing, behind its top right
+     corner, at its natural size from 75rem and cut by the window below that. It fades toward the
+     text column and toward the fold, and every line is --ground, which every text token reads on
+     at 4.5:1, so a line under a word never costs it contrast. The one accent mark is kept clear of
+     text by e2e/ground.spec.ts. Nothing moves. The masks are alpha only, so any opaque color would
+     do; currentcolor keeps literals out of the stylesheet. */
+  body {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .ground {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-end: 0;
+    z-index: -1;
+    width: min(100%, 75rem);
+    height: 56.25rem;
+    pointer-events: none;
+    mask-image:
+      linear-gradient(to left, currentcolor 25%, transparent 90%),
+      linear-gradient(currentcolor 50%, transparent);
+    mask-composite: intersect;
+  }
+
+  @media (width < 48rem) {
+    .ground {
+      height: 36rem;
+      mask-image:
+        linear-gradient(to left, currentcolor 35%, transparent),
+        linear-gradient(currentcolor 30%, transparent);
+    }
+  }
+
+  .ground-line,
+  .ground-index {
+    fill: none;
+    stroke: var(--ground);
+    stroke-width: 1px;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .ground-index {
+    stroke-width: 2px;
+  }
+
+  .ground-mark {
+    fill: var(--primary);
+  }
+
+  .ground-cover {
+    fill: var(--background);
+  }
+
+  @media print {
+    .ground {
+      display: none;
+    }
+  }
+
   /* Hidden on screen, read by assistive technology: a decoding tag's word, which
      src/scripts/motion.js adds beside the letters it cycles. */
   .card-tag > [data-word] {

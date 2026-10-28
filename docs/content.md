@@ -64,12 +64,12 @@ Render rules:
 
 | Section | In the header and on Home when | Phase |
 |---|---|---|
-| About | the page exists | P3 |
+| About | `src/content/about.md` has `draft: false` (lib/about.ts); a preview builds the draft, linked from nowhere and noindex | P3 |
 | Writing (with `/notes/` and `/rss.xml`) | at least 1 published post, essay or note; a draft never counts, and `/notes/` also waits for its first note. The bar was 3 posts until 2026-10-24; lowering it to 1 was proposed that day for Joseph's read, from his ask for a workable site from the content he has ([ADR 0005](adr/0005-url-scheme.md)'s postscript) | P3 |
 | Lab | at least 1 demo has `lifecycle: live`: the Route Lab, since 2026-10-25 ([ADR 0016](adr/0016-route-lab-in-the-browser.md)). Home shows each demo as the first card in Selected work; a Lab section of its own (row 6) waits for a second demo, so no page lists a demo twice | built |
 | Résumé | always: the page renders from the profile. Experience lists roles once Q8 is cleared and Joseph adds them; a skill shows once every page it names is built; Selected work and Writing render as on Home ([Résumé](#résumé)) | now (2026-10-25) |
 
-Header: Joseph's name, linking home, on every page but Home (whose `<h1>` is the name); Lab · Writing · Résumé · About, each only when its rule holds; and the theme toggle. On a phone, when the name and the links do not fit one line, the links and the toggle move to a second line (2026-10-25, with Résumé); the name itself wraps, between its words, only when it alone is wider than the line, as with a larger text size. Owned work has no section of its own: its cards sit on Home. Footer, one line: the contact address; the links whose pages exist (RSS · Now · Colophon); the external profiles whose readiness check is recorded (GitHub, LinkedIn); the command menu's button, "⌘K" or "Ctrl K", under a pointer that can hover; and the copyright. This is recognition over recall: the navigation is always visible, and the command menu (2026-10-25, [design-system.md](design-system.md#the-command-menu)) is a shortcut, never the only way in.
+Header: Joseph's name, linking home, on every page but Home (whose `<h1>` is the name); Lab · Writing · Résumé · About, each only when its rule holds, except that once About is published it takes Résumé's place, and Résumé moves to the footer and is linked from the bio (Joseph's choice of 2026-10-27: a bio over a résumé in the header; `lib/nav.ts`, `navFor`); and the theme toggle. On a phone, when the name and the links do not fit one line, the links and the toggle move to a second line (2026-10-25, with Résumé); the name itself wraps, between its words, only when it alone is wider than the line, as with a larger text size. Owned work has no section of its own: its cards sit on Home. Footer, one line: the contact address; the links whose pages exist (Résumé once About is published · RSS · Now · Colophon); the external profiles whose readiness check is recorded (GitHub, LinkedIn); the command menu's button, "⌘K" or "Ctrl K", under a pointer that can hover; and the copyright. This is recognition over recall: the navigation is always visible, and the command menu (2026-10-25, [design-system.md](design-system.md#the-command-menu)) is a shortcut, never the only way in.
 
 ## URL scheme
 
@@ -505,7 +505,7 @@ Home, a `WebSite` published by a `Person`, as PR 3 built it (`src/lib/jsonld.ts`
 
 `alternateName: "IHaveASegway"` joins the `WebSite` only once the GitHub profile's check is recorded: the handle in its exact capitals names the account the way a link would. Each node is written from an exact list of keys, never by copying the profile, and `test/jsonld.test.ts` fails on any key outside the lists.
 
-`/about/`, a `ProfilePage` whose main entity is a `Person`, with no `worksFor`. "An 'About Me' page on a blog site" is one of Google's listed uses ([Profile page](https://developers.google.com/search/docs/appearance/structured-data/profile-page)):
+`/about/`, a `ProfilePage` whose main entity is a `Person`, with no `worksFor`. Not yet written: it ships with the bio's first published version, since a draft is noindex and carries no structured data, and the résumé's ProfilePage then becomes the second one to reconcile. "An 'About Me' page on a blog site" is one of Google's listed uses ([Profile page](https://developers.google.com/search/docs/appearance/structured-data/profile-page)):
 
 ```json
 {

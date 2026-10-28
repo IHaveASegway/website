@@ -14,11 +14,13 @@ import { defineConfig } from 'vitest/config';
 //     only                    request's preview builds while its one post is still a draft
 // so every page type meets every check before a real post exists.
 const DIST_CHECKS = [
+  'about',
   'budgets',
   'csp',
   'dist-files',
   'fonts',
   'glyph-coverage',
+  'ground',
   'headings',
   'jsonld',
   'llms',
