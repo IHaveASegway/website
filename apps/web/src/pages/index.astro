@@ -1,28 +1,68 @@
 ---
 import Hero from '../components/Hero.astro';
+import IsoCluster from '../components/IsoCluster.astro';
+import IsoRoute from '../components/IsoRoute.astro';
+import IsoStack from '../components/IsoStack.astro';
 import Motion from '../components/Motion.astro';
 import PostList from '../components/PostList.astro';
 import SectionTitle from '../components/SectionTitle.astro';
 import WorkCard from '../components/WorkCard.astro';
 import Base from '../layouts/Base.astro';
-import { loadProfile, loadSelectedWork, loadWritingArea } from '../lib/content';
+import { ABOUT_PATH, aboutParts, withLinks } from '../lib/about';
+import {
+  loadAbout,
+  loadLabArea,
+  loadProfile,
+  loadSelectedWork,
+  loadWritingArea,
+} from '../lib/content';
 import { homeGraph, serialize } from '../lib/jsonld';
+import { labPath } from '../lib/lab';
 import { homeCard } from '../lib/og';
-import { homeDescription } from '../lib/profile';
+import { checkedProfiles, homeDescription } from '../lib/profile';
+import { CONTACT_EMAIL } from '../lib/site';
 import { writingRow } from '../lib/work';
 
-// Home (content.md, "Home page"): who Joseph is, his work, his writing and how to reach him. An
-// element renders only when its source and its link target exist; until then it is left out,
-// never filled with a placeholder.
+// Home (content.md, "Home page"; ADR 0023): who Joseph is, told top to bottom, as the personal sites
+// he pointed at tell it. His own sentence and a working picture of his work first; then how he
+// works, in the bio's words; then the work; then the writing; then what he is working toward and
+// how to reach him. An element renders only when its source and its link target exist; until then
+// it is left out, never filled with a placeholder.
 const profile = await loadProfile();
 const { name, label } = profile.basics;
 const area = await loadWritingArea();
+const lab = await loadLabArea();
+// The bio (src/content/about.md) is the one owner of Joseph's words about himself; Home lays out
+// its parts and /about/ renders it whole. The fixture builds hold none, and Home has no sentence,
+// no How I work and no closing there.
+const bioEntry = await loadAbout();
+const bio = bioEntry?.body === undefined ? undefined : aboutParts(bioEntry.body);
+const principles = bio?.sections.find((section) => section.principles.length > 0);
+const toward = bio?.sections.find(
+  (section) => section.principles.length === 0 && section.paragraphs.length > 0,
+);
+// The demos this build writes, by slug: the hero's picture is the Raft Lab's cluster and opens it,
+// so it renders only where that page exists. The bio names two of them, and on Home those words
+// link to them.
+const demo = new Map(lab.entries.map((entry) => [entry.slug, entry]));
+const raft = demo.get('raft');
+const names = [
+  { slug: 'routes', name: 'Route Lab' },
+  { slug: 'raft', name: 'Raft Lab' },
+].flatMap(({ slug, name: words }) => {
+  const entry = demo.get(slug);
+  return entry ? [{ name: words, href: labPath(entry) }] : [];
+});
+const pictures: Record<string, 'cluster' | 'route'> = {
+  '/lab/raft/': 'cluster',
+  '/lab/routes/': 'route',
+};
 // Selected work: a card per live demo in the lab, then a card per project whose check is recorded
-// and whose hold is lifted, then a card per featured post once it is published (lib/work.ts). The
-// résumé reads the same list.
+// and whose hold is lifted (lib/work.ts). A post is listed under Writing, with its date, not as a
+// card (ADR 0023). The résumé reads the same list (lib/content.ts).
 const cards = await loadSelectedWork();
-// Writing: the latest posts that are not already a card above.
 const latest = writingRow(area.published, cards);
+const linkedIn = checkedProfiles(profile).find((p) => p.network === 'LinkedIn');
 ---
 
 <Base
@@ -32,7 +72,50 @@ const latest = writingRow(area.published, cards);
   og={homeCard(profile)}
   jsonLd={serialize(homeGraph(profile))}
 >
-  <Hero profile={profile} work={cards.length > 0 ? '#work' : undefined} />
+  <div class="intro">
+    <Hero
+      profile={profile}
+      work={cards.length > 0 ? '#work' : undefined}
+      bio={bio && bio.lede.length > 0 ? { lede: bio.lede, href: ABOUT_PATH } : undefined}
+    />
+    {raft && (
+      <figure class="intro-figure">
+        <IsoCluster place="hero" />
+        <figcaption class="intro-caption">
+          <span class="label">In the lab</span>
+          <a href={labPath(raft)}>
+            {raft.title} <span aria-hidden="true">→</span>
+          </a>
+        </figcaption>
+      </figure>
+    )}
+  </div>
+
+  {principles && (
+    <section class="section principles" id="how" aria-labelledby="how-title">
+      <div class="principles-aside">
+        <SectionTitle id="how-title" title={principles.heading} />
+        <IsoStack count={principles.principles.length} />
+      </div>
+      <ol class="principles-list" role="list">
+        {principles.principles.map((principle, i) => (
+          <li class="principle" data-step={i + 1}>
+            <p class="principle-n label" aria-hidden="true">
+              {String(i + 1).padStart(2, '0')}
+            </p>
+            <h3 class="principle-lead">
+              <span class="title-words">{principle.lead}</span>
+            </h3>
+            <p class="principle-text">
+              {withLinks(principle.text, names).map((run) =>
+                typeof run === 'string' ? run : <a href={run.href}>{run.text}</a>,
+              )}
+            </p>
+          </li>
+        ))}
+      </ol>
+    </section>
+  )}
 
   {cards.length > 0 && (
     <section class="section" id="work" aria-labelledby="work-title">
@@ -45,7 +128,10 @@ const latest = writingRow(area.published, cards);
             text={card.text}
             facts={card.facts}
             link={card.link}
-          />
+          >
+            {pictures[card.link.href] === 'cluster' && <IsoCluster place="card" />}
+            {pictures[card.link.href] === 'route' && <IsoRoute />}
+          </WorkCard>
         ))}
       </div>
     </section>
@@ -63,6 +149,28 @@ const latest = writingRow(area.published, cards);
           <a href="/rss.xml">RSS feed</a>
         </li>
       </ul>
+    </section>
+  )}
+
+  {toward && (
+    <section class="section toward" id="next" aria-labelledby="next-title">
+      <SectionTitle id="next-title" title={toward.heading} />
+      {toward.paragraphs.map((paragraph) => (
+        <p class="toward-text">{paragraph}</p>
+      ))}
+      <div class="toward-actions">
+        <a class="btn btn-primary" href={`mailto:${CONTACT_EMAIL}`}>
+          Email
+        </a>
+        {linkedIn && (
+          <a class="btn" href={linkedIn.url}>
+            {linkedIn.network}{' '}
+            <span class="hint" aria-hidden="true">
+              ↗
+            </span>
+          </a>
+        )}
+      </div>
     </section>
   )}
   <Motion />

@@ -15,10 +15,18 @@ const { tag, title, text, facts, link } = Astro.props;
 // The whole card is its link (ADR 0022): CSS stretches the link's box over the card, so a press
 // anywhere on it opens the page. Its name leads with the words it shows and adds the card's title,
 // so a list of the page's links says where each one goes, not "Try it" twice (SC 2.4.4, 2.5.3).
+// A demo's card may hold a picture of it, under its tag (ADR 0023): the slot's content, which is
+// hidden from screen readers by its own markup.
+const picture = Astro.slots.has('default');
 ---
 
 <article class="card">
   {tag && <p class="card-tag label">{tag}</p>}
+  {picture && (
+    <div class="card-picture">
+      <slot />
+    </div>
+  )}
   <h3 class="card-title">{title}</h3>
   <p class="card-text">{text}</p>
   {facts.length > 0 && (

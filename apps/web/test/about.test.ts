@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, test } from 'vitest';
-import { aboutSchema } from '../src/lib/about';
+import { describe, expect, test } from 'vitest';
+import { aboutParts, aboutSchema, withLinks } from '../src/lib/about';
 import { fixture, read } from './support/dist';
 
 // /about/ (lib/about.ts): the bio, Joseph's words from src/content/about.md, then the résumé, which
@@ -40,4 +40,59 @@ test('the bio renders exactly where its entry is, under its own heading, before 
 test('the page has one Print button, and no PDF is written for it', () => {
   expect(page.match(/<button\b[^>]*\bdata-print\b/g)).toHaveLength(1);
   expect(page).not.toMatch(/href="[^"]*\.pdf"/);
+});
+
+// Home tells the bio in parts (ADR 0023): its opening, the principles under How I work, and what
+// Joseph is working toward, read by aboutParts from the same file /about/ renders whole.
+describe('aboutParts: Home reads the bio it does not own', () => {
+  test('the real bio: an opening, five principles, one paragraph on what comes next', () => {
+    const parts = aboutParts(body);
+    expect(parts.lede).toHaveLength(1);
+    expect(parts.lede[0]).toMatch(/^I'm a software engineer/);
+    expect(parts.sections.map((s) => s.heading)).toEqual(['How I work', "What I'm working toward"]);
+    const [how, toward] = parts.sections;
+    expect(how?.principles.map((p) => p.lead)).toHaveLength(5);
+    expect(how?.principles[0]?.lead).toBe('The reasoning comes before the code.');
+    expect(how?.paragraphs).toEqual([]);
+    expect(toward?.principles).toEqual([]);
+    expect(toward?.paragraphs).toHaveLength(1);
+  });
+
+  test('known answers: a bold lead and its sentence, lines joined', () => {
+    expect(aboutParts('Hi.\n\n### Work\n\n- **One.** Two\n  three.\n- **Four.** Five.\n')).toEqual({
+      lede: ['Hi.'],
+      sections: [
+        {
+          heading: 'Work',
+          principles: [
+            { lead: 'One.', text: 'Two three.' },
+            { lead: 'Four.', text: 'Five.' },
+          ],
+          paragraphs: [],
+        },
+      ],
+    });
+  });
+
+  test('markup Home would print as characters stops the build, rather than reach the page', () => {
+    expect(() => aboutParts('See [the lab](/lab/).')).toThrow(/plain text only/);
+    expect(() => aboutParts('### A\n\n- **One.** Has `code`.')).toThrow(/plain text only/);
+    expect(() => aboutParts('### A\n\n- No bold lead.')).toThrow(/bold line/);
+  });
+
+  test('withLinks: the first mention of each name becomes its link, the rest stays text', () => {
+    const names = [
+      { name: 'Route Lab', href: '/lab/routes/' },
+      { name: 'Raft Lab', href: '/lab/raft/' },
+    ];
+    expect(withLinks('The Route Lab and the Raft Lab; the Route Lab again.', names)).toEqual([
+      'The ',
+      { text: 'Route Lab', href: '/lab/routes/' },
+      ' and the ',
+      { text: 'Raft Lab', href: '/lab/raft/' },
+      '; the Route Lab again.',
+    ]);
+    expect(withLinks('Nothing here.', names)).toEqual(['Nothing here.']);
+    expect(withLinks('Route Lab', [])).toEqual(['Route Lab']);
+  });
 });

@@ -102,6 +102,11 @@
   --signal: var(--primary); /* one accent: the signal is the apricot */
   --destructive: var(--foreground); /* placeholder until a page shows an error state */
   --ring: var(--primary);
+  /* The faces of Home's isometric drawings (ADR 0023), from the surfaces the page already has:
+     the roof lightest, the side toward the lower left next, the lower right darkest. */
+  --face-top: var(--surface-2);
+  --face-left: var(--surface-1);
+  --face-right: var(--background);
   /* The Route Lab's map (design-system.md, "Map colors"). Fills: water, parks and the six
      isochrone bands, band-1 the nearest to the bakery, a step toward the foreground each, so nearer
      reads as more ink, and a step in hue, teal-green near to petrol far. Marks at 3:1 on every fill
@@ -149,6 +154,9 @@
   --signal: var(--primary);
   --destructive: var(--foreground);
   --ring: var(--primary);
+  --face-top: var(--background);
+  --face-left: var(--surface-1);
+  --face-right: var(--surface-2);
 
   --map-water: oklch(0.85 0.065 245);
   --map-park: oklch(0.95 0.03 150);
@@ -191,6 +199,9 @@
     --signal: var(--primary);
     --destructive: var(--foreground);
     --ring: var(--primary);
+    --face-top: var(--background);
+    --face-left: var(--surface-1);
+    --face-right: var(--surface-2);
 
     --map-water: oklch(0.85 0.065 245);
     --map-park: oklch(0.95 0.03 150);

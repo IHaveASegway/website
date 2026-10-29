@@ -71,22 +71,34 @@ export interface NavLeaf {
   readonly href: string;
 }
 
+/** What one rail item drops down to show (ADR 0023): its leaves, newest first where they have
+ *  dates, and the noun its "View all" link names, which a screen reader hears after the two words
+ *  it shows. */
+export interface RailGroup {
+  readonly leaves: readonly NavLeaf[];
+  readonly noun: string;
+}
+
 /** How many posts the rail lists under Writing, newest first; Writing's index lists them all. */
 export const RAIL_POSTS = 3;
 
 /**
- * What the rail lists under each header item, by the item's id: every live demo, in the lab's
- * order, and the newest posts. Every demo, because the lab is small: a demo has no date to say
- * which are newest, and the rail lists them all until it has one (ADR 0022, "Revisit if"). Leaves
- * come from the same areas the pages are built from, so a leaf's page always exists.
+ * What the rail drops down to show under each header item, by the item's id: every live demo, in
+ * the lab's order, and the newest posts. Every demo, because the lab is small: a demo has no date
+ * to say which are newest, and the rail lists them all until it has one (ADR 0022, "Revisit if").
+ * Leaves come from the same areas the pages are built from, so a leaf's page always exists. Each
+ * group closes with a link to its index, the "View all" Joseph asked for (ADR 0023).
  */
 export function railLeaves(
   lab: readonly { readonly title: string; readonly href: string }[],
   posts: readonly { readonly title: string; readonly href: string }[],
-): Record<string, NavLeaf[]> {
+): Record<string, RailGroup> {
   const leaf = ({ title, href }: { title: string; href: string }): NavLeaf => ({
     label: title,
     href,
   });
-  return { lab: lab.map(leaf), writing: posts.slice(0, RAIL_POSTS).map(leaf) };
+  return {
+    lab: { leaves: lab.map(leaf), noun: 'demos' },
+    writing: { leaves: posts.slice(0, RAIL_POSTS).map(leaf), noun: 'posts' },
+  };
 }

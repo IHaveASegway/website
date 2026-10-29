@@ -64,6 +64,10 @@ function visibleText(page: string): string {
 const BYTE_FIGURE = /\b\d[\d,.]*\s?(?:[kKMG]i?B|B|bytes?)\b/;
 /** A build readout: "Build 8c2067e", "built 2026-10-24", "commit cd5f2f7". */
 const BUILD_READOUT = /\b(?:build|built|commit)\s*:?\s+(?:[0-9a-f]{7,40}|\d{4}-\d{2}-\d{2})\b/i;
+/** A card about the site: one titled "This site", as Home had until 2026-10-24. Joseph's own
+ *  sentence may name the site as his work ("This site is that work, in the open", the bio Home
+ *  opens with since ADR 0023); a card that exists to show the site may not. */
+const SITE_CARD = /<h3 class="card-title"[^>]*>\s*This site\s*</;
 
 describe('nothing on the page describes the site', () => {
   for (const file of ['index.html', '404.html']) {
@@ -71,7 +75,7 @@ describe('nothing on the page describes the site', () => {
       const text = visibleText(read(file));
       expect(BYTE_FIGURE.exec(text)?.[0] ?? null, file).toBeNull();
       expect(BUILD_READOUT.exec(text)?.[0] ?? null, file).toBeNull();
-      expect(text, file).not.toContain('This site');
+      expect(SITE_CARD.exec(read(file))?.[0] ?? null, file).toBeNull();
       expect(read(file), file).not.toMatch(/class="readouts?"/);
     });
   }
@@ -90,6 +94,10 @@ describe('nothing on the page describes the site', () => {
       expect(BYTE_FIGURE.test(sample), sample).toBe(false);
       expect(BUILD_READOUT.test(sample), sample).toBe(false);
     }
+    expect(SITE_CARD.test('<h3 class="card-title">This site</h3>')).toBe(true);
+    expect(SITE_CARD.test('<p class="hero-lede">This site is that work, in the open.</p>')).toBe(
+      false,
+    );
     expect(
       visibleText('<head><meta name="build" content="x"></head><body><p>a <b>b</b></p></body>'),
     ).toBe(' a b ');

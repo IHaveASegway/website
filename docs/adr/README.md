@@ -27,6 +27,7 @@ Status: Draft for review in PR 1 · 2026-10-22
 | [0020](0020-raft-lab-deterministic-simulation.md) | The Raft Lab is a deterministic simulation in the browser, with its own Raft and a safety checker | Proposed |
 | [0021](0021-rail-and-living-ground.md) | A rail for the navigation from 80rem, and Home's contour drawing alive on the GPU | Proposed |
 | [0022](0022-rail-as-index-and-row-links.md) | The rail as an index of the site, with search; a row of an index is its link | Proposed |
+| [0023](0023-home-as-a-story-and-rail-drop-downs.md) | Home told as a story, with isometric pictures drawn at build; the rail's items drop down | Proposed |
 
 0013 is reserved for protocol v1 and the recording format, written in PR 6 ([roadmap.md](../roadmap.md#pr-6-lab-platform-and-presence)).
 

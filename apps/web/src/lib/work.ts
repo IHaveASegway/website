@@ -25,11 +25,12 @@ export interface FeaturedPost {
   readonly label: string;
 }
 
-/** The posts Selected work features, in order. The auto-trader teardown is a postmortem: its card
- *  appears with the post, and links to it on this site, never to a repository. */
-export const FEATURED_POSTS: readonly FeaturedPost[] = [
-  { section: 'writing', slug: 'trading-bot-teardown', label: 'Read the teardown' },
-];
+/** The posts Selected work features, in order: none since 2026-10-29 (ADR 0023). The auto-trader
+ *  teardown had a card here, and with the one post a card, Home's Writing section held two links
+ *  and nothing else; a post is listed under Writing, with its date and kind, as the personal sites
+ *  Home follows list theirs. The machinery stays, tested, for a post that earns a card of its own:
+ *  a card links to it on this site, never to a repository. */
+export const FEATURED_POSTS: readonly FeaturedPost[] = [];
 
 /** A card for each featured post that is published in this build; a draft, or a post that does not
  *  exist, gets none. */
