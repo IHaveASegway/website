@@ -37,22 +37,53 @@ for (const path of LISTS) {
   });
 }
 
-test('the rail lists every demo under Lab, and marks the one on screen', async ({ page }) => {
+// ADR 0023: an item that holds pages is a disclosure in the rail, closed until pressed, and open on
+// a page it lists, with the page marked and "View all" last.
+test('the rail drops down to every demo under Lab, open on a demo and marking it', async ({
+  page,
+}) => {
   const demos = pages().filter((path) => /^\/lab\/[^/]+\/$/.test(path));
   test.skip(demos.length === 0, 'this build has no demo');
   await page.setViewportSize({ width: 1440, height: 900 });
+  const fold = page.locator('.nav-fold:has(> summary:text-is("Lab"))');
+  const leaves = fold.locator('.nav-leaves a');
   for (const demo of demos) {
     await page.goto(demo);
-    const leaves = page.locator('.site-nav a[href="/lab/"] + .nav-leaves a');
-    expect(
-      (await leaves.evaluateAll((links) => links.map((a) => a.getAttribute('href')))).sort(),
-    ).toEqual([...demos].sort());
+    await expect(fold).toHaveAttribute('open', '');
+    expect(await leaves.evaluateAll((links) => links.map((a) => a.getAttribute('href')))).toEqual([
+      ...[...demos].sort(),
+      '/lab/',
+    ]);
+    await expect(leaves.last()).toHaveText(/^View all demos/);
     await expect(leaves.and(page.locator('[aria-current="page"]'))).toHaveAttribute('href', demo);
-    await expect(page.locator('.site-nav a[href="/lab/"]')).toHaveAttribute('aria-current', 'true');
+    await expect(fold).toHaveAttribute('data-current', '');
   }
-  // Below 80rem the header is the row across the top, with its items alone.
+  // Below 80rem the header is the row across the top, with its items alone, each a link.
   await page.setViewportSize({ width: 1024, height: 900 });
-  await expect(page.locator('.nav-leaves').first()).toBeHidden();
+  await expect(fold).toBeHidden();
+  await expect(page.locator('.site-nav a.bar-only[href="/lab/"]')).toBeVisible();
+});
+
+test('on Home the rail is closed until pressed; pressing one item closes the other', async ({
+  page,
+}) => {
+  test.skip(!pages().includes('/lab/'), 'this build has no lab');
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  const lab = page.locator('.nav-fold:has(> summary:text-is("Lab"))');
+  await expect(lab).not.toHaveAttribute('open');
+  await expect(lab.locator('.nav-leaves')).toBeHidden();
+  await lab.locator('summary').click();
+  await expect(lab).toHaveAttribute('open', '');
+  await expect(lab.locator('.nav-leaves a').last()).toBeVisible();
+  // The keyboard opens one the same way, and the rail's items share a name, so it closes Lab.
+  const writing = page.locator('.nav-fold:has(> summary:text-is("Writing"))');
+  if ((await writing.count()) > 0) {
+    await writing.locator('summary').focus();
+    await page.keyboard.press('Enter');
+    await expect(writing).toHaveAttribute('open', '');
+    await expect(lab).not.toHaveAttribute('open');
+  }
 });
 
 // The page's drawing is 900 px tall; on a page shorter than that it reached past the body, and the

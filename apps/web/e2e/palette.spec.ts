@@ -37,8 +37,9 @@ async function rows(page: Page): Promise<{ shown: string[]; active: string | nul
 
 test('Ctrl+K and ⌘K open it at once, with focus in its input; Esc closes it', async ({ page }) => {
   // With motion allowed, as most visitors have it: the menu still opens with no animation, its
-  // backdrop's included (design-system.md, "Motion"). Home's titles rise on scroll timelines, which
-  // exist from load and move only with the scroll, so only an animation on time is counted.
+  // backdrop's included (design-system.md, "Motion"). Home's titles rise on scroll timelines, and
+  // its first screen's heartbeats run with the living ground (ADR 0023), whatever the menu does,
+  // so only an animation of the menu's own is counted.
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await ready(page);
   for (const keys of ['Control+k', 'Meta+k']) {
@@ -47,7 +48,10 @@ test('Ctrl+K and ⌘K open it at once, with focus in its input; Esc closes it', 
     expect(
       await page.evaluate(
         () =>
-          document.getAnimations().filter((a) => !(a.timeline instanceof ScrollTimeline)).length,
+          document.getAnimations().filter((a) => {
+            const target = (a.effect as KeyframeEffect | null)?.target;
+            return target != null && target.closest('dialog') !== null;
+          }).length,
       ),
     ).toBe(0);
     await expect(input(page)).toBeFocused();

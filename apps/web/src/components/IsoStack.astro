@@ -1,0 +1,29 @@
+---
+import { stack } from '../lib/iso';
+
+interface Props {
+  /** One slab per principle in the list beside it. */
+  count: number;
+}
+
+const { count } = Astro.props;
+// Beside How I work, a slab per principle, stacked in isometric (lib/iso.ts; ADR 0023) and drawn
+// apart, as an exploded drawing shows a part. Each slab settles onto the one below as its line
+// scrolls into view: the principles build one foundation. global.css ties slab n to the view
+// timeline of principle n by its data-step; a browser without scroll timelines, or a visitor who
+// asks for less motion, sees the stack built.
+const scene = stack(count);
+---
+
+<svg class="iso iso-stack" viewBox={scene.viewBox} aria-hidden="true" focusable="false">
+  {scene.slabs.map((slab) => (
+    <g class="iso-slab" data-step={slab.n}>
+      <polygon class="iso-face-left" points={slab.faces.left} />
+      <polygon class="iso-face-right" points={slab.faces.right} />
+      <polygon class="iso-face-top" points={slab.faces.top} />
+      <text class="iso-slab-n" transform={slab.label}>
+        {String(slab.n).padStart(2, '0')}
+      </text>
+    </g>
+  ))}
+</svg>

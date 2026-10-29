@@ -1,6 +1,6 @@
 # ADR 0022: The rail as an index of the site, and rows that are links
 
-Status: Proposed · 2026-10-29 · Deciders: Joseph Peterson
+Status: Proposed · 2026-10-29 · Deciders: Joseph Peterson · Amended by [ADR 0023](0023-home-as-a-story-and-rail-drop-downs.md): each item's leaves drop down when pressed, closed until then
 
 ## Context
 

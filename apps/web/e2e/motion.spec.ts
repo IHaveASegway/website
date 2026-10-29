@@ -18,7 +18,9 @@ function moving(page: Page) {
     for (const element of document.querySelectorAll('*')) {
       for (const pseudo of [null, '::before', '::after']) {
         if (moves(getComputedStyle(element, pseudo))) {
-          const name = `${element.tagName.toLowerCase()}${element.className ? `.${String(element.className).split(' ')[0]}` : ''}${pseudo ?? ''}`;
+          // getAttribute, not className, which an SVG element holds as an object.
+          const first = element.getAttribute('class')?.split(' ')[0];
+          const name = `${element.tagName.toLowerCase()}${first ? `.${first}` : ''}${pseudo ?? ''}`;
           found.push(name);
         }
       }
@@ -113,27 +115,45 @@ test('a card with nothing to activate does not react to the pointer; one with a 
 /** What Home would move with no preference: each section's rule, which draws itself in, each
  *  card's and post's bar, each card's title and each post's title's words, which rise as they
  *  scroll into view (design-system.md, "Motion"), and the arrow of a card's link, which steps
- *  toward its target under the pointer (ADR 0022), in document order. */
+ *  toward its target under the pointer (ADR 0022); and since ADR 0023 each principle's title,
+ *  which rises too, the first screen's picture, which tilts back as it scrolls away while its
+ *  servers lift, its heartbeats while the living ground runs, and each slab of the stack, which
+ *  settles as its principle arrives. In document order. */
 const expectedMotion = (page: Page) =>
-  page.evaluate(() =>
-    [...document.querySelectorAll('.section-title, .card, .post-list > li')].flatMap((element) =>
-      element.classList.contains('section-title')
-        ? ['h2.section-title::before']
-        : element.classList.contains('card')
-          ? [
-              'article.card::before',
-              'h3.card-title',
-              ...(element.querySelector('.card-more > span') ? ['span'] : []),
-            ]
-          : ['li::before', 'span.title-words'],
-    ),
-  );
+  page.evaluate(() => {
+    const live = 'motion' in document.documentElement.dataset;
+    const timelines = CSS.supports('timeline-scope: none');
+    return [...document.querySelectorAll('*')].flatMap((element) => {
+      if (element.matches('.section-title')) return ['h2.section-title::before'];
+      if (element.matches('.card'))
+        return [
+          'article.card::before',
+          'h3.card-title',
+          ...(element.querySelector('.card-more > span') ? ['span'] : []),
+        ];
+      if (element.matches('.post-list > li')) return ['li::before', 'span.title-words'];
+      if (element.matches('.principle-lead')) return ['span.title-words'];
+      if (element.matches('svg.iso-hero')) return ['svg.iso'];
+      if (element.matches('.iso-hero .iso-server')) return ['g.iso-server'];
+      if (live && element.matches('.iso-hero :is(.iso-packet, .iso-ripple)'))
+        return [`${element.tagName.toLowerCase()}.${element.getAttribute('class')?.split(' ')[0]}`];
+      if (timelines && element.matches('.iso-slab')) return ['g.iso-slab'];
+      return [];
+    });
+  });
 
 test('known answer: with no preference, the same scan finds the card bar and the rising titles, and nothing else', async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto('/');
+  // The living ground starts after the first paint, and the first screen's heartbeats with it:
+  // the scan reads the page once it has, or once it plainly will not.
+  await page
+    .waitForFunction(() => 'groundLive' in document.documentElement.dataset, null, {
+      timeout: 5_000,
+    })
+    .catch(() => undefined);
   expect(await moving(page)).toEqual(await expectedMotion(page));
   // So the scan is shown to find motion where there is some, on the site's own stylesheet.
   await addCard(page);
@@ -149,8 +169,9 @@ test('with no preference, a title rises on a scroll timeline, and one on screen 
   if ((await cardCount(page)) === 0) await addCard(page);
   // A declaration the browser refused would leave no animation at all: the build's minifier once
   // folded the longhands into a shorthand Chromium refuses, and every check above still passed.
+  // The first rising title: a principle's since ADR 0023, at the foot of the first screen.
   const title = await page.evaluate(() => {
-    const element = document.querySelector('.card-title') as HTMLElement;
+    const element = document.querySelector(':is(.card-title, .title-words)') as HTMLElement;
     const [animation] = element.getAnimations();
     return {
       scroll: animation?.timeline instanceof ViewTimeline,
@@ -160,7 +181,7 @@ test('with no preference, a title rises on a scroll timeline, and one on screen 
     };
   });
   expect(title.scroll).toBe(true);
-  // At 1440 × 900 the first card's title is on the first screen, so it is already in place.
+  // At 1440 × 900 the first rising title is on the first screen, so it is already in place.
   expect(title.onScreen).toBe(true);
   expect(title.progress).toBe(1);
   expect(title.transform).toBe(SHOWN);

@@ -57,8 +57,8 @@ const card = (href: string, external = false): WorkCard => ({
 });
 
 describe('the featured posts', () => {
-  test('the auto-trader teardown is featured, on this site under /writing/, never on GitHub', () => {
-    expect(FEATURED_POSTS).toEqual([teardown]);
+  test('no post is featured: posts are listed under Writing, the teardown with them (ADR 0023)', () => {
+    expect(FEATURED_POSTS).toEqual([]);
   });
 });
 
@@ -138,12 +138,9 @@ describe("selectedWork: Home's cards, from the projects and the build's posts", 
     expect(selectedWork([], writingArea([post('other')], false), noLab)).toEqual([]);
   });
 
-  test('the teardown, once published, gets a card after the project cards', () => {
+  test('a published post gets no card: Writing lists it (ADR 0023)', () => {
     const cards = selectedWork([project], writingArea([post('other'), teardownPost], false), noLab);
-    expect(cards.map((c) => c.link.href)).toEqual([
-      'https://github.com/IHaveASegway/a-project',
-      '/writing/trading-bot-teardown/',
-    ]);
+    expect(cards.map((c) => c.link.href)).toEqual(['https://github.com/IHaveASegway/a-project']);
   });
 
   test('a draft teardown gets no card, even in a preview that builds its page', () => {
@@ -157,7 +154,6 @@ describe("selectedWork: Home's cards, from the projects and the build's posts", 
     expect(cards.map((c) => c.link.href)).toEqual([
       '/lab/routes/',
       'https://github.com/IHaveASegway/a-project',
-      '/writing/trading-bot-teardown/',
     ]);
     expect(cards[0]).toEqual({
       title: 'A demo',

@@ -1,5 +1,5 @@
 ---
-import { navFor, type NavLeaf } from '../lib/nav';
+import { navFor, type RailGroup } from '../lib/nav';
 import ThemeToggle from './ThemeToggle.astro';
 
 interface Props {
@@ -9,9 +9,9 @@ interface Props {
   role: string;
   /** URLs content adds to this build (lib/posts.ts, areaRoutes). */
   generated: readonly string[];
-  /** What the rail lists under a header item, by its id: every demo under Lab, the newest posts
-   *  under Writing (lib/nav.ts, railLeaves). */
-  leaves: Readonly<Record<string, readonly NavLeaf[]>>;
+  /** What the rail drops down to show under a header item, by its id: every demo under Lab, the
+   *  newest posts under Writing, each with a link to its index (lib/nav.ts, railLeaves). */
+  leaves: Readonly<Record<string, RailGroup>>;
 }
 
 const { name, role, generated, leaves } = Astro.props;
@@ -20,8 +20,13 @@ const { name, role, generated, leaves } = Astro.props;
 // that pauses its moving drawing (SC 2.2.2), and the theme toggle. From 80rem the header is the
 // rail down the left edge (ADR 0021), and an index of the site (ADR 0022): the name heads it on
 // every page, Home included, a search field opens the command menu, and each item lists what it
-// holds, every demo under Lab and the newest posts under Writing. Below 80rem it is the row across
-// the top it always was, without the leaves, and on Home without the name, which Home's <h1> is.
+// holds, every demo under Lab and the newest posts under Writing. Since ADR 0023 an item that holds
+// pages is a disclosure, closed until pressed: it drops down to its pages and "View all", its
+// index. It stands open on a page it lists, so the visitor sees where they are; the rail's items
+// share one name, so opening one closes another. A <details> does this with no script, and its
+// <summary> is announced as a button that says whether it is expanded. Below 80rem it is the row
+// across the top it always was, each item a link, and on Home without the name, which Home's <h1>
+// is.
 const headerNav = navFor('header', generated);
 const here = Astro.url.pathname;
 const home = here === '/';
@@ -52,29 +57,53 @@ const home = here === '/';
     {headerNav.length > 0 && (
       <nav class="site-nav" aria-label="Primary">
         <ul>
-          {headerNav.map((item) => (
-            <li>
-              <a
-                href={item.href}
-                aria-current={
-                  here === item.href ? 'page' : here.startsWith(item.href) ? 'true' : undefined
-                }
-              >
-                {item.label}
-              </a>
-              {(leaves[item.id] ?? []).length > 0 && (
-                <ul class="nav-leaves rail-only">
-                  {(leaves[item.id] ?? []).map((leaf) => (
-                    <li>
-                      <a href={leaf.href} aria-current={here === leaf.href ? 'page' : undefined}>
-                        {leaf.label}
+          {headerNav.map((item) => {
+            const group = leaves[item.id];
+            const current =
+              here === item.href ? 'page' : here.startsWith(item.href) ? 'true' : undefined;
+            if (group === undefined || group.leaves.length === 0)
+              return (
+                <li>
+                  <a href={item.href} aria-current={current}>
+                    {item.label}
+                  </a>
+                </li>
+              );
+            return (
+              <li>
+                <a class="bar-only" href={item.href} aria-current={current}>
+                  {item.label}
+                </a>
+                <details
+                  class="nav-fold rail-only"
+                  name="rail"
+                  open={group.leaves.some((leaf) => leaf.href === here)}
+                  data-current={current === undefined ? undefined : ''}
+                >
+                  <summary>
+                    {item.label}
+                    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                      <path d="m6 3.5 4.5 4.5L6 12.5" />
+                    </svg>
+                  </summary>
+                  <ul class="nav-leaves" role="list">
+                    {group.leaves.map((leaf) => (
+                      <li>
+                        <a href={leaf.href} aria-current={here === leaf.href ? 'page' : undefined}>
+                          {leaf.label}
+                        </a>
+                      </li>
+                    ))}
+                    <li class="nav-all">
+                      <a href={item.href} aria-current={here === item.href ? 'page' : undefined}>
+                        View all {group.noun} <span aria-hidden="true">→</span>
                       </a>
                     </li>
-                  ))}
-                </ul>
-              )}
-            </li>
-          ))}
+                  </ul>
+                </details>
+              </li>
+            );
+          })}
         </ul>
       </nav>
     )}

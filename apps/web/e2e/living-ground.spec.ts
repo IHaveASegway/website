@@ -67,7 +67,7 @@ test.describe('the rail', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/about/');
     expect(await mark('.site-nav a[href="/about/"]')).toEqual({ bar: '2px', underline: 'none' });
-    expect((await mark('.site-nav a[href="/lab/"]')).bar).toBeNull();
+    expect((await mark('.site-nav a.bar-only[href="/lab/"]')).bar).toBeNull();
     await page.setViewportSize({ width: 1024, height: 900 });
     expect(await mark('.site-nav a[href="/about/"]')).toEqual({
       bar: null,
@@ -76,12 +76,15 @@ test.describe('the rail', () => {
   });
 
   // ADR 0022: the rail is an index, so Tab passes the search field and each item's leaves too, top
-  // to bottom as they stand, every demo between Lab and Writing, before main.
+  // to bottom as they stand, before main. Since ADR 0023 an item's leaves are in its drop-down, so
+  // on a demo, where Lab stands open, every demo and "View all demos" come between Lab and
+  // Writing; Writing, closed, is one stop.
   test('Tab goes from the skip link through the rail, in order, then into main', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto('/lab/');
+    const demos = pages().filter((path) => /^\/lab\/[^/]+\/$/.test(path));
+    await page.goto(demos[0] ?? '/lab/');
     await page.waitForFunction(() => 'palette' in document.documentElement.dataset);
     const stops: { name: string; href: string | null; y: number }[] = [];
     for (let i = 0; i < 24; i++) {
@@ -109,9 +112,11 @@ test.describe('the rail', () => {
       (step) => step !== 'Writing' || pages().includes('/writing/'),
     );
     expect(names.filter((name) => items.includes(name))).toEqual(items);
-    const demos = pages().filter((path) => /^\/lab\/[^/]+\/$/.test(path));
     const lab = names.indexOf('Lab');
-    expect(stops.slice(lab + 1, lab + 1 + demos.length).map((stop) => stop.href)).toEqual(demos);
+    expect(stops.slice(lab + 1, lab + 2 + demos.length).map((stop) => stop.href)).toEqual([
+      ...demos,
+      '/lab/',
+    ]);
     // Each stop after the skip link stands below the one before it.
     const ys = stops.slice(1, -1).map((stop) => stop.y);
     expect(ys).toEqual([...ys].sort((a, b) => a - b));

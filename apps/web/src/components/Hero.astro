@@ -6,17 +6,21 @@ interface Props {
   profile: Profile;
   /** Where the Work button scrolls to: Selected work, when Home has it. Left out, no button. */
   work?: string | undefined;
+  /** The bio's opening, Joseph's own words (src/content/about.md), and the page it opens. Left out
+   *  where the build holds no bio, as the fixture builds do: then the hero has no sentence. */
+  bio?: { readonly lede: readonly string[]; readonly href: string } | undefined;
 }
 
-const { profile, work } = Astro.props;
+const { profile, work, bio } = Astro.props;
 // External profiles render only from a record whose readiness check is recorded (profile.ts).
 const external = checkedProfiles(profile);
-// Row 1 (design-system.md, "Home, row by row"): the name on two lines, and beside it from 75rem,
-// under it before that, the title, the location and the ways to reach Joseph. The name's markup is
-// its words alone. A sentence on what Joseph does joins once he clears one (content.md, row 1).
+// Row 1 (design-system.md, "Home, row by row"): the name on two lines, then the title, the
+// location, what Joseph does in his own words and the ways to reach him. The name's markup is its
+// words alone. The sentence is the bio's opening, which Joseph cleared with the bio on 2026-10-29
+// (content.md, row 1), so Home and /about/ say it from one file (ADR 0023).
 ---
 
-<section class="hero" aria-labelledby="name" data-row="1">
+<section class="hero hero-home" aria-labelledby="name" data-row="1">
   <h1 id="name" class="hero-name">
     {profile.basics.name}
   </h1>
@@ -25,10 +29,21 @@ const external = checkedProfiles(profile);
       <p class="hero-title">{profile.basics.label}</p>
       <p class="where">{locationLine(profile)}</p>
     </div>
+    {bio?.lede.map((paragraph) => (
+      <p class="hero-lede">{paragraph}</p>
+    ))}
     <div class="hero-actions">
       <a class="btn btn-primary" href={`mailto:${CONTACT_EMAIL}`}>
         Email
       </a>
+      {bio && (
+        <a class="btn" href={bio.href}>
+          About me{' '}
+          <span class="hint" aria-hidden="true">
+            →
+          </span>
+        </a>
+      )}
       {work && (
         <a class="btn" href={work}>
           Work{' '}

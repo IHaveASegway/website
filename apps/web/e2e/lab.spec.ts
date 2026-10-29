@@ -383,7 +383,10 @@ test('another number of vans lets go of the day, and the header marks the Lab se
   page,
 }) => {
   await page.goto(ROUTE_LAB);
-  await expect(page.locator('.site-nav a[href="/lab/"]')).toHaveAttribute('aria-current', 'true');
+  await expect(page.locator('.site-nav a.bar-only[href="/lab/"]')).toHaveAttribute(
+    'aria-current',
+    'true',
+  );
   await plan(page, 'quiet');
   await page.check('input[name="rl-vans"][value="3"]');
   await expect(page.locator('input[name="rl-day"]:checked')).toHaveCount(0);

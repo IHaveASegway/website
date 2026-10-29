@@ -312,19 +312,21 @@ function fixtureBuild(name: string) {
  *  page file. */
 const ALWAYS = ['/', '/about/'];
 
-/** The header nav's items on a page, without the leaves the rail lists under them (ADR 0022). */
+/** The header nav's items on a page, without the pages the rail drops down to under them (ADR 0022,
+ *  ADR 0023): each item's own link stays, the one the row across the top shows. */
 const headerLinks = (page: string) =>
   [
     ...(/<nav class="site-nav"[\s\S]*?<\/nav>/.exec(page)?.[0] ?? '')
       .replace(/<ul class="nav-leaves[\s\S]*?<\/ul>/g, '')
       .matchAll(/href="([^"]+)"/g),
   ].map(([, href = '']) => href);
-/** The leaves the rail lists under Writing on a page. */
+/** The posts the rail drops down to under Writing on a page (ADR 0023), without its "View all". */
 const writingLeaves = (page: string) =>
   [
     ...(
-      /href="\/writing\/"[^>]*>[^<]*<\/a>\s*<ul class="nav-leaves[\s\S]*?<\/ul>/.exec(page)?.[0] ??
-      ''
+      /<details class="nav-fold[^"]*"[^>]*>\s*<summary>\s*Writing[\s\S]*?<\/details>/.exec(
+        page,
+      )?.[0] ?? ''
     ).matchAll(/<li><a href="([^"]+)"/g),
   ].map(([, href = '']) => href);
 /** The post titles a list links to, in order. */

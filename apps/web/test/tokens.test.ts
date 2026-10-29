@@ -36,7 +36,18 @@ const NON_TEXT = ['ring', 'input'];
 const ON_FILL: Record<string, string[]> = { 'primary-foreground': ['primary', 'primary-strong'] };
 /** Decoration only: no contrast claim, but still inside sRGB. The map's streets and roads are
  *  hairlines under the routes: they place the routes and carry nothing a reader needs. */
-const DECORATIVE = ['border', 'map-street', 'map-road', 'map-road-major'];
+// The faces of Home's isometric drawings (ADR 0023) are the page's own surfaces under other names:
+// a face carries no text a visitor reads, only the stack's slab numbers, which the surfaces' pairs
+// already measure.
+const DECORATIVE = [
+  'border',
+  'map-street',
+  'map-road',
+  'map-road-major',
+  'face-top',
+  'face-left',
+  'face-right',
+];
 /** Pairs a design must never draw; each is listed with its reason (none yet). */
 const FORBIDDEN: [string, string][] = [];
 
