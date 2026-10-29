@@ -96,6 +96,62 @@ test('cut off the leader: a new term elects another leader, and every safety pro
   await expect(page.locator('[data-rf-lines]')).toContainText('The network splits');
 });
 
+/** How the cut's fence meets each node as drawn: its timer ring with half its stroke, and each
+ *  line of text with its halo. Each node must be wholly inside the fence or wholly outside it,
+ *  and never under its line. Says how many nodes are inside, or what went wrong. */
+// Points sit under 1 unit apart, closer than the fence's 1.5 px line, so it cannot slip between.
+const fenced = (page: Page) =>
+  page.evaluate(() => {
+    const cut = document.querySelector<SVGPathElement>('[data-rf-cut]');
+    if (!cut || cut.hasAttribute('data-off')) return 'no fence';
+    let inside = 0;
+    for (const node of document.querySelectorAll<SVGGElement>('[data-rf-node]')) {
+      const points: DOMPoint[] = [];
+      const ring = node.querySelector<SVGCircleElement>('.rf-track');
+      if (ring) {
+        const [cx, cy, r] = [ring.cx, ring.cy, ring.r].map((a) => a.baseVal.value) as [
+          number,
+          number,
+          number,
+        ];
+        for (let i = 0; i < 256; i++) {
+          const a = (i * Math.PI) / 128;
+          points.push(new DOMPoint(cx + (r + 1.5) * Math.cos(a), cy + (r + 1.5) * Math.sin(a)));
+        }
+      }
+      for (const text of node.querySelectorAll('text')) {
+        const { x, y, width, height } = text.getBBox();
+        const [left, top, right, bottom] = [x - 2, y - 2, x + width + 2, y + height + 2];
+        for (let t = 0; t <= 1; t += 1 / 64)
+          points.push(
+            new DOMPoint(left + t * (right - left), top),
+            new DOMPoint(left + t * (right - left), bottom),
+            new DOMPoint(left, top + t * (bottom - top)),
+            new DOMPoint(right, top + t * (bottom - top)),
+          );
+      }
+      const id = Number(node.dataset.rfNode) + 1;
+      if (points.some((p) => cut.isPointInStroke(p))) return `the line crosses node ${id}`;
+      const within = points.filter((p) => cut.isPointInFill(p)).length;
+      if (within === points.length) inside++;
+      else if (within > 0) return `node ${id} is partly inside`;
+    }
+    return inside;
+  });
+
+test('a cut network: a fence closes off the smaller side and crosses no node or its text', async ({
+  page,
+}) => {
+  await page.goto(RAFT);
+  await expect.poll(() => fenced(page)).toBe('no fence');
+  await page.getByRole('button', { name: 'Cut off the leader' }).click();
+  await expect.poll(() => fenced(page)).toBe(1);
+  await page.getByRole('button', { name: 'Heal the network' }).click();
+  await expect.poll(() => fenced(page)).toBe('no fence');
+  await page.getByRole('button', { name: 'Split 2 and 3' }).click();
+  await expect.poll(() => fenced(page)).toBe(2);
+});
+
 test('a node button crashes it and then restarts it, and says so in its name', async ({ page }) => {
   await page.goto(RAFT);
   const first = page.locator('[data-rf-toggle="0"]');

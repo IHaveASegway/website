@@ -27,6 +27,11 @@ export const SIZE = 360;
 const CENTER = SIZE / 2;
 const ORBIT = 128;
 export const NODE_RADIUS = 27;
+/** The election timer's dial, around the node. */
+export const DIAL_RADIUS = NODE_RADIUS + 5;
+/** Where a node's two lines of text sit: baselines below its centre (RaftLab.astro). */
+export const ROLE_BASELINE = DIAL_RADIUS + 14;
+export const TERM_BASELINE = DIAL_RADIUS + 26;
 
 /** A node's place on the circle: node 1 at the top, then clockwise. */
 export function place(id: number, size: number): { x: number; y: number } {
@@ -122,21 +127,72 @@ export function flightsMarkup(sim: Sim, still: boolean): string {
     .join('');
 }
 
-/** The chord that marks a cut network, between the two gaps where the sides meet on the circle,
- *  or null when the network is whole or the sides are not each one run of the circle. */
-export function cutLine(
-  groups: readonly number[],
-): { x1: number; y1: number; x2: number; y2: number } | null {
-  const size = groups.length;
-  const gaps: number[] = [];
-  for (let i = 0; i < size; i++) if (groups[i] !== groups[(i + 1) % size]) gaps.push(i);
-  if (gaps.length !== 2) return null;
-  const point = (gap: number) => {
-    const angle = -Math.PI / 2 + ((gap + 0.5) * 2 * Math.PI) / size;
-    return { x: round(CENTER + 168 * Math.cos(angle)), y: round(CENTER + 168 * Math.sin(angle)) };
+type Point = readonly [number, number];
+
+/** How far the cut's fence keeps from what it closes in. */
+export const CUT_PAD = 7;
+
+/** What one node covers on the map, as points on its edge, grown by `pad`: the timer's dial with
+ *  half its 3 px stroke, and the box of its two lines of text, as wide as "candidate", the longest
+ *  role, and their 4 px halo. The text hangs below the node, so a node is not round. */
+export function footprint(id: number, size: number, pad: number): Point[] {
+  const { x, y } = place(id, size);
+  const dial = DIAL_RADIUS + 1.5 + pad;
+  const points: Point[] = [];
+  for (let i = 0; i < 32; i++) {
+    const a = (i * Math.PI) / 16;
+    points.push([x + dial * Math.cos(a), y + dial * Math.sin(a)]);
+  }
+  const half = 33;
+  const top = y + ROLE_BASELINE - 11;
+  const bottom = y + TERM_BASELINE + 5;
+  const corners: [number, number, number][] = [
+    [x - half, top, Math.PI],
+    [x + half, top, -Math.PI / 2],
+    [x + half, bottom, 0],
+    [x - half, bottom, Math.PI / 2],
+  ];
+  for (const [cx, cy, from] of corners)
+    for (let i = 0; i <= 4; i++) {
+      const a = from + (i * Math.PI) / 8;
+      points.push([cx + pad * Math.cos(a), cy + pad * Math.sin(a)]);
+    }
+  return points;
+}
+
+/** The convex hull of some points, clockwise on screen (Andrew's monotone chain). */
+function hull(points: readonly Point[]): Point[] {
+  const sorted = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cross = (o: Point, a: Point, b: Point) =>
+    (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const half = (list: readonly Point[]) => {
+    const out: Point[] = [];
+    for (const p of list) {
+      while (out.length >= 2 && cross(out[out.length - 2]!, out[out.length - 1]!, p) <= 0)
+        out.pop();
+      out.push(p);
+    }
+    out.pop();
+    return out;
   };
-  const [a, b] = gaps.map(point) as [{ x: number; y: number }, { x: number; y: number }];
-  return { x1: a.x, y1: a.y, x2: b.x, y2: b.y };
+  return [...half(sorted), ...half(sorted.reverse())];
+}
+
+/** The fence that marks a cut network: a dashed line around the smaller side, drawn around what
+ *  its nodes cover, so it never crosses a node or its text. Null when the network is whole or the
+ *  sides are not each one run of the circle. A straight line between the sides cannot do this:
+ *  a node's text reaches down beside its neighbours. */
+export function cutFence(groups: readonly number[]): string | null {
+  const size = groups.length;
+  let gaps = 0;
+  for (let i = 0; i < size; i++) if (groups[i] !== groups[(i + 1) % size]) gaps++;
+  if (gaps !== 2) return null;
+  const count = (g: number) => groups.filter((x) => x === g).length;
+  const smaller = [...new Set(groups)].sort((a, b) => count(a) - count(b))[0];
+  const points = groups.flatMap((g, id) => (g === smaller ? footprint(id, size, CUT_PAD) : []));
+  return `M${hull(points)
+    .map(([x, y]) => `${round(x)} ${round(y)}`)
+    .join('L')}Z`;
 }
 
 /** The status line: the five properties held, or the one that broke, and where. */

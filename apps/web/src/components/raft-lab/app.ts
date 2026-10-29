@@ -13,7 +13,7 @@ import {
   type Sim,
 } from '../../lib/raft/sim';
 import {
-  cutLine,
+  cutFence,
   flightsMarkup,
   logMarkup,
   logWords,
@@ -47,7 +47,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
   const still = matchMedia('(prefers-reduced-motion: reduce)');
   const map = $<SVGSVGElement>('[data-rf-map]');
   const flights = $<SVGGElement>('[data-rf-flights]');
-  const cut = $<SVGLineElement>('[data-rf-cut]');
+  const cut = $<SVGPathElement>('[data-rf-cut]');
   const run = $<HTMLButtonElement>('[data-rf-run]');
   const loss = $<HTMLInputElement>('[data-rf-loss]');
   const lossOut = $<HTMLOutputElement>('[data-rf-loss-out]');
@@ -105,11 +105,11 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
       }
     }
     if (flights) flights.innerHTML = flightsMarkup(sim, still.matches);
-    const chord = cutLine(sim.groups);
+    const fence = cutFence(sim.groups);
     if (cut) {
-      if (chord) {
+      if (fence) {
         cut.removeAttribute('data-off');
-        for (const [key, value] of Object.entries(chord)) cut.setAttribute(key, String(value));
+        if (cut.getAttribute('d') !== fence) cut.setAttribute('d', fence);
       } else cut.setAttribute('data-off', '');
     }
     text('[data-rf-summary]', summary(sim));

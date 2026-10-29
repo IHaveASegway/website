@@ -163,11 +163,13 @@
   cursor: pointer;
 }
 
-/* Where the network is cut. */
+/* Where the network is cut: a fence around the smaller side, which no message crosses. */
 .rf-cut {
+  fill: none;
   stroke: var(--foreground);
   stroke-width: 1.5;
   stroke-dasharray: 6 5;
+  stroke-linejoin: round;
 }
 
 .rf-cut[data-off] {
