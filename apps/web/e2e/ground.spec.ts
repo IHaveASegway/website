@@ -13,16 +13,24 @@ const WIDTHS = [
   { width: 1440, height: 900 },
 ];
 
-/** Every mark's box that overlaps a line of text on the page, as "mark × text". */
+/** Every mark's box that overlaps a line of text on the page, as "mark × text". Text clipped
+ *  away, the name only assistive technology reads (the command menu's button, in the header since
+ *  ADR 0021), draws nothing for a mark to touch, though its boxes still span its words. */
 const overlaps = (page: Page) =>
   page.evaluate(() => {
     const marks = [...document.querySelectorAll('.ground-mark')].map((m) =>
       m.getBoundingClientRect(),
     );
+    const clipped = (node: Node) => {
+      for (let at = node.parentElement; at; at = at.parentElement)
+        if (getComputedStyle(at).clipPath !== 'none') return true;
+      return false;
+    };
     const found: string[] = [];
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-      if (!node.textContent?.trim() || !node.parentElement?.checkVisibility()) continue;
+      if (!node.textContent?.trim() || !node.parentElement?.checkVisibility() || clipped(node))
+        continue;
       const range = document.createRange();
       range.selectNodeContents(node);
       for (const box of range.getClientRects()) {

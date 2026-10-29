@@ -11,8 +11,9 @@ interface Props {
 
 const { profile, generated } = Astro.props;
 // One line: the address, the pages that exist (RSS, Now, Colophon), the external profiles whose
-// readiness check is recorded (rel="me" pairs each with the profile's link back to this site), the
-// command menu's button (components/Palette.astro), and the copyright, in the build's year. The address may break after its "@" when a larger text size
+// readiness check is recorded (rel="me" pairs each with the profile's link back to this site), and
+// the copyright, in the build's year. The command menu's button moved to the header on 2026-10-29,
+// so the rail holds it (ADR 0021). The address may break after its "@" when a larger text size
 // leaves it no room on one line, and never elsewhere unless a part alone is wider than the screen.
 const year = new Date().getUTCFullYear();
 const [mailbox, domain] = CONTACT_EMAIL.split('@');
@@ -40,18 +41,6 @@ const links = [
           </a>
         </li>
       ))}
-      <li class="palette-item">
-        <button
-          type="button"
-          class="palette-open"
-          data-palette-open
-          aria-haspopup="dialog"
-          aria-keyshortcuts="Meta+K Control+K"
-        >
-          <span class="palette-name">{'Command menu '}</span>
-          <kbd>Ctrl K</kbd>
-        </button>
-      </li>
     </ul>
     <p class="fine-print">
       © {year} {profile.basics.name}

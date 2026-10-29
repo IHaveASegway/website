@@ -168,6 +168,38 @@ describe('the Raft Lab', () => {
   );
 });
 
+// Home's living ground (ADR 0021): one chunk, which Home's motion module loads through import()
+// after the page has painted, and Home's first view with it within the 150 KB every page keeps.
+describe("Home's living ground", () => {
+  const feature = FEATURES['living-ground'];
+  const ownJs = files.filter((file) => /\.m?js$/.test(file) && featureOf(file) === 'living-ground');
+
+  test('is one lazy chunk, which no page loads eagerly', () => {
+    expect(ownJs).toHaveLength(1);
+    for (const file of ownJs) expect(eager.has(file), file).toBe(false);
+  });
+
+  const lazyBytes = ownJs.reduce((sum, file) => sum + gz(file), 0);
+  test(`lazy JavaScript: ${lazyBytes} B of ${feature.lazyJavaScript}`, () => {
+    expect(lazyBytes).toBeLessThanOrEqual(feature.lazyJavaScript);
+  });
+
+  // The indexes load the same motion module, so they could reach the chunk too; they never do,
+  // because the module loads it only where the canvas is, and only Home has one.
+  test('Home reaches it through import(), and only Home has the canvas it draws on', () => {
+    expect(reachable(feature.page)).toEqual(expect.arrayContaining(ownJs));
+    expect(html.filter((file) => read(file).includes('data-ground-live'))).toEqual([feature.page]);
+  });
+
+  test(`Home's first view, with it, stays within ${feature.firstView} B`, () => {
+    const page = read(feature.page);
+    const figures = measure(page);
+    const firstView =
+      gzipBytes(page) + figures.css + figures.declaredFonts + figures.eagerJavaScript;
+    expect(firstView + lazyBytes).toBeLessThanOrEqual(feature.firstView);
+  });
+});
+
 test('known answers: eager JavaScript counts what a named script imports statically, not import()', () => {
   expect(staticImportsOf('import{t as e}from"./preload-helper.x.js";import"./b.js"')).toEqual([
     './preload-helper.x.js',

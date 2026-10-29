@@ -133,15 +133,15 @@ const chrome = (['dark', 'light'] as const).map((scheme) => ({
     <Font cssVariable="--font-instrument-sans" preload />
     <Font cssVariable="--font-jetbrains-mono" />
   </head>
-  <body class="flex min-h-dvh flex-col">
+  <body>
     {ground && <Ground kind={ground} seed={path ?? '/404/'} />}
     <div class="frame masthead">
       <a class="skip-link" href="#main">
         Skip to content
       </a>
-      <Header name={profile.basics.name} generated={generated} />
+      <Header name={profile.basics.name} role={profile.basics.label} generated={generated} />
     </div>
-    <main id="main" class="frame flex-1">
+    <main id="main" class="frame">
       <slot />
     </main>
     <Footer profile={profile} generated={generated} />

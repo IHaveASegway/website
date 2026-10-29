@@ -5,22 +5,30 @@ import ThemeToggle from './ThemeToggle.astro';
 interface Props {
   /** The name the header links home with. */
   name: string;
+  /** The title under the name, in the rail only. */
+  role: string;
   /** URLs content adds to this build (lib/posts.ts, areaRoutes). */
   generated: readonly string[];
 }
 
-const { name, generated } = Astro.props;
-// The name, linking home, on every page but Home, whose <h1> is the name; then the manifest's
-// header items whose page exists (Writing, from the first post), and the theme toggle.
+const { name, role, generated } = Astro.props;
+// The name, linking home, with the title under it in the rail, on every page but Home, whose <h1>
+// is the name; then the manifest's header items whose page exists (Writing, from the first post),
+// the command menu's button, on Home the button that pauses its moving drawing (SC 2.2.2), and the
+// theme toggle. From 80rem the header is the rail down the left edge (ADR 0021); below that it is
+// the row across the top it always was.
 const headerNav = navFor('header', generated);
 const here = Astro.url.pathname;
 ---
 
 <header class="site-header">
   {here !== '/' && (
-    <a href="/" class="wordmark">
-      {name}
-    </a>
+    <div class="rail-head">
+      <a href="/" class="wordmark">
+        {name}
+      </a>
+      <p class="rail-role">{role}</p>
+    </div>
   )}
   <div class="header-end">
     {headerNav.length > 0 && (
@@ -41,6 +49,38 @@ const here = Astro.url.pathname;
         </ul>
       </nav>
     )}
-    <ThemeToggle />
+    <ul class="header-tools">
+      <li class="palette-item">
+        <button
+          type="button"
+          class="palette-open"
+          data-palette-open
+          aria-haspopup="dialog"
+          aria-keyshortcuts="Meta+K Control+K"
+        >
+          <span class="palette-name">{'Command menu '}</span>
+          <kbd>Ctrl K</kbd>
+        </button>
+      </li>
+      {here === '/' && (
+        <li class="motion-item">
+          <button
+            type="button"
+            class="motion-toggle"
+            data-motion-toggle
+            aria-label="Pause motion"
+            title="Pause motion"
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+              <path class="motion-pause" d="M4.5 3h2.25v10H4.5zM9.25 3h2.25v10H9.25z" />
+              <path class="motion-play" d="M5 2.75v10.5L13.25 8z" />
+            </svg>
+          </button>
+        </li>
+      )}
+      <li>
+        <ThemeToggle />
+      </li>
+    </ul>
   </div>
 </header>
