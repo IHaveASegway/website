@@ -14,10 +14,6 @@ interface Props {
 const { kind, seed } = Astro.props;
 const ground = groundFor(kind, seed);
 const classOf = { line: 'ground-line', index: 'ground-index', mark: 'ground-mark' } as const;
-// Home's drawing also comes alive (ADR 0021): a canvas over it, in the same box, that
-// src/scripts/ground-live.js draws on once the page has painted. Until then, and wherever it
-// cannot run, the canvas is not shown and this drawing is the picture.
-const live = kind === 'home';
 ---
 
 <svg
@@ -45,4 +41,3 @@ const live = kind === 'home';
     </>
   )}
 </svg>
-{live && <canvas class="ground ground-live" data-ground-live aria-hidden="true" />}

@@ -7,14 +7,14 @@ import { html, read } from './support/dist';
 // by its seed, small, and on every page but the résumé. e2e/ground.spec.ts keeps its one mark
 // clear of text and checks it is hidden in print.
 
-const KINDS: GroundKind[] = ['home', 'writing', 'lab', 'about', 'lost'];
+const KINDS: GroundKind[] = ['writing', 'lab', 'about', 'lost'];
 const markup = (kind: GroundKind, seed: string) => {
   const g = groundFor(kind, seed);
   return [...g.paths, ...(g.clipped ?? [])].map((p) => p.d).join('') + (g.clip ?? '');
 };
 
-test('known answers: which drawing a path carries, and none on the résumé', () => {
-  expect(groundKindFor('/')).toBe('home');
+test('known answers: which drawing a path carries, and none on Home or the résumé', () => {
+  expect(groundKindFor('/')).toBeNull();
   expect(groundKindFor('/writing/')).toBe('writing');
   expect(groundKindFor('/writing/a-post/')).toBe('writing');
   expect(groundKindFor('/notes/')).toBe('writing');
@@ -48,7 +48,6 @@ describe.each(KINDS)('%s', (kind) => {
   });
 
   test('it weighs at most 2.5 KB gzip, and has at most one accent mark', () => {
-    // Home's contours are the heaviest, 2,318 B on 2026-10-27: 13 lines of 72 points each.
     expect(gzipSync(markup(kind, '/a/'), { level: 9 }).length).toBeLessThanOrEqual(2_500);
     expect(
       groundFor(kind, '/a/').paths.filter((p) => p.kind === 'mark').length,

@@ -1,40 +1,37 @@
 ---
-import { cluster } from '../lib/iso';
+import { cluster, STORY } from '../lib/iso';
 
-interface Props {
-  /** Where it stands: Home's first screen, or the Raft Lab's card. Its heartbeats run with Home's
-   *  living ground, under its pause button, in the first; while the card is pointed at or focused
-   *  in the second. */
-  place: 'hero' | 'card';
-}
-
-const { place } = Astro.props;
-// The Raft Lab's five servers, drawn in isometric at build (lib/iso.ts; ADR 0023): the leader at
-// the back with its roof in the accent, a hollow last entry in its log that a majority has not
-// stored yet, and on the floor the links its heartbeats travel. Each follower's dial is its
-// election timer, part full, as the lab draws it. A picture, so screen readers skip it: the words
-// beside it say what it shows and link to the lab.
+// The Raft Lab's five servers, drawn in isometric at build (lib/iso.ts; ADR 0023), acting out an
+// election (ADR 0024): server 1 leads term 3 with its roof in the accent and a hollow last entry
+// in its log that a majority has not stored yet; every pair of servers is linked on the floor; each
+// follower's dial is its election timer, part full, as the lab draws it. With motion, home.css
+// plays lib/iso.ts's STORY on one loop: heartbeats, the leader's crash, server 3's timeout, its
+// votes, its term as leader and server 1's return. Without motion, and paused, it is the first
+// moment of that story. A picture, so screen readers skip it: the words beside it say what it shows
+// and link to the lab.
 const scene = cluster();
+const { leader, candidate, terms } = STORY;
+const at = (id: number) =>
+  scene.servers.find((server) => server.id === id)?.label ?? { x: 0, y: 0 };
+const says = [
+  { server: leader, act: 'lead-1', text: `LEADER · TERM ${terms[0]}` },
+  { server: leader, act: 'down', text: 'DOWN' },
+  { server: candidate, act: 'ask', text: `CANDIDATE · TERM ${terms[1]}` },
+  { server: candidate, act: 'lead-3', text: `LEADER · TERM ${terms[1]}` },
+];
 ---
 
-<svg
-  class={`iso iso-cluster iso-${place}`}
-  viewBox={scene.viewBox}
-  aria-hidden="true"
-  focusable="false"
->
+<svg class="iso iso-cluster" viewBox={scene.viewBox} aria-hidden="true" focusable="false">
   <g class="iso-platform">
     <polygon class="iso-face-left" points={scene.platform.left} />
     <polygon class="iso-face-right" points={scene.platform.right} />
     <polygon class="iso-face-top" points={scene.platform.top} />
   </g>
-  {place === 'hero' && <path class="iso-floor" d={scene.floor} />}
-  {scene.links.map((link) => (
-    <path class="iso-link" d={link.d} />
-  ))}
-  {scene.packets.map((packet) => (
-    <g transform={packet.transform}>
-      <path class="iso-packet" d={packet.d} />
+  <path class="iso-floor" d={scene.floor} />
+  <path class="iso-link" d={scene.links.join('')} />
+  {scene.trips.map((trip) => (
+    <g transform={trip.transform}>
+      <path class="iso-packet" data-act={trip.act} data-to={trip.to} d={trip.d} />
     </g>
   ))}
   {scene.servers.map((server) => (
@@ -42,6 +39,10 @@ const scene = cluster();
       <polygon class="iso-face-left" points={server.faces.left} />
       <polygon class="iso-face-right" points={server.faces.right} />
       <polygon class="iso-face-top" points={server.faces.top} />
+      {(server.id === leader || server.id === candidate) && (
+        <polygon class="iso-crown" data-crown={server.id} points={server.faces.top} />
+      )}
+      {server.id === candidate && <polygon class="iso-candidate" points={server.faces.top} />}
       {server.log.map((entry) => (
         <polygon
           class={entry.committed ? 'iso-entry' : 'iso-entry iso-pending'}
@@ -64,18 +65,30 @@ const scene = cluster();
         pathLength="100"
         stroke-dasharray={`${server.dial.fill} 100`}
       />
+      {server.id === candidate && (
+        <ellipse
+          class="iso-timeout"
+          cx={server.dial.cx}
+          cy={server.dial.cy}
+          rx={server.dial.rx}
+          ry={server.dial.ry}
+        />
+      )}
     </g>
   ))}
-  <ellipse
-    class="iso-ripple"
-    cx={scene.ripple.cx}
-    cy={scene.ripple.cy}
-    rx={scene.ripple.rx}
-    ry={scene.ripple.ry}
-  />
-  {place === 'hero' && (
-    <text class="iso-label" x={scene.label.x} y={scene.label.y} text-anchor="middle">
-      LEADER · TERM 3
+  {scene.ripples.map(({ server, ellipse }) => (
+    <ellipse
+      class="iso-ripple"
+      data-ripple={server}
+      cx={ellipse.cx}
+      cy={ellipse.cy}
+      rx={ellipse.rx}
+      ry={ellipse.ry}
+    />
+  ))}
+  {says.map(({ server, act, text }) => (
+    <text class="iso-label" data-say={act} x={at(server).x} y={at(server).y} text-anchor="middle">
+      {text}
     </text>
-  )}
+  ))}
 </svg>

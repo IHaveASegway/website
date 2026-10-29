@@ -1,0 +1,115 @@
+# ADR 0024: Home led by the work: the Route Lab's day live behind the name, the Raft Lab's election, a bolder type
+
+Status: Proposed · 2026-10-29 · Deciders: Joseph Peterson
+
+## Context
+
+On 2026-10-29, after [ADR 0023](0023-home-as-a-story-and-rail-drop-downs.md) shipped, Joseph read Home again:
+
+- "Want a animation for the routing lab as well." The Raft Lab had a moving picture in the first screen; the Route Lab's card had a small van that moved only under the pointer.
+- "The ui still just isnt getting there for me. Its still so conservative and has nothing that stands out. It is playing it safe and making odd choices as if its taking me to literally."
+
+He was right on both. ADR 0023 answered each phrase of his request with the smallest thing that satisfied it: a sentence from the bio beside a 400 px drawing, a stack of slabs standing in for "3D", a contour drawing behind everything that was deliberately faint. Read at 1440 × 900, nothing on Home was larger or brighter than the name, and the work, the reason the site exists, was two thumbnails below the fold. The reference sites lead with one confident picture of the work; Home led with restraint.
+
+## Decision
+
+### The first two screens are one stage, led by the Route Lab's day
+
+- **The hero stands over a live scene of the Route Lab's default day**: Seattle's water and roads, and the three vans VROOM plans for the bakery's busy Saturday, each driving its route with a glowing trail, each stop lighting as its order is handed over, while the camera sways slowly about the city. A readout counts the day: "+1 h 12 min · 14 of 20 delivered".
+- **Scrolling lifts the day into the space-time cube** ([ADR 0019](0019-space-time-cube-in-webgl.md)): as the Route Lab's chapter comes up the window, time stands up, so a van that drives traces a slope and a van at a stop climbs straight up, and the camera comes down and round. The chapter beside it carries the lab's two figures large: 5 h 34 min of driving as the orders came in, struck through, and 3 h 12 min planned by VROOM.
+- **The scene stands still at the window's top** (`position: sticky`) while the hero and the chapter scroll over it. The card after the chapter slides over it on the page's own background and covers it, and the canvas stops drawing then.
+- **The name is larger**: 64 px on a phone to 160 px at 1440 px (`--text-hero`), the most the zoom rule allows (2.5 times its floor).
+
+### The Raft Lab's cluster acts out an election
+
+Its chapter holds the cluster large, and on one 15 s loop it plays a Raft election as the paper describes it (§5.2): server 1 leads term 3 and sends heartbeats; it crashes; server 3, whose timer stands fullest, times out, stands for term 4 and asks for votes; three votes and its own, a majority of five, make it leader; it sends heartbeats of its own, and server 1 comes back as a follower and hears them. Labels over the roofs say what each server is: LEADER, DOWN, CANDIDATE. `lib/iso.ts` holds the story (`STORY`), and `test/iso.test.ts` holds it to Raft's rules and to the stylesheet that times it.
+
+### Everything else is set larger
+
+- **How I work**: each principle a row under a hairline, its number in the accent, its sentence at the statement size, the rest of its paragraph beside it. The stack of slabs is gone.
+- **The closing**: the address set as large as the figures, the last thing on the page.
+- **Selected work is still one section and one list.** Home lays it out with the demos it features first (`FEATURED_DEMOS`, `lib/work.ts`); the résumé on `/about/` reads the same list in its own order, and the tests compare the two as the same cards.
+
+### Home's own styles are Home's alone
+
+The stage, the scene, the chapters and the election live in `src/styles/home.css`, which only Home links. Every other page's stylesheet fell from 10,362 to 8,869 B.
+
+## The architect's pass
+
+### Why
+
+The need behind "nothing stands out" is a first impression that shows the work rather than describes it. A recruiter gives a personal site seconds; what they should see in those seconds is that Joseph builds real systems. The Route Lab's day is the most visual true thing on the site: real roads, a real solver's plan, real figures. The ask and the need agree here, so the design takes the ask at its word: animation, 3D, boldness, with the work as the subject.
+
+### Data ownership
+
+| Data | System of record | How Home reads it |
+|---|---|---|
+| The day: places, orders, travel times, road legs | `tools/route-data/out/route-data.json`, the Route Lab's pipeline (OpenStreetMap, ODbL) | at build, through `lib/route-lab/picture.ts`, the same module the lab's page uses |
+| VROOM's plan for the day | the build's own solve, `routeLabPicture()`, once per build | the same promise the lab's page awaits: no second solve, no copy |
+| The map's water and roads | `tools/route-data/out/basemap.json` | written once into Home's HTML, in the build's picture; the canvas reads the paths from that picture, so the page holds one copy |
+| The vans' tracks in time | derived by `lib/route-lab/timeline.ts` from the plan | written at build to `/lab/routes/scene.json`, beside the demo that owns it, simplified (`simplify3`) |
+| The figures on the chapter | `measure()` on both plans | rendered at build; none is typed |
+
+Everything Home shows is a view derived at build from the Route Lab's records, in the same commit, so the consistency readers need, the scene agreeing with the lab, holds by construction. The map is OpenStreetMap's, so Home carries its credit wherever it shows it, as the lab does.
+
+### Prior art
+
+- **Animated vehicle trails over a map** are deck.gl's `TripsLayer` (vis.gl; deck.gl began at Uber): paths with a time per point, drawn up to a current time with a trail that fades over `trailLength`. The scene borrows the model, not the library: deck.gl and its WebGL stack would take most of the 150 KB a page may weigh here, for lines and dots.
+- **A small renderer of one's own for a hero** is how Stripe's homepage gradient runs: public teardowns of the page find a small WebGL wrapper rather than three.js, for the same reason.
+- **A 3D hero that minds its cost**: GitHub's homepage globe ("How we built the GitHub globe", GitHub blog, 2020) runs on three.js, and much of its write-up is about performance: what the globe costs a visitor's machine and how it scales down. The governor here (`nextRatio`) is the same idea in a few lines: drop the pixel ratio, then pause.
+- **The sticky graphic**: data journalism's scrollytelling (The Pudding's and the New York Times' pieces, the open-source Scrollama), where a picture stands still while the story scrolls past and changes with it.
+- **The space-time cube**: Hägerstrand's time geography (1970), already the Route Lab's ([ADR 0019](0019-space-time-cube-in-webgl.md)).
+
+### Options
+
+| | A. Canvas 2D through the cube's own camera (chosen) | B. three.js on Home, reusing the cube's chunk | C. Draw the routes in ADR 0021's WebGL2 shader | D. SVG and CSS alone |
+|---|---|---|---|---|
+| Bytes | 5,153 B of script, 1,995 B of data, lazy | the cube's chunk, 140,876 B, lazy | a few KB, but lines need geometry WebGL does not draw | none |
+| Can the camera sway and lift into the cube? | yes, every frame | yes | yes | no: each angle is a different projection |
+| Cost per frame | lines and dots on the CPU, shed by the governor when slow | GPU | GPU, always | repaints of a large SVG for every moving dash |
+| Fits 150 KB for Home | yes, about 113 KB | no: about 247 KB, so Home's budget would rise near 250 KB | yes | yes |
+| New code to own | one renderer, about 400 lines, on tested pure geometry | a scene graph for lines and dots | a line renderer in a shader | keyframes per van |
+
+A wins on weight and on owning the least new code: the projection, the fit and the tracks are pure functions shared with the cube and tested, and the renderer only strokes what they return. B buys lighting and shading the scene does not need, at twice Home's whole page weight. D cannot move the camera. **Door: two-way**: one component, one chunk, one data file and one stylesheet; reverting is one commit, and ADR 0021's living ground is in history.
+
+### Combine before creating
+
+| Piece | Responsible for |
+|---|---|
+| `lib/route-lab/picture.ts` (existing) | the day and VROOM's plan, once per build |
+| `lib/route-lab/timeline.ts` (existing) | each van's day as x, y, t |
+| `lib/route-lab/space-time.ts` (existing) | the cube's camera axes |
+| `lib/route-lab/scene.ts` (new, pure) | the scene's camera between flat and lifted, the fit, the floor's matrix, simplifying a track, the data file's format |
+| `components/RouteScene.astro` (new) | the picture without JavaScript, and the one copy of the map |
+| `scripts/route-scene.ts` (new) | drawing a frame, the clock, the scroll, the pause button, the governor |
+| `scripts/motion.js` (existing) | loading it after the first paint, never under reduced motion or Save-Data |
+
+## Consequences
+
+- **The living ground is gone** ([ADR 0021](0021-rail-and-living-ground.md), amended): Home's contour drawing and its shader (`ground-live.js`) are removed. Home's scene now owns the header's pause button, which pauses the scene and the Raft election together (SC 2.2.2), for the tab.
+- **Design principle 6 is amended** (product.md): a scene that shows the work may run on Home after the first paint, over a picture that stands without it, paused on request. 3D that only decorates is still out.
+- **Bytes, gzip -9, measured 2026-10-29.**
+  - Home's HTML: 10,046 → 25,284 B. Most of it is the map, inline once.
+  - Home's stylesheets: 10,362 → 12,534 B (global 8,869 and home 3,262, plus the tokens). Every other page: 10,362 → 8,869 B.
+  - Lazy, Home only: the scene 5,153 B with the camera and format chunks it shares with the Route Lab, and its data 1,995 B; the living ground's 3,306 B are gone.
+  - Home's first view with the scene: about 113 KB of the 150 KB every page keeps (`test/budgets.test.ts`).
+- **On a phone the first screen holds the scene, the name and the title**; the hero's sentence and buttons follow just below (`e2e/fold.spec.ts`). From 64rem the whole hero is in the first screen.
+- **The data file writes every list of numbers as one string**, with spaces, not commas: a list with commas reads as figures with thousands separators, and the content scan reads figures. It found one on the first build.
+- **Tests.**
+  - `test/scene.test.ts`: the camera the picture and the canvas share, with known answers; the tracks against the timeline and `measure()`; the data file's format, round trip.
+  - `test/iso.test.ts`: every message ends at its receiver; the story is a Raft election; every act has its keyframes on one loop.
+  - `e2e/rail-and-scene.spec.ts`: the scene takes over from the picture, moves, pauses and plays for the tab, lifts with the scroll and sets down again, shifts nothing, stays a picture under reduced motion and without its data, and the election pauses with it.
+
+## Revisit if
+
+- **The governor pauses the scene on ordinary phones**, or Lighthouse's total blocking time on Home rises past 200 ms. Then draw at 30 frames a second, or draw the floor once into a cached layer.
+- **Home's HTML weight shows in its LCP** on a slow phone: the map is 15 KB of it. Then move the floor's paths into the data file and keep a lighter picture.
+- **Joseph wants to turn the scene by hand.** Then the cube's three.js scene, loaded on intent as on the lab, is the right tool, not this renderer.
+- **A reader says the scene distracts from the words.** Then it starts paused, and plays on intent.
+
+## Patterns and further reading
+
+- **One owner, many views**: the Route Lab's records, drawn by the lab, by its cube, by its social card and now by Home, each a view derived at build. Martin Kleppmann, *Designing Data-Intensive Applications*, chapter 11, "derived data".
+- **Progressive enhancement**: the picture is the page; the canvas improves it where it can run. Aaron Gustafson, *Adaptive Web Design* (2nd edition, 2015).
+- **Load shedding**: the governor drops the pixel ratio, then pauses, rather than let a slow machine drop frames. *Site Reliability Engineering* (Google), chapter 21, "Handling Overload".
+- **Fitness functions**: the budgets, the camera's agreement between picture and canvas, and the election's agreement with its stylesheet. Neal Ford, Rebecca Parsons and Patrick Kua, *Building Evolutionary Architectures*, chapter 2.

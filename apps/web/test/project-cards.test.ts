@@ -5,7 +5,7 @@ import { parseHolds } from '../src/lib/held-names';
 import { isNoindex } from '../src/lib/noindex.mjs';
 import { postPath } from '../src/lib/posts';
 import { projectCards } from '../src/lib/profile';
-import { FEATURED_POSTS } from '../src/lib/work';
+import { FEATURED_POSTS, featuredFirst } from '../src/lib/work';
 import { app, files, fixture, profile, read } from './support/dist';
 
 // Selected work on Home (content.md, "Owned work"; lib/work.ts): a card renders only when the page
@@ -42,14 +42,17 @@ const demos = files
   .filter(lists)
   .sort();
 
-/** The cards Home must render, in order, worked out from the profile and from this build's pages. */
-const expected: RenderedCard[] = [
-  ...demos.map((href) => ({ title: heading(href), href })),
-  ...projects.map((card) => ({ title: card.title, href: card.link.href })),
-  ...FEATURED_POSTS.map((post) => postPath(post))
-    .filter(lists)
-    .map((href) => ({ title: heading(href), href })),
-];
+/** The cards Home must render, in order, worked out from the profile and from this build's pages:
+ *  the list's order, with the demos Home features first (ADR 0024). */
+const expected: RenderedCard[] = featuredFirst(
+  [
+    ...demos.map((href) => ({ title: heading(href), href })),
+    ...projects.map((card) => ({ title: card.title, href: card.link.href })),
+    ...FEATURED_POSTS.map((post) => postPath(post))
+      .filter(lists)
+      .map((href) => ({ title: heading(href), href })),
+  ].map((card) => ({ ...card, link: { href: card.href } })),
+).map(({ title, href }) => ({ title, href }));
 
 /** Home's Selected work section, or null when Home has none. */
 const section = /<section\b[^>]*\bid="work"[^>]*>([\s\S]*?)<\/section>/.exec(home)?.[1] ?? null;

@@ -1,13 +1,13 @@
 // Page geometry (design-system.md, "Page geometry"): the fine lines behind a page's top right, drawn
-// once at build from the page's own subject. Each section has its own: travel-time contours on Home,
-// a ruled sheet in Writing, two street plans that meet at an angle in the Lab, two wheels on About,
+// once at build from the page's own subject. Each section has its own: a ruled sheet in Writing, two street plans that meet at an angle in the Lab, two wheels on About,
 // and on the 404 the one stop no route reaches. The drawing is generated, not traced from the Route
 // Lab's map data, so it carries no OpenStreetMap notice and costs a few hundred bytes, not the map's
 // 30 KB. This module is pure: the same kind and seed give the same paths, byte for byte, so a
 // page's markup changes only when its drawing does.
 
-/** Which drawing a page carries. The résumé carries none: it is read and printed, not browsed. */
-export type GroundKind = 'home' | 'writing' | 'lab' | 'about' | 'lost';
+/** Which drawing a page carries. Home carries none since ADR 0024: the Route Lab's scene is its
+ *  picture. The résumé carries none either: it is read and printed, not browsed. */
+export type GroundKind = 'writing' | 'lab' | 'about' | 'lost';
 
 /** One shape: a line in --ground, a heavier line (an index contour, a margin rule), or the one
  *  mark in the accent, which e2e/ground.spec.ts keeps clear of every line of text. */
@@ -55,30 +55,6 @@ export function closed(points: readonly (readonly [number, number])[]): string {
     [px, py] = [x, y];
   }
   return `${d}z`;
-}
-
-/** Contours of travel time around a depot: each one a little wobbly, as real ones are, and every
- *  third one heavier, as index contours are on a survey map. */
-function home(random: () => number): Ground {
-  const [cx, cy] = [1130, 170];
-  const phase = [random() * 6, random() * 6, random() * 6];
-  const paths: GroundPath[] = [];
-  for (let k = 1; k <= 13; k++) {
-    const points: [number, number][] = [];
-    for (let a = 0; a < 72; a++) {
-      const t = (a / 72) * Math.PI * 2;
-      const wobble =
-        1 +
-        0.12 * Math.sin(3 * t + k * 0.35 + (phase[0] ?? 0)) +
-        0.06 * Math.sin(5 * t + (phase[1] ?? 0)) +
-        0.03 * Math.sin(9 * t + k * 0.2 + (phase[2] ?? 0));
-      const radius = 62 * k * wobble;
-      points.push([cx + radius * Math.cos(t), cy + radius * 0.8 * Math.sin(t)]);
-    }
-    paths.push({ d: closed(points), kind: k % 3 === 0 ? 'index' : 'line' });
-  }
-  paths.push({ d: `M${cx - 7} ${cy - 7}h14v14h-14z`, kind: 'mark' });
-  return { kind: 'home', paths };
 }
 
 /** A ruled sheet: a baseline every 24 units, a heavier line every fourth, a margin rule, and crop
@@ -181,8 +157,6 @@ function lost(random: () => number): Ground {
 export function groundFor(kind: GroundKind, seed: string): Ground {
   const random = seeded(`${kind}:${seed}`);
   switch (kind) {
-    case 'home':
-      return home(random);
     case 'writing':
       return writing();
     case 'lab':
@@ -194,10 +168,10 @@ export function groundFor(kind: GroundKind, seed: string): Ground {
   }
 }
 
-/** The drawing a page path carries, or null for a page outside the five, such as /colophon/. */
+/** The drawing a page path carries, or null for Home and a page outside the four, such as
+ *  /colophon/. */
 export function groundKindFor(path: string | undefined): GroundKind | null {
   if (path === undefined) return 'lost';
-  if (path === '/') return 'home';
   if (path.startsWith('/writing/') || path.startsWith('/notes/')) return 'writing';
   if (path.startsWith('/lab/')) return 'lab';
   if (path.startsWith('/about/')) return 'about';

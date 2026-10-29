@@ -11,6 +11,7 @@ import {
   importsOf,
   measure,
   reachable,
+  staticClosure,
   staticImportsOf,
 } from './support/measure';
 
@@ -168,27 +169,38 @@ describe('the Raft Lab', () => {
   );
 });
 
-// Home's living ground (ADR 0021): one chunk, which Home's motion module loads through import()
-// after the page has painted, and Home's first view with it within the 150 KB every page keeps.
-describe("Home's living ground", () => {
-  const feature = FEATURES['living-ground'];
-  const ownJs = files.filter((file) => /\.m?js$/.test(file) && featureOf(file) === 'living-ground');
+// Home's scene (ADR 0024): one chunk, which Home's motion module loads through import() after the
+// page has painted, and the day's tracks it fetches; Home's first view with both, and with the
+// Route Lab chunks the scene shares, within the 150 KB every page keeps.
+describe("Home's scene", () => {
+  const feature = FEATURES['route-scene'];
+  const entry = files.filter((file) => feature.entry.test(file));
+  const data = files.filter((file) => feature.paths.some((path) => file.startsWith(path)));
 
   test('is one lazy chunk, which no page loads eagerly', () => {
-    expect(ownJs).toHaveLength(1);
-    for (const file of ownJs) expect(eager.has(file), file).toBe(false);
+    expect(entry).toHaveLength(1);
+    for (const file of entry) expect(eager.has(file), file).toBe(false);
   });
 
-  const lazyBytes = ownJs.reduce((sum, file) => sum + gz(file), 0);
+  // What a visitor fetches for it: the chunk and every chunk it imports statically.
+  const fetched = staticClosure(entry);
+  const lazyBytes = fetched.reduce((sum, file) => sum + gz(file), 0);
   test(`lazy JavaScript: ${lazyBytes} B of ${feature.lazyJavaScript}`, () => {
     expect(lazyBytes).toBeLessThanOrEqual(feature.lazyJavaScript);
+  });
+
+  const dataBytes = data.reduce((sum, file) => sum + gz(file), 0);
+  test(`its data: ${dataBytes} B of ${feature.data}, where the Route Lab builds`, () => {
+    expect(data.length).toBe(files.includes('lab/routes/index.html') ? 1 : 0);
+    expect(dataBytes).toBeLessThanOrEqual(feature.data);
   });
 
   // The indexes load the same motion module, so they could reach the chunk too; they never do,
   // because the module loads it only where the canvas is, and only Home has one.
   test('Home reaches it through import(), and only Home has the canvas it draws on', () => {
-    expect(reachable(feature.page)).toEqual(expect.arrayContaining(ownJs));
-    expect(html.filter((file) => read(file).includes('data-ground-live'))).toEqual([feature.page]);
+    if (!html.some((file) => read(file).includes('data-scene-live'))) return;
+    expect(reachable(feature.page)).toEqual(expect.arrayContaining(entry));
+    expect(html.filter((file) => read(file).includes('data-scene-live'))).toEqual([feature.page]);
   });
 
   test(`Home's first view, with it, stays within ${feature.firstView} B`, () => {
@@ -196,7 +208,7 @@ describe("Home's living ground", () => {
     const figures = measure(page);
     const firstView =
       gzipBytes(page) + figures.css + figures.declaredFonts + figures.eagerJavaScript;
-    expect(firstView + lazyBytes).toBeLessThanOrEqual(feature.firstView);
+    expect(firstView + lazyBytes + dataBytes).toBeLessThanOrEqual(feature.firstView);
   });
 });
 

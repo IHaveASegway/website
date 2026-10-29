@@ -7,7 +7,7 @@ import { checkedProfiles } from '../src/lib/profile';
 import { ABOUT_PATH } from '../src/lib/about';
 import { addressText, evidencePages, roleYears, shownSkills } from '../src/lib/resume';
 import { CONTACT_EMAIL, ORIGIN } from '../src/lib/site';
-import type { WorkCard } from '../src/lib/work';
+import { featuredFirst, type WorkCard } from '../src/lib/work';
 import { files, html, profile, read } from './support/dist';
 import { attribute, descendants, elementsOf, hasClass, type Element } from './support/html';
 
@@ -155,8 +155,15 @@ describe('/about/, the résumé', () => {
       ? []
       : byClass('post-title', descendants(within)).map((t) => links(t)[0]?.href);
 
+  // Home leads with the demos it features (ADR 0024); the order is Home's, the cards are the list's.
   test("Selected work is Home's, card for card: one list feeds both (lib/content.ts)", () => {
-    expect(cardsOf(section('Selected work'))).toEqual(cardsOf(homeSection('work')));
+    const listed = cardsOf(section('Selected work')).map((card) => ({
+      ...card,
+      link: { href: card.href ?? '' },
+    }));
+    expect(featuredFirst(listed).map(({ title, href }) => ({ title, href }))).toEqual(
+      cardsOf(homeSection('work')),
+    );
   });
 
   test("Writing lists Home's latest posts, and renders exactly when Home lists one", () => {

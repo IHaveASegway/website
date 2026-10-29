@@ -1,4 +1,7 @@
 import type { RouteData } from './data';
+import { formatDuration, NBSP } from './format';
+
+export { formatDuration };
 
 // The Route Lab's domain core: plain TypeScript with no DOM and no platform import, so the build
 // (the picture without JavaScript), the browser and the unit tests run the same rules (lab.md,
@@ -208,16 +211,6 @@ export const boxesOf = (data: RouteData, orders: readonly number[]): number =>
  *  profile, as the isochrones are. */
 export const fromBakery = (data: RouteData, place: number): number =>
   data.durations[BAKERY * data.points.length + place] ?? 0;
-
-const NBSP = ' ';
-
-/** A time as the page writes it: "3 h 12 min", "52 min", whole minutes, rounded. */
-export function formatDuration(seconds: number): string {
-  const minutes = Math.round(seconds / 60);
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return h > 0 ? `${h}${NBSP}h ${m}${NBSP}min` : `${m}${NBSP}min`;
-}
 
 /** How long a solve took in this browser: "62 ms" under a second, "1.25 s" from one. */
 export const solveTime = (ms: number): string =>

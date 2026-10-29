@@ -72,13 +72,13 @@ function whenSettled(work) {
 }
 
 function boot() {
-  // Home's living ground (ADR 0021): its module loads only where the canvas is, after the page
-  // has painted, and never under a reduced-motion preference or Save-Data. Without WebGL2 it
-  // returns false, and the drawing the build made stays.
-  const live = document.querySelector('[data-ground-live]');
-  if (live && !reduced() && !navigator.connection?.saveData) {
+  // Home's scene (ADR 0024): its module loads only where its canvas is, after the page has
+  // painted, and never under a reduced-motion preference or Save-Data. Where it cannot run, the
+  // picture the build drew stays.
+  const scene = document.querySelector('[data-scene-live]');
+  if (scene && !reduced() && !navigator.connection?.saveData) {
     whenSettled(() =>
-      import('./ground-live.js').then((module) => module.boot(live)).catch(() => {}),
+      import('./route-scene.ts').then((module) => module.boot(scene)).catch(() => {}),
     );
   }
 

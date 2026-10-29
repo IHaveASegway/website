@@ -1,9 +1,8 @@
 ---
 import Hero from '../components/Hero.astro';
 import IsoCluster from '../components/IsoCluster.astro';
-import IsoRoute from '../components/IsoRoute.astro';
-import IsoStack from '../components/IsoStack.astro';
 import Motion from '../components/Motion.astro';
+import RouteScene from '../components/RouteScene.astro';
 import PostList from '../components/PostList.astro';
 import SectionTitle from '../components/SectionTitle.astro';
 import WorkCard from '../components/WorkCard.astro';
@@ -18,16 +17,20 @@ import {
 } from '../lib/content';
 import { homeGraph, serialize } from '../lib/jsonld';
 import { labPath } from '../lib/lab';
+import { routeLabPicture } from '../lib/route-lab/picture';
+import { formatDuration } from '../lib/route-lab/plan';
 import { homeCard } from '../lib/og';
 import { checkedProfiles, homeDescription } from '../lib/profile';
 import { CONTACT_EMAIL } from '../lib/site';
-import { writingRow } from '../lib/work';
+import { featuredFirst, writingRow } from '../lib/work';
+import '../styles/home.css';
 
-// Home (content.md, "Home page"; ADR 0023): who Joseph is, told top to bottom, as the personal sites
-// he pointed at tell it. His own sentence and a working picture of his work first; then how he
-// works, in the bio's words; then the work; then the writing; then what he is working toward and
-// how to reach him. An element renders only when its source and its link target exist; until then
-// it is left out, never filled with a placeholder.
+// Home (content.md, "Home page"; ADR 0023, ADR 0024): who Joseph is, told top to bottom, and led by
+// the work itself. His name and his own sentence over the Route Lab's day, driven live on the map;
+// scrolling lifts that day into the space-time cube while the Route Lab's chapter says what it
+// saves; then the Raft Lab's cluster acting out an election; then how he works, in the bio's words;
+// then the writing; then what he is working toward and how to reach him. An element renders only
+// when its source and its link target exist; until then it is left out, never a placeholder.
 const profile = await loadProfile();
 const { name, label } = profile.basics;
 const area = await loadWritingArea();
@@ -41,11 +44,9 @@ const principles = bio?.sections.find((section) => section.principles.length > 0
 const toward = bio?.sections.find(
   (section) => section.principles.length === 0 && section.paragraphs.length > 0,
 );
-// The demos this build writes, by slug: the hero's picture is the Raft Lab's cluster and opens it,
-// so it renders only where that page exists. The bio names two of them, and on Home those words
-// link to them.
+// The demos this build writes, by slug. The bio names two of them, and on Home those words link
+// to them.
 const demo = new Map(lab.entries.map((entry) => [entry.slug, entry]));
-const raft = demo.get('raft');
 const names = [
   { slug: 'routes', name: 'Route Lab' },
   { slug: 'raft', name: 'Raft Lab' },
@@ -53,15 +54,26 @@ const names = [
   const entry = demo.get(slug);
   return entry ? [{ name: words, href: labPath(entry) }] : [];
 });
-const pictures: Record<string, 'cluster' | 'route'> = {
-  '/lab/raft/': 'cluster',
-  '/lab/routes/': 'route',
-};
 // Selected work: a card per live demo in the lab, then a card per project whose check is recorded
 // and whose hold is lifted (lib/work.ts). A post is listed under Writing, with its date, not as a
-// card (ADR 0023). The résumé reads the same list (lib/content.ts).
-const cards = await loadSelectedWork();
-const latest = writingRow(area.published, cards);
+// card (ADR 0023). The résumé reads the same list (lib/content.ts). Home lays it out with the demos
+// it features first (ADR 0024): the Route Lab's chapter, whose picture is the scene, and the Raft
+// Lab's with its cluster, each large; any other card follows in the list.
+const list = await loadSelectedWork();
+const cards = featuredFirst(list);
+const routes = demo.get('routes');
+const routesCard = routes ? cards.find((card) => card.link.href === labPath(routes)) : undefined;
+const raft = demo.get('raft');
+const featured = new Set([routes, raft].flatMap((entry) => (entry ? [labPath(entry)] : [])));
+// The scene and the Route Lab's figures come from the build's own solve of the lab's default day
+// (lib/route-lab/picture.ts), as the lab's page does, so no figure on Home is typed. Astro's root
+// is the working directory (node-solver.ts).
+const picture = routesCard ? await routeLabPicture(process.cwd()) : undefined;
+const scene = picture && routes ? { picture, href: labPath(routes) } : undefined;
+// What follows the Route Lab's chapter slides over the scene, which stands still behind it until
+// then: the first card after it marks where the scene is covered (route-scene.ts).
+const afterRoutes = routesCard ? cards[cards.indexOf(routesCard) + 1] : undefined;
+const latest = writingRow(area.published, list);
 const linkedIn = checkedProfiles(profile).find((p) => p.network === 'LinkedIn');
 ---
 
@@ -72,35 +84,55 @@ const linkedIn = checkedProfiles(profile).find((p) => p.network === 'LinkedIn');
   og={homeCard(profile)}
   jsonLd={serialize(homeGraph(profile))}
 >
-  <div class="intro">
+  <div class={scene ? 'stage' : 'stage stage-plain'} data-stage>
+    {scene && (
+      <RouteScene picture={scene.picture} href={scene.href} data={`${scene.href}scene.json`} />
+    )}
     <Hero
       profile={profile}
       work={cards.length > 0 ? '#work' : undefined}
       bio={bio && bio.lede.length > 0 ? { lede: bio.lede, href: ABOUT_PATH } : undefined}
     />
-    {raft && (
-      <figure class="intro-figure">
-        <IsoCluster place="hero" />
-        <figcaption class="intro-caption">
-          <span class="label">In the lab</span>
-          <a href={labPath(raft)}>
-            {raft.title} <span aria-hidden="true">→</span>
-          </a>
-        </figcaption>
-      </figure>
+    {cards.length > 0 && (
+      <section class="section work" id="work" aria-labelledby="work-title">
+        <SectionTitle id="work-title" title="Selected work" />
+        {cards.map((card) => (
+          <WorkCard
+            tag={card.tag}
+            title={card.title}
+            text={card.text}
+            facts={card.facts}
+            link={card.link}
+            feature={featured.has(card.link.href)}
+            chapter={card === routesCard && scene !== undefined}
+            covers={card === afterRoutes && scene !== undefined}
+          >
+            {card === routesCard && picture && (
+              <p slot="figures" class="figures">
+                <span class="figure figure-before">
+                  <span class="figure-n">{formatDuration(picture.before.measured.drive)}</span>
+                  <span class="figure-k label">of driving as the orders came in</span>
+                </span>
+                <span class="figure figure-after">
+                  <span class="figure-n">{formatDuration(picture.after.measured.drive)}</span>
+                  <span class="figure-k label">planned by VROOM, in your browser</span>
+                </span>
+              </p>
+            )}
+            {raft && card.link.href === labPath(raft) && <IsoCluster />}
+          </WorkCard>
+        ))}
+      </section>
     )}
   </div>
 
   {principles && (
     <section class="section principles" id="how" aria-labelledby="how-title">
-      <div class="principles-aside">
-        <SectionTitle id="how-title" title={principles.heading} />
-        <IsoStack count={principles.principles.length} />
-      </div>
+      <SectionTitle id="how-title" title={principles.heading} />
       <ol class="principles-list" role="list">
         {principles.principles.map((principle, i) => (
-          <li class="principle" data-step={i + 1}>
-            <p class="principle-n label" aria-hidden="true">
+          <li class="principle">
+            <p class="principle-n" aria-hidden="true">
               {String(i + 1).padStart(2, '0')}
             </p>
             <h3 class="principle-lead">
@@ -114,26 +146,6 @@ const linkedIn = checkedProfiles(profile).find((p) => p.network === 'LinkedIn');
           </li>
         ))}
       </ol>
-    </section>
-  )}
-
-  {cards.length > 0 && (
-    <section class="section" id="work" aria-labelledby="work-title">
-      <SectionTitle id="work-title" title="Selected work" />
-      <div class="cards">
-        {cards.map((card) => (
-          <WorkCard
-            tag={card.tag}
-            title={card.title}
-            text={card.text}
-            facts={card.facts}
-            link={card.link}
-          >
-            {pictures[card.link.href] === 'cluster' && <IsoCluster place="card" />}
-            {pictures[card.link.href] === 'route' && <IsoRoute />}
-          </WorkCard>
-        ))}
-      </div>
     </section>
   )}
 
@@ -155,22 +167,27 @@ const linkedIn = checkedProfiles(profile).find((p) => p.network === 'LinkedIn');
   {toward && (
     <section class="section toward" id="next" aria-labelledby="next-title">
       <SectionTitle id="next-title" title={toward.heading} />
-      {toward.paragraphs.map((paragraph) => (
-        <p class="toward-text">{paragraph}</p>
-      ))}
-      <div class="toward-actions">
-        <a class="btn btn-primary" href={`mailto:${CONTACT_EMAIL}`}>
-          Email
-        </a>
-        {linkedIn && (
+      <div class="toward-body">
+        {toward.paragraphs.map((paragraph) => (
+          <p class="toward-text">{paragraph}</p>
+        ))}
+      </div>
+      <a class="toward-mail" href={`mailto:${CONTACT_EMAIL}`}>
+        <span class="toward-mail-words">{CONTACT_EMAIL}</span>
+        <span class="toward-mail-arrow" aria-hidden="true">
+          →
+        </span>
+      </a>
+      {linkedIn && (
+        <div class="toward-actions">
           <a class="btn" href={linkedIn.url}>
             {linkedIn.network}{' '}
             <span class="hint" aria-hidden="true">
               ↗
             </span>
           </a>
-        )}
-      </div>
+        </div>
+      )}
     </section>
   )}
   <Motion />

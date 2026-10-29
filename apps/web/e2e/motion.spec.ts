@@ -31,33 +31,36 @@ function moving(page: Page) {
 
 const running = (page: Page) => page.evaluate(() => document.getAnimations().length);
 
-/** The card bar's transform: scaleX(0) while hidden, the identity matrix while shown. */
+/** The card bar's transform, on the card the test brought or else the page's first: scaleX(0)
+ *  while hidden, the identity matrix while shown. */
 const bar = (page: Page) =>
-  page.evaluate(
-    () => getComputedStyle(document.querySelector('.card') as Element, '::before').transform,
-  );
+  page.evaluate(() => {
+    const card = document.querySelector('[data-test-card]') ?? document.querySelector('.card');
+    return getComputedStyle(card as Element, '::before').transform;
+  });
 const SHOWN = 'matrix(1, 0, 0, 1, 0, 0)';
 
-/** Gives the first card a link, as a card that leads somewhere has: the bar is its sign. */
+/** Gives that card a link, as a card that leads somewhere has: the bar is its sign. */
 const linkFirstCard = (page: Page) =>
   page.evaluate(() =>
-    document
-      .querySelector('.card')
-      ?.insertAdjacentHTML('beforeend', '<a class="card-more" href="#main">Read more</a>'),
+    (
+      document.querySelector('[data-test-card]') ?? document.querySelector('.card')
+    )?.insertAdjacentHTML('beforeend', '<a class="card-more" href="#main">Read more</a>'),
   );
 
 /**
- * Puts a card with nothing to activate first in <main>, styled by the site's own stylesheet. Home
+ * Puts a card with nothing to activate last in <main>, styled by the site's own stylesheet. Home
  * renders a card only when the page it opens exists (lib/work.ts), and every rendered card has a
- * link, so on a Home with no card, or to see a card without a link, the test brings its own.
+ * link, so on a Home with no card, or to see a card without a link, the test brings its own. Last,
+ * not first: Home's stage stands over the top of <main> beside the rail (ADR 0024).
  */
 const addCard = (page: Page) =>
   page.evaluate(() =>
     document
       .querySelector('main')
       ?.insertAdjacentHTML(
-        'afterbegin',
-        '<article class="card"><p class="card-tag label">Tag</p><h3 class="card-title">A card</h3><p class="card-text">Text.</p></article>',
+        'beforeend',
+        '<article class="card" data-test-card><p class="card-tag label">Tag</p><h3 class="card-title">A card</h3><p class="card-text">Text.</p></article>',
       ),
   );
 
@@ -98,7 +101,7 @@ test('a card with nothing to activate does not react to the pointer; one with a 
   await page.emulateMedia({ reducedMotion: 'reduce' }); // states, not movement, are compared here
   await page.goto('/');
   await addCard(page);
-  const card = page.locator('.card').first();
+  const card = page.locator('[data-test-card]');
   const border = () => card.evaluate((element) => getComputedStyle(element).borderTopColor);
   expect(await card.locator('a, button').count()).toBe(0);
   const atRest = { bar: await bar(page), border: await border() };
@@ -115,29 +118,27 @@ test('a card with nothing to activate does not react to the pointer; one with a 
 /** What Home would move with no preference: each section's rule, which draws itself in, each
  *  card's and post's bar, each card's title and each post's title's words, which rise as they
  *  scroll into view (design-system.md, "Motion"), and the arrow of a card's link, which steps
- *  toward its target under the pointer (ADR 0022); and since ADR 0023 each principle's title,
- *  which rises too, the first screen's picture, which tilts back as it scrolls away while its
- *  servers lift, its heartbeats while the living ground runs, and each slab of the stack, which
- *  settles as its principle arrives. In document order. */
+ *  toward its target under the pointer (ADR 0022); each principle's title, which rises too (ADR
+ *  0023); and since ADR 0024 the Raft Lab's election while Home's scene runs, every part of the
+ *  cluster that acts in it, and the arrow of the closing address. In document order. */
 const expectedMotion = (page: Page) =>
   page.evaluate(() => {
     const live = 'motion' in document.documentElement.dataset;
-    const timelines = CSS.supports('timeline-scope: none');
     return [...document.querySelectorAll('*')].flatMap((element) => {
       if (element.matches('.section-title')) return ['h2.section-title::before'];
-      if (element.matches('.card'))
-        return [
-          'article.card::before',
-          'h3.card-title',
-          ...(element.querySelector('.card-more > span') ? ['span'] : []),
-        ];
+      if (element.matches('.card')) return ['article.card::before'];
+      if (element.matches('.card-title')) return ['h3.card-title'];
+      if (element.matches('.card-more > span')) return ['span'];
       if (element.matches('.post-list > li')) return ['li::before', 'span.title-words'];
       if (element.matches('.principle-lead')) return ['span.title-words'];
-      if (element.matches('svg.iso-hero')) return ['svg.iso'];
-      if (element.matches('.iso-hero .iso-server')) return ['g.iso-server'];
-      if (live && element.matches('.iso-hero :is(.iso-packet, .iso-ripple)'))
+      if (
+        live &&
+        element.matches(
+          `.iso-cluster :is(.iso-packet, .iso-ripple, .iso-crown, .iso-candidate, .iso-timeout, .iso-label, [data-server='1'])`,
+        )
+      )
         return [`${element.tagName.toLowerCase()}.${element.getAttribute('class')?.split(' ')[0]}`];
-      if (timelines && element.matches('.iso-slab')) return ['g.iso-slab'];
+      if (element.matches('.toward-mail-arrow')) return ['span.toward-mail-arrow'];
       return [];
     });
   });
@@ -147,10 +148,10 @@ test('known answer: with no preference, the same scan finds the card bar and the
 }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto('/');
-  // The living ground starts after the first paint, and the first screen's heartbeats with it:
-  // the scan reads the page once it has, or once it plainly will not.
+  // The scene starts after the first paint, and the Raft Lab's election with it: the scan reads
+  // the page once it has, or once it plainly will not.
   await page
-    .waitForFunction(() => 'groundLive' in document.documentElement.dataset, null, {
+    .waitForFunction(() => 'sceneLive' in document.documentElement.dataset, null, {
       timeout: 5_000,
     })
     .catch(() => undefined);
@@ -169,7 +170,12 @@ test('with no preference, a title rises on a scroll timeline, and one on screen 
   if ((await cardCount(page)) === 0) await addCard(page);
   // A declaration the browser refused would leave no animation at all: the build's minifier once
   // folded the longhands into a shorthand Chromium refuses, and every check above still passed.
-  // The first rising title: a principle's since ADR 0023, at the foot of the first screen.
+  // Since ADR 0024 no title rises on the first screen, the stage's, so the test brings the first
+  // one on screen and lets the page settle there, as a visitor's arrival at it would.
+  await page.evaluate(() =>
+    document.querySelector(':is(.card-title, .title-words)')?.scrollIntoView({ block: 'center' }),
+  );
+  await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => done(null))));
   const title = await page.evaluate(() => {
     const element = document.querySelector(':is(.card-title, .title-words)') as HTMLElement;
     const [animation] = element.getAnimations();
@@ -181,7 +187,7 @@ test('with no preference, a title rises on a scroll timeline, and one on screen 
     };
   });
   expect(title.scroll).toBe(true);
-  // At 1440 × 900 the first rising title is on the first screen, so it is already in place.
+  // In the middle of the window the title is past its range, so it stands in place.
   expect(title.onScreen).toBe(true);
   expect(title.progress).toBe(1);
   expect(title.transform).toBe(SHOWN);

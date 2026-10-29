@@ -61,8 +61,10 @@ export function measure(page: string) {
  *
  * The Raft Lab (ADR 0020) has one too: its app chunk, and the first view of its page.
  *
- * So does Home's living ground (ADR 0021): the one chunk that draws it, which Home's motion module
- * loads after the page has painted, and Home's first view with it.
+ * So does Home's scene (ADR 0024): the chunk that drives it, which Home's motion module loads after
+ * the page has painted, the day's data it fetches, and Home's first view with both. It shares the
+ * Route Lab's camera and formats (lib/route-lab), whose chunks the Route Lab owns; Home's first
+ * view counts them too, since its visitors fetch them.
  */
 export const FEATURES = {
   'route-lab': {
@@ -90,13 +92,14 @@ export const FEATURES = {
     lazyJavaScript: 8_000,
     firstView: 150_000,
   },
-  // Home's living ground (ADR 0021): the shader and what runs it, in one chunk. No data, no
-  // WebAssembly and no library; Home keeps 150 KB with it.
-  'living-ground': {
+  // Home's scene (ADR 0024): the canvas that drives the Route Lab's day behind the hero, and the
+  // day's tracks it fetches. No library and no WebAssembly; Home keeps 150 KB with both.
+  'route-scene': {
     page: 'index.html',
-    entry: /^_astro\/ground-live\.[\w-]+\.js$/,
-    paths: [],
+    entry: /^_astro\/route-scene\.[\w-]+\.js$/,
+    paths: ['lab/routes/scene.json'],
     lazyJavaScript: 6_000,
+    data: 4_000,
     firstView: 150_000,
   },
 } as const;

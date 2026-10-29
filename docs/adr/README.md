@@ -28,6 +28,7 @@ Status: Draft for review in PR 1 · 2026-10-22
 | [0021](0021-rail-and-living-ground.md) | A rail for the navigation from 80rem, and Home's contour drawing alive on the GPU | Proposed |
 | [0022](0022-rail-as-index-and-row-links.md) | The rail as an index of the site, with search; a row of an index is its link | Proposed |
 | [0023](0023-home-as-a-story-and-rail-drop-downs.md) | Home told as a story, with isometric pictures drawn at build; the rail's items drop down | Proposed |
+| [0024](0024-home-led-by-the-work.md) | Home led by the work: the Route Lab's day live behind the name, the Raft Lab's election, a bolder type | Proposed |
 
 0013 is reserved for protocol v1 and the recording format, written in PR 6 ([roadmap.md](../roadmap.md#pr-6-lab-platform-and-presence)).
 
