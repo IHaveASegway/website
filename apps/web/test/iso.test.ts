@@ -6,20 +6,18 @@ import {
   floorEllipse,
   fmt,
   frame,
-  HEARTBEAT_S,
   prism,
   project,
-  routePicture,
-  stack,
-  STACK,
+  STORY,
   type P2,
 } from '../src/lib/iso';
 
-// Home's isometric drawings (lib/iso.ts; ADR 0023), with known answers. The pictures are SVG the
-// build writes, and what moves in them is the stylesheet's, so the last block holds global.css to
-// the geometry: a leg, a slab or a beat the module draws has the rule that moves it.
+// Home's isometric drawing (lib/iso.ts; ADR 0023, ADR 0024), with known answers. The picture is
+// SVG the build writes, and what moves in it is Home's stylesheet's, so the last block holds
+// home.css to the story the module tells: every act it draws has the rule that moves it, on the
+// story's one loop.
 
-const css = readFileSync(new URL('../src/styles/global.css', import.meta.url), 'utf8');
+const css = readFileSync(new URL('../src/styles/home.css', import.meta.url), 'utf8');
 const close = (a: number, b: number, eps = 0.06) => Math.abs(a - b) <= eps;
 
 /** Where a frame's matrix(a b c d e f) puts the local point (x, y). */
@@ -87,18 +85,55 @@ describe("Home's cluster", () => {
     expect(scene.servers[0]?.leader).toBe(true);
   });
 
-  test('every follower gets a heartbeat, and each ends at its middle on the floor', () => {
-    expect(scene.packets.map((p) => p.to)).toEqual([2, 3, 4, 5]);
-    for (const packet of scene.packets) {
-      const server = scene.servers.find((s) => s.id === packet.to);
-      const end = through(packet.transform, 1, 0);
-      // The middle of the follower's footprint, on the floor, is the middle of its roof's points
-      // dropped by its height.
-      const roof = (server?.faces.top ?? '').split(' ').map((p) => p.split(',').map(Number));
-      const mx = roof.reduce((sum, [x = 0]) => sum + x, 0) / roof.length;
-      const my = roof.reduce((sum, [, y = 0]) => sum + y, 0) / roof.length + CLUSTER.height;
-      expect(close(end.x, mx, 0.2) && close(end.y, my, 0.2), `to ${packet.to}`).toBe(true);
+  /** The middle of a server's footprint on the floor: its roof's points, dropped by its height. */
+  const middle = (id: number): P2 => {
+    const server = scene.servers.find((s) => s.id === id);
+    const roof = (server?.faces.top ?? '').split(' ').map((p) => p.split(',').map(Number));
+    return {
+      x: roof.reduce((sum, [x = 0]) => sum + x, 0) / roof.length,
+      y: roof.reduce((sum, [, y = 0]) => sum + y, 0) / roof.length + CLUSTER.height,
+    };
+  };
+
+  test('every message ends at its receiver’s middle on the floor, and leaves from its sender’s side', () => {
+    expect(scene.trips.length).toBeGreaterThan(0);
+    for (const trip of scene.trips) {
+      const end = through(trip.transform, 1, 0);
+      const goal = middle(trip.to);
+      expect(
+        close(end.x, goal.x, 0.2) && close(end.y, goal.y, 0.2),
+        `${trip.from}→${trip.to}`,
+      ).toBe(true);
+      // It starts nearer its sender than its receiver.
+      const start = through(trip.transform, 0, 0);
+      const from = middle(trip.from);
+      expect(
+        Math.hypot(start.x - from.x, start.y - from.y) <
+          Math.hypot(start.x - goal.x, start.y - goal.y),
+      ).toBe(true);
     }
+  });
+
+  test('the story is a Raft election: the fullest timer stands, and a majority elects it', () => {
+    const acts = new Map(STORY.acts.map((a) => [a.act, a]));
+    // The leader sends heartbeats to every other server.
+    expect([...(acts.get('beat')?.to ?? [])].sort()).toEqual([2, 3, 4, 5]);
+    // The candidate is the follower whose election timer stands fullest: it times out first.
+    const dials: readonly number[] = CLUSTER.dials;
+    const fullest = dials.indexOf(Math.max(...dials)) + 2;
+    expect(STORY.candidate).toBe(fullest);
+    expect(acts.get('ask')?.from).toEqual([STORY.candidate]);
+    // It asks every other server, the crashed leader too, and wins with its own vote and those it
+    // gets back: a majority of five, from servers that are up.
+    const votes = acts.get('vote')?.from ?? [];
+    expect(votes).not.toContain(STORY.leader);
+    expect(votes.length + 1).toBeGreaterThan(5 / 2);
+    expect(acts.get('vote')?.to).toEqual([STORY.candidate]);
+    // Its heartbeats as leader reach every live follower, then the old leader once it is back.
+    expect([...(acts.get('lead')?.to ?? []), ...(acts.get('rejoin')?.to ?? [])].sort()).toEqual([
+      1, 2, 4, 5,
+    ]);
+    expect(STORY.terms[1]).toBe((STORY.terms[0] ?? 0) + 1);
   });
 
   test("the leader's log holds one entry more than a follower's, not yet committed", () => {
@@ -125,53 +160,20 @@ describe("Home's cluster", () => {
   });
 });
 
-describe('the stack and the route picture', () => {
-  test('a slab per principle, numbered from the foot, up to the most the stylesheet names', () => {
-    expect(stack(5).slabs.map((s) => s.n)).toEqual([1, 2, 3, 4, 5]);
-    expect(() => stack(STACK.most + 1)).toThrow(/up to 8 slabs/);
-  });
-
-  test("the van's legs run stop to stop and bring it home", () => {
-    const picture = routePicture();
-    expect(picture.legs).toHaveLength(6);
-    const last = picture.legs.at(-1);
-    const home = through(last?.transform ?? '', 1, 0);
-    expect(close(home.x, picture.home.x, 0.2) && close(home.y, picture.home.y, 0.2)).toBe(true);
-    const first = through(picture.legs[0]?.transform ?? '', 0, 0);
-    expect(close(first.x, picture.home.x, 0.2) && close(first.y, picture.home.y, 0.2)).toBe(true);
-  });
-});
-
-describe('global.css moves what the module draws', () => {
-  test('a heartbeat lasts HEARTBEAT_S, in the hero and on the card', () => {
-    const beats = [...css.matchAll(/animation-name: iso-beat;\s*animation-duration: ([\d.]+)s/g)];
-    expect(beats.map(([, s]) => Number(s))).toEqual([HEARTBEAT_S]);
-  });
-
-  test('each of the van legs after the first waits its turn, and there is no rule for a seventh', () => {
-    const { legs } = routePicture();
-    const round = Number(/iso-leg;\s*animation-duration: ([\d.]+)s/.exec(css)?.[1]);
-    for (let leg = 2; leg <= legs.length; leg++) {
-      const delay = new RegExp(`data-leg='${leg}'\\]\\s*\\{\\s*animation-delay: ([\\d.]+)s`).exec(
-        css,
+describe('home.css moves what the module draws', () => {
+  test('every act the cluster draws has its animation, and no rule names an act it does not', () => {
+    for (const { act } of STORY.acts)
+      expect(css, act).toMatch(
+        new RegExp(`\\.iso-packet\\[data-act='${act}'\\] \\{\\s*animation-name: raft-${act};`),
       );
-      expect(Number(delay?.[1]), `leg ${leg}`).toBeCloseTo(((leg - 1) * round) / legs.length, 5);
-    }
-    expect(css).not.toContain(`data-leg='${legs.length + 1}'`);
+    const named = [...css.matchAll(/data-act='([a-z-]+)'/g)].map(([, act]) => act);
+    expect(new Set(named)).toEqual(new Set(STORY.acts.map((a) => a.act)));
   });
 
-  test('every slab the stack may draw has its principle’s timeline, and the section shares them', () => {
-    for (let n = 1; n <= STACK.most; n++) {
-      expect(css, `principle ${n}`).toContain(
-        `.principle[data-step='${n}'] {\n        view-timeline-name: --principle-${n};`,
-      );
-      expect(css, `slab ${n}`).toMatch(
-        new RegExp(
-          `\\.iso-slab\\[data-step='${n}'\\] \\{[^}]*animation-timeline: --principle-${n};`,
-        ),
-      );
-      expect(/timeline-scope:([^;]+);/.exec(css)?.[1], `scope ${n}`).toContain(`--principle-${n}`);
-    }
-    expect(css).not.toContain(`data-step='${STACK.most + 1}'`);
+  test('every part of the story runs on its one loop of STORY.seconds', () => {
+    const durations = [...css.matchAll(/\.iso-cluster[^{]*\{\s*animation-duration: ([\d.]+)s;/g)];
+    expect(durations.map(([, s]) => Number(s))).toEqual([STORY.seconds]);
+    for (const name of css.matchAll(/animation-name: (raft-[a-z0-9-]+);/g))
+      expect(css, name[1]).toContain(`@keyframes ${name[1]} {`);
   });
 });

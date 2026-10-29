@@ -1,6 +1,6 @@
 # ADR 0021: A rail for the navigation, and a living ground on Home
 
-Status: Proposed · 2026-10-29 · Deciders: Joseph Peterson
+Status: Proposed · 2026-10-29 · Deciders: Joseph Peterson · Amended by [ADR 0024](0024-home-led-by-the-work.md): the living ground is removed; Home's scene of the Route Lab's day takes its place and its pause button
 
 ## Context
 

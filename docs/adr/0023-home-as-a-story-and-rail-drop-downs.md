@@ -1,6 +1,6 @@
 # ADR 0023: Home told as a story, with isometric pictures drawn at build; the rail's items drop down
 
-Status: Proposed · 2026-10-29 · Deciders: Joseph Peterson
+Status: Proposed · 2026-10-29 · Deciders: Joseph Peterson · Amended by [ADR 0024](0024-home-led-by-the-work.md): the hero stands over the Route Lab's day, the cluster acts out an election in a chapter of its own, and the stack and the card pictures are gone
 
 ## Context
 

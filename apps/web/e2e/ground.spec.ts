@@ -58,13 +58,15 @@ for (const size of WIDTHS) {
   });
 }
 
-test('known answer: the overlap check finds a mark moved onto the name', async ({ page }) => {
+// The 404's drawing holds the one accent mark the site draws since ADR 0024, when Home's drawing
+// gave way to the Route Lab's scene.
+test('known answer: the overlap check finds a mark moved onto the title', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('/');
+  await page.goto('/does-not-exist/');
   await page.evaluate(() => {
     const name = document.querySelector('h1')?.getBoundingClientRect();
     const mark = document.querySelector('.ground-mark') as SVGGraphicsElement | null;
-    if (!name || !mark) throw new Error('no name or no mark');
+    if (!name || !mark) throw new Error('no title or no mark');
     const svg = mark.ownerSVGElement as SVGSVGElement;
     const point = new DOMPoint(name.left + 40, name.top + 40).matrixTransform(
       svg.getScreenCTM()?.inverse(),
@@ -77,7 +79,7 @@ test('known answer: the overlap check finds a mark moved onto the name', async (
 test('the drawing takes no pointer, is hidden from assistive technology, and does not print', async ({
   page,
 }) => {
-  await page.goto('/');
+  await page.goto('/writing/');
   const ground = page.locator('svg.ground');
   await expect(ground).toHaveCount(1);
   expect(await ground.evaluate((g) => getComputedStyle(g).pointerEvents)).toBe('none');

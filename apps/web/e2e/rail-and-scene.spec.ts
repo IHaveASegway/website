@@ -1,15 +1,15 @@
 import { expect, test, type Page } from '@playwright/test';
 import { pages } from './expected';
 
-// The rail and Home's living ground (ADR 0021), in a real WebGL2 context (SwiftShader in headless
-// Chromium). The rail stands down the left edge from 80rem and the header is the row across the
-// top below that; Home's drawing moves on the GPU, pauses on request (SC 2.2.2) and off screen,
-// stays the build's drawing under reduced motion, without WebGL and when the context is lost, and
-// never shifts the layout.
+// The rail (ADR 0021) and Home's scene (ADR 0024). The rail stands down the left edge from 80rem
+// and the header is the row across the top below that. Home's scene drives the Route Lab's day on
+// a canvas over the build's picture: it moves, pauses on request (SC 2.2.2), lifts the day into the
+// space-time cube as the page scrolls, stays the build's picture under reduced motion and without
+// its data, never shifts the layout, and the Raft Lab's election runs and pauses with it.
 
-const live = (page: Page) => page.locator('html[data-ground-live]');
-const canvas = (page: Page) => page.locator('canvas[data-ground-live]');
-const drawing = (page: Page) => page.locator('svg.ground');
+const live = (page: Page) => page.locator('html[data-scene-live]');
+const canvas = (page: Page) => page.locator('canvas[data-scene-live]');
+const drawing = (page: Page) => page.locator('svg.scene-picture');
 const toggle = (page: Page) => page.locator('[data-motion-toggle]');
 
 /** The canvas's pixels, as a screenshot of its box. */
@@ -125,9 +125,9 @@ test.describe('the rail', () => {
 
 /**
  * Home with time in the test's hands: once the page has loaded, frames come only when the test
- * runs the clock, 30 a second in page time however slow the runner draws them. On a shared CI
- * runner SwiftShader is slow enough that the governor would pause the ground mid-test, which is
- * right for a visitor and wrong for a test; the governor has unit tests of its own.
+ * runs the clock. On a shared CI runner a canvas is slow enough that the governor could pause the
+ * scene mid-test, which is right for a visitor and wrong for a test; the governor has unit tests of
+ * its own.
  */
 async function home(page: Page) {
   await page.clock.install({ time: 0 });
@@ -137,10 +137,23 @@ async function home(page: Page) {
   await expect(live(page)).toHaveCount(1);
 }
 
-test.describe("Home's living ground", () => {
+/** What the readout's clock says. */
+const clock = (page: Page) => page.locator('[data-scene-clock]').textContent();
+
+/** The play state of the Raft Lab's messages, each distinct one once. */
+const election = (page: Page) =>
+  page.evaluate(() => [
+    ...new Set(
+      [...document.querySelectorAll('.iso-cluster .iso-packet')].flatMap((p) =>
+        p.getAnimations().map((a) => a.playState),
+      ),
+    ),
+  ]);
+
+test.describe("Home's scene", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test('it takes over from the drawing, moves, pauses and plays, and the choice lasts the tab', async ({
+  test('it takes over from the picture, drives the day, pauses and plays, and the choice lasts the tab', async ({
     page,
   }) => {
     await home(page);
@@ -149,17 +162,22 @@ test.describe("Home's living ground", () => {
     await expect(canvas(page)).toHaveAttribute('aria-hidden', 'true');
     await expect(toggle(page)).toBeVisible();
     await expect(toggle(page)).toHaveAccessibleName('Pause motion');
+    // The readout's sentence stays for assistive technology; the live clock counts on screen.
+    await expect(page.locator('.scene-hud-done')).toHaveCount(1);
+    expect(await clock(page)).toMatch(/^\+\d.* of \d+ delivered$/);
 
     const a = await frame(page);
-    await page.clock.runFor(700);
+    const before = await clock(page);
+    await page.clock.runFor(2_000);
     expect(a.equals(await frame(page)), 'it moves').toBe(false);
+    expect(await clock(page), 'the clock counts').not.toBe(before);
 
     await toggle(page).click();
     await expect(toggle(page)).toHaveAccessibleName('Play motion');
     await expect(page.locator('html')).toHaveAttribute('data-motion', 'paused');
-    await page.clock.runFor(100);
+    await page.clock.runFor(1_000);
     const c = await frame(page);
-    await page.clock.runFor(700);
+    await page.clock.runFor(1_000);
     expect(c.equals(await frame(page)), 'paused, it holds still').toBe(true);
     expect(await page.evaluate(() => sessionStorage.getItem('motion'))).toBe('paused');
 
@@ -172,20 +190,32 @@ test.describe("Home's living ground", () => {
     expect(await page.evaluate(() => sessionStorage.getItem('motion'))).toBeNull();
   });
 
-  // Paused, the clock stands still, so a frame changes only with the pointer: over the drawing it
-  // raises a hill and leans the camera, and away from it everything eases back to the same frame.
-  test('the pointer bends the lines under it, and leaving lets them go', async ({ page }) => {
+  // Paused, the clock stands still, so a frame changes only with the visitor's own scroll: the
+  // Route Lab's chapter coming up the window lifts the day into the cube, and going back sets it
+  // down again on the same frame.
+  test('scrolling to the Route Lab lifts the day into the cube, and scrolling back sets it down', async ({
+    page,
+  }) => {
     await home(page);
     await toggle(page).click();
-    await page.clock.runFor(300);
-    const still = await frame(page);
-    await page.mouse.move(1150, 330);
-    await page.clock.runFor(2_500);
-    const bent = await frame(page);
-    expect(bent.equals(still), 'the pointer changes the frame').toBe(false);
     await page.mouse.move(60, 880);
-    await page.clock.runFor(6_000);
-    expect((await frame(page)).equals(still), 'away from it, the same frame again').toBe(true);
+    await page.clock.runFor(3_000);
+    const flat = await frame(page);
+    await page.evaluate(() => scrollTo(0, innerHeight));
+    await page.clock.runFor(3_000);
+    expect((await frame(page)).equals(flat), 'lifted, the frame changes').toBe(false);
+    await page.evaluate(() => scrollTo(0, 0));
+    await page.clock.runFor(3_000);
+    expect((await frame(page)).equals(flat), 'set down, the same frame again').toBe(true);
+  });
+
+  test('the Raft Lab’s election runs with the scene and pauses with its button', async ({
+    page,
+  }) => {
+    await home(page);
+    expect(await election(page)).toEqual(['running']);
+    await toggle(page).click();
+    expect(await election(page)).toEqual(['paused']);
   });
 
   test('it shifts nothing, and is never the largest paint', async ({ page }) => {
@@ -214,12 +244,12 @@ test.describe("Home's living ground", () => {
     expect(largest).not.toBe('canvas');
   });
 
-  test('under reduced motion the drawing stays, the module never loads, and there is no button', async ({
+  test('under reduced motion the picture stays, nothing loads, and there is no button', async ({
     page,
   }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     const loaded: string[] = [];
-    page.on('request', (r) => /ground-live/.test(r.url()) && loaded.push(r.url()));
+    page.on('request', (r) => /route-scene|scene\.json/.test(r.url()) && loaded.push(r.url()));
     await page.goto('/');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(500);
@@ -227,19 +257,14 @@ test.describe("Home's living ground", () => {
     await expect(drawing(page)).toBeVisible();
     await expect(canvas(page)).toBeHidden();
     await expect(page.locator('.motion-item')).toBeHidden();
+    await expect(page.locator('.scene-hud-done')).toBeVisible();
     expect(loaded).toEqual([]);
   });
 
-  test('without WebGL2 the drawing stays, and the button keeps its place unseen', async ({
+  test('without its data the picture stays, and the button keeps its place unseen', async ({
     page,
   }) => {
-    await page.addInitScript(() => {
-      const original = HTMLCanvasElement.prototype.getContext;
-      HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, kind: string) {
-        if (/webgl/.test(kind)) return null;
-        return (original as (k: string) => RenderingContext | null).call(this, kind);
-      } as typeof original;
-    });
+    await page.route('**/scene.json', (route) => route.abort());
     await page.goto('/');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(500);
@@ -247,23 +272,7 @@ test.describe("Home's living ground", () => {
     await expect(drawing(page)).toBeVisible();
     await expect(toggle(page)).toBeHidden();
     await expect(page.locator('.motion-item')).toHaveCSS('visibility', 'hidden');
-  });
-
-  test('a lost context brings the drawing back, and focus on the button moves to the toggle', async ({
-    page,
-  }) => {
-    await home(page);
-    await toggle(page).focus();
-    await canvas(page).evaluate((c) =>
-      (c as HTMLCanvasElement)
-        .getContext('webgl2')
-        ?.getExtension('WEBGL_lose_context')
-        ?.loseContext(),
-    );
-    await expect(live(page)).toHaveCount(0);
-    await expect(drawing(page)).toBeVisible();
-    await expect(toggle(page)).toBeHidden();
-    await expect(page.locator('[data-theme-toggle]')).toBeFocused();
+    expect(await election(page)).toEqual([]);
   });
 
   test('no other page has the canvas or the button', async ({ page }) => {

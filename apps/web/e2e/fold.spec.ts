@@ -42,9 +42,18 @@ async function measure(page: Page, fonts: Fonts) {
   return page.evaluate(() => {
     const rows = [...document.querySelectorAll<HTMLElement>('[data-row]')];
     const box = (selector: string) => document.querySelector(selector)?.getBoundingClientRect();
+    // Below 64rem Home's scene leads the first screen (ADR 0024), so there the fold holds the name
+    // and the title under it, and the hero's sentence and buttons follow; from 64rem the scene
+    // stands beside the words and the fold holds the whole hero.
+    const lead = ['.hero-name', '.hero-who'].map(
+      (selector) => document.querySelector(selector)?.getBoundingClientRect().bottom ?? Infinity,
+    );
     return {
       rows: rows.map((row) => row.dataset['row']),
-      bottom: Math.max(...rows.map((row) => row.getBoundingClientRect().bottom)),
+      bottom:
+        innerWidth < 1024
+          ? Math.max(...lead)
+          : Math.max(...rows.map((row) => row.getBoundingClientRect().bottom)),
       hero: box('[data-row="1"]')?.height ?? 0,
       name: box('.hero-name')?.height ?? 0,
     };

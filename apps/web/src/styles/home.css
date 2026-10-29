@@ -1,0 +1,1283 @@
+/*
+  Home (ADR 0024): the stage, where the Route Lab's scene stands behind the hero and the Route Lab's
+  chapter; the demos Home features; How I work; the closing address; and the Raft Lab's cluster
+  with the election it acts out. Only Home links this file, so no other page carries its bytes
+  (test/budgets.test.ts). Every color is a token from tokens.css. It is not in a cascade layer, as
+  the lab pages' own stylesheets are not, so where it restyles a component of global.css it wins.
+*/
+
+/* Home, led by the work (ADR 0024). The stage is the first two screens, edge to edge of main:
+   the Route Lab's scene stands still at the window's top while the hero and then the Route Lab's
+   chapter scroll over it, and src/scripts/route-scene.ts lifts the day into the space-time cube
+   as they do. The hero is row 1; its words sit at the foot of the first screen, the scene beside
+   them from 64rem and above them before that. Without the scene (a build without the Route Lab)
+   the stage is the hero alone, in the frame as before. */
+.stage {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  margin-inline: -1.125rem;
+  padding-inline: 1.125rem;
+}
+
+@media (width >= 48rem) {
+  .stage {
+    margin-inline: -4rem;
+    padding-inline: 4rem;
+  }
+}
+
+.stage-plain {
+  margin-inline: 0;
+  padding-inline: 0;
+}
+
+.scene {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 0;
+  grid-row: 1 / span 2;
+  grid-column: 1;
+  align-self: start;
+  height: 100svh;
+  margin: 0 -1.125rem;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+@media (width >= 48rem) {
+  .scene {
+    margin-inline: -4rem;
+  }
+}
+
+/* The scene's box: above the words on a phone, beside them from 64rem. The canvas covers the
+   whole stage and draws the scene in this box (route-scene.ts reads it), so this rule alone
+   places both. The words' side fades out, so no line runs under a word at full strength. */
+.scene-picture {
+  position: absolute;
+  inset-block-start: 9%;
+  inset-inline-start: 0;
+  width: 100%;
+  height: 44%;
+  overflow: visible;
+}
+
+.scene-live {
+  position: absolute;
+  inset: 0;
+  display: none;
+  width: 100%;
+  height: 100%;
+}
+
+.scene-live {
+  mask-image: linear-gradient(currentcolor 52%, transparent 66%);
+}
+
+/* The picture's map ends softly at its box, as the canvas's does (route-scene.ts). */
+.scene-picture {
+  mask-image: radial-gradient(closest-side, currentcolor 62%, transparent);
+}
+
+:root[data-scene-live] .scene-live {
+  display: block;
+}
+
+:root[data-scene-live] .scene-picture {
+  visibility: hidden;
+}
+
+@media (width >= 64rem) {
+  .scene-picture {
+    inset-block-start: 6%;
+    inset-inline-start: 40%;
+    width: 60%;
+    height: 86%;
+  }
+
+  .scene-live {
+    mask-image: linear-gradient(to right, transparent 30%, currentcolor 50%);
+  }
+}
+
+/* Between 64rem and the rail the words take a narrower column, and the scene starts further over,
+   so no line of the hero runs over the map at full strength. */
+@media (64rem <= width < 80rem) {
+  .scene-picture {
+    inset-inline-start: 46%;
+    width: 54%;
+  }
+
+  .scene-live {
+    mask-image: linear-gradient(to right, transparent 38%, currentcolor 56%);
+  }
+}
+
+.scene-edge {
+  mask-type: alpha;
+}
+
+.scene-water {
+  fill: var(--map-water);
+}
+
+.scene-road {
+  fill: none;
+  stroke: var(--map-street);
+  stroke-width: 0.75px;
+  vector-effect: non-scaling-stroke;
+}
+
+.scene-road-major {
+  stroke: var(--map-road-major);
+  stroke-width: 1.25px;
+}
+
+.scene-place {
+  fill: none;
+  stroke: var(--map-place);
+  stroke-width: 2px;
+  stroke-linecap: square;
+  opacity: 0.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.scene-route {
+  fill: none;
+  stroke-width: 2px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.scene-stop {
+  fill: none;
+  stroke-width: 5px;
+  stroke-linecap: square;
+  vector-effect: non-scaling-stroke;
+}
+
+.scene-depot {
+  fill: none;
+  stroke: var(--map-depot);
+  stroke-width: 8px;
+  stroke-linecap: square;
+  vector-effect: non-scaling-stroke;
+}
+
+.scene-van-a {
+  stroke: var(--map-van-a);
+}
+
+.scene-van-b {
+  stroke: var(--map-van-b);
+}
+
+.scene-van-c {
+  stroke: var(--map-van-c);
+}
+
+/* The readout: the day in figures, on a panel of its own so every word keeps its contrast over
+   the map. Its title opens the Route Lab; the live line is the canvas's clock, which assistive
+   technology skips for the sentence that stands in it without the canvas. */
+.scene-hud {
+  position: absolute;
+  inset-block-end: 1rem;
+  inset-inline-end: 1.125rem;
+  display: grid;
+  gap: 0.25rem;
+  max-inline-size: calc(100% - 2.25rem);
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--border);
+  background-color: var(--surface-1);
+  pointer-events: auto;
+}
+
+.scene-hud p {
+  margin: 0;
+}
+
+/* The map's credit (ODbL), small but in the text color's contrast, as the lab's is. */
+.scene-credit {
+  color: var(--muted-foreground);
+  font-size: var(--text-meta);
+  line-height: var(--text-meta--line-height);
+}
+
+.scene-hud-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 1.5rem;
+  color: var(--foreground);
+  text-decoration-line: none;
+}
+
+.scene-hud-title:hover {
+  color: var(--primary);
+}
+
+.scene-dot {
+  width: 0.4375rem;
+  height: 0.4375rem;
+  border-radius: 50%;
+  background-color: var(--primary);
+}
+
+/* The clock's two lines share one cell, so the readout keeps the size of the longer while the
+   live one counts: nothing around it moves (no layout shift). The sentence stays for assistive
+   technology, unseen, while the canvas runs. */
+.scene-hud-clock {
+  display: grid;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.scene-hud-clock > * {
+  grid-area: 1 / 1;
+}
+
+.scene-hud-live {
+  visibility: hidden;
+}
+
+:root[data-scene-live] .scene-hud-live {
+  visibility: visible;
+}
+
+:root[data-scene-live] .scene-hud-done {
+  opacity: 0;
+}
+
+/* Below 64rem the scene holds the top half of the window and the words the bottom half: the
+   readout stands over the scene's top, two lines of it, and each row's words lie on the page's
+   own background, so as they scroll up they pass over the scene rather than through it. The
+   Route Lab's chapter leaves the top half open, where the day stands up into the cube. */
+@media (width < 64rem) {
+  .scene-hud {
+    inset-block: 0.75rem auto;
+    inset-inline: 1.125rem auto;
+  }
+
+  .scene-hud-row {
+    display: none;
+  }
+
+  .stage > .hero,
+  [data-stage-chapter] {
+    background-image: linear-gradient(transparent calc(52svh - 2.5rem), var(--background) 52svh);
+  }
+
+  [data-stage-chapter] {
+    min-height: 0;
+    padding-block: 56svh 3rem;
+  }
+}
+
+@media (width >= 48rem) {
+  .scene-hud {
+    inset-inline-end: 2rem;
+  }
+}
+
+/* Beside the rail, the readout stands at the scene's foot, under the map; between 64rem and the
+   rail, where the window is shorter beside the words, at its head, so it never meets the hero's
+   buttons. */
+@media (width >= 64rem) {
+  .scene-hud {
+    inset-block: 1rem auto;
+  }
+}
+
+@media (width >= 80rem) {
+  .scene-hud {
+    inset-block: auto 2rem;
+  }
+}
+
+/* Rows over the scene: the hero, at least a screen tall with its words at its foot, then
+   Selected work, whose first chapter is the Route Lab's, a screen tall with its words in the
+   middle. Its heading is for assistive technology there: the chapter's tag says what it is. The
+   card after that chapter, and everything after it, slides over the scene on the page's own
+   background, edge to edge, and covers it (route-scene.ts stops drawing then). */
+.stage > .hero,
+.stage > .work {
+  position: relative;
+  z-index: 1;
+  grid-column: 1;
+}
+
+.stage > .work {
+  grid-row: 2;
+  padding-top: 0;
+}
+
+.stage:not(.stage-plain) > .work > .section-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.card-covers,
+.card-covers ~ * {
+  position: relative;
+  margin-inline: -1.125rem;
+  padding-inline: 1.125rem;
+  background-color: var(--background);
+}
+
+@media (width >= 48rem) {
+  .card-covers,
+  .card-covers ~ * {
+    margin-inline: -4rem;
+    padding-inline: 4rem;
+  }
+}
+
+.stage > .hero {
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: calc(100svh - 4.5rem);
+  padding-block: 54svh 2.5rem;
+  border-top: 0;
+}
+
+[data-stage-chapter] {
+  align-content: center;
+  min-height: 100svh;
+  border-top: 0;
+}
+
+.stage-plain > .hero {
+  min-height: 0;
+  padding-block: 1.75rem 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+@media (width >= 64rem) {
+  .stage > .hero {
+    padding-block: 6rem 4.5rem;
+  }
+
+  .stage:not(.stage-plain) > .hero,
+  [data-stage-chapter] {
+    max-inline-size: 30rem;
+  }
+}
+
+@media (width >= 80rem) {
+  .stage:not(.stage-plain) > .hero {
+    max-inline-size: 40rem;
+  }
+
+  [data-stage-chapter] {
+    max-inline-size: 36rem;
+  }
+}
+
+@media (width >= 80rem) {
+  .stage:not(.stage-plain) {
+    margin-block-start: -5.25rem;
+  }
+
+  .stage > .hero {
+    min-height: 100svh;
+  }
+}
+
+.hero-lede {
+  max-inline-size: 34rem;
+  margin: 0;
+  font-size: var(--text-lead);
+  line-height: var(--text-lead--line-height);
+  text-wrap: pretty;
+}
+
+/* A demo Home features (ADR 0024): a chapter of its own, its title a section's heading. In the
+   stage, the Route Lab's words over the scene; below it, the Raft Lab's cluster large beside its
+   words from 64rem. */
+.card-feature {
+  padding-block: 4rem;
+  row-gap: 1.125rem;
+}
+
+.card-feature > .card-title {
+  font-size: var(--text-figure);
+  line-height: 0.95;
+}
+
+.card-feature > .card-text {
+  max-inline-size: 34rem;
+  font-size: var(--text-lead);
+  line-height: var(--text-lead--line-height);
+}
+
+.card-feature > .card-more {
+  font-size: var(--text-ui);
+}
+
+.card-figures {
+  margin-block: 0.5rem;
+}
+
+.figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2.5rem;
+  margin: 0;
+}
+
+.figure {
+  display: grid;
+  gap: 0.375rem;
+}
+
+.figure-n {
+  font-size: var(--text-poster);
+  font-weight: 620;
+  font-stretch: 80%;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Display type set closer than its face is tall takes the headings' selection (global.css, base):
+   no fill, which would cover the foot of the line above, and the accent for its color; the
+   accent's own figure takes the text color instead, so a selection always shows. */
+:is(.figure-n, .principle-n, .toward-mail)::selection,
+:is(.figure-n, .principle-n, .toward-mail) *::selection {
+  background-color: transparent;
+  color: var(--primary);
+}
+
+.figure-after .figure-n::selection {
+  background-color: transparent;
+  color: var(--foreground);
+}
+
+.figure-before .figure-n {
+  color: var(--muted-foreground);
+  text-decoration-line: line-through;
+  text-decoration-color: var(--primary);
+  text-decoration-thickness: 0.06em;
+}
+
+.figure-after .figure-n {
+  color: var(--primary);
+}
+
+.card-feature > .card-picture {
+  margin-block: 1rem;
+}
+
+@media (width >= 64rem) {
+  .card-feature {
+    padding-block: 6rem;
+  }
+
+  .card-feature:not(:has(> .card-picture)) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .card-feature > :is(.card-tag, .card-title, .card-figures, .card-text, .kv, .card-more) {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+
+  .card-feature:has(> .card-picture)
+    > :is(.card-tag, .card-title, .card-figures, .card-text, .kv, .card-more) {
+    grid-column: 8 / 13;
+  }
+
+  .card-feature:has(> .card-picture) > .card-tag {
+    align-self: end;
+  }
+
+  .card-feature > .card-picture {
+    grid-column: 1 / 8;
+    grid-row: 1 / span 6;
+    align-self: center;
+    max-inline-size: none;
+    margin: 0;
+    padding: 0 2rem 0 0;
+  }
+}
+
+/* How I work: the bio's principles, each a row under a hairline: a large number, its bold
+   sentence as its title, and the rest of the paragraph, the sentence of the work it points at. */
+.principles-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.principle {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 0.625rem;
+  padding-block: 1.75rem 2rem;
+  border-top: 1px solid var(--border);
+}
+
+.principle-n {
+  margin: 0;
+  color: var(--primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-title);
+  font-weight: 500;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.principle-lead {
+  margin: 0;
+  font-size: var(--text-statement);
+  font-weight: 620;
+  font-stretch: 80%;
+  line-height: var(--text-statement--line-height);
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+.principle-text {
+  max-inline-size: var(--measure);
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: var(--text-card);
+  line-height: var(--text-card--line-height);
+  text-wrap: pretty;
+}
+
+@media (width >= 64rem) {
+  .principle {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: var(--gutter);
+    padding-block: 2.25rem 2.5rem;
+  }
+
+  .principle-n {
+    grid-column: 1 / 2;
+    padding-top: 0.5rem;
+  }
+
+  .principle-lead {
+    grid-column: 2 / 9;
+  }
+
+  .principle-text {
+    grid-column: 9 / 13;
+    padding-top: 0.375rem;
+  }
+}
+
+/* What Joseph is working toward, in the bio's words, and the way to reach him, as large as the
+   page's other figures: the address is the last thing on the page. */
+.toward {
+  padding-block-end: 2rem;
+}
+
+.toward-body {
+  display: grid;
+  gap: 1rem;
+}
+
+.toward-text {
+  max-inline-size: 40rem;
+  margin: 0;
+  font-size: var(--text-lead);
+  line-height: var(--text-lead--line-height);
+  text-wrap: pretty;
+}
+
+.toward-mail {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.25em;
+  max-inline-size: 100%;
+  margin-block: 2.5rem 1.5rem;
+  color: var(--foreground);
+  font-size: var(--text-poster);
+  font-weight: 620;
+  font-stretch: 80%;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  text-decoration-thickness: 0.05em;
+  text-underline-offset: 0.12em;
+}
+
+.toward-mail-words {
+  overflow-wrap: anywhere;
+}
+
+.toward-mail:hover {
+  color: var(--primary);
+}
+
+.toward-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.toward-actions .btn {
+  min-inline-size: min(8.25rem, 100%);
+}
+
+/* The isometric drawings (lib/iso.ts): faces from the page's own surfaces, the roof lightest
+   (tokens.css, --face-*), edges in the hairline, the accent only where the lab puts it: the
+   leader's roof, its uncommitted entry, a message. */
+.iso {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.iso :is(.iso-face-top, .iso-face-left, .iso-face-right) {
+  stroke: var(--border);
+  stroke-width: 1px;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.iso-face-top {
+  fill: var(--face-top);
+}
+
+.iso-face-left {
+  fill: var(--face-left);
+}
+
+.iso-face-right {
+  fill: var(--face-right);
+}
+
+.iso-floor {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1px;
+  stroke-dasharray: 2 5;
+  vector-effect: non-scaling-stroke;
+}
+
+.iso-link {
+  fill: none;
+  stroke: var(--input);
+  stroke-width: 1.25px;
+  stroke-dasharray: 3 4;
+  vector-effect: non-scaling-stroke;
+}
+
+.iso-packet {
+  fill: var(--primary);
+  opacity: 0;
+}
+
+.iso-crown {
+  fill: var(--primary);
+  stroke: var(--primary);
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+}
+
+.iso-crown[data-crown='3'] {
+  opacity: 0;
+}
+
+.iso-candidate {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 2px;
+  stroke-dasharray: 4 3;
+  opacity: 0;
+  vector-effect: non-scaling-stroke;
+}
+
+.iso-entry {
+  fill: var(--muted-foreground);
+}
+
+.iso-pending {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+}
+
+.iso-dial-track,
+.iso-dial,
+.iso-timeout {
+  fill: none;
+  stroke-width: 2.5;
+}
+
+.iso-dial-track {
+  stroke: var(--border);
+}
+
+.iso-dial {
+  stroke: var(--muted-foreground);
+}
+
+.iso-leader > :is(.iso-dial, .iso-dial-track) {
+  stroke: var(--primary-foreground);
+}
+
+.iso-timeout {
+  stroke: var(--primary);
+  opacity: 0;
+}
+
+.iso-ripple {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 1.5;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* A label keeps clear of the links it crosses: a halo in the page's color behind its letters. */
+.iso-label {
+  fill: var(--muted-foreground);
+  stroke: var(--background);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  paint-order: stroke;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+}
+
+.iso-label:not([data-say='lead-1']) {
+  opacity: 0;
+}
+
+/* The election (lib/iso.ts, STORY), on one 15 s loop: server 1's heartbeats at 0, 1.6 and 3.2 s;
+   its crash at 4.4 s; server 3's timeout at 6.4 s, its requests for votes at 6.8 s and the votes
+   back at 7.9 s; its term as leader from 8.9 s, with heartbeats at 9.4, 11 and 12.6 s; server 1
+   back as a follower at 11.4 s, in time for the last; and at 14.3 s the story starts again. A
+   message crosses its link, one unit of its frame, in 0.8 s. It runs while Home's scene does and
+   stops with the same button, so one button pauses every motion on Home (SC 2.2.2); without the
+   scene it never starts, and the picture is the story's first moment. Transform and opacity
+   only. */
+@media screen and (prefers-reduced-motion: no-preference) {
+  :root[data-motion]
+    .iso-cluster
+    :is(
+      .iso-packet,
+      .iso-ripple,
+      .iso-crown,
+      .iso-candidate,
+      .iso-timeout,
+      .iso-label,
+      [data-server='1']
+    ) {
+    animation-duration: 15s;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+
+  :root[data-motion='paused'] .iso-cluster * {
+    animation-play-state: paused;
+  }
+
+  :root[data-motion] .iso-cluster .iso-packet[data-act='beat'] {
+    animation-name: raft-beat;
+  }
+
+  :root[data-motion] .iso-cluster .iso-packet[data-act='ask'] {
+    animation-name: raft-ask;
+  }
+
+  :root[data-motion] .iso-cluster .iso-packet[data-act='vote'] {
+    animation-name: raft-vote;
+  }
+
+  :root[data-motion] .iso-cluster .iso-packet[data-act='lead'] {
+    animation-name: raft-lead;
+  }
+
+  :root[data-motion] .iso-cluster .iso-packet[data-act='rejoin'] {
+    animation-name: raft-rejoin;
+  }
+
+  :root[data-motion] .iso-cluster [data-server='1'] {
+    animation-name: raft-down;
+  }
+
+  :root[data-motion] .iso-cluster :is(.iso-crown[data-crown='1'], [data-say='lead-1']) {
+    animation-name: raft-lead-1;
+  }
+
+  :root[data-motion] .iso-cluster [data-say='down'] {
+    animation-name: raft-say-down;
+  }
+
+  :root[data-motion] .iso-cluster .iso-timeout {
+    animation-name: raft-timeout;
+  }
+
+  :root[data-motion] .iso-cluster :is(.iso-candidate, [data-say='ask']) {
+    animation-name: raft-candidate;
+  }
+
+  :root[data-motion] .iso-cluster :is(.iso-crown[data-crown='3'], [data-say='lead-3']) {
+    animation-name: raft-lead-3;
+  }
+
+  :root[data-motion] .iso-cluster .iso-ripple[data-ripple='1'] {
+    animation-name: raft-ripple-1;
+    animation-timing-function: ease-out;
+  }
+
+  :root[data-motion] .iso-cluster .iso-ripple[data-ripple='3'] {
+    animation-name: raft-ripple-3;
+    animation-timing-function: ease-out;
+  }
+
+  /* A message: at its start it shows at the sender's edge, crosses in 5.333% of the loop (0.8 s),
+     and is gone until its next start, returning unseen. */
+  @keyframes raft-beat {
+    0% {
+      transform: translateX(0);
+      opacity: 1;
+    }
+
+    5.333% {
+      transform: translateX(1px);
+      opacity: 1;
+    }
+
+    5.4%,
+    10.6% {
+      transform: translateX(1px);
+      opacity: 0;
+    }
+
+    10.62% {
+      transform: translateX(0);
+      opacity: 0;
+    }
+
+    10.667% {
+      transform: translateX(0);
+      opacity: 1;
+    }
+
+    16% {
+      transform: translateX(1px);
+      opacity: 1;
+    }
+
+    16.067%,
+    21.27% {
+      transform: translateX(1px);
+      opacity: 0;
+    }
+
+    21.29% {
+      transform: translateX(0);
+      opacity: 0;
+    }
+
+    21.333% {
+      transform: translateX(0);
+      opacity: 1;
+    }
+
+    26.667% {
+      transform: translateX(1px);
+      opacity: 1;
+    }
+
+    26.733%,
+    100% {
+      transform: translateX(1px);
+      opacity: 0;
+    }
+  }
+
+  @keyframes raft-ask {
+    0%,
+    45.3% {
+      transform: translateX(0);
+      opacity: 0;
+    }
+
+    45.333% {
+      transform: translateX(0);
+      opacity: 1;
+    }
+
+    50.667% {
+      transform: translateX(1px);
+      opacity: 1;
+    }
+
+    50.733%,
+    100% {
+      transform: translateX(1px);
+      opacity: 0;
+    }
+  }
+
+  @keyframes raft-vote {
+    0%,
+    52.633% {
+      transform: translateX(0);
+      opacity: 0;
+    }
+
+    52.667% {
+      transform: translateX(0);
+      opacity: 1;
+    }
+
+    58% {
+      transform: translateX(1px);
+      opacity: 1;
+    }
+
+    58.067%,
+    100% {
+      transform: translateX(1px);
+      opacity: 0;
+    }
+  }
+
+  @keyframes raft-lead {
+    0%,
+    62.633% {
+      transform: translateX(0);
+      opacity: 0;
+    }
+
+    62.667% {
+      transform: translateX(0);
+      opacity: 1;
+    }
+
+    68% {
+      transform: translateX(1px);
+      opacity: 1;
+    }
+
+    68.067%,
+    73.27% {
+      transform: translateX(1px);
+      opacity: 0;
+    }
+
+    73.29% {
+      transform: translateX(0);
+      opacity: 0;
+    }
+
+    73.333% {
+      transform: translateX(0);
+      opacity: 1;
+    }
+
+    78.667% {
+      transform: translateX(1px);
+      opacity: 1;
+    }
+
+    78.733%,
+    83.94% {
+      transform: translateX(1px);
+      opacity: 0;
+    }
+
+    83.96% {
+      transform: translateX(0);
+      opacity: 0;
+    }
+
+    84% {
+      transform: translateX(0);
+      opacity: 1;
+    }
+
+    89.333% {
+      transform: translateX(1px);
+      opacity: 1;
+    }
+
+    89.4%,
+    100% {
+      transform: translateX(1px);
+      opacity: 0;
+    }
+  }
+
+  @keyframes raft-rejoin {
+    0%,
+    83.96% {
+      transform: translateX(0);
+      opacity: 0;
+    }
+
+    84% {
+      transform: translateX(0);
+      opacity: 1;
+    }
+
+    89.333% {
+      transform: translateX(1px);
+      opacity: 1;
+    }
+
+    89.4%,
+    100% {
+      transform: translateX(1px);
+      opacity: 0;
+    }
+  }
+
+  /* Server 1 crashes at 4.4 s and comes back at 11.4 s. */
+  @keyframes raft-down {
+    0%,
+    29.333% {
+      opacity: 1;
+    }
+
+    32%,
+    76% {
+      opacity: 0.3;
+    }
+
+    80%,
+    100% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes raft-lead-1 {
+    0%,
+    29.333% {
+      opacity: 1;
+    }
+
+    31%,
+    95.333% {
+      opacity: 0;
+    }
+
+    98%,
+    100% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes raft-say-down {
+    0%,
+    30% {
+      opacity: 0;
+    }
+
+    32%,
+    76% {
+      opacity: 1;
+    }
+
+    78%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes raft-timeout {
+    0%,
+    42.667% {
+      opacity: 0;
+    }
+
+    43.333%,
+    45.333% {
+      opacity: 1;
+    }
+
+    47.333%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes raft-candidate {
+    0%,
+    43.333% {
+      opacity: 0;
+    }
+
+    44.667%,
+    59.333% {
+      opacity: 1;
+    }
+
+    61.333%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes raft-lead-3 {
+    0%,
+    59.333% {
+      opacity: 0;
+    }
+
+    61.333%,
+    95.333% {
+      opacity: 1;
+    }
+
+    98%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes raft-ripple-1 {
+    0% {
+      transform: scale(1);
+      opacity: 0.9;
+    }
+
+    6.667%,
+    10.6% {
+      transform: scale(1.9);
+      opacity: 0;
+    }
+
+    10.62% {
+      transform: scale(1);
+      opacity: 0;
+    }
+
+    10.667% {
+      transform: scale(1);
+      opacity: 0.9;
+    }
+
+    17.333%,
+    21.27% {
+      transform: scale(1.9);
+      opacity: 0;
+    }
+
+    21.29% {
+      transform: scale(1);
+      opacity: 0;
+    }
+
+    21.333% {
+      transform: scale(1);
+      opacity: 0.9;
+    }
+
+    28%,
+    100% {
+      transform: scale(1.9);
+      opacity: 0;
+    }
+  }
+
+  @keyframes raft-ripple-3 {
+    0%,
+    62.633% {
+      transform: scale(1);
+      opacity: 0;
+    }
+
+    62.667% {
+      transform: scale(1);
+      opacity: 0.9;
+    }
+
+    69.333%,
+    73.27% {
+      transform: scale(1.9);
+      opacity: 0;
+    }
+
+    73.29% {
+      transform: scale(1);
+      opacity: 0;
+    }
+
+    73.333% {
+      transform: scale(1);
+      opacity: 0.9;
+    }
+
+    80%,
+    83.94% {
+      transform: scale(1.9);
+      opacity: 0;
+    }
+
+    83.96% {
+      transform: scale(1);
+      opacity: 0;
+    }
+
+    84% {
+      transform: scale(1);
+      opacity: 0.9;
+    }
+
+    90.667%,
+    100% {
+      transform: scale(1.9);
+      opacity: 0;
+    }
+  }
+
+  /* The address answers the pointer: its arrow steps toward where it leads. */
+  .toward-mail-arrow {
+    transition: transform 0.2s ease-out;
+  }
+
+  .toward-mail:hover .toward-mail-arrow {
+    transform: translateX(0.15em);
+  }
+}
+
+/* On paper the stage is the hero and then Selected work, each as tall as its words, with no scene
+   and no picture: the words and the links' addresses are what a printed Home holds. */
+@media print {
+  .scene,
+  .card-picture {
+    display: none;
+  }
+
+  .stage {
+    margin: 0;
+    padding: 0;
+  }
+
+  .stage > .hero,
+  [data-stage-chapter] {
+    min-height: 0;
+    padding-block: 1.5rem;
+    background-image: none;
+  }
+
+  .card-covers,
+  .card-covers ~ * {
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+}
