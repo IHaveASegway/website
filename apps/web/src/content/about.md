@@ -1,5 +1,5 @@
 ---
-firewall_reviewed: 2026-10-27 # NOT A REVIEW of this text: the date covers the placeholder it replaced. The review stamp in verify refuses it until Joseph reads this entry and sets the UTC day of the read.
+firewall_reviewed: 2026-10-29
 ---
 
 I'm a software engineer working toward software architecture: the decisions that are expensive to change, made with numbers and written down where the next person can find them. This site is that work, in the open.

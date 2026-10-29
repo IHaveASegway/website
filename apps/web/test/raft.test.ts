@@ -332,7 +332,10 @@ function faultyRun(seed: number, faults: Faults = {}) {
 /** How many seeds the sweep runs: about 1.5 s of the suite on a laptop. */
 const SEEDS = SEEDS_IN_CI;
 
-describe('the property sweep', () => {
+// The work is fixed, but the wall clock is not: on a CI runner, beside the other test files, the
+// full sweep took 3.7 s on a pull request and 5.2 s on main, past vitest's 5 s default
+// (2026-10-28). The limit only catches a hang; a server that stops being caught fails its assertion.
+describe('the property sweep', { timeout: 30_000 }, () => {
   test(`${SEEDS} faulty runs: every safety property holds after every event, and a write commits within 2.75 s of healing`, () => {
     const broken: string[] = [];
     let events = 0;
