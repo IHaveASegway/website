@@ -1,16 +1,15 @@
+import { ABOUT_PATH } from './about';
 import { postPath, type Post } from './posts';
 import type { Profile } from './profile';
 import type { WorkCard } from './work';
 
-// The résumé at /resume/ (content.md, "Résumé"): the public edition, generated from profile.json
+// The résumé, drawn on /about/ under the bio (content.md, "Résumé"; at /resume/ until 2026-10-28,
+// which now answers with a 301): the public edition, generated from profile.json
 // and from what this build already renders, never redacted from a file that held more. This
 // module is pure: the page asks it what to draw, and test/resume.test.ts asks it the same
 // questions with inputs of its own. Every section renders only when its source exists: the roles
 // once Joseph adds them (Q8), a skill once every page it names is built, Selected work and Writing
 // exactly as Home has them.
-
-/** The page's URL (ADR 0005 reserved it; content.md, "URL scheme"). */
-export const RESUME_PATH = '/resume/';
 
 type Role = Profile['work'][number];
 type Skill = Profile['skills'][number];
@@ -27,8 +26,8 @@ export function roleYears(role: Pick<Role, 'startDate' | 'endDate'>): string {
  * The pages a skill may name as evidence, each with the title a link to it shows: Selected work's
  * pages on this site (a demo, a featured post), the posts this build lists, and the other pages
  * it writes: the manifest's and the section indexes. Each title is the page's own (a card's, a
- * post's, a nav or section label), so the résumé adds no words of its own. The résumé is not
- * evidence of itself, and Home is no skill's.
+ * post's, a nav or section label), so the résumé adds no words of its own. Its page, /about/, is
+ * not evidence of itself, and Home is no skill's.
  */
 export function evidencePages(
   cards: readonly WorkCard[],
@@ -38,7 +37,7 @@ export function evidencePages(
   const targets = new Map<string, string>();
   const add = (href: string, title: string) => {
     const page = href.startsWith('/') && href.endsWith('/') && href !== '/';
-    if (page && href !== RESUME_PATH && !targets.has(href)) targets.set(href, title);
+    if (page && href !== ABOUT_PATH && !targets.has(href)) targets.set(href, title);
   };
   for (const card of cards) add(card.link.href, card.title);
   for (const post of published) add(postPath(post), post.title);

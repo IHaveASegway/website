@@ -4,13 +4,15 @@ import { decodeReferences } from '../src/lib/held-names';
 import { isNoindex } from '../src/lib/noindex.mjs';
 import type { Post } from '../src/lib/posts';
 import { checkedProfiles } from '../src/lib/profile';
-import { addressText, evidencePages, RESUME_PATH, roleYears, shownSkills } from '../src/lib/resume';
+import { ABOUT_PATH } from '../src/lib/about';
+import { addressText, evidencePages, roleYears, shownSkills } from '../src/lib/resume';
 import { CONTACT_EMAIL, ORIGIN } from '../src/lib/site';
 import type { WorkCard } from '../src/lib/work';
 import { files, html, profile, read } from './support/dist';
 import { attribute, descendants, elementsOf, hasClass, type Element } from './support/html';
 
-// The résumé (content.md, "Résumé"; lib/resume.ts), on every build vitest.config.ts names: the real
+// The résumé, on /about/ since 2026-10-28 (content.md, "Résumé"; lib/resume.ts), on every build
+// vitest.config.ts names: the real
 // one, whose profile holds no role or skill yet, and the fixture builds, whose profile fixture holds
 // ten roles and twelve skills, the schema's limits. Each section must show exactly what its source
 // holds, and nothing when it holds nothing: no placeholder, no empty heading. Expected values are
@@ -32,7 +34,7 @@ function textOf(element: Element | undefined): string {
   return decodeReferences(parts.join('')).replace(/\s+/g, ' ').trim();
 }
 
-const page = read('resume/index.html');
+const page = read('about/index.html');
 const elements = elementsOf(page);
 const byClass = (name: string, within: readonly Element[] = elements) =>
   within.filter((e) => hasClass(e, name));
@@ -59,10 +61,11 @@ const lists = (path: string) => {
 const headingOf = (path: string) =>
   textOf(elementsOf(read(`${path.slice(1)}index.html`)).find((e) => e.tagName === 'h1'));
 
-describe('/resume/', () => {
+describe('/about/, the résumé', () => {
   test('every build writes it, under its canonical URL, with the name as its one heading', () => {
-    expect(html).toContain('resume/index.html');
-    expect(page).toContain(`<link rel="canonical" href="${ORIGIN}${RESUME_PATH}">`);
+    expect(html).toContain('about/index.html');
+    expect(html).not.toContain('resume/index.html');
+    expect(page).toContain(`<link rel="canonical" href="${ORIGIN}${ABOUT_PATH}">`);
     expect(elements.filter((e) => e.tagName === 'h1').map(textOf)).toEqual([profile.basics.name]);
     expect(textOf(byClass('hero-title')[0])).toBe(profile.basics.label);
   });
@@ -172,8 +175,10 @@ describe('/resume/', () => {
   });
 
   test('its link preview draws the name and the label the header gives it', () => {
-    expect(page).toContain(`<meta property="og:title" content="${profile.basics.name} · Résumé">`);
-    expect(page).toContain('<title>Résumé · Joseph Peterson</title>');
+    expect(page).toContain(`<meta property="og:title" content="${profile.basics.name} · About">`);
+    expect(page).toContain('<title>About · Joseph Peterson</title>');
+    expect(files).toContain('about/og.png');
+    expect(files).not.toContain('resume/og.png');
   });
 });
 
@@ -210,7 +215,7 @@ test('known answers: evidence pages are pages on this site, titled by their own 
     [
       { href: '/writing/', label: 'Writing' },
       { href: '/rss.xml', label: 'RSS' },
-      { href: '/resume/', label: 'Résumé' },
+      { href: '/about/', label: 'About' },
       { href: '/', label: 'Home' },
     ],
   );

@@ -78,7 +78,12 @@ test('the drawing takes no pointer, is hidden from assistive technology, and doe
   expect(await ground.evaluate((g) => getComputedStyle(g).display)).toBe('none');
 });
 
-test('the résumé carries no drawing', async ({ page }) => {
-  await page.goto('/resume/');
-  await expect(page.locator('svg.ground')).toHaveCount(0);
+test('/about/, which holds the résumé, draws its wheels on screen and nothing on paper', async ({
+  page,
+}) => {
+  await page.goto('/about/');
+  const ground = page.locator('svg.ground');
+  await expect(ground).toHaveCount(1);
+  await page.emulateMedia({ media: 'print' });
+  expect(await ground.evaluate((g) => getComputedStyle(g).display)).toBe('none');
 });

@@ -17,35 +17,40 @@ const lines = (text: string) =>
     .map((line) => line.replace(/#.*/, '').trim())
     .filter(Boolean);
 
+const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8');
+
+/** public/_redirects, one [from, to, status] per rule. */
+const REDIRECTS: readonly string[][] = existsSync(new URL('../public/_redirects', import.meta.url))
+  ? lines(read('../public/_redirects')).map((line) => line.split(/\s+/))
+  : [];
+
+/** The moved pages and files, [old, new]: each 301 in public/_redirects (ADR 0005). */
+export const MOVED: readonly (readonly [string, string])[] = REDIRECTS.filter(
+  ([, , status]) => status === '301',
+).map(([from = '', to = '']) => [from, to] as const);
+
 /**
  * Every page the site publishes: each URL in published-urls.txt that no 301 in public/_redirects
  * has moved. A post is published by adding its URL there (ADR 0005). apps/web/test/urls.test.ts
  * fails when the ledger and the build disagree, so the build's pages and these are the same.
  */
 export const SITE_PAGES: readonly string[] = (() => {
-  const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8');
-  const redirects = existsSync(new URL('../public/_redirects', import.meta.url))
-    ? lines(read('../public/_redirects')).map((line) => line.split(/\s+/))
-    : [];
   const moved = (url: string) =>
-    redirects.some(
-      ([from = '', , status]) =>
-        status === '301' && (from.endsWith('*') ? url.startsWith(from.slice(0, -1)) : from === url),
-    );
+    MOVED.some(([from]) => (from.endsWith('*') ? url.startsWith(from.slice(0, -1)) : from === url));
   return lines(read('../published-urls.txt')).filter((url) => !moved(url));
 })();
 
 /**
  * The pages of the test-only writing fixture build, .fixtures/fixture-many
- * (scripts/build-fixtures.mjs): Home, the résumé, both indexes and the five published posts, and
+ * (scripts/build-fixtures.mjs): Home, /about/, both indexes and the five published posts, and
  * not the draft. pnpm e2e:writing walks these, and test/writing.test.ts holds the build to them.
  */
 export const WRITING_FIXTURE_PAGES: readonly string[] = [
   '/',
+  '/about/',
   '/notes/',
   '/notes/fixture-small-note/',
   '/notes/fixture-trailing-slashes/',
-  '/resume/',
   '/writing/',
   '/writing/fixture-markdown-tour/',
   '/writing/fixture-measure-first/',

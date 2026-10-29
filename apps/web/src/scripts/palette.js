@@ -109,7 +109,8 @@ function boot() {
   // A page or a profile is a place to go, in this tab or, with ⌘ or Ctrl held, a new one. The
   // address is copied while the press that asked for it is still handled, as browsers require; on
   // a refusal the line shows the address to copy by hand. The theme entry presses the toggle, whose
-  // handler (src/scripts/theme.js) is the only code that reads or writes the stored choice.
+  // handler (src/scripts/theme.js) is the only code that reads or writes the stored choice, and the
+  // print entry presses the page's Print button, once the menu has closed and left the paper.
   const run = (option, newTab) => {
     const { href, act } = option.dataset;
     if (href !== undefined) {
@@ -131,6 +132,9 @@ function boot() {
       document.querySelector('[data-theme-toggle]')?.click();
       const theme = document.documentElement.dataset.theme;
       tell(option.querySelector(`[data-for="${theme}"]`)?.textContent ?? '');
+    } else if (act === 'print') {
+      dialog.close();
+      document.querySelector('[data-print]')?.click();
     }
   };
 
@@ -188,6 +192,12 @@ function boot() {
   forced.addEventListener('change', () => dialog.open && narrow());
   // Never restored open: a page the browser keeps for Back comes back as it was before the menu.
   addEventListener('pagehide', () => dialog.open && dialog.close());
+
+  // The Print button (pages/about/index.astro) opens the browser's own print, whose dialog also
+  // saves a PDF: the site hosts none (content.md, "Résumé"). Bound here, it shows with the menu.
+  for (const button of document.querySelectorAll('[data-print]')) {
+    button.addEventListener('click', () => print());
+  }
 
   // The button names the keys this keyboard has, then shows: until here it holds its place unseen.
   const keys = opener?.querySelector('kbd');

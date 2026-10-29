@@ -1,5 +1,4 @@
 import { getCollection, getEntry } from 'astro:content';
-import { aboutBuilt } from './about';
 import { fromLab, labArea, type LabArea, type LabEntry } from './lab';
 import {
   draftsIncluded,
@@ -72,12 +71,10 @@ export async function loadLabArea(): Promise<LabArea> {
   return labArea(entries.map((entry) => fromLab(entry.id, entry.data)));
 }
 
-/** /about/'s entry, and whether this build writes the page (lib/about.ts). The fixture builds,
- *  Writing's test builds, hold none. */
+/** /about/'s bio (lib/about.ts), or undefined in the fixture builds, Writing's test builds, which
+ *  hold none: the page still draws the résumé there. */
 export async function loadAbout() {
-  const entry = process.env['POST_FIXTURES'] ? undefined : await getEntry('about', 'about');
-  const data = entry?.data ?? null;
-  return { entry, data, built: aboutBuilt(data, draftsIncluded(process.env, DEV)) };
+  return process.env['POST_FIXTURES'] ? undefined : await getEntry('about', 'about');
 }
 
 /** A lab entry's collection entry, for rendering its write-up. */

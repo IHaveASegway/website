@@ -4,8 +4,7 @@ import Footer from '../components/Footer.astro';
 import Ground from '../components/Ground.astro';
 import Header from '../components/Header.astro';
 import Palette from '../components/Palette.astro';
-import { aboutRoutes } from '../lib/about';
-import { loadAbout, loadLabArea, loadProfile, loadWritingArea } from '../lib/content';
+import { loadLabArea, loadProfile, loadWritingArea } from '../lib/content';
 import { groundKindFor } from '../lib/ground';
 import { labRoutes } from '../lib/lab';
 import { NOINDEX } from '../lib/noindex.mjs';
@@ -35,9 +34,20 @@ interface Props {
   ogType?: 'website' | 'article';
   /** Structured data for this page, already serialized (lib/jsonld.ts). */
   jsonLd?: string;
+  /** The page has a Print button ([data-print]), so the command menu offers it too: /about/. */
+  print?: boolean;
 }
 
-const { title, description, path, noindex = false, og, ogType = 'website', jsonLd } = Astro.props;
+const {
+  title,
+  description,
+  path,
+  noindex = false,
+  og,
+  ogType = 'website',
+  jsonLd,
+  print = false,
+} = Astro.props;
 const canonical = path === undefined ? undefined : new URL(path, Astro.site).href;
 const image = og && canonical ? new URL('og.png', canonical).href : undefined;
 const profile = await loadProfile();
@@ -45,12 +55,8 @@ const profile = await loadProfile();
 // from its first live demo (lib/lab.ts): the header, the footer and the feed link below learn from
 // this which of them this build writes.
 const area = await loadWritingArea();
-const generated = [
-  ...areaRoutes(area),
-  ...labRoutes(await loadLabArea()),
-  ...aboutRoutes((await loadAbout()).data),
-];
-// The page's drawing, from its section (lib/ground.ts); the résumé has none.
+const generated = [...areaRoutes(area), ...labRoutes(await loadLabArea())];
+// The page's drawing, from its section (lib/ground.ts); none prints (global.css).
 const ground = groundKindFor(path);
 
 // The theme script (src/scripts/theme.js) runs in <head>, before <body> exists, so no frame can
@@ -139,7 +145,7 @@ const chrome = (['dark', 'light'] as const).map((scheme) => ({
       <slot />
     </main>
     <Footer profile={profile} generated={generated} />
-    <Palette profile={profile} generated={generated} />
+    <Palette profile={profile} generated={generated} print={print} />
     {jsonLd && <script is:inline type="application/ld+json" set:html={jsonLd} />}
   </body>
 </html>

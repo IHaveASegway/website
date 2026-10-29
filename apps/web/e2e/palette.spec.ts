@@ -102,12 +102,12 @@ test('typing filters the rows by subsequence, hides empty groups, and selects th
   await page.waitForTimeout(700);
   await expect(said(page)).toHaveText('');
   await page.keyboard.type('rsm');
-  expect(await rows(page)).toEqual({ shown: ['palette-resume'], active: 'palette-resume' });
+  expect(await rows(page)).toEqual({ shown: ['palette-about'], active: 'palette-about' });
   await expect(page.getByRole('group', { name: 'Actions' })).toBeHidden();
   await expect(said(page)).toHaveText('1 result');
   // Its keywords count too, and accents do not.
   await input(page).fill('cv');
-  expect((await rows(page)).shown).toEqual(['palette-resume']);
+  expect((await rows(page)).shown).toEqual(['palette-about']);
   await input(page).fill('zzzz');
   expect(await rows(page)).toEqual({ shown: [], active: null });
   await expect(page.locator('[data-palette-empty]')).toBeVisible();
@@ -139,7 +139,7 @@ test('the arrows move the selection, wrapping at the ends, and Enter goes to the
   );
   await input(page).fill('resume');
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/\/resume\/$/);
+  await expect(page).toHaveURL(/\/about\/$/);
   expect(await page.evaluate(() => window.name)).toBe('false');
 });
 

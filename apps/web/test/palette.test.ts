@@ -107,7 +107,7 @@ function textOf(element: Element, first = false): string {
 }
 
 // The pages a visitor can reach: a draft (noindex, in a preview only) is built but linked from
-// nowhere, the menu included (lib/about.ts, aboutRoutes).
+// nowhere, the menu included (lib/posts.ts).
 const built = new Set(
   files
     .filter((f) => f.endsWith('index.html') && !isNoindex(read(f)))
@@ -131,10 +131,15 @@ for (const file of html) {
       expect(groups.get('Go to')).toEqual([['Home', '/'], ...pages.map((i) => [i.label, i.href])]);
     });
 
+    // Print only where the page has the button the row presses: /about/, whose Print button is
+    // also the only one, so the row never presses a button that is not there.
     test('Actions copy the address and press the theme toggle, under its own names', () => {
+      const printButton = /<button\b[^>]*\bdata-print\b/.test(page);
+      expect(printButton).toBe(file === 'about/index.html');
       expect(groups.get('Actions')).toEqual([
         ['Copy email address', 'act:copy'],
         [THEME_STATES[0].name, 'act:theme'],
+        ...(printButton ? [['Print or save as PDF', 'act:print']] : []),
       ]);
       const rows = descendants(dialog as Element);
       const copy = rows.find((e) => attribute(e, 'data-act') === 'copy');

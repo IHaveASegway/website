@@ -1353,7 +1353,7 @@
     margin-top: 1.25rem;
   }
 
-  /* The résumé (pages/resume/index.astro): Home's poster head, with the ways to reach Joseph as a
+  /* The résumé (pages/about/index.astro, under the bio): Home's poster head, with the ways to reach Joseph as a
      list of addresses beside the name, then its sections, each a row of an index under a rule, as
      Home's are. A role puts its years in columns 1 and 2 and its title in 3 to 8; a skill its name
      in 3 to 8 and the pages that show it in 9 to 12. */
@@ -1389,11 +1389,30 @@
   }
 
   /* The address in the notes, with its full stop, is one box: it moves whole to the next line when
-     it does not fit after the words before it, and breaks after its "@" (resume/index.astro) only
+     it does not fit after the words before it, and breaks after its "@" (about/index.astro) only
      when it alone is wider than the line, and inside a part only as a last resort, as the footer's. */
   .resume-email {
     display: inline-block;
     overflow-wrap: anywhere;
+  }
+
+  /* The Print button, under the addresses (about/index.astro). It shows once the command menu's
+     script has bound it (src/scripts/palette.js), on a phone too, where printing saves or shares a
+     PDF: until then it holds its place unseen, and without the script it is not there. */
+  .print-item {
+    display: none;
+    justify-self: start;
+  }
+
+  @media (scripting: enabled) {
+    .print-item {
+      display: inline-flex;
+      visibility: hidden;
+    }
+
+    :root[data-palette] .print-item {
+      visibility: visible;
+    }
   }
 
   .roles,
@@ -1482,7 +1501,9 @@
       grid-column: 9 / 13;
     }
 
-    .resume-notes {
+    /* The bio reads in columns 3 on, as the notes under Experience do. */
+    .resume-notes,
+    .bio .prose {
       margin-inline-start: calc((100% + var(--gutter)) / 6);
     }
   }
@@ -1638,6 +1659,21 @@
   .resume .section {
     padding-top: 0.875rem;
     break-inside: avoid;
+  }
+
+  /* Paper gets no Print button, and of the bio only its first paragraph, the summary a printed
+     résumé opens with: how I work is the web edition's, so the page stays one sheet whatever the
+     profile holds (e2e/about-print.spec.ts). */
+  .resume .print-item,
+  .bio .prose > :not(:first-child) {
+    display: none;
+  }
+
+  .bio .prose {
+    max-width: none;
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.4;
   }
 
   .resume .section-title {

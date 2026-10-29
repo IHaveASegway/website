@@ -321,7 +321,7 @@ test('the résumé fixture is valid: one made-up project, checked and held by no
   const parsed = profileSchema.parse(withFixture(structuredClone(valid), extra));
   const cards = projectCards(parsed, realHolds);
   expect(cards.map((c) => c.title)).toEqual(['fixture-project']);
-  // At the limits, so the one-page print check (e2e/resume.spec.ts) holds for any profile the
+  // At the limits, so the one-page print check (e2e/about-print.spec.ts) holds for any profile the
   // schema admits, the longest title and name included.
   expect(parsed.work).toHaveLength(10);
   expect(parsed.skills).toHaveLength(12);

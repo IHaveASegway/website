@@ -1,26 +1,33 @@
 ---
+import { render } from 'astro:content';
 import PostList from '../../components/PostList.astro';
 import SectionTitle from '../../components/SectionTitle.astro';
 import WorkCard from '../../components/WorkCard.astro';
 import Base from '../../layouts/Base.astro';
-import { loadProfile, loadSelectedWork, loadWritingArea } from '../../lib/content';
-import { resumeGraph, serialize } from '../../lib/jsonld';
+import { ABOUT_PATH } from '../../lib/about';
+import { loadAbout, loadProfile, loadSelectedWork, loadWritingArea } from '../../lib/content';
+import { profilePageGraph, serialize } from '../../lib/jsonld';
 import { labelOf, navAll } from '../../lib/nav';
-import { resumeCard } from '../../lib/og';
+import { aboutCard } from '../../lib/og';
 import { areaRoutes, SECTION_LABELS } from '../../lib/posts';
 import { checkedProfiles, locationLine } from '../../lib/profile';
-import { addressText, evidencePages, RESUME_PATH, roleYears, shownSkills } from '../../lib/resume';
+import { addressText, evidencePages, roleYears, shownSkills } from '../../lib/resume';
 import { CONTACT_EMAIL, ORIGIN } from '../../lib/site';
 import { writingRow } from '../../lib/work';
 
-// The résumé (content.md, "Résumé"): the public edition, Q9 (a) as a page. Everything on it is
-// generated from profile.json and from what this build already renders; nothing is copied from a
-// résumé file, which names the employer and is never committed. A section renders only when its
-// source exists (lib/resume.ts): the roles once Joseph adds them (Q8), a skill once every page it
-// names is built, and Selected work and Writing exactly as Home has them. On paper it is one US
-// Letter page (global.css, "The résumé on paper"; e2e/resume.spec.ts).
+// /about/ (content.md, "About" and "Résumé"): who Joseph is, then his résumé, on one page since
+// 2026-10-28, when it took /resume/'s place (public/_redirects). The bio is src/content/about.md,
+// his words; everything after it is generated from profile.json and from what this build already
+// renders, and nothing is copied from a résumé file, which names the employer and is never
+// committed. A section renders only when its source exists (lib/resume.ts): the bio where its entry
+// is (the fixture builds hold none), the roles once Joseph adds them (Q8), a skill once every page
+// it names is built, and Selected work and Writing exactly as Home has them. On paper it is one US
+// Letter page (global.css, "The résumé on paper"; e2e/about-print.spec.ts), and the Print button
+// saves it as a PDF in the visitor's own browser: the site hosts no PDF (content.md, Q9).
 const profile = await loadProfile();
 const { name, label } = profile.basics;
+const bio = await loadAbout();
+const Bio = bio ? (await render(bio)).Content : null;
 const area = await loadWritingArea();
 const cards = await loadSelectedWork();
 const latest = writingRow(area.published, cards);
@@ -33,7 +40,7 @@ const pages = [
   ...area.sections.map((s) => ({ href: `/${s}/`, label: SECTION_LABELS[s] })),
 ];
 const skills = shownSkills(profile.skills, evidencePages(cards, area.published, pages));
-const title = labelOf('resume');
+const title = labelOf('about');
 // The address may break after its "@" when a larger text size leaves it no room on one line, as
 // the footer's does, and inside a part only when that part alone is wider than the screen.
 const [mailbox, domain] = CONTACT_EMAIL.split('@');
@@ -41,10 +48,11 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
 
 <Base
   title={`${title} · ${name}`}
-  description={`The résumé of ${name}, ${label}. ${locationLine(profile)}.`}
-  path={RESUME_PATH}
-  og={resumeCard(profile, title)}
-  jsonLd={serialize(resumeGraph(profile, RESUME_PATH))}
+  description={`Who ${name} is, how he works, and his résumé. ${label}, ${locationLine(profile)}.`}
+  path={ABOUT_PATH}
+  og={aboutCard(profile, title)}
+  jsonLd={serialize(profilePageGraph(profile, ABOUT_PATH))}
+  print
 >
   <article class="resume" aria-labelledby="name">
     <header class="hero">
@@ -77,8 +85,22 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
             </>
           ))}
         </dl>
+        {/* Pressed by the command menu's Print row too; src/scripts/palette.js binds it and shows
+            it, so without the script it is not there, and on paper it never is. */}
+        <button class="btn print-item" type="button" data-print>
+          Print or save as PDF
+        </button>
       </div>
     </header>
+
+    {Bio && (
+      <section class="section bio" aria-labelledby="bio-title">
+        <SectionTitle id="bio-title" title="About me" />
+        <div class="prose">
+          <Bio />
+        </div>
+      </section>
+    )}
 
     <section class="section" aria-labelledby="experience-title">
       <SectionTitle id="experience-title" title="Experience" />

@@ -17,8 +17,8 @@ describe('pagesIn: the indexable pages a build holds', () => {
     expect(pagesIn(many)).toEqual([...WRITING_FIXTURE_PAGES].sort());
   });
 
-  test('a preview with nothing published walks Home and the résumé: its drafts are noindex', () => {
-    expect(pagesIn(nonePreview)).toEqual(['/', '/resume/']);
+  test('a preview with nothing published walks Home and /about/: its drafts are noindex', () => {
+    expect(pagesIn(nonePreview)).toEqual(['/', '/about/']);
   });
 });
 

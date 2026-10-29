@@ -26,15 +26,15 @@ const pages = html
 const indexable = pages.filter((page) => !noindex(page));
 
 /** The indexable pages this build must write: the ledger's for dist/ and dist-preview/, the
- *  fixture's for fixture-many (with drafts or without), for fixture-one-preview Home, the résumé,
- *  /writing/ and its one published post, and for fixture-none-preview, drafts only, Home and the
- *  résumé, which every build writes whatever its posts. */
+ *  fixture's for fixture-many (with drafts or without), for fixture-one-preview Home, /about/,
+ *  /writing/ and its one published post, and for fixture-none-preview, drafts only, Home and
+ *  /about/, which every build writes whatever its posts. */
 const EXPECTED = fixture?.includes('fixture-many')
   ? WRITING_FIXTURE_PAGES
   : fixture?.includes('fixture-one')
-    ? ['/', '/resume/', '/writing/', '/writing/fixture-measure-first/']
+    ? ['/', '/about/', '/writing/', '/writing/fixture-measure-first/']
     : fixture?.includes('fixture-none')
-      ? ['/', '/resume/']
+      ? ['/', '/about/']
       : SITE_PAGES;
 
 /** Every href in a document, with the element and rel it came from. */
@@ -172,10 +172,8 @@ describe('the page list the e2e checks walk', () => {
 
   test('a noindex page is a draft, and only a preview build has one', () => {
     for (const page of pages.filter(noindex)) {
-      // A post, or the bio before Joseph turns its draft off (lib/about.ts).
-      expect(page, 'only posts and /about/ can be drafts').toMatch(
-        /^\/(?:(?:writing|notes)\/[a-z0-9-]+|about)\/$/,
-      );
+      // Only a post: /about/ has no draft since it holds the résumé (lib/about.ts, 2026-10-28).
+      expect(page, 'only posts can be drafts').toMatch(/^\/(?:writing|notes)\/[a-z0-9-]+\/$/);
       expect(readFileSync(join(dist, page.slice(1), 'index.html'), 'utf8')).toMatch(
         /<p class="label">Draft · /,
       );

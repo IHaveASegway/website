@@ -23,7 +23,9 @@ for (const path of ROUTES) {
       const links = [...document.querySelectorAll<HTMLAnchorElement>('a[href]')].filter(shown);
       return {
         controls: [
-          ...document.querySelectorAll('.skip-link, .site-nav, .theme-toggle, .palette-item'),
+          ...document.querySelectorAll(
+            '.skip-link, .site-nav, .theme-toggle, .palette-item, .print-item',
+          ),
         ]
           .filter(shown)
           .map((e) => e.className),
@@ -38,9 +40,9 @@ for (const path of ROUTES) {
       };
     }, PRINTS_ELSEWHERE);
     expect(paper.controls).toEqual([]);
-    // Home's header holds nothing but controls, and the résumé's head carries the name, so neither
+    // Home's header holds nothing but controls, and /about/'s head carries the name, so neither
     // prints one; every other page prints the name.
-    expect(paper.header).toBe(path === '/' || path === '/resume/' ? 0 : 1);
+    expect(paper.header).toBe(path === '/' || path === '/about/' ? 0 : 1);
     for (const { href, text, after } of paper.links) {
       const address = href.startsWith('/')
         ? `ihaveasegway.com${href}`

@@ -11,7 +11,7 @@ import {
   POSTING_OPTIONAL_KEYS,
   PROFILE_PAGE_KEYS,
   RESUME_PERSON_OPTIONAL_KEYS,
-  resumeGraph,
+  profilePageGraph,
   ROLE_KEYS,
   ROLE_OPTIONAL_KEYS,
   serialize,
@@ -92,19 +92,19 @@ const isPost = (file: string) =>
   /^(writing|notes)\/[a-z0-9-]+\/index\.html$/.test(file) && !isNoindex(read(file));
 const posts = html.filter(isPost);
 
-test('structured data is on Home, the résumé and published posts only, so WebSite appears only at the root', () => {
-  const own = ['index.html', 'resume/index.html'];
+test('structured data is on Home, /about/ and published posts only, so WebSite appears only at the root', () => {
+  const own = ['index.html', 'about/index.html'];
   for (const file of html.filter((f) => !own.includes(f) && !isPost(f)))
     expect(blocks(read(file)), file).toEqual([]);
   for (const file of html.filter((f) => f !== 'index.html'))
     expect(JSON.stringify(blocks(read(file))), file).not.toContain('"WebSite"');
 });
 
-// The résumé (content.md, "Structured data and link previews"): a ProfilePage whose main entity is
+// /about/, which holds the résumé (content.md, "Structured data and link previews"): a ProfilePage whose main entity is
 // Home's Person, by the same @id and keys, with a Role per entry in profile.json's work and nothing
 // more: no employer, place or description can join a role.
-describe("the résumé's ProfilePage", () => {
-  const [page, ...rest] = blocks(read('resume/index.html'));
+describe("/about/'s ProfilePage", () => {
+  const [page, ...rest] = blocks(read('about/index.html'));
   const node = page ?? {};
   const person = (node['mainEntity'] ?? {}) as Node;
   const homePerson = ((blocks(read('index.html'))[0]?.['@graph'] ?? []) as Node[]).find(
@@ -117,7 +117,7 @@ describe("the résumé's ProfilePage", () => {
     expect(keyProblems(node, PROFILE_PAGE_KEYS)).toEqual([]);
     expect(node['@context']).toBe('https://schema.org');
     expect(node['@type']).toBe('ProfilePage');
-    expect(node['url']).toBe('https://ihaveasegway.com/resume/');
+    expect(node['url']).toBe('https://ihaveasegway.com/about/');
   });
 
   test("its main entity is Home's Person, plus the roles profile.json holds and nothing else", () => {
@@ -149,10 +149,10 @@ describe("the résumé's ProfilePage", () => {
   });
 });
 
-test('known answers: the résumé graph adds roles only from work entries, an ended one with its end', () => {
-  const none = resumeGraph({ ...profile, work: [] }, '/resume/');
+test('known answers: the profile page graph adds roles only from work entries, an ended one with its end', () => {
+  const none = profilePageGraph({ ...profile, work: [] }, '/about/');
   expect(none['mainEntity']).not.toHaveProperty('hasOccupation');
-  const two = resumeGraph(
+  const two = profilePageGraph(
     {
       ...profile,
       work: [
@@ -160,7 +160,7 @@ test('known answers: the résumé graph adds roles only from work entries, an en
         { position: 'Before', startDate: '2019', endDate: '2021' },
       ],
     },
-    '/resume/',
+    '/about/',
   );
   expect((two['mainEntity'] as Node)['hasOccupation']).toEqual([
     { '@type': 'Role', startDate: '2021', hasOccupation: { '@type': 'Occupation', name: 'Now' } },

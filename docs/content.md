@@ -44,7 +44,7 @@ ihaveasegway.com
 ├── /colophon/                             How it is built, what it costs      P2
 │   └── /colophon/decisions/               Published ADRs                      P2
 │       └── <nnnn-slug>/                   One ADR, rendered from docs/adr     P2
-├── /about/                                Arc, how I work                     P3 (PR 4)
+├── /about/                                How I work, then the résumé         now (2026-10-28)
 ├── /now/                                  What I am doing now, dated          P3 (PR 4)
 ├── /writing/ · /writing/<slug>/           Essays                              P3 (PR 5, from 1 post)
 ├── /notes/ · /notes/<slug>/               Field notes                         P3 (PR 5, from 1 note)
@@ -52,7 +52,7 @@ ihaveasegway.com
 ├── /privacy/                              Before the first lab                P4 (PR 6)
 ├── /lab/ · /lab/<slug>/                   Demos and their write-ups, static   /lab/routes/ 2026-10-25; P4 (PR 6–8)
 │   └── /lab/api/*                         Lab Worker API, not pages           P4 (PR 6)
-└── /resume/                               Résumé, the Q9 (a) edition          now (2026-10-25)
+└── /resume/                               301 to /about/                      since 2026-10-28
 ```
 
 `/work/` builds nothing. On 2026-10-23 Joseph chose cards over case studies: each owned project is a card on Home that links to its repository ([Owned work](#owned-work)). The prefix stays reserved ([ADR 0005](adr/0005-url-scheme.md)).
@@ -64,12 +64,12 @@ Render rules:
 
 | Section | In the header and on Home when | Phase |
 |---|---|---|
-| About | `src/content/about.md` has `draft: false` (lib/about.ts); a preview builds the draft, linked from nowhere and noindex | P3 |
+| About | always: a page file. The bio, `src/content/about.md` (lib/about.ts), then the résumé below it; the fixture builds hold no bio and draw the résumé alone | now (2026-10-28) |
 | Writing (with `/notes/` and `/rss.xml`) | at least 1 published post, essay or note; a draft never counts, and `/notes/` also waits for its first note. The bar was 3 posts until 2026-10-24; lowering it to 1 was proposed that day for Joseph's read, from his ask for a workable site from the content he has ([ADR 0005](adr/0005-url-scheme.md)'s postscript) | P3 |
 | Lab | at least 1 demo has `lifecycle: live`: the Route Lab, since 2026-10-25 ([ADR 0016](adr/0016-route-lab-in-the-browser.md)). Home shows each demo as the first card in Selected work; a Lab section of its own (row 6) waits for a second demo, so no page lists a demo twice | built |
-| Résumé | always: the page renders from the profile. Experience lists roles once Q8 is cleared and Joseph adds them; a skill shows once every page it names is built; Selected work and Writing render as on Home ([Résumé](#résumé)) | now (2026-10-25) |
+| Résumé | on `/about/`, under the bio, since 2026-10-28 (at `/resume/` from 2026-10-25, now a 301). It renders from the profile: Experience lists roles once Q8 is cleared and Joseph adds them; a skill shows once every page it names is built; Selected work and Writing render as on Home ([Résumé](#résumé)) | now |
 
-Header: Joseph's name, linking home, on every page but Home (whose `<h1>` is the name); Lab · Writing · Résumé · About, each only when its rule holds, except that once About is published it takes Résumé's place, and Résumé moves to the footer and is linked from the bio (Joseph's choice of 2026-10-27: a bio over a résumé in the header; `lib/nav.ts`, `navFor`); and the theme toggle. On a phone, when the name and the links do not fit one line, the links and the toggle move to a second line (2026-10-25, with Résumé); the name itself wraps, between its words, only when it alone is wider than the line, as with a larger text size. Owned work has no section of its own: its cards sit on Home. Footer, one line: the contact address; the links whose pages exist (Résumé once About is published · RSS · Now · Colophon); the external profiles whose readiness check is recorded (GitHub, LinkedIn); the command menu's button, "⌘K" or "Ctrl K", under a pointer that can hover; and the copyright. This is recognition over recall: the navigation is always visible, and the command menu (2026-10-25, [design-system.md](design-system.md#the-command-menu)) is a shortcut, never the only way in.
+Header: Joseph's name, linking home, on every page but Home (whose `<h1>` is the name); Lab · Writing · About, each only when its rule holds (About always: since 2026-10-28 it holds the résumé, on Joseph's direction to replace the Résumé page with an About page that is his résumé and how he works; `lib/nav.ts`); and the theme toggle. On a phone, when the name and the links do not fit one line, the links and the toggle move to a second line (2026-10-25); the name itself wraps, between its words, only when it alone is wider than the line, as with a larger text size. Owned work has no section of its own: its cards sit on Home. Footer, one line: the contact address; the links whose pages exist (RSS · Now · Colophon; About is in the header only, since a fourth link wraps the line at 768 px); the external profiles whose readiness check is recorded (GitHub, LinkedIn); the command menu's button, "⌘K" or "Ctrl K", under a pointer that can hover; and the copyright. This is recognition over recall: the navigation is always visible, and the command menu (2026-10-25, [design-system.md](design-system.md#the-command-menu)) is a shortcut, never the only way in.
 
 ## URL scheme
 
@@ -85,7 +85,7 @@ Header: Joseph's name, linking home, on every page but Home (whose `<h1>` is the
 | `/lab/api/*` | The lab Worker's API, the only path that runs code ([ADR 0009](adr/0009-lab-worker-same-origin.md)) |
 | `/about/` · `/now/` · `/colophon/` · `/privacy/` | Single pages |
 | `/colophon/decisions/` · `/colophon/decisions/<nnnn-slug>/` | Published ADRs; the slug is the ADR's file name |
-| `/resume/` | The résumé, from 2026-10-25. A PDF, should Q9 (b) ever publish one, would be `/resume/joseph-peterson-resume.pdf`; none is hosted |
+| `/resume/` | The résumé from 2026-10-25 to 2026-10-28; since then a 301 to `/about/`, which holds it (`public/_redirects`; `e2e/smoke.spec.ts` checks every 301). A PDF, should Q9 (b) ever publish one, would be `/about/joseph-peterson-resume.pdf`; none is hosted |
 | `/rss.xml` · `/sitemap-index.xml` · `/robots.txt` · `/llms.txt` · `/.well-known/security.txt` · `/favicon.ico` · `/apple-touch-icon.png` | Files; they keep their extensions, and the root ones sit where clients ask for them by name ([Files for crawlers](#files-for-crawlers)) |
 | `/404` | Not-found page |
 
@@ -157,7 +157,7 @@ Content is code: Markdown, MDX and JSON in the repo, validated when the site bui
 
 | Collection | Source | Loader | Renders | Fields |
 |---|---|---|---|---|
-| `profile` | `apps/web/src/content/profile.json` | `file()` | `/resume/`, `/about/`, Home rows 1, 3 and 4 (the project cards), JSON-LD | A JSON Resume subset, with `firewall_reviewed` in `meta`. No field exists for an employer, a city, an address, an email or a phone number |
+| `profile` | `apps/web/src/content/profile.json` | `file()` | `/about/`, Home rows 1, 3 and 4 (the project cards), JSON-LD | A JSON Resume subset, with `firewall_reviewed` in `meta`. No field exists for an employer, a city, an address, an email or a phone number |
 | `writing` | `apps/web/src/content/writing/*.md`; `.mdx` with the first post that needs a shared component | `glob()` | `/writing/<slug>/`, `/rss.xml` | title, summary, published, updated, kind (essay, pattern, postmortem), tags, draft, firewall_reviewed |
 | `notes` | `apps/web/src/content/notes/*.md` | `glob()` | `/notes/<slug>/`, `/rss.xml` | title, summary, published, tags, source (optional link), draft, firewall_reviewed |
 | `lab` | `apps/web/src/content/lab/*.md` | `glob()` | `/lab/` and `/lab/<slug>/`, the demo with its write-up | title, summary, lifecycle (`live` only, so far: building and retired join with the first demo that needs them), runtime (`browser`, with nothing more, or `lab-worker`, with its recording and a state TTL of at most 15 minutes), decisions, firewall_reviewed. As built on 2026-10-25 (`src/lib/lab.ts`); the fixture builds leave the lab out |
@@ -453,9 +453,10 @@ Some names are public in this repository but must not appear on the site until a
 |---|---|---|
 | Until 2026-10-25 | A LinkedIn link (Q-threat-model) and "Full résumé on request" by email | LinkedIn and Joseph's private résumé |
 | Now (Q9 (a), as a page, on Joseph's direction of 2026-10-25) | `/resume/`: the name, the title, the location line and every address, then Experience, which holds "Full history on LinkedIn." and "Full résumé on request", and the sections below as their sources exist. HTML with print CSS; no PDF | `profile.json` and what the build already renders; LinkedIn and the private résumé for the rest |
+| Since 2026-10-28, on Joseph's direction | The same résumé on `/about/`, under the bio, and `/resume/` a 301 to it. A Print button saves it as a PDF in the visitor's browser, from the one-page print CSS; still no PDF is hosted | the same |
 | Later (Q9 (b)) | A PDF printed from that page | the same page |
 
-What `/resume/` renders, each part only when its source exists (`src/pages/resume/index.astro`, `src/lib/resume.ts`):
+What the résumé renders on `/about/`, after the bio, each part only when its source exists (`src/pages/about/index.astro`, `src/lib/resume.ts`):
 
 | Part | Renders when | From |
 |---|---|---|
@@ -468,10 +469,11 @@ What `/resume/` renders, each part only when its source exists (`src/pages/resum
 
 - **The current résumé file is never hosted and never committed.** It names the employer, which the site never does.
 - **Generate, don't redact.** The public edition comes from a source that never held the employer's name. Redacting a file that holds it fails open: one missed text layer, metadata field or earlier revision leaks it. Generating from a clean source fails closed, and `profile.json` has no field meant for the employer.
-- **One printed page.** `@media print` gives the page a named page, US Letter with half-inch margins, and leaves out the header, the skip link and the footer; the name prints at 40 px, with the addresses beside it, or under it from a larger default text size so the name never breaks inside a word; the skills print as one line of names; and each link in Selected work and Writing prints its address after it (the site's own with the domain), as a link does on every page on paper, so the page works on paper. `e2e/resume.spec.ts` prints the page in Chromium and requires one Letter page, on the site and on the writing fixture, whose profile holds ten roles and twelve skills, the schema's limits; its known answer, forty roles, prints on more than one page.
+- **One printed page.** `@media print` gives the page a named page, US Letter with half-inch margins, and leaves out the header, the skip link and the footer; the name prints at 40 px, with the addresses beside it, or under it from a larger default text size so the name never breaks inside a word; the skills print as one line of names; and each link in Selected work and Writing prints its address after it (the site's own with the domain), as a link does on every page on paper, so the page works on paper. Of the bio, only its first paragraph prints, the summary a résumé opens with, and the Print button never does. `e2e/about-print.spec.ts` prints the page in Chromium and requires one Letter page, on the site and on the writing fixture, whose profile holds ten roles and twelve skills, the schema's limits; its known answer, forty roles, prints on more than one page.
 - **Structured data.** A `ProfilePage` whose main entity is Home's Person, with a `Role` per entry in `work` ([Structured data and link previews](#structured-data-and-link-previews)).
-- **The PDF stays a later, one-way decision (Q9 (b)).** If it ships, it is built, not uploaded: Playwright prints `/resume/` at build, Title and Author are set explicitly, no metadata field names a machine, a path or an account, the firewall job reads the metadata with `pdfinfo` and the text with `pdftotext` and fails on anything unexpected, and the file is `/resume/joseph-peterson-resume.pdf`. Crawlers and recruiters keep copies of a PDF after it is taken down, so its first version is the strict one.
-- **If a thin page reads worse than none**, the fallback is one line of code: build `/resume/` only once `work` holds a role, everything else unchanged. The URL is in the published-URL ledger from its first deploy, so leaving later would take a 301.
+- **Print or save as PDF.** The button under the addresses calls the browser's own print, whose dialog also saves a PDF, from the same print CSS: a PDF the visitor makes, so the site hosts none and no copy outlives an edit. `src/scripts/palette.js` binds it and shows it, so without the script there is no button, and the command menu's Print row on that page presses it. No new script and no new dependency.
+- **The PDF stays a later, one-way decision (Q9 (b)).** If it ships, it is built, not uploaded: Playwright prints `/about/` at build, Title and Author are set explicitly, no metadata field names a machine, a path or an account, the firewall job reads the metadata with `pdfinfo` and the text with `pdftotext` and fails on anything unexpected, and the file is `/about/joseph-peterson-resume.pdf`. Crawlers and recruiters keep copies of a PDF after it is taken down, so its first version is the strict one.
+- **If a thin résumé reads worse than none**, the fallback is a line of code: draw the résumé's sections on `/about/` only once `work` holds a role. `/resume/` left with a 301 on 2026-10-28, as the ledger requires.
 
 ## Structured data and link previews
 
@@ -505,7 +507,7 @@ Home, a `WebSite` published by a `Person`, as PR 3 built it (`src/lib/jsonld.ts`
 
 `alternateName: "IHaveASegway"` joins the `WebSite` only once the GitHub profile's check is recorded: the handle in its exact capitals names the account the way a link would. Each node is written from an exact list of keys, never by copying the profile, and `test/jsonld.test.ts` fails on any key outside the lists.
 
-`/about/`, a `ProfilePage` whose main entity is a `Person`, with no `worksFor`. Not yet written: it ships with the bio's first published version, since a draft is noindex and carries no structured data, and the résumé's ProfilePage then becomes the second one to reconcile. "An 'About Me' page on a blog site" is one of Google's listed uses ([Profile page](https://developers.google.com/search/docs/appearance/structured-data/profile-page)):
+`/about/`, a `ProfilePage` whose main entity is a `Person`, with no `worksFor`. The sketch below was the plan; since 2026-10-28, when `/about/` took the résumé, the two planned ProfilePages are one, the résumé's, which moved with it (the next block). `dateCreated`, `dateModified` and `description` are not written. "An 'About Me' page on a blog site" is one of Google's listed uses ([Profile page](https://developers.google.com/search/docs/appearance/structured-data/profile-page)):
 
 ```json
 {
@@ -530,13 +532,13 @@ Home, a `WebSite` published by a `Person`, as PR 3 built it (`src/lib/jsonld.ts`
 - `sameAs` lists exactly the profiles whose readiness check is recorded in `profile.json`, and is absent while there are none. In PR 3 that is LinkedIn alone: Q-threat-model allows a link to a profile that names the employer, and Joseph cleared this one in writing in the private record before the record was stamped. GitHub joins once its own check passes.
 - `rel="me"` goes on the same links, and only on them: the hero's profile buttons and the footer's links. The GitHub profile's website field points back to the site, and GitHub renders that link with `rel="nofollow me"` (checked on a public profile, 2026-10-22), so the identity link runs both ways once it is added (microformats, ["rel-me"](https://microformats.org/wiki/rel-me)). `test/readiness.test.ts` checks that `rel="me"`, `sameAs` and the links agree, and that each comes only from a checked record.
 
-`/resume/`, a `ProfilePage` whose main entity is Home's Person, by the same `@id` and keys, as `src/lib/jsonld.ts` builds it since 2026-10-25. Each role in `profile.json` becomes a `Role` around an `Occupation` (schema.org's Role pattern), its years and its title, and nothing else: no employer, place or description can join one. With no role, `hasOccupation` is absent. `test/jsonld.test.ts` holds each node to its key list:
+`/about/` (at `/resume/` from 2026-10-25 to 2026-10-28), a `ProfilePage` whose main entity is Home's Person, by the same `@id` and keys, as `src/lib/jsonld.ts` builds it (`profilePageGraph`). Each role in `profile.json` becomes a `Role` around an `Occupation` (schema.org's Role pattern), its years and its title, and nothing else: no employer, place or description can join one. With no role, `hasOccupation` is absent. `test/jsonld.test.ts` holds each node to its key list:
 
 ```json
 {
   "@context": "https://schema.org",
   "@type": "ProfilePage",
-  "url": "https://ihaveasegway.com/resume/",
+  "url": "https://ihaveasegway.com/about/",
   "mainEntity": {
     "@type": "Person",
     "@id": "https://ihaveasegway.com/#person",
@@ -557,7 +559,7 @@ Open Graph: one template per page type, rendered at build for each page as a 120
 | Page type | Image shows |
 |---|---|
 | Home | the name and `<title line — Q-title>` |
-| Résumé | the name and "Résumé", the header's label |
+| About | the name and "About", the header's label; it holds the résumé, whose card this was |
 | Writing, Notes, Lab | the section label and the entry's title |
 | About, Now, Colophon, Decisions | the section label and the page title |
 

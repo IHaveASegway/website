@@ -25,8 +25,9 @@ export function homeCard(profile: Profile): OgCard {
   return { title: profile.basics.name, label: profile.basics.label };
 }
 
-/** The résumé's card: the name, and the page's own label, as the header names it. */
-export function resumeCard(profile: Profile, label: string): OgCard {
+/** About's card: the name, and the page's own label, as the header names it. It holds the résumé,
+ *  whose card this was (2026-10-28). */
+export function aboutCard(profile: Profile, label: string): OgCard {
   return { title: profile.basics.name, label };
 }
 
@@ -44,11 +45,6 @@ export function sectionCard(section: Section, profile: Profile): OgCard {
 /** A demo's card: its title, and the section, Lab. */
 export function labCard(entry: Pick<LabEntry, 'title'>): OgCard {
   return { title: entry.title, label: 'Lab' };
-}
-
-/** About's card: the page, and whose it is, as the lab index's is. */
-export function aboutCard(profile: Profile): OgCard {
-  return { title: 'About', label: profile.basics.name };
 }
 
 /** The lab index's card: the section, and whose it is. */
