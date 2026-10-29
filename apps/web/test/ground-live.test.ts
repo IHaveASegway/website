@@ -70,7 +70,7 @@ test('easing is the same at any frame rate, and lands on its target', () => {
   expect(ease(0, 1, 4, 0)).toBe(0);
 });
 
-test('the governor keeps the ratio while frames keep up, drops to 1, then gives up', () => {
+test('the governor keeps the ratio while frames keep up, drops to 1, then pauses (0)', () => {
   expect(nextRatio(1 / 30, MAX_RATIO)).toBe(MAX_RATIO);
   expect(nextRatio(SLOW_S, MAX_RATIO)).toBe(MAX_RATIO);
   expect(nextRatio(SLOW_S + 0.01, MAX_RATIO)).toBe(1);

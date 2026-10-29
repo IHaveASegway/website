@@ -65,8 +65,8 @@ export const WINDOW = 60;
 
 /**
  * The pixel ratio to draw at next, given the mean frame over the last window: the same while frames
- * keep up; 1 if they do not; 0, which stops the drawing and hands back to the build's, if they do
- * not keep up even at 1. Load shedding, on the visitor's own machine.
+ * keep up; 1 if they do not; 0, which pauses it, as the button would, if they do not keep up even
+ * at 1. Load shedding, on the visitor's own machine.
  */
 export function nextRatio(meanFrameS, ratio) {
   if (meanFrameS <= SLOW_S) return ratio;
@@ -257,7 +257,14 @@ export function boot(canvas) {
         const next = nextRatio(pace.seconds / WINDOW, ratio);
         pace.frames = 0;
         pace.seconds = 0;
-        if (next === 0) return stop(true);
+        // Too slow even at 1: pause, as the button would, without storing it. The button stays
+        // where it is, now saying Play, so nothing that may hold focus goes away.
+        if (next === 0) {
+          state.paused = true;
+          show();
+          halt();
+          return;
+        }
         if (next !== ratio) {
           cap = next;
           fit();
@@ -314,6 +321,9 @@ export function boot(canvas) {
     state.off = true;
     state.spent ||= forGood;
     halt();
+    // The button hides with the motion; focus on it moves to its neighbour, the theme toggle.
+    if (toggle && document.activeElement === toggle)
+      document.querySelector('[data-theme-toggle]')?.focus();
     delete root.dataset.motion;
     delete root.dataset.groundLive;
   };

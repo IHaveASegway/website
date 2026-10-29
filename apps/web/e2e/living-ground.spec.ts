@@ -105,14 +105,27 @@ test.describe('the rail', () => {
   });
 });
 
+/**
+ * Home with time in the test's hands: once the page has loaded, frames come only when the test
+ * runs the clock, 30 a second in page time however slow the runner draws them. On a shared CI
+ * runner SwiftShader is slow enough that the governor would pause the ground mid-test, which is
+ * right for a visitor and wrong for a test; the governor has unit tests of its own.
+ */
+async function home(page: Page) {
+  await page.clock.install({ time: 0 });
+  await page.goto('/');
+  await page.clock.pauseAt(60_000);
+  await page.clock.runFor(1_000);
+  await expect(live(page)).toHaveCount(1);
+}
+
 test.describe("Home's living ground", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
   test('it takes over from the drawing, moves, pauses and plays, and the choice lasts the tab', async ({
     page,
   }) => {
-    await page.goto('/');
-    await expect(live(page)).toHaveCount(1);
+    await home(page);
     await expect(canvas(page)).toBeVisible();
     await expect(drawing(page)).toBeHidden();
     await expect(canvas(page)).toHaveAttribute('aria-hidden', 'true');
@@ -120,20 +133,20 @@ test.describe("Home's living ground", () => {
     await expect(toggle(page)).toHaveAccessibleName('Pause motion');
 
     const a = await frame(page);
-    await page.waitForTimeout(700);
-    const b = await frame(page);
-    expect(a.equals(b), 'it moves').toBe(false);
+    await page.clock.runFor(700);
+    expect(a.equals(await frame(page)), 'it moves').toBe(false);
 
     await toggle(page).click();
     await expect(toggle(page)).toHaveAccessibleName('Play motion');
     await expect(page.locator('html')).toHaveAttribute('data-motion', 'paused');
-    await page.waitForTimeout(100);
+    await page.clock.runFor(100);
     const c = await frame(page);
-    await page.waitForTimeout(700);
+    await page.clock.runFor(700);
     expect(c.equals(await frame(page)), 'paused, it holds still').toBe(true);
     expect(await page.evaluate(() => sessionStorage.getItem('motion'))).toBe('paused');
 
     await page.reload();
+    await page.clock.runFor(1_000);
     await expect(live(page)).toHaveCount(1);
     await expect(toggle(page)).toHaveAccessibleName('Play motion');
     await toggle(page).click();
@@ -144,17 +157,16 @@ test.describe("Home's living ground", () => {
   // Paused, the clock stands still, so a frame changes only with the pointer: over the drawing it
   // raises a hill and leans the camera, and away from it everything eases back to the same frame.
   test('the pointer bends the lines under it, and leaving lets them go', async ({ page }) => {
-    await page.goto('/');
-    await expect(live(page)).toHaveCount(1);
+    await home(page);
     await toggle(page).click();
-    await page.waitForTimeout(300);
+    await page.clock.runFor(300);
     const still = await frame(page);
     await page.mouse.move(1150, 330);
-    await page.waitForTimeout(2500);
+    await page.clock.runFor(2_500);
     const bent = await frame(page);
     expect(bent.equals(still), 'the pointer changes the frame').toBe(false);
     await page.mouse.move(60, 880);
-    await page.waitForTimeout(6000);
+    await page.clock.runFor(6_000);
     expect((await frame(page)).equals(still), 'away from it, the same frame again').toBe(true);
   });
 
@@ -173,10 +185,9 @@ test.describe("Home's living ground", () => {
         w.largest = last?.element?.localName ?? '';
       }).observe({ type: 'largest-contentful-paint', buffered: true });
     });
-    await page.goto('/');
-    await expect(live(page)).toHaveCount(1);
+    await home(page);
     await expect(toggle(page)).toBeVisible();
-    await page.waitForTimeout(500);
+    await page.clock.runFor(500);
     const { shifts, largest } = await page.evaluate(() => {
       const w = window as unknown as { shifts: number; largest: string };
       return { shifts: w.shifts, largest: w.largest };
@@ -220,9 +231,11 @@ test.describe("Home's living ground", () => {
     await expect(page.locator('.motion-item')).toHaveCSS('visibility', 'hidden');
   });
 
-  test('a lost context brings the drawing back', async ({ page }) => {
-    await page.goto('/');
-    await expect(live(page)).toHaveCount(1);
+  test('a lost context brings the drawing back, and focus on the button moves to the toggle', async ({
+    page,
+  }) => {
+    await home(page);
+    await toggle(page).focus();
     await canvas(page).evaluate((c) =>
       (c as HTMLCanvasElement)
         .getContext('webgl2')
@@ -232,6 +245,7 @@ test.describe("Home's living ground", () => {
     await expect(live(page)).toHaveCount(0);
     await expect(drawing(page)).toBeVisible();
     await expect(toggle(page)).toBeHidden();
+    await expect(page.locator('[data-theme-toggle]')).toBeFocused();
   });
 
   test('no other page has the canvas or the button', async ({ page }) => {

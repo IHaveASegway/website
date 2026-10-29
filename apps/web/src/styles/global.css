@@ -277,9 +277,11 @@
       grid-row: 2;
     }
 
-    /* Main starts where the rail's name does, so the first rule is not the window's edge. */
+    /* Main starts where it did under the row across the top, 5.25rem down: every page keeps its
+       vertical rhythm, and Home's title stays clear of its drawing's accent mark, which sits at
+       the end of the title's line 84 px higher (e2e/ground.spec.ts). */
     body > main {
-      padding-block-start: 1.5rem;
+      padding-block-start: 5.25rem;
     }
 
     .skip-link {
