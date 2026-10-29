@@ -5,7 +5,7 @@ lifecycle: live
 runtime:
   kind: browser
 decisions: ['0020']
-firewall_reviewed: 2026-10-28
+firewall_reviewed: 2026-10-29
 ---
 
 ## What Raft promises
@@ -26,7 +26,7 @@ Then try crashing two servers at once, or three, and losing a third of all messa
 
 ## What the colors and shapes mean
 
-Each server's ring is its election timer: when it closes, the server asks for votes. The leader's ring stays full. A hollow dot on the wire asks for a vote; a filled dot grants one. A filled square carries log entries; an outlined square is a heartbeat with none. In each log, a cell is one entry with its term under it, filled once committed.
+Each server's ring is its election timer: when it closes, the server asks for votes. The leader's ring stays full. A hollow dot on the wire asks for a vote; a filled dot grants one. A filled square carries log entries; an outlined square is a heartbeat with none. When the network is cut, a dashed outline fences off the smaller side, and no message crosses it. In each log, a cell is one entry with its term under it, filled once committed.
 
 ## Credits
 

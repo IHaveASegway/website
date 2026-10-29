@@ -26,7 +26,7 @@ import {
   write,
   type Sim,
 } from '../src/lib/raft/sim';
-import { openingRun, SEEDS_IN_CI } from '../src/lib/raft/view';
+import { cutFence, footprint, openingRun, SEEDS_IN_CI, SIZE } from '../src/lib/raft/view';
 
 // The Raft Lab's core (ADR 0020): known answers for each of Figure 2's rules, then a property
 // sweep. The sweep runs many seeded runs with crashes, partitions and loss, checks the five safety
@@ -396,4 +396,59 @@ test('the opening the page draws: a leader, three committed writes, and every fo
   for (const s of sim.servers) expect(s.log).toHaveLength(3);
   // Replayed, it is the same run: the browser takes over where the picture stands.
   expect(JSON.stringify(openingRun().servers)).toBe(JSON.stringify(sim.servers));
+});
+
+describe('the cut', () => {
+  type Point = readonly [number, number];
+  /** Every split of five nodes into two runs of the circle: one node cut off, or two. */
+  const splits = [1, 2].flatMap((n) =>
+    Array.from({ length: 5 }, (_, start) =>
+      Array.from({ length: 5 }, (_, id) => ((id - start + 5) % 5 < n ? 1 : 0)),
+    ),
+  );
+  const corners = (d: string): Point[] =>
+    d
+      .slice(1, -1)
+      .split('L')
+      .map((p) => p.split(' ').map(Number) as [number, number]);
+  /** How far a point is from the fence: negative inside, positive outside. */
+  function reach(fence: readonly Point[], [px, py]: Point): number {
+    let nearest = Infinity;
+    const sides = fence.map((a, i) => {
+      const b = fence[(i + 1) % fence.length]!;
+      const [dx, dy] = [b[0] - a[0], b[1] - a[1]];
+      const t = Math.max(
+        0,
+        Math.min(1, ((px - a[0]) * dx + (py - a[1]) * dy) / (dx * dx + dy * dy)),
+      );
+      nearest = Math.min(nearest, Math.hypot(px - a[0] - t * dx, py - a[1] - t * dy));
+      return dx * (py - a[1]) - dy * (px - a[0]);
+    });
+    const inside = sides.every((c) => c > 0) || sides.every((c) => c < 0);
+    return inside ? -nearest : nearest;
+  }
+
+  test.each(splits)(
+    'split %j: a fence closes off the smaller side, clear of every other node and its text',
+    (...groups) => {
+      const fence = corners(cutFence(groups) ?? 'MZ');
+      const cutOff = groups.filter((g) => g === 1).length <= 2 ? 1 : 0;
+      for (const [id, g] of groups.entries())
+        for (const point of footprint(id, 5, 0)) {
+          if (g === cutOff) expect(reach(fence, point)).toBeLessThan(-4);
+          else expect(reach(fence, point)).toBeGreaterThan(4);
+        }
+      for (const [x, y] of fence) {
+        expect(x).toBeGreaterThanOrEqual(0);
+        expect(x).toBeLessThanOrEqual(SIZE);
+        expect(y).toBeGreaterThanOrEqual(0);
+        expect(y).toBeLessThanOrEqual(SIZE);
+      }
+    },
+  );
+
+  test('no fence while the network is whole, or when a side is not one run of the circle', () => {
+    expect(cutFence([0, 0, 0, 0, 0])).toBeNull();
+    expect(cutFence([1, 0, 1, 0, 0])).toBeNull();
+  });
 });

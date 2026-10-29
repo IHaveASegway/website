@@ -1,6 +1,7 @@
 ---
 import {
-  cutLine,
+  cutFence,
+  DIAL_RADIUS,
   flightsMarkup,
   logMarkup,
   logWords,
@@ -9,11 +10,13 @@ import {
   openingRun,
   OPENING,
   place,
+  ROLE_BASELINE,
   ROLE_WORD,
   seconds,
   SIZE,
   statusText,
   summary,
+  TERM_BASELINE,
   timerShare,
 } from '../../lib/raft/view';
 import '../../styles/raft-lab.css';
@@ -23,9 +26,9 @@ import '../../styles/raft-lab.css';
 // controls show only where script runs (raft-lab.css), and boot.ts loads the simulation on the
 // visitor's first intent; it replays the same opening, so it takes over exactly where this stands.
 const sim = openingRun();
-const cut = cutLine(sim.groups);
+const cut = cutFence(sim.groups);
 const lines = sim.lines.slice(-12);
-const dial = NODE_RADIUS + 5;
+const dial = DIAL_RADIUS;
 ---
 
 <div class="rf" id="raft-lab" data-rf-opening={JSON.stringify(OPENING)}>
@@ -38,15 +41,7 @@ const dial = NODE_RADIUS + 5;
         aria-labelledby="rf-summary"
         data-rf-map
       >
-        <line
-          class="rf-cut"
-          data-rf-cut
-          data-off={cut ? undefined : ''}
-          x1={cut?.x1 ?? 0}
-          y1={cut?.y1 ?? 0}
-          x2={cut?.x2 ?? 0}
-          y2={cut?.y2 ?? 0}
-        ></line>
+        <path class="rf-cut" data-rf-cut data-off={cut ? undefined : ''} d={cut ?? 'M0 0'} />
         {sim.servers.map((s) => {
           const { x, y } = place(s.id, sim.servers.length);
           return (
@@ -65,10 +60,10 @@ const dial = NODE_RADIUS + 5;
               <text class="rf-name" x={x} y={y + 7}>
                 {s.id + 1}
               </text>
-              <text class="rf-role" x={x} y={y + dial + 14} data-rf-role>
+              <text class="rf-role" x={x} y={y + ROLE_BASELINE} data-rf-role>
                 {s.up ? ROLE_WORD[s.role] : 'down'}
               </text>
-              <text class="rf-term" x={x} y={y + dial + 26} data-rf-term>
+              <text class="rf-term" x={x} y={y + TERM_BASELINE} data-rf-term>
                 term {s.term}
               </text>
             </g>
