@@ -152,6 +152,10 @@ export function start(root: HTMLElement): boolean {
     }
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     const [, , w = 1, h = 1] = (picture.getAttribute('viewBox') ?? '').split(' ').map(Number);
+    // The picture's own ratio, not the one the canvas's whole pixels round to, so the canvas is as
+    // tall as the picture it replaces at any width: at the rail's widths (ADR 0021) the rounded one
+    // moved everything below by a pixel. A CSSOM property, which the page policy allows.
+    canvas.style.aspectRatio = `${w} / ${h}`;
     canvas.tabIndex = 0;
     canvas.setAttribute('role', 'img');
     if (hint?.id) canvas.setAttribute('aria-describedby', hint.id);

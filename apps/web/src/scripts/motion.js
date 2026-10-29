@@ -64,7 +64,24 @@ function decoder(card) {
   };
 }
 
+/** Runs `work` once the page has loaded and the main thread is idle. */
+function whenSettled(work) {
+  const idle = () => (window.requestIdleCallback ? requestIdleCallback(work) : setTimeout(work, 1));
+  if (document.readyState === 'complete') idle();
+  else addEventListener('load', idle, { once: true });
+}
+
 function boot() {
+  // Home's living ground (ADR 0021): its module loads only where the canvas is, after the page
+  // has painted, and never under a reduced-motion preference or Save-Data. Without WebGL2 it
+  // returns false, and the drawing the build made stays.
+  const live = document.querySelector('[data-ground-live]');
+  if (live && !reduced() && !navigator.connection?.saveData) {
+    whenSettled(() =>
+      import('./ground-live.js').then((module) => module.boot(live)).catch(() => {}),
+    );
+  }
+
   // Only a card that leads somewhere reacts, as its bar does; the résumé carries no motion.
   for (const card of document.querySelectorAll('.card')) {
     const link = card.querySelector('.card-more');

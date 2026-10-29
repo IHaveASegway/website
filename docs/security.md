@@ -497,6 +497,7 @@ The weaker designs: SHA pins bumped without review stop retargeting but invite b
 | Data | Collected by | Held by | Kept for | Purpose |
 |---|---|---|---|---|
 | Theme choice (`sessionStorage` key `theme`: `light` or `dark`) | The toggle, only when pressed; choosing System deletes the key ([design-system.md](design-system.md)) | The visitor's tab | Until the tab closes or the visitor picks System | Keep an explicit choice for the visit |
+| Motion choice (`sessionStorage` key `motion`: `paused`) | Home's motion button, only when pressed to pause; pressing it again deletes the key ([ADR 0021](adr/0021-rail-and-living-ground.md)) | The visitor's tab | Until the tab closes or the visitor plays it again | Keep a pause of Home's living ground for the visit (SC 2.2.2). Strictly necessary for a function the visitor asked for |
 | IP address, user agent and path of every request | Cloudflare, as the host | Cloudflare, under its own policy | Cloudflare's policy | Serving the site. Joseph sees aggregates only. |
 | Page views: path without query string, referrer, browser, country (from PR 3b) | The Web Analytics beacon | Cloudflare | 6 months | Counting. No cookies, no `localStorage`, no fingerprinting ([Cloudflare](https://www.cloudflare.com/web-analytics/)). |
 | Mail to `hello@` | Email Routing | Relayed by Cloudflare, which says it does "not store or access the content of your emails" ([Cloudflare](https://www.cloudflare.com/en-au/developer-platform/products/email-routing/), its own claim, unaudited); then Joseph's inbox | Until he deletes it | Contact |

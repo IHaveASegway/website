@@ -645,8 +645,10 @@
 
 /* Labels, numbers and the tip are set in the map's own units, so their size follows the map's
    width: these steps keep labels at about 10 to 13 px on screen, from a 320 px phone up. Where a
-   map is too narrow for neighbourhood names (a phone, and two maps side by side below 80rem), it
-   keeps the water, the towns and the bakery, and a phone leaves out the two small bays. */
+   map is too narrow for neighbourhood names (a phone, and two maps side by side below 94rem), it
+   keeps the water, the towns and the bakery, and a phone leaves out the two small bays. The steps
+   past 64rem were 80rem and 90rem until the rail (ADR 0021) took 14rem of the window from 80rem:
+   each is the same width of map as before, 14rem later. */
 @media (width >= 30rem) {
   .rl-label,
   .rl-tip-text {
@@ -683,7 +685,7 @@
   }
 }
 
-@media (width >= 80rem) {
+@media (width >= 94rem) {
   .rl-label,
   .rl-tip-text {
     font-size: 36px;
@@ -699,7 +701,7 @@
   }
 }
 
-@media (width < 48rem), (64rem <= width < 80rem) {
+@media (width < 48rem), (64rem <= width < 94rem) {
   .rl-label-place {
     display: none;
   }
@@ -842,7 +844,7 @@
   }
 }
 
-@media (width >= 80rem) {
+@media (width >= 94rem) {
   .rl-order-list {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -1132,7 +1134,7 @@
   }
 }
 
-@media (width >= 90rem) {
+@media (width >= 104rem) {
   .rl-cube-hour {
     font-size: 60px;
   }

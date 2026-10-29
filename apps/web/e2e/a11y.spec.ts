@@ -510,7 +510,14 @@ function tabStops(): number {
       'a[href], button, input, select, textarea, [tabindex]',
     ),
   ].filter((element) => {
-    if (element.tabIndex < 0 || element.disabled || !element.checkVisibility()) return false;
+    // visibility: hidden counts too: a button that holds its place unseen until its script runs
+    // (the command menu's, Home's motion button) is no Tab stop until then.
+    if (
+      element.tabIndex < 0 ||
+      element.disabled ||
+      !element.checkVisibility({ visibilityProperty: true })
+    )
+      return false;
     if (element instanceof HTMLInputElement && element.type === 'radio' && element.name) {
       if (groups.has(element.name)) return false;
       groups.add(element.name);
@@ -544,6 +551,9 @@ test('every focusable element shows a visible outline from the keyboard (SC 2.4.
 }) => {
   for (const path of ROUTES) {
     await page.goto(path);
+    // Once the page's scripts have shown what they show: Home's motion button appears when its
+    // module has loaded, after the page has.
+    await page.waitForLoadState('networkidle');
     // Only what Tab reaches: a negative tabindex (a skip link's target, often <main tabindex="-1">),
     // a disabled control or a hidden one is focusable by script but never by Tab, and a radio
     // group is one stop (the Route Lab's day and vans).
