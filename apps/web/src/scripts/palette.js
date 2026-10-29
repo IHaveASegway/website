@@ -1,11 +1,13 @@
 // The command menu (design-system.md, "The command menu"): ⌘K or Ctrl+K opens it on every page, at
-// once and with no animation, and so does the footer's button. It is a native <dialog>, which makes
+// once and with no animation, and so do the header's buttons. It is a native <dialog>, which makes
 // the page behind it inert, closes on Esc and returns focus to whatever opened it. Its rows are in
 // the page already (components/Palette.astro), read from the one nav manifest, so this module
 // writes no markup. Focus stays in the input, a combobox, and aria-activedescendant names the
-// selected row; typing filters the rows by subsequence over each label and its keywords. It is one
+// selected row; typing filters the rows by subsequence over each label and its keywords, and by the
+// query whole over a demo's or a post's summary, whose many words would let a subsequence find
+// almost anything; it selects the first row that holds the query whole, where there is one. It is one
 // module with no imports, so every page loads one file and nothing more (test/scripts.test.ts,
-// test/budgets.test.ts). The two pure functions are exported for test/palette.test.ts.
+// test/budgets.test.ts). The three pure functions are exported for test/palette.test.ts.
 
 /** Whether a keydown opens or closes the menu: ⌘K or Ctrl+K, never a bare key (SC 2.1.4), and never
  *  inside a composition, where an input method uses Ctrl+K itself. On a layout whose K key types a
@@ -31,6 +33,13 @@ export function matches(query, text) {
   return found === wanted.length;
 }
 
+/** Whether the query appears in the text as it is typed, its letters together: "bak" in "bakery",
+ *  not in "Break". A row found this way is the better match, and Enter goes to the first of them. */
+export function contains(query, text) {
+  const wanted = fold(query).replace(/\s+/g, ' ').trim();
+  return wanted !== '' && fold(text).includes(wanted);
+}
+
 function boot() {
   const dialog = document.querySelector('dialog[data-palette]');
   if (!(dialog instanceof HTMLDialogElement) || typeof dialog.showModal !== 'function') return;
@@ -40,7 +49,8 @@ function boot() {
   const empty = dialog.querySelector('[data-palette-empty]');
   const note = dialog.querySelector('[data-palette-note]');
   const say = dialog.querySelector('[data-palette-say]');
-  const opener = document.querySelector('[data-palette-open]');
+  // Two buttons open it, one shown at a time: the rail's search field, and the header row's keys.
+  const openers = [...document.querySelectorAll('[data-palette-open]')];
   // Forced colors replace both themes, so the theme entry would change nothing there, as the
   // toggle would; CSS hides it, and narrowing leaves it out of the rows the arrows move through.
   const forced = matchMedia('(forced-colors: active)');
@@ -71,11 +81,18 @@ function boot() {
   };
 
   // What a row is found by, each on its own, so a query's letters cannot be gathered across them:
-  // its label, the value or the names beside it, and its keywords.
+  // its label, the value or the names beside it, and its keywords. A demo's or a post's title is
+  // long, so its letters are found word by word, and the title and its summary only whole: across
+  // a dozen words a subsequence finds almost anything ("rsm" in "Four locks, none of them closed").
+  const found = (option) => option.dataset.find !== undefined;
   const words = (option) => [
-    ...[...option.childNodes].map((node) => node.textContent ?? ''),
+    ...(found(option)
+      ? (option.textContent ?? '').split(/\s+/)
+      : [...option.childNodes].map((node) => node.textContent ?? '')),
     ...(option.dataset.keys ?? '').split(' '),
   ];
+  const wholes = (option) =>
+    found(option) ? [option.textContent ?? '', option.dataset.find ?? ''] : words(option);
 
   // The rows that match, the groups that still hold one, and the first match selected, so Enter
   // acts at once. The count is said once typing pauses, not on every key.
@@ -83,14 +100,20 @@ function boot() {
     shown = options.filter((option) => {
       const keep =
         !(forced.matches && option.dataset.act === 'theme') &&
-        words(option).some((word) => word.trim() !== '' && matches(input.value, word));
+        (words(option).some((word) => word.trim() !== '' && matches(input.value, word)) ||
+          wholes(option).some((text) => contains(input.value, text)));
       option.hidden = !keep;
       return keep;
     });
     for (const group of groups) group.hidden = !shown.some((option) => group.contains(option));
     empty.hidden = shown.length > 0;
     note.textContent = '';
-    select(shown[0]);
+    // The first row that holds the query whole, else the first row: a scattered subsequence ("bak"
+    // in "Break") never takes Enter from a word that starts the same way.
+    const whole = shown.find((option) =>
+      wholes(option).some((text) => contains(input.value, text)),
+    );
+    select(whole ?? shown[0]);
     clearTimeout(timer);
     const count = shown.length === 1 ? '1 result' : `${shown.length} results`;
     timer = setTimeout(() => (say.textContent = shown.length === 0 ? 'No matches' : count), 500);
@@ -187,7 +210,7 @@ function boot() {
     if (dialog.open) dialog.close();
     else show();
   });
-  opener?.addEventListener('click', show);
+  for (const opener of openers) opener.addEventListener('click', show);
   // A contrast theme turned on while the menu is open takes the theme entry away at once.
   forced.addEventListener('change', () => dialog.open && narrow());
   // Never restored open: a page the browser keeps for Back comes back as it was before the menu.
@@ -199,9 +222,11 @@ function boot() {
     button.addEventListener('click', () => print());
   }
 
-  // The button names the keys this keyboard has, then shows: until here it holds its place unseen.
-  const keys = opener?.querySelector('kbd');
-  if (keys) keys.textContent = /Mac|iPhone|iPad|iPod/.test(navigator.platform) ? '⌘K' : 'Ctrl K';
+  // The buttons name the keys this keyboard has, then show: until here they hold their place unseen.
+  const mac = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+  for (const keys of openers.map((opener) => opener.querySelector('kbd'))) {
+    if (keys) keys.textContent = mac ? '⌘K' : 'Ctrl K';
+  }
   document.documentElement.dataset.palette = '';
 }
 

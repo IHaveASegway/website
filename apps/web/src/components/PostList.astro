@@ -9,6 +9,9 @@ interface Props {
 
 const { posts, level } = Astro.props;
 const Title = level === 2 ? 'h2' : 'h3';
+// The whole row is the title's link (ADR 0022): the link's box is stretched over the row by CSS, so
+// a press anywhere on it opens the post, with the title alone as the link's name. The title's words
+// rise in a span of their own, because the rise clips what it moves, and would clip the link's box.
 ---
 
 <ol class="post-list" role="list">
@@ -19,7 +22,9 @@ const Title = level === 2 ? 'h2' : 'h3';
         {KIND_LABELS[post.kind]}
       </p>
       <Title class="post-title">
-        <a href={postPath(post)}>{post.title}</a>
+        <a href={postPath(post)}>
+          <span class="title-words">{post.title}</span>
+        </a>
       </Title>
       <p class="post-summary">{post.summary}</p>
     </li>

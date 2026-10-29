@@ -6,10 +6,11 @@ import Header from '../components/Header.astro';
 import Palette from '../components/Palette.astro';
 import { loadLabArea, loadProfile, loadWritingArea } from '../lib/content';
 import { groundKindFor } from '../lib/ground';
-import { labRoutes } from '../lib/lab';
+import { labPath, labRoutes } from '../lib/lab';
+import { railLeaves } from '../lib/nav';
 import { NOINDEX } from '../lib/noindex.mjs';
 import { ogAlt, ogTitle, OG_SIZE, type OgCard } from '../lib/og';
-import { areaRoutes } from '../lib/posts';
+import { areaRoutes, postPath } from '../lib/posts';
 import { chromeColor } from '../lib/tokens';
 import { THEME_SCRIPT } from '../lib/weights';
 import tokensCss from '../styles/tokens.css?raw';
@@ -55,7 +56,21 @@ const profile = await loadProfile();
 // from its first live demo (lib/lab.ts): the header, the footer and the feed link below learn from
 // this which of them this build writes.
 const area = await loadWritingArea();
-const generated = [...areaRoutes(area), ...labRoutes(await loadLabArea())];
+const lab = await loadLabArea();
+const generated = [...areaRoutes(area), ...labRoutes(lab)];
+// The demos and the published posts, each a page these areas build: the rail lists every demo and
+// the newest posts (lib/nav.ts, railLeaves), and the command menu finds any of them by its words.
+const demos = lab.entries.map((entry) => ({
+  title: entry.title,
+  summary: entry.summary,
+  href: labPath(entry),
+}));
+const posts = area.published.map((post) => ({
+  title: post.title,
+  summary: post.summary,
+  href: postPath(post),
+}));
+const leaves = railLeaves(demos, posts);
 // The page's drawing, from its section (lib/ground.ts); none prints (global.css).
 const ground = groundKindFor(path);
 
@@ -139,13 +154,18 @@ const chrome = (['dark', 'light'] as const).map((scheme) => ({
       <a class="skip-link" href="#main">
         Skip to content
       </a>
-      <Header name={profile.basics.name} role={profile.basics.label} generated={generated} />
+      <Header
+        name={profile.basics.name}
+        role={profile.basics.label}
+        generated={generated}
+        leaves={leaves}
+      />
     </div>
     <main id="main" class="frame">
       <slot />
     </main>
     <Footer profile={profile} generated={generated} />
-    <Palette profile={profile} generated={generated} print={print} />
+    <Palette profile={profile} generated={generated} demos={demos} posts={posts} print={print} />
     {jsonLd && <script is:inline type="application/ld+json" set:html={jsonLd} />}
   </body>
 </html>

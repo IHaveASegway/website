@@ -1,5 +1,5 @@
 ---
-import { navFor } from '../lib/nav';
+import { navFor, type NavLeaf } from '../lib/nav';
 import ThemeToggle from './ThemeToggle.astro';
 
 interface Props {
@@ -9,28 +9,46 @@ interface Props {
   role: string;
   /** URLs content adds to this build (lib/posts.ts, areaRoutes). */
   generated: readonly string[];
+  /** What the rail lists under a header item, by its id: every demo under Lab, the newest posts
+   *  under Writing (lib/nav.ts, railLeaves). */
+  leaves: Readonly<Record<string, readonly NavLeaf[]>>;
 }
 
-const { name, role, generated } = Astro.props;
-// The name, linking home, with the title under it in the rail, on every page but Home, whose <h1>
-// is the name; then the manifest's header items whose page exists (Writing, from the first post),
-// the command menu's button, on Home the button that pauses its moving drawing (SC 2.2.2), and the
-// theme toggle. From 80rem the header is the rail down the left edge (ADR 0021); below that it is
-// the row across the top it always was.
+const { name, role, generated, leaves } = Astro.props;
+// The name, linking home, with the title under it in the rail; then the manifest's header items
+// whose page exists (Writing, from the first post), the command menu's button, on Home the button
+// that pauses its moving drawing (SC 2.2.2), and the theme toggle. From 80rem the header is the
+// rail down the left edge (ADR 0021), and an index of the site (ADR 0022): the name heads it on
+// every page, Home included, a search field opens the command menu, and each item lists what it
+// holds, every demo under Lab and the newest posts under Writing. Below 80rem it is the row across
+// the top it always was, without the leaves, and on Home without the name, which Home's <h1> is.
 const headerNav = navFor('header', generated);
 const here = Astro.url.pathname;
+const home = here === '/';
 ---
 
 <header class="site-header">
-  {here !== '/' && (
-    <div class="rail-head">
-      <a href="/" class="wordmark">
-        {name}
-      </a>
-      <p class="rail-role">{role}</p>
-    </div>
-  )}
+  <div class={home ? 'rail-head rail-only' : 'rail-head'}>
+    <a href="/" class={home ? 'home-mark' : 'wordmark'} aria-current={home ? 'page' : undefined}>
+      {name}
+    </a>
+    <p class="rail-role">{role}</p>
+  </div>
   <div class="header-end">
+    <button
+      type="button"
+      class="rail-search rail-only"
+      data-palette-open
+      aria-haspopup="dialog"
+      aria-keyshortcuts="Meta+K Control+K"
+    >
+      <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+        <circle cx="7" cy="7" r="4.75" />
+        <path d="m10.5 10.5 3.75 3.75" />
+      </svg>
+      <span>{'Search '}</span>
+      <kbd>Ctrl K</kbd>
+    </button>
     {headerNav.length > 0 && (
       <nav class="site-nav" aria-label="Primary">
         <ul>
@@ -44,6 +62,17 @@ const here = Astro.url.pathname;
               >
                 {item.label}
               </a>
+              {(leaves[item.id] ?? []).length > 0 && (
+                <ul class="nav-leaves rail-only">
+                  {(leaves[item.id] ?? []).map((leaf) => (
+                    <li>
+                      <a href={leaf.href} aria-current={here === leaf.href ? 'page' : undefined}>
+                        {leaf.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </li>
           ))}
         </ul>
@@ -62,7 +91,7 @@ const here = Astro.url.pathname;
           <kbd>Ctrl K</kbd>
         </button>
       </li>
-      {here === '/' && (
+      {home && (
         <li class="motion-item">
           <button
             type="button"

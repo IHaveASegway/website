@@ -75,33 +75,46 @@ test.describe('the rail', () => {
     });
   });
 
+  // ADR 0022: the rail is an index, so Tab passes the search field and each item's leaves too, top
+  // to bottom as they stand, every demo between Lab and Writing, before main.
   test('Tab goes from the skip link through the rail, in order, then into main', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/lab/');
     await page.waitForFunction(() => 'palette' in document.documentElement.dataset);
-    const order: string[] = [];
-    for (let i = 0; i < 8; i++) {
+    const stops: { name: string; href: string | null; y: number }[] = [];
+    for (let i = 0; i < 24; i++) {
       await page.keyboard.press('Tab');
-      order.push(
+      stops.push(
         await page.evaluate(() => {
           const at = document.activeElement;
-          if (!at) return '';
-          if (at.closest('main')) return 'main';
-          return (at.getAttribute('aria-label') ?? at.textContent ?? '')
-            .replace(/\s+/g, ' ')
-            .trim();
+          if (!at || at.closest('main')) return { name: 'main', href: null, y: 0 };
+          return {
+            name: (at.getAttribute('aria-label') ?? at.textContent ?? '')
+              .replace(/\s+/g, ' ')
+              .trim(),
+            href: at.getAttribute('href'),
+            y: at.getBoundingClientRect().y,
+          };
         }),
       );
-      if (order.at(-1) === 'main') break;
+      if (stops.at(-1)?.name === 'main') break;
     }
-    expect(order.slice(0, 5)).toEqual(
-      ['Skip to content', 'Joseph Peterson', 'Lab', 'Writing', 'About'].filter(
-        (step) => step !== 'Writing' || pages().includes('/writing/'),
-      ),
+    const names = stops.map((stop) => stop.name);
+    expect(names.slice(0, 2)).toEqual(['Skip to content', 'Joseph Peterson']);
+    expect(names[2]).toMatch(/^Search (Ctrl K|⌘K)$/);
+    expect(names.at(-1)).toBe('main');
+    const items = ['Lab', 'Writing', 'About'].filter(
+      (step) => step !== 'Writing' || pages().includes('/writing/'),
     );
-    expect(order.at(-1)).toBe('main');
+    expect(names.filter((name) => items.includes(name))).toEqual(items);
+    const demos = pages().filter((path) => /^\/lab\/[^/]+\/$/.test(path));
+    const lab = names.indexOf('Lab');
+    expect(stops.slice(lab + 1, lab + 1 + demos.length).map((stop) => stop.href)).toEqual(demos);
+    // Each stop after the skip link stands below the one before it.
+    const ys = stops.slice(1, -1).map((stop) => stop.y);
+    expect(ys).toEqual([...ys].sort((a, b) => a - b));
   });
 });
 

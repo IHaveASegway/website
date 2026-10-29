@@ -4,7 +4,7 @@ import { isNoindex } from '../src/lib/noindex.mjs';
 import { checkedProfiles } from '../src/lib/profile';
 import { CONTACT_EMAIL } from '../src/lib/site';
 import { THEME_STATES } from '../src/lib/theme';
-import { isToggle, matches } from '../src/scripts/palette.js';
+import { contains, isToggle, matches } from '../src/scripts/palette.js';
 import { files, html, profile, read } from './support/dist';
 import { importsOf } from './support/measure';
 import { attribute, descendants, elementsOf, hasClass, type Element } from './support/html';
@@ -65,6 +65,19 @@ test('known answers: the filter matches by subsequence, without case or accents'
   expect(matches('tw', 'Writing')).toBe(false);
   expect(matches('writings', 'Writing')).toBe(false);
   expect(matches('lab', 'LinkedIn')).toBe(false);
+});
+
+// Enter goes to the first row that holds the query whole, so "bak" opens the bakery, not the Raft
+// cluster whose "Break a" holds b, a and k in order.
+test('known answers: a whole match is the query as typed, its letters together', () => {
+  expect(matches('bak', 'Break a Raft cluster')).toBe(true);
+  expect(contains('bak', 'Break a Raft cluster')).toBe(false);
+  expect(contains('bak', 'Plan a bakery’s deliveries')).toBe(true);
+  expect(contains('RAFT', 'Break a Raft cluster')).toBe(true);
+  expect(contains('resume', 'Résumé')).toBe(true);
+  expect(contains('raft  cluster', 'Break a Raft cluster')).toBe(true);
+  expect(contains('', 'Writing')).toBe(false);
+  expect(contains('   ', 'Writing')).toBe(false);
 });
 
 /** A page's menu: its dialog, and its rows by group, as [label, href or action]. */
@@ -172,19 +185,30 @@ for (const file of html) {
       const ids = inside
         .filter((e) => attribute(e, 'role') === 'option')
         .map((e) => attribute(e, 'id'));
-      expect(ids.every((id) => id !== undefined && /^palette-[a-z]+$/.test(id))).toBe(true);
+      expect(ids.every((id) => id !== undefined && /^palette(-[a-z0-9]+)+$/.test(id))).toBe(true);
       expect(new Set(ids).size).toBe(ids.length);
       expect(inside.filter((e) => attribute(e, 'aria-selected') !== undefined)).toEqual([]);
       // Its status region is inside the dialog: the page behind a modal dialog is inert.
       expect(inside.filter((e) => attribute(e, 'role') === 'status')).toHaveLength(1);
     });
 
-    test("the footer's button opens it, and names itself and its keys", () => {
-      const button = elementsOf(page).find((e) => attribute(e, 'data-palette-open') === '');
-      expect(button?.tagName).toBe('button');
-      expect(button && attribute(button, 'aria-haspopup')).toBe('dialog');
-      expect(button && attribute(button, 'aria-keyshortcuts')).toBe('Meta+K Control+K');
-      expect(textOf(button as Element)).toBe('Command menu Ctrl K');
+    // Two buttons, one shown at a time (ADR 0022): the rail's search field, then the header row's.
+    test("the header's buttons open it, and name themselves and its keys", () => {
+      const buttons = elementsOf(page).filter((e) => attribute(e, 'data-palette-open') === '');
+      expect(buttons.map((b) => textOf(b))).toEqual(['Search Ctrl K', 'Command menu Ctrl K']);
+      for (const button of buttons) {
+        expect(button.tagName).toBe('button');
+        expect(attribute(button, 'aria-haspopup')).toBe('dialog');
+        expect(attribute(button, 'aria-keyshortcuts')).toBe('Meta+K Control+K');
+      }
+    });
+
+    // The rail lists every demo and only the newest posts; the menu finds every one of either.
+    test('Lab and Writing list every demo and every published post, each a page this build writes', () => {
+      const demos = [...built].filter((p) => /^\/lab\/[^/]+\/$/.test(p)).sort();
+      const posts = [...built].filter((p) => /^\/(writing|notes)\/[^/]+\/$/.test(p)).sort();
+      expect((groups.get('Lab') ?? []).map(([, href]) => href).sort()).toEqual(demos);
+      expect((groups.get('Writing') ?? []).map(([, href]) => href).sort()).toEqual(posts);
     });
   });
 }

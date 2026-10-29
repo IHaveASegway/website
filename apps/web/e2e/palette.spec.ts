@@ -10,7 +10,10 @@ import { NOT_FOUND_PAGE, pages } from './expected';
 
 const menu = (page: Page) => page.locator('dialog[data-palette]');
 const input = (page: Page) => page.getByRole('combobox', { name: 'Find a page or an action' });
-const opener = (page: Page) => page.getByRole('button', { name: /^Command menu / });
+/** The button that opens it where the test runs: the rail's search field from 80rem (ADR 0022),
+ *  the header row's button below. */
+const opener = (page: Page) =>
+  page.getByRole('button', { name: /^(Command menu|Search) / }).filter({ visible: true });
 const said = (page: Page) => page.locator('[data-palette-say]');
 const note = (page: Page) => page.locator('[data-palette-note]');
 
@@ -61,30 +64,55 @@ test('Ctrl+K and ⌘K open it at once, with focus in its input; Esc closes it', 
 });
 
 // The button names the keys of the keyboard it runs on: here a PC's, whatever machine runs the test.
-test("the footer's button opens it, and focus goes back to the button when it closes", async ({
-  page,
-}) => {
-  await page.addInitScript(() =>
-    Object.defineProperty(navigator, 'platform', { get: () => 'Linux x86_64' }),
-  );
-  await ready(page);
-  await expect(opener(page)).toBeVisible();
-  await expect(opener(page)).toHaveAccessibleName('Command menu Ctrl K');
-  await opener(page).focus();
-  await page.keyboard.press('Enter');
-  await expect(input(page)).toBeFocused();
-  await page.keyboard.press('Escape');
-  await expect(opener(page)).toBeFocused();
-  await opener(page).click();
-  await expect(menu(page)).toHaveJSProperty('open', true);
-});
+// One button shows at a time: the rail's search field from 80rem, the header row's below.
+for (const { width, name } of [
+  { width: 1280, name: 'Search' },
+  { width: 1024, name: 'Command menu' },
+]) {
+  test(`at ${width} px its one button, ${name}, opens it, and focus goes back to it when it closes`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await page.addInitScript(() =>
+      Object.defineProperty(navigator, 'platform', { get: () => 'Linux x86_64' }),
+    );
+    await ready(page);
+    await expect(opener(page)).toHaveCount(1);
+    await expect(opener(page)).toHaveAccessibleName(`${name} Ctrl K`);
+    await opener(page).focus();
+    await page.keyboard.press('Enter');
+    await expect(input(page)).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(opener(page)).toBeFocused();
+    await opener(page).click();
+    await expect(menu(page)).toHaveJSProperty('open', true);
+  });
+}
 
 test('on an Apple keyboard the button names ⌘K', async ({ page }) => {
   await page.addInitScript(() =>
     Object.defineProperty(navigator, 'platform', { get: () => 'MacIntel' }),
   );
   await ready(page);
-  await expect(opener(page)).toHaveAccessibleName('Command menu ⌘K');
+  await expect(opener(page)).toHaveAccessibleName(/ ⌘K$/);
+});
+
+// ADR 0022: the rail's search finds every demo and post, by its title or a word of its summary, and
+// Enter goes to the row that holds the query whole: "bak" is the bakery, though "Break a Raft
+// cluster" holds b, a and k in order.
+test('the search finds a demo by its title or its summary, and Enter opens the whole match', async ({
+  page,
+}) => {
+  const demos = pages().filter((path) => /^\/lab\/[^/]+\/$/.test(path));
+  test.skip(!demos.includes('/lab/routes/'), 'this build has no Route Lab');
+  await ready(page, '/about/');
+  await opener(page).click();
+  await input(page).fill('vroom');
+  expect((await rows(page)).shown).toEqual(['palette-lab-routes']);
+  await input(page).fill('bak');
+  expect((await rows(page)).active).toBe('palette-lab-routes');
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/lab\/routes\/$/);
 });
 
 test('typing filters the rows by subsequence, hides empty groups, and selects the first match', async ({
