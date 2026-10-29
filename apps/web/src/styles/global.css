@@ -172,7 +172,8 @@
     }
   }
 
-  .wordmark {
+  .wordmark,
+  .home-mark {
     display: inline-flex;
     align-items: center;
     min-height: 2.75rem;
@@ -229,6 +230,13 @@
     display: none;
   }
 
+  /* What only the rail shows (ADR 0022): Home's name, the search field and each item's leaves,
+     which the nav's own list rule above would otherwise lay out in the row. */
+  .rail-only,
+  .site-nav .nav-leaves {
+    display: none;
+  }
+
   /* The page's column: the header, then main, which takes the room the footer leaves, then the
      footer. */
   body {
@@ -246,9 +254,10 @@
      it. Not from 64rem: every rule from 64rem up was set for at least 56rem of content, which a
      14rem rail leaves only from 80rem, so 64rem to 80rem keeps the row across the top. The name and
      the title head the rail, and the nav starts at the same height on every page, Home included,
-     where the name is the page's <h1> and the head is left out. The page's mark is the 2 px bar
-     the cards sweep, standing at the link's edge. The command menu's button, Home's motion button
-     and the toggle stand at the rail's foot. The skip link covers the whole rail when focused. */
+     Home included since ADR 0022, which made the rail an index of the site (the block after the
+     command menu's button, below). The page's mark is the 2 px bar the cards sweep, standing at the
+     link's edge. Home's motion button and the toggle stand at the rail's foot. The skip link covers
+     the whole rail when focused. */
   @media (width >= 80rem) {
     body {
       display: grid;
@@ -264,7 +273,7 @@
       align-self: start;
       max-width: none;
       height: 100dvh;
-      padding-inline: 2rem 1.25rem;
+      padding-inline: 1.5rem 1.25rem;
       border-inline-end: 1px solid var(--border);
     }
 
@@ -291,13 +300,15 @@
 
     .site-header {
       display: grid;
-      grid-template-rows: 7rem minmax(0, 1fr);
+      grid-template-rows: auto minmax(0, 1fr);
+      row-gap: 1.5rem;
       align-items: start;
       height: 100%;
       padding-block: 1.5rem;
     }
 
     .rail-head {
+      display: block;
       grid-row: 1;
     }
 
@@ -312,8 +323,10 @@
     .header-end {
       grid-row: 2;
       flex-direction: column;
-      align-items: flex-start;
+      flex-wrap: nowrap;
+      align-items: stretch;
       height: 100%;
+      min-height: 0;
       margin: 0;
     }
 
@@ -349,7 +362,9 @@
      text column and toward the fold, and every line is --ground, which every text token reads on
      at 4.5:1, so a line under a word never costs it contrast. The one accent mark is kept clear of
      text by e2e/ground.spec.ts. Nothing moves. The masks are alpha only, so any opaque color would
-     do; currentcolor keeps literals out of the stylesheet. */
+     do; currentcolor keeps literals out of the stylesheet. The drawing is never taller than the
+     page: on a page shorter than it, such as /lab/ on a laptop, its foot reached past the body's
+     and the window scrolled on into nothing, beyond the rail and the footer (ADR 0022). */
   body {
     position: relative;
     isolation: isolate;
@@ -361,7 +376,7 @@
     inset-inline-end: 0;
     z-index: -1;
     width: min(100%, 75rem);
-    height: 56.25rem;
+    height: min(56.25rem, 100%);
     pointer-events: none;
     mask-image:
       linear-gradient(to left, currentcolor 25%, transparent 90%),
@@ -371,7 +386,7 @@
 
   @media (width < 48rem) {
     .ground {
-      height: 36rem;
+      height: min(36rem, 100%);
       mask-image:
         linear-gradient(to left, currentcolor 35%, transparent),
         linear-gradient(currentcolor 30%, transparent);
@@ -746,7 +761,9 @@
 
   /* An index's titles rise out of their own baseline as they scroll into view (design-system.md,
      "Motion"): a scroll-driven animation, so it moves only while the visitor scrolls and runs back
-     when they scroll up. Transform and clip-path only, never opacity: a title half way in would
+     when they scroll up. A post's or a demo's title rises in its words' span, inside its link,
+     since the rise clips what it moves and would clip the link's box, which covers the row
+     (ADR 0022). Transform and clip-path only, never opacity: a title half way in would
      otherwise be half transparent, under 4.5:1. A title already on screen at load is past its
      range and stands still. Not on the résumé, which is read, not browsed, and not on paper. A
      browser without scroll timelines shows the titles as before. Longhands, not the shorthand: the
@@ -754,7 +771,7 @@
      refuses whole, so nothing moved (e2e/motion.spec.ts now requires the animation). */
   @media screen and (prefers-reduced-motion: no-preference) {
     @supports (animation-timeline: view()) {
-      :is(.card-title, .post-title):not(.resume *) {
+      :is(.card-title, .title-words):not(.resume *) {
         animation-name: rise;
         animation-timing-function: linear;
         animation-fill-mode: both;
@@ -1064,6 +1081,226 @@
     font-family: var(--font-mono);
     font-size: var(--text-meta);
     line-height: var(--text-meta--line-height);
+  }
+
+  /* The rail as an index of the site (ADR 0022). The name heads it on every page; under it a
+     search field opens the command menu, which finds every page, demo and post; each nav item
+     lists its leaves under a hairline, every demo under Lab and the newest posts under Writing; and
+     the foot names its controls in words, not glyphs alone. The nav scrolls inside the rail when the
+     window is too short for it, so the foot stays in reach. The search field shows once the menu's
+     script has bound it, as the header row's button does, and on a touch screen too, which the
+     rail's widths include; its keys show only where a keyboard is likely. */
+  @media (width >= 80rem) {
+    .header-tools > .palette-item {
+      display: none;
+    }
+
+    .rail-search {
+      display: flex;
+      flex: none;
+      align-items: center;
+      gap: 0.5rem;
+      min-height: 2.5rem;
+      margin-block-end: 1rem;
+      padding: 0 0.625rem;
+      border: 1px solid var(--input);
+      border-radius: var(--radius-md);
+      background-color: transparent;
+      color: var(--muted-foreground);
+      font: inherit;
+      font-size: var(--text-sm);
+      line-height: var(--text-sm--line-height);
+      cursor: pointer;
+      visibility: hidden;
+    }
+
+    :root[data-palette] .rail-search {
+      visibility: visible;
+    }
+
+    .rail-search:hover {
+      border-color: var(--foreground);
+      color: var(--foreground);
+    }
+
+    .rail-search svg {
+      width: 1rem;
+      height: 1rem;
+      fill: none;
+      stroke: currentcolor;
+      stroke-width: 1.5;
+      stroke-linecap: round;
+    }
+
+    .rail-search kbd {
+      margin-inline-start: auto;
+      font-family: var(--font-mono);
+      font-size: var(--text-meta);
+      line-height: var(--text-meta--line-height);
+    }
+
+    .site-nav {
+      min-height: 0;
+      margin-inline-start: -1rem;
+      padding-inline-start: 1rem;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
+    .site-nav .nav-leaves {
+      display: grid;
+      margin: 0 0 0.5rem;
+      padding: 0 0 0 0.875rem;
+      border-inline-start: 1px solid var(--border);
+      list-style: none;
+      font-size: var(--text-sm);
+      font-weight: 400;
+    }
+
+    .site-nav .nav-leaves a {
+      display: block;
+      min-height: 0;
+      padding-block: 0.375rem;
+      color: var(--muted-foreground);
+      line-height: var(--text-sm--line-height);
+      text-wrap: pretty;
+    }
+
+    .site-nav .nav-leaves a:hover,
+    .site-nav .nav-leaves a[aria-current] {
+      color: var(--foreground);
+    }
+
+    /* The page's bar stands on the hairline beside a leaf; its item keeps no bar of its own. */
+    .site-nav .nav-leaves a[aria-current]::before {
+      inset-block: 0.375rem;
+      inset-inline-start: calc(-0.875rem - 1px);
+    }
+
+    .site-nav li:has(.nav-leaves [aria-current]) > a[aria-current]::before {
+      display: none;
+    }
+
+    .header-tools {
+      flex-direction: column;
+      align-items: stretch;
+      padding-block-start: 0.5rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .header-tools :is(.motion-toggle, .theme-toggle) {
+      justify-content: flex-start;
+      gap: 0.625rem;
+      width: 100%;
+      min-height: 2.5rem;
+      height: auto;
+      margin: 0;
+      color: var(--muted-foreground);
+      font: inherit;
+      font-size: var(--text-sm);
+      line-height: var(--text-sm--line-height);
+    }
+
+    .header-tools :is(.motion-toggle, .theme-toggle):hover {
+      background-color: transparent;
+      color: var(--foreground);
+    }
+
+    /* Each control says what it does: the motion button its own name, which its script keeps, and
+       the toggle the name of the theme it shows, unclipped, in the state that still covers the
+       whole button, so its title shows anywhere over it. */
+    .header-tools .motion-toggle::after {
+      content: attr(aria-label);
+    }
+
+    :root[data-theme] .header-tools .theme-state[data-for] {
+      justify-content: flex-start;
+      gap: 0.625rem;
+    }
+
+    .header-tools .theme-name {
+      position: static;
+      width: auto;
+      height: auto;
+      overflow: visible;
+      clip-path: none;
+    }
+  }
+
+  @media (width >= 80rem) and (not ((hover: hover) and (pointer: fine))) {
+    .rail-search kbd {
+      display: none;
+    }
+  }
+
+  /* A row of an index is its link (ADR 0022): a card on Home, a post in a list, a demo on /lab/. The
+     link's box is stretched over its row, so a press anywhere on the row opens it, and the row is
+     marked the way its link is: hovered or focused, the 2 px bar sweeps its rule, and hovered, the
+     title takes the accent. The focus ring stays on the link itself, as on every element (SC 2.4.7).
+     A post's or a demo's row is its title's link. A card's is its own "Try it" link, whose name adds the card's title (WorkCard.astro). A
+     row's words cannot be selected by dragging across them, the trade every whole-row link makes.
+     On screen only: on paper a link prints its address after it (the print block, below). */
+  .post-list > li {
+    position: relative;
+  }
+
+  @media screen {
+    :is(.post-title > a, .card-more)::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+    }
+
+    /* A box of its own, for the rise to move; on paper the address follows the title on its line. */
+    .title-words {
+      display: block;
+    }
+  }
+
+  .card:has(.card-more:hover) .card-title {
+    color: var(--primary);
+  }
+
+  .card-more > span {
+    display: inline-block;
+  }
+
+  .card-more:hover > span {
+    transform: translateX(0.25rem);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .card-more > span {
+      transition: transform 0.22s ease-out;
+    }
+  }
+
+  /* A post's row sweeps the bar a card does. */
+  .post-list > li::before {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    top: -1px;
+    height: 2px;
+    background-color: var(--primary);
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+
+  .post-list > li:focus-within,
+  .post-list > li:hover {
+    border-top-color: var(--foreground);
+  }
+
+  .post-list > li:focus-within::before,
+  .post-list > li:hover::before {
+    transform: scaleX(1);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .post-list > li::before {
+      transition: transform 0.22s ease-out;
+    }
   }
 
   .palette-name,

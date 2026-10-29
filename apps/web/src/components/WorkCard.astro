@@ -12,6 +12,9 @@ interface Props {
 }
 
 const { tag, title, text, facts, link } = Astro.props;
+// The whole card is its link (ADR 0022): CSS stretches the link's box over the card, so a press
+// anywhere on it opens the page. Its name leads with the words it shows and adds the card's title,
+// so a list of the page's links says where each one goes, not "Try it" twice (SC 2.4.4, 2.5.3).
 ---
 
 <article class="card">
@@ -28,7 +31,7 @@ const { tag, title, text, facts, link } = Astro.props;
       ))}
     </dl>
   )}
-  <a class="card-more" href={link.href}>
+  <a class="card-more" href={link.href} aria-label={`${link.label}: ${title}`}>
     {link.label} <span aria-hidden="true">{link.external ? '↗' : '→'}</span>
   </a>
 </article>

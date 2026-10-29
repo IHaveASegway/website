@@ -9,7 +9,7 @@ import { labIndexCard } from '../../lib/og';
 // /lab/, the lab's index: one row per live demo, like a list of posts, without a date (a demo has
 // no publish date on its page). A rest parameter, so the page builds only while a demo is live,
 // as Writing's indexes build only from the first post (lib/lab.ts); the demos' own pages are
-// [demo].astro.
+// [demo].astro. Each row is its title's link, as a post's is (components/PostList.astro).
 export async function getStaticPaths() {
   const lab = await loadLabArea();
   return lab.visible ? [{ params: { index: undefined } }] : [];
@@ -37,7 +37,9 @@ const lab = await loadLabArea();
         <li>
           <p class="post-meta">Demo</p>
           <h2 class="post-title">
-            <a href={labPath(demo)}>{demo.title}</a>
+            <a href={labPath(demo)}>
+              <span class="title-words">{demo.title}</span>
+            </a>
           </h2>
           <p class="post-summary">{demo.summary}</p>
         </li>

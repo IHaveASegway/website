@@ -111,16 +111,21 @@ test('a card with nothing to activate does not react to the pointer; one with a 
 });
 
 /** What Home would move with no preference: each section's rule, which draws itself in, each
- *  card's bar, and each card's and post's title, which rises as it scrolls into view
- *  (design-system.md, "Motion"), in document order. */
+ *  card's and post's bar, each card's title and each post's title's words, which rise as they
+ *  scroll into view (design-system.md, "Motion"), and the arrow of a card's link, which steps
+ *  toward its target under the pointer (ADR 0022), in document order. */
 const expectedMotion = (page: Page) =>
   page.evaluate(() =>
-    [...document.querySelectorAll('.section-title, .card, .post-title')].flatMap((element) =>
+    [...document.querySelectorAll('.section-title, .card, .post-list > li')].flatMap((element) =>
       element.classList.contains('section-title')
         ? ['h2.section-title::before']
         : element.classList.contains('card')
-          ? ['article.card::before', 'h3.card-title']
-          : [`${element.tagName.toLowerCase()}.post-title`],
+          ? [
+              'article.card::before',
+              'h3.card-title',
+              ...(element.querySelector('.card-more > span') ? ['span'] : []),
+            ]
+          : ['li::before', 'span.title-words'],
     ),
   );
 

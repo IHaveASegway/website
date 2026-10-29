@@ -8,15 +8,27 @@ interface Props {
   profile: Profile;
   /** URLs content adds to this build (lib/posts.ts, areaRoutes; lib/lab.ts, labRoutes). */
   generated: readonly string[];
+  /** Every live demo and every published post, each a page this build writes (Base.astro). */
+  demos: readonly Found[];
+  posts: readonly Found[];
   /** The page has a Print button ([data-print]), which the menu's Print row presses. */
   print?: boolean;
 }
 
-const { profile, generated, print = false } = Astro.props;
+interface Found {
+  readonly title: string;
+  readonly summary: string;
+  readonly href: string;
+}
+
+const { profile, generated, demos, posts, print = false } = Astro.props;
 
 // The command menu (design-system.md, "The command menu"), written into every page and opened by
-// src/scripts/palette.js. Its rows, in three groups: Go to, Home and the manifest's pages this
+// src/scripts/palette.js. Its rows, in five groups: Go to, Home and the manifest's pages this
 // build writes, as the header and the footer list them (lib/nav.ts; a feed is a file, not a page);
+// Lab and Writing, every demo and every post, found by their titles, and by their summaries where
+// the query stands in one whole, so the rail's search finds what the rail has no room to list
+// (ADR 0022);
 // Actions, copying the address, the theme, whose entry shows the toggle's names, and Print, on a
 // page with a Print button (/about/), which the entry presses; and Links, the
 // profiles whose readiness check is recorded, as the footer lists them. Every row also exists
@@ -35,6 +47,12 @@ const pages = [
   ...navAll(generated).filter((item) => item.href.endsWith('/')),
 ];
 const profiles = checkedProfiles(profile);
+// A row's id from its page's path, which is unique: /lab/raft/ is palette-lab-raft.
+const idOf = (href: string) => `palette${href.replace(/\/$/, '').replaceAll('/', '-')}`;
+const found = [
+  { id: 'palette-demos', label: 'Lab', rows: demos },
+  { id: 'palette-posts', label: 'Writing', rows: posts },
+].filter((group) => group.rows.length > 0);
 ---
 
 <dialog class="palette" data-palette aria-label="Command menu">
@@ -75,6 +93,24 @@ const profiles = checkedProfiles(profile);
         </li>
       ))}
     </ul>
+    {found.map((group) => (
+      <ul class="palette-group" role="group" aria-labelledby={group.id}>
+        <li class="label palette-heading" id={group.id} role="presentation">
+          {group.label}
+        </li>
+        {group.rows.map((row) => (
+          <li
+            class="palette-option"
+            role="option"
+            id={idOf(row.href)}
+            data-href={row.href}
+            data-find={row.summary}
+          >
+            {row.title}
+          </li>
+        ))}
+      </ul>
+    ))}
     <ul class="palette-group" role="group" aria-labelledby="palette-actions">
       <li class="label palette-heading" id="palette-actions" role="presentation">
         Actions

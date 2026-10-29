@@ -312,10 +312,20 @@ function fixtureBuild(name: string) {
  *  page file. */
 const ALWAYS = ['/', '/about/'];
 
-/** The header nav's links on a page. */
+/** The header nav's items on a page, without the leaves the rail lists under them (ADR 0022). */
 const headerLinks = (page: string) =>
   [
-    ...(/<nav class="site-nav"[\s\S]*?<\/nav>/.exec(page)?.[0] ?? '').matchAll(/href="([^"]+)"/g),
+    ...(/<nav class="site-nav"[\s\S]*?<\/nav>/.exec(page)?.[0] ?? '')
+      .replace(/<ul class="nav-leaves[\s\S]*?<\/ul>/g, '')
+      .matchAll(/href="([^"]+)"/g),
+  ].map(([, href = '']) => href);
+/** The leaves the rail lists under Writing on a page. */
+const writingLeaves = (page: string) =>
+  [
+    ...(
+      /href="\/writing\/"[^>]*>[^<]*<\/a>\s*<ul class="nav-leaves[\s\S]*?<\/ul>/.exec(page)?.[0] ??
+      ''
+    ).matchAll(/<li><a href="([^"]+)"/g),
   ].map(([, href = '']) => href);
 /** The post titles a list links to, in order. */
 const listed = (page: string, level: 2 | 3) =>
@@ -531,6 +541,17 @@ describe('fixture-many: five published posts and a draft, built for production',
       expect(page, file).toContain(
         '<link rel="alternate" type="application/rss+xml" title="Joseph Peterson: writing" href="/rss.xml">',
       );
+    }
+  });
+
+  // The rail lists the newest three under Writing, as Home's row does, on every page.
+  test('the rail lists the three latest posts under Writing, newest first, on every page', () => {
+    for (const file of build.html.filter((f) => f !== '404.html')) {
+      expect(writingLeaves(build.text(file)), file).toEqual([
+        '/notes/fixture-trailing-slashes/',
+        '/writing/fixture-measure-first/',
+        '/writing/fixture-retries-and-back-off/',
+      ]);
     }
   });
 

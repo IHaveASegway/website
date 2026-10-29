@@ -1,5 +1,13 @@
 import { expect, test } from 'vitest';
-import { labelOf, MANIFEST, navFor, present, routesFrom } from '../src/lib/nav';
+import {
+  labelOf,
+  MANIFEST,
+  navFor,
+  present,
+  RAIL_POSTS,
+  railLeaves,
+  routesFrom,
+} from '../src/lib/nav';
 import { files, html, read } from './support/dist';
 
 // The nav manifest (design-system.md, "One nav manifest"): a link renders only when its page
@@ -57,6 +65,21 @@ test('Lab joins the header, first, only with the routes the lab generates', () =
     'about',
   ]);
   expect(navFor('footer', ['/lab/']).map((i) => i.id)).toEqual([]);
+});
+
+// The rail as an index (ADR 0022): every demo under Lab, in the lab's order, and the newest posts
+// under Writing, in the order they come (newest first, lib/posts.ts), no more than RAIL_POSTS.
+test('the rail lists every demo, and the newest posts up to RAIL_POSTS', () => {
+  const page = (n: number) => ({ title: `Page ${n}`, href: `/p/${n}/` });
+  const demos = [1, 2, 3, 4, 5, 6, 7, 8, 9].map(page);
+  const posts = [10, 11, 12, 13, 14].map(page);
+  expect(RAIL_POSTS).toBe(3);
+  const leaves = railLeaves(demos, posts);
+  expect(leaves['lab']).toEqual(demos.map(({ title, href }) => ({ label: title, href })));
+  expect(leaves['writing']).toEqual(
+    posts.slice(0, 3).map(({ title, href }) => ({ label: title, href })),
+  );
+  expect(railLeaves([], [])).toEqual({ lab: [], writing: [] });
 });
 
 // /about/ took /resume/'s place on 2026-10-28; /resume/ answers with a 301 (public/_redirects).

@@ -64,3 +64,29 @@ export function navAll(generated: Iterable<string> = []): NavItem[] {
 export function navFor(place: 'header' | 'footer', generated: Iterable<string> = []): NavItem[] {
   return navAll(generated).filter((item) => item[place]);
 }
+
+/** A page the rail lists under a header item (ADR 0022): a demo under Lab, a post under Writing. */
+export interface NavLeaf {
+  readonly label: string;
+  readonly href: string;
+}
+
+/** How many posts the rail lists under Writing, newest first; Writing's index lists them all. */
+export const RAIL_POSTS = 3;
+
+/**
+ * What the rail lists under each header item, by the item's id: every live demo, in the lab's
+ * order, and the newest posts. Every demo, because the lab is small: a demo has no date to say
+ * which are newest, and the rail lists them all until it has one (ADR 0022, "Revisit if"). Leaves
+ * come from the same areas the pages are built from, so a leaf's page always exists.
+ */
+export function railLeaves(
+  lab: readonly { readonly title: string; readonly href: string }[],
+  posts: readonly { readonly title: string; readonly href: string }[],
+): Record<string, NavLeaf[]> {
+  const leaf = ({ title, href }: { title: string; href: string }): NavLeaf => ({
+    label: title,
+    href,
+  });
+  return { lab: lab.map(leaf), writing: posts.slice(0, RAIL_POSTS).map(leaf) };
+}
