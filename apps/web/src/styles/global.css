@@ -256,7 +256,9 @@
      Home included since ADR 0022, which made the rail an index of the site (the block after the
      command menu's button, below). The page's mark is the 2 px bar the cards sweep, standing at the
      link's edge. Home's motion button and the toggle stand at the rail's foot. The skip link covers
-     the whole rail when focused. */
+     the whole rail when focused. From 90rem Home's main spans the whole column and keeps the frame
+     row by row, so its stage can reach the column's edges (home.css, "A screen larger than 1440 ×
+     900"). */
   @media (width >= 80rem) {
     body {
       display: grid;

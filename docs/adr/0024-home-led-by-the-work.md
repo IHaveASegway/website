@@ -34,6 +34,19 @@ Its chapter holds the cluster large, and on one 15 s loop it plays a Raft electi
 
 The stage, the scene, the chapters and the election live in `src/styles/home.css`, which only Home links. Every other page's stylesheet fell from 10,362 to 8,869 B.
 
+### A larger screen
+
+Added 2026-10-29, after Joseph read Home on a large screen: "it looks like a blank space mistake". The stage was composed for a 1440 × 900 window. Past it, the frame (90rem), the name (10rem) and the scene's box (three fifths of the frame) stopped growing while the window did. At 3200 × 1600 the scene's box was 864 px wide and ended 768 px short of the window's right edge, the name's top stood 60% of the way down the screen, and most of the screen was empty.
+
+- **The room goes to the scene, which is a picture.** From 90rem, main spans the column beside the rail and every row keeps the frame's edges (`--frame-side`); the stage's scene, and the cards that cover it, reach the column's edges. The scene's box runs from beside the words to the window's right edge, 86% of its height, and the map grows to fill it: 1,536 × 1,376 px at 3200 × 1600, and 1,216 × 1,238 at 2560 × 1440, against 730 × 774 at 1440 × 900.
+- **It moves clear of the words before it widens.** Room past the box's 1440 width first moves it right until it starts 2rem past the Route Lab chapter's 36rem of words, so the lifted cube, which fills its box, never runs behind a line of them; only then does it widen.
+- **The type keeps its size.** Text that grows with the window does not grow with zoom ([WCAG failure F94](https://www.w3.org/WAI/WCAG22/Techniques/failures/F94)), and the name is already as large as the zoom rule allows (`test/tokens.test.ts`, "fluid type"). The first try scaled the whole stage with the window, in a rem of its own that grew with the screen. It filled the screen exactly as at 1440 × 900, but at 2560 × 1440 its 253 px name would have needed to reach 506 device pixels at some zoom up to 500%, and it reaches 375. So only the picture scales.
+- **A taller window divides its extra height evenly above and below the words**, so they stand level with the map rather than sinking to the window's foot: the name's top is 38% of the way down at 3200 × 1600, against 29% at 1440 × 900.
+- **The column's width comes from a container query**: main is the query container (`container-type: inline-size`), and `100cqw` is the column exactly. `100vw` counts a classic scrollbar, as on Windows or on a Mac with a mouse, and the stage would have scrolled the page sideways by its width.
+- **At 1440 × 900 and below nothing moved**: every box on the stage measured the same as production's at 1440 × 900, 1440 × 800, 1280 × 800, 1024 × 768 and 390 × 844.
+
+Two other ways were weighed. Centring a scaled stage in the column would have filled it evenly, but its words would have left the frame's edge that every row below them keeps, and its type would still have failed the zoom rule. Leaving the stage in the frame and lifting the frame's cap on Home would have lengthened every row of text below it, which Joseph read as too wide on 2026-10-26 ([design-system.md](../design-system.md), "A 12-column frame").
+
 ## The architect's pass
 
 ### Why
@@ -98,7 +111,7 @@ A wins on weight and on owning the least new code: the projection, the fit and t
 - **Tests.**
   - `test/scene.test.ts`: the camera the picture and the canvas share, with known answers; the tracks against the timeline and `measure()`; the data file's format, round trip.
   - `test/iso.test.ts`: every message ends at its receiver; the story is a Raft election; every act has its keyframes on one loop.
-  - `e2e/rail-and-scene.spec.ts`: the scene takes over from the picture, moves, pauses and plays for the tab, lifts with the scroll and sets down again, shifts nothing, stays a picture under reduced motion and without its data, and the election pauses with it.
+  - `e2e/rail-and-scene.spec.ts`: the scene takes over from the picture, moves, pauses and plays for the tab, lifts with the scroll and sets down again, shifts nothing, stays a picture under reduced motion and without its data, and the election pauses with it. On a larger screen, at 1920 × 1080, 2560 × 1440 and 3440 × 1440, the scene's box reaches the window's edge past the chapter's words, the words keep the frame's edge and the name's size, the extra height divides evenly, and nothing scrolls sideways; on production's layout before it, the test fails at the first size.
 
 ## Revisit if
 
@@ -113,3 +126,5 @@ A wins on weight and on owning the least new code: the projection, the fit and t
 - **Progressive enhancement**: the picture is the page; the canvas improves it where it can run. Aaron Gustafson, *Adaptive Web Design* (2nd edition, 2015).
 - **Load shedding**: the governor drops the pixel ratio, then pauses, rather than let a slow machine drop frames. *Site Reliability Engineering* (Google), chapter 21, "Handling Overload".
 - **Fitness functions**: the budgets, the camera's agreement between picture and canvas, and the election's agreement with its stylesheet. Neal Ford, Rebecca Parsons and Patrick Kua, *Building Evolutionary Architectures*, chapter 2.
+- **Breakout layout**: a page whose rows keep a reading measure while one element reaches the edges. Josh W. Comeau, "Full-Bleed Layout Using CSS Grid" (2021), which also explains why `100vw` is the wrong measure of the page's width.
+- **Text that scales with the window, and zoom**: Maxwell Barvian, "Addressing Accessibility Concerns With Using Fluid Type" (*Smashing Magazine*, 2023), the source of the 2.5 rule `test/tokens.test.ts` holds.
