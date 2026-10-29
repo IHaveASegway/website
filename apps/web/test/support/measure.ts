@@ -60,6 +60,9 @@ export function measure(page: string) {
  * the route data and the cube, is what a visitor who turns the cube has fetched.
  *
  * The Raft Lab (ADR 0020) has one too: its app chunk, and the first view of its page.
+ *
+ * So does Home's living ground (ADR 0021): the one chunk that draws it, which Home's motion module
+ * loads after the page has painted, and Home's first view with it.
  */
 export const FEATURES = {
   'route-lab': {
@@ -85,6 +88,15 @@ export const FEATURES = {
     entry: /^_astro\/RaftLab\.astro_astro_type_script_index_0_lang\.[\w-]+\.js$/,
     paths: [],
     lazyJavaScript: 8_000,
+    firstView: 150_000,
+  },
+  // Home's living ground (ADR 0021): the shader and what runs it, in one chunk. No data, no
+  // WebAssembly and no library; Home keeps 150 KB with it.
+  'living-ground': {
+    page: 'index.html',
+    entry: /^_astro\/ground-live\.[\w-]+\.js$/,
+    paths: [],
+    lazyJavaScript: 6_000,
     firstView: 150_000,
   },
 } as const;

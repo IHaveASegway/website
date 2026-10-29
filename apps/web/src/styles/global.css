@@ -7,6 +7,9 @@
 /* An SVG attribute's name, not a class: the space-time cube's picture lays the map down with it
    (components/route-lab/SpaceTime.astro). */
 @source not inline('transform');
+/* A value in the link previews' layout (lib/og.ts), not a class: no page has used the utility since
+   <body> lost it to the rail's layout (ADR 0021). */
+@source not inline('flex');
 @import './tokens.css';
 @import './font-fallbacks.css';
 
@@ -181,8 +184,10 @@
 
   .header-end {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 1.25rem;
+    justify-content: flex-end;
+    gap: 0 1.25rem;
     margin-inline-start: auto;
   }
 
@@ -207,6 +212,134 @@
   /* The page itself, or a page inside the section: /lab/routes/ marks Lab, a post marks Writing. */
   .site-nav a[aria-current] {
     text-decoration-line: underline;
+  }
+
+  /* The command menu's button, Home's motion button and the theme toggle, at the header's end. */
+  .header-tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 1.25rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .rail-role {
+    display: none;
+  }
+
+  /* The page's column: the header, then main, which takes the room the footer leaves, then the
+     footer. */
+  body {
+    display: flex;
+    flex-direction: column;
+  }
+
+  body > main {
+    flex: 1 0 auto;
+  }
+
+  /* The rail (ADR 0021). From 80rem the header stands down the left edge, as tall as the window
+     and still while the page scrolls, and main and the footer share the column beside it, each in
+     the frame it always had, so the content keeps the standard frame's measure and never grows past
+     it. Not from 64rem: every rule from 64rem up was set for at least 56rem of content, which a
+     14rem rail leaves only from 80rem, so 64rem to 80rem keeps the row across the top. The name and
+     the title head the rail, and the nav starts at the same height on every page, Home included,
+     where the name is the page's <h1> and the head is left out. The page's mark is the 2 px bar
+     the cards sweep, standing at the link's edge. The command menu's button, Home's motion button
+     and the toggle stand at the rail's foot. The skip link covers the whole rail when focused. */
+  @media (width >= 80rem) {
+    body {
+      display: grid;
+      grid-template-columns: 14rem minmax(0, 1fr);
+      grid-template-rows: 1fr auto;
+    }
+
+    .masthead {
+      position: sticky;
+      inset-block-start: 0;
+      grid-row: 1 / 3;
+      grid-column: 1;
+      align-self: start;
+      max-width: none;
+      height: 100dvh;
+      padding-inline: 2rem 1.25rem;
+      border-inline-end: 1px solid var(--border);
+    }
+
+    body > main,
+    body > footer {
+      grid-column: 2;
+    }
+
+    body > footer {
+      grid-row: 2;
+    }
+
+    /* Main starts where the rail's name does, so the first rule is not the window's edge. */
+    body > main {
+      padding-block-start: 1.5rem;
+    }
+
+    .skip-link {
+      align-items: flex-start;
+      padding-block-start: 2.25rem;
+    }
+
+    .site-header {
+      display: grid;
+      grid-template-rows: 7rem minmax(0, 1fr);
+      align-items: start;
+      height: 100%;
+      padding-block: 1.5rem;
+    }
+
+    .rail-head {
+      grid-row: 1;
+    }
+
+    .rail-role {
+      display: block;
+      margin: 0;
+      color: var(--muted-foreground);
+      font-size: var(--text-ui);
+      line-height: var(--text-ui--line-height);
+    }
+
+    .header-end {
+      grid-row: 2;
+      flex-direction: column;
+      align-items: flex-start;
+      height: 100%;
+      margin: 0;
+    }
+
+    .site-nav ul {
+      flex-direction: column;
+    }
+
+    .site-nav a {
+      position: relative;
+    }
+
+    .site-nav a[aria-current] {
+      text-decoration-line: none;
+    }
+
+    .site-nav a[aria-current]::before {
+      content: '';
+      position: absolute;
+      inset-block: 0.625rem;
+      inset-inline-start: -0.875rem;
+      width: 2px;
+      background-color: var(--primary);
+    }
+
+    .header-tools {
+      gap: 0.5rem;
+      margin-block-start: auto;
+    }
   }
 
   /* Page geometry (design-system.md, "Page geometry"): a page's drawing, behind its top right
@@ -263,10 +396,78 @@
     fill: var(--background);
   }
 
+  /* Home's living ground (ADR 0021): the canvas in the drawing's box, under the same masks, shown
+     only while src/scripts/ground-live.js draws on it. Then the drawing it replaces is hidden. */
+  .ground-live {
+    display: none;
+  }
+
+  :root[data-ground-live] .ground-live {
+    display: block;
+  }
+
+  :root[data-ground-live] svg.ground {
+    visibility: hidden;
+  }
+
   @media print {
     .ground {
       display: none;
     }
+
+    :root[data-ground-live] .ground-live {
+      display: none;
+    }
+  }
+
+  /* Home's motion button: a pause and a play icon, one at a time, named by the script. It shows only
+     once the living ground runs, and holds its place unseen until then, so the header never moves
+     (as the command menu's button does). It is there only where the script may run it. */
+  .motion-item {
+    display: none;
+  }
+
+  @media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+    .motion-item {
+      display: flex;
+      visibility: hidden;
+    }
+
+    :root[data-motion] .motion-item {
+      visibility: visible;
+    }
+  }
+
+  .motion-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-inline-size: 2.75rem;
+    min-height: 2.75rem;
+    padding: 0;
+    border: 0;
+    background-color: transparent;
+    color: inherit;
+    cursor: pointer;
+  }
+
+  .motion-toggle:hover {
+    color: var(--primary);
+  }
+
+  .motion-toggle svg {
+    width: 1rem;
+    height: 1rem;
+    fill: currentcolor;
+  }
+
+  .motion-play,
+  .motion-toggle[data-state='paused'] .motion-pause {
+    display: none;
+  }
+
+  .motion-toggle[data-state='paused'] .motion-play {
+    display: inline;
   }
 
   /* Hidden on screen, read by assistive technology: a decoding tag's word, which
@@ -373,8 +574,9 @@
   /* From 75rem the facts stand beside the name, in columns 9 to 12, and their last line sits on
      the baseline of "Peterson": 0.07em of the name's size above the bottom of its line. Not from
      64rem: below about 70rem the title ("Senior Software Engineer", 12em) is wider than four
-     columns and breaks onto a second line. The fit scales with the text size, as both are rem. */
-  @media (width >= 75rem) {
+     columns and breaks onto a second line. The fit scales with the text size, as both are rem.
+     From 80rem the rail takes 14rem (ADR 0021), so the same fit returns at 89rem. */
+  @media (75rem <= width < 80rem), (width >= 89rem) {
     .hero {
       display: grid;
       grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -1522,6 +1724,7 @@
   .skip-link,
   .site-nav,
   .palette-item,
+  .motion-item,
   .palette,
   .palette::backdrop,
   .site-header:not(:has(.wordmark)) {
