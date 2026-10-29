@@ -12,8 +12,11 @@ const canvas = (page: Page) => page.locator('canvas[data-scene-live]');
 const drawing = (page: Page) => page.locator('svg.scene-picture');
 const toggle = (page: Page) => page.locator('[data-motion-toggle]');
 
-/** The canvas's pixels, as a screenshot of its box. */
-const frame = (page: Page) => canvas(page).screenshot({ animations: 'allow' });
+/** The canvas's own pixels, read from its backing store. Not a screenshot of its box: the hero's
+ *  words and the readout stand over the canvas, and a screenshot would change when they do, as a
+ *  late font's first paint did on production on 2026-10-29. */
+const frame = (page: Page) =>
+  canvas(page).evaluate((c) => (c as HTMLCanvasElement).toDataURL('image/png'));
 
 test.describe('the rail', () => {
   test('from 80rem the header is a rail down the left edge, as tall as the window, beside main', async ({
@@ -137,6 +140,19 @@ async function home(page: Page) {
   await expect(live(page)).toHaveCount(1);
 }
 
+/** Scrolls the window to `y` and waits for its scroll event. The page's clock is the test's, but
+ *  the browser dispatches a scroll on its own next frame, so running the clock before it would run
+ *  no frame the scroll asked for. */
+const scrollToY = (page: Page, y: number) =>
+  page.evaluate(
+    (to) =>
+      new Promise((done) => {
+        addEventListener('scroll', () => done(null), { once: true });
+        scrollTo(0, to);
+      }),
+    y,
+  );
+
 /** What the readout's clock says. */
 const clock = (page: Page) => page.locator('[data-scene-clock]').textContent();
 
@@ -169,7 +185,7 @@ test.describe("Home's scene", () => {
     const a = await frame(page);
     const before = await clock(page);
     await page.clock.runFor(2_000);
-    expect(a.equals(await frame(page)), 'it moves').toBe(false);
+    expect(a === (await frame(page)), 'it moves').toBe(false);
     expect(await clock(page), 'the clock counts').not.toBe(before);
 
     await toggle(page).click();
@@ -178,7 +194,7 @@ test.describe("Home's scene", () => {
     await page.clock.runFor(1_000);
     const c = await frame(page);
     await page.clock.runFor(1_000);
-    expect(c.equals(await frame(page)), 'paused, it holds still').toBe(true);
+    expect(c === (await frame(page)), 'paused, it holds still').toBe(true);
     expect(await page.evaluate(() => sessionStorage.getItem('motion'))).toBe('paused');
 
     await page.reload();
@@ -201,12 +217,12 @@ test.describe("Home's scene", () => {
     await page.mouse.move(60, 880);
     await page.clock.runFor(3_000);
     const flat = await frame(page);
-    await page.evaluate(() => scrollTo(0, innerHeight));
+    await scrollToY(page, 900);
     await page.clock.runFor(3_000);
-    expect((await frame(page)).equals(flat), 'lifted, the frame changes').toBe(false);
-    await page.evaluate(() => scrollTo(0, 0));
+    expect((await frame(page)) === flat, 'lifted, the frame changes').toBe(false);
+    await scrollToY(page, 0);
     await page.clock.runFor(3_000);
-    expect((await frame(page)).equals(flat), 'set down, the same frame again').toBe(true);
+    expect((await frame(page)) === flat, 'set down, the same frame again').toBe(true);
   });
 
   test('the Raft Lab’s election runs with the scene and pauses with its button', async ({
