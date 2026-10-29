@@ -299,3 +299,65 @@ test.describe("Home's scene", () => {
     }
   });
 });
+
+/** Where the stage's parts stand, in the window's pixels, and the name's size. */
+const stageLayout = (page: Page) =>
+  page.evaluate(() => {
+    const box = (selector: string) => {
+      const found = document.querySelector(selector);
+      if (!found) throw new Error(`no ${selector}`);
+      const { left, top, right, bottom, width, height } = found.getBoundingClientRect();
+      return { left, top, right, bottom, width, height };
+    };
+    return {
+      window: { width: document.documentElement.clientWidth, height: innerHeight },
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      main: box('main'),
+      name: box('.hero-name'),
+      side: box('.hero-side'),
+      picture: box('.scene-picture'),
+      chapter: box('[data-stage-chapter]'),
+      covers: box('.card-covers'),
+      how: box('#how'),
+      size: getComputedStyle(document.querySelector('.hero-name') as Element).fontSize,
+    };
+  });
+
+// A larger screen than 1440 × 900 (ADR 0024, "A larger screen"): until 2026-10-29 the stage kept
+// its 1440 sizes while the window grew, and a large screen showed a small picture floating in an
+// empty one. Now the room goes to the scene, and the type keeps its size (SC 1.4.4).
+test.describe("Home's stage on a larger screen", () => {
+  test('the scene fills the room beside the words, which keep the frame and stand level with it', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+    const design = await stageLayout(page);
+    // Above the words, less what is below them: what the composition leaves at 1440 × 900.
+    const offset = design.name.top - (design.window.height - design.side.bottom);
+    for (const [width, height] of [
+      [1920, 1080],
+      [2560, 1440],
+      [3440, 1440],
+    ] as const) {
+      await page.setViewportSize({ width, height });
+      await page.goto('/');
+      const at = await stageLayout(page);
+      const where = `${width} × ${height}`;
+      expect(at.overflow, where).toBe(0);
+      // The scene's box runs to the window's right edge and nearly its full height, past the
+      // Route Lab chapter's words, and the cards that cover the scene reach the column's edges.
+      expect(at.picture.right, where).toBeCloseTo(at.window.width, 0);
+      expect(at.picture.height, where).toBeGreaterThan(at.window.height * 0.85);
+      expect(at.picture.left, where).toBeGreaterThanOrEqual(at.chapter.right + 32 - 0.5);
+      expect([at.covers.left, at.covers.width], where).toEqual([at.main.left, at.main.width]);
+      // The words start at the frame's edge, as every row below them does, at the name's size.
+      expect(at.side.left, where).toBeCloseTo(at.how.left, 0);
+      expect(at.size, where).toBe(design.size);
+      // A taller window divides its extra height evenly above and below the words.
+      const above = at.name.top;
+      const below = at.window.height - at.side.bottom;
+      expect(Math.abs(above - below - offset), where).toBeLessThanOrEqual(2);
+    }
+  });
+});

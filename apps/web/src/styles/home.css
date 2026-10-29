@@ -510,6 +510,78 @@
   }
 }
 
+/* A screen larger than 1440 × 900 (ADR 0024, "A larger screen"). The stage was composed for that
+   window, and past it the frame, the type and the scene's box kept their 1440 sizes while the
+   window grew around them: a large screen showed a small picture floating in an empty one
+   (2026-10-29). The room a larger screen adds goes to the scene, which is a picture, not text: its
+   box runs from beside the words to the screen's right edge, top to bottom, and the map grows to
+   fill it. The type keeps its sizes, which are as large as text may grow with the window and
+   still double under zoom (SC 1.4.4; test/tokens.test.ts, "fluid type"). A taller window splits
+   its extra height above and below the words, so they stand level with the map.
+
+   Main spans the column beside the rail here and is the query container, so 100cqw is the column
+   exactly; 100vw would count a scrollbar and scroll the page sideways. Every row keeps the frame's
+   edges through --frame-side, the frame's content edge (global.css, .frame); the stage's scene,
+   and the cards that cover it, reach out to the column's edges. */
+@media (width >= 90rem) {
+  body > main {
+    --frame-side: max(4rem, (100cqw - 82rem) / 2);
+    --box-start: clamp(26.375rem, 100cqw - var(--frame-side) - 45.625rem, 38rem);
+    container-type: inline-size;
+    max-width: none;
+    padding-inline: 0;
+  }
+
+  body > main > * {
+    margin-inline: var(--frame-side);
+  }
+
+  .stage {
+    margin-inline: 0;
+    padding-inline: var(--frame-side);
+  }
+
+  .stage-plain {
+    margin-inline: var(--frame-side);
+    padding-inline: 0;
+  }
+
+  .scene,
+  .card-covers,
+  .card-covers ~ * {
+    margin-inline: calc(var(--frame-side) * -1);
+  }
+
+  .card-covers,
+  .card-covers ~ * {
+    padding-inline: var(--frame-side);
+  }
+
+  /* The scene's box runs to the screen's edge and starts --box-start past the words' edge: 26.375rem
+     at 1440 × 900 (40% of the column), as wide as it is there, 45.625rem. Room past that first moves
+     it clear of the Route Lab's chapter, whose words are 36rem wide, until it starts 2rem past
+     them; only then does it widen, so the lifted cube, which fills its box, never runs behind a
+     line of them. The canvas starts where its fade does, 7.5625rem before the box, so it draws no
+     pixel the words' side hides. Each states its width: a replaced element given both edges keeps
+     its own width (a canvas, its backing store's) rather than stretching between them. */
+  .scene-picture {
+    --start: calc(var(--frame-side) + var(--box-start));
+    inset-inline-start: var(--start);
+    width: calc(100% - var(--start));
+  }
+
+  .scene-live {
+    --start: calc(var(--frame-side) + var(--box-start) - 7.5625rem);
+    inset-inline-start: var(--start);
+    width: calc(100% - var(--start));
+    mask-image: linear-gradient(to right, transparent, currentcolor 15.1875rem);
+  }
+
+  .stage > .hero {
+    padding-block-end: calc(4.5rem + max(0px, (100svh - 56.25rem) / 2));
+  }
+}
+
 /* How I work: the bio's principles, each a row under a hairline: a large number, its bold
    sentence as its title, and the rest of the paragraph, the sentence of the work it points at. */
 .principles-list {
