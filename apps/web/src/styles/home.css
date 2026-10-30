@@ -268,11 +268,6 @@
   [data-stage-chapter] {
     background-image: linear-gradient(transparent calc(52svh - 2.5rem), var(--background) 52svh);
   }
-
-  [data-stage-chapter] {
-    min-height: 0;
-    padding-block: 56svh 3rem;
-  }
 }
 
 @media (width >= 48rem) {
@@ -410,6 +405,17 @@
 .card-feature > .card-title {
   font-size: var(--text-figure);
   line-height: 0.95;
+}
+
+/* Below 64rem the Route Lab's chapter opens below the scene's band, where its background turns
+   solid. These come after the chapter's and the card's own rules, which share their specificity,
+   so they win. Until 2026-10-30 they came first and lost: on a phone the chapter centred its words
+   in a screen-tall box, and its title ran through the readout and over the live scene. */
+@media (width < 64rem) {
+  [data-stage-chapter] {
+    min-height: 0;
+    padding-block: 56svh 3rem;
+  }
 }
 
 .card-feature > .card-text {

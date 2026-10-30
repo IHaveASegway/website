@@ -323,6 +323,24 @@ const stageLayout = (page: Page) =>
     };
   });
 
+// On a phone the Route Lab's chapter opens below the scene's band, on the page's own background
+// (home.css). Until 2026-10-30 a later rule with the same specificity won, the chapter centred its
+// words in a screen-tall box, and its title ran through the readout and over the live scene. Every
+// check above runs at 1440 × 900, so none of them saw it.
+test.describe("Home's scene on a phone", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test("the Route Lab's words start below the scene's band, not over it", async ({ page }) => {
+    await page.goto('/');
+    const gap = await page.locator('[data-stage-chapter]').evaluate((chapter) => {
+      const title = chapter.querySelector('.card-title') as HTMLElement;
+      return title.getBoundingClientRect().top - chapter.getBoundingClientRect().top;
+    });
+    // Above 52svh the chapter's background is transparent, and the scene shows through it.
+    expect(gap).toBeGreaterThanOrEqual(844 * 0.52);
+  });
+});
+
 // A larger screen than 1440 × 900 (ADR 0024, "A larger screen"): until 2026-10-29 the stage kept
 // its 1440 sizes while the window grew, and a large screen showed a small picture floating in an
 // empty one. Now the room goes to the scene, and the type keeps its size (SC 1.4.4).
