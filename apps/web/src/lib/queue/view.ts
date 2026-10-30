@@ -54,13 +54,16 @@ function list(parts: readonly string[]): string {
   return `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`;
 }
 
-function brokenWords(p: PropertyState): string {
+function brokenWords(sim: Sim, p: PropertyState): string {
   const n = p.count;
   switch (p.id) {
     case 'no-loss':
       return `${n} ${n === 1 ? 'order was' : 'orders were'} lost`;
-    case 'once':
-      return `${n} ${n === 1 ? 'ticket was' : 'tickets were'} printed twice`;
+    case 'once': {
+      // `once` counts orders; more tickets than orders means one was printed three times or more.
+      const times = sim.duplicates > n ? 'more than once' : 'twice';
+      return `${n} ${n === 1 ? 'order was' : 'orders were'} printed ${times}`;
+    }
     case 'drains':
       return `the queue did not drain within 30 s${n === 1 ? '' : `, ${n} times`}`;
   }
@@ -72,7 +75,7 @@ export function statusText(sim: Sim): string {
     return `Stopped at ${seconds(sim.violation.at)}: an order appeared or disappeared, which is a bug. ${firstUp(sim.violation.detail)}.`;
   const all = properties(sim);
   const held = all.flatMap((p) => (p.held ? [firstDown(p.name)] : []));
-  const broken = all.flatMap((p) => (p.held ? [] : [brokenWords(p)]));
+  const broken = all.flatMap((p) => (p.held ? [] : [brokenWords(sim, p)]));
   if (broken.length === 0)
     return `All three held over ${sim.events.toLocaleString('en-US')} events: ${list(held)}.`;
   if (held.length === 0) return `${firstUp(list(broken))}.`;
@@ -87,11 +90,12 @@ function story(sim: Sim): string | null {
   if (twice) {
     const job = jobOf(sim, twice.job);
     const [a, b] = job.effects as [Effect, Effect];
+    const times = job.effects.length === 2 ? 'twice' : `${job.effects.length} times`;
     const again =
       a.worker === b.worker
         ? `worker ${b.worker + 1} printed it a second time after its restart`
         : `worker ${b.worker + 1} printed it a second time`;
-    return `Order ${job.id} was printed twice: worker ${a.worker + 1} crashed after printing its ticket and before its ack left, so the broker sent it again and ${again}.`;
+    return `Order ${job.id} was printed ${times}: worker ${a.worker + 1} crashed after printing its ticket and before its ack left, so the broker sent it again and ${again}.`;
   }
   const lost = sim.tallies['no-loss'].first;
   if (lost) return `${firstUp(lost.detail)}.`;

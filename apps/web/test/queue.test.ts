@@ -7,6 +7,7 @@ import {
   DRAIN_WITHIN,
   jobOf,
   LATENCY,
+  live,
   LOADS,
   MAX_WORKERS,
   nextTime,
@@ -73,6 +74,33 @@ function betweenTicketAndAck(sim: Sim, k: number): boolean {
 
 const property = (sim: Sim, id: PropertyId) =>
   properties(sim).find((p) => p.id === id) as ReturnType<typeof properties>[number];
+
+/**
+ * What the records alone say became of the orders, without the totals, places and tallies sim.ts
+ * keeps: an order no store holds is done when its ticket printed and the broker had its ack (or let
+ * it go on delivery, under before), and lost otherwise. The sweep requires it to agree with the
+ * run's totals, so a loss has a second witness besides the lose() that counted it, and an order
+ * marked done that never printed shows.
+ */
+function ledger(sim: Sim): { done: number; lost: number } {
+  const held = new Set([
+    ...sim.ready,
+    ...sim.retrying,
+    ...sim.wire,
+    ...sim.workers.flatMap((w) => w.window),
+    ...sim.orphans,
+    ...sim.replies,
+    ...sim.dead,
+  ]);
+  let done = 0;
+  let lost = 0;
+  for (const job of sim.jobs) {
+    if (held.has(job.id)) continue;
+    if (job.effects.length > 0 && job.acked !== null) done += 1;
+    else lost += 1;
+  }
+  return { done, lost };
+}
 
 describe('delivery', () => {
   test('the broker sends orders round-robin, one way in 2 to 6 ms, and the ack leaves after the ticket', () => {
@@ -155,6 +183,27 @@ describe('a crash', () => {
           new RegExp(`^order ${job.id} was printed by worker 1 and again by worker \\d$`),
         );
     }
+  });
+
+  test('an order printed three times is one order printed more than once, with two tickets too many', () => {
+    const sim = createSim({ seed: 1, load: 'rush', workers: 2, key: false });
+    stepUntil(sim, (s) => betweenTicketAndAck(s, 0));
+    const job = jobOf(sim, workerOf(sim, 0).busy as number);
+    crash(sim, 0);
+    restart(sim, 0);
+    // Whichever worker prints it again crashes in the same gap.
+    const holder = (s: Sim) =>
+      s.workers.find((w) => w.busy === job.id && betweenTicketAndAck(s, w.id));
+    stepUntil(sim, (s) => holder(s) !== undefined);
+    crash(sim, (holder(sim) as Worker).id);
+    runUntil(sim, sim.now + 3_000);
+    expect([job.place, job.effects.length]).toEqual(['done', 3]);
+    expect(sim.jobs.filter((j) => j.effects.length > 1)).toEqual([job]);
+    expect([sim.duplicates, property(sim, 'once').count]).toEqual([2, 1]);
+    expect(statusText(sim)).toBe(
+      'No order was lost and the queue drains, but 1 order was printed more than once.',
+    );
+    expect(summary(sim)).toMatch(new RegExp(`^Order ${job.id} was printed 3 times: worker 1 `));
   });
 
   test('the broker puts back what the worker held at the head of the queue, in the order it sent it, and a restart starts empty', () => {
@@ -376,9 +425,10 @@ describe('Little’s Law', () => {
         ended += 1;
         time += job.ended - job.published;
       }
-      const lambda = sim.jobs.length / 60;
+      // The arrival rate, λ in L = λW, in orders a second.
+      const rate = sim.jobs.length / 60;
       const W = time / ended / 1000;
-      expect(L / (lambda * W)).toBeCloseTo(1, 1);
+      expect(L / (rate * W)).toBeCloseTo(1, 1);
     },
   );
 
@@ -435,6 +485,18 @@ describe('conservation', () => {
     expect(audit(sim)?.detail).toBe(`order ${id} is in two places at once: ready and orphan`);
   });
 
+  test('the records catch an order marked done that never printed, which the totals, the audit and the tallies all miss', () => {
+    const sim = createSim({ seed: 1, load: 'rush' });
+    runUntil(sim, 3_000);
+    expect(ledger(sim)).toEqual({ done: sim.doneCount, lost: 0 });
+    const job = jobOf(sim, sim.ready.shift() as number);
+    job.place = 'done';
+    sim.doneCount += 1;
+    expect([invariant(sim), audit(sim)]).toEqual([null, null]);
+    expect(properties(sim).every((p) => p.held)).toBe(true);
+    expect(ledger(sim)).toEqual({ done: sim.doneCount - 1, lost: 1 });
+  });
+
   test('every sample of the history strip adds up to the orders published by then', () => {
     const sim = createSim({ seed: 8, load: 'rush', prefetch: 3, ack: 'before' });
     runUntil(sim, 2_000);
@@ -482,16 +544,57 @@ function everyAction(): Sim {
   return sim;
 }
 
+/** A run's whole state, to compare two runs: events, orders, workers, connections, words, history. */
+const shape = (s: Sim) =>
+  JSON.stringify([
+    s.events,
+    s.jobs,
+    s.workers,
+    s.connections.map((c) => ({ ...c, unacked: [...c.unacked] })),
+    s.lines,
+    s.samples,
+    s.tallies,
+  ]);
+
 test('determinism: the same seed and actions give the same run, event for event', () => {
   const a = everyAction();
   const b = everyAction();
   const again = replay({ seed: 42, load: 'busy', prefetch: 2 }, a.actions, 8_000);
-  const shape = (s: Sim) =>
-    JSON.stringify([s.events, s.jobs, s.workers, s.lines, s.samples, s.tallies]);
   expect(a.violation).toBeNull();
   expect(new Set(a.actions.map((x) => x.kind)).size).toBe(12);
   expect(shape(b)).toBe(shape(a));
   expect(shape(again)).toBe(shape(a));
+});
+
+test('determinism: an action taken between two events of one millisecond lands at its end, where replay puts it', () => {
+  // Driven event by event, as a Step button, or a frame's budget of events, drives a run. An
+  // action records only its time, so it must not land where replay, which runs to that time
+  // before it acts, cannot put it: before another event of the same millisecond, or before the
+  // history strip's sample of it.
+  for (let seed = 1; seed <= 10; seed++) {
+    const config: Config = { seed, load: 'busy', prefetch: 2 };
+    const sim = createSim(config);
+    runUntil(sim, 1_000);
+    // Another event is still due in the millisecond the run stands at.
+    stepUntil(sim, (s) => nextTime(s) === s.now);
+    crash(sim, 1);
+    // The run stands at a multiple of 250 ms whose sample is not yet taken.
+    stepUntil(sim, (s) => s.nextSample === s.now);
+    poison(sim);
+    const until = sim.now + 3_000;
+    runUntil(sim, until);
+    expect(shape(replay(config, sim.actions, until))).toBe(shape(sim));
+  }
+  // Two actions in one millisecond: seed 19's new load draws its first arrival for that same
+  // millisecond, and the crash after it comes after that arrival, as in replay.
+  const config: Config = { seed: 19, load: 'calm' };
+  const sim = createSim(config);
+  runUntil(sim, 1_000);
+  setLoad(sim, 'rush');
+  expect(nextTime(sim)).toBe(1_000);
+  crash(sim, 0);
+  runUntil(sim, 4_000);
+  expect(shape(replay(config, sim.actions, 4_000))).toBe(shape(sim));
 });
 
 describe('the event lines', () => {
@@ -556,7 +659,7 @@ test('the opening the page draws: worker 2 crashes between a ticket and its ack,
     'Order 18 was printed twice: worker 2 crashed after printing its ticket and before its ack left, so the broker sent it again and worker 1 printed it a second time. Nothing was lost; 25 orders are done and 13 are queued or with a worker.',
   );
   expect(statusText(sim)).toBe(
-    'No order was lost and the queue drains, but 1 ticket was printed twice.',
+    'No order was lost and the queue drains, but 1 order was printed twice.',
   );
   expect(workerText(sim, 1)).toBe('Worker 2, down');
   const life = lifecycles(sim).find((l) => l.id === 18);
@@ -571,13 +674,21 @@ test('the opening the page draws: worker 2 crashes between a ticket and its ack,
 
 const LOAD_NAMES: readonly Load[] = ['calm', 'busy', 'rush'];
 
+/** The producer runs for 20 s; then the queue has 30 s to drain. */
+const PRODUCING = 20_000;
+
 /**
  * A seeded run with faults, from the safe configuration unless `over` changes it: a random load,
- * 3 to 5 workers and a prefetch of 1 to 10, then for 20 s an action every 150 to 1,500 ms: a crash
- * (and a restart 0.2 to 2 s later), a slow spell of 0.5 to 3.5 s, a new prefetch or a new pool
- * size. At 20 s the producer stops, every worker restarts at its usual speed and the pool grows to
- * five, so the next 30 s test whether the queue drains, not whether a worker was left down. A rush
- * on three workers leaves about 200 orders, which five drain in about 15 s.
+ * 3 to 5 workers and a prefetch of 1 to 10, then for 50 s an action every 150 to 1,500 ms: a crash
+ * (and a restart 0.2 to 2 s later), a slow spell of 0.5 to 3.5 s, a new prefetch or, while the
+ * producer runs, a new pool size. At 20 s the producer stops and the pool grows to five, and the
+ * faults go on: the next 30 s test whether the queue drains through crashes and slow spells.
+ *
+ * Whether a queue drains depends on capacity, not on the ack or the key. Stopped with the pool it
+ * had, its crashed workers left down and its slow ones slow, the queue misses the 30 s in 165 of
+ * these 2,000 seeds, most of them rushes (a slow worker hoarding a full window is about 30 s of
+ * work on its own). So the drain gets five workers, as an operator would scale up for it. A rush
+ * on three workers leaves about 200 orders, which five drain in about 15 s, or 24 s at worst here.
  */
 function faultyRun(seed: number, over: Partial<Config> = {}): Sim {
   const pick = seeded(seed * 7919 + 17);
@@ -593,7 +704,7 @@ function faultyRun(seed: number, over: Partial<Config> = {}): Sim {
   });
   const plan: { at: number; act: () => void }[] = [];
   const gap = () => 150 + Math.floor(pick() * 1_350);
-  for (let t = gap(); t < 20_000; t += gap()) {
+  for (let t = gap(); t < PRODUCING + DRAIN_WITHIN; t += gap()) {
     const k = Math.floor(pick() * workers);
     const roll = pick();
     if (roll < 0.6) {
@@ -607,23 +718,25 @@ function faultyRun(seed: number, over: Partial<Config> = {}): Sim {
       plan.push({ at: t, act: () => setPrefetch(sim, n) });
     } else {
       const n = 3 + Math.floor(pick() * 3);
-      plan.push({ at: t, act: () => setWorkers(sim, n) });
+      if (t < PRODUCING) plan.push({ at: t, act: () => setWorkers(sim, n) });
     }
   }
+  plan.push({
+    at: PRODUCING,
+    act: () => {
+      stopProducer(sim);
+      setWorkers(sim, MAX_WORKERS);
+    },
+  });
   plan.sort((a, b) => a.at - b.at);
   for (const { at, act } of plan) {
-    if (at >= 20_000 || sim.violation) break;
+    if (sim.violation) break;
     runUntil(sim, at);
     act();
   }
-  runUntil(sim, 20_000);
-  stopProducer(sim);
-  setWorkers(sim, MAX_WORKERS);
-  for (let k = 0; k < MAX_WORKERS; k++) {
-    restart(sim, k);
-    slow(sim, k, false);
-  }
-  runUntil(sim, 20_000 + DRAIN_WITHIN);
+  runUntil(sim, PRODUCING + DRAIN_WITHIN);
+  // Every worker down at once pauses the drain, whose 30 s start again when one is back.
+  if (sim.drain.since !== null) runUntil(sim, sim.drain.since + DRAIN_WITHIN);
   return sim;
 }
 
@@ -652,6 +765,10 @@ describe('the property sweep', { timeout: 30_000 }, () => {
       if (sim.violation) broken.push(`seed ${seed}: ${sim.violation.detail}`);
       for (const p of properties(sim))
         if (!p.held) broken.push(`seed ${seed}: ${p.name}: ${p.first?.detail}`);
+      const books = ledger(sim);
+      if (books.done !== sim.doneCount || books.lost !== sim.lostCount)
+        broken.push(`seed ${seed}: the records hold ${books.done} done and ${books.lost} lost`);
+      if (live(sim) > 0) broken.push(`seed ${seed}: ${live(sim)} orders never drained`);
     }
     expect(broken).toEqual([]);
     // The sweep did real work: crashes that sent orders again, and second tickets the key stopped.
@@ -659,8 +776,8 @@ describe('the property sweep', { timeout: 30_000 }, () => {
     expect(crashes).toBeGreaterThan(SEEDS * 8);
     expect(redelivered).toBeGreaterThan(SEEDS * 20);
     expect(skipped).toBeGreaterThan(SEEDS / 2);
-    // And no queue came near the limit: the drain tests the queue, not the margin.
-    expect(slowestDrain).toBeLessThan(20_000);
+    // And no queue came within 3 s of the limit: the drain tests the queue, not the margin.
+    expect(slowestDrain).toBeLessThan(DRAIN_WITHIN - 3_000);
   });
 
   test.each([
@@ -673,6 +790,7 @@ describe('the property sweep', { timeout: 30_000 }, () => {
       for (let seed = 1; seed <= KNOWN; seed++) {
         const sim = faultyRun(seed, over);
         expect(sim.violation).toBeNull();
+        expect(ledger(sim)).toEqual({ done: sim.doneCount, lost: sim.lostCount });
         if (!property(sim, id).held) breaks += 1;
       }
       expect(breaks).toBeGreaterThan(KNOWN / 5);
@@ -694,9 +812,25 @@ describe('the property sweep', { timeout: 30_000 }, () => {
       for (let seed = 1; seed <= KNOWN; seed++) {
         const sim = faultyRun(seed, { faults });
         expect(sim.violation).toBeNull();
+        // A loss is seen in the records too, not only where the fault itself calls lose().
+        expect(ledger(sim)).toEqual({ done: sim.doneCount, lost: sim.lostCount });
         if (!property(sim, id).held) caught += 1;
       }
       expect(caught).toBeGreaterThan(KNOWN / 5);
     },
   );
+
+  // effectBeforeCheck records the key as the ack leaves, so a crash before the record is a crash
+  // before the ack, which prints twice with no key at all. Workers here only crash or stop, so no
+  // second delivery of an order runs while the first is still at work, and the fault is the key
+  // turned off by another name. The race it stands for needs a redelivery that overtakes a worker
+  // that is only slow (a delivery timeout), which this model does not have.
+  test('a worker that records the key in a second step catches what turning the key off does, in the same seeds, and no more', () => {
+    for (let seed = 1; seed <= KNOWN; seed++) {
+      const split = faultyRun(seed, { faults: { effectBeforeCheck: true } });
+      const off = faultyRun(seed, { key: false });
+      expect(split.skipped).toBe(0);
+      expect(split.tallies).toEqual(off.tallies);
+    }
+  });
 });

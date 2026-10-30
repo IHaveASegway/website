@@ -28,8 +28,11 @@ export interface PropertyState {
  *   order the broker had let go when its worker crashed: acknowledged on delivery (`before`).
  * - `once`: no order's ticket printed twice. A break is a redelivered order printed again: its
  *   worker crashed after the ticket and before its ack left, and no idempotency key stopped it.
+ *   Each such order counts once, however many times it printed; sim.duplicates counts tickets.
  * - `drains`: once the producer stops, with a worker up, the queue empties within 30 s. A poison
  *   order under `requeue` comes straight back on every failure and keeps it from ever emptying.
+ *   It also rests on capacity, whatever the ack timing or the key: a backlog more than the
+ *   workers up can finish in 30 s breaks it in any configuration.
  */
 export function properties(sim: Sim): PropertyState[] {
   return PROPERTIES.map(({ id, name }) => {

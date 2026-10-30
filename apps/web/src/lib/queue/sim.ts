@@ -71,10 +71,16 @@ const LINES = 200;
  * Deliberately broken behaviours, for the tests only: each is a known bug the property sweep must
  * find (test/queue.test.ts). The page never sets any.
  * - `forgetRequeue`: when a crashed worker's connection closes, the broker drops the orders it
- *   still held for it instead of putting them back, so `no-loss` breaks under `after`.
+ *   still held for it instead of putting them back, so `no-loss` breaks under `after`. It counts
+ *   each drop through lose(), as any loss must be counted: a drop that skipped it would break
+ *   conservation and freeze the run. The sweep also finds the losses in the records alone.
  * - `effectBeforeCheck`: the idempotency key is checked and the ticket printed in one step, and
  *   the key recorded in another, when the handler returns. A crash between the two leaves a
  *   ticket with no record of it, so the redelivery prints it again: `once` breaks with the key on.
+ *   In this model that is the key turned off by another name: the record lands as the ack
+ *   leaves, and a crash before the ack prints twice with no key too. The race in Leach's post,
+ *   two deliveries of one order checking the key at once, needs a redelivery that overtakes a
+ *   worker that is only slow (a delivery timeout), which this broker does not have.
  * - `ackBeforeEffect`: under `after`, the worker acknowledges as it starts an order, before its
  *   ticket, so a crash during the work loses the order: `no-loss` breaks.
  */
@@ -211,7 +217,7 @@ export interface Sample {
   readonly done: number;
   readonly dead: number;
   readonly lost: number;
-  /** Tickets printed a second time; not orders, so outside the sum. */
+  /** Tickets printed beyond each order's first; not orders, so outside the sum. */
   readonly duplicates: number;
 }
 
@@ -290,7 +296,8 @@ export interface Sim {
   readonly jobs: Job[];
   /** The durable done set the idempotency key writes. */
   readonly doneSet: Set<number>;
-  /** Tickets printed a second time, and second tickets the key stopped. */
+  /** Tickets printed beyond each order's first, and tickets the key stopped. The `once` tally
+   *  counts orders instead: an order printed three times is one break and two duplicates. */
   duplicates: number;
   skipped: number;
   readonly tallies: Record<PropertyId, Tally>;
@@ -559,12 +566,13 @@ function print(sim: Sim, w: Worker, job: Job): void {
   if (times < 2) return;
   sim.duplicates += 1;
   const first = job.effects[0] as Effect;
-  tally(
-    sim,
-    'once',
-    job.id,
-    `order ${job.id} was printed by ${workerName(first.worker)} and again by ${workerName(w.id)}`,
-  );
+  if (times === 2)
+    tally(
+      sim,
+      'once',
+      job.id,
+      `order ${job.id} was printed by ${workerName(first.worker)} and again by ${workerName(w.id)}`,
+    );
   say(
     sim,
     `${WorkerName(w.id)} prints order ${job.id}'s ticket again: order ${job.id} is printed ${times === 2 ? 'twice' : `${times} times`}`,
@@ -908,6 +916,17 @@ export function runUntil(sim: Sim, until: number, limit = Infinity): void {
   sampleTo(sim, until, true);
 }
 
+/** Every action takes effect at the end of its millisecond, after the events still due in it and
+ *  the history strip's samples up to it, before it even checks whether it applies. An action
+ *  records only its time, and replay runs to that time before it acts, so this is the one place
+ *  replay can put it. A run driven event by event (a Step button, a frame's budget of events)
+ *  could otherwise act between two events of one millisecond, or before that millisecond's sample,
+ *  and its replay would differ. Events in one millisecond happen at the same time, so an action
+ *  that lands after them all still lands at the time it was taken. */
+function catchUp(sim: Sim): void {
+  runUntil(sim, sim.now);
+}
+
 function record(sim: Sim, action: Action): void {
   sim.actions.push(action);
 }
@@ -916,6 +935,7 @@ function record(sim: Sim, action: Action): void {
  *  connection's close arrives, after everything the worker had already sent, so an ack on the
  *  wire still lands first. */
 export function crash(sim: Sim, k: number): void {
+  catchUp(sim);
   const w = sim.workers[k];
   if (!w || w.state !== 'up') return;
   record(sim, { at: sim.now, kind: 'crash', worker: k });
@@ -968,6 +988,7 @@ export function crash(sim: Sim, k: number): void {
 
 /** Restarts a crashed worker, empty, on a new connection. */
 export function restart(sim: Sim, k: number): void {
+  catchUp(sim);
   const w = sim.workers[k];
   if (!w || w.state !== 'down') return;
   record(sim, { at: sim.now, kind: 'restart', worker: k });
@@ -978,6 +999,7 @@ export function restart(sim: Sim, k: number): void {
 
 /** Makes worker k ten times slower, or brings it back: it applies from the next order it starts. */
 export function slow(sim: Sim, k: number, on: boolean): void {
+  catchUp(sim);
   const w = sim.workers[k];
   if (!w || w.slow === on) return;
   record(sim, { at: sim.now, kind: 'slow', worker: k, on });
@@ -993,6 +1015,7 @@ export function slow(sim: Sim, k: number, on: boolean): void {
 
 /** Publishes one order that fails on every try. */
 export function poison(sim: Sim): Job {
+  catchUp(sim);
   record(sim, { at: sim.now, kind: 'poison' });
   const job = publish(sim, true);
   say(sim, `Order ${job.id} is published, and it is poison: it fails on every try`);
@@ -1002,6 +1025,7 @@ export function poison(sim: Sim): Job {
 }
 
 export function setLoad(sim: Sim, load: Load): void {
+  catchUp(sim);
   if (sim.load === load) return;
   record(sim, { at: sim.now, kind: 'load', load });
   sim.load = load;
@@ -1015,6 +1039,7 @@ export function setLoad(sim: Sim, load: Load): void {
 }
 
 export function setAck(sim: Sim, ack: Ack): void {
+  catchUp(sim);
   if (sim.ack === ack) return;
   record(sim, { at: sim.now, kind: 'ack', ack });
   sim.ack = ack;
@@ -1028,6 +1053,7 @@ export function setAck(sim: Sim, ack: Ack): void {
 }
 
 export function setKey(sim: Sim, on: boolean): void {
+  catchUp(sim);
   if (sim.key === on) return;
   record(sim, { at: sim.now, kind: 'key', on });
   sim.key = on;
@@ -1041,6 +1067,7 @@ export function setKey(sim: Sim, on: boolean): void {
 }
 
 export function setPoisonHandling(sim: Sim, handling: Handling): void {
+  catchUp(sim);
   if (sim.handling === handling) return;
   record(sim, { at: sim.now, kind: 'handling', handling });
   sim.handling = handling;
@@ -1054,6 +1081,7 @@ export function setPoisonHandling(sim: Sim, handling: Handling): void {
 }
 
 export function setPrefetch(sim: Sim, n: number): void {
+  catchUp(sim);
   const prefetch = clampTo(n, 1, MAX_PREFETCH);
   if (sim.prefetch === prefetch) return;
   record(sim, { at: sim.now, kind: 'prefetch', n: prefetch });
@@ -1069,6 +1097,7 @@ export function setPrefetch(sim: Sim, n: number): void {
 /** Sets the pool's size. A worker added starts empty; a worker taken out finishes what it holds,
  *  then leaves, so scaling down loses nothing. */
 export function setWorkers(sim: Sim, n: number): void {
+  catchUp(sim);
   const size = clampTo(n, 1, MAX_WORKERS);
   if (sim.size === size) return;
   record(sim, { at: sim.now, kind: 'workers', n: size });
@@ -1095,6 +1124,7 @@ export function setWorkers(sim: Sim, n: number): void {
 }
 
 export function stopProducer(sim: Sim): void {
+  catchUp(sim);
   if (!sim.producing) return;
   record(sim, { at: sim.now, kind: 'stop' });
   sim.producing = false;
@@ -1104,6 +1134,7 @@ export function stopProducer(sim: Sim): void {
 }
 
 export function startProducer(sim: Sim): void {
+  catchUp(sim);
   if (sim.producing) return;
   record(sim, { at: sim.now, kind: 'start' });
   sim.producing = true;
