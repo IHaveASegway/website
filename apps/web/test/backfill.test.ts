@@ -24,6 +24,7 @@ import {
   failNextLoad,
   finished,
   lateFile,
+  nextTime,
   replay,
   runUntil,
   setMaxActiveRuns,
@@ -156,6 +157,18 @@ describe('a run', () => {
     },
   );
 
+  test('a day a clear sends back to the queue goes before later days still waiting', () => {
+    const sim = createSim({ ...quiet, maxActiveRuns: 1 });
+    start(sim);
+    while (runOf(sim, 4).state !== 'running') step(sim);
+    // Tuesday had finished; cleared, it waits for the one run slot again, with Saturday and Sunday.
+    clear(sim, 1);
+    runUntil(sim, Infinity);
+    const after = [1, 5, 6].map((day) => runOf(sim, day).started as number);
+    expect(after).toEqual([...after].sort((a, b) => a - b));
+    expect(after[0]).toBeGreaterThanOrEqual(runOf(sim, 4).ended as number);
+  });
+
   test('raising the limit lets waiting runs in at once; lowering it lets the active ones finish', () => {
     const sim = createSim({ ...quiet, maxActiveRuns: 1 });
     start(sim);
@@ -226,6 +239,31 @@ describe('the sensor', () => {
     expect(looks.map((a) => a.outcome)).toEqual(['failed', 'success']);
     expect(runOf(sim, 3).state).toBe('success');
   });
+
+  test('a hold of no minutes changes nothing, so it is not recorded and no file lands twice', () => {
+    const plain = backfill({ ...quiet, maxActiveRuns: 7 });
+    const held = backfill({ ...quiet, maxActiveRuns: 7 }, (s) => {
+      // Sunday's file is still on its way as the week ends; Monday's landed a week ago.
+      lateFile(s, 6, 0);
+      lateFile(s, 0, 0);
+    });
+    expect(held.actions.map((a) => a.kind)).toEqual(['start']);
+    expect(held.lines.filter((l) => /export file lands/.test(l.text))).toHaveLength(1);
+    expect(held.events).toBe(plain.events);
+    expect(held.files).toEqual(plain.files);
+  });
+
+  test('a file that will never land cannot be held back further: the hold is not recorded, and says nothing', () => {
+    const sim = createSim(quiet);
+    lateFile(sim, 3, 'never');
+    lateFile(sim, 3, 300);
+    lateFile(sim, 3, 'never');
+    expect(sim.files[3]).toBe(Infinity);
+    expect(sim.actions).toHaveLength(1);
+    expect(sim.lines.map((l) => l.text)).toEqual([
+      "Thursday's export file is held back, and will never land",
+    ]);
+  });
 });
 
 describe('retries', () => {
@@ -240,6 +278,19 @@ describe('retries', () => {
     expect(taskOf(sim, 2, 'load').state).toBe('failed');
     expect(taskOf(sim, 2, 'check').state).toBe('upstream-failed');
     expect(runOf(sim, 2).state).toBe('failed');
+    expect(sim.failNext[2]).toBe(0);
+  });
+
+  test('a forced failure is used up only by an attempt that fails: a clear that stops the attempt first leaves it for the rerun', () => {
+    const sim = createSim({ ...quiet, maxActiveRuns: 7 });
+    failNextLoad(sim, 2);
+    start(sim);
+    while (taskOf(sim, 2, 'load').state !== 'running') step(sim);
+    clear(sim, 2);
+    expect(sim.failNext[2]).toBe(1);
+    runUntil(sim, Infinity);
+    const loads = attemptsOf(sim, 2, 'load');
+    expect(loads.map((a) => a.outcome)).toEqual(['stopped', 'failed', 'success']);
     expect(sim.failNext[2]).toBe(0);
   });
 
@@ -338,6 +389,41 @@ describe('loads', () => {
     const sim = backfill({ ...quiet, mode: 'overwrite', partition: 'today' });
     expect(sim.source).toContain(sim.report[7]);
     expect(property(sim, 'totals').count).toBe(7);
+  });
+});
+
+describe('the summary', () => {
+  test('one run finished and one day checked: both said in the singular', () => {
+    const sim = createSim({ ...quiet, maxActiveRuns: 1 });
+    start(sim);
+    while (!sim.checker.checked.some(Boolean)) step(sim);
+    expect(summary(sim)).toBe(
+      "1 of 7 runs has finished; 1 running and 5 waiting for a run slot. Monday's total, the only one checked so far, matches the source.",
+    );
+  });
+
+  test('a rerun under append after a failed load: the cause counts the rows left behind and each append', () => {
+    const sim = backfill({ ...quiet, mode: 'append' }, (s) => failNextLoad(s, 2));
+    clear(sim, 2);
+    runUntil(sim, Infinity);
+    // 118 left behind by the failed attempt, then all 201 from the retry and 201 from the rerun.
+    expect(sim.report[2]).toBe(118 + 2 * 201);
+    expect(summary(sim)).toBe(
+      "Every run has finished, and all 7 succeeded. Wednesday's report counts 520 orders, 319 more than the source: a failed load left 118 rows behind, and all 201 were appended twice; the other 6 days match.",
+    );
+  });
+
+  test('a cause the loads do not fully account for is left out, and the plain gap stands', () => {
+    const sim = backfill({ ...quiet, mode: 'overwrite' });
+    setMode(sim, 'append');
+    failNextLoad(sim, 2);
+    clear(sim, 2);
+    runUntil(sim, Infinity);
+    // The overwrite's 201, then 104 left behind and the retry's 201: the appends explain only part.
+    expect(sim.report[2]).toBe(201 + 104 + 201);
+    expect(summary(sim)).toBe(
+      "Every run has finished, and all 7 succeeded. Wednesday's report counts 506 orders, 305 more than the source; the other 6 days match.",
+    );
   });
 });
 
@@ -455,9 +541,10 @@ function faultyRun(seed: number, over: Partial<Config> = {}): Sim {
   return sim;
 }
 
-/** How many seeds the sweep runs: about 1.3 s of the suite on a laptop, measured on 2026-10-30.
- *  Over 3,000 seeds the faults are caught in 3,000 (ignoreDependencies), 2,170 (poolOverrun) and
- *  1,720 (nonAtomicOverwrite); append breaks totals in 2,986 and today in all 3,000. */
+/** How many seeds each pass of the sweep runs: its six passes take about 3.8 s of the suite on a
+ *  laptop, measured on 2026-10-30. Over 3,000 seeds the faults are caught in 3,000
+ *  (ignoreDependencies), 2,172 (poolOverrun) and 1,709 (nonAtomicOverwrite); append breaks totals
+ *  in 2,986 and today in all 3,000; conservation holds in every pass. */
 const SEEDS = SEEDS_IN_CI;
 
 // As in the Raft Lab, the limit only catches a hang: a broken scheduler that stops being caught
@@ -488,15 +575,18 @@ describe('the property sweep', { timeout: 30_000 }, () => {
     expect(failedRuns).toBeGreaterThan(0);
   });
 
+  // Conservation must hold in every configuration, so each pass below checks it on every seed,
+  // not only up to the first seed that breaks the property the pass is about.
   test('with append, the same backfills break totals: a retry or a rerun counts a day twice', () => {
-    let caught: string | null = null;
-    for (let seed = 1; seed <= SEEDS && !caught; seed++) {
+    const broken: string[] = [];
+    let caught = 0;
+    for (let seed = 1; seed <= SEEDS; seed++) {
       const sim = faultyRun(seed, { mode: 'append' });
-      expect(sim.violation).toBeNull();
-      const totals = property(sim, 'totals');
-      if (!totals.held) caught = `seed ${seed}: ${totals.first?.detail}`;
+      if (sim.violation) broken.push(`seed ${seed}: conservation: ${sim.violation.detail}`);
+      if (!property(sim, 'totals').held) caught++;
     }
-    expect(caught).not.toBeNull();
+    expect(broken).toEqual([]);
+    expect(caught).toBeGreaterThan(0);
   });
 
   test("with today, every one of them breaks totals: the week's rows land on the clock's day", () => {
@@ -514,14 +604,15 @@ describe('the property sweep', { timeout: 30_000 }, () => {
     ['ignores the warehouse slots', { poolOverrun: true }, 'limits'],
     ['overwrites in two steps, delete then insert', { nonAtomicOverwrite: true }, 'totals'],
   ] as const)('a scheduler that %s is caught within the sweep', (_name, faults, id) => {
-    let caught: string | null = null;
-    for (let seed = 1; seed <= SEEDS && !caught; seed++) {
+    const broken: string[] = [];
+    let caught = 0;
+    for (let seed = 1; seed <= SEEDS; seed++) {
       const sim = faultyRun(seed, { faults });
-      expect(sim.violation).toBeNull();
-      const p = property(sim, id);
-      if (!p.held) caught = `seed ${seed}: ${p.first?.detail}`;
+      if (sim.violation) broken.push(`seed ${seed}: conservation: ${sim.violation.detail}`);
+      if (!property(sim, id).held) caught++;
     }
-    expect(caught).not.toBeNull();
+    expect(broken).toEqual([]);
+    expect(caught).toBeGreaterThan(0);
   });
 });
 
@@ -557,6 +648,67 @@ test('determinism: the same seed and actions give the same run, event for event'
     'partition',
     'max-active-runs',
   ]);
+});
+
+// Virtual time counts whole minutes, so several events often share one, and a visitor's action
+// can fall between two of them. Replay has to put each action back at that same place.
+describe('replay, with actions between the events of one minute', () => {
+  const shape = (s: Sim) =>
+    JSON.stringify([s.events, s.runs, s.report, s.writes, s.lines, properties(s)]);
+  /** The visitor's run to its end, and the same actions replayed on a fresh run of the seed. */
+  function both(config: Config, play: (sim: Sim) => void): [string, string] {
+    const sim = createSim(config);
+    play(sim);
+    runUntil(sim, Infinity);
+    return [shape(sim), shape(replay(config, sim.actions, Infinity))];
+  }
+
+  test('a step, then an action while another event is still due that minute', () => {
+    for (const seed of [1, 2, 3])
+      for (let day = 0; day < DAYS; day++) {
+        const [live, again] = both({ seed, maxActiveRuns: 3 }, (sim) => {
+          start(sim);
+          while (step(sim)) if (sim.now > WEEK_END && nextTime(sim) === sim.now) break;
+          clear(sim, day);
+        });
+        expect(again).toBe(live);
+      }
+  });
+
+  test('two actions in one minute, where the first books an event at that minute', () => {
+    for (const seed of [1, 2, 3]) {
+      // Switching the graph on books each running sensor's first look for this minute.
+      const [live, again] = both({ seed }, (sim) => {
+        start(sim);
+        clear(sim, 0);
+      });
+      expect(again).toBe(live);
+      // So does raising the limit, for each run it lets in.
+      const [live2, again2] = both({ seed, maxActiveRuns: 1 }, (sim) => {
+        start(sim);
+        runUntil(sim, WEEK_END + 50);
+        setMaxActiveRuns(sim, 7);
+        clear(sim, 6);
+      });
+      expect(again2).toBe(live2);
+    }
+  });
+
+  test('a run moved in frames of a few events each: a frame cut short stands at its last event', () => {
+    const sim = createSim({ seed: 1 });
+    start(sim);
+    runUntil(sim, WEEK_END + 60, 1);
+    // One sensor looked; the other looks due before minute 60 still wait, and the clock waits too.
+    expect(sim.now).toBe(WEEK_END);
+    expect(nextTime(sim)).toBe(WEEK_END);
+    for (let seed = 1; seed <= 10; seed++) {
+      const [live, again] = both({ seed }, (s) => {
+        start(s);
+        while (s.now < WEEK_END + 2_000) runUntil(s, s.now + 5, 4);
+      });
+      expect(again).toBe(live);
+    }
+  });
 });
 
 const BANNED =
@@ -596,6 +748,28 @@ test('the lines: at most 200, each one plain sentence, with no banned word and n
     expect(text).not.toMatch(BANNED);
     expect(text).not.toContain('!');
     expect(text).not.toMatch(/undefined|NaN|Infinity|null/);
+  }
+});
+
+test('the lines for held-back files read as plain sentences, whatever holds come in whatever order', () => {
+  const HOLDS = [0, 5, 300, 'never'] as const;
+  const pick = seeded(23);
+  for (let seed = 1; seed <= 200; seed++) {
+    const sim = createSim({ seed });
+    const hold = () =>
+      lateFile(
+        sim,
+        Math.floor(pick() * DAYS),
+        HOLDS[Math.floor(pick() * HOLDS.length)] as (typeof HOLDS)[number],
+      );
+    for (let i = 0; i < 4; i++) hold();
+    start(sim);
+    for (let t = WEEK_END; t < WEEK_END + 600; t += 30) {
+      runUntil(sim, t);
+      if (pick() < 0.3) hold();
+    }
+    runUntil(sim, Infinity);
+    for (const { text } of sim.lines) expect(text).not.toMatch(/undefined|NaN|Infinity|null/);
   }
 });
 

@@ -175,6 +175,8 @@ export interface Attempt {
   outcome: Outcome;
   /** Decided as it starts: whether it fails, and after what share of its work, in percent. */
   readonly fails: boolean;
+  /** Whether it fails because failNextLoad asked for it: that request is used up as it fails. */
+  readonly forced: boolean;
   readonly percent: number;
   /** A load's partition, as a day number, and how it writes; null for the other tasks. */
   readonly partition: number | null;

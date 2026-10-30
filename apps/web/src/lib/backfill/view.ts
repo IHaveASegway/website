@@ -36,9 +36,10 @@ import { replay, type Action, type Config, type Sim } from './sim';
 export const OPENING = {
   seed: 9,
   config: { seed: 9, mode: 'append', partition: 'run-day', maxActiveRuns: 3 } as Config,
+  // Both come before the run's first event, so before its first step.
   actions: [
-    { at: WEEK_END, kind: 'fail-next-load', day: 2 },
-    { at: WEEK_END, kind: 'start' },
+    { at: WEEK_END, steps: 0, kind: 'fail-next-load', day: 2 },
+    { at: WEEK_END, steps: 0, kind: 'start' },
   ] as readonly Action[],
   until: WEEK_END + 130,
 } as const;
@@ -48,7 +49,8 @@ export const openingRun = (mode: Mode = 'append'): Sim =>
   replay({ ...OPENING.config, mode }, OPENING.actions, OPENING.until);
 
 /** How many seeded runs the property sweep in test/backfill.test.ts makes: the page says the
- *  number. It is the Raft Lab's count, and here it costs about 1.3 s of the suite on a laptop. */
+ *  number. It is the Raft Lab's count, run six times (overwrite, append, the clock's day, and each
+ *  of the three test-only faults): about 3.8 s of the suite on a laptop. */
 export const SEEDS_IN_CI = 3_000;
 
 export interface BoardAttempt {
@@ -135,9 +137,14 @@ const times = (n: number): string => (n === 1 ? 'once' : n === 2 ? 'twice' : `${
 
 const upperFirst = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
 
-/** Why a day's total is wrong, read from its loads, or null when they do not say. */
+/**
+ * Why a day's total is wrong, read from its loads, or null when they do not account for every row
+ * the day holds. A reason that explains only part of the gap reads as the whole story and
+ * misleads, so the plain numbers stand alone instead: after an overwrite and then appends, say.
+ */
 function cause(sim: Sim, day: number): string | null {
   let left = 0;
+  let failed = 0;
   let appends = 0;
   let elsewhere: number | null = null;
   for (const a of sim.attempts) {
@@ -145,16 +152,24 @@ function cause(sim: Sim, day: number): string | null {
     if (a.partition !== day) {
       if (a.outcome === 'success') elsewhere = a.partition;
     } else if (a.mode === 'append') {
-      if (a.outcome === 'failed') left += a.wrote;
+      if (a.outcome === 'failed') {
+        left += a.wrote;
+        failed += 1;
+      }
       if (a.outcome === 'success') appends += 1;
     }
   }
-  const orders = count(sim.source[day] ?? 0);
-  if (appends === 1 && left > 0)
-    return `a failed load left ${count(left)} rows behind, and the retry appended all ${orders} again`;
-  if (appends > 1) return `its ${orders} rows were appended ${times(appends)}`;
-  if (elsewhere !== null && (sim.report[day] ?? 0) === 0)
-    return `its rows were filed under ${dayText(elsewhere)}`;
+  const orders = sim.source[day] ?? 0;
+  const held = sim.report[day] ?? 0;
+  if (appends > 0 && left + appends * orders === held) {
+    const all = count(orders);
+    if (left === 0) return appends > 1 ? `its ${all} rows were appended ${times(appends)}` : null;
+    const behind = `${failed === 1 ? 'a failed load' : `${failed} failed loads`} left ${count(left)} rows behind`;
+    return appends === 1
+      ? `${behind}, and the retry appended all ${all} again`
+      : `${behind}, and all ${all} were appended ${times(appends)}`;
+  }
+  if (elsewhere !== null && held === 0) return `its rows were filed under ${dayText(elsewhere)}`;
   return null;
 }
 
@@ -171,7 +186,7 @@ export function summary(sim: Sim): string {
       ? failed.length === 0
         ? `Every run has finished, and all ${DAYS} succeeded.`
         : `Every run has finished, and ${joinAnd(failed)}'s failed.`
-      : `${done} of ${DAYS} runs have finished; ${running} running and ${DAYS - done - running} waiting for a run slot.`;
+      : `${done} of ${DAYS} runs ${done === 1 ? 'has' : 'have'} finished; ${running} running and ${DAYS - done - running} waiting for a run slot.`;
 
   const checked: number[] = [];
   for (let day = 0; day < DAYS; day++) if (sim.checker.checked[day]) checked.push(day);
@@ -183,7 +198,9 @@ export function summary(sim: Sim): string {
     const total = checked.reduce((sum, day) => sum + (sim.source[day] ?? 0), 0);
     return checked.length === DAYS
       ? `${progress} Every day's total matches the source: ${count(total)} orders in all.`
-      : `${progress} The ${checked.length} days checked so far match the source.`;
+      : checked.length === 1
+        ? `${progress} ${weekday(checked[0] as number)}'s total, the only one checked so far, matches the source.`
+        : `${progress} The ${checked.length} days checked so far match the source.`;
   }
   const others = checked.length - wrong.length;
   const rest =

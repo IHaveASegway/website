@@ -49,26 +49,31 @@ import {
 // A deterministic simulation of the bakery's report pipeline, in the style of the Raft Lab (ADR
 // 0020): virtual time, in minutes here; one seeded random stream for every count, duration,
 // failure and delay; an agenda that gives events back by time and then by the order they were
-// booked; and the visitor's actions recorded at the virtual minute they happened. The same seed
-// and the same actions give the same run, event for event, in a test, at build and in the browser.
+// booked; and the visitor's actions recorded at the virtual minute and the step they happened. The
+// same seed and the same actions give the same run, event for event, in a test, at build and in
+// the browser.
 //
 // After every event the scheduler's loop runs, as a real scheduler's does on each pass: it lets
-// queued runs in while fewer than the limit are active, starts each task whose upstream has
-// succeeded (or marks it upstream-failed), gives free warehouse slots to waiting loads, and ends a
-// run once every task in it is done. Then the checker looks at what changed.
+// queued runs in, oldest day first, while fewer than the limit are active, starts each task whose
+// upstream has succeeded (or marks it upstream-failed), gives free warehouse slots to waiting
+// loads, and ends a run once every task in it is done. Then the checker looks at what changed.
 
-export type Action =
-  | { readonly at: number; readonly kind: 'start' }
-  | { readonly at: number; readonly kind: 'fail-next-load' | 'clear'; readonly day: number }
-  | {
-      readonly at: number;
-      readonly kind: 'late-file';
-      readonly day: number;
-      readonly minutes: number | 'never';
-    }
-  | { readonly at: number; readonly kind: 'mode'; readonly mode: Mode }
-  | { readonly at: number; readonly kind: 'partition'; readonly partition: PartitionKey }
-  | { readonly at: number; readonly kind: 'max-active-runs'; readonly runs: number };
+/** What a visitor did, before record() adds where in the run it happened. */
+type Deed =
+  | { readonly kind: 'start' }
+  | { readonly kind: 'fail-next-load' | 'clear'; readonly day: number }
+  | { readonly kind: 'late-file'; readonly day: number; readonly minutes: number | 'never' }
+  | { readonly kind: 'mode'; readonly mode: Mode }
+  | { readonly kind: 'partition'; readonly partition: PartitionKey }
+  | { readonly kind: 'max-active-runs'; readonly runs: number };
+
+/**
+ * A visitor's action and its place in the run: the virtual minute, and how many steps the run had
+ * taken. The minute alone does not place it. Several events often share a minute, and an action
+ * can fall between two of them: after a step, or after another action that booked an event for
+ * that same minute. So replay goes to the same step first, and then stands at the same minute.
+ */
+export type Action = Deed & { readonly at: number; readonly steps: number };
 
 export interface Line {
   readonly at: number;
@@ -118,7 +123,10 @@ export interface Sim {
   /** Whether the job graph is switched on. */
   on: boolean;
   now: number;
+  /** Events that still mattered when they came up: the count the status line gives. */
   events: number;
+  /** Every event step() has taken from the agenda, void ones too: an action's place in the run. */
+  steps: number;
   lines: Line[];
   readonly actions: Action[];
   violation: Violation | null;
@@ -161,6 +169,7 @@ export function createSim(config: Config): Sim {
     on: false,
     now: WEEK_END,
     events: 0,
+    steps: 0,
     lines: [],
     actions: [],
     violation: null,
@@ -196,6 +205,7 @@ function begin(sim: Sim, run: Run, task: Task): void {
   const id = sim.attempts.length;
   task.tries += 1;
   let fails = false;
+  let forced = false;
   let percent = 100;
   let partition: number | null = null;
   let mode: Mode | null = null;
@@ -209,8 +219,9 @@ function begin(sim: Sim, run: Run, task: Task): void {
       // Both draws happen on every attempt, whether it fails or not.
       const roll = sim.random();
       const share = between(sim.random, PARTIAL[0], PARTIAL[1]);
-      const forced = task.name === 'load' && (sim.failNext[run.day] ?? 0) > 0;
-      if (forced) sim.failNext[run.day] = (sim.failNext[run.day] ?? 0) - 1;
+      // A forced failure is used up as this attempt fails, in complete(), not as it starts: a
+      // clear that stops the attempt first leaves the failure for the day's next load.
+      forced = task.name === 'load' && (sim.failNext[run.day] ?? 0) > 0;
       fails = forced || roll < sim.failRate;
       if (fails) percent = share;
     }
@@ -236,6 +247,7 @@ function begin(sim: Sim, run: Run, task: Task): void {
     end: null,
     outcome: 'running',
     fails,
+    forced,
     percent,
     partition,
     mode,
@@ -276,6 +288,12 @@ function poke(sim: Sim, run: Run, task: Task, attempt: Attempt): void {
  * the whole day again. An overwrite replaces the partition in one atomic step: all of it, or, if
  * the attempt fails, nothing at all. The test-only `nonAtomicOverwrite` deletes first, as a step
  * of its own, and a failure then leaves the partition empty.
+ *
+ * The model commits those rows at the attempt's end, the minute it fails or succeeds. So an
+ * attempt that a clear stops before then writes nothing, even an append, which in a real
+ * warehouse would leave the rows it had written so far. That is a chosen simplification: a clear
+ * stays a clean rerun, and every row counted twice comes from a failed load or a whole append,
+ * the two causes the lesson is about.
  */
 function commit(sim: Sim, attempt: Attempt): Write | null {
   const p = attempt.partition ?? attempt.day;
@@ -351,6 +369,7 @@ function complete(sim: Sim, run: Run, task: Task, attempt: Attempt): void {
     return;
   }
   close(attempt, sim.now, 'failed');
+  if (attempt.forced) sim.failNext[run.day] = (sim.failNext[run.day] ?? 0) - 1;
   const what =
     attempt.task === 'load'
       ? failedLoad(sim, run, attempt, write)
@@ -424,18 +443,32 @@ function waitingLoad(sim: Sim): { run: Run; task: Task } | null {
   return best;
 }
 
-/** The scheduler's loop, until nothing more can move at this minute. */
+/** The queued run for the oldest day. Schedulers on the data-interval model let runs in by the
+ *  day they cover, so a day that a clear sent back to the queue goes before later days. */
+const waitingRun = (sim: Sim): Run | undefined => sim.runs.find((r) => r.state === 'queued');
+
+/**
+ * The scheduler's loop, until nothing more can move at this minute. Each pass lets runs in while
+ * there is room, oldest day first, then moves each running run's tasks, then gives free warehouse
+ * slots to waiting loads. Runs are let in before the pass over the runs, not as it reaches each
+ * one: a run that finishes part way through the pass would otherwise hand its slot to the next
+ * day after it, ahead of an earlier day that a clear had sent back to the queue.
+ */
 function dispatch(sim: Sim): void {
   if (!sim.on) return;
   for (let moved = true; moved;) {
     moved = false;
+    for (
+      let run = waitingRun(sim);
+      run && activeRuns(sim) < sim.maxActiveRuns;
+      run = waitingRun(sim)
+    ) {
+      run.state = 'running';
+      run.started = sim.now;
+      noteAdmission(sim.checker, 'runs', activeRuns(sim), sim.maxActiveRuns, sim.now);
+      say(sim, `${weekday(run.day)}'s run starts`);
+    }
     for (const run of sim.runs) {
-      if (run.state === 'queued' && activeRuns(sim) < sim.maxActiveRuns) {
-        run.state = 'running';
-        run.started = sim.now;
-        noteAdmission(sim.checker, 'runs', activeRuns(sim), sim.maxActiveRuns, sim.now);
-        say(sim, `${weekday(run.day)}'s run starts`);
-      }
       if (run.state !== 'running') continue;
       for (const [i, task] of run.tasks.entries()) {
         if (task.state !== 'pending') continue;
@@ -486,32 +519,39 @@ export function step(sim: Sim): boolean {
   if (sim.violation) return false;
   const entry = next(sim.agenda);
   if (!entry) return false;
+  sim.steps += 1;
   sim.now = Math.max(sim.now, entry.at);
   if (happen(sim, entry.event)) sim.events += 1;
   settle(sim);
   return true;
 }
 
-/** Runs every event up to a virtual minute, then stands at it. With Infinity it runs until
- *  nothing is booked, and stands at the last event. An empty agenda's next time is Infinity, so
- *  the loop asks for a finite time, or Infinity would always be due. */
+/**
+ * Runs every event up to a virtual minute, then stands at it. With Infinity it runs until nothing
+ * is booked, and stands at the last event. An empty agenda's next time is Infinity, so the loop
+ * asks for a finite time, or Infinity would always be due. A call that its limit of events cuts
+ * short, as a page's frame may, stands at its last event instead: moving the clock past events
+ * still due would handle them late, and the run would no longer be the one replay rebuilds.
+ */
 export function runUntil(sim: Sim, until: number, limit = Infinity): void {
   for (let left = limit; left > 0 && !sim.violation; left--) {
     const at = nextTime(sim);
     if (!Number.isFinite(at) || at > until) break;
     step(sim);
   }
-  if (!sim.violation && Number.isFinite(until)) sim.now = Math.max(sim.now, until);
+  if (!sim.violation && Number.isFinite(until) && nextTime(sim) > until)
+    sim.now = Math.max(sim.now, until);
 }
 
-function record(sim: Sim, action: Action): void {
-  sim.actions.push(action);
+/** Keeps an action with its place in the run, for replay. */
+function record(sim: Sim, deed: Deed): void {
+  sim.actions.push({ at: sim.now, steps: sim.steps, ...deed });
 }
 
 /** Switches the job graph on, with catch-up: a run for each day of the week, all at once. */
 export function start(sim: Sim): void {
   if (sim.on) return;
-  record(sim, { at: sim.now, kind: 'start' });
+  record(sim, { kind: 'start' });
   sim.on = true;
   for (let day = 0; day < DAYS; day++) sim.runs.push(createRun(day));
   say(
@@ -532,7 +572,7 @@ export function clear(sim: Sim, day: number): void {
   if (!run) return;
   const keep = (task: Task) => task.name === 'wait' && task.state === 'success';
   if (run.tasks.every((t) => keep(t) || (t.state === 'pending' && t.tries === 0))) return;
-  record(sim, { at: sim.now, kind: 'clear', day });
+  record(sim, { kind: 'clear', day });
   const from = keep(run.tasks[0] as Task) ? 'extract' : 'its sensor';
   for (const task of run.tasks) {
     if (keep(task)) continue;
@@ -554,37 +594,38 @@ export function clear(sim: Sim, day: number): void {
  *  adds one more such failure. */
 export function failNextLoad(sim: Sim, day: number): void {
   if (!isDay(day)) return;
-  record(sim, { at: sim.now, kind: 'fail-next-load', day });
+  record(sim, { kind: 'fail-next-load', day });
   sim.failNext[day] = (sim.failNext[day] ?? 0) + 1;
   say(sim, `${weekday(day)}'s next load attempt will fail part way through`);
 }
 
 /**
  * Holds a day's export file back: it lands `minutes` later than it would have (counted from now
- * if it had already landed), or never, and a file that will never land stays that way. A sensor
- * still looking for it keeps looking, up to its timeout; one that has found it already goes on as
- * before.
+ * if it had already landed), or never. A sensor still looking for it keeps looking, up to its
+ * timeout; one that has found it already goes on as before. A hold that would change nothing is
+ * not recorded and says nothing: one of no minutes, which would book a second landing at the same
+ * minute, and any hold on a file that will never land, which stays that way.
  */
 export function lateFile(sim: Sim, day: number, minutes: number | 'never'): void {
   if (!isDay(day)) return;
-  record(sim, { at: sim.now, kind: 'late-file', day, minutes });
-  const at =
-    minutes === 'never'
-      ? Infinity
-      : Math.max(sim.files[day] ?? 0, sim.now) + Math.max(0, Math.round(minutes));
+  const due = sim.files[day] as number;
+  const by = minutes === 'never' ? Infinity : Math.max(0, Math.round(minutes));
+  if (by === 0 || !Number.isFinite(due)) return;
+  record(sim, { kind: 'late-file', day, minutes });
+  const at = Math.max(due, sim.now) + by;
   sim.files[day] = at;
   if (Number.isFinite(at)) schedule(sim.agenda, at, { kind: 'file', day });
   say(
     sim,
-    minutes === 'never'
-      ? `${weekday(day)}'s export file is held back, and will never land`
-      : `${weekday(day)}'s export file is held back ${minutesText(Math.max(0, Math.round(minutes)))}: it lands at ${when(at)}`,
+    Number.isFinite(at)
+      ? `${weekday(day)}'s export file is held back ${minutesText(by)}: it lands at ${when(at)}`
+      : `${weekday(day)}'s export file is held back, and will never land`,
   );
 }
 
 export function setMode(sim: Sim, mode: Mode): void {
   if (sim.mode === mode) return;
-  record(sim, { at: sim.now, kind: 'mode', mode });
+  record(sim, { kind: 'mode', mode });
   sim.mode = mode;
   say(
     sim,
@@ -596,7 +637,7 @@ export function setMode(sim: Sim, mode: Mode): void {
 
 export function setPartition(sim: Sim, partition: PartitionKey): void {
   if (sim.partition === partition) return;
-  record(sim, { at: sim.now, kind: 'partition', partition });
+  record(sim, { kind: 'partition', partition });
   sim.partition = partition;
   say(
     sim,
@@ -609,17 +650,20 @@ export function setPartition(sim: Sim, partition: PartitionKey): void {
 export function setMaxActiveRuns(sim: Sim, runs: number): void {
   const n = clampRuns(runs);
   if (sim.maxActiveRuns === n) return;
-  record(sim, { at: sim.now, kind: 'max-active-runs', runs: n });
+  record(sim, { kind: 'max-active-runs', runs: n });
   sim.maxActiveRuns = n;
   say(sim, `Up to ${n} ${n === 1 ? 'run' : 'runs'} may now be active at once`);
   settle(sim);
 }
 
-/** Replays recorded actions on a fresh run of the same seed: the run they came from, exactly. */
+/** Replays recorded actions on a fresh run of the same seed: the run they came from, exactly.
+ *  Each action goes back to its place: after as many steps as the run had taken, and then at its
+ *  minute, as the clock may have stood past the last event. */
 export function replay(config: Config, actions: readonly Action[], until: number): Sim {
   const sim = createSim(config);
   for (const action of actions) {
-    runUntil(sim, action.at);
+    while (sim.steps < action.steps) if (!step(sim)) break;
+    sim.now = Math.max(sim.now, action.at);
     switch (action.kind) {
       case 'start':
         start(sim);
