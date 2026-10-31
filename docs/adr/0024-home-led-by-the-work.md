@@ -1,6 +1,6 @@
 # ADR 0024: Home led by the work: the Route Lab's day live behind the name, the Raft Lab's election, a bolder type
 
-Status: Proposed · 2026-10-29 · Deciders: Joseph Peterson
+Status: Proposed · 2026-10-29 · Deciders: Joseph Peterson · Amended by [ADR 0025](0025-signal-box-identity.md): Home's new order, the city on the water, the board in the Raft Lab's chapter's place and the election retired (postscript 2026-10-30)
 
 ## Context
 
@@ -128,3 +128,14 @@ A wins on weight and on owning the least new code: the projection, the fit and t
 - **Fitness functions**: the budgets, the camera's agreement between picture and canvas, and the election's agreement with its stylesheet. Neal Ford, Rebecca Parsons and Patrick Kua, *Building Evolutionary Architectures*, chapter 2.
 - **Breakout layout**: a page whose rows keep a reading measure while one element reaches the edges. Josh W. Comeau, "Full-Bleed Layout Using CSS Grid" (2021), which also explains why `100vw` is the wrong measure of the page's width.
 - **Text that scales with the window, and zoom**: Maxwell Barvian, "Addressing Accessibility Concerns With Using Fluid Type" (*Smashing Magazine*, 2023), the source of the 2.5 rule `test/tokens.test.ts` holds.
+
+## Postscript 2026-10-30
+
+[ADR 0025](0025-signal-box-identity.md) gives Home a new order. It keeps this record's core, the Route Lab's day live behind the name and its lift into the space-time cube as the chapter scrolls up, and changes what stands around it. Top to bottom:
+
+- **The stage, the first screen.** The map lies flat, north up and edge to edge, and its water is the page itself, so it needs no mask and has no edge. From 64rem the column stands on Puget Sound at every width: the name, 56 to 136 px in Barlow Condensed (it was 64 to 160 px); "Senior Software Engineer. Remote, US.", from the profile; the bio's opening; 5 h 34 min struck in muted over 3 h 12 min at the title's size, beside a stretch of the Routes line; the Email and LinkedIn buttons; and the caption as a sentence, such as "20 min into the day: 6 of 20 orders delivered.", then the map's credit. The readout's box of capitals is gone. Below 64rem the name, the role and the buttons lead the column, then a 300 px band of the map, then the opening and the figures, so the fold at 390 × 844 holds the name (186.7 px), the role (221.5 px) and the Email button (289.5 px).
+- **The Route Lab's chapter**, the stage's second row, as before, its vans now a list written from the build's solve ("Van 1: 9 stops, Ravenna Park to International Fountain, back after 1 h 30 min"). The camera sways, and leans to the pointer, only as time stands up.
+- **The board** takes the Raft Lab's chapter's place. It first covered the scene, with a fade at its top, so the cube was dimmed whole before it was covered instead of sliced mid-air, the audit's P1; a review the same day found the dimmed cube standing above the panel until the stage ended, so the scene now stands still only as far as the Route Lab chapter's end and leaves with it, and the board follows, under nothing. It draws every live lab as its line. The isometric election, `lib/iso.ts`'s story, its 15 s loop and `test/iso.test.ts` are retired; the board's Raft line, a hub and its spokes drawn from the Raft Lab's own run, takes its place. The header's pause button now pauses the scene and the board's day together.
+- **How I work**, unnumbered, each lead at a section's size beside its evidence in the ink, not muted; **Writing**, as rows; **the close**, the address at the title's size, with no arrow, then LinkedIn.
+
+What stands: the renderer, its governor, its pause and its reduced-motion picture; the larger-screen rule, which now reads "the room gets more of the city, not bigger type"; and the budgets, Home's first view now 95,296 B gzip -9 against 150,000, with the scene's lazy chunk at 5,332 B. None of this record's Revisit if conditions is known to have been met.

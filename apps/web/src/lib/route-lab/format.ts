@@ -12,3 +12,11 @@ export function formatDuration(seconds: number): string {
   const m = minutes % 60;
   return h > 0 ? `${h}${NBSP}h ${m}${NBSP}min` : `${m}${NBSP}min`;
 }
+
+/** Where the day stands, in the sentence Home's caption says beside the scene: "20 min into the
+ *  day: 6 of 20 orders delivered." The build writes it for the day's end, which its picture shows,
+ *  and the scene's clock (scripts/route-scene.ts) counts it as the vans drive. One form at every
+ *  moment, so with tabular figures the day's end is the widest it gets, and the clock, which keeps
+ *  that sentence's room, never moves the words after it. */
+export const dayLine = (seconds: number, delivered: number, orders: number): string =>
+  `${formatDuration(seconds)} into the day: ${delivered} of ${orders} orders delivered.`;

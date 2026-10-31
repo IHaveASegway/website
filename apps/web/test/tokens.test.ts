@@ -13,6 +13,7 @@ import {
 import { describe, expect, test } from 'vitest';
 import { SELECTORS, block, stripComments, themeBlocks, themeColors } from '../src/lib/tokens';
 import { files, read } from './support/dist';
+import { labPage, labTitle, SIMULATED_LABS } from './support/labs';
 
 // The contrast claim belongs to this test, not to a comment (ADR 0010). It reads tokens.css,
 // resolves every color token in both themes, and checks each text and non-text token against
@@ -32,32 +33,34 @@ const TEXT = [
 ];
 /** Non-text: focus outlines, functional borders and indicators, 3:1 on every surface (SC 1.4.11). */
 const NON_TEXT = ['ring', 'input'];
+/** The labs' lines (ADR 0025): strokes and lamps, never text, 3:1 (SC 1.4.11) on the surfaces a line
+ *  is drawn on: the page, the board and a raised surface. The ground is a background symbol of its
+ *  own, which no line crosses. */
+const LINES = ['line-routes', 'line-raft', 'line-queue', 'line-cache', 'line-backfill'];
+const LINE_SURFACES = ['background', 'surface-1', 'surface-2'];
 /** Text drawn on an accent fill, such as a button label, against each fill it sits on. */
 const ON_FILL: Record<string, string[]> = { 'primary-foreground': ['primary', 'primary-strong'] };
+/** A server's number on the Raft line's filled lamp, the leader: in the page's colour on the hub of
+ *  the board's and the Lab index's line (lines.css, --line-ground), and in the desk's on the Raft
+ *  Lab's picture (raft-lab.css). */
+const ON_LAMP: Record<string, string[]> = { background: ['line-raft'], 'surface-1': ['line-raft'] };
 /** Decoration only: no contrast claim, but still inside sRGB. The map's streets and roads are
  *  hairlines under the routes: they place the routes and carry nothing a reader needs. */
-// The faces of Home's isometric drawings (ADR 0023) are the page's own surfaces under other names:
-// a face carries no text a visitor reads, only the stack's slab numbers, which the surfaces' pairs
-// already measure.
-const DECORATIVE = [
-  'border',
-  'map-street',
-  'map-road',
-  'map-road-major',
-  'face-top',
-  'face-left',
-  'face-right',
-];
+const DECORATIVE = ['border', 'map-street', 'map-road', 'map-road-major'];
 /** Pairs a design must never draw; each is listed with its reason (none yet). */
 const FORBIDDEN: [string, string][] = [];
 
-// The Route Lab's map (design-system.md, "Map colors"; ADR 0016). Its fills are the surfaces of
-// the map: the land is the page's background, then water, parks and the six isochrone bands. Every
-// mark on the map (each van's route and stops, a place, the bakery) meets 3:1 against every fill,
-// since a route crosses all of them, and a label meets 4.5:1. The same cross product as above.
+// The maps (design-system.md, "Map colors"; ADR 0016, ADR 0025). Their fills: the water, which is
+// the page's background, the land, a raised surface, parks and the six isochrone bands. On the Route
+// Lab the maps lie on the lab's desk, and their water is its surface, --surface-1 (route-lab.css),
+// so that is a fill too. Every mark on the map (each van's route and stops, a place, the bakery)
+// meets 3:1 against every fill, since a route crosses all of them, and a label meets 4.5:1. The
+// same cross product as above.
 const MAP_FILLS = [
   'background',
+  'surface-1',
   'map-water',
+  'map-land',
   'map-park',
   'map-band-1',
   'map-band-2',
@@ -135,6 +138,7 @@ test('every color token has a declared role', () => {
     ...SURFACES,
     ...TEXT,
     ...NON_TEXT,
+    ...LINES,
     ...Object.keys(ON_FILL),
     ...DECORATIVE,
     ...MAP_FILLS,
@@ -175,7 +179,20 @@ for (const [themeName, colors] of Object.entries(themes)) {
       }
     }
 
-    for (const [name, fills] of Object.entries(ON_FILL)) {
+    for (const surface of LINE_SURFACES) {
+      for (const name of LINES) {
+        test(`${name} on ${surface} reaches 3:1`, () => {
+          expect(wcagContrast(get(name), get(surface))).toBeGreaterThanOrEqual(3);
+        });
+      }
+    }
+
+    test('map: the water is the page and the land a raised surface, so a map has no edge', () => {
+      expect(get('map-water')).toEqual(get('background'));
+      expect(get('map-land')).toEqual(get('surface-2'));
+    });
+
+    for (const [name, fills] of Object.entries({ ...ON_FILL, ...ON_LAMP })) {
       for (const fill of fills) {
         test(`${name} on ${fill} reaches 4.5:1`, () => {
           expect(wcagContrast(get(name), get(fill))).toBeGreaterThanOrEqual(4.5);
@@ -207,9 +224,11 @@ for (const [themeName, colors] of Object.entries(themes)) {
         const band = get(`map-band-${k}`);
         if (k < 6)
           expect(deltaOk(band, get(`map-band-${k + 1}`)), `band ${k}`).toBeGreaterThan(BAND_STEP);
-        expect(deltaOk(band, get('map-water')), `band ${k} and the water`).toBeGreaterThan(
-          BAND_STEP,
-        );
+        // The water on the page, and on the Route Lab's desk.
+        for (const water of ['map-water', 'surface-1'])
+          expect(deltaOk(band, get(water)), `band ${k} and the water, ${water}`).toBeGreaterThan(
+            BAND_STEP,
+          );
       }
     });
 
@@ -227,6 +246,21 @@ for (const [themeName, colors] of Object.entries(themes)) {
   });
 }
 
+// Each lab's line is reached by its slug (global.css, [data-line]): a token with no selector is a
+// colour no drawing can name, and a selector with no token draws nothing at all.
+test("every line token is a lab's [data-line], and every [data-line] names a line token", () => {
+  const global = stripComments(
+    readFileSync(new URL('../src/styles/global.css', import.meta.url), 'utf8'),
+  );
+  const slugs = [
+    ...global.matchAll(/\[data-line='([a-z-]+)'\]\s*\{\s*--line:\s*var\(--line-\1\);\s*\}/g),
+  ].map(([, slug]) => `line-${slug}`);
+  expect(slugs.sort()).toEqual([...LINES].sort());
+  expect([...themes.dark.keys()].filter((name) => name.startsWith('line-')).sort()).toEqual(
+    [...LINES].sort(),
+  );
+});
+
 test('known answer: a band lightened until a route on it drops below 3:1 fails the map check', () => {
   const dark = themeColors(source, 'dark');
   const van = dark.get('map-van-a');
@@ -238,15 +272,17 @@ test('known answer: a band lightened until a route on it drops below 3:1 fails t
 });
 
 // The known answers for the bands' steps and the vans' shapes: the values of 2026-10-24, which the
-// review found a reader could not tell apart, fail; and so would vans A and C sharing a shape.
-test('known answer: the bands of 2026-10-24 fail the step check, and vans A and C could not share a shape', () => {
+// review found a reader could not tell apart, fail; and so would vans A and B sharing a shape, the
+// day's ochre and brick, close under a red-green deficiency. Until 2026-10-30 the pair was A and
+// C, the day's dark green, which a review found too near the bands' green and moved to a blue.
+test('known answer: the bands of 2026-10-24 fail the step check, and vans A and B could not share a shape', () => {
   const old = (l: number, c: number, h: number) => ({ mode: 'oklch', l, c, h }) as Color;
   expect(deltaOk(old(0.445, 0.07, 205), old(0.41, 0.066, 208))).toBeLessThan(BAND_STEP);
   expect(deltaOk(old(0.89, 0.034, 209), old(0.89, 0.035, 230))).toBeLessThan(BAND_STEP);
   const light = themeColors(source, 'light');
-  const [a, c] = [light.get('map-van-a'), light.get('map-van-c')];
-  if (!a || !c) throw new Error('tokens.css lost a van');
-  expect(apartUnderDeficiency(a, c)).toBeLessThan(SHAPE_APART);
+  const [a, b] = [light.get('map-van-a'), light.get('map-van-b')];
+  if (!a || !b) throw new Error('tokens.css lost a van');
+  expect(apartUnderDeficiency(a, b)).toBeLessThan(SHAPE_APART);
 });
 
 // Selected text (SC 1.4.3): global.css gives every ::selection rule a text color and a fill, each a
@@ -489,14 +525,34 @@ describe('motion lives only under prefers-reduced-motion: no-preference', () => 
       const found = motion(read(file));
       expect(found.filter((m) => !guarded(m)).map((m) => m.what)).toEqual([]);
       // The stylesheet every page links ships the card's bar and the view transition, both
-      // guarded. The Route Lab's own sheet ships one, the maps' fade (ADR 0016), guarded too. The
-      // Raft Lab's ships none: its demo moves in JavaScript, only while the visitor runs it, and
-      // its messages stand still under reduced motion (ADR 0020).
-      if (read(file).includes('.rl-map'))
+      // guarded. The Route Lab's own sheet ships one, the maps' fade (ADR 0016), guarded too. A
+      // simulated lab's ships none (support/labs.ts): its demo moves in JavaScript, only while the
+      // visitor runs it, and stands still under reduced motion (ADR 0020, ADR 0026). Nor do the
+      // labs' lines, which Home's board and the Lab index share, or the Lab index's own sheet
+      // (ADR 0025): a line moves only on the board, whose day is the board's sheet's, and an index
+      // row's sweep is the sheet every page links.
+      const sheet = read(file);
+      if (sheet.includes('.rl-map'))
         expect(found.map((m) => m.what)).toEqual(['transition:opacity .22s ease-out']);
-      else if (read(file).includes('.rf-map')) expect(found).toEqual([]);
+      else if (SIMULATED_LABS.some((lab) => sheet.includes(`.${lab.map}`)))
+        expect(found).toEqual([]);
+      else if (!sheet.includes('.board-lines') && /\.(line-track|lab-row)\b/.test(sheet))
+        expect(found).toEqual([]);
       else expect(found.length).toBeGreaterThanOrEqual(2);
     });
+  }
+
+  // Each simulated lab's sheet is found by its row's map class, wherever its page builds, so a row
+  // that names no sheet fails here rather than leaving that sheet to the checks above.
+  for (const lab of SIMULATED_LABS) {
+    test.runIf(files.includes(labPage(lab)))(
+      `${labTitle(lab)}'s sheet ships, found by .${lab.map}, and moves nothing`,
+      () => {
+        const sheets = shipped.filter((file) => read(file).includes(`.${lab.map}`));
+        expect(sheets).toHaveLength(1);
+        expect(motion(read(sheets[0] ?? ''))).toEqual([]);
+      },
+    );
   }
 
   test('known answers', () => {

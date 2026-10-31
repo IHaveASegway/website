@@ -5,16 +5,17 @@ import { parseHolds } from '../src/lib/held-names';
 import { isNoindex } from '../src/lib/noindex.mjs';
 import { postPath } from '../src/lib/posts';
 import { projectCards } from '../src/lib/profile';
-import { FEATURED_POSTS, featuredFirst } from '../src/lib/work';
+import { FEATURED_POSTS } from '../src/lib/work';
 import { app, files, fixture, profile, read } from './support/dist';
 
-// Selected work on Home (content.md, "Owned work"; lib/work.ts): a card renders only when the page
-// it opens exists. That is a card per demo the lab builds, linking to its page (ADR 0016), then the
-// project cards whose check is recorded and whose hold is lifted, linking to their repositories,
-// then a card per featured post this build lists, linking to the post. With no card, Home has no Selected work section and no Work button. This runs on every
-// build vitest.config.ts names, so the real build (no card today) and the fixture builds (a made-up
-// project, checked and held by nothing) meet the same check. The expected post cards are read
-// from the build's own pages, not from lib/work.ts, so the rule is checked against what exists.
+// Selected work on Home (content.md, "Owned work"; lib/work.ts): an item renders only when the page
+// it opens exists. Each demo the lab builds is a line on the board, linking to its page (ADR 0016,
+// ADR 0025); then a card per project whose check is recorded and whose hold is lifted, linking to
+// its repository, then a card per featured post this build lists, linking to the post. With
+// neither, Home has no Selected work section. This runs on every build vitest.config.ts names, so
+// the real build (no card today) and the fixture builds (a made-up project, checked and held by
+// nothing) meet the same check. The expected demos and post cards are read from the build's own
+// pages, not from lib/work.ts, so the rule is checked against what exists.
 
 const holds = parseHolds(readFileSync(join(app, 'not-on-site.txt'), 'utf8'));
 const projects = projectCards(profile, holds);
@@ -43,19 +44,27 @@ const demos = files
   .sort();
 
 /** The cards Home must render, in order, worked out from the profile and from this build's pages:
- *  the list's order, with the demos Home features first (ADR 0024). */
-const expected: RenderedCard[] = featuredFirst(
-  [
-    ...demos.map((href) => ({ title: heading(href), href })),
-    ...projects.map((card) => ({ title: card.title, href: card.link.href })),
-    ...FEATURED_POSTS.map((post) => postPath(post))
-      .filter(lists)
-      .map((href) => ({ title: heading(href), href })),
-  ].map((card) => ({ ...card, link: { href: card.href } })),
-).map(({ title, href }) => ({ title, href }));
+ *  everything Selected work holds that is not a demo, in the list's order. */
+const expected: RenderedCard[] = [
+  ...projects.map((card) => ({ title: card.title, href: card.link.href })),
+  ...FEATURED_POSTS.map((post) => postPath(post))
+    .filter(lists)
+    .map((href) => ({ title: heading(href), href })),
+];
 
 /** Home's Selected work section, or null when Home has none. */
 const section = /<section\b[^>]*\bid="work"[^>]*>([\s\S]*?)<\/section>/.exec(home)?.[1] ?? null;
+
+/** The bands on Home's board, by title and link, in page order. */
+function homeBands(): RenderedCard[] {
+  return [...(section ?? '').matchAll(/<li\b[^>]*class="band\b[^"]*"[^>]*>([\s\S]*?)<\/li>/g)].map(
+    ([, body = '']) => {
+      const link =
+        /<a\b[^>]*class="band-title\b[^"]*"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/.exec(body);
+      return { title: (link?.[2] ?? '').trim(), href: link?.[1] ?? null };
+    },
+  );
+}
 
 /** The cards in Home's Selected work section, in page order. */
 function homeCards(): RenderedCard[] {
@@ -70,16 +79,22 @@ function homeCards(): RenderedCard[] {
   }));
 }
 
-test('Home renders exactly the cards whose page exists: the lab’s demos, checked, unheld projects, then listed featured posts', () => {
+test('Home renders exactly the cards whose page exists: checked, unheld projects, then listed featured posts', () => {
   expect(homeCards()).toEqual(expected);
 });
 
-test('with no card, Home has no Selected work section, and nothing links to it', () => {
-  expect(section !== null, 'Selected work renders exactly when a card does').toBe(
-    expected.length > 0,
+// The board draws every demo the lab lists, in the lab's order, each its own page's title and link
+// (ADR 0025): a demo has a line, never a card.
+test('the board draws a line for each demo this build lists, in the lab’s order, linking to it', () => {
+  expect(homeBands()).toEqual(demos.map((href) => ({ title: heading(href), href })));
+});
+
+test('with no demo and no card, Home has no Selected work section, and nothing links to it', () => {
+  expect(section !== null, 'Selected work renders exactly when a demo or a card does').toBe(
+    demos.length + expected.length > 0,
   );
-  expect(home.includes('href="#work"'), 'the Work button renders exactly with the section').toBe(
-    expected.length > 0,
+  expect(home.includes('href="#work"'), 'no button scrolls to it: the column leads to it').toBe(
+    false,
   );
 });
 
@@ -92,14 +107,16 @@ test("every card's link opens a page that exists: a listed page here, or a check
   }
 });
 
-test('a project card links only to its own repository, and draws the external arrow', () => {
+// A link says where it goes in words, with no arrow (ADR 0025): Barlow draws none, and until then
+// the card drew ↗ in a system face.
+test('a project card links only to its own repository, says so in words, and draws no arrow', () => {
   for (const card of projects) {
     const link = new RegExp(
       `<a\\b[^>]*href="${card.link.href.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^>]*>([\\s\\S]*?)</a>`,
     ).exec(home);
     expect(link, card.link.href).not.toBeNull();
     expect(link?.[1]).toContain('Source on GitHub');
-    expect(link?.[1]).toContain('↗');
+    expect(link?.[1]).not.toMatch(/[←↑→↓↗]/);
   }
 });
 

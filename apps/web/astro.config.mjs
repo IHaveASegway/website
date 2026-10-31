@@ -9,17 +9,24 @@ import { commit, withBuildHeader } from './src/lib/build.mjs';
 import { policyFor, withPagePolicies } from './src/lib/csp.mjs';
 import { isNoindex } from './src/lib/noindex.mjs';
 
-/** A self-hosted face cut by scripts/fonts/build.sh, preloaded on every page by Base.astro. */
-const font = (name, cssVariable, file, variant) => ({
+/** A self-hosted family cut by scripts/fonts/build.sh: one static file per weight. Base.astro
+ *  writes its faces into every page and says which it preloads. */
+const font = (name, cssVariable, weights) => ({
   provider: fontProviders.local(),
   name,
   cssVariable,
-  // Astro's own fallback is one face fitted to Arial at full width; the condensed name needs one
-  // family per local font, fitted per width. src/styles/font-fallbacks.css has them, and
-  // tokens.css puts them behind these faces.
+  // Astro's own fallback is one face fitted to Arial; each face here needs one family per local
+  // font, fitted to its own widths. src/styles/font-fallbacks.css has them, and tokens.css puts
+  // them behind these faces.
   fallbacks: [],
   optimizedFallbacks: false,
-  options: { variants: [{ src: [`./src/assets/fonts/${file}`], style: 'normal', ...variant }] },
+  options: {
+    variants: Object.entries(weights).map(([weight, file]) => ({
+      src: [`./src/assets/fonts/${file}`],
+      weight,
+      style: 'normal',
+    })),
+  },
 });
 
 // Which command Astro is running, fixed into the build as a constant. lib/content.ts includes
@@ -112,27 +119,30 @@ export default defineConfig({
     pagePolicy,
     sitemap({ filter: indexable }),
   ],
-  // Spike S9 (roadmap.md): the Fonts API's local provider passes the width range through to
-  // font-stretch, writes both preload links, serves the files from /_astro/fonts/ and emits a
-  // <style> with the faces, which pagePolicy hashes into style-src (above). So it serves the faces,
-  // with Astro's fallbacks off.
+  // Spike S9 (roadmap.md): the Fonts API's local provider serves the files from /_astro/fonts/,
+  // writes the preload links Base.astro asks for and emits a <style> with each family's faces,
+  // which pagePolicy hashes into style-src (above). So it serves the faces, with Astro's fallbacks
+  // off. The Barlow family in three widths, and B612 Mono for code (design-system.md, "The faces"),
+  // each a static instance, so no face has an axis.
   fonts: [
-    font('Instrument Sans', '--font-instrument-sans', 'instrument-sans-latin.woff2', {
-      weight: '400 700',
-      stretch: '75% 100%',
+    font('Barlow Condensed', '--font-barlow-condensed', { 600: 'barlow-condensed-semibold.woff2' }),
+    font('Barlow Semi Condensed', '--font-barlow-semi-condensed', {
+      500: 'barlow-semi-condensed-medium.woff2',
     }),
-    font('JetBrains Mono', '--font-jetbrains-mono', 'jetbrains-mono-c.woff2', {
-      weight: '400 500',
-    }),
+    font('Barlow', '--font-barlow', { 400: 'barlow-regular.woff2', 600: 'barlow-semibold.woff2' }),
+    font('B612 Mono', '--font-b612-mono', { 400: 'b612-mono-regular.woff2' }),
   ],
   // No code blocks yet. Shiki's default highlighting writes inline styles the policy would refuse;
   // Expressive Code arrives with the first post that needs it (stack.md).
   markdown: {
     syntaxHighlight: false,
-    // Sätteri, Astro's default processor, configured only to draw a footnote's way back as "↑":
-    // its default "↩" is in neither font subset, so every footnote would fall back to a system
-    // font (the glyph check). Everything else is the processor's default.
-    processor: satteri({ features: { gfm: { footnotes: { backContent: '↑' } } } }),
+    // Sätteri, Astro's default processor, configured only to write a footnote's way back as the
+    // word "Back": its default "↩" is in no face's subset, and Barlow draws no arrow, so a footnote
+    // would fall back to a system font (the glyph check). Every way back reads "Back", a second
+    // reference's too: the text form adds a raised 2 after the word, and "Back2" is not in its name,
+    // "Back to reference 1-2", which tells the two apart (SC 2.5.3, e2e/a11y.spec.ts). Everything
+    // else is the processor's default.
+    processor: satteri({ features: { gfm: { footnotes: { backContent: () => 'Back' } } } }),
   },
   // No security.csp: Astro's policy is a <meta>, which covers only what follows it and cannot
   // carry frame-ancestors. The page policy is the header pagePolicy writes (above), and a <meta>

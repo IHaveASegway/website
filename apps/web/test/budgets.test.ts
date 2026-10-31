@@ -1,16 +1,19 @@
 import { describe, expect, test } from 'vitest';
 import { declaredFonts, gzipBytes, preloadedFonts } from '../src/lib/weights';
 import { bytes, fileFor, files, html, kinds, read } from './support/dist';
+import { labEntry, labName, labTitle, SIMULATED_LABS } from './support/labs';
 import {
   BUDGETS,
   cubeFiles,
   eagerFiles,
+  entryScripts,
   FEATURES,
   featureOf,
   gz,
   importsOf,
   measure,
   reachable,
+  reachableFrom,
   staticClosure,
   staticImportsOf,
 } from './support/measure';
@@ -134,39 +137,66 @@ describe('the Route Lab', () => {
   );
 });
 
-// The Raft Lab's own budgets (ADR 0020): one app chunk, loaded on intent, and its page's first
-// view within the 150 KB every page but the Route Lab's keeps.
-describe('the Raft Lab', () => {
-  const feature = FEATURES['raft-lab'];
-  const own = files.filter((file) => featureOf(file) === 'raft-lab');
-  const ownJs = own.filter((file) => /\.m?js$/.test(file) && !feature.entry.test(file));
-  const page = files.includes(feature.page) ? read(feature.page) : null;
+// Each simulated lab's own budgets (ADR 0020, ADR 0026; support/labs.ts). Its lazy JavaScript is
+// every chunk its module can load, which is what a visitor downloads when they use it, so a chunk
+// two labs share (lib/sim's, which three of them import) counts in each, and in full. Nothing it
+// loads is loaded eagerly by any page, nor by anything but a simulated lab's module, so these
+// budgets and the Route Lab's and Home's scene's never count the same chunk. Its page's first view
+// with all of it stays within the 150 KB every page but the Route Lab's keeps.
+const simulatedEntries = SIMULATED_LABS.flatMap((lab) =>
+  files.filter((file) => labEntry(lab).test(file)),
+);
+/** Every script the build's other entries load, at once or on intent. */
+const others = entryScripts().filter((file) => !simulatedEntries.includes(file));
+const loadedElsewhere = new Set([...staticClosure(others), ...reachableFrom(others)]);
 
-  test('owns one lazy chunk, and nothing a page loads eagerly', () => {
-    expect(ownJs).toHaveLength(1);
-    for (const file of ownJs) expect(eager.has(file), file).toBe(false);
+for (const lab of SIMULATED_LABS) {
+  describe(labTitle(lab), () => {
+    const feature = FEATURES[labName(lab)];
+    const entry = files.filter((file) => feature.entry.test(file));
+    const loads = reachableFrom(entry);
+    const page = files.includes(feature.page) ? read(feature.page) : null;
+
+    test('its module is one bundle, and nothing it loads is loaded eagerly by any page', () => {
+      expect(entry).toHaveLength(1);
+      expect(loads.length).toBeGreaterThan(0);
+      for (const file of loads) expect(eager.has(file), file).toBe(false);
+    });
+
+    test("everything it loads is loaded by the simulated labs' modules only", () => {
+      expect(loads.filter((file) => loadedElsewhere.has(file))).toEqual([]);
+    });
+
+    const lazyBytes = loads.reduce((sum, file) => sum + gz(file), 0);
+    test(`lazy JavaScript: ${lazyBytes} B of ${feature.lazyJavaScript}, in ${loads.length} ${loads.length === 1 ? 'chunk' : 'chunks'}`, () => {
+      expect(lazyBytes).toBeLessThanOrEqual(feature.lazyJavaScript);
+    });
+
+    test.runIf(page !== null)('the page reaches its app through import(), and nothing else', () => {
+      expect([...reachable(feature.page)].sort()).toEqual([...loads].sort());
+    });
+
+    test.runIf(page !== null)(
+      `its first view, and with its app, stays within ${feature.firstView} B`,
+      () => {
+        const figures = measure(page ?? '');
+        const firstView =
+          gzipBytes(page ?? '') + figures.css + figures.declaredFonts + figures.eagerJavaScript;
+        expect(firstView + lazyBytes).toBeLessThanOrEqual(feature.firstView);
+      },
+    );
   });
+}
 
-  const lazyBytes = ownJs.reduce((sum, file) => sum + gz(file), 0);
-  test(`lazy JavaScript: ${lazyBytes} B of ${feature.lazyJavaScript}`, () => {
-    expect(lazyBytes).toBeLessThanOrEqual(feature.lazyJavaScript);
-  });
-
-  test.runIf(page !== null)('the page reaches its app through import(), and nothing else', () => {
-    const chunks = reachable(feature.page);
-    expect(chunks.length).toBeGreaterThan(0);
-    for (const chunk of chunks) expect(featureOf(chunk)).toBe('raft-lab');
-  });
-
-  test.runIf(page !== null)(
-    `its first view, and with its app, stays within ${feature.firstView} B`,
-    () => {
-      const figures = measure(page ?? '');
-      const firstView =
-        gzipBytes(page ?? '') + figures.css + figures.declaredFonts + figures.eagerJavaScript;
-      expect(firstView + lazyBytes).toBeLessThanOrEqual(feature.firstView);
-    },
-  );
+// The check above can fail: the other entries load chunks of their own, the Route Lab's app among
+// them, and each simulated lab's module is an entry of the build, which no other script imports.
+test("known answers: the other entries' chunks, the Route Lab's app among them, are loaded elsewhere", () => {
+  expect(others.length).toBeGreaterThan(0);
+  const routeLab = reachableFrom(files.filter((file) => FEATURES['route-lab'].entry.test(file)));
+  expect(routeLab.length).toBeGreaterThan(0);
+  for (const file of routeLab) expect(loadedElsewhere.has(file), file).toBe(true);
+  expect(entryScripts()).toEqual(expect.arrayContaining(simulatedEntries));
+  expect(simulatedEntries).toHaveLength(SIMULATED_LABS.length);
 });
 
 // Home's scene (ADR 0024): one chunk, which Home's motion module loads through import() after the

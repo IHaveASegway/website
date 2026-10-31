@@ -14,6 +14,7 @@ const HELD = /^All five safety properties held over [\d,]+ events\.$/;
 const clock = (page: Page) => page.locator('[data-rf-clock]');
 const summary = (page: Page) => page.locator('[data-rf-summary]');
 const status = (page: Page) => page.locator('[data-rf-status]');
+const log = (page: Page) => page.locator('[data-rf-lines] li');
 
 /** Collects policy violations the page reports. */
 async function watch(page: Page): Promise<() => Promise<string[]>> {
@@ -78,7 +79,7 @@ test('cut off the leader: a new term elects another leader, and every safety pro
   const before = (await summary(page).textContent()) ?? '';
   const [, oldLeader, oldTerm] = /^Node (\d) leads term (\d+)/.exec(before) ?? [];
   await page.getByRole('button', { name: 'Cut off the leader' }).click();
-  await page.selectOption('[data-rf-speed]', '0.1');
+  await page.getByRole('radio', { name: 'Quick' }).check();
   await page.getByRole('button', { name: 'Run' }).click();
   // The old leader still leads its own term on its side; the majority elects a newer one.
   await expect
@@ -178,6 +179,85 @@ test('under reduce, Run advances in steps of 50 virtual ms, and nothing animates
   expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
 });
 
+test('the app writes the event log once: the build’s lines go on as the run’s, and a link’s run shows only its own', async ({
+  page,
+}) => {
+  await page.goto(RAFT);
+  const built = await log(page).allTextContents();
+  expect(built).toHaveLength(12);
+  // Intent alone loads the app, which writes the run's log from its first line: 13 lines, each
+  // once, the last 12 of them the build's.
+  await page.locator('[data-rf-map]').hover();
+  await expect(log(page)).toHaveCount(13);
+  const lines = await log(page).allTextContents();
+  expect(new Set(lines).size).toBe(lines.length);
+  expect(lines.slice(-12)).toEqual(built);
+
+  // A link's run writes its own log alone, the same as when the link is followed on the page.
+  await page.goto(`${RAFT}#seed-8`);
+  await expect(page.locator('[data-rf-seed]')).toHaveText('8');
+  const linked = await log(page).allTextContents();
+  await page.evaluate(() => (location.hash = '#seed-9'));
+  await expect(page.locator('[data-rf-seed]')).toHaveText('9');
+  await page.evaluate(() => (location.hash = '#seed-8'));
+  await expect(page.locator('[data-rf-seed]')).toHaveText('8');
+  expect(await log(page).allTextContents()).toEqual(linked);
+  expect(linked).not.toEqual(lines);
+});
+
+test('Run says what it does next, Run or Pause, and has no pressed state', async ({ page }) => {
+  await page.goto(RAFT);
+  const run = page.locator('[data-rf-run]');
+  await run.click();
+  await expect(run).toHaveText('Pause');
+  await expect(run).not.toHaveAttribute('aria-pressed');
+  await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+  await run.click();
+  await expect(run).toHaveText('Run');
+  await expect(run).not.toHaveAttribute('aria-pressed');
+});
+
+test('moving the loss slider after Next event draws the events it lets finish in that millisecond', async ({
+  page,
+}) => {
+  await page.goto(RAFT);
+  // Four events on from the opening, the run stands at 1.426 s with another event due then.
+  for (let i = 0; i < 4; i++) await page.getByRole('button', { name: 'Next event' }).click();
+  await expect(clock(page)).toHaveText('Virtual time 1.426 s');
+  await expect(status(page)).toHaveText('All five safety properties held over 253 events.');
+  // The slider is an action: the run first finishes that millisecond, and the page shows it.
+  await page.locator('[data-rf-loss]').fill('10');
+  await expect(page.locator('[data-rf-loss-out]')).toHaveText('10%');
+  await expect(status(page)).toHaveText('All five safety properties held over 254 events.');
+  await expect(clock(page)).toHaveText('Virtual time 1.426 s');
+});
+
+test('a link followed on the page opens that seed paused at the opening’s moment, before or after the app has loaded', async ({
+  page,
+}) => {
+  await page.goto(RAFT);
+  // Followed before any intent: the link loads the app, which opens it.
+  await page.evaluate(() => (location.hash = '#seed-12'));
+  await expect(page.locator('[data-rf-seed]')).toHaveText('12');
+  await expect(clock(page)).toHaveText('Virtual time 1.400 s');
+  // Followed while a run plays: that seed's opening, paused.
+  await page.getByRole('radio', { name: 'Quick' }).check();
+  await page.getByRole('button', { name: 'Run' }).click();
+  await expect.poll(() => seconds(page)).toBeGreaterThan(1.45);
+  await page.evaluate(() => (location.hash = '#seed-3'));
+  await expect(page.locator('[data-rf-seed]')).toHaveText('3');
+  await expect(clock(page)).toHaveText('Virtual time 1.400 s');
+  await expect(page.getByRole('button', { name: 'Run', exact: true })).toBeVisible();
+  await page.waitForTimeout(300);
+  await expect(clock(page)).toHaveText('Virtual time 1.400 s');
+  // A hash that links to no run, as the skip link's, leaves the run alone.
+  const lines = await log(page).allTextContents();
+  await page.evaluate(() => (location.hash = '#main'));
+  await page.waitForTimeout(200);
+  await expect(page.locator('[data-rf-seed]')).toHaveText('3');
+  expect(await log(page).allTextContents()).toEqual(lines);
+});
+
 test('a link to a run opens it: #seed-8 loads that seed with no other intent, and Start over moves on', async ({
   page,
 }) => {
@@ -186,6 +266,115 @@ test('a link to a run opens it: #seed-8 loads that seed with no other intent, an
   await page.getByRole('button', { name: 'Start over' }).click();
   await expect(page.locator('[data-rf-seed]')).toHaveText('9');
   expect(new URL(page.url()).hash).toBe('#seed-9');
+});
+
+// The desk's lamps (ADR 0025): Run is a push-button whose lamp is off until the run is on and lit
+// while it runs, said by data-lamp, since its words already change (Run, Pause) and a button whose
+// words change is no toggle, so it carries no aria-pressed; a server and each log entry are lamps in the lab's own line, the colour its
+// head runs across the page in, whatever the entry's term, which its number under it tells. Until
+// then each term took one of the map's van colours, the Route Lab's yellow among them.
+test('Run lights its lamp while the run is on, and every lamp on the desk is the lab’s line, whatever the term', async ({
+  page,
+}) => {
+  await page.goto(RAFT);
+  const run = page.locator('[data-rf-run]');
+  const lamp = () => run.evaluate((button) => getComputedStyle(button, '::before').backgroundColor);
+  await expect(run).toHaveAttribute('data-lamp', 'off');
+  await expect(run).not.toHaveAttribute('aria-pressed');
+  expect(await lamp()).toBe('rgba(0, 0, 0, 0)');
+  await run.click();
+  await expect(page.getByRole('button', { name: 'Pause' })).toHaveAttribute('data-lamp', 'on');
+  expect(await lamp()).not.toBe('rgba(0, 0, 0, 0)');
+  await page.getByRole('button', { name: 'Pause' }).click();
+  const colours = await page.evaluate(() => {
+    // An entry of another term, as a later run writes one, beside the opening's.
+    document
+      .querySelector('[data-rf-log="0"]')
+      ?.insertAdjacentHTML(
+        'beforeend',
+        '<li class="rf-cell" data-term="2"><span class="rf-mark"></span><span class="rf-num">3</span></li>',
+      );
+    const line = getComputedStyle(document.querySelector('.page-line') as Element, '::before');
+    return {
+      line: line.backgroundColor,
+      marks: [
+        ...new Set(
+          [...document.querySelectorAll('.rf-mark')].map((m) => getComputedStyle(m).borderTopColor),
+        ),
+      ],
+      filled: [
+        ...new Set(
+          [...document.querySelectorAll('.rf-cell[data-done] .rf-mark')].map(
+            (m) => getComputedStyle(m).backgroundColor,
+          ),
+        ),
+      ],
+      servers: [
+        ...new Set(
+          [...document.querySelectorAll('[data-rf-node] .rf-body')].map(
+            (b) => getComputedStyle(b).stroke,
+          ),
+        ),
+      ],
+      round: getComputedStyle(document.querySelector('.rf-mark') as Element).borderRadius,
+    };
+  });
+  expect(colours).toEqual({
+    line: colours.line,
+    marks: [colours.line],
+    filled: [colours.line],
+    servers: [colours.line],
+    round: '50%',
+  });
+});
+
+// The speed is a radio group (WAI-ARIA APG, "Radio Group Pattern"): named Speed, a radio a speed,
+// Steady chosen; Tab stops once, on the chosen radio; the arrow keys choose the next, wrapping; the
+// chosen one's lamp is lit and the others' are not; and a run goes at the speed chosen.
+test('the speed is a radio group of lamps that the arrow keys move through, and the run goes at it', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto(RAFT);
+  const group = page.getByRole('group', { name: 'Speed' });
+  const radios = group.getByRole('radio');
+  await expect(radios).toHaveCount(3);
+  const steady = group.getByRole('radio', { name: 'Steady' });
+  const quick = group.getByRole('radio', { name: 'Quick' });
+  const slow = group.getByRole('radio', { name: 'Slow' });
+  await expect(steady).toBeChecked();
+
+  await page.getByRole('button', { name: 'Next event' }).focus();
+  await page.keyboard.press('Tab');
+  await expect(steady).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect(quick).toBeFocused();
+  await expect(quick).toBeChecked();
+  await page.keyboard.press('ArrowRight');
+  await expect(slow).toBeChecked();
+  await page.keyboard.press('ArrowLeft');
+  await expect(quick).toBeChecked();
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('button', { name: 'Start over' })).toBeFocused();
+
+  const lit = await page.evaluate(() =>
+    [...document.querySelectorAll('.rf-option')].map(
+      (option) =>
+        getComputedStyle(option.querySelector('.rf-lamp') as Element).backgroundColor !==
+        'rgba(0, 0, 0, 0)',
+    ),
+  );
+  expect(lit).toEqual([false, false, true]);
+
+  // Quick runs 0.1 virtual seconds a real one, twice Steady: a real second from Pause showing (the
+  // app loaded and running) moves the clock past anything Steady could reach in it.
+  await page.getByRole('button', { name: 'Run' }).click();
+  const pause = page.getByRole('button', { name: 'Pause' });
+  await expect(pause).toBeVisible();
+  const from = await seconds(page);
+  await page.waitForTimeout(1_000);
+  await pause.click();
+  expect((await seconds(page)) - from).toBeGreaterThan(0.07);
 });
 
 for (const colorScheme of ['light', 'dark'] as const) {

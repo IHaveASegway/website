@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { create } from 'fontkitten';
 import { NOT_FOUND_PAGE, pages } from './expected';
 import { fallbacksOn } from './fonts-drawn';
 
@@ -36,9 +37,9 @@ test('known answer: a glyph outside the subsets is reported, with the system fon
 });
 
 // A page fetches a face's file only if it draws text in that face (design-system.md, "The faces").
-// Instrument Sans draws every page's first screen and is preloaded; JetBrains Mono sets values and
-// code, so it is fetched where a page uses it. On 2026-10-24's build every page preloaded both, and
-// the 404, which sets nothing in mono, fetched its 8,156 B anyway.
+// The three Barlow faces draw every page's first screen and are preloaded; Barlow's SemiBold draws
+// <strong>, and B612 Mono code, so each is fetched where a page uses it. On 2026-10-24's build every
+// page preloaded the mono face, and the 404, which set nothing in it, fetched its 8,156 B anyway.
 
 /** The font files a page fetched, and those of them whose face drew none of its text. `before`
  *  runs once the page has loaded, before the faces are read. */
@@ -54,21 +55,15 @@ async function unusedFonts(
   await page.goto(path);
   await before?.();
   const { drawn } = await fallbacksOn(page);
-  // Each file's family, read from the page's own @font-face rules, without the Fonts API's hash.
-  const families = await page.evaluate(() =>
-    Object.fromEntries(
-      [...document.styleSheets]
-        .flatMap((sheet) => [...sheet.cssRules])
-        .filter((rule): rule is CSSFontFaceRule => rule instanceof CSSFontFaceRule)
-        .flatMap((rule) => {
-          const src = /url\("?([^")]+)"?\)/.exec(rule.style.getPropertyValue('src'))?.[1];
-          const family = rule.style.getPropertyValue('font-family').replace(/"/g, '');
-          return src
-            ? [[new URL(src, location.href).pathname, family.replace(/-[0-9a-f]+$/, '')]]
-            : [];
-        }),
-    ),
-  );
+  // Each file's family as the font names itself, read from the file: Chromium reports a web face
+  // by the family in its own name table (CSS.getPlatformFontsForNode), and a static instance's
+  // carries its weight ("Barlow Condensed SemiBold", "Barlow SemiBold"), not the @font-face rule's
+  // name. So the match is per face: a SemiBold fetched beside a Regular that draws is still caught.
+  const families: Record<string, string> = {};
+  for (const file of new Set(fetched)) {
+    const font = create(Buffer.from(await (await page.request.get(file)).body()));
+    if (!font.isCollection) families[file] = font.familyName;
+  }
   return { fetched, unused: fetched.filter((file) => !drawn.has(families[file] ?? file)), drawn };
 }
 
@@ -80,28 +75,38 @@ for (const path of [...pages(), NOT_FOUND_PAGE]) {
   });
 }
 
-// The known answer: a page that fetches the mono file and draws nothing in it, as every page did
-// with the preload, is reported, with that one file. The 404 sets nothing in mono on every build
-// but the command menu's keys, on its two buttons, which this copy of it leaves out; Home on the
-// writing fixture sets a post's date in it too.
+// The known answer: a page that fetches the mono file and draws nothing in it is reported, with that
+// one file. Only a page with code declares B612 Mono (Base.astro), so the copy here is such a page
+// with its code taken out, and the face is loaded anyway, as a preload of it would. It needs one
+// page with code in the build it runs on: on the site that is a post (since 2026-10-30, the
+// trading-bot teardown), on the writing fixture its posts, as test/fonts.test.ts assumes for the
+// fixture too. Should no page hold code, it fails saying so rather than pass unproven; then a
+// fixture page with code is the fix, not a weaker check.
 test('known answer: a font file fetched for a face that draws no text is reported', async ({
   page,
 }) => {
-  await page.route(`**${NOT_FOUND_PAGE}`, async (route) => {
+  let withCode: string | undefined;
+  for (const path of pages()) {
+    if ((await (await page.request.get(path)).text()).includes('B612 Mono-')) {
+      withCode = path;
+      break;
+    }
+  }
+  if (!withCode) throw new Error('no page in this build declares B612 Mono');
+  await page.route(`**${withCode}`, async (route) => {
     const response = await route.fetch();
     const body = (await response.text())
-      .replace(/<li class="palette-item">.*?<\/li>/s, '')
-      .replace(/<kbd>[^<]*<\/kbd>/g, '');
-    expect(body).not.toContain('palette-item');
-    expect(body).not.toContain('<kbd>');
+      .replace(/<pre\b[\s\S]*?<\/pre>/g, '')
+      .replace(/<code\b[^>]*>[\s\S]*?<\/code>/g, '');
+    expect(body).not.toMatch(/<(code|pre)\b/);
     await route.fulfill({ response, body });
   });
-  const { unused } = await unusedFonts(page, NOT_FOUND_PAGE, () =>
+  const { unused } = await unusedFonts(page, withCode, () =>
     page.evaluate(async () => {
       const mono = [...document.fonts].find((face) =>
-        face.family.replace(/"/g, '').startsWith('JetBrains Mono-'),
+        face.family.replace(/"/g, '').startsWith('B612 Mono-'),
       );
-      if (!mono) throw new Error('the 404 declares no mono face');
+      if (!mono) throw new Error('the page declares no mono face');
       await mono.load();
     }),
   );

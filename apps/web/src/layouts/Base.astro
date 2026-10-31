@@ -37,6 +37,9 @@ interface Props {
   jsonLd?: string;
   /** The page has a Print button ([data-print]), so the command menu offers it too: /about/. */
   print?: boolean;
+  /** The page draws code, so it declares B612 Mono, the face code is set in: a post with a code
+   *  span or block (Prose.astro). No other page does. */
+  code?: boolean;
 }
 
 const {
@@ -48,6 +51,7 @@ const {
   ogType = 'website',
   jsonLd,
   print = false,
+  code = false,
 } = Astro.props;
 const canonical = path === undefined ? undefined : new URL(path, Astro.site).href;
 const image = og && canonical ? new URL('og.png', canonical).href : undefined;
@@ -58,12 +62,14 @@ const profile = await loadProfile();
 const area = await loadWritingArea();
 const lab = await loadLabArea();
 const generated = [...areaRoutes(area), ...labRoutes(lab)];
-// The demos and the published posts, each a page these areas build: the rail lists every demo and
-// the newest posts (lib/nav.ts, railLeaves), and the command menu finds any of them by its words.
+// The demos and the published posts, each a page these areas build: the rail lists every demo, each
+// with a lamp in its line's colour (its slug is its line, ADR 0025), and the newest posts
+// (lib/nav.ts, railLeaves), and the command menu finds any of them by its words.
 const demos = lab.entries.map((entry) => ({
   title: entry.title,
   summary: entry.summary,
   href: labPath(entry),
+  line: entry.slug,
 }));
 const posts = area.published.map((post) => ({
   title: post.title,
@@ -84,12 +90,12 @@ const ground = groundKindFor(path);
 // ("Theme before first paint"). It applies a choice the visitor made in this tab, again when the
 // browser restores the page from its back-forward cache, and handles the toggle.
 
-// The faces (design-system.md, "The faces"): Instrument Sans draws the name, the headings and every
-// sentence of every page's first screen, so it is preloaded. JetBrains Mono sets values only, a
-// post's dates, a card's tag and figures, the lab's labels and figures, the résumé's addresses, and
-// code, and the command menu's keys in the footer, under a pointer that can hover. So it is not
-// preloaded, and a page fetches it when it sets something in it, in the fitted fallback until then;
-// the 404 on a touch screen, which sets nothing in it, never does.
+// The faces (design-system.md, "The faces"): every page's first screen sets its name or title in
+// Barlow Condensed, its navigation and labels in Barlow Semi Condensed and its sentences in Barlow,
+// so those three are preloaded. Barlow's SemiBold draws <strong> only, so a page fetches it when it
+// sets some, in the fitted fallback until then. B612 Mono draws code and nothing else, so only a
+// page with code declares it (the code prop): the Route Lab's first view carries no face it never
+// draws.
 
 // The skip link sits in the masthead, the header's frame, which it covers when focused (global.css).
 
@@ -145,11 +151,13 @@ const chrome = (['dark', 'light'] as const).map((scheme) => ({
         href="/rss.xml"
       />
     )}
-    <Font cssVariable="--font-instrument-sans" preload />
-    <Font cssVariable="--font-jetbrains-mono" />
+    <Font cssVariable="--font-barlow-condensed" preload />
+    <Font cssVariable="--font-barlow-semi-condensed" preload />
+    <Font cssVariable="--font-barlow" preload={[{ weight: 400 }]} />
+    {code && <Font cssVariable="--font-b612-mono" />}
   </head>
   <body>
-    {ground && <Ground kind={ground} seed={path ?? '/404/'} />}
+    {ground && <Ground kind={ground} />}
     <div class="frame masthead">
       <a class="skip-link" href="#main">
         Skip to content

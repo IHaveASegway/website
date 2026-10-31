@@ -1,22 +1,31 @@
 ---
-import { checkedProfiles, locationLine, type Profile } from '../lib/profile';
+import { checkedProfiles, roleLine, type Profile } from '../lib/profile';
 import { CONTACT_EMAIL } from '../lib/site';
 
 interface Props {
   profile: Profile;
-  /** Where the Work button scrolls to: Selected work, when Home has it. Left out, no button. */
-  work?: string | undefined;
-  /** The bio's opening, Joseph's own words (src/content/about.md), and the page it opens. Left out
-   *  where the build holds no bio, as the fixture builds do: then the hero has no sentence. */
-  bio?: { readonly lede: readonly string[]; readonly href: string } | undefined;
+  /** The bio's opening sentence, Joseph's own words (src/content/about.md; lib/about.ts,
+   *  openingSentence). Left out where the build holds no bio, as the fixture builds do: then the
+   *  column has no sentence. */
+  lede?: readonly string[] | undefined;
+  /** The Route Lab's result, from the build's own solve: the day's driving as the orders came in
+   *  and as VROOM plans it, and the words under them. Left out where the Route Lab does not build. */
+  figures?: { readonly before: string; readonly after: string; readonly words: string } | undefined;
+  /** The scene's caption: where its day stands once every van is back, which the picture shows,
+   *  and the map's source, credited under the ODbL. The scene's clock counts the day in its place
+   *  while the vans drive. Left out with the scene. */
+  caption?: { readonly done: string; readonly credit: string } | undefined;
 }
 
-const { profile, work, bio } = Astro.props;
+const { profile, lede = [], figures, caption } = Astro.props;
 // External profiles render only from a record whose readiness check is recorded (profile.ts).
 const external = checkedProfiles(profile);
-// Row 1 (design-system.md, "Home, row by row"): the name on two lines, then the title, the
-// location, what Joseph does in his own words and the ways to reach him. The name's markup is its
-// words alone. The sentence is the bio's opening, which Joseph cleared with the bio on 2026-10-29
+// The column over the water (ADR 0025), one order for the markup and the keyboard: the name on two
+// lines, the role in a sentence, the bio's opening, the Route Lab's result, the ways to reach him,
+// and the scene's caption. Beside VROOM's figure stands a stretch of the Route Lab's line with a van
+// on it, a lit lamp, as the board and the map draw them: the key to the routes on the water. Below 64rem the name, the role and the buttons lead and the map's band
+// follows them (home.css places each item; the order stays this one). Each button is its words
+// alone: no arrows. The sentence is the bio's opening sentence, which Joseph cleared with the bio
 // (content.md, row 1), so Home and /about/ say it from one file (ADR 0023).
 ---
 
@@ -24,42 +33,47 @@ const external = checkedProfiles(profile);
   <h1 id="name" class="hero-name">
     {profile.basics.name}
   </h1>
-  <div class="hero-side">
-    <div class="hero-who">
-      <p class="hero-title">{profile.basics.label}</p>
-      <p class="where">{locationLine(profile)}</p>
-    </div>
-    {bio?.lede.map((paragraph) => (
-      <p class="hero-lede">{paragraph}</p>
-    ))}
-    <div class="hero-actions">
-      <a class="btn btn-primary" href={`mailto:${CONTACT_EMAIL}`}>
-        Email
-      </a>
-      {bio && (
-        <a class="btn" href={bio.href}>
-          About me{' '}
-          <span class="hint" aria-hidden="true">
-            →
-          </span>
-        </a>
-      )}
-      {work && (
-        <a class="btn" href={work}>
-          Work{' '}
-          <span class="hint" aria-hidden="true">
-            ↓
-          </span>
-        </a>
-      )}
-      {external.map((p) => (
-        <a class="btn" href={p.url} rel="me">
-          {p.network}{' '}
-          <span class="hint" aria-hidden="true">
-            ↗
-          </span>
-        </a>
+  <p class="hero-title">{roleLine(profile)}</p>
+  {lede.length > 0 && (
+    <div class="hero-lede">
+      {lede.map((paragraph) => (
+        <p>{paragraph}</p>
       ))}
     </div>
+  )}
+  {figures && (
+    <p class="figures">
+      <s class="figure-before">{figures.before}</s>
+      <span class="visually-hidden"> of driving as the orders came in, now </span>
+      <span class="figure-after">
+        {figures.after}
+        <svg class="figure-line" viewBox="0 0 48 16" aria-hidden="true" focusable="false">
+          <line class="figure-track" x1="0" y1="8" x2="38" y2="8" />
+          <circle class="figure-van" cx="38" cy="8" r="6" />
+        </svg>
+      </span>
+      <span class="figure-words">{figures.words}</span>
+    </p>
+  )}
+  <div class="hero-actions">
+    <a class="btn btn-primary btn-email" href={`mailto:${CONTACT_EMAIL}`}>
+      Email {CONTACT_EMAIL}
+    </a>
+    {external.map((p) => (
+      <a class="btn" href={p.url} rel="me">
+        {p.network}
+      </a>
+    ))}
   </div>
+  {caption && (
+    <p class="hero-caption">
+      <span class="scene-clock">
+        <span class="scene-clock-done">{caption.done}</span>
+        <span class="scene-clock-live" data-scene-clock aria-hidden="true"></span>
+      </span>
+      <span class="scene-credit">
+        Map data © <a href={caption.credit}>OpenStreetMap contributors</a>.
+      </span>
+    </p>
+  )}
 </section>

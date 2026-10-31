@@ -88,6 +88,12 @@ test('the rail lists every demo, and the newest posts up to RAIL_POSTS', () => {
     lab: { leaves: [], noun: 'demos' },
     writing: { leaves: [], noun: 'posts' },
   });
+  // A demo names its line, which the rail's lamp is drawn in (ADR 0025); a post names none.
+  expect(railLeaves([{ title: 'Routes', href: '/lab/routes/', line: 'routes' }], posts)).toEqual({
+    lab: { leaves: [{ label: 'Routes', href: '/lab/routes/', line: 'routes' }], noun: 'demos' },
+    writing: groups['writing'],
+  });
+  expect(Object.keys(groups['lab']?.leaves[0] ?? {})).toEqual(['label', 'href']);
 });
 
 // /about/ took /resume/'s place on 2026-10-28; /resume/ answers with a 301 (public/_redirects).

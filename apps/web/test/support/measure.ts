@@ -7,6 +7,14 @@ import {
   preloadedFonts,
 } from '../../src/lib/weights';
 import { bytes, fileFor, files, read } from './dist';
+import {
+  labEntry,
+  labName,
+  labPage,
+  SIMULATED_LABS,
+  type SimulatedLab,
+  type SimulatedLabName,
+} from './labs';
 
 // The byte budgets (design-system.md, "Budgets as CI fitness functions") and how a page is
 // measured against them: gzip -9 for scripts and styles, served bytes for fonts (woff2 is already
@@ -44,6 +52,21 @@ export function measure(page: string) {
   };
 }
 
+/** A simulated lab's feature, from its row (support/labs.ts): its page, its module and its lazy
+ *  budget. No data file and no WebAssembly; its page keeps the 150 KB every page but the Route
+ *  Lab's keeps. */
+const simulated = (lab: SimulatedLab) => ({
+  page: labPage(lab),
+  entry: labEntry(lab),
+  paths: [] as const,
+  lazyJavaScript: lab.lazyJavaScript,
+  firstView: 150_000,
+});
+
+const SIMULATED = Object.fromEntries(
+  SIMULATED_LABS.map((lab) => [labName(lab), simulated(lab)]),
+) as Record<SimulatedLabName, ReturnType<typeof simulated>>;
+
 /**
  * Features with budgets of their own (ADR 0016; design-system.md, "Budgets as CI fitness
  * functions"). A feature owns the files under its paths, its entry bundle and every chunk that
@@ -59,7 +82,8 @@ export function measure(page: string) {
  * meaning: a solver that grew would still fail them. Its own ceiling, the first view with the app,
  * the route data and the cube, is what a visitor who turns the cube has fetched.
  *
- * The Raft Lab (ADR 0020) has one too: its app chunk, and the first view of its page.
+ * So does each simulated lab (ADR 0020, ADR 0026; support/labs.ts): every chunk its module can
+ * load, and the first view of its page with them. Its row in that table makes its feature here.
  *
  * So does Home's scene (ADR 0024): the chunk that drives it, which Home's motion module loads after
  * the page has painted, the day's data it fetches, and Home's first view with both. It shares the
@@ -83,15 +107,8 @@ export const FEATURES = {
       firstCube: 400_000,
     },
   },
-  // The Raft Lab (ADR 0020): its app, the servers, the simulator, the checker and what it draws,
-  // in one chunk loaded on intent. No data file and no WebAssembly; its page keeps 150 KB.
-  'raft-lab': {
-    page: 'lab/raft/index.html',
-    entry: /^_astro\/RaftLab\.astro_astro_type_script_index_0_lang\.[\w-]+\.js$/,
-    paths: [],
-    lazyJavaScript: 8_000,
-    firstView: 150_000,
-  },
+  // The simulated labs, a feature each, from their rows (support/labs.ts).
+  ...SIMULATED,
   // Home's scene (ADR 0024): the canvas that drives the Route Lab's day behind the hero, and the
   // day's tracks it fetches. No library and no WebAssembly; Home keeps 150 KB with both.
   'route-scene': {
@@ -196,8 +213,23 @@ export function reachableFrom(scripts: readonly string[]): string[] {
   return lazy;
 }
 
+/** The build's entry scripts: every script no other script imports, statically or with import().
+ *  They are the bundles pages name, and those Astro writes for a component whose page a build
+ *  leaves out; every other chunk is reached from one of them. */
+export function entryScripts(): string[] {
+  const scripts = files.filter((file) => /\.m?js$/.test(file));
+  const imported = new Set(
+    scripts.flatMap((file) =>
+      importsOf(read(file)).map((spec) => posix.normalize(posix.join(posix.dirname(file), spec))),
+    ),
+  );
+  return scripts.filter((file) => !imported.has(file));
+}
+
 /** The feature a dist/ file belongs to, or null: under one of its paths, its entry bundle, or a
- *  chunk that bundle reaches. */
+ *  chunk that bundle reaches. A chunk two features reach is the first's in FEATURES, which serves
+ *  the 2,000 B budget for files outside every feature; the simulated labs' own budgets read each
+ *  lab's whole graph instead, since three of them share lib/sim's chunk (budgets.test.ts). */
 export function featureOf(file: string): Feature | null {
   for (const [name, feature] of Object.entries(FEATURES) as [
     Feature,

@@ -1,0 +1,306 @@
+/*
+  Home's board (ADR 0025; components/board/Board.astro): every live lab as a line on one panel,
+  the recessed surface in a 2 px bezel of the functional rule. A band per lab: its title, which is
+  its link, stretched over the band as an index row's is (ADR 0022); its line; and a describer in
+  plain words. Pointing at a band, or focusing its link, dims the other lines and runs the 2 px
+  sweep along the band in its line's colour. Every colour is a token from tokens.css.
+
+  The board's one moving thing is the Route Lab's day, and it moves only while Home's scene runs
+  (:root[data-motion], scripts/route-scene.ts), never under a reduced-motion preference: then, as
+  without JavaScript, the board is its still drawing, the middle of the day (lib/lines.ts, MIDDAY).
+  The first time the board is seen, the delivered orders' lamps light from the bakery outward,
+  85 ms apart, then the vans'; after that one van steps to its next stop each second, round the
+  vans in turn, and when a van is back it stands at the end of its track until the day starts
+  again. It runs one day, from the middle of one to the middle of the next, and stands still there,
+  on its still drawing; it waits while the board is out of the window (data-away), so the day is
+  run where it is seen, and below 80rem, where the pause button is in the bar at the page's top, it
+  never runs on out of sight. Opacity only, in CSS steps: each van's track runs a clock of the
+  board's rounds, and each lamp reads it. The pause button pauses it where it stands.
+*/
+
+.board {
+  margin: 0;
+  padding-block: 1.25rem 0.5rem;
+  border: 2px solid var(--input);
+  background-color: var(--surface-1);
+}
+
+.board-intro {
+  margin: 0 1.25rem 0.5rem;
+  font-family: var(--font-label);
+  font-size: var(--text-ui);
+  font-weight: 500;
+  line-height: var(--text-ui--line-height);
+  text-wrap: pretty;
+}
+
+.board-lines {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A band: its title and describer at the head, flush left, then its line across the whole panel,
+   from the board's left edge, as if it ran on from off the panel. */
+.band {
+  --line-ground: var(--surface-1);
+  position: relative;
+  display: grid;
+  grid-template-areas:
+    'title'
+    'words'
+    'line';
+  grid-template-columns: minmax(0, 1fr);
+  padding-block: 1rem 0.75rem;
+}
+
+/* 24 px tall at the default text size, a target's least (SC 2.5.8), as a card's link is. */
+.band-title {
+  grid-area: title;
+  justify-self: start;
+  margin-inline: 1.25rem;
+  font-family: var(--font-label);
+  font-size: var(--text-ui);
+  font-weight: 500;
+  line-height: 1.5rem;
+  text-decoration-line: none;
+}
+
+.band-title:hover {
+  text-decoration-line: underline;
+}
+
+.band > .line {
+  grid-area: line;
+  margin-block-start: 0.75rem;
+}
+
+.band-words {
+  grid-area: words;
+  margin: 0.25rem 1.25rem 0;
+  color: var(--muted-foreground);
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  line-height: var(--text-label--line-height);
+  font-variant-numeric: tabular-nums;
+  text-wrap: pretty;
+}
+
+@media (width >= 48rem) {
+  .band {
+    grid-template-areas:
+      'title words'
+      'line line';
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: baseline;
+  }
+
+  .band-title {
+    margin-inline-end: 0;
+  }
+
+  .band-words {
+    margin-block-start: 0;
+  }
+}
+
+/* The band is its title's link: the link's box covers the band on screen, so a press anywhere on
+   it opens the lab, with the title alone as the link's name. On paper the link prints its address
+   after its title instead. */
+@media screen {
+  .band-title::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+}
+
+/* The sweep: 2 px of the band's line along its top edge, shown on hover and focus, its movement in
+   the block below, so a reduced-motion preference gets the state at once. */
+.band::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 2px;
+  background-color: var(--line);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+.band:hover::before,
+.band:focus-within::before {
+  transform: scaleX(1);
+}
+
+/* The other lines dim while one band is pointed at or focused; their words keep their contrast. */
+.board-lines:has(.band:hover) .band:not(:hover) > .line,
+.board-lines:has(.band:focus-within) .band:not(:focus-within) > .line {
+  opacity: 0.4;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .band::before {
+    transition: transform 0.22s ease-out;
+  }
+
+  .band > .line {
+    transition: opacity 0.16s linear;
+  }
+}
+
+/* The Route Lab's day on the board. A van's clock counts the board's rounds, 0 to 11, one a step;
+   a van steps every --every seconds, as many seconds as the board has vans, its first step its
+   number of seconds after the board comes up (data-van). Each lamp knows its place by its index
+   (data-k): a stop's lamp fills once the clock has passed it, a van's lamp is lit while the clock
+   stands at its place, and the lamp at the end of the track stays lit from the van's return until
+   the day starts again. A stylesheet cannot read a number from an attribute in every browser yet,
+   so each index has its rule: twelve places (lib/lines.ts, ROUNDS) and four vans, the Route Lab's
+   most. */
+@property --day {
+  syntax: '<integer>';
+  inherits: true;
+  initial-value: 0;
+}
+
+.line-routes [data-k='1'] {
+  --k: 1;
+}
+
+.line-routes [data-k='2'] {
+  --k: 2;
+}
+
+.line-routes [data-k='3'] {
+  --k: 3;
+}
+
+.line-routes [data-k='4'] {
+  --k: 4;
+}
+
+.line-routes [data-k='5'] {
+  --k: 5;
+}
+
+.line-routes [data-k='6'] {
+  --k: 6;
+}
+
+.line-routes [data-k='7'] {
+  --k: 7;
+}
+
+.line-routes [data-k='8'] {
+  --k: 8;
+}
+
+.line-routes [data-k='9'] {
+  --k: 9;
+}
+
+.line-routes [data-k='10'] {
+  --k: 10;
+}
+
+.line-routes [data-k='11'] {
+  --k: 11;
+}
+
+.line-routes [data-van='1'] {
+  --van: 1;
+}
+
+.line-routes [data-van='2'] {
+  --van: 2;
+}
+
+.line-routes [data-van='3'] {
+  --van: 3;
+}
+
+.line-routes[data-vans='1'] {
+  --every: 1s;
+}
+
+.line-routes[data-vans='2'] {
+  --every: 2s;
+}
+
+.line-routes[data-vans='3'] {
+  --every: 3s;
+}
+
+.line-routes[data-vans='4'] {
+  --every: 4s;
+}
+
+/* On screen only: a printed board is its still drawing. */
+@media screen and (prefers-reduced-motion: no-preference) {
+  /* While the day runs and the board has not been seen, its lamps are out, ready to come up. */
+  :root[data-motion='on'] .board:not([data-seen]) .line-routes :is(.line-lamp-lit, .line-van-at) {
+    opacity: 0;
+  }
+
+  /* Each van's clock starts at the middle round, 6 of 12, which the still drawing shows, and steps
+     on its van's turn: a second after the board comes up for the first van, then each second the
+     next. One and a half rounds of its clock from the start of the day are one day from the
+     middle round back to it, where the clock stops and stays. */
+  /* Longhands, never the shorthand, which would set the play state back to running over the pause
+     rule below. */
+  :root[data-motion] .board[data-seen] .line-van {
+    animation-name: board-day;
+    animation-duration: calc(var(--every) * 12);
+    animation-timing-function: steps(12);
+    animation-iteration-count: 1.5;
+    animation-fill-mode: forwards;
+    animation-delay: calc(var(--van, 0) * 1s + 1s - var(--every) * 7);
+  }
+
+  :root[data-motion] .board[data-seen] .line-routes .line-lamp-lit {
+    opacity: clamp(0, var(--day) - var(--k, 0), 1);
+  }
+
+  :root[data-motion] .board[data-seen] .line-routes .line-van-at {
+    opacity: calc(1 - min(1, (var(--day) - var(--k, 0)) * (var(--day) - var(--k, 0))));
+  }
+
+  /* After the rule above, which has the same weight: the lamp at the end of the track stays lit. */
+  :root[data-motion] .board[data-seen] .line-routes .line-van-back {
+    opacity: clamp(0, var(--day) - var(--k, 0) + 1, 1);
+  }
+
+  /* The come-up: what the still drawing lights, lit again from the bakery outward. */
+  :root[data-motion]
+    .board[data-seen]
+    .line-routes
+    :is(.line-lamp-lit[data-lit], .line-van-at[data-here]) {
+    animation-name: board-come-up;
+    animation-duration: 0.14s;
+    animation-timing-function: linear;
+    animation-fill-mode: backwards;
+    animation-delay: calc(0.25s + var(--k, 0) * 85ms);
+  }
+
+  :root[data-motion='paused'] .board *,
+  .board[data-away] * {
+    animation-play-state: paused;
+  }
+
+  @keyframes board-day {
+    from {
+      --day: 0;
+    }
+
+    to {
+      --day: 12;
+    }
+  }
+
+  @keyframes board-come-up {
+    from {
+      opacity: 0;
+    }
+  }
+}

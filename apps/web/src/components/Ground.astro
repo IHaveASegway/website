@@ -3,17 +3,18 @@ import { GROUND_BOX, groundFor, type GroundKind } from '../lib/ground';
 
 interface Props {
   kind: GroundKind;
-  /** The page's path, which seeds the drawing (lib/ground.ts). */
-  seed: string;
 }
 
 // Page geometry (design-system.md, "Page geometry"): a picture with nothing to say to assistive
 // technology, so it is hidden from it, and it takes no pointer. Classes, never style attributes:
-// the page policy refuses inline styles (security.md). The cut for the Lab's second plan needs an
-// id, which is unique because a page has one drawing.
-const { kind, seed } = Astro.props;
-const ground = groundFor(kind, seed);
-const classOf = { line: 'ground-line', index: 'ground-index', mark: 'ground-mark' } as const;
+// the page policy refuses inline styles (security.md).
+const { kind } = Astro.props;
+const ground = groundFor(kind);
+const classOf = {
+  line: 'ground-line',
+  index: 'ground-index',
+  mark: 'ground-mark',
+} as const;
 ---
 
 <svg
@@ -27,17 +28,4 @@ const classOf = { line: 'ground-line', index: 'ground-index', mark: 'ground-mark
   {ground.paths.map((path) => (
     <path class={classOf[path.kind]} d={path.d} />
   ))}
-  {ground.clip && ground.clipped && (
-    <>
-      <clipPath id="ground-cut">
-        <path d={ground.clip} />
-      </clipPath>
-      <g clip-path="url(#ground-cut)">
-        <path class="ground-cover" d={ground.clip} />
-        {ground.clipped.map((path) => (
-          <path class={classOf[path.kind]} d={path.d} />
-        ))}
-      </g>
-    </>
-  )}
 </svg>

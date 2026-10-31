@@ -1,23 +1,41 @@
 /*
-  Written by scripts/fonts/build.sh: do not edit. Metric-matched fallback faces for the two web
-  fonts, one family per local font, each with size-adjust fitted to the web font's widths, so text
-  breaks in the same place before and after the web font arrives.
+  Written by scripts/fonts/build.sh: do not edit. Metric-matched fallback faces for the four web
+  faces, one family per web face and local font, each with size-adjust fitted to the web face's
+  widths, so text breaks in the same place before and after the web font arrives.
 
   - Arial: Arial (Apple, Windows), Liberation Sans and Arimo (Linux), which share its widths.
     Measured from Arimo. Roboto: Android. DejaVu Sans: Linux without Liberation.
   - Menlo and DejaVu Sans Mono share one width, and so do Courier New, Liberation Mono and Cousine.
-  - Faces at 100% width are fitted to English letter frequencies at the weight they stand in for.
-    The 75-85% faces are fitted to "Joseph Peterson", the only text set at 80%, from profile.json.
-  - The stacks below are the one list of fallbacks: tokens.css puts the web fonts in front.
+  - Barlow, Barlow Semi Condensed and B612 Mono are fitted to English letter frequencies. Barlow
+    Condensed is fitted to "Joseph Peterson", from profile.json: the name is Home's largest text.
+  - The stacks below are the one list of fallbacks: tokens.css puts the web faces in front.
 */
 
 :root {
-  --font-sans-fallbacks: 'Instrument Sans Fallback Arial', 'Instrument Sans Fallback Roboto', 'Instrument Sans Fallback DejaVu', sans-serif;
-  --font-mono-fallbacks: 'JetBrains Mono Fallback Menlo', 'JetBrains Mono Fallback Courier', monospace;
+  --font-display-fallbacks: 'Barlow Condensed Fallback Arial', 'Barlow Condensed Fallback Roboto', 'Barlow Condensed Fallback DejaVu', sans-serif;
+  --font-label-fallbacks: 'Barlow Semi Condensed Fallback Arial', 'Barlow Semi Condensed Fallback Roboto', 'Barlow Semi Condensed Fallback DejaVu', sans-serif;
+  --font-sans-fallbacks: 'Barlow Fallback Arial', 'Barlow Fallback Roboto', 'Barlow Fallback DejaVu', sans-serif;
+  --font-mono-fallbacks: 'B612 Mono Fallback Menlo', 'B612 Mono Fallback Courier', monospace;
 }
 
 @font-face {
-  font-family: 'Instrument Sans Fallback Arial';
+  font-family: 'Barlow Condensed Fallback Arial';
+  src:
+    local('Arial Bold'),
+    local('Arial-BoldMT'),
+    local('Liberation Sans Bold'),
+    local('LiberationSans-Bold'),
+    local('Arimo Bold'),
+    local('Arimo-Bold');
+  font-weight: 600;
+  size-adjust: 73.8635%;
+  ascent-override: 135.3848%;
+  descent-override: 27.077%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: 'Barlow Semi Condensed Fallback Arial';
   src:
     local('Arial'),
     local('ArialMT'),
@@ -25,15 +43,15 @@
     local('LiberationSans'),
     local('Arimo Regular'),
     local('Arimo-Regular');
-  font-weight: 400 499;
-  size-adjust: 102.6018%;
-  ascent-override: 94.5402%;
-  descent-override: 24.366%;
+  font-weight: 500;
+  size-adjust: 88.6759%;
+  ascent-override: 112.7703%;
+  descent-override: 22.5541%;
   line-gap-override: 0%;
 }
 
 @font-face {
-  font-family: 'Instrument Sans Fallback Arial';
+  font-family: 'Barlow Fallback Arial';
   src:
     local('Arial'),
     local('ArialMT'),
@@ -41,15 +59,15 @@
     local('LiberationSans'),
     local('Arimo Regular'),
     local('Arimo-Regular');
-  font-weight: 500 599;
-  size-adjust: 104.8282%;
-  ascent-override: 92.5324%;
-  descent-override: 23.8485%;
+  font-weight: 400;
+  size-adjust: 96.9791%;
+  ascent-override: 103.1151%;
+  descent-override: 20.623%;
   line-gap-override: 0%;
 }
 
 @font-face {
-  font-family: 'Instrument Sans Fallback Arial';
+  font-family: 'Barlow Fallback Arial';
   src:
     local('Arial Bold'),
     local('Arial-BoldMT'),
@@ -57,189 +75,127 @@
     local('LiberationSans-Bold'),
     local('Arimo Bold'),
     local('Arimo-Bold');
-  font-weight: 600 700;
-  size-adjust: 97.9121%;
-  ascent-override: 99.0685%;
-  descent-override: 25.5331%;
+  font-weight: 600;
+  size-adjust: 91.4686%;
+  ascent-override: 109.3271%;
+  descent-override: 21.8654%;
   line-gap-override: 0%;
 }
 
 @font-face {
-  font-family: 'Instrument Sans Fallback Arial';
+  font-family: 'Barlow Condensed Fallback Roboto';
   src:
-    local('Arial Bold'),
-    local('Arial-BoldMT'),
-    local('Liberation Sans Bold'),
-    local('LiberationSans-Bold'),
-    local('Arimo Bold'),
-    local('Arimo-Bold');
-  font-weight: 600 700;
-  font-stretch: 86% 95%;
-  size-adjust: 87.7956%;
-  ascent-override: 110.4839%;
-  descent-override: 28.4752%;
+    local('Roboto Bold'),
+    local('Roboto-Bold');
+  font-weight: 600;
+  size-adjust: 78.1541%;
+  ascent-override: 127.9523%;
+  descent-override: 25.5905%;
   line-gap-override: 0%;
 }
 
 @font-face {
-  font-family: 'Instrument Sans Fallback Arial';
-  src:
-    local('Arial Bold'),
-    local('Arial-BoldMT'),
-    local('Liberation Sans Bold'),
-    local('LiberationSans-Bold'),
-    local('Arimo Bold'),
-    local('Arimo-Bold');
-  font-weight: 600 700;
-  font-stretch: 75% 85%;
-  size-adjust: 76.8543%;
-  ascent-override: 126.2129%;
-  descent-override: 32.5291%;
-  line-gap-override: 0%;
-}
-
-@font-face {
-  font-family: 'Instrument Sans Fallback Roboto';
+  font-family: 'Barlow Semi Condensed Fallback Roboto';
   src:
     local('Roboto'),
     local('Roboto Regular'),
     local('Roboto-Regular');
-  font-weight: 400 499;
-  size-adjust: 102.2905%;
-  ascent-override: 94.828%;
-  descent-override: 24.4402%;
+  font-weight: 500;
+  size-adjust: 88.4068%;
+  ascent-override: 113.1135%;
+  descent-override: 22.6227%;
   line-gap-override: 0%;
 }
 
 @font-face {
-  font-family: 'Instrument Sans Fallback Roboto';
+  font-family: 'Barlow Fallback Roboto';
   src:
     local('Roboto'),
     local('Roboto Regular'),
     local('Roboto-Regular');
-  font-weight: 500 599;
-  size-adjust: 104.5101%;
-  ascent-override: 92.814%;
-  descent-override: 23.9211%;
+  font-weight: 400;
+  size-adjust: 96.6848%;
+  ascent-override: 103.4289%;
+  descent-override: 20.6858%;
   line-gap-override: 0%;
 }
 
 @font-face {
-  font-family: 'Instrument Sans Fallback Roboto';
+  font-family: 'Barlow Fallback Roboto';
   src:
     local('Roboto Bold'),
     local('Roboto-Bold');
-  font-weight: 600 700;
-  size-adjust: 104.1581%;
-  ascent-override: 93.1276%;
-  descent-override: 24.002%;
+  font-weight: 600;
+  size-adjust: 97.3037%;
+  ascent-override: 102.7711%;
+  descent-override: 20.5542%;
   line-gap-override: 0%;
 }
 
 @font-face {
-  font-family: 'Instrument Sans Fallback Roboto';
+  font-family: 'Barlow Condensed Fallback DejaVu';
   src:
-    local('Roboto Bold'),
-    local('Roboto-Bold');
-  font-weight: 600 700;
-  font-stretch: 86% 95%;
-  size-adjust: 93.3964%;
-  ascent-override: 103.8584%;
-  descent-override: 26.7676%;
+    local('DejaVu Sans Bold'),
+    local('DejaVuSans-Bold');
+  font-weight: 600;
+  size-adjust: 64.9563%;
+  ascent-override: 153.9497%;
+  descent-override: 30.7899%;
   line-gap-override: 0%;
 }
 
 @font-face {
-  font-family: 'Instrument Sans Fallback Roboto';
-  src:
-    local('Roboto Bold'),
-    local('Roboto-Bold');
-  font-weight: 600 700;
-  font-stretch: 75% 85%;
-  size-adjust: 81.3186%;
-  ascent-override: 119.2839%;
-  descent-override: 30.7433%;
-  line-gap-override: 0%;
-}
-
-@font-face {
-  font-family: 'Instrument Sans Fallback DejaVu';
+  font-family: 'Barlow Semi Condensed Fallback DejaVu';
   src:
     local('DejaVu Sans'),
     local('DejaVuSans');
-  font-weight: 400 499;
-  size-adjust: 89.3824%;
-  ascent-override: 108.5225%;
-  descent-override: 27.9697%;
+  font-weight: 500;
+  size-adjust: 77.2507%;
+  ascent-override: 129.4487%;
+  descent-override: 25.8897%;
   line-gap-override: 0%;
 }
 
 @font-face {
-  font-family: 'Instrument Sans Fallback DejaVu';
+  font-family: 'Barlow Fallback DejaVu';
   src:
     local('DejaVu Sans'),
     local('DejaVuSans');
-  font-weight: 500 599;
-  size-adjust: 91.3219%;
-  ascent-override: 106.2177%;
-  descent-override: 27.3757%;
+  font-weight: 400;
+  size-adjust: 84.4841%;
+  ascent-override: 118.3655%;
+  descent-override: 23.6731%;
   line-gap-override: 0%;
 }
 
 @font-face {
-  font-family: 'Instrument Sans Fallback DejaVu';
+  font-family: 'Barlow Fallback DejaVu';
   src:
     local('DejaVu Sans Bold'),
     local('DejaVuSans-Bold');
-  font-weight: 600 700;
-  size-adjust: 81.6746%;
-  ascent-override: 118.764%;
-  descent-override: 30.6093%;
+  font-weight: 600;
+  size-adjust: 76.2997%;
+  ascent-override: 131.0621%;
+  descent-override: 26.2124%;
   line-gap-override: 0%;
 }
 
 @font-face {
-  font-family: 'Instrument Sans Fallback DejaVu';
-  src:
-    local('DejaVu Sans Bold'),
-    local('DejaVuSans-Bold');
-  font-weight: 600 700;
-  font-stretch: 86% 95%;
-  size-adjust: 73.2359%;
-  ascent-override: 132.4488%;
-  descent-override: 34.1363%;
-  line-gap-override: 0%;
-}
-
-@font-face {
-  font-family: 'Instrument Sans Fallback DejaVu';
-  src:
-    local('DejaVu Sans Bold'),
-    local('DejaVuSans-Bold');
-  font-weight: 600 700;
-  font-stretch: 75% 85%;
-  size-adjust: 67.5864%;
-  ascent-override: 143.52%;
-  descent-override: 36.9897%;
-  line-gap-override: 0%;
-}
-
-@font-face {
-  font-family: 'JetBrains Mono Fallback Menlo';
+  font-family: 'B612 Mono Fallback Menlo';
   src:
     local('Menlo Regular'),
     local('Menlo-Regular'),
     local('DejaVu Sans Mono'),
     local('DejaVuSansMono');
-  font-weight: 400 500;
-  size-adjust: 99.6594%;
-  ascent-override: 102.3486%;
-  descent-override: 30.1025%;
+  font-weight: 400;
+  size-adjust: 107.9643%;
+  ascent-override: 89.3814%;
+  descent-override: 23.1558%;
   line-gap-override: 0%;
 }
 
 @font-face {
-  font-family: 'JetBrains Mono Fallback Courier';
+  font-family: 'B612 Mono Fallback Courier';
   src:
     local('Courier New'),
     local('CourierNewPSMT'),
@@ -247,9 +203,9 @@
     local('LiberationMono'),
     local('Cousine Regular'),
     local('Cousine-Regular');
-  font-weight: 400 500;
-  size-adjust: 99.9837%;
-  ascent-override: 102.0166%;
-  descent-override: 30.0049%;
+  font-weight: 400;
+  size-adjust: 108.3157%;
+  ascent-override: 89.0914%;
+  descent-override: 23.0807%;
   line-gap-override: 0%;
 }

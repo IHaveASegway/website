@@ -1,7 +1,15 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
-import { aboutParts, aboutSchema, withLinks } from '../src/lib/about';
+import {
+  ABOUT_HEADINGS,
+  aboutParts,
+  aboutSchema,
+  LAB_NAMES,
+  openingSentence,
+  sectionOf,
+  withLinks,
+} from '../src/lib/about';
 import { fixture, read } from './support/dist';
 
 // /about/ (lib/about.ts): the bio, Joseph's words from src/content/about.md, then the résumé, which
@@ -45,17 +53,48 @@ test('the page has one Print button, and no PDF is written for it', () => {
 // Home tells the bio in parts (ADR 0023): its opening, the principles under How I work, and what
 // Joseph is working toward, read by aboutParts from the same file /about/ renders whole.
 describe('aboutParts: Home reads the bio it does not own', () => {
-  test('the real bio: an opening, five principles, one paragraph on what comes next', () => {
+  test('the real bio: an opening, then What I build, How I work and what comes next', () => {
     const parts = aboutParts(body);
     expect(parts.lede).toHaveLength(1);
     expect(parts.lede[0]).toMatch(/^I'm a software engineer/);
-    expect(parts.sections.map((s) => s.heading)).toEqual(['How I work', "What I'm working toward"]);
-    const [how, toward] = parts.sections;
-    expect(how?.principles.map((p) => p.lead)).toHaveLength(5);
+    // Home finds its parts by these headings, so the bio keeps them, in this order.
+    expect(parts.sections.map((s) => s.heading)).toEqual(Object.values(ABOUT_HEADINGS));
+    expect(parts.sections.map((s) => s.heading)).toEqual([
+      'What I build',
+      'How I work',
+      "What I'm working toward",
+    ]);
+    const build = sectionOf(parts, ABOUT_HEADINGS.build);
+    const how = sectionOf(parts, ABOUT_HEADINGS.how);
+    const toward = sectionOf(parts, ABOUT_HEADINGS.toward);
+    expect(build?.principles).toHaveLength(5);
+    expect(build?.principles[0]?.lead).toBe('Queues that lose nothing.');
+    expect(how?.principles).toHaveLength(5);
     expect(how?.principles[0]?.lead).toBe('The reasoning comes before the code.');
     expect(how?.paragraphs).toEqual([]);
     expect(toward?.principles).toEqual([]);
     expect(toward?.paragraphs).toHaveLength(1);
+  });
+
+  test("openingSentence: Home's hero says the opening's first sentence, /about/ the whole", () => {
+    const opening = aboutParts(body).lede[0] ?? '';
+    expect(openingSentence(opening)).toBe(
+      "I'm a software engineer who builds the systems work flows through: queues, data pipelines, caches and the clusters under them, and now the lines where agents write the code.",
+    );
+    expect(opening.startsWith(openingSentence(opening))).toBe(true);
+    // Known answers: the first of several, a lone sentence whole, no end at a lower-case word or
+    // inside a number.
+    expect(openingSentence('One. Two! Three?')).toBe('One.');
+    expect(openingSentence('Is it one? Yes.')).toBe('Is it one?');
+    expect(openingSentence('Just one.')).toBe('Just one.');
+    expect(openingSentence('It ran 3.5 s. then stopped.')).toBe('It ran 3.5 s. then stopped.');
+    expect(openingSentence('No full stop')).toBe('No full stop');
+  });
+
+  test('sectionOf: a section by its heading, wherever it stands, and none by another name', () => {
+    const parts = aboutParts('Hi.\n\n### A\n\n- **One.** Two.\n\n### B\n\n- **Three.** Four.\n');
+    expect(sectionOf(parts, 'B')?.principles).toEqual([{ lead: 'Three.', text: 'Four.' }]);
+    expect(sectionOf(parts, 'C')).toBeUndefined();
   });
 
   test('known answers: a bold lead and its sentence, lines joined', () => {
@@ -94,5 +133,31 @@ describe('aboutParts: Home reads the bio it does not own', () => {
     ]);
     expect(withLinks('Nothing here.', names)).toEqual(['Nothing here.']);
     expect(withLinks('Route Lab', [])).toEqual(['Route Lab']);
+  });
+
+  test('withLinks: every lab the bio names links where its words are, the five of them', () => {
+    const names = LAB_NAMES.map(({ slug, name }) => ({ name, href: `/lab/${slug}/` }));
+    expect(LAB_NAMES.map((n) => n.name)).toEqual([
+      'Route Lab',
+      'Raft Lab',
+      'Queue Lab',
+      'Cache Lab',
+      'Backfill Lab',
+    ]);
+    expect(withLinks('The Queue Lab, the Cache Lab and the Backfill Lab.', names)).toEqual([
+      'The ',
+      { text: 'Queue Lab', href: '/lab/queue/' },
+      ', the ',
+      { text: 'Cache Lab', href: '/lab/cache/' },
+      ' and the ',
+      { text: 'Backfill Lab', href: '/lab/backfill/' },
+      '.',
+    ]);
+    // Each name the real bio holds, wherever it stands, becomes a link once.
+    const text = aboutParts(body)
+      .sections.flatMap((s) => [...s.principles.map((p) => p.text), ...s.paragraphs])
+      .join(' ');
+    const linked = withLinks(text, names).filter((run) => typeof run !== 'string');
+    expect(linked.map((run) => run.text).sort()).toEqual(LAB_NAMES.map((n) => n.name).sort());
   });
 });

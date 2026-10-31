@@ -1,0 +1,368 @@
+---
+import { properties } from '../../lib/queue/check';
+import { LOADS, MAX_WORKERS, SERVICE } from '../../lib/queue/sim';
+import {
+  LAYOUTS,
+  mapMarkup,
+  openingRun,
+  PREFETCHES,
+  propertyWords,
+  seconds,
+  SPEEDS,
+  statusText,
+  STRIP,
+  strip,
+  stripWords,
+  summary,
+  tenths,
+  waitWords,
+} from '../../lib/queue/view';
+import '../../styles/queue-lab.css';
+
+// The Queue Lab (ADR 0026, after ADR 0020's pattern): a broker, three workers and the bakery's
+// orders, drawn at build from the opening run (lib/queue/view.ts), so the page is complete without
+// JavaScript. The controls show only where script runs (queue-lab.css), and boot.ts loads the
+// simulation on the visitor's first intent; it replays the same opening, so it takes over exactly
+// where this stands. It all sits on the lab's desk (ADR 0025; global.css, .desk): the picture, the
+// history strip, the properties, then the controls and the event log, each under a rule from bezel
+// to bezel. Run is a push-button whose lamp is lit while the run is on (app.ts sets data-lamp; its
+// words change, so it is no toggle and has no aria-pressed). Under the picture, a key names each
+// mark a run can draw that the write-up's key does not, in the picture's own classes: it shows only
+// where script runs, since only a run draws those marks, and assistive technology skips it, since
+// the caption and the log say the same in words.
+const sim = openingRun();
+const lines = sim.lines.slice(-12);
+const history = strip(sim);
+const pool = sim.workers.slice(0, sim.size);
+// Three workers' capacity, from the service time's mean: a log-normal's is its median times
+// e^(spread² / 2).
+const capacity = (
+  (pool.length * 1000) /
+  (SERVICE.median * Math.exp(SERVICE.spread ** 2 / 2))
+).toFixed(1);
+const ACKS = [
+  { value: 'after', name: 'After the work' },
+  { value: 'before', name: 'Before the work' },
+] as const;
+const KEYS = [
+  { value: 'off', name: 'Off' },
+  { value: 'on', name: 'On' },
+] as const;
+const HANDLINGS = [
+  { value: 'requeue', name: 'Requeue it' },
+  { value: 'dead-letter', name: 'Dead-letter after four tries' },
+] as const;
+const LOAD_NAMES = [
+  { value: 'calm', name: 'Calm' },
+  { value: 'busy', name: 'Busy' },
+  { value: 'rush', name: 'Rush' },
+] as const;
+if (pool.length > MAX_WORKERS) throw new Error('queue lab: more workers than the picture draws');
+---
+
+<div class="qu desk" id="queue-lab">
+  <div class="qu-stage">
+    <figure class="qu-figure">
+      {(['wide', 'narrow'] as const).map((name) => (
+        <svg
+          class="qu-map"
+          data-qu-map={name}
+          viewBox={`0 0 ${LAYOUTS[name].width} ${LAYOUTS[name].height}`}
+          role="img"
+          aria-labelledby="qu-summary"
+          set:html={mapMarkup(sim, LAYOUTS[name])}
+        />
+      ))}
+      <ul class="qu-key" role="list" aria-hidden="true" data-qu-js>
+        <li>
+          <svg class="qu-key-mark" viewBox="0 0 20 20">
+            <rect class="qu-order" data-state="retry" x="5" y="5" width="10" height="10" />
+          </svg>
+          Waiting to retry
+        </li>
+        <li>
+          <svg class="qu-key-mark" viewBox="0 0 20 20">
+            <circle class="qu-slot" data-state="coming" cx="10" cy="10" r="6" />
+          </svg>
+          On its way, or dropped in a crash
+        </li>
+        <li>
+          <svg class="qu-key-mark" viewBox="0 0 20 20">
+            <circle class="qu-slot" data-state="room" cx="10" cy="10" r="1.5" />
+          </svg>
+          Room for one more
+        </li>
+        <li>
+          <svg class="qu-key-mark" viewBox="0 0 20 20">
+            <path class="qu-order" data-poison="" d="M10 4L16 10L10 16L4 10Z" />
+          </svg>
+          Poison order
+        </li>
+        <li>
+          <svg class="qu-key-mark" viewBox="0 0 20 20">
+            <path
+              class="qu-ticket"
+              data-state="lost"
+              d="M5 10a5 5 0 1 0 10 0a5 5 0 1 0 -10 0M6.5 6.5l7 7M13.5 6.5l-7 7"
+            />
+          </svg>
+          Lost, never printed
+        </li>
+      </ul>
+      <figcaption class="qu-summary" id="qu-summary" data-qu-summary>
+        {summary(sim)}
+      </figcaption>
+    </figure>
+
+    <div class="qu-strip">
+      <p class="qu-strip-head">
+        <span>Orders waiting in the queue</span>
+        <span class="qu-strip-now" data-qu-wait>
+          {waitWords(sim)}
+        </span>
+      </p>
+      <div class="qu-strip-body">
+        <span class="qu-strip-scale" aria-hidden="true">
+          <span data-qu-most>{history.most}</span>
+          <span>0</span>
+        </span>
+        <svg
+          class="qu-strip-chart"
+          viewBox={`0 0 ${STRIP.width} ${STRIP.height}`}
+          preserveAspectRatio="none"
+          role="img"
+          aria-label={stripWords(sim)}
+          data-qu-strip
+        >
+          <g
+            data-qu-crashes
+            set:html={history.crashes
+              .map((c) => `<path class="qu-strip-crash" d="M${c.x} 0V${STRIP.height}"/>`)
+              .join('')}
+          />
+          <polyline class="qu-strip-line" points={history.points} data-qu-strip-line />
+        </svg>
+      </div>
+      <p class="qu-strip-foot" aria-hidden="true">
+        <span data-qu-from>{tenths(history.from)}</span>
+        <span>A dashed tick marks a crash</span>
+        <span data-qu-to>{tenths(history.to)}</span>
+      </p>
+    </div>
+
+    <ul class="qu-props" role="list">
+      {properties(sim).map((p) => (
+        <li class="qu-prop" data-qu-prop={p.id} data-held={String(p.held)}>
+          <span class="qu-lamp" aria-hidden="true" />
+          <span class="qu-prop-name">{p.name}</span>
+          <span class="qu-prop-words" data-qu-prop-words>
+            {propertyWords(sim, p)}
+          </span>
+        </li>
+      ))}
+    </ul>
+    <p class="qu-status" data-qu-status>
+      {statusText(sim)}
+    </p>
+    <p class="qu-clock" data-qu-js>
+      <span data-qu-clock>Virtual time {seconds(sim.now)}</span>, seed{' '}
+      <span data-qu-seed>{sim.seed}</span>
+    </p>
+
+    <div class="qu-controls" data-qu-js>
+      <div class="qu-group" role="group" aria-labelledby="qu-time">
+        <span class="qu-legend" id="qu-time">
+          Time
+        </span>
+        <div class="qu-row">
+          <button type="button" class="btn qu-run" data-lamp="off" data-qu-run>
+            Run
+          </button>
+          <button type="button" class="btn" data-qu-step>
+            Next event
+          </button>
+          <button type="button" class="btn" data-qu-reset>
+            Start over
+          </button>
+        </div>
+      </div>
+      <fieldset class="qu-group">
+        <legend class="qu-legend">Speed</legend>
+        <div class="qu-row">
+          {SPEEDS.map((s) => (
+            <label class="qu-choice">
+              <input
+                type="radio"
+                name="qu-speed"
+                value={String(s.value)}
+                checked={s.value === 1}
+                autocomplete="off"
+              />
+              <span class="qu-choice-lamp" />
+              {s.name}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <fieldset class="qu-group">
+        <legend class="qu-legend">When a worker acknowledges</legend>
+        <div class="qu-row">
+          {ACKS.map((a) => (
+            <label class="qu-choice">
+              <input
+                type="radio"
+                name="qu-ack"
+                value={a.value}
+                checked={a.value === sim.ack}
+                autocomplete="off"
+              />
+              <span class="qu-choice-lamp" />
+              {a.name}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <fieldset class="qu-group">
+        <legend class="qu-legend">Idempotency key</legend>
+        <div class="qu-row">
+          {KEYS.map((k) => (
+            <label class="qu-choice">
+              <input
+                type="radio"
+                name="qu-key"
+                value={k.value}
+                checked={(k.value === 'on') === sim.key}
+                autocomplete="off"
+              />
+              <span class="qu-choice-lamp" />
+              {k.name}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <fieldset class="qu-group">
+        <legend class="qu-legend">Orders each worker may hold</legend>
+        <div class="qu-row">
+          {PREFETCHES.map((n) => (
+            <label class="qu-choice">
+              <input
+                type="radio"
+                name="qu-prefetch"
+                value={String(n)}
+                checked={n === sim.prefetch}
+                autocomplete="off"
+              />
+              <span class="qu-choice-lamp" />
+              {n}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <fieldset class="qu-group">
+        <legend class="qu-legend">Load</legend>
+        <div class="qu-row">
+          {LOAD_NAMES.map((l) => (
+            <label class="qu-choice">
+              <input
+                type="radio"
+                name="qu-load"
+                value={l.value}
+                checked={l.value === sim.load}
+                autocomplete="off"
+              />
+              <span class="qu-choice-lamp" />
+              {l.name}
+            </label>
+          ))}
+        </div>
+        <p class="qu-note">
+          {LOADS.calm}, {LOADS.busy} and {LOADS.rush} orders a second. Three workers print about{' '}
+          {capacity}.
+        </p>
+      </fieldset>
+      <div class="qu-group" role="group" aria-labelledby="qu-new">
+        <span class="qu-legend" id="qu-new">
+          New orders
+        </span>
+        <div class="qu-row">
+          <button type="button" class="btn" data-qu-producer>
+            Stop taking orders
+          </button>
+          <button type="button" class="btn" data-qu-poison>
+            Publish a poison order
+          </button>
+        </div>
+      </div>
+      <fieldset class="qu-group">
+        <legend class="qu-legend">When an order fails</legend>
+        <div class="qu-row">
+          {HANDLINGS.map((h) => (
+            <label class="qu-choice">
+              <input
+                type="radio"
+                name="qu-handling"
+                value={h.value}
+                checked={h.value === sim.handling}
+                autocomplete="off"
+              />
+              <span class="qu-choice-lamp" />
+              {h.name}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <div class="qu-group" role="group" aria-labelledby="qu-workers">
+        <span class="qu-legend" id="qu-workers">
+          Workers
+        </span>
+        <div class="qu-row qu-workers">
+          {pool.map((w) => (
+            <div class="qu-worker" role="group" aria-labelledby={`qu-worker-${w.id}`}>
+              <span class="qu-worker-name" id={`qu-worker-${w.id}`}>
+                Worker {w.id + 1}
+              </span>
+              <button
+                type="button"
+                class="btn qu-toggle"
+                data-qu-crash={w.id}
+                aria-label={`${w.state === 'up' ? 'Crash' : 'Restart'} worker ${w.id + 1}`}
+              >
+                {w.state === 'up' ? 'Crash' : 'Restart'}
+              </button>
+              <button
+                type="button"
+                class="btn qu-toggle"
+                data-qu-slow={w.id}
+                aria-label={
+                  w.slow ? `Normal speed for worker ${w.id + 1}` : `Slow down worker ${w.id + 1}`
+                }
+              >
+                {w.slow ? 'Normal' : 'Slow'}
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+      <p class="qu-sr" role="status" data-qu-said></p>
+    </div>
+  </div>
+
+  <div class="qu-events">
+    <h2 class="qu-heading" id="qu-events">
+      What happened
+    </h2>
+    <div class="qu-lines" role="log" aria-live="off" aria-labelledby="qu-events" tabindex="0">
+      <ol class="qu-list" data-qu-lines>
+        {lines.map((line) => (
+          <li>
+            <span class="qu-at">{seconds(line.at)}</span> {line.text}
+          </li>
+        ))}
+      </ol>
+    </div>
+  </div>
+</div>
+
+<script>
+  import './boot';
+</script>

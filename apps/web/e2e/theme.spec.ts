@@ -67,8 +67,11 @@ const chrome = (page: Page) =>
 async function expectChromeIsBackground(page: Page) {
   expect(await chrome(page)).toBe(formatHex(await background(page)));
 }
-// The toggle shows an icon; its name is the one state span CSS leaves displayed.
+// The toggle shows an icon in the bar and its name in words in the rail; its name is the one state
+// span CSS leaves displayed, in the panel's words (ADR 0025): Theme: System, Day or Night.
 const toggle = (page: Page) => page.getByRole('button', { name: /^Theme: / });
+const NAME = { system: 'Theme: System', light: 'Theme: Day', dark: 'Theme: Night' } as const;
+const nameOf = (theme: string) => NAME[theme as keyof typeof NAME];
 
 const CASES: { os: Scheme; stored: Stored; theme: string; looks: Scheme }[] = [
   { os: 'dark', stored: 'nothing', theme: 'system', looks: 'dark' },
@@ -99,7 +102,7 @@ for (const { os, stored, theme, looks } of CASES) {
     expect(frame.theme).toBe(theme);
     expect(schemeOf(frame.background)).toBe(looks);
     expect(frame.chrome, 'the browser chrome in the first frame').toBe(formatHex(frame.background));
-    await expect(toggle(page)).toHaveAccessibleName(`Theme: ${theme}`);
+    await expect(toggle(page)).toHaveAccessibleName(nameOf(theme));
   });
 }
 
@@ -114,23 +117,23 @@ for (const os of ['dark', 'light'] as const) {
     await page.emulateMedia({ colorScheme: os });
     await page.goto('/');
     const button = toggle(page);
-    await expect(button).toHaveAccessibleName('Theme: system');
+    await expect(button).toHaveAccessibleName(NAME.system);
     expect(schemeOf(await background(page))).toBe(os);
 
     await button.click();
-    await expect(button).toHaveAccessibleName(`Theme: ${other}`);
+    await expect(button).toHaveAccessibleName(NAME[other]);
     expect(await page.evaluate(() => sessionStorage.getItem('theme'))).toBe(other);
     expect(schemeOf(await background(page))).toBe(other);
     await expectChromeIsBackground(page);
 
     await button.click();
-    await expect(button).toHaveAccessibleName(`Theme: ${os}`);
+    await expect(button).toHaveAccessibleName(NAME[os]);
     expect(await page.evaluate(() => sessionStorage.getItem('theme'))).toBe(os);
     expect(schemeOf(await background(page))).toBe(os);
     await expectChromeIsBackground(page);
 
     await button.click();
-    await expect(button).toHaveAccessibleName('Theme: system');
+    await expect(button).toHaveAccessibleName(NAME.system);
     expect(await page.evaluate(() => sessionStorage.getItem('theme'))).toBeNull();
     expect(schemeOf(await background(page))).toBe(os);
     await expectChromeIsBackground(page);
@@ -156,10 +159,10 @@ test('every press changes what the toggle shows, and its title says what its nam
   const pictures: Buffer[] = [];
   const titles: Record<string, (string | null | undefined)[]> = {};
   for (const theme of ['system', 'light', 'dark']) {
-    await expect(button).toHaveAccessibleName(`Theme: ${theme}`);
+    await expect(button).toHaveAccessibleName(nameOf(theme));
     await page.mouse.move(0, 0);
     // The title a pointer would show: at two corners and at the center of the button.
-    titles[`Theme: ${theme}`] = await button.evaluate((element) => {
+    titles[nameOf(theme)] = await button.evaluate((element) => {
       const box = element.getBoundingClientRect();
       return [
         [box.left + 1, box.top + 1],
@@ -172,7 +175,7 @@ test('every press changes what the toggle shows, and its title says what its nam
     pictures.push(await button.screenshot());
     await button.click();
   }
-  await expect(button).toHaveAccessibleName('Theme: system');
+  await expect(button).toHaveAccessibleName(NAME.system);
   // System and Dark both paint a dark page on a dark OS: only the icon tells them apart.
   const [system, light, dark] = pictures;
   expect(system?.equals(dark ?? Buffer.alloc(0)), 'System and Dark look the same').toBe(false);
@@ -201,20 +204,20 @@ test('a choice survives a reload and lasts for the tab only; storage that refuse
   await page.goto('/');
   await toggle(page).click();
   await page.reload();
-  await expect(toggle(page)).toHaveAccessibleName('Theme: light');
+  await expect(toggle(page)).toHaveAccessibleName(NAME.light);
 
   // A new tab starts from the OS again: nothing outlives the tab.
   const fresh = await page.context().newPage();
   await fresh.emulateMedia({ colorScheme: 'dark' });
   await fresh.goto('/');
-  await expect(toggle(fresh)).toHaveAccessibleName('Theme: system');
+  await expect(toggle(fresh)).toHaveAccessibleName(NAME.system);
 
   const blocked = await page.context().newPage();
   await blocked.emulateMedia({ colorScheme: 'dark' });
   await watchFirstFrame(blocked, 'storage that throws');
   await blocked.goto('/');
   await toggle(blocked).click();
-  await expect(toggle(blocked)).toHaveAccessibleName('Theme: light');
+  await expect(toggle(blocked)).toHaveAccessibleName(NAME.light);
   expect(await blocked.evaluate(() => document.documentElement.dataset['theme'])).toBe('light');
 });
 

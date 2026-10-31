@@ -157,7 +157,7 @@ test("a footnote's way back works, and the footnotes' heading is for assistive t
   await expect(page).toHaveURL(/#user-content-fn-measure$/);
   await page.locator('.data-footnote-backref').first().click();
   await expect(page).toHaveURL(/#user-content-fnref-measure$/);
-  await expect(page.locator('.data-footnote-backref').first()).toHaveText('↑');
+  await expect(page.locator('.data-footnote-backref').first()).toHaveText('Back');
 });
 
 // The measure (tokens.css, --measure): about 68 characters a line of English at 16 px. A paragraph

@@ -23,7 +23,9 @@ import { writingRow } from '../../lib/work';
 // is (the fixture builds hold none), the roles once Joseph adds them (Q8), a skill once every page
 // it names is built, and Selected work and Writing exactly as Home has them. On paper it is one US
 // Letter page (global.css, "The résumé on paper"; e2e/about-print.spec.ts), and the Print button
-// saves it as a PDF in the visitor's own browser: the site hosts no PDF (content.md, Q9).
+// saves it as a PDF in the visitor's own browser: the site hosts no PDF (content.md, Q9). On screen
+// the name is a title's size, not the hero's, with the title, the location and the addresses under
+// it in the label face (ADR 0025).
 const profile = await loadProfile();
 const { name, label } = profile.basics;
 const bio = await loadAbout();
@@ -48,7 +50,7 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
 
 <Base
   title={`${title} · ${name}`}
-  description={`Who ${name} is, how he works, and his résumé. ${label}, ${locationLine(profile)}.`}
+  description={`Who ${name} is, how he works, and his résumé. ${label}. ${locationLine(profile)}.`}
   path={ABOUT_PATH}
   og={aboutCard(profile, title)}
   jsonLd={serialize(profilePageGraph(profile, ABOUT_PATH))}
@@ -159,13 +161,7 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
         <SectionTitle id="work-title" title="Selected work" />
         <div class="cards">
           {cards.map((card) => (
-            <WorkCard
-              tag={card.tag}
-              title={card.title}
-              text={card.text}
-              facts={card.facts}
-              link={card.link}
-            />
+            <WorkCard title={card.title} text={card.text} facts={card.facts} link={card.link} />
           ))}
         </div>
       </section>

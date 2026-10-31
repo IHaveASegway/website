@@ -149,13 +149,19 @@ for (const size of [16, 32]) {
         return { text: text.replace(/\s+/g, ''), rows: [...rows.values()] };
       }),
     );
-    const [email, web, linkedIn] = lines;
+    // By address, not by place: the writing fixture lists GitHub between Web and LinkedIn.
+    const find = (start: string) => lines.find((address) => address.text.startsWith(start));
+    const [email, web, linkedIn] = ['hello@', 'ihaveasegway.com', 'linkedin.com'].map(find);
+    expect([email, web, linkedIn].every(Boolean), JSON.stringify(lines)).toBe(true);
     if (size === 16) {
       for (const address of lines) expect(address.rows, address.text).toHaveLength(1);
     } else {
       expect(web?.rows, web?.text).toHaveLength(1);
-      // The email breaks only after its "@"; LinkedIn's, wider than the screen, may break anywhere.
-      expect(email?.rows).toEqual(['hello@', 'ihaveasegway.com']);
+      // In the label face the email fits one line here (2026-10-30), where Instrument Sans broke
+      // it after its "@", the one place it may break. The fonts are pinned, so this is the answer
+      // to hold: a change that wraps it is a change to look at. LinkedIn's, wider than the screen,
+      // may break anywhere.
+      expect(email?.rows).toEqual(['hello@ihaveasegway.com']);
       expect(linkedIn?.rows.length).toBeGreaterThan(1);
     }
   });

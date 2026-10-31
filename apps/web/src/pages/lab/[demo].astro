@@ -18,7 +18,9 @@ import { gzipBytes } from '../../lib/weights';
 // together (lab.md, "Every demo ships with a write-up"). /lab/ is [...index].astro, a page of its
 // own so it links none of a demo's styles; /lab/api/ is the lab Worker's, never a page (lib/lab.ts).
 // A demo with a page file of its own is left to it, so this page imports none of its styles or
-// code: the Raft Lab is raft/[...index].astro (lib/lab.ts, OWN_PAGE).
+// code: the Raft Lab is raft/[...index].astro (lib/lab.ts, OWN_PAGE). The page is its lab's line
+// (ADR 0025): data-line gives it the lab's colour, which its head runs across the top and its desk
+// draws with.
 export async function getStaticPaths() {
   const lab = await loadLabArea();
   return lab.entries
@@ -60,8 +62,8 @@ const legs = (places * (places - 1)).toLocaleString('en-US');
   path={labPath(entry)}
   og={labCard(entry)}
 >
-  <article class="page rl-page" aria-labelledby="page-title">
-    <PageHead label="Lab" heading={entry.title} lead={lead} />
+  <article class="page rl-page" data-line={entry.slug} aria-labelledby="page-title">
+    <PageHead heading={entry.title} lead={lead} line />
     <RouteLab picture={picture} />
     <div class="prose">
       <Content />

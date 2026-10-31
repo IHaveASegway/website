@@ -11,9 +11,10 @@ import { NOT_FOUND_PAGE, pages } from './expected';
 const menu = (page: Page) => page.locator('dialog[data-palette]');
 const input = (page: Page) => page.getByRole('combobox', { name: 'Find a page or an action' });
 /** The button that opens it where the test runs: the rail's search field from 80rem (ADR 0022),
- *  the header row's button below. */
+ *  the bar's button below. Its name is its words and the keys it shows (SC 2.5.3): "Search Ctrl
+ *  K", or "Command menu K" on an Apple keyboard, whose command key is a drawing. */
 const opener = (page: Page) =>
-  page.getByRole('button', { name: /^(Command menu|Search) / }).filter({ visible: true });
+  page.getByRole('button', { name: /^(Command menu|Search)( Ctrl)? K$/ }).filter({ visible: true });
 const said = (page: Page) => page.locator('[data-palette-say]');
 const note = (page: Page) => page.locator('[data-palette-note]');
 
@@ -37,9 +38,9 @@ async function rows(page: Page): Promise<{ shown: string[]; active: string | nul
 
 test('Ctrl+K and ⌘K open it at once, with focus in its input; Esc closes it', async ({ page }) => {
   // With motion allowed, as most visitors have it: the menu still opens with no animation, its
-  // backdrop's included (design-system.md, "Motion"). Home's titles rise on scroll timelines, and
-  // the Raft Lab's election runs with Home's scene (ADR 0024), whatever the menu does,
-  // so only an animation of the menu's own is counted.
+  // backdrop's included (design-system.md, "Motion"). Home's scene runs, and the board's day once
+  // the board is seen (ADR 0025), whatever the menu does, so only an animation of the menu's own
+  // is counted.
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await ready(page);
   for (const keys of ['Control+k', 'Meta+k']) {
@@ -67,11 +68,11 @@ test('Ctrl+K and ⌘K open it at once, with focus in its input; Esc closes it', 
   await expect(menu(page)).toHaveJSProperty('open', false);
 });
 
-// The button names the keys of the keyboard it runs on: here a PC's, whatever machine runs the test.
-// One button shows at a time: the rail's search field from 80rem, the header row's below.
+// The button shows the keys of the keyboard it runs on: here a PC's, whatever machine runs the test.
+// One button shows at a time: the rail's search field from 80rem, the bar's below.
 for (const { width, name } of [
-  { width: 1280, name: 'Search' },
-  { width: 1024, name: 'Command menu' },
+  { width: 1280, name: 'Search Ctrl K' },
+  { width: 1024, name: 'Command menu Ctrl K' },
 ]) {
   test(`at ${width} px its one button, ${name}, opens it, and focus goes back to it when it closes`, async ({
     page,
@@ -82,7 +83,10 @@ for (const { width, name } of [
     );
     await ready(page);
     await expect(opener(page)).toHaveCount(1);
-    await expect(opener(page)).toHaveAccessibleName(`${name} Ctrl K`);
+    await expect(opener(page)).toHaveAccessibleName(name);
+    await expect(opener(page)).toHaveAttribute('aria-keyshortcuts', 'Meta+K Control+K');
+    await expect(opener(page).locator('kbd')).toHaveText('Ctrl K');
+    await expect(opener(page).locator('kbd svg')).toBeHidden();
     await opener(page).focus();
     await page.keyboard.press('Enter');
     await expect(input(page)).toBeFocused();
@@ -93,12 +97,15 @@ for (const { width, name } of [
   });
 }
 
-test('on an Apple keyboard the button names ⌘K', async ({ page }) => {
+// Barlow has no ⌘, so the command key is drawn (components/Keys.astro), and only the letter is text.
+test('on an Apple keyboard the button shows the drawn command key and K', async ({ page }) => {
   await page.addInitScript(() =>
     Object.defineProperty(navigator, 'platform', { get: () => 'MacIntel' }),
   );
   await ready(page);
-  await expect(opener(page)).toHaveAccessibleName(/ ⌘K$/);
+  await expect(opener(page)).toHaveAccessibleName(/^(Command menu|Search) K$/);
+  await expect(opener(page).locator('kbd')).toHaveText('K');
+  await expect(opener(page).locator('kbd svg')).toBeVisible();
 });
 
 // ADR 0022: the rail's search finds every demo and post, by its title or a word of its summary, and
@@ -227,13 +234,13 @@ test('the theme entry presses the toggle, and its name follows the toggle’s', 
   await page.keyboard.press('Control+k');
   await page.keyboard.type('theme');
   const entry = page.getByRole('option', { name: /^Theme: / });
-  await expect(entry).toHaveAccessibleName('Theme: system');
+  await expect(entry).toHaveAccessibleName('Theme: System');
   await page.keyboard.press('Enter');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-  await expect(entry).toHaveAccessibleName('Theme: light');
-  await expect(said(page)).toHaveText('Theme: light');
+  await expect(entry).toHaveAccessibleName('Theme: Day');
+  await expect(said(page)).toHaveText('Theme: Day');
   await page.keyboard.press('Escape');
-  await expect(toggle).toHaveAccessibleName('Theme: light');
+  await expect(toggle).toHaveAccessibleName('Theme: Day');
   expect(await page.evaluate(() => Object.keys(sessionStorage))).toEqual(['theme']);
   expect(await page.evaluate(() => Object.keys(localStorage))).toEqual([]);
 });

@@ -188,17 +188,22 @@ export function checkedProfiles(profile: Profile): ExternalProfile[] {
   return profile.basics.profiles.filter(isChecked);
 }
 
-/** "US · remote": the location line, country only. */
+/** "Remote, US": the location line, country only, in words with no middle dot (ADR 0025). */
 export function locationLine(profile: Profile): string {
   const { countryCode, remote } = profile.basics.location;
-  return remote ? `${countryCode} · remote` : countryCode;
+  return remote ? `Remote, ${countryCode}` : countryCode;
 }
 
-/** "Joseph Peterson, Senior Software Engineer. US · remote.": Home's description, for search
+/** "Senior Software Engineer. Remote, US.": the line under Home's name, two sentences in words
+ *  rather than two fields between dots (ADR 0025). */
+export function roleLine(profile: Profile): string {
+  return `${profile.basics.label}. ${locationLine(profile)}.`;
+}
+
+/** "Joseph Peterson, Senior Software Engineer. Remote, US.": Home's description, for search
  *  results and link previews, and the summary line of /llms.txt. */
 export function homeDescription(profile: Profile): string {
-  const { name, label } = profile.basics;
-  return `${name}, ${label}. ${locationLine(profile)}.`;
+  return `${profile.basics.name}, ${roleLine(profile)}`;
 }
 
 /** Every URL a record holds, checked or not, with the network it is on: the readiness test's list
@@ -256,9 +261,11 @@ export function projectCards(profile: Profile, holds: readonly Hold[]): ProjectC
     }));
 }
 
-/** Test builds only. A fixture adds projects, roles and skills to the real profile's, and can
- *  record the GitHub profile's check, which a project card needs; every other field stays the real
- *  one, so a fixture build cannot drift from profile.json. Only scripts/build-fixtures.mjs names a fixture, through
+/** Test builds only. A fixture adds projects and roles to the real profile's, puts its skills in
+ *  place of the real ones (the schema caps skills at twelve, and the fixture holds twelve, so the
+ *  résumé is drawn at its limit whatever profile.json lists), and can record the GitHub profile's
+ *  check, which a project card needs; every other field stays the real one, so a fixture build
+ *  cannot drift from profile.json. Only scripts/build-fixtures.mjs names a fixture, through
  *  PROFILE_FIXTURE; every real build reads src/content/profile.json alone (test/profile.test.ts). */
 export interface ProfileFixture {
   readonly githubChecked?: unknown;
@@ -294,6 +301,6 @@ export function withFixture(
     },
     projects: [...list('projects'), ...(fixture.projects ?? [])],
     work: [...list('work'), ...(fixture.work ?? [])],
-    skills: [...list('skills'), ...(fixture.skills ?? [])],
+    skills: fixture.skills === undefined ? list('skills') : [...fixture.skills],
   };
 }

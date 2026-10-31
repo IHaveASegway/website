@@ -220,11 +220,34 @@ export function step(sim: Sim): boolean {
   return true;
 }
 
-/** Runs every event up to a virtual time, then stands at it. */
+/**
+ * Runs every event up to a virtual time, then stands at it. With a `limit`, as a page's frame runs
+ * it, it stops once that many events have run and the moment they reached is over: the run then
+ * stands at the last event it ran, and the clock goes no further than the work done. Moving the
+ * clock on past events not yet run would run them late, each reply sent and each timer set from a
+ * later time than in the run replay() rebuilds, and an action taken meanwhile would come before
+ * them in the run and after them in its replay. Stopping only between two moments, never between
+ * two events of one, leaves every event at or before the time the run stands at already run.
+ */
 export function runUntil(sim: Sim, until: number, limit = Infinity): void {
   let left = limit;
-  while (!sim.violation && left-- > 0 && nextTime(sim) <= until) step(sim);
+  while (!sim.violation && nextTime(sim) <= until) {
+    if (left <= 0 && nextTime(sim) > sim.now) return;
+    step(sim);
+    left -= 1;
+  }
   if (!sim.violation) sim.now = Math.max(sim.now, until);
+}
+
+/** Every action takes effect at the end of its millisecond, after the events still due in it,
+ *  before it even checks whether it applies. An action records only its time, and replay runs
+ *  every event up to that time before it acts, so this is the one place replay can put it. A run
+ *  driven event by event, by step() as the page's Next event button drives it, could otherwise act
+ *  between two events of one millisecond, and its replay would differ. Events in one millisecond
+ *  happen at the same time, so an action that lands after them all still lands at the time it was
+ *  taken. */
+function catchUp(sim: Sim): void {
+  runUntil(sim, sim.now);
 }
 
 function record(sim: Sim, action: Action): void {
@@ -232,6 +255,7 @@ function record(sim: Sim, action: Action): void {
 }
 
 export function crash(sim: Sim, node: number): void {
+  catchUp(sim);
   const s = sim.servers[node];
   if (!s?.up) return;
   record(sim, { at: sim.now, kind: 'crash', node });
@@ -242,6 +266,7 @@ export function crash(sim: Sim, node: number): void {
 }
 
 export function restart(sim: Sim, node: number): void {
+  catchUp(sim);
   const s = sim.servers[node];
   if (!s || s.up) return;
   record(sim, { at: sim.now, kind: 'restart', node });
@@ -255,6 +280,7 @@ export function restart(sim: Sim, node: number): void {
 
 /** Cuts the network: each server goes to the side `groups` names for it. */
 export function split(sim: Sim, groups: readonly number[]): void {
+  catchUp(sim);
   record(sim, { at: sim.now, kind: 'split', groups });
   sim.groups = [...groups];
   const sides = [...new Set(groups)].map((g) =>
@@ -265,6 +291,7 @@ export function split(sim: Sim, groups: readonly number[]): void {
 }
 
 export function heal(sim: Sim): void {
+  catchUp(sim);
   if (sim.groups.every((g) => g === sim.groups[0])) return;
   record(sim, { at: sim.now, kind: 'heal' });
   sim.groups = sim.groups.map(() => 0);
@@ -273,6 +300,7 @@ export function heal(sim: Sim): void {
 }
 
 export function setLoss(sim: Sim, loss: number): void {
+  catchUp(sim);
   record(sim, { at: sim.now, kind: 'loss', loss });
   sim.loss = loss;
 }
@@ -288,6 +316,7 @@ export function writeTarget(sim: Sim): Server | null {
 }
 
 export function write(sim: Sim): Write | null {
+  catchUp(sim);
   record(sim, { at: sim.now, kind: 'write' });
   const n = sim.writes.length + 1;
   const s = writeTarget(sim);

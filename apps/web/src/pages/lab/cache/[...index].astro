@@ -1,0 +1,70 @@
+---
+import { render } from 'astro:content';
+import PageHead from '../../../components/PageHead.astro';
+import CacheLab from '../../../components/cache-lab/CacheLab.astro';
+import Base from '../../../layouts/Base.astro';
+import { OPENING, openingRun, SEEDS_IN_CI } from '../../../lib/cache/view';
+import { labEntry, loadLabArea, loadProfile } from '../../../lib/content';
+import { labPath, type LabEntry } from '../../../lib/lab';
+import { labCard } from '../../../lib/og';
+
+// The Cache Lab, a page of its own as the Raft Lab's is (ADR 0020), so it links none of the Route
+// Lab's styles or code ([demo].astro leaves it out, lib/lab.ts OWN_PAGE). Static: the simulation
+// runs in the browser, with no Worker and no Durable Object. A rest parameter, so the page builds
+// only while its lab entry is live, as /lab/ does. The page is its lab's line (ADR 0025): data-line
+// gives it the lab's colour, which its head runs across the top and its picture draws in.
+export async function getStaticPaths() {
+  const lab = await loadLabArea();
+  const entry = lab.entries.find((e) => e.slug === 'cache');
+  return entry ? [{ params: { index: undefined }, props: { entry } }] : [];
+}
+
+interface Props {
+  entry: LabEntry;
+}
+
+const { entry } = Astro.props;
+
+const { name } = (await loadProfile()).basics;
+const { Content } = await render(await labEntry(entry));
+const lead =
+  'Hundreds of readers ask the bakery’s cache for its menu. When the menu expires, watch the database, then tame the stampede four ways.';
+// How it is built, in figures from the run the page opens on and the sweep, so none is typed.
+const opening = openingRun();
+const count = (n: number) => n.toLocaleString('en-US');
+---
+
+<Base
+  title={`${entry.title} · ${name}`}
+  description={entry.summary}
+  path={labPath(entry)}
+  og={labCard(entry)}
+>
+  <article class="page" data-line={entry.slug} aria-labelledby="page-title">
+    <PageHead heading={entry.title} lead={lead} line />
+    <CacheLab />
+    <div class="prose">
+      <Content />
+      <h2>How it is built</h2>
+      <p>
+        The readers, the four nodes and the database are one TypeScript module that runs in virtual
+        time. Every random draw in it, from when a reader arrives to how long a fetch takes, comes
+        from one seeded stream, and your presses are recorded at the moment they happened. The same
+        seed and the same presses give the same run, every time. The page opens on seed{' '}
+        {OPENING.seed} at {OPENING.until / 1000} s, {count(opening.counts.reads)} reads and{' '}
+        {count(opening.events)} events in, drawn before any script runs; your browser replays them
+        and takes over at that moment.
+      </p>
+      <p>
+        After every event, a checker counts each break of the three properties, and checks that
+        every read ends exactly once and that every fetch the database starts comes back when it is
+        due. A count that does not add up is a bug in the simulation, and it stops the run. The same
+        simulator plays {count(SEEDS_IN_CI)} seeded runs of random loads, switches, flushes, lost
+        nodes and writes in the site’s tests, and deliberately broken caches prove those runs can
+        find a real bug: one that forgets a waiting reader, one whose database never answers some
+        fetches, one that serves a stale copy past its limit, one that ignores jitter, and one whose
+        hash circle places pages by modulo.
+      </p>
+    </div>
+  </article>
+</Base>

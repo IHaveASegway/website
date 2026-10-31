@@ -175,7 +175,7 @@ describe('the page list the e2e checks walk', () => {
       // Only a post: /about/ has no draft since it holds the résumé (lib/about.ts, 2026-10-28).
       expect(page, 'only posts can be drafts').toMatch(/^\/(?:writing|notes)\/[a-z0-9-]+\/$/);
       expect(readFileSync(join(dist, page.slice(1), 'index.html'), 'utf8')).toMatch(
-        /<p class="label">Draft · /,
+        /<li class="register-kind">Draft /,
       );
     }
     // The backstop: dist/ is the build that deploys, so it holds none whatever DRAFTS says.
@@ -203,7 +203,7 @@ describe('every internal link resolves in this build', () => {
   test('no page but a draft links a draft: no published post does', () => {
     const built = html.map((file) => ({
       url: pageUrl(file),
-      draft: readFileSync(join(dist, file), 'utf8').includes('<p class="label">Draft · '),
+      draft: readFileSync(join(dist, file), 'utf8').includes('<li class="register-kind">Draft '),
       hrefs: links(file).map(({ href }) => href),
     }));
     expect(draftLinks(built)).toEqual([]);

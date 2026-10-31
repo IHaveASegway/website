@@ -85,7 +85,7 @@ test('VROOM plans every order at once in a module worker, with no policy violati
   await expect(page.locator('[data-rl-say]')).toHaveAttribute('role', 'status');
   const after = page.locator('[data-rl-plan="after"]');
   await expect(after.locator('[data-rl-time]')).toHaveText(`6${NBSP}h 51${NBSP}min`);
-  await expect(after.locator('[data-rl-line]')).toHaveText(`147.1${NBSP}mi · 3 vans`);
+  await expect(after.locator('[data-rl-line]')).toHaveText(`147.1${NBSP}mi, 3 vans`);
   await expect(after.locator('.rl-route')).toHaveCount(3);
   await expect(page.locator('[data-rl-plan="before"] .rl-route')).toHaveCount(4);
   await expect(after).not.toHaveAttribute('data-rl-stale');
@@ -238,9 +238,7 @@ test('a mouse over a place shows its name, its order and its stop', async ({ pag
     }
     await expect(tip).toHaveAttribute('data-rl-show', '', { timeout: 500 });
   }).toPass({ timeout: 15_000 });
-  await expect(tip).toHaveText(
-    /^Kerry Park12 croissants with a view · 1 boxVan [A-C], stop \d+ · /,
-  );
+  await expect(tip).toHaveText(/^Kerry Park12 croissants with a view, 1 boxVan [A-C], stop \d+, /);
   await expect(map).toHaveAttribute('data-rl-near', '');
   await map.hover({ position: { x: 5, y: 5 } });
   await expect(tip).not.toHaveAttribute('data-rl-show');
@@ -395,6 +393,63 @@ test('another number of vans lets go of the day, and the header marks the Lab se
   await page.check('input[name="rl-day"][value="quiet"]');
   await expect(page.locator('input[name="rl-vans"][value="1"]')).toBeChecked();
   await expect(status(page)).toContainText('A quiet Tuesday: 8 orders, 1 van.');
+});
+
+// The controls are the panel's push-buttons (ADR 0025): a chosen day or number of vans shows a lit
+// lamp before its words, its radio drawn as the lamp, and every other choice a hollow one; the
+// chosen button is pressed in, raised, and no choice is filled with a colour or edged in another.
+test('a chosen day or number of vans is a lit lamp, the others hollow, and no colour fills a button', async ({
+  page,
+}) => {
+  await page.goto(ROUTE_LAB);
+  const chips = () =>
+    page.evaluate(() =>
+      [...document.querySelectorAll<HTMLInputElement>('.rl-controls .rl-chip input')].map(
+        (input) => {
+          const lamp = getComputedStyle(input);
+          const chip = getComputedStyle(input.closest('.rl-chip') as Element);
+          return {
+            value: `${input.name}=${input.value}`,
+            checked: input.checked,
+            size: [lamp.width, lamp.height, lamp.borderRadius],
+            lamp: lamp.backgroundColor,
+            edge: chip.borderTopColor,
+            chip: chip.backgroundColor,
+          };
+        },
+      ),
+    );
+  // A token as the page resolves it, read from a probe.
+  const token = (name: string) =>
+    page.evaluate((property) => {
+      const probe = document.createElement('span');
+      probe.style.setProperty('background-color', `var(${property})`);
+      document.body.append(probe);
+      const colour = getComputedStyle(probe).backgroundColor;
+      probe.remove();
+      return colour;
+    }, name);
+  const primary = await token('--primary');
+  const raised = await token('--surface-2');
+  expect(raised).not.toBe(primary);
+  const check = async (chosen: string[]) => {
+    const all = await chips();
+    expect(all.filter((c) => c.checked).map((c) => c.value)).toEqual(chosen);
+    for (const c of all) {
+      expect(c.size, c.value).toEqual(['10px', '10px', '50%']);
+      expect(c.lamp, c.value).toBe(c.checked ? primary : 'rgba(0, 0, 0, 0)');
+      // No colour fills a button: the pressed one is raised, the others stand on the desk.
+      expect(c.chip, c.value).toBe(c.checked ? raised : 'rgba(0, 0, 0, 0)');
+    }
+    // One edge for every button.
+    expect(new Set(all.map((c) => c.edge)).size).toBe(1);
+  };
+  await check(['rl-day=busy', 'rl-vans=3']);
+  // Another number of vans lets go of the day, once the app has the press.
+  await page.check('input[name="rl-vans"][value="2"]');
+  await expect(page.locator('input[name="rl-day"]:checked')).toHaveCount(0);
+  await page.mouse.move(0, 0);
+  await check(['rl-vans=2']);
 });
 
 // The readout holds its height (route-lab.css) before the first change and for each answer in a

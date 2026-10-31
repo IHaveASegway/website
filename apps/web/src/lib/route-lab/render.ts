@@ -116,7 +116,7 @@ export function tableMarkup(data: RouteData, measured: Measured, caption: string
         `<tbody><tr><th scope="rowgroup" colspan="4"><span class="rl-key van-${vanClass(van)}${shape(van)}" aria-hidden="true"></span>${esc(vanLine(day, van))}</th></tr>${day.stops
           .map(({ place, arrives }, k) => {
             const p = data.points[place];
-            return `<tr><th scope="row">${vanName(van)}${k + 1}</th><td><span class="rl-cell-place">${esc(p?.label ?? '')}</span> ${esc(p?.order ?? '')} · ${away(data, place)}</td><td>${p?.qty ?? 0}</td><td>${formatDuration(arrives)}</td></tr>`;
+            return `<tr><th scope="row">${vanName(van)}${k + 1}</th><td><span class="rl-cell-place">${esc(p?.label ?? '')}</span> ${esc(p?.order ?? '')}, ${away(data, place)}</td><td>${p?.qty ?? 0}</td><td>${formatDuration(arrives)}</td></tr>`;
           })
           .join('')}</tbody>`,
     )
@@ -127,11 +127,11 @@ export function tableMarkup(data: RouteData, measured: Measured, caption: string
 /** The vans a plan sends out: those with at least one stop. */
 export const vansUsed = (plan: Plan): number => plan.routes.filter((r) => r.length > 0).length;
 
-/** A plan's small print under its time: "148.8 mi · 3 vans", or that nothing leaves. */
+/** A plan's small print under its time: "148.8 mi, 3 vans", or that nothing leaves. */
 export function planLine(plan: Plan, measured: Measured): string {
   const vans = vansUsed(plan);
   if (vans === 0) return 'No stops';
-  return `${formatMiles(measured.metres)} · ${vans} ${vans === 1 ? 'van' : 'vans'}`;
+  return `${formatMiles(measured.metres)}, ${vans} ${vans === 1 ? 'van' : 'vans'}`;
 }
 
 /** When the plan's day is done: "Last van back after 2 h 53 min", handing over every order
@@ -215,11 +215,11 @@ export function tipLines(data: RouteData, plan: Plan, place: number): string[] {
   if (!p) return [];
   const far = away(data, place);
   const van = plan.routes.findIndex((route) => route.includes(place));
-  const what = `${p.order ?? ''} · ${p.qty ?? 0} ${p.qty === 1 ? 'box' : 'boxes'}`;
+  const what = `${p.order ?? ''}, ${p.qty ?? 0} ${p.qty === 1 ? 'box' : 'boxes'}`;
   if (van >= 0) {
     const stop = (plan.routes[van]?.indexOf(place) ?? 0) + 1;
-    return [p.label, what, `Van ${vanName(van)}, stop ${stop} · ${far}`];
+    return [p.label, what, `Van ${vanName(van)}, stop ${stop}, ${far}`];
   }
-  if (plan.unassigned.includes(place)) return [p.label, what, `No van has room · ${far}`];
-  return [p.label, `No order today · ${far}`];
+  if (plan.unassigned.includes(place)) return [p.label, what, `No van has room, ${far}`];
+  return [p.label, `No order today, ${far}`];
 }

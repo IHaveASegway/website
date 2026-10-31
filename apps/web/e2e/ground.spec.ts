@@ -1,9 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// Page geometry (design-system.md, "Page geometry"): a page's drawing never sits under a word in
-// the accent, never takes the pointer, and never prints. Its lines are --ground, which
-// test/tokens.test.ts holds every text token to 4.5:1 on, so only the one accent mark can cost a
-// word its contrast: it must touch no text, at a phone's width, a tablet's and a laptop's.
+// Page geometry (design-system.md, "Page geometry"): a page's drawing, About's wheels behind its
+// top right or the 404's line under its words, ending in a buffer stop (ADR 0025), never sits
+// under a word in the accent, never takes the pointer, and never prints. The wheels are --ground,
+// which test/tokens.test.ts holds every text token to 4.5:1 on, so only the one accent mark, the
+// buffer stop's lamp, can cost a word its contrast: it must touch no text, at a phone's width, a
+// tablet's and a laptop's.
 
 const PAGES = ['/', '/writing/', '/lab/', '/lab/routes/', '/does-not-exist/'];
 const WIDTHS = [
@@ -76,16 +78,62 @@ test('known answer: the overlap check finds a mark moved onto the title', async 
   expect((await overlaps(page)).length).toBeGreaterThan(0);
 });
 
-test('the drawing takes no pointer, is hidden from assistive technology, and does not print', async ({
+test('the 404’s line takes no pointer, is hidden from assistive technology, and does not print', async ({
   page,
 }) => {
-  await page.goto('/writing/');
-  const ground = page.locator('svg.ground');
-  await expect(ground).toHaveCount(1);
-  expect(await ground.evaluate((g) => getComputedStyle(g).pointerEvents)).toBe('none');
-  await expect(ground).toHaveAttribute('aria-hidden', 'true');
+  await page.goto('/does-not-exist/');
+  const line = page.locator('svg.line-end');
+  await expect(line).toHaveCount(1);
+  await expect(page.locator('svg.ground')).toHaveCount(0);
+  expect(await line.evaluate((g) => getComputedStyle(g).pointerEvents)).toBe('none');
+  await expect(line).toHaveAttribute('aria-hidden', 'true');
   await page.emulateMedia({ media: 'print' });
-  expect(await ground.evaluate((g) => getComputedStyle(g).display)).toBe('none');
+  expect(await line.evaluate((g) => getComputedStyle(g).display)).toBe('none');
+});
+
+// The 404's line runs under the way home, a section's space below the button, and ends at the
+// column's right edge, at every width (ADR 0025). As a background drawing anchored to the window's
+// corner, until 2026-10-30, its lamp stood 8 px under the button at 390 px and its stop some 370 px
+// past the column at 2560.
+for (const [width, height] of [
+  [390, 844],
+  [1440, 900],
+  [2560, 1440],
+] as const) {
+  test(`at ${width} px the 404's line ends at the column's edge, clear of the way home`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto('/does-not-exist/');
+    const at = await page.evaluate(() => {
+      const box = (selector: string) => document.querySelector(selector)?.getBoundingClientRect();
+      const main = document.querySelector('main') as Element;
+      const pad = Number.parseFloat(getComputedStyle(main).paddingInlineEnd);
+      return {
+        column: (box('main')?.right ?? 0) - pad,
+        stop: box('.line-end-stop')?.right ?? 0,
+        lamp: box('.line-end .ground-mark')?.top ?? 0,
+        button: box('.notice-actions .btn')?.bottom ?? 0,
+      };
+    });
+    expect(Math.abs(at.stop - at.column), JSON.stringify(at)).toBeLessThan(1);
+    expect(at.lamp - at.button, JSON.stringify(at)).toBeGreaterThanOrEqual(40);
+  });
+}
+
+// /about/'s wheels are not drawn on a phone, where the column is the window's whole width and they
+// stood behind the contact links, and on a laptop they keep the page's gutter from its right edge.
+test('/about/ draws no wheels on a phone, and keeps them inside the gutter on a laptop', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/about/');
+  await expect(page.locator('svg.ground')).toBeHidden();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const right = await page
+    .locator('svg.ground .ground-index')
+    .evaluateAll((rims) => Math.max(...rims.map((rim) => rim.getBoundingClientRect().right)));
+  expect(1440 - right).toBeGreaterThanOrEqual(64);
 });
 
 test('/about/, which holds the résumé, draws its wheels on screen and nothing on paper', async ({

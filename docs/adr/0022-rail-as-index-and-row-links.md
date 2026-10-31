@@ -1,6 +1,6 @@
 # ADR 0022: The rail as an index of the site, and rows that are links
 
-Status: Proposed · 2026-10-29 · Deciders: Joseph Peterson · Amended by [ADR 0023](0023-home-as-a-story-and-rail-drop-downs.md): each item's leaves drop down when pressed, closed until then
+Status: Proposed · 2026-10-29 · Deciders: Joseph Peterson · Amended by [ADR 0023](0023-home-as-a-story-and-rail-drop-downs.md): each item's leaves drop down when pressed, closed until then · Amended by [ADR 0025](0025-signal-box-identity.md): the rail does not name Joseph on Home, whose `<h1>` is the name, and a row's sweep runs in its lab's line
 
 ## Context
 

@@ -77,3 +77,9 @@ The terminal recordings this record mentions were dropped on 2026-10-23, with th
 ## Postscript 2026-10-24
 
 The accent now marks fewer things than Consequences lists: the section numbers it drew left on 2026-10-24 with the ruler, the step in the name and How I work's field, because each showed how the page was built rather than anything about Joseph ([design-system.md](../design-system.md#the-poster-setting)). Apricot still fills the primary button and draws focus outlines, the card bar and the Open Graph image's mark, so recognition still accumulates and a hue change is still a rebrand. The tokens, their owner and the contrast test are unchanged, and no Revisit if condition was met.
+
+## Postscript 2026-10-30
+
+Superseded in part by [ADR 0025](0025-signal-box-identity.md) (palette, faces), proposed the same day. The petrol and apricot palette gives way to the signal box's green enamel, a lit lamp and a line colour per lab; Instrument Sans and JetBrains Mono give way to Barlow in three widths and B612 Mono, which sets code only. The rest of this record stands: one token file, `apps/web/src/styles/tokens.css`, owned here, shadcn's semantic names in full `oklch()` values, copied rather than imported, and the contrast test over the full cross product, which now also holds each lab's line at 3:1 on the page, the board and a raised surface. The accent changed in the way Door foresaw, as a rebrand with an ADR of its own.
+
+One Revisit if condition was met in substance, though not in its letter. No panel of five readers was run, but the audit of 2026-10-30 read the site as the developer-portfolio template this record measured itself against (petrol at ΔE_OK 0.033 from that template's navy, a distance Consequences said the accent and the type would carry), and Joseph asked for new colours and faces. The new enamel sits 0.103 from the navy.

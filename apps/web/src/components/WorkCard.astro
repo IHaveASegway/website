@@ -1,46 +1,23 @@
 ---
 interface Props {
-  /** A short label above the title, such as a post's kind. Left out when there is none. */
-  tag?: string | undefined;
   title: string;
   text: string;
   facts: readonly { term: string; value: string }[];
   /** The page it opens, which must exist: a card is drawn only with a target (lib/work.ts,
-   *  selectedWork). An external link, a project's repository, draws ↗ as the hero's profile links
-   *  do; a page on this site draws →. */
+   *  selectedWork). Its link says where it goes in words, with no arrow (ADR 0025). */
   link: { href: string; label: string; external: boolean };
-  /** A demo Home features (ADR 0024): a chapter of its own, with its picture large. */
-  feature?: boolean | undefined;
-  /** The chapter that stands over Home's scene, which is its picture (ADR 0024). */
-  chapter?: boolean | undefined;
-  /** The first card after that chapter, which slides over the scene and covers it. */
-  covers?: boolean | undefined;
 }
 
-const { tag, title, text, facts, link, feature, chapter, covers } = Astro.props;
+const { title, text, facts, link } = Astro.props;
 // The whole card is its link (ADR 0022): CSS stretches the link's box over the card, so a press
 // anywhere on it opens the page. Its name leads with the words it shows and adds the card's title,
 // so a list of the page's links says where each one goes, not "Try it" twice (SC 2.4.4, 2.5.3).
-// A demo's card may hold a picture of it, under its tag (ADR 0023): the slot's content, which is
-// hidden from screen readers by its own markup.
-// A feature may hold figures under its title: a named slot, read as text. A slot's content can be
-// empty for a card that has none; only rendered markup counts.
-const slot = async (name: string) =>
-  Astro.slots.has(name) ? String((await Astro.slots.render(name)) ?? '').trim() : '';
-const picture = await slot('default');
-const figures = await slot('figures');
-const classes = ['card', feature && 'card-feature', covers && 'card-covers'].filter(Boolean);
+// No label stands over the title (ADR 0025). On Home a card is what has no line on the board: a
+// project, or a featured post (ADR 0025); /about/ lists every card, the demos' included.
 ---
 
-<article
-  class={classes.join(' ')}
-  data-stage-chapter={chapter ? '' : undefined}
-  data-stage-end={covers ? '' : undefined}
->
-  {tag && <p class="card-tag label">{tag}</p>}
-  {picture && <div class="card-picture" set:html={picture} />}
+<article class="card">
   <h3 class="card-title">{title}</h3>
-  {figures && <div class="card-figures" set:html={figures} />}
   <p class="card-text">{text}</p>
   {facts.length > 0 && (
     <dl class="kv">
@@ -53,6 +30,6 @@ const classes = ['card', feature && 'card-feature', covers && 'card-covers'].fil
     </dl>
   )}
   <a class="card-more" href={link.href} aria-label={`${link.label}: ${title}`}>
-    {link.label} <span aria-hidden="true">{link.external ? '↗' : '→'}</span>
+    {link.label}
   </a>
 </article>

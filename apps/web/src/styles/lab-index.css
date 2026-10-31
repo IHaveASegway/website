@@ -1,0 +1,96 @@
+/*
+  The Lab index (/lab/; ADR 0025): a row per live lab, its line drawn large and its words beside
+  it, the title, the summary and one fact from its build. A row is an index's row (global.css,
+  .post-list): its title's link covers it, and its sweep runs along its top in its line's colour.
+  No rule between rows. Each line comes in from the page's edge, the rail's from 80rem and the
+  window's below, to its first station on the text's own edge (components/board/lines/). Only
+  this page links this file. Every colour is a token from tokens.css.
+*/
+
+/* Main clips the lines where they come in, so a line never runs under the rail, nor past the
+   window on a phone. Clipped: main does not become a scroll container. --lab-edge is how far the
+   page's edge lies past the text's: the frame's side. */
+body > main:has(> .lab-index) {
+  --lab-edge: 1.125rem;
+  overflow-x: clip;
+}
+
+@media (width >= 48rem) {
+  body > main:has(> .lab-index) {
+    --lab-edge: 4rem;
+  }
+}
+
+/* On a large screen main stands against the rail at the frame's start (global.css, .frame), so
+   the lines come in from the rail's edge there too, across the same 4rem. */
+
+.lab-rows {
+  margin-block-start: 2.5rem;
+}
+
+/* On a phone and a tablet the line comes first, across the column, then the words under it. */
+.post-list > .lab-row {
+  grid-template-areas:
+    'line'
+    'title'
+    'summary'
+    'fact';
+  grid-template-columns: minmax(0, 1fr);
+  max-inline-size: none;
+  padding-block: 1.5rem 2rem;
+}
+
+.lab-row > .line {
+  grid-area: line;
+  margin-block-end: 1rem;
+}
+
+/* The row's sweep (global.css) comes in from the page's edge too, as its line does. */
+.post-list > .lab-row::before {
+  inset-inline-start: calc(var(--lab-edge) * -1);
+}
+
+.lab-row > .post-title {
+  grid-area: title;
+}
+
+.lab-row > .post-summary {
+  grid-area: summary;
+}
+
+.lab-row > .lab-fact {
+  grid-area: fact;
+}
+
+/* The one fact, in the panel's label face, its figures in step. */
+.lab-fact {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  line-height: var(--text-label--line-height);
+  font-variant-numeric: tabular-nums;
+  text-wrap: pretty;
+}
+
+/* From 64rem the line takes the left of the row and the words the right, the line level with
+   the middle of the words; a last row of no height takes what a taller line leaves. */
+@media (width >= 64rem) {
+  .post-list > .lab-row {
+    grid-template-areas:
+      'line title'
+      'line summary'
+      'line fact'
+      'line .';
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    grid-template-rows: auto auto auto 1fr;
+    column-gap: 3rem;
+    padding-block: 2rem 2.5rem;
+  }
+
+  .lab-row > .line {
+    align-self: center;
+    margin-block-end: 0;
+  }
+}

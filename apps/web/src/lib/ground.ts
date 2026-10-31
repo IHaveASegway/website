@@ -1,16 +1,19 @@
-// Page geometry (design-system.md, "Page geometry"): the fine lines behind a page's top right, drawn
-// once at build from the page's own subject. Each section has its own: a ruled sheet in Writing, two street plans that meet at an angle in the Lab, two wheels on About,
-// and on the 404 the one stop no route reaches. The drawing is generated, not traced from the Route
-// Lab's map data, so it carries no OpenStreetMap notice and costs a few hundred bytes, not the map's
-// 30 KB. This module is pure: the same kind and seed give the same paths, byte for byte, so a
-// page's markup changes only when its drawing does.
+// Page geometry (design-system.md, "Page geometry"): a background symbol behind a page's top right,
+// drawn once at build from the page's own subject, in --ground, a step off the enamel (ADR 0025):
+// two wheels on About. Writing's ruled sheet and the Lab's street plans are gone with the rest of
+// the faint drawings: a rule is functional or a lab's line, and the labs' own lines are their
+// pictures now. The 404's line, which ends in a buffer stop, left the background on 2026-10-30
+// for the page's own flow under its words (END_OF_LINE): anchored to the window's corner it could
+// end neither at the column's edge nor clear of the button at every width. The drawing is
+// generated, so it costs a few hundred bytes. This module is pure: the same kind gives the same
+// paths, byte for byte, so a page's markup changes only when its drawing does.
 
-/** Which drawing a page carries. Home carries none since ADR 0024: the Route Lab's scene is its
- *  picture. The résumé carries none either: it is read and printed, not browsed. */
-export type GroundKind = 'writing' | 'lab' | 'about' | 'lost';
+/** Which drawing a page carries: About's wheels. Every other page carries none: Home's picture is
+ *  the Route Lab's scene (ADR 0024), a lab's is its line, and the 404's is its end of the line. */
+export type GroundKind = 'about';
 
-/** One shape: a line in --ground, a heavier line (an index contour, a margin rule), or the one
- *  mark in the accent, which e2e/ground.spec.ts keeps clear of every line of text. */
+/** One shape: a line in --ground, a heavier line (a wheel's rim, the handlebar), or a mark in the
+ *  lamp's color. */
 export interface GroundPath {
   readonly d: string;
   readonly kind: 'line' | 'index' | 'mark';
@@ -19,85 +22,17 @@ export interface GroundPath {
 export interface Ground {
   readonly kind: GroundKind;
   readonly paths: readonly GroundPath[];
-  /** A region, in the drawing's units, the lines are cut to. Only the Lab's second plan has one. */
-  readonly clip?: string;
-  /** The paths drawn inside `clip`. */
-  readonly clipped?: readonly GroundPath[];
 }
 
 /** The drawing's box: anchored to the page's top right corner and never scaled up. */
 export const GROUND_BOX = { width: 1200, height: 900 } as const;
 
-/** A seeded generator (mulberry32 over an FNV-1a hash of the seed), so a page's drawing is fixed. */
-export function seeded(seed: string): () => number {
-  let h = 2166136261;
-  for (const char of seed) h = Math.imul(h ^ char.charCodeAt(0), 16777619);
-  let state = h >>> 0;
-  return () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let t = state;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
+/** A coordinate in whole units, so the markup stays small. */
 const r = (value: number) => Math.round(value);
 
-/** A closed path through points, in whole units, each move measured from the point before. */
-export function closed(points: readonly (readonly [number, number])[]): string {
-  const [first, ...rest] = points.map(([x, y]) => [r(x), r(y)] as const);
-  if (!first) return '';
-  let [px, py] = first;
-  let d = `M${px} ${py}`;
-  for (const [x, y] of rest) {
-    d += `l${x - px} ${y - py}`;
-    [px, py] = [x, y];
-  }
-  return `${d}z`;
-}
-
-/** A ruled sheet: a baseline every 24 units, a heavier line every fourth, a margin rule, and crop
- *  marks at the corners of the sheet. */
-function writing(): Ground {
-  const paths: GroundPath[] = [];
-  for (let y = 120, i = 0; y <= GROUND_BOX.height; y += 24, i++) {
-    paths.push({ d: `M480 ${y}H1200`, kind: i % 4 === 0 ? 'index' : 'line' });
-  }
-  paths.push({ d: 'M600 0V900', kind: 'index' });
-  const crop = (x: number, y: number, sx: number, sy: number) =>
-    `M${x} ${y + sy * 14}v${sy * 26}M${x + sx * 14} ${y}h${sx * 26}`;
-  paths.push({
-    d: [crop(1140, 80, 1, -1), crop(660, 80, -1, -1), crop(1140, 860, 1, 1)].join(''),
-    kind: 'index',
-  });
-  return { kind: 'writing', paths };
-}
-
-/** Two street plans that meet at a seam, the second turned 32 degrees, as a downtown's blocks
- *  often are against the blocks around it. */
-function streets(): Ground {
-  const step = 40;
-  const paths: GroundPath[] = [];
-  let d = '';
-  for (let x = 440; x <= GROUND_BOX.width; x += step) d += `M${x} 0V900`;
-  for (let y = 0; y <= GROUND_BOX.height; y += step) d += `M440 ${y}H1200`;
-  paths.push({ d, kind: 'line' });
-  // Where the turned plan is, the straight one is not: the seam's region is cut out of the first
-  // by drawing the second over a page-colored fill (the --background fill, in global.css).
-  const seam = 'M760 420L1200 300V900H860Z';
-  paths.push({ d: seam, kind: 'index' });
-  const angle = (-32 * Math.PI) / 180;
-  const [cos, sin] = [Math.cos(angle), Math.sin(angle)];
-  const turn = (x: number, y: number) =>
-    `${r(980 + (x - 980) * cos - (y - 600) * sin)} ${r(600 + (x - 980) * sin + (y - 600) * cos)}`;
-  let turned = '';
-  for (let x = 380; x <= 1580; x += step) turned += `M${turn(x, 0)}L${turn(x, 1200)}`;
-  for (let y = 0; y <= 1200; y += step) turned += `M${turn(380, y)}L${turn(1580, y)}`;
-  return { kind: 'lab', paths, clip: seam, clipped: [{ d: turned, kind: 'line' }] };
-}
-
-/** Two wheels with 36 spokes each and the T of a handlebar: the site's scooter, as geometry. */
+/** Two wheels with 36 spokes each and the T of a handlebar: the site's scooter, as geometry. Its
+ *  right rim stands 70 units inside the box, the page's gutter at the box's natural size, so it
+ *  never touches the window's edge; until 2026-10-30 it reached within 5 px of it at 1440. */
 function about(): Ground {
   const paths: GroundPath[] = [];
   const wheel = (cx: number, cy: number, radius: number) => {
@@ -114,66 +49,37 @@ function about(): Ground {
     }
     paths.push({ d: spokes, kind: 'line' });
   };
-  wheel(780, 640, 135);
-  wheel(1060, 640, 135);
-  paths.push({ d: 'M920 640V240M830 240H1010', kind: 'index' });
+  wheel(760, 640, 120);
+  wheel(1010, 640, 120);
+  paths.push({ d: 'M885 640V240M795 240H975', kind: 'index' });
   return { kind: 'about', paths };
 }
 
-/** A field of stops, a route through the nearest of them that turns back short, and the one stop
- *  it never reaches, which VROOM would report as unassigned. */
-function lost(random: () => number): Ground {
-  const stops: [number, number][] = [];
-  for (let k = 0; k < 40; k++) stops.push([560 + random() * 620, 40 + random() * 820]);
-  const depot: [number, number] = [700, 760];
-  // A van's day by nearest neighbour: from the depot, always the closest stop not yet served.
-  const left = [...stops];
-  const route: [number, number][] = [depot];
-  for (let k = 0; k < 12 && left.length > 0; k++) {
-    const [x, y] = route[route.length - 1] ?? depot;
-    let best = 0;
-    left.forEach(([sx, sy], i) => {
-      const [bx, by] = left[best] ?? [sx, sy];
-      if (Math.hypot(sx - x, sy - y) < Math.hypot(bx - x, by - y)) best = i;
-    });
-    route.push(...left.splice(best, 1));
-  }
-  const [ux, uy] = [1120, 150];
-  // The last leg heads for the unassigned stop and stops short of it.
-  const [lx, ly] = route[route.length - 1] ?? depot;
-  route.push([lx + (ux - lx) * 0.6, ly + (uy - ly) * 0.6]);
-  const dots = stops.map(([x, y]) => `M${r(x) - 3} ${r(y) - 3}h6v6h-6z`).join('');
-  return {
-    kind: 'lost',
-    paths: [
-      { d: dots, kind: 'line' },
-      { d: closed(route).slice(0, -1), kind: 'index' },
-      { d: `M${ux - 9} ${uy - 9}h18v18h-18z`, kind: 'mark' },
-    ],
-  };
+/**
+ * The 404's drawing, under its words in the page's flow (pages/404.astro): a track across the
+ * column from its left edge, ending at its right edge in a buffer stop, a beam across the track
+ * with the stop's body behind it, and its lamp lit on top, the one mark: the page a visitor reached
+ * is where the line ends. The track and the stop are the functional rule's colour, so they read,
+ * and the lamp the lit lamp's. The track runs the column's width, so the stop's coordinates are
+ * measured leftward from the column's right edge (a nested drawing at 100%), and keep their size.
+ */
+export const END_OF_LINE = {
+  height: 84,
+  track: 50,
+  stop: 'M-24 18h6v64h-6zM-18 30h18v40h-18z',
+  lamp: 'M-29 8a8 8 0 1 0 16 0a8 8 0 1 0 -16 0',
+} as const;
+
+const DRAWINGS: Record<GroundKind, () => Ground> = { about };
+
+/** The drawing for a kind. */
+export function groundFor(kind: GroundKind): Ground {
+  return DRAWINGS[kind]();
 }
 
-/** The drawing for a kind, from a seed: a page's path, so two pages of a kind could differ. */
-export function groundFor(kind: GroundKind, seed: string): Ground {
-  const random = seeded(`${kind}:${seed}`);
-  switch (kind) {
-    case 'writing':
-      return writing();
-    case 'lab':
-      return streets();
-    case 'about':
-      return about();
-    case 'lost':
-      return lost(random);
-  }
-}
-
-/** The drawing a page path carries, or null for Home and a page outside the four, such as
- *  /colophon/. */
+/** The drawing a page path carries: the wheels on /about/, and none anywhere else, the 404 (which
+ *  has no path) included, whose line is in its own markup. */
 export function groundKindFor(path: string | undefined): GroundKind | null {
-  if (path === undefined) return 'lost';
-  if (path.startsWith('/writing/') || path.startsWith('/notes/')) return 'writing';
-  if (path.startsWith('/lab/')) return 'lab';
-  if (path.startsWith('/about/')) return 'about';
+  if (path?.startsWith('/about/')) return 'about';
   return null;
 }

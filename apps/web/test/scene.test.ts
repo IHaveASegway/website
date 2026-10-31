@@ -19,14 +19,19 @@ import {
   START,
   unpack,
   where,
+  windowOf,
+  WINDOW_HEIGHT,
 } from '../src/lib/route-lab/scene';
 import { tracks } from '../src/lib/route-lab/timeline';
 import {
   dayClock,
   DAY_S,
+  FADED,
   HOLD_S,
   liftFor,
+  liftStages,
   nextRatio,
+  PLACED,
   progress,
   rising,
   served,
@@ -87,6 +92,27 @@ describe('the camera', () => {
     expect(close(cube.width, flat.width, 1e-6)).toBe(true);
   });
 
+  // ADR 0025: the scene starts as a map is read, flat and north up, so the column of words stands
+  // on the water west of the city at every width; the lift then turns it into the cube.
+  test('known answers: START is the flat map, north up and east right, a unit a unit', () => {
+    const at = projector([0, 0, 1000, 1000], 3600, START);
+    const [ox, oy] = at(500, 500, 0);
+    const [ex, ey] = at(600, 500, 0);
+    const [sx, sy] = at(500, 600, 0);
+    expect(close(ex - ox, 100, 0.01) && close(ey - oy, 0, 0.01)).toBe(true);
+    expect(close(sx - ox, 0, 0.01) && close(sy - oy, 100, 0.01)).toBe(true);
+    expect(START.lift).toBe(0);
+  });
+
+  test('known answers: the window is the whole width from the west edge, centred on the bakery', () => {
+    expect(windowOf([0, 0, 2000, 2564], [726, 1186])).toEqual([0, 386, 2000, 1986]);
+    expect(WINDOW_HEIGHT).toBe(1600);
+    // Near the map's top or bottom it stays inside the map; a short map is framed whole.
+    expect(windowOf([0, 0, 2000, 2564], [726, 300])).toEqual([0, 0, 2000, 1600]);
+    expect(windowOf([0, 0, 2000, 2564], [726, 2500])).toEqual([0, 964, 2000, 2564]);
+    expect(windowOf([0, 0, 2000, 1000], [726, 500])).toEqual([0, 0, 2000, 1000]);
+  });
+
   test('the focus is a square around the places, padded, and holds every one', () => {
     const places = [100, 100, 300, 500, 200, 250];
     const [x0, y0, x1, y1] = focusOf(places, 0.1);
@@ -139,6 +165,26 @@ describe('the clock and the scroll', () => {
     expect(liftFor(0.2)).toBe(0);
     expect(liftFor(0.9)).toBe(1);
     expect(close(liftFor(0.55), 0.5)).toBe(true);
+  });
+
+  // The lift in stages (route-scene.ts): the map moves from where the picture draws it into the
+  // cube's room first, and the cube's frame comes in only once it is there, fitted to the room at
+  // every turn of the camera after that, so no frame of the tilt runs past the window's edge; the
+  // map's edges fade in full from the camera's first turn. Until 2026-10-30 the frame came in with
+  // the lift itself, and at 1440 × 900 it ran past the window's right edge on its way.
+  test('known answers: the lift places the map, then draws the frame, and fades the map’s edges first', () => {
+    expect(liftStages(0)).toEqual({ placed: 0, faded: 0, frame: 0 });
+    expect(liftStages(1)).toEqual({ placed: 1, faded: 1, frame: 1 });
+    expect(liftStages(FADED).faded).toBe(1);
+    expect(liftStages(PLACED)).toEqual({ placed: 1, faded: 1, frame: 0 });
+    for (let k = 0; k <= 1.0001; k += 0.01) {
+      const at = liftStages(k);
+      if (at.frame > 0) expect(at.placed, `lift ${k}`).toBe(1);
+      expect(at.faded, `lift ${k}`).toBeGreaterThanOrEqual(at.placed);
+    }
+    // The weaker staging of before: the frame as strong as the lift, while the map is still on its way.
+    const before = (k: number) => ({ placed: k, frame: k });
+    expect(before(0.3).frame > 0 && before(0.3).placed < 1).toBe(true);
   });
 
   test('known answers: the governor keeps the ratio while frames keep up, then sheds load', () => {

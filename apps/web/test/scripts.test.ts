@@ -2,6 +2,15 @@ import { describe, expect, test } from 'vitest';
 import { isNoindex } from '../src/lib/noindex.mjs';
 import { tags, THEME_SCRIPT } from '../src/lib/weights';
 import { html, read } from './support/dist';
+import {
+  labName,
+  labPage,
+  labSrc,
+  labTitle,
+  SIMULATED_LABS,
+  type SimulatedLab,
+  type SimulatedLabName,
+} from './support/labs';
 
 // The script allowlist (spec B13): a page may carry the inline theme script, exactly as
 // src/scripts/theme.js has it and first in <head>, and JSON-LD, which Home, /about/ and each
@@ -17,25 +26,21 @@ import { html, read } from './support/dist';
 // module, the bundle Astro builds from components/Palette.astro's script (src/scripts/palette.js),
 // from /_astro/ and never inline, after the theme script and in <body>.
 //
-// The Raft Lab, /lab/raft/, loads its own module the same way, on its page only (ADR 0020): the
-// bundle of components/raft-lab/RaftLab.astro's script (boot.ts), which loads the rest on intent.
+// Each simulated lab (ADR 0020, ADR 0026), the Raft Lab at /lab/raft/ and its siblings, loads its
+// own module the same way, on its page only: the bundle of its component's script
+// (components/<slug>-lab/boot.ts), which loads the rest on intent. A lab joins this check by its
+// row in support/labs.ts.
 //
 // And Home and the indexes have a fifth, once (design-system.md, "Motion"): the module of
 // components/Motion.astro (src/scripts/motion.js), which decodes a card's tag and hands a followed
 // title to the next page. A post, a demo, /about/ and the 404 carry none.
 
-type Verdict = 'theme' | 'json-ld' | 'route-lab' | 'raft-lab' | 'palette' | 'motion' | string;
+type Verdict = 'theme' | 'json-ld' | 'route-lab' | SimulatedLabName | 'palette' | 'motion' | string;
 
 /** The one page allowed a module of its own, and the name Astro gives that module's bundle. */
 export const ROUTE_LAB = {
   page: 'lab/routes/index.html',
   src: /^\/_astro\/RouteLab\.astro_astro_type_script_index_0_lang\.[\w-]+\.js$/,
-} as const;
-
-/** The Raft Lab's page and the name Astro gives its module's bundle. */
-export const RAFT_LAB = {
-  page: 'lab/raft/index.html',
-  src: /^\/_astro\/RaftLab\.astro_astro_type_script_index_0_lang\.[\w-]+\.js$/,
 } as const;
 
 /** The name Astro gives the command menu's bundle, which every page loads. */
@@ -65,14 +70,15 @@ export function classify(
     script.body === ''
   )
     return 'route-lab';
+  const lab = SIMULATED_LABS.find((row) => labPage(row) === page);
   if (
-    page === RAFT_LAB.page &&
+    lab &&
     names === 'src type' &&
     script.attributes['type'] === 'module' &&
-    RAFT_LAB.src.test(script.attributes['src'] ?? '') &&
+    labSrc(lab).test(script.attributes['src'] ?? '') &&
     script.body === ''
   )
-    return 'raft-lab';
+    return labName(lab);
   if (
     names === 'src type' &&
     script.attributes['type'] === 'module' &&
@@ -96,9 +102,20 @@ for (const file of html) {
     const page = read(file);
     const verdicts = tags(page, 'script').map((script) => classify(script, file));
 
-    test("every script is the theme script, JSON-LD or the command menu's module, once, on the Route Lab its own module, and on Home and the indexes the motion module", () => {
-      const known = ['theme', 'json-ld', 'route-lab', 'raft-lab', 'palette', 'motion'];
-      expect(verdicts.filter((v) => v === 'raft-lab')).toHaveLength(file === RAFT_LAB.page ? 1 : 0);
+    test("every script is the theme script, JSON-LD or the command menu's module, once, on a lab's page its own module, and on Home and the indexes the motion module", () => {
+      const known = [
+        'theme',
+        'json-ld',
+        'route-lab',
+        ...SIMULATED_LABS.map(labName),
+        'palette',
+        'motion',
+      ];
+      for (const lab of SIMULATED_LABS)
+        expect(
+          verdicts.filter((v) => v === labName(lab)),
+          labName(lab),
+        ).toHaveLength(file === labPage(lab) ? 1 : 0);
       expect(verdicts.filter((v) => v === 'motion').length).toBeLessThanOrEqual(1);
       expect(verdicts.filter((v) => !known.includes(v))).toEqual([]);
       expect(verdicts.filter((v) => v === 'route-lab')).toHaveLength(
@@ -232,6 +249,7 @@ test('known answers: the motion module is allowed on Home and the indexes only, 
   for (const page of [
     'writing/a-post/index.html',
     ROUTE_LAB.page,
+    ...SIMULATED_LABS.map(labPage),
     'about/index.html',
     '404.html',
     'xindex.html',
@@ -246,34 +264,60 @@ test('known answers: the motion module is allowed on Home and the indexes only, 
   ).toMatch(/^not allowed/);
 });
 
-test('known answers: the Raft Lab module is allowed on its page only, from /_astro/, never inline', () => {
-  const boot = {
-    attributes: {
-      type: 'module',
-      src: '/_astro/RaftLab.astro_astro_type_script_index_0_lang.D5gT1Uuz.js',
-    },
-    body: '',
-  };
-  expect(classify(boot, RAFT_LAB.page)).toBe('raft-lab');
-  for (const page of [ROUTE_LAB.page, 'index.html', 'lab/index.html', ''])
-    expect(classify(boot, page), page).toMatch(/^not allowed/);
-  // The Route Lab's module is not allowed on the Raft Lab's page, nor an inline or classic one.
-  expect(
-    classify(
-      {
-        attributes: {
-          type: 'module',
-          src: '/_astro/RouteLab.astro_astro_type_script_index_0_lang.BW_ExEQE.js',
-        },
-        body: '',
-      },
-      RAFT_LAB.page,
-    ),
-  ).toMatch(/^not allowed/);
-  expect(
-    classify({ attributes: { type: 'module' }, body: 'import "./boot"' }, RAFT_LAB.page),
-  ).toMatch(/^not allowed/);
-  expect(classify({ attributes: { src: boot.attributes.src }, body: '' }, RAFT_LAB.page)).toMatch(
-    /^not allowed/,
-  );
+/** A lab's module as its page names it, and the Route Lab's. */
+const bootOf = (lab: SimulatedLab) => ({
+  attributes: {
+    type: 'module',
+    src: `/_astro/${lab.bundle}.astro_astro_type_script_index_0_lang.D5gT1Uuz.js`,
+  },
+  body: '',
 });
+const ROUTE_LAB_BOOT = {
+  attributes: {
+    type: 'module',
+    src: '/_astro/RouteLab.astro_astro_type_script_index_0_lang.BW_ExEQE.js',
+  },
+  body: '',
+};
+
+for (const lab of SIMULATED_LABS) {
+  test(`known answers: ${labTitle(lab)} module is allowed on its page only, from /_astro/, never inline`, () => {
+    const page = labPage(lab);
+    const boot = bootOf(lab);
+    const others = SIMULATED_LABS.filter((other) => other !== lab);
+    expect(classify(boot, page)).toBe(labName(lab));
+    for (const elsewhere of [
+      ROUTE_LAB.page,
+      ...others.map(labPage),
+      'index.html',
+      'lab/index.html',
+      '',
+    ])
+      expect(classify(boot, elsewhere), elsewhere).toMatch(/^not allowed/);
+    // No other lab's module is allowed on its page, nor an inline or classic one, one with an extra
+    // attribute, or one from another host.
+    for (const other of [ROUTE_LAB_BOOT, ...others.map(bootOf)])
+      expect(classify(other, page), other.attributes.src).toMatch(/^not allowed/);
+    expect(classify({ attributes: { type: 'module' }, body: 'import "./boot"' }, page)).toMatch(
+      /^not allowed/,
+    );
+    expect(classify({ attributes: { src: boot.attributes.src }, body: '' }, page)).toMatch(
+      /^not allowed/,
+    );
+    expect(classify({ ...boot, attributes: { ...boot.attributes, async: '' } }, page)).toMatch(
+      /^not allowed/,
+    );
+    expect(
+      classify(
+        {
+          attributes: {
+            type: 'module',
+            src: `https://cdn.example.net${boot.attributes.src.slice('/_astro'.length)}`,
+          },
+          body: '',
+        },
+        page,
+      ),
+    ).toMatch(/^not allowed/);
+  });
+}

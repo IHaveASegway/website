@@ -94,8 +94,10 @@ export function directivesOf(value: string): Map<string, string[]> {
 /** The one kind of inline style a page may hold: the Fonts API's, each face's @font-face rule and
  *  its family's custom property on :root (security.md). The policy hashes every inline <style>
  *  the build finds, so this is the alarm for one nothing else wrote: a post's raw HTML, an
- *  integration, a dependency. The script allowlist is test/scripts.test.ts. */
-export const FONTS_STYLE = /^(?:@font-face\{[^{}]*\})+:root\{--font-[a-z-]+:"[^"]+";\}$/;
+ *  integration, a dependency. The script allowlist is test/scripts.test.ts. The family is a quoted
+ *  name, or a bare identifier where the name is one word, as the API minifies "Barlow". */
+export const FONTS_STYLE =
+  /^(?:@font-face\{[^{}]*\})+:root\{--font-[a-z0-9-]+:(?:"[^"]+"|[A-Za-z][\w-]*);\}$/;
 
 /** The path a built page answers at: its folder, or for the 404, a path no page has. */
 export const pathOf = (file: string): string =>
@@ -295,7 +297,16 @@ test("known answers: the Fonts API's style passes the allowlist, and any other i
     '@font-face{font-family:"Instrument Sans-ee491b7e";src:url("/_astro/fonts/8ed8.woff2") format("woff2");font-display:swap;}';
   expect(`${face}:root{--font-instrument-sans:"Instrument Sans-ee491b7e";}`).toMatch(FONTS_STYLE);
   expect(`${face}${face}:root{--font-jetbrains-mono:"JetBrains Mono-c8b3";}`).toMatch(FONTS_STYLE);
-  for (const other of ['p{color:red}', `${face}p{color:red}`, `${face}:root{--x:"y";}body{}`])
+  // A one-word family, as the API writes it today, unquoted, and a name with figures in it.
+  expect(`${face}:root{--font-barlow:Barlow-ef665c43;}`).toMatch(FONTS_STYLE);
+  expect(`${face}:root{--font-b612-mono:"B612 Mono-1a2b";}`).toMatch(FONTS_STYLE);
+  for (const other of [
+    'p{color:red}',
+    `${face}p{color:red}`,
+    `${face}:root{--x:"y";}body{}`,
+    `${face}:root{--font-barlow:Barlow;color:red;}`,
+    `${face}:root{--font-barlow:url(x);}`,
+  ])
     expect(other).not.toMatch(FONTS_STYLE);
 });
 

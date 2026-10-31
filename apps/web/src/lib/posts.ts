@@ -220,10 +220,11 @@ export function writingArea(posts: readonly Post[], includeDrafts: boolean): Wri
   return { published, visible, sections, pages };
 }
 
-/** The mono label above a post's title: its kind, with "Draft" first on a draft. */
+/** What a post is, first in its page's register (ADR 0025): its kind, and on a draft the words
+ *  "Draft essay", "Draft field note", in plain words with no separator between them. */
 export function postLabel(page: PostPage): string {
-  const state = page.exposure === 'draft' ? 'Draft' : null;
-  return [state, KIND_LABELS[page.post.kind]].filter(Boolean).join(' · ');
+  const kind = KIND_LABELS[page.post.kind];
+  return page.exposure === 'draft' ? `Draft ${kind.toLowerCase()}` : kind;
 }
 
 /** A post's page URL (ADR 0005): its section, then its slug, with the trailing slash. */
@@ -251,8 +252,51 @@ export const KIND_LABELS: Readonly<Record<Post['kind'], string>> = {
   note: 'Field note',
 };
 
-/** A day as the site writes it: YYYY-MM-DD (content.md, "Voice": ISO dates). */
+/** A day as machines read it: YYYY-MM-DD, in a <time>'s datetime, the feed and structured data. */
 export const isoDay = (date: Date): string => date.toISOString().slice(0, 10);
+
+const MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+] as const;
+
+/** A day as a reader reads it (ADR 0025): "25 October 2026", the day of the UTC date a post is
+ *  dated by. The months are spelled out here, not by Intl, so the words never depend on the build
+ *  machine's locale. */
+export const wordDay = (date: Date): string =>
+  `${date.getUTCDate()} ${MONTHS[date.getUTCMonth()] ?? ''} ${date.getUTCFullYear()}`;
+
+/** Each tag's words, with the capitals a proper noun keeps: a tag is a slug, and a reader sees
+ *  "Go" and "Durable Objects", not "go" and "durable-objects". */
+const TAG_WORDS: Readonly<Record<Tag, string>> = {
+  architecture: 'architecture',
+  data: 'data',
+  go: 'Go',
+  cloudflare: 'Cloudflare',
+  'durable-objects': 'Durable Objects',
+  platform: 'platform',
+  testing: 'testing',
+  security: 'security',
+  tools: 'tools',
+  writing: 'writing',
+};
+
+/** A post's tags as plain words in its register: "Security, testing", the first word capitalized,
+ *  or the empty string for a post with none. */
+export function tagWords(tags: readonly Tag[]): string {
+  const words = tags.map((tag) => TAG_WORDS[tag]).join(', ');
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
 
 /** One item of /rss.xml, in the shape @astrojs/rss takes. */
 export interface FeedItem {
