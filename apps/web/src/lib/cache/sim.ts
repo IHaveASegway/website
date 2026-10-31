@@ -270,6 +270,10 @@ export interface Sim {
     wasted: number;
     /** Reads that were a reader's second or third try. */
     retries: number;
+    /** Timeouts after which the reader asked again, and readers who left without their page for
+     *  good. Giving up, every timeout is the second; with retries on, most are the first. */
+    again: number;
+    gaveUp: number;
   };
   /** Reads that waited on a fetch, in the order they began, from `waitingHead` on. */
   readonly waiting: Read[];
@@ -293,7 +297,8 @@ export interface Sim {
     readonly herd: number[];
     menuExpiry: number;
     poolFull: boolean;
-    timeouts: number;
+    again: number;
+    gaveUp: number;
     dropped: boolean;
     retried: boolean;
     /** The longest line said so far since the line was last empty. */
@@ -364,6 +369,8 @@ export function createSim(config: Config): Sim {
       cancelled: 0,
       wasted: 0,
       retries: 0,
+      again: 0,
+      gaveUp: 0,
     },
     waiting: [],
     waitingHead: 0,
@@ -382,7 +389,8 @@ export function createSim(config: Config): Sim {
       herd: Array.from({ length: PAGES }, () => 0),
       menuExpiry: NaN,
       poolFull: false,
-      timeouts: 0,
+      again: 0,
+      gaveUp: 0,
       dropped: false,
       retried: false,
       line: 0,
@@ -456,7 +464,7 @@ export function step(sim: Sim): boolean {
       if (sim.retry !== 'give-up') {
         sim.counts.retries += 1;
         begin(sim, event.key, event.attempt);
-      }
+      } else sim.counts.gaveUp += 1;
       break;
     case 'sample':
       sample(sim);
@@ -832,19 +840,22 @@ function giveUp(sim: Sim, read: Read): void {
     return;
   }
   finish(sim, read, 'timeout', TIMEOUT);
+  // A reader who will ask again has timed out, not given up: the log keeps the two apart.
+  const again = sim.retry !== 'give-up' && (read.attempt ?? 0) + 1 < RETRY.attempts;
   const t = sim.tally;
   t.timeouts += 1;
   if (!t.firstTimeout) {
     t.firstTimeout = {
       at: sim.now,
-      detail: `A reader of ${pageName(read.key)} gave up after waiting ${millis(TIMEOUT)}`,
+      detail: `A reader of ${pageName(read.key)} ${again ? 'timed out' : 'gave up'} after waiting ${millis(TIMEOUT)}`,
     };
     const waiting = sim.line.length - sim.lineHead;
     say(sim, `${t.firstTimeout.detail}, with ${waiting} fetches in line for the database`);
   }
   if (sim.drop && fetch?.state === 'waiting' && fetch.why !== 'stale' && !awaited(fetch))
     cancel(sim, fetch);
-  if (sim.retry !== 'give-up' && (read.attempt ?? 0) + 1 < RETRY.attempts) retryLater(sim, read);
+  if (again) retryLater(sim, read);
+  else sim.counts.gaveUp += 1;
 }
 
 /**
@@ -858,6 +869,7 @@ function giveUp(sim: Sim, read: Read): void {
 function retryLater(sim: Sim, read: Read): void {
   const attempt = (read.attempt ?? 0) + 1;
   const wait = sim.retry === 'backoff' ? backoff(attempt, sim.random()) : 0;
+  sim.counts.again += 1;
   schedule(sim.agenda, sim.now + wait, { kind: 'retry', key: read.key, attempt });
   if (sim.said.retried) return;
   sim.said.retried = true;
@@ -972,15 +984,24 @@ function sample(sim: Sim): void {
       `${waiting.toLocaleString('en-US')} fetches wait in line for the database, and nobody waits for ${nobody.toLocaleString('en-US')} of them any more`,
     );
   }
-  if (sim.now % 1_000 === 0 && sim.counts.timeout > sim.said.timeouts) {
-    const fresh = sim.counts.timeout - sim.said.timeouts;
-    sim.said.timeouts = sim.counts.timeout;
+  // Each second, the readers who timed out: those who asked again apart from those who gave up,
+  // so that with retries on the log does not count a reader who is still asking as gone.
+  const c = sim.counts;
+  const s = sim.said;
+  if (sim.now % 1_000 === 0 && (c.gaveUp > s.gaveUp || c.again > s.again)) {
+    const again = c.again - s.again;
+    const left = c.gaveUp - s.gaveUp;
+    s.again = c.again;
+    s.gaveUp = c.gaveUp;
     say(
       sim,
-      `${fresh.toLocaleString('en-US')} ${fresh === 1 ? 'reader' : 'readers'} gave up in the last second, ${sim.counts.timeout.toLocaleString('en-US')} in all`,
+      `${again > 0 ? `${readers(again)} timed out and asked again in the last second, and ${count(left)} gave up` : `${readers(left)} gave up in the last second`}, ${count(c.gaveUp)} in all`,
     );
   }
 }
+
+const count = (n: number): string => n.toLocaleString('en-US');
+const readers = (n: number): string => `${count(n)} ${n === 1 ? 'reader' : 'readers'}`;
 
 function record(sim: Sim, action: Action): void {
   sim.actions.push(action);

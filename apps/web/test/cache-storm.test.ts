@@ -224,6 +224,48 @@ describe('the two settings', () => {
     ).toBe(true);
   });
 
+  test('with retries on, the log counts a reader who timed out and asked again apart from one who gave up', () => {
+    // At a whole second, when the log says its count.
+    const sim = replay({ ...OPENING.config, seed: 7, ...STORMY }, TRIGGER, 30_000);
+    const c = sim.counts;
+    // Every timeout is one or the other, and only the third try's gives up while the policy holds.
+    expect(c.again + c.gaveUp).toBe(c.timeout);
+    expect(c.again).toBeGreaterThan(c.gaveUp);
+    // The first timeout, said in the log and by the property's lamp, is a reader about to ask again.
+    expect(sim.tally.firstTimeout?.detail).toBe(
+      'A reader of the menu timed out after waiting 1,000 ms',
+    );
+    const texts = sim.lines.map((line) => line.text);
+    const last = texts.findLast((text) => / in all$/.test(text));
+    expect(last).toMatch(
+      /^[\d,]+ readers timed out and asked again in the last second, and [\d,]+ gave up, [\d,]+ in all$/,
+    );
+    expect(last?.endsWith(`, ${c.gaveUp.toLocaleString('en-US')} in all`)).toBe(true);
+    // Giving up, every timeout is a reader gone, and the log says it as it did before retries.
+    const opening = replay(OPENING.config, [], 10_000);
+    expect(opening.counts.gaveUp).toBe(opening.counts.timeout);
+    expect(opening.counts.again).toBe(0);
+    expect(opening.lines.some((line) => /asked again/.test(line.text))).toBe(false);
+  });
+
+  test('a reader whose retry comes after the visitor chose to give up gives up then, and is counted', () => {
+    const sim = replay(
+      { ...OPENING.config, seed: 7, retry: 'backoff', drop: false },
+      TRIGGER,
+      12_000,
+    );
+    expect(sim.counts.again).toBeGreaterThan(sim.counts.retries);
+    setRetry(sim, 'give-up');
+    // Readers backing off when the visitor chose: each gives up when its retry was due, within 4 s.
+    const waited = sim.counts.again - sim.counts.retries;
+    const retries = sim.counts.retries;
+    runUntil(sim, 17_000);
+    const c = sim.counts;
+    expect(c.retries).toBe(retries);
+    expect(c.again + c.gaveUp).toBe(c.timeout + waited);
+    expect(sim.violation).toBeNull();
+  });
+
   test('conservation holds over 200 runs that flip both settings, the load and the cache at random', () => {
     const broken: string[] = [];
     for (let seed = 1; seed <= 200; seed++) {
