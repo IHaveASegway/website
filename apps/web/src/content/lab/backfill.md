@@ -18,7 +18,7 @@ It also means every day can run more than once. A load fails half way and retrie
 
 **Watch Wednesday count twice.** The first run does it: Wednesday's first load fails after writing 96 of its 179 rows, the retry appends all 179, and Wednesday's check finds 275 orders against the source's 179. Switch the load to overwrite the day and start over. Every day matches: 2,012 orders.
 
-**Write to today.** Make each load write to the day the clock says instead of its run's own day, then run the backfill. Every day's orders land on the same date, and every check fails. A job that asks the clock for its date cannot be backfilled.
+**Write to today.** Make each load write to the day the clock says instead of its run's own day, and start over. Every day's orders land on the same date, and every check fails. A job that asks the clock for its date cannot be backfilled.
 
 **Rerun a finished day.** Clear Tuesday after its run succeeds. With append, Tuesday's total doubles. With overwrite, nothing changes.
 
@@ -26,7 +26,7 @@ Then make Monday's file five hours late with one run at a time, and watch the we
 
 ## What the lines and lamps mean
 
-Each row is a day and each lamp a step of its run, from waiting for the file to the check. A lit lamp is running, a filled lamp has succeeded, a hollow lamp has not started, and a cross has failed; a step waiting to retry carries its next try's time. The column on the right is the day's total in the report against the source. The three properties under it are checked after every event.
+Each row is a day and each lamp a step of its run, from waiting for the file to the check. A lit lamp is running, a filled lamp has succeeded, a hollow lamp has not started, and a cross has failed; a step waiting to retry carries its next try's time. The column on the right is the day's total in the report against the source. The three properties under the board are checked after every event.
 
 ## Credits
 

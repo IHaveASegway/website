@@ -20,7 +20,7 @@ Exactly once is something the worker builds on top. It keeps a record of every o
 
 **Acknowledge before the work.** Switch to acknowledging on delivery, then crash a worker. The orders it held are gone, never printed. Acknowledging first trades duplicates for losses: at most once instead of at least once.
 
-**Publish a poison order.** It fails every time. With requeue, it comes straight back and keeps a worker busy forever, and the queue never drains. With dead-lettering, it is retried after 200, 400 and 800 ms, then set aside after the fourth try, and everything behind it flows.
+**Publish a poison order, then stop taking orders.** It fails every time. With requeue, it comes straight back and keeps a worker busy forever, and the queue never drains. With dead-lettering, it is retried after 200, 400 and 800 ms, then set aside after the fourth try, and the queue drains.
 
 Then slow one worker down with ten orders of prefetch, and again with one: with ten it sits on nine orders it cannot reach. And try a rush: three workers handle about 9.7 orders a second, so at 14 a second the queue grows, and each order's wait with it.
 

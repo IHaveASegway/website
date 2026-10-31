@@ -168,7 +168,7 @@ test('the second: switched to acknowledging before the work, a worker crashed at
   );
 });
 
-test('the third: a poison order under requeue never drains; dead-lettered after four tries, everything behind it flows', async ({
+test('the third: a poison order, then no more orders: under requeue the queue never drains; dead-lettered after four tries, it drains', async ({
   page,
 }) => {
   test.setTimeout(60_000);
