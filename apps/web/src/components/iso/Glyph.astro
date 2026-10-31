@@ -1,0 +1,50 @@
+---
+import { labGlyph } from '../../lib/iso/lab-glyphs';
+import '../../styles/iso-glyph.css';
+
+interface Props {
+  /** The lab whose system it draws, which names its colour too. */
+  slug: string;
+  /** Extra classes for where it stands. */
+  class?: string;
+}
+
+// A lab's glyph (docs/design/overhaul.md, "Lab cards"): its system as a small isometric model,
+// drawn at build from the run its page opens on (lib/iso/lab-glyphs.ts, lib/iso/glyph.ts). A
+// picture beside words that say the same, so assistive technology skips it. The tile and the
+// wires first, then each solid as a group, back to front, so a nearer one covers a farther; each
+// group names its layer, which a lab's card lifts it by as it comes into view.
+const { slug, class: extra } = Astro.props;
+const glyph = await labGlyph(slug);
+const [x, y, width, height] = glyph?.box ?? [0, 0, 0, 0];
+---
+
+{glyph && (
+  <svg
+    class:list={['iso-glyph', extra]}
+    data-line={slug}
+    viewBox={`${x} ${y} ${width} ${height}`}
+    width={Math.round(width)}
+    height={Math.round(height)}
+    aria-hidden="true"
+    focusable="false"
+  >
+    <g class="iso-ground">
+      {glyph.ground.map((mark) => (
+        <path class={`iso-${mark.paint}`} d={mark.d} />
+      ))}
+    </g>
+    <g class="iso-wires">
+      {glyph.wires.map((mark) => (
+        <path class={`iso-${mark.paint}`} d={mark.d} />
+      ))}
+    </g>
+    {glyph.solids.map((solid) => (
+      <g class="iso-solid" data-layer={solid.layer}>
+        {solid.marks.map((mark) => (
+          <path class={`iso-${mark.paint}`} d={mark.d} />
+        ))}
+      </g>
+    ))}
+  </svg>
+)}

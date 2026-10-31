@@ -1,0 +1,161 @@
+/*
+  The labs' cards (components/lab/LabCard.astro; docs/design/overhaul.md, "Lab cards"): a card
+  each (global.css, .card), its top a plate across the card that holds the lab's glyph over a
+  hairline, then its title, its summary and one fact from its build. One a row on a phone and a
+  tablet, two from 64rem; an odd card out at the end takes the whole row, its plate beside its
+  words. The whole card is its title's link: under the pointer, or with focus on the link, its
+  edge darkens, and under the pointer its title turns to the accent, at once. The lab's colour is
+  in its glyph only. Every colour is a token from tokens.css.
+
+  The one motion: as a card comes up into the window, its glyph's solids come down onto their
+  tile, each from a height by its layer, an exploded view assembling, tied to the scroll and
+  finished once the card is in. A card in the window on load is already assembled, and nothing
+  moves while the visitor does not scroll. Only where the browser has scroll timelines, and only
+  with no preference for reduced motion; elsewhere the picture stands assembled.
+*/
+
+.lab-cards {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--gutter);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lab-card {
+  grid-template-rows: auto 1fr;
+  row-gap: 0;
+  padding: 0;
+}
+
+.lab-card:hover {
+  border-color: var(--input);
+}
+
+.lab-card:hover .card-title {
+  color: var(--primary);
+}
+
+.lab-plate {
+  display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  place-items: center;
+  block-size: clamp(10.5rem, 7rem + 9vw, 14.5rem);
+  padding: 1.25rem min(1.375rem, 5vw);
+  border-block-end: 1px solid var(--border);
+}
+
+.lab-plate > .iso-glyph {
+  inline-size: 100%;
+  block-size: 100%;
+  max-inline-size: 24rem;
+}
+
+.lab-words {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 1.25rem min(1.375rem, 5vw) 1.375rem;
+}
+
+/* The link's own box is the face's height, 22 px on a phone: padding on an inline box grows its
+   target to 24 px and more (SC 2.5.8) without moving a line, as a row's title does. */
+.lab-card .card-title > a {
+  padding-block: 0.125em;
+  color: inherit;
+  text-decoration-line: none;
+}
+
+/* The title's link covers the card, on screen; on paper it prints its address after it, as every
+   link on paper does (global.css, the print block). */
+@media screen {
+  .lab-card .card-title > a::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+}
+
+@media print {
+  .lab-card .card-title > a::after {
+    content: 'ihaveasegway.com' attr(href);
+    margin-inline-start: 0.375em;
+    color: var(--muted-foreground);
+    font-family: var(--font-label);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* The one fact, at the card's foot whatever the summary's length: the label face, muted, its
+   figures in step. */
+.lab-fact {
+  margin: auto 0 0;
+  padding-block-start: 0.75rem;
+  border-block-start: 1px solid var(--border);
+  color: var(--muted-foreground);
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  line-height: var(--text-label--line-height);
+  font-variant-numeric: tabular-nums;
+  text-wrap: pretty;
+}
+
+@media (width >= 64rem) {
+  .lab-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lab-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto;
+  }
+
+  .lab-card:last-child:nth-child(odd) > .lab-plate {
+    block-size: 100%;
+    min-block-size: 14.5rem;
+    border-block-end: 0;
+    border-inline-end: 1px solid var(--border);
+  }
+
+  .lab-card:last-child:nth-child(odd) > .lab-words {
+    justify-content: center;
+    padding: 2rem 2.5rem;
+  }
+
+  .lab-card:last-child:nth-child(odd) .lab-fact {
+    margin-block-start: 0.5rem;
+  }
+}
+
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .lab-card {
+      view-timeline: --lab-card block;
+    }
+
+    .lab-card .iso-solid {
+      animation: lab-settle linear both;
+      animation-timeline: --lab-card;
+      animation-range: entry 0% entry 100%;
+    }
+
+    .lab-card .iso-solid[data-layer='2'] {
+      --lift: 2;
+    }
+
+    .lab-card .iso-solid[data-layer='3'] {
+      --lift: 3;
+    }
+
+    @keyframes lab-settle {
+      from {
+        translate: 0 calc(var(--lift, 1) * -14px);
+      }
+    }
+  }
+}

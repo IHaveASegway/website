@@ -1,15 +1,9 @@
 ---
 import { RAFT_SIZES, raftShape } from '../../../lib/line-shapes';
-import { inWords, raftFailover, raftLine } from '../../../lib/lines';
+import { raftFailover, raftLine } from '../../../lib/lines';
 import { replay } from '../../../lib/raft/sim';
-import { OPENING, openingRun, statusText } from '../../../lib/raft/view';
-import type { LineAt } from '../line-of';
+import { OPENING, openingRun } from '../../../lib/raft/view';
 import '../../../styles/lines.css';
-
-interface Props {
-  /** Home's board, the default, or the Lab index (line-of.ts). */
-  at?: LineAt;
-}
 
 // The Raft Lab's line (ADR 0025): a hub and its spokes, not a ring. The leader is the hub, a
 // filled lamp with its number; every other server sits on a spoke, a hollow lamp with its number,
@@ -21,11 +15,8 @@ interface Props {
 // anything. It stands still: the board's one moving thing is the Route Lab's vans. Drawn twice,
 // for a narrow screen and a wide one, without a viewBox, as the Route Lab's line is (routes.astro).
 // On the board its describer says who leads, and what happens when that leader crashes: the same
-// opening replayed with the crash, until another server leads; on the Lab index it is larger,
-// names its stations, comes in from the page's edge, and says what the run proved: the properties
-// held over its events. Where everything stands, at each size, is lib/line-shapes.ts, which the
-// link previews draw too.
-const { at = 'board' } = Astro.props;
+// opening replayed with the crash, until another server leads. Where everything stands, at each
+// size, is lib/line-shapes.ts, which the link previews draw too.
 const run = openingRun();
 const line = raftLine(run);
 const crashed = () =>
@@ -34,32 +25,20 @@ const crashed = () =>
     [...OPENING.actions, { at: OPENING.until, kind: 'crash', node: (line.leader ?? 0) - 1 }],
     OPENING.until,
   );
-const words = at === 'board' ? `${line.words} ${raftFailover(run, crashed())}` : statusText(run);
+const words = `${line.words} ${raftFailover(run, crashed())}`;
 
-// On the index the track comes in from past the drawing's left edge, as the Route Lab's does.
-const enters = at === 'index' ? '-100%' : '0';
-// The stations the index names: the servers, the log's first lamp, and its first lamp not yet
-// committed, when there is room between the two for both names.
-const servers = `${inWords(run.servers.length).replace(/^./, (c) => c.toUpperCase())} servers`;
-const pending = line.log.indexOf(false);
-const drawings = RAFT_SIZES[at].map((size) => {
-  const shape = raftShape(line, size);
-  // The names' baselines: under the log's lamps, and under the lower spokes' servers.
-  const under = shape.middle + size.lamp + 17;
-  const below = shape.middle + size.reach[1] + size.server + 15;
-  return { ...shape, under, below };
-});
+const drawings = RAFT_SIZES.board.map((size) => raftShape(line, size));
 ---
 
 <div class="line line-raft">
-  {drawings.map(({ size, middle, leader, followers, log, under, end, below }) => (
+  {drawings.map(({ size, middle, leader, followers, log, end }) => (
     <svg
       class={`line-draw line-${size.name}`}
       height={size.height}
       aria-hidden="true"
       focusable="false"
     >
-      <line class="line-track" x1={enters} y1={middle} x2={end} y2={middle} />
+      <line class="line-track" x1="0" y1={middle} x2={end} y2={middle} />
       <rect
         class="line-depot"
         x={end}
@@ -98,24 +77,7 @@ const drawings = RAFT_SIZES[at].map((size) => {
           )}
         </>
       )}
-      {size.labels && (
-        <>
-          <text class="line-label line-label-middle" x={size.hub} y={below}>
-            {servers}
-          </text>
-          {log.length > 0 && (
-            <text class="line-label line-label-middle" x={size.log} y={under}>
-              Log entry 1
-            </text>
-          )}
-          {pending >= 3 && (
-            <text class="line-label line-label-middle" x={size.log + pending * size.step} y={under}>
-              Not yet committed
-            </text>
-          )}
-        </>
-      )}
     </svg>
   ))}
 </div>
-<p class={at === 'board' ? 'band-words' : 'lab-fact'}>{words}</p>
+<p class="band-words">{words}</p>

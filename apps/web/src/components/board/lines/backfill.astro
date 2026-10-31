@@ -1,14 +1,8 @@
 ---
 import { openingRun } from '../../../lib/backfill/view';
 import { BACKFILL_SIZES, backfillShape } from '../../../lib/line-shapes';
-import { backfillFact, backfillFix, backfillLine } from '../../../lib/lines';
-import type { LineAt } from '../line-of';
+import { backfillFix, backfillLine } from '../../../lib/lines';
 import '../../../styles/lines.css';
-
-interface Props {
-  /** Home's board, the default, or the Lab index (line-of.ts). */
-  at?: LineAt;
-}
 
 // The Backfill Lab's line (ADR 0025): the week runs along the top, a station for each day's run,
 // and from each one a drop to the report's track below, which ends in the report, a square: every
@@ -21,21 +15,14 @@ interface Props {
 // vans. Drawn twice, for a narrow screen and a wide one, without a viewBox, as the Route Lab's
 // line is (routes.astro): heights in pixels, the days and the report in shares of the width. On
 // the board its describer names the day that failed and what loads that overwrite their day do
-// about it; on the Lab index it is larger, names its stations, comes in from the page's edge, and
-// says what those loads give, in figures. Where everything stands, at each size, is
-// lib/line-shapes.ts, which the link previews draw too.
-const { at = 'board' } = Astro.props;
+// about it. Where everything stands, at each size, is lib/line-shapes.ts, which the link previews
+// draw too.
 const appended = openingRun();
 const overwritten = openingRun('overwrite');
 const line = backfillLine(appended);
-const words =
-  at === 'board'
-    ? `${line.words} ${backfillFix(overwritten)}`
-    : backfillFact(appended, overwritten);
+const words = `${line.words} ${backfillFix(overwritten)}`;
 
-// On the index the week comes in from past the drawing's left edge, as the Route Lab's track does.
-const enters = at === 'index' ? '-100%' : '0';
-const drawings = BACKFILL_SIZES[at].map((size) => backfillShape(line, size));
+const drawings = BACKFILL_SIZES.board.map((size) => backfillShape(line, size));
 ---
 
 <div class="line line-backfill">
@@ -48,7 +35,7 @@ const drawings = BACKFILL_SIZES[at].map((size) => backfillShape(line, size));
     >
       <line
         class="line-track"
-        x1={enters}
+        x1="0"
         y1={size.week}
         x2={`${days.at(-1)?.x ?? size.to}%`}
         y2={size.week}
@@ -101,25 +88,9 @@ const drawings = BACKFILL_SIZES[at].map((size) => backfillShape(line, size));
               />
             </svg>
           )}
-          {size.labels && (
-            <text
-              class="line-label line-label-middle"
-              x={`${day.x}%`}
-              y={size.week - size.lamp - 10}
-            >
-              {day.name}
-            </text>
-          )}
         </>
       ))}
-      {size.labels && (
-        <svg x={`${size.table}%`} overflow="visible">
-          <text class="line-label" x={size.side + 10} y={size.report + 4.5}>
-            Report
-          </text>
-        </svg>
-      )}
     </svg>
   ))}
 </div>
-<p class={at === 'board' ? 'band-words' : 'lab-fact'}>{words}</p>
+<p class="band-words">{words}</p>

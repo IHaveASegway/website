@@ -1,0 +1,33 @@
+---
+import Glyph from '../iso/Glyph.astro';
+import { labFact } from '../../lib/lab-facts';
+import { labPath, type LabEntry } from '../../lib/lab';
+import '../../styles/lab-cards.css';
+
+interface Props {
+  entry: LabEntry;
+  /** The heading level of its title: 2 on the Lab index, 3 under a section's title. */
+  level?: 2 | 3;
+}
+
+// A lab's card (docs/design/overhaul.md, "Lab cards"): the lab's glyph across the card's top, its
+// title, its summary and one fact from its build (lib/lab-facts.ts). The whole card is its title's
+// link. It names its lab with data-line, so the glyph draws in the lab's colour; the card's own
+// edge and words never do.
+const { entry, level = 2 } = Astro.props;
+const Title = `h${level}` as 'h2' | 'h3';
+const fact = await labFact(entry.slug);
+---
+
+<li class="card lab-card" data-line={entry.slug}>
+  <div class="lab-plate">
+    <Glyph slug={entry.slug} />
+  </div>
+  <div class="lab-words">
+    <Title class="card-title">
+      <a href={labPath(entry)}>{entry.title}</a>
+    </Title>
+    <p class="card-text">{entry.summary}</p>
+    {fact && <p class="lab-fact">{fact}</p>}
+  </div>
+</li>

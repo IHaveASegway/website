@@ -5,8 +5,8 @@
   (data-rl-*), never a class, so every class here is one a built page carries
   (test/css-classes.test.ts). Motion lives only under prefers-reduced-motion: no-preference.
 
-  The demo is the lab's desk (ADR 0025; global.css, .desk): the board's recessed surface in its
-  bezel, under the page head. Its controls are the panel's push-buttons, a chosen one pressed in
+  The demo is the lab's desk (ADR 0027; lab-page.css, .desk): a white sheet on the paper, under
+  the page head. Its controls are the panel's push-buttons, a chosen one pressed in
   with its lamp lit; its labels, legends and figures are the label face in sentence case; its
   parts are set apart by space, and by a rule from bezel to bezel where a new part of the desk
   starts: the controls, the cube, the lists.
@@ -57,7 +57,7 @@
   gap: 1.25rem;
   margin-inline: calc(var(--desk-side) * -1);
   padding: 0 var(--desk-side) 1.5rem;
-  border-bottom: 1px solid var(--input);
+  border-bottom: 1px solid var(--border);
 }
 
 @media (width >= 64rem) {
@@ -952,7 +952,7 @@
 .rl-stops {
   margin-inline: calc(var(--desk-side) * -1);
   padding: 0.5rem var(--desk-side) 0;
-  border-top: 1px solid var(--input);
+  border-top: 1px solid var(--border);
 }
 
 /* Each summary says it opens with the rail's mark (global.css, .nav-fold): a chevron in the
@@ -1149,7 +1149,7 @@
   row-gap: 1.25rem;
   margin-inline: calc(var(--desk-side) * -1);
   padding: 1.5rem var(--desk-side) 0;
-  border-top: 1px solid var(--input);
+  border-top: 1px solid var(--border);
 }
 
 @media (width >= 64rem) {

@@ -1,21 +1,18 @@
 ---
-import { lineOf } from '../../components/board/line-of';
+import LabCard from '../../components/lab/LabCard.astro';
 import Motion from '../../components/Motion.astro';
 import PageHead from '../../components/PageHead.astro';
 import Base from '../../layouts/Base.astro';
 import { loadLabArea, loadProfile } from '../../lib/content';
-import { labPath } from '../../lib/lab';
 import { labIndexCard } from '../../lib/og';
 import '../../styles/lab-index.css';
 
-// /lab/, the lab's index (ADR 0025): one row per live lab, in the lab's order, each its line drawn
-// large on the left, coming in from the page's edge, and on the right its title, its summary and
-// one fact from its build, which the line's component writes (components/board/line-of.ts): the
-// same lines Home's board draws, so a new lab joins both by adding its line. A lab without a line
-// is still listed, with its words alone. Each row is its title's link, as a post's is
-// (components/PostList.astro), and names its line, so its sweep runs in the lab's colour. A rest
-// parameter, so the page builds only while a lab is live, as Writing's indexes build only from the
-// first post (lib/lab.ts); the labs' own pages are [demo].astro and raft/.
+// /lab/, the lab's index (docs/design/overhaul.md, "/lab/"; ADR 0027): the page's head, then a
+// card for each live lab, in the lab's order (lib/lab.ts), each with its glyph, the lab's system
+// drawn at build from the run its page opens on, its title, its summary and one fact from its
+// build (components/lab/LabCard.astro). Two a row from 64rem. A rest parameter, so the page builds
+// only while a lab is live, as Writing's indexes build only from the first post (lib/lab.ts); the
+// labs' own pages are [demo].astro and raft/, queue/, cache/ and backfill/.
 export async function getStaticPaths() {
   const lab = await loadLabArea();
   return lab.visible ? [{ params: { index: undefined } }] : [];
@@ -24,7 +21,6 @@ export async function getStaticPaths() {
 const profile = await loadProfile();
 const { name } = profile.basics;
 const lab = await loadLabArea();
-const rows = lab.entries.map((entry) => ({ entry, Line: lineOf(entry.slug) }));
 ---
 
 <Base
@@ -36,19 +32,13 @@ const rows = lab.entries.map((entry) => ({ entry, Line: lineOf(entry.slug) }));
   <section class="page lab-index" aria-labelledby="page-title">
     <PageHead
       heading="Lab"
-      lead="Systems you can break in your browser. Each line is one of them."
+      lead="Systems you can break in your browser. Each drawing is its lab as its page opens, from the same run."
     />
-    <ol class="post-list lab-rows" role="list">
-      {rows.map(({ entry, Line }) => (
-        <li class="lab-row" data-line={entry.slug}>
-          <h2 class="post-title">
-            <a href={labPath(entry)}>{entry.title}</a>
-          </h2>
-          <p class="post-summary">{entry.summary}</p>
-          {Line && <Line at="index" />}
-        </li>
+    <ul class="lab-cards" role="list">
+      {lab.entries.map((entry) => (
+        <LabCard entry={entry} />
       ))}
-    </ol>
+    </ul>
   </section>
   <Motion />
 </Base>

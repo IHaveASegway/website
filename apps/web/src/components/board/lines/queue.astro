@@ -1,15 +1,9 @@
 ---
 import { QUEUE_SIZES, queueShape } from '../../../lib/line-shapes';
-import { queueFact, queueFix, queueLine, TANK } from '../../../lib/lines';
+import { queueFix, queueLine } from '../../../lib/lines';
 import { replay } from '../../../lib/queue/sim';
 import { OPENING, openingRun } from '../../../lib/queue/view';
-import type { LineAt } from '../line-of';
 import '../../../styles/lines.css';
-
-interface Props {
-  /** Home's board, the default, or the Lab index (line-of.ts). */
-  at?: LineAt;
-}
 
 // The Queue Lab's line (ADR 0025): the publisher, a square at the left; the broker's queue, a tank
 // of lamps on the stem, one for each order waiting; then a fork to each worker's track, its lamp
@@ -21,17 +15,13 @@ interface Props {
 // vans. Drawn twice, for a narrow screen and a wide one, without a viewBox, as the Route Lab's line
 // is (routes.astro): everything up to the fork in pixels, the tracks after it in shares of the
 // width. On the board its describer says what the crash did and what the idempotency key does about
-// it; on the Lab index it is larger, names its stations, comes in from the page's edge, and says
-// what the key changes, in figures. Where everything stands, at each size, is lib/line-shapes.ts,
-// which the link previews draw too.
-const { at = 'board' } = Astro.props;
+// it. Where everything stands, at each size, is lib/line-shapes.ts, which the link previews draw
+// too.
 const line = queueLine(openingRun());
 const keyed = replay({ ...OPENING.config, key: true }, OPENING.actions, OPENING.until);
-const words = at === 'board' ? `${line.words} ${queueFix(keyed)}` : queueFact(keyed);
+const words = `${line.words} ${queueFix(keyed)}`;
 
-// On the index the stem comes in from past the drawing's left edge, as the Route Lab's does.
-const enters = at === 'index' ? '-100%' : '0';
-const drawings = QUEUE_SIZES[at].map((size) => queueShape(line, size));
+const drawings = QUEUE_SIZES.board.map((size) => queueShape(line, size));
 ---
 
 <div class="line line-queue">
@@ -42,7 +32,7 @@ const drawings = QUEUE_SIZES[at].map((size) => queueShape(line, size));
       aria-hidden="true"
       focusable="false"
     >
-      <line class="line-track" x1={enters} y1={middle} x2={size.depot} y2={middle} />
+      <line class="line-track" x1="0" y1={middle} x2={size.depot} y2={middle} />
       <line class="line-track" x1={size.depot + size.side} y1={middle} x2={fork} y2={middle} />
       {tracks.map((track) => (
         <>
@@ -113,21 +103,7 @@ const drawings = QUEUE_SIZES[at].map((size) => queueShape(line, size));
           </>
         ),
       )}
-      {size.labels && at === 'index' && (
-        <>
-          <text class="line-label" x="0" y={middle - 13}>
-            Publisher
-          </text>
-          <text
-            class="line-label line-label-middle"
-            x={size.tank + ((TANK - 1) * size.step) / 2}
-            y={middle + size.lamp + 18}
-          >
-            Queue
-          </text>
-        </>
-      )}
     </svg>
   ))}
 </div>
-<p class={at === 'board' ? 'band-words' : 'lab-fact'}>{words}</p>
+<p class="band-words">{words}</p>

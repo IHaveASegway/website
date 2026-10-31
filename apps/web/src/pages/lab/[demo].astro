@@ -2,7 +2,8 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { render } from 'astro:content';
-import PageHead from '../../components/PageHead.astro';
+import LabHead from '../../components/lab/LabHead.astro';
+import LabWriteUp from '../../components/lab/LabWriteUp.astro';
 import RouteLab from '../../components/route-lab/RouteLab.astro';
 import Base from '../../layouts/Base.astro';
 import { labEntry, loadLabArea, loadProfile } from '../../lib/content';
@@ -19,8 +20,8 @@ import { gzipBytes } from '../../lib/weights';
 // own so it links none of a demo's styles; /lab/api/ is the lab Worker's, never a page (lib/lab.ts).
 // A demo with a page file of its own is left to it, so this page imports none of its styles or
 // code: the Raft Lab is raft/[...index].astro (lib/lab.ts, OWN_PAGE). The page is its lab's line
-// (ADR 0025): data-line gives it the lab's colour, which its head runs across the top and its desk
-// draws with.
+// (ADR 0025): data-line gives it the lab's colour, which its glyph and its desk
+// draw with (ADR 0027: inside its drawings only).
 export async function getStaticPaths() {
   const lab = await loadLabArea();
   return lab.entries
@@ -43,7 +44,7 @@ if (entry.slug !== 'routes') throw new Error(`lab: no demo component for ${entry
 const { name } = (await loadProfile()).basics;
 // Astro's root is the working directory: astro.config.mjs sets no other (node-solver.ts).
 const picture = await routeLabPicture(process.cwd());
-const { Content } = await render(await labEntry(entry));
+const { Content, headings } = await render(await labEntry(entry));
 const lead = `VROOM, an open-source route optimizer compiled to WebAssembly, plans a Seattle bakery’s deliveries in your browser. On a busy Saturday, it cuts ${formatDuration(picture.before.measured.drive)} of driving to ${formatDuration(picture.after.measured.drive)}.`;
 // How it is built, in figures measured here from the files the page serves, so none is typed:
 // the solver's WebAssembly and the route data, gzip -9 as the budgets count them (ADR 0016).
@@ -63,11 +64,17 @@ const legs = (places * (places - 1)).toLocaleString('en-US');
   og={labCard(entry)}
 >
   <article class="page rl-page" data-line={entry.slug} aria-labelledby="page-title">
-    <PageHead heading={entry.title} lead={lead} line />
+    <LabHead slug={entry.slug} heading={entry.title} lead={lead} />
     <RouteLab picture={picture} />
-    <div class="prose">
+    <LabWriteUp
+      headings={[
+        ...headings,
+        { depth: 2, slug: 'how-it-is-built', text: 'How it is built' },
+        { depth: 2, slug: 'credits', text: 'Credits' },
+      ]}
+    >
       <Content />
-      <h2>How it is built</h2>
+      <h2 id="how-it-is-built">How it is built</h2>
       <p>
         VROOM is C++. Emscripten {lock.emsdk} compiles it to one WebAssembly file of {wasm}, gzip,
         which the page fetches only once there is something to plan. It runs in a Web Worker, so the
@@ -79,7 +86,7 @@ const legs = (places * (places - 1)).toLocaleString('en-US');
         out once, from OpenStreetMap with OSRM, and ship as one file of {routeFile}, gzip. Without
         JavaScript, the page shows the plans the build made by running the same WebAssembly in Node.
       </p>
-      <h2>Credits</h2>
+      <h2 id="credits">Credits</h2>
       <p>
         Map data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>,
         under the <a href="https://opendatacommons.org/licenses/odbl/">Open Database License</a>.
@@ -91,6 +98,6 @@ const legs = (places * (places - 1)).toLocaleString('en-US');
         everything compiled into the solver are in{' '}
         <a href={`/lab/routes/solver/${lock.folder}/LICENSES.txt`}>LICENSES.txt</a>.
       </p>
-    </div>
+    </LabWriteUp>
   </article>
 </Base>

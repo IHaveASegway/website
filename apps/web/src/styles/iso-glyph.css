@@ -1,0 +1,90 @@
+/*
+  A lab's glyph (components/iso/Glyph.astro; docs/design/overhaul.md, "Lab cards" and "The
+  isometric drawing"): the lab's system as a small isometric model on one ground tile. Every colour
+  is a token from tokens.css: a solid's three faces in --iso-top, --iso-left and --iso-right, lit
+  from the top left and edged in the ink; the tile's mesh in --iso-grid and its edge in the working
+  rule; the lab's own path in its line's colour, var(--line), which data-line sets (global.css).
+  A solid that is down is its silhouette,
+  dashed. Strokes keep their width whatever size the picture is drawn at. Still: what moves it is
+  the page that holds it, and only as the visitor scrolls (styles/lab-cards.css).
+*/
+
+.iso-glyph {
+  display: block;
+  overflow: visible;
+}
+
+.iso-glyph path {
+  fill: none;
+  stroke: var(--foreground);
+  stroke-width: 1.25px;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.iso-glyph .iso-mesh {
+  stroke: var(--iso-grid);
+  stroke-width: 1px;
+}
+
+.iso-glyph .iso-plane {
+  stroke: var(--input);
+  stroke-width: 1px;
+}
+
+.iso-glyph .iso-top {
+  fill: var(--iso-top);
+}
+
+.iso-glyph .iso-left {
+  fill: var(--iso-left);
+}
+
+.iso-glyph .iso-right {
+  fill: var(--iso-right);
+}
+
+.iso-glyph .iso-lit {
+  fill: var(--line, var(--primary));
+}
+
+.iso-glyph .iso-band {
+  stroke-width: 1px;
+}
+
+.iso-glyph :is(.iso-off, .iso-cut) {
+  stroke: var(--input);
+  stroke-dasharray: 3 3;
+}
+
+.iso-glyph .iso-ghost {
+  stroke: var(--line, var(--primary));
+  stroke-dasharray: 3 3;
+}
+
+.iso-glyph .iso-wire {
+  stroke: var(--line, var(--primary));
+  stroke-width: 2px;
+}
+
+.iso-glyph .iso-node {
+  fill: var(--line, var(--primary));
+  stroke: none;
+}
+
+/* In forced colours the faces take the canvas and the lab's marks the text's colour, so the
+   model keeps its shape. */
+@media (forced-colors: active) {
+  .iso-glyph path {
+    stroke: CanvasText;
+  }
+
+  .iso-glyph :is(.iso-top, .iso-left, .iso-right) {
+    fill: Canvas;
+  }
+
+  .iso-glyph :is(.iso-lit, .iso-node) {
+    fill: CanvasText;
+  }
+}

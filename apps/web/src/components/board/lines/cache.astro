@@ -2,14 +2,8 @@
 import { replay } from '../../../lib/cache/sim';
 import { OPENING, openingRun } from '../../../lib/cache/view';
 import { CACHE_SIZES, cacheShape } from '../../../lib/line-shapes';
-import { cacheFact, cacheFix, cacheLine } from '../../../lib/lines';
-import type { LineAt } from '../line-of';
+import { cacheFix, cacheLine } from '../../../lib/lines';
 import '../../../styles/lines.css';
-
-interface Props {
-  /** Home's board, the default, or the Lab index (line-of.ts). */
-  at?: LineAt;
-}
 
 // The Cache Lab's line (ADR 0025): the readers come in from the left and fan out to the four cache
 // nodes, each a filled lamp while it is up, and while it is down no lamp, its track hollow, as the
@@ -21,19 +15,14 @@ interface Props {
 // narrow screen and a wide one, without a viewBox, as the Route Lab's line is (routes.astro): the
 // fork in pixels, the nodes and the join in shares of the width, the database and its pool in
 // pixels from the join. On the board its describer tells the stampede and what coalescing does
-// about it; on the Lab index it is larger, names its stations, comes in from the page's edge, and
-// says what coalescing saves. Where everything stands, at each size, is lib/line-shapes.ts, which
-// the link previews draw too.
-const { at = 'board' } = Astro.props;
+// about it. Where everything stands, at each size, is lib/line-shapes.ts, which the link previews
+// draw too.
 const opening = openingRun();
 const line = cacheLine(opening);
 const coalesced = replay({ ...OPENING.config, coalesce: true }, OPENING.actions, OPENING.until);
-const words =
-  at === 'board' ? `${line.words} ${cacheFix(opening, coalesced)}` : cacheFact(opening, coalesced);
+const words = `${line.words} ${cacheFix(opening, coalesced)}`;
 
-// On the index the stem comes in from past the drawing's left edge, as the Route Lab's does.
-const enters = at === 'index' ? '-100%' : '0';
-const drawings = CACHE_SIZES[at].map((size) => cacheShape(line, size));
+const drawings = CACHE_SIZES.board.map((size) => cacheShape(line, size));
 ---
 
 <div class="line line-cache">
@@ -44,7 +33,7 @@ const drawings = CACHE_SIZES[at].map((size) => cacheShape(line, size));
       aria-hidden="true"
       focusable="false"
     >
-      <line class="line-track" x1={enters} y1={middle} x2={size.fork} y2={middle} />
+      <line class="line-track" x1="0" y1={middle} x2={size.fork} y2={middle} />
       {nodes.map((node) => (
         <>
           <line
@@ -89,11 +78,6 @@ const drawings = CACHE_SIZES[at].map((size) => cacheShape(line, size));
             r={size.lamp}
           />
         ))}
-        {size.labels && (
-          <text class="line-label" x={database} y={middle - size.side / 2 - 10}>
-            Database
-          </text>
-        )}
       </svg>
       {nodes.map((node) => (
         <>
@@ -113,21 +97,7 @@ const drawings = CACHE_SIZES[at].map((size) => cacheShape(line, size));
           )}
         </>
       ))}
-      {size.labels && (
-        <>
-          <text class="line-label" x="0" y={middle - 13}>
-            Readers
-          </text>
-          <text
-            class="line-label line-label-middle"
-            x={`${size.node}%`}
-            y={(nodes.at(-1)?.y ?? middle) + size.station + 15}
-          >
-            Cache nodes
-          </text>
-        </>
-      )}
     </svg>
   ))}
 </div>
-<p class={at === 'board' ? 'band-words' : 'lab-fact'}>{words}</p>
+<p class="band-words">{words}</p>

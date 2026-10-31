@@ -10,7 +10,7 @@ import {
 } from './lines';
 
 // Where each lab's line puts its stations, tracks and lamps (ADR 0025), at every size it is drawn:
-// Home's board and the Lab index, each wide and compact. One model, two renderers: the line
+// Home's board, wide and compact. One model, two renderers: the line
 // components (components/board/lines/) draw it as SVG on the pages, and lib/og-lines.ts draws the
 // board's wide size, scaled, on the link previews. Until 2026-10-31 the previews kept a copy of
 // the components' sizes and arithmetic by hand, and a change to a line's shape had to be made in
@@ -24,9 +24,9 @@ import {
 // tracks run the width of the screen. Each field says which it is. The words a drawing names
 // (a van's name, "Dead letters") are the components' alone: the previews draw no word.
 
-/** Where a line is drawn: a band of Home's board, or a row of the Lab index, large, with its
- *  stations named. Each place has its own sizes and its own words under the line. */
-export type LineAt = 'board' | 'index';
+/** Where a line is drawn: a band of Home's board, the one place since ADR 0027 (until then the
+ *  Lab index drew each line large too, with its stations named). */
+export type LineAt = 'board';
 
 /** Each place draws its line twice, for a narrow screen and a wide one; lines.css shows one. */
 export type Drawn = 'wide' | 'compact';
@@ -105,42 +105,6 @@ export const ROUTES_SIZES: Record<LineAt, readonly RoutesSize[]> = {
       vans: true,
     },
   ],
-  // Made for a column of 30rem at the least, beside the words from 64rem, and the whole column of
-  // a phone below 48rem.
-  index: [
-    {
-      name: 'wide',
-      height: 128,
-      gap: 32,
-      depot: 0,
-      side: 16,
-      fork: 44,
-      from: 17,
-      to: 84,
-      room: 3.4,
-      lamp: 7,
-      van: 10.5,
-      loop: 8,
-      bakery: 0,
-      vans: true,
-    },
-    {
-      name: 'compact',
-      height: 64,
-      gap: 15,
-      depot: 0,
-      side: 10,
-      fork: 16,
-      from: 15,
-      to: 92,
-      room: 3.9,
-      lamp: 3.75,
-      van: 6,
-      loop: 4.5,
-      bakery: null,
-      vans: false,
-    },
-  ],
 };
 
 export interface RoutesVanShape {
@@ -207,9 +171,8 @@ export interface RaftSize {
   readonly lamp: number;
   /** The buffer stop's width and height. */
   readonly stop: readonly [number, number];
-  /** Whether each server's number stands in its lamp, and the stations are named. */
+  /** Whether each server's number stands in its lamp. */
   readonly numbers: boolean;
-  readonly labels: boolean;
 }
 
 export const RAFT_SIZES: Record<LineAt, readonly RaftSize[]> = {
@@ -226,7 +189,6 @@ export const RAFT_SIZES: Record<LineAt, readonly RaftSize[]> = {
       lamp: 6,
       stop: [5, 20],
       numbers: true,
-      labels: false,
     },
     {
       name: 'compact',
@@ -240,37 +202,6 @@ export const RAFT_SIZES: Record<LineAt, readonly RaftSize[]> = {
       lamp: 4,
       stop: [3.5, 13],
       numbers: false,
-      labels: false,
-    },
-  ],
-  index: [
-    {
-      name: 'wide',
-      height: 128,
-      hub: 70,
-      reach: [54, 32],
-      leader: 18,
-      server: 13,
-      log: 204,
-      step: 38,
-      lamp: 8,
-      stop: [5.5, 26],
-      numbers: true,
-      labels: true,
-    },
-    {
-      name: 'compact',
-      height: 56,
-      hub: 40,
-      reach: [30, 17],
-      leader: 9,
-      server: 6.5,
-      log: 96,
-      step: 18,
-      lamp: 4,
-      stop: [3.5, 13],
-      numbers: false,
-      labels: false,
     },
   ],
 };
@@ -369,40 +300,6 @@ export const QUEUE_SIZES: Record<LineAt, readonly QueueSize[]> = {
       labels: false,
     },
   ],
-  // Made, as the Route Lab's is, for a column of 30rem at the least beside the words from 64rem,
-  // and the whole column of a phone below 48rem.
-  index: [
-    {
-      name: 'wide',
-      height: 128,
-      gap: 26,
-      depot: 0,
-      side: 16,
-      tank: 34,
-      step: 18,
-      worker: 58,
-      end: 72,
-      stop: 66,
-      lamp: 6,
-      station: 10,
-      labels: true,
-    },
-    {
-      name: 'compact',
-      height: 64,
-      gap: 13,
-      depot: 0,
-      side: 10,
-      tank: 18,
-      step: 9,
-      worker: 70,
-      end: 94,
-      stop: 86,
-      lamp: 3,
-      station: 5,
-      labels: false,
-    },
-  ],
 };
 
 export interface QueueTrack {
@@ -468,7 +365,6 @@ export interface CacheSize {
   /** A node's lamp and a connection's, by radius. */
   readonly station: number;
   readonly lamp: number;
-  readonly labels: boolean;
 }
 
 export const CACHE_SIZES: Record<LineAt, readonly CacheSize[]> = {
@@ -484,7 +380,6 @@ export const CACHE_SIZES: Record<LineAt, readonly CacheSize[]> = {
       step: 16,
       station: 7,
       lamp: 5,
-      labels: false,
     },
     {
       name: 'compact',
@@ -497,37 +392,6 @@ export const CACHE_SIZES: Record<LineAt, readonly CacheSize[]> = {
       step: 9,
       station: 4.5,
       lamp: 3,
-      labels: false,
-    },
-  ],
-  // Made, as the Route Lab's is, for a column of 30rem at the least beside the words from 64rem,
-  // and the whole column of a phone below 48rem.
-  index: [
-    {
-      name: 'wide',
-      height: 128,
-      gap: 24,
-      fork: 84,
-      node: 34,
-      join: 48,
-      side: 16,
-      step: 19,
-      station: 9,
-      lamp: 6,
-      labels: true,
-    },
-    {
-      name: 'compact',
-      height: 64,
-      gap: 13,
-      fork: 24,
-      node: 30,
-      join: 54,
-      side: 10,
-      step: 9,
-      station: 4.5,
-      lamp: 3,
-      labels: false,
     },
   ],
 };
@@ -583,7 +447,6 @@ export interface BackfillSize {
   /** The report's side, and a day's lamp by radius. */
   readonly side: number;
   readonly lamp: number;
-  readonly labels: boolean;
 }
 
 export const BACKFILL_SIZES: Record<LineAt, readonly BackfillSize[]> = {
@@ -598,7 +461,6 @@ export const BACKFILL_SIZES: Record<LineAt, readonly BackfillSize[]> = {
       table: 72,
       side: 14,
       lamp: 7,
-      labels: false,
     },
     {
       name: 'compact',
@@ -610,35 +472,6 @@ export const BACKFILL_SIZES: Record<LineAt, readonly BackfillSize[]> = {
       table: 84,
       side: 10,
       lamp: 4.5,
-      labels: false,
-    },
-  ],
-  // Made, as the Route Lab's is, for a column of 30rem at the least beside the words from 64rem,
-  // and the whole column of a phone below 48rem.
-  index: [
-    {
-      name: 'wide',
-      height: 128,
-      week: 44,
-      report: 96,
-      from: 10,
-      to: 64,
-      table: 76,
-      side: 16,
-      lamp: 9,
-      labels: true,
-    },
-    {
-      name: 'compact',
-      height: 56,
-      week: 15,
-      report: 42,
-      from: 10,
-      to: 72,
-      table: 84,
-      side: 10,
-      lamp: 4.5,
-      labels: false,
     },
   ],
 };

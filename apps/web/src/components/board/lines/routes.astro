@@ -1,14 +1,8 @@
 ---
 import { ROUTES_SIZES, routesShape } from '../../../lib/line-shapes';
-import { routesFact, routesLine, routesWords } from '../../../lib/lines';
+import { routesLine, routesWords } from '../../../lib/lines';
 import { routeLabPicture } from '../../../lib/route-lab/picture';
-import type { LineAt } from '../line-of';
 import '../../../styles/lines.css';
-
-interface Props {
-  /** Home's board, the default, or the Lab index (line-of.ts). */
-  at?: LineAt;
-}
 
 // The Route Lab's line (ADR 0025): the bakery, a square depot at the left, and a track forking out
 // to each van, its stops as lamps placed by when the van reaches them in the build's solve of the
@@ -19,21 +13,14 @@ interface Props {
 // each without a viewBox: a track's height and a lamp's size are pixels and its place along the day
 // a share of the width, so nothing scales with the screen and a lamp stays round. On the board the
 // line starts at the panel's edge and its describer gives the day's driving as the orders came in
-// and as VROOM plans it, the failure and its fix; on the Lab index it is
-// larger, comes in from the page's edge to the bakery on the text's edge, and names what it saves.
+// and as VROOM plans it, the failure and its fix. Until ADR 0027 the Lab index drew it too, larger;
+// the index draws each lab's glyph now (components/iso/Glyph.astro).
 // Where everything stands, at each size, is lib/line-shapes.ts, which the link previews draw too.
-const { at = 'board' } = Astro.props;
 const picture = await routeLabPicture(process.cwd());
 const line = routesLine(picture.after.measured);
-const words =
-  at === 'board'
-    ? routesWords(picture.day, picture.before.measured, picture.after.measured)
-    : routesFact(picture.day, picture.before.measured, picture.after.measured);
+const words = routesWords(picture.day, picture.before.measured, picture.after.measured);
 
-// On the index the stem comes in from past the drawing's left edge: from the rail's edge, or the
-// window's, to the bakery (styles/lab-index.css clips it there).
-const enters = at === 'index' ? '-100%' : '0';
-const drawings = ROUTES_SIZES[at].map((size) => routesShape(line, size));
+const drawings = ROUTES_SIZES.board.map((size) => routesShape(line, size));
 ---
 
 <div class="line line-routes" data-vans={line.vans.length}>
@@ -44,7 +31,7 @@ const drawings = ROUTES_SIZES[at].map((size) => routesShape(line, size));
       aria-hidden="true"
       focusable="false"
     >
-      <line class="line-track" x1={enters} y1={middle} x2={size.depot} y2={middle} />
+      <line class="line-track" x1="0" y1={middle} x2={size.depot} y2={middle} />
       {vans.map((van) => (
         <>
           <path
@@ -120,4 +107,4 @@ const drawings = ROUTES_SIZES[at].map((size) => routesShape(line, size));
     </svg>
   ))}
 </div>
-<p class={at === 'board' ? 'band-words' : 'lab-fact'}>{words}</p>
+<p class="band-words">{words}</p>

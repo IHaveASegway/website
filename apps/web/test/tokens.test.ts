@@ -619,7 +619,9 @@ describe('motion lives only under prefers-reduced-motion: no-preference', () => 
       // visitor runs it, and stands still under reduced motion (ADR 0020, ADR 0026). Nor do the
       // labs' lines, which Home's board and the Lab index share, or the Lab index's own sheet
       // (ADR 0025): a line moves only on the board, whose day is the board's sheet's, and an index
-      // row's sweep is the sheet every page links.
+      // row's sweep is the sheet every page links. Since ADR 0027 the labs' chrome, a lab's head,
+      // its desk, its write-up and the glyph, moves nothing either; a lab's card moves only its
+      // glyph's solids down onto their tile, tied to the scroll (styles/lab-cards.css).
       const sheet = read(file);
       if (sheet.includes('.rl-map'))
         expect(found.map((m) => m.what)).toEqual(['transition:opacity .22s ease-out']);
@@ -627,6 +629,9 @@ describe('motion lives only under prefers-reduced-motion: no-preference', () => 
         expect(found).toEqual([]);
       else if (!sheet.includes('.board-lines') && /\.(line-track|lab-row)\b/.test(sheet))
         expect(found).toEqual([]);
+      else if (sheet.includes('.lab-card'))
+        expect(found.filter((m) => /lab-settle/.test(m.what))).toHaveLength(1);
+      else if (/\.(iso-glyph|lab-write|lab-head|desk)\b/.test(sheet)) expect(found).toEqual([]);
       else expect(found.length).toBeGreaterThanOrEqual(2);
     });
   }

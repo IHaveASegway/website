@@ -1,0 +1,28 @@
+---
+import Glyph from '../iso/Glyph.astro';
+import '../../styles/lab-page.css';
+
+interface Props {
+  /** The lab's slug, whose glyph stands beside the title. */
+  slug: string;
+  /** The page's one <h1>. */
+  heading: string;
+  /** A sentence under it. */
+  lead: string;
+}
+
+// A lab's page head (docs/design/overhaul.md, "A lab's page chrome"): the title, the lead, and
+// nothing above the title; the nav marks Lab. From 48rem the lab's glyph stands beside them, the
+// drawing its card on /lab/ carries, so the page a visitor opens is the picture they chose. On a
+// phone it is left out, so the demo comes up the first screen. A drawing, which assistive
+// technology skips; the lab's colour is in it alone.
+const { slug, heading, lead } = Astro.props;
+---
+
+<header class="page-head lab-head">
+  <h1 id="page-title" class="page-title">
+    {heading}
+  </h1>
+  <p class="page-lead">{lead}</p>
+  <Glyph slug={slug} class="lab-head-glyph" />
+</header>

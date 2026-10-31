@@ -1,6 +1,7 @@
 ---
 import { render } from 'astro:content';
-import PageHead from '../../../components/PageHead.astro';
+import LabHead from '../../../components/lab/LabHead.astro';
+import LabWriteUp from '../../../components/lab/LabWriteUp.astro';
 import QueueLab from '../../../components/queue-lab/QueueLab.astro';
 import Base from '../../../layouts/Base.astro';
 import { labEntry, loadLabArea, loadProfile } from '../../../lib/content';
@@ -21,7 +22,7 @@ import { openingRun, SEEDS_IN_CI } from '../../../lib/queue/view';
 // simulation runs in the browser, with no Worker and no Durable Object. A rest parameter, so the
 // page builds only while its lab entry is live, as /lab/ does ([...index].astro beside
 // [demo].astro). The page is its lab's line (ADR 0025): data-line gives it the lab's colour, which
-// its head runs across the top and its picture draws in.
+// its glyph and its picture draw in.
 export async function getStaticPaths() {
   const lab = await loadLabArea();
   const entry = lab.entries.find((e) => e.slug === 'queue');
@@ -35,7 +36,7 @@ interface Props {
 const { entry } = Astro.props;
 
 const { name } = (await loadProfile()).basics;
-const { Content } = await render(await labEntry(entry));
+const { Content, headings } = await render(await labEntry(entry));
 const lead =
   'Three workers take the bakery’s orders from a queue. Crash one, choose when they acknowledge, and watch every order end up printed once, twice, or not at all.';
 // How it is built, in figures from the core itself, so none is typed here.
@@ -51,11 +52,13 @@ const backoff = `${BACKOFF.slice(0, -1).join(', ')} and ${BACKOFF.at(-1)} ms`;
   og={labCard(entry)}
 >
   <article class="page qu-page" data-line={entry.slug} aria-labelledby="page-title">
-    <PageHead heading={entry.title} lead={lead} line />
+    <LabHead slug={entry.slug} heading={entry.title} lead={lead} />
     <QueueLab />
-    <div class="prose">
+    <LabWriteUp
+      headings={[...headings, { depth: 2, slug: 'how-it-is-built', text: 'How it is built' }]}
+    >
       <Content />
-      <h2>How it is built</h2>
+      <h2 id="how-it-is-built">How it is built</h2>
       <p>
         The broker, the workers and the orders are one TypeScript module, run in virtual time. A
         message takes {ms(LATENCY)} each way, a worker spends {ms(WRAP_UP)} between printing a
@@ -75,6 +78,6 @@ const backoff = `${BACKOFF.slice(0, -1).join(', ')} and ${BACKOFF.at(-1)} ms`;
         the key off, or acknowledging first, break a property in some of them, and so do a broker
         and workers broken on purpose.
       </p>
-    </div>
+    </LabWriteUp>
   </article>
 </Base>

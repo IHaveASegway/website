@@ -13,8 +13,8 @@
   colour, as on the board's lines (lines.css, .line-cross) and the Queue Lab's desk; the dash is
   ink.
 
-  The page's head is the lab's line (PageHead.astro), and the demo is the lab's desk (ADR 0025;
-  global.css, .desk): the controls are set apart from the board by a rule from bezel to bezel, and
+  The page's head is the lab's own (components/lab/LabHead.astro), and the demo is the lab's
+  desk (ADR 0027; lab-page.css, .desk): the controls are set apart from the board by a rule from bezel to bezel, and
   what stands on the desk takes its surface, --surface-1, for ground.
 
   The controls that play the week stand by the board at every width, so a visitor watches the
@@ -566,12 +566,12 @@
   .bf-controls {
     margin-inline: calc(var(--desk-side) * -1);
     padding: 1.25rem var(--desk-side) 0;
-    border-top: 1px solid var(--input);
+    border-top: 1px solid var(--border);
   }
 
   .bf-play {
     padding-bottom: 1.5rem;
-    border-bottom: 1px solid var(--input);
+    border-bottom: 1px solid var(--border);
   }
 }
 
@@ -745,7 +745,7 @@
   /* The settings under the controls that play the week, set apart by a rule across the column. */
   .bf-more {
     padding-top: 1.5rem;
-    border-top: 1px solid var(--input);
+    border-top: 1px solid var(--border);
   }
 
   /* Its size is the column's, never its lines': they scroll inside it, in at least 12rem. */
