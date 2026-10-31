@@ -27,17 +27,18 @@ from fontTools import subset
 from fontTools.ttLib import TTFont
 from fontTools.varLib import instancer
 
-# Google Fonts' "latin" unicode-range, plus the two arrows the design uses that it leaves out:
-# U+2192 (→, "Case study →") and U+2197 (↗, links that leave the site).
+# Google Fonts' "latin" unicode-range: Latin-1, the general punctuation block and a few symbols.
+# Every face is cut to it. Barlow draws no arrow, so the design sets none (design-system.md, "The
+# faces"): the arrows the old cut added for "→" and "↗" are gone with them.
 LATIN = (
     "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,"
-    "U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD,U+2192,U+2197"
+    "U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD"
 )
-# Only what direction C sets in mono: printable ASCII (labels are uppercased by CSS, so capitals
-# too), the no-break space, © · – — ‘ ’ “ ” …, the arrows ← ↑ → ↓ ↗, and ⌘.
-MONO_C = (
-    "U+0020-007E,U+00A0,U+00A9,U+00B7,U+2013-2014,U+2018-201D,U+2026,U+2190-2193,U+2197,U+2318"
-)
+
+# The layout features kept: kerning, the fi and fl ligatures, composition and local forms, and both
+# figure widths, since Barlow's figures are proportional and changing numbers set tabular-nums.
+# fontTools' default list drops tnum, and its fractions (frac, numr, dnom) are never set here.
+FEATURES = ["kern", "liga", "ccmp", "locl", "tnum", "pnum"]
 
 # English letter frequencies in percent (Robert Lewand, "Cryptological Mathematics", 2000), with
 # spaces as 18% of characters: the sample text Capsize and Astro also fit fallback fonts to.
@@ -66,23 +67,25 @@ def load(path: Path) -> TTFont:
     return TTFont(path, recalcTimestamp=False)
 
 
-def instance(path: Path, axes: dict, static: bool = False) -> TTFont:
-    """Limits or pins axes, then reloads the result from bytes: the subsetter reads tables lazily,
-    and an instancer result that never went through a file fails it (KeyError in gvar)."""
-    font = instancer.instantiateVariableFont(load(path), axes, static=static)
+def instance(path: Path, axes: dict) -> TTFont:
+    """A static instance of a variable font, reloaded from bytes: fontTools reads tables lazily, and
+    an instancer result that never went through a file can fail a later read (KeyError in gvar)."""
+    font = instancer.instantiateVariableFont(load(path), axes, static=True)
     buffer = io.BytesIO()
     font.save(buffer)
     buffer.seek(0)
     return TTFont(buffer, recalcTimestamp=False)
 
 
-def cut(font: TTFont, points: list[int], features: list[str], hinting: bool, flavor, out: Path):
+def cut(font: TTFont, points: list[int], flavor, out: Path):
     options = subset.Options()
-    options.layout_features = features
-    options.hinting = hinting
+    options.layout_features = FEATURES
+    # Unhinted: the hints are about half of each file, and the screens that read them (Windows at
+    # small sizes) draw these faces cleanly without (design-system.md, "The faces").
+    options.hinting = False
     options.flavor = flavor
     # Kept name records: IDs 0-6 (copyright, family, style, unique ID, full name, version,
-    # PostScript name), English only, plus the axis and instance names fvar and STAT point at.
+    # PostScript name), English only.
     options.name_IDs = [0, 1, 2, 3, 4, 5, 6]
     options.name_languages = [0x409]
     subsetter = subset.Subsetter(options)
@@ -92,16 +95,33 @@ def cut(font: TTFont, points: list[int], features: list[str], hinting: bool, fla
     subset.save_font(font, str(out), options)
 
 
-DEFAULT_FEATURES = subset.Options().layout_features
+# The faces the site serves: (source key, file name, CSS weight). Each is a static instance as
+# google/fonts publishes it, so none has an axis.
+FACES = [
+    ("barlow-condensed-ttf", "barlow-condensed-semibold", 600),
+    ("barlow-semi-condensed-ttf", "barlow-semi-condensed-medium", 500),
+    ("barlow-ttf", "barlow-regular", 400),
+    ("barlow-semibold-ttf", "barlow-semibold", 600),
+    ("b612-mono-ttf", "b612-mono-regular", 400),
+]
+
+# The Open Graph card draws its title in the condensed face and its label in the semi-condensed one
+# (lib/og.ts). Satori reads TrueType, not WOFF2, so these two are cut again as .ttf.
+OG_FACES = [
+    ("barlow-condensed-ttf", "barlow-condensed-semibold"),
+    ("barlow-semi-condensed-ttf", "barlow-semi-condensed-medium"),
+]
 
 
 # Fallback faces --------------------------------------------------------------------------------
 #
 # While a web font loads, or when it never arrives, the browser draws the text in a local font.
-# Each local font gets its own family here, with size-adjust fitted to the web font's widths, so a
-# line breaks in the same place in both and nothing moves when the web font swaps in (CLS). One
-# shared size-adjust cannot fit them all: measured here, DejaVu Sans is 15% wider than Arial, and
-# 20% in bold. The 80% faces serve only the name, the LCP element, so they fit the name itself.
+# Each local font gets its own family per web face here, with size-adjust fitted to the web face's
+# widths, so a line breaks in the same place in both and nothing moves when the web font swaps in
+# (CLS). Each fallback family declares the weights its web family has, no more, so a weight the
+# design never sets resolves to the same face in both. One shared size-adjust cannot fit them all: DejaVu Sans is about 15% wider than Arial, and
+# 20% in bold. The condensed face sets the name, the LCP element on Home, so its fallbacks fit the
+# name itself; the others fit English text.
 
 
 def advance(font: TTFont, text: str) -> float:
@@ -119,98 +139,116 @@ def percent(value: float) -> str:
     return f"{value * 100:.4f}".rstrip("0").rstrip(".") + "%"
 
 
-def face(family, locals_, adjust, web: TTFont, weight, stretch=None) -> str:
-    # The overrides keep the web font's vertical metrics: the browser scales them by size-adjust,
+def face(family, locals_, adjust, web: TTFont, weight) -> str:
+    # The overrides keep the web face's vertical metrics: the browser scales them by size-adjust,
     # so each is divided by it first (Capsize's formula, as Astro's own fallbacks use it).
     hhea, em = web["hhea"], web["head"].unitsPerEm
-    lines = [
-        "@font-face {",
-        f"  font-family: '{family}';",
-        "  src:",
-        ",\n".join(f"    local('{name}')" for name in locals_) + ";",
-        f"  font-weight: {weight};",
-    ]
-    if stretch:
-        lines.append(f"  font-stretch: {stretch};")
-    lines += [
-        f"  size-adjust: {percent(adjust)};",
-        f"  ascent-override: {percent(hhea.ascent / em / adjust)};",
-        f"  descent-override: {percent(-hhea.descent / em / adjust)};",
-        f"  line-gap-override: {percent(hhea.lineGap / em / adjust)};",
-        "}",
-    ]
-    return "\n".join(lines)
+    return "\n".join(
+        [
+            "@font-face {",
+            f"  font-family: '{family}';",
+            "  src:",
+            ",\n".join(f"    local('{name}')" for name in locals_) + ";",
+            f"  font-weight: {weight};",
+            f"  size-adjust: {percent(adjust)};",
+            f"  ascent-override: {percent(hhea.ascent / em / adjust)};",
+            f"  descent-override: {percent(-hhea.descent / em / adjust)};",
+            f"  line-gap-override: {percent(hhea.lineGap / em / adjust)};",
+            "}",
+        ]
+    )
 
 
-def fallback_css(files: dict[str, Path], name: str) -> str:
-    sans, mono = files["instrument-sans-ttf"], files["jetbrains-mono-ttf"]
-    web = {
-        (wdth, wght): instance(sans, {"wdth": wdth, "wght": wght}, static=True)
-        for wdth, wght in [(100, 400), (100, 550), (100, 620), (90, 620), (80, 620)]
-    }
+# The local fonts a reader may have, by the name a stylesheet can ask for, and the file whose
+# widths stand in for each: (suffix, regular names, bold names, regular metrics, bold metrics).
+def locals_for(files: dict[str, Path]):
     arimo, roboto = files["arimo-ttf"], files["roboto-ttf"]
-    families = [
-        # (family, regular local names, bold local names, regular metrics, bold metrics)
+    return [
         (
-            "Instrument Sans Fallback Arial",
+            "Arial",
             ["Arial", "ArialMT", "Liberation Sans", "LiberationSans", "Arimo Regular", "Arimo-Regular"],
             ["Arial Bold", "Arial-BoldMT", "Liberation Sans Bold", "LiberationSans-Bold", "Arimo Bold", "Arimo-Bold"],
-            instance(arimo, {"wght": 400}, static=True),
-            instance(arimo, {"wght": 700}, static=True),
+            instance(arimo, {"wght": 400}),
+            instance(arimo, {"wght": 700}),
         ),
         (
-            "Instrument Sans Fallback Roboto",
+            "Roboto",
             ["Roboto", "Roboto Regular", "Roboto-Regular"],
             ["Roboto Bold", "Roboto-Bold"],
-            instance(roboto, {"wdth": 100, "wght": 400}, static=True),
-            instance(roboto, {"wdth": 100, "wght": 700}, static=True),
+            instance(roboto, {"wdth": 100, "wght": 400}),
+            instance(roboto, {"wdth": 100, "wght": 700}),
         ),
         (
-            "Instrument Sans Fallback DejaVu",
+            "DejaVu",
             ["DejaVu Sans", "DejaVuSans"],
             ["DejaVu Sans Bold", "DejaVuSans-Bold"],
             load(files["dejavu-sans-ttf"]),
             load(files["dejavu-sans-bold-ttf"]),
         ),
     ]
-    faces = []
-    for family, regular_names, bold_names, regular, bold in families:
-        fit = lambda key, local: average(web[key]) / average(local)  # noqa: E731
-        faces += [
-            face(family, regular_names, fit((100, 400), regular), web[(100, 400)], "400 499"),
-            face(family, regular_names, fit((100, 550), regular), web[(100, 550)], "500 599"),
-            face(family, bold_names, fit((100, 620), bold), web[(100, 620)], "600 700"),
-            face(family, bold_names, fit((90, 620), bold), web[(90, 620)], "600 700", "86% 95%"),
-            face(family, bold_names, advance(web[(80, 620)], name) / advance(bold, name),
-                 web[(80, 620)], "600 700", "75% 85%"),
-        ]
-    jbm = instance(mono, {"wght": 400}, static=True)
-    for family, names, local in [
-        ("JetBrains Mono Fallback Menlo", ["Menlo Regular", "Menlo-Regular", "DejaVu Sans Mono", "DejaVuSansMono"],
-         load(files["dejavu-sans-mono-ttf"])),
-        ("JetBrains Mono Fallback Courier", ["Courier New", "CourierNewPSMT", "Liberation Mono", "LiberationMono",
-                                             "Cousine Regular", "Cousine-Regular"], load(files["cousine-ttf"])),
-    ]:
-        faces.append(face(family, names, advance(jbm, "0") / advance(local, "0"), jbm, "400 500"))
 
-    sans_stack = ", ".join(f"'{family}'" for family, *_ in families) + ", sans-serif"
-    mono_stack = "'JetBrains Mono Fallback Menlo', 'JetBrains Mono Fallback Courier', monospace"
+
+def fallback_css(files: dict[str, Path], name: str) -> str:
+    condensed = load(files["barlow-condensed-ttf"])
+    semi = load(files["barlow-semi-condensed-ttf"])
+    regular = load(files["barlow-ttf"])
+    semibold = load(files["barlow-semibold-ttf"])
+    mono = load(files["b612-mono-ttf"])
+    locals_ = locals_for(files)
+
+    def fit(web: TTFont, local: TTFont) -> float:
+        return average(web) / average(local)
+
+    stacks: dict[str, list[str]] = {"display": [], "label": [], "sans": []}
+    faces = []
+    for suffix, regular_names, bold_names, local_regular, local_bold in locals_:
+        # The name and the titles: Barlow Condensed SemiBold, against the bold local face, fitted to
+        # the name's own widths.
+        family = f"Barlow Condensed Fallback {suffix}"
+        stacks["display"].append(family)
+        faces.append(face(family, bold_names, advance(condensed, name) / advance(local_bold, name),
+                          condensed, 600))
+        # Labels, the navigation, buttons and captions: Barlow Semi Condensed Medium.
+        family = f"Barlow Semi Condensed Fallback {suffix}"
+        stacks["label"].append(family)
+        faces.append(face(family, regular_names, fit(semi, local_regular), semi, 500))
+        # Reading text: Barlow Regular, and its SemiBold for <strong>.
+        family = f"Barlow Fallback {suffix}"
+        stacks["sans"].append(family)
+        faces.append(face(family, regular_names, fit(regular, local_regular), regular, 400))
+        faces.append(face(family, bold_names, fit(semibold, local_bold), semibold, 600))
+
+    mono_families = []
+    for family, names, local in [
+        ("B612 Mono Fallback Menlo", ["Menlo Regular", "Menlo-Regular", "DejaVu Sans Mono", "DejaVuSansMono"],
+         load(files["dejavu-sans-mono-ttf"])),
+        ("B612 Mono Fallback Courier", ["Courier New", "CourierNewPSMT", "Liberation Mono", "LiberationMono",
+                                        "Cousine Regular", "Cousine-Regular"], load(files["cousine-ttf"])),
+    ]:
+        mono_families.append(family)
+        faces.append(face(family, names, advance(mono, "0") / advance(local, "0"), mono, 400))
+
+    def stack(families: list[str], generic: str) -> str:
+        return ", ".join(f"'{family}'" for family in families) + f", {generic}"
+
     header = f"""/*
-  Written by scripts/fonts/build.sh: do not edit. Metric-matched fallback faces for the two web
-  fonts, one family per local font, each with size-adjust fitted to the web font's widths, so text
-  breaks in the same place before and after the web font arrives.
+  Written by scripts/fonts/build.sh: do not edit. Metric-matched fallback faces for the four web
+  faces, one family per web face and local font, each with size-adjust fitted to the web face's
+  widths, so text breaks in the same place before and after the web font arrives.
 
   - Arial: Arial (Apple, Windows), Liberation Sans and Arimo (Linux), which share its widths.
     Measured from Arimo. Roboto: Android. DejaVu Sans: Linux without Liberation.
   - Menlo and DejaVu Sans Mono share one width, and so do Courier New, Liberation Mono and Cousine.
-  - Faces at 100% width are fitted to English letter frequencies at the weight they stand in for.
-    The 75-85% faces are fitted to "{name}", the only text set at 80%, from profile.json.
-  - The stacks below are the one list of fallbacks: tokens.css puts the web fonts in front.
+  - Barlow, Barlow Semi Condensed and B612 Mono are fitted to English letter frequencies. Barlow
+    Condensed is fitted to "{name}", from profile.json: the name is Home's largest text.
+  - The stacks below are the one list of fallbacks: tokens.css puts the web faces in front.
 */
 
 :root {{
-  --font-sans-fallbacks: {sans_stack};
-  --font-mono-fallbacks: {mono_stack};
+  --font-display-fallbacks: {stack(stacks["display"], "sans-serif")};
+  --font-label-fallbacks: {stack(stacks["label"], "sans-serif")};
+  --font-sans-fallbacks: {stack(stacks["sans"], "sans-serif")};
+  --font-mono-fallbacks: {stack(mono_families, "monospace")};
 }}
 """
     return header + "\n" + "\n\n".join(faces) + "\n"
@@ -220,30 +258,30 @@ def fallback_css(files: dict[str, Path], name: str) -> str:
 
 
 def outputs(files: dict[str, Path], name: str) -> list[tuple[str, object]]:
-    sans, mono = files.get("instrument-sans-ttf"), files.get("jetbrains-mono-ttf")
+    def web(key: str):
+        return lambda out: cut(load(files[key]), unicodes(LATIN), "woff2", out)
 
-    def sans_web(out: Path):  # both axes, wdth 75-100 and wght 400-700
-        cut(load(sans), unicodes(LATIN), DEFAULT_FEATURES, False, "woff2", out)
+    def og(key: str):
+        return lambda out: cut(load(files[key]), unicodes(LATIN), None, out)
 
-    def mono_web(out: Path):  # wght limited to 400-500, the two weights C uses; kern only
-        cut(instance(mono, {"wght": (400, 500)}), unicodes(MONO_C), ["kern"], True, "woff2", out)
-
-    def static(src: Path, axes: dict[str, float], spec: str, features: list[str]):
-        # Satori draws a variable font at its default instance and ignores font-stretch, so the
-        # Open Graph template gets one static TrueType file per style it draws (spec B10).
+    def license_copy(key: str, same: list[str]):
+        # One copy serves every family that ships the same license text, byte for byte.
         def make(out: Path):
-            cut(instance(src, axes, static=True), unicodes(spec), features, False, None, out)
+            text = files[key].read_bytes()
+            for other in same:
+                if files[other].read_bytes() != text:
+                    sys.exit(f"cut.py: {other} differs from {key}; ship each license on its own")
+            shutil.copyfile(files[key], out)
 
         return make
 
     return [
-        ("src/assets/fonts/instrument-sans-latin.woff2", sans_web),
-        ("src/assets/fonts/jetbrains-mono-c.woff2", mono_web),
-        ("src/og/fonts/instrument-sans-80-620.ttf", static(sans, {"wdth": 80, "wght": 620}, LATIN, DEFAULT_FEATURES)),
-        ("src/og/fonts/instrument-sans-100-550.ttf", static(sans, {"wdth": 100, "wght": 550}, LATIN, DEFAULT_FEATURES)),
+        *[(f"src/assets/fonts/{file}.woff2", web(key)) for key, file, _ in FACES],
+        *[(f"src/og/fonts/{file}.ttf", og(key)) for key, file in OG_FACES],
         ("src/styles/font-fallbacks.css", lambda out: out.write_text(fallback_css(files, name), "utf-8")),
-        ("public/fonts/OFL-InstrumentSans.txt", lambda out: shutil.copyfile(files["instrument-sans-ofl"], out)),
-        ("public/fonts/OFL-JetBrainsMono.txt", lambda out: shutil.copyfile(files["jetbrains-mono-ofl"], out)),
+        ("public/fonts/OFL-Barlow.txt",
+         license_copy("barlow-ofl", ["barlow-condensed-ofl", "barlow-semi-condensed-ofl"])),
+        ("public/fonts/OFL-B612Mono.txt", license_copy("b612-mono-ofl", [])),
     ]
 
 

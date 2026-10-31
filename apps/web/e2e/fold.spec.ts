@@ -20,25 +20,35 @@ async function measure(page: Page, fonts: Fonts) {
   await page.evaluate(() => document.fonts.ready);
   const faces = await page.evaluate(() =>
     [...document.fonts]
-      .filter((face) => /^(Instrument Sans|JetBrains Mono)-/.test(face.family.replace(/"/g, '')))
+      .filter((face) =>
+        /^(Barlow|Barlow Condensed|Barlow Semi Condensed|B612 Mono)-[0-9a-f]+$/.test(
+          face.family.replace(/"/g, ''),
+        ),
+      )
       .map(
-        (face) => [face.family.replace(/"/g, '').replace(/-[0-9a-f]+$/, ''), face.status] as const,
+        (face) =>
+          [
+            `${face.family.replace(/"/g, '').replace(/-[0-9a-f]+$/, '')} ${face.weight}`,
+            face.status,
+          ] as const,
       ),
   );
-  // Each web face once, as before the mono preload left: a second face of one family, in another
-  // state, would otherwise go unseen.
-  expect(faces.map(([family]) => family).sort(), 'each web face once').toEqual([
-    'Instrument Sans',
-    'JetBrains Mono',
+  // Each web face once, by family and weight: a second face of one, in another state, would
+  // otherwise go unseen. Home has no code, so it declares no mono face (Base.astro).
+  expect(faces.map(([face]) => face).sort(), 'each web face once').toEqual([
+    'Barlow 400',
+    'Barlow 600',
+    'Barlow Condensed 600',
+    'Barlow Semi Condensed 500',
   ]);
   const web = Object.fromEntries(faces);
-  // Every web face Home uses arrived, or every one failed: never a mix that would measure something
-  // else. Home sets a card's tag and figures in JetBrains Mono, the Route Lab's since 2026-10-25,
-  // so that face loads or fails with the sans; a build whose Home has no card never fetches it
-  // ("unloaded").
+  // The three faces every first screen draws arrived, or every one failed: never a mix that would
+  // measure something else. Barlow's SemiBold draws <strong> only, so it loads or fails with them,
+  // or, on a Home that sets none, is never fetched ("unloaded").
   const status = fonts === 'loaded' ? 'loaded' : 'error';
-  expect(web['Instrument Sans']).toBe(status);
-  expect([status, 'unloaded']).toContain(web['JetBrains Mono']);
+  for (const face of ['Barlow 400', 'Barlow Condensed 600', 'Barlow Semi Condensed 500'])
+    expect(web[face], face).toBe(status);
+  expect([status, 'unloaded']).toContain(web['Barlow 600']);
   return page.evaluate(() => {
     const rows = [...document.querySelectorAll<HTMLElement>('[data-row]')];
     const box = (selector: string) => document.querySelector(selector)?.getBoundingClientRect();

@@ -22,8 +22,8 @@ const HANDLE_ANY_CASE = new RegExp(HANDLE, 'i');
 // copyright lines, which name the projects' own repositories. These exact URLs, in these files only,
 // are the one exception: they reach no account of Joseph's.
 const LICENSE_NOTICES = [
-  { file: 'fonts/OFL-InstrumentSans.txt', url: 'https://github.com/Instrument/instrument-sans' },
-  { file: 'fonts/OFL-JetBrainsMono.txt', url: 'https://github.com/JetBrains/JetBrainsMono' },
+  { file: 'fonts/OFL-Barlow.txt', url: 'https://github.com/jpt/barlow' },
+  { file: 'fonts/OFL-B612Mono.txt', url: 'https://github.com/polarsys/b612' },
 ];
 
 /** Text as the URL checks read it: markup with its references decoded; a script in each of its
@@ -365,8 +365,8 @@ describe('known answers for the matcher', () => {
     );
   });
   test('a license notice passes only in its own file', () => {
-    const url = 'https://github.com/JetBrains/JetBrainsMono';
-    expect(verdict(url, 'fonts/OFL-JetBrainsMono.txt', none)).toBeNull();
+    const url = 'https://github.com/polarsys/b612';
+    expect(verdict(url, 'fonts/OFL-B612Mono.txt', none)).toBeNull();
     expect(verdict(url, 'index.html', none)).not.toBeNull();
   });
 });

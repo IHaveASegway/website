@@ -5,12 +5,13 @@ import { expect, test } from 'vitest';
 import { decodeReferences } from '../src/lib/held-names';
 import { app, html, read } from './support/dist';
 
-// The characters a post may use (design-system.md, "The faces"). Both faces are subsets: the sans
-// carries Latin-1 and common punctuation, the mono printable ASCII and a few symbols. e2e's glyph
+// The characters a post may use (design-system.md, "The faces"). Every face is a subset of Google's
+// latin range: Latin-1 and common punctuation, and no arrow, which Barlow does not draw. e2e's glyph
 // check sees a character outside them only on a published page, as a font a browser fell back to.
 // This reads every post page in the build, a draft's included, splits its text by the face that
-// draws it (code and labels in mono, the rest in sans) and names each missing character, with the
-// way out, so a post fails with a sentence instead of a font name.
+// draws it (titles and headings in Barlow Condensed, the label and the meta line in Barlow Semi
+// Condensed, bold in Barlow SemiBold, code in B612 Mono, the rest in Barlow) and names each missing
+// character, with the way out, so a post fails with a sentence instead of a font name.
 
 /** The characters a self-hosted face carries, read from its own cmap (the files fonts.test.ts locks). */
 function face(file: string): Set<number> {
@@ -18,15 +19,41 @@ function face(file: string): Set<number> {
   if (font.isCollection) throw new Error(`${file}: a font collection, not a font`);
   return new Set(font.characterSet);
 }
-const SANS = { name: 'Instrument Sans', chars: face('instrument-sans-latin.woff2') };
-const MONO = { name: 'JetBrains Mono', chars: face('jetbrains-mono-c.woff2') };
+const FACES = {
+  display: {
+    name: 'Barlow Condensed',
+    where: 'a title or heading',
+    file: 'barlow-condensed-semibold.woff2',
+  },
+  label: {
+    name: 'Barlow Semi Condensed',
+    where: 'a label',
+    file: 'barlow-semi-condensed-medium.woff2',
+  },
+  text: { name: 'Barlow', where: 'the text', file: 'barlow-regular.woff2' },
+  bold: { name: 'Barlow SemiBold', where: 'bold text', file: 'barlow-semibold.woff2' },
+  mono: { name: 'B612 Mono', where: 'code', file: 'b612-mono-regular.woff2' },
+} as const;
+type Face = keyof typeof FACES;
+const CHARS = Object.fromEntries(
+  Object.entries(FACES).map(([key, { file }]) => [key, face(file)]),
+) as Record<Face, Set<number>>;
 
 const text = (markup: string) => decodeReferences(markup.replace(/<[^>]+>/g, ' '));
 
-/** A post page's text, split by the face that draws it (global.css: labels, the meta line and
- *  code are mono; the heading, the lead and the body are sans). Labels are set in capitals. A page
- *  whose header or body the check cannot find throws: a check that reads nothing passes nothing. */
-export function textByFace(page: string): { sans: string; mono: string } {
+/** Every element's markup with the given tag names, and the markup with them taken out. */
+function split(markup: string, tags: string): { inner: string[]; rest: string } {
+  const pattern = new RegExp(`<(${tags})\\b[^>]*>([\\s\\S]*?)<\\/\\1>`, 'g');
+  return {
+    inner: [...markup.matchAll(pattern)].map(([, , inner = '']) => inner),
+    rest: markup.replace(pattern, ' '),
+  };
+}
+
+/** A post page's text, split by the face that draws it (global.css). Code is taken out first, so a
+ *  code span in a heading is code; then headings, then bold. A page whose header or body the check
+ *  cannot find throws: a check that reads nothing passes nothing. */
+export function textByFace(page: string): Record<Face, string> {
   const head = /<header class="page-head">([\s\S]*?)<\/header>/.exec(page)?.[1];
   const body = /<div class="prose">([\s\S]*?)<\/div>(?=<ul class="post-links">|<\/article>)/.exec(
     page,
@@ -36,13 +63,17 @@ export function textByFace(page: string): { sans: string; mono: string } {
       `no ${head === undefined ? 'header.page-head' : 'div.prose'} on this post page: the layout changed, so change this check with it`,
     );
   }
-  const label = /<p class="label">([\s\S]*?)<\/p>/.exec(head)?.[1] ?? '';
-  const meta = /<p class="post-meta">([\s\S]*?)<\/p>/.exec(head)?.[1] ?? '';
-  const code = [...body.matchAll(/<code\b[^>]*>([\s\S]*?)<\/code>/g)].map(([, c = '']) => c);
-  const headSans = head.replace(/<p class="(label|post-meta)">[\s\S]*?<\/p>/g, ' ');
+  const labels = /<p class="(?:label|post-meta)">[\s\S]*?<\/p>/g;
+  const code = split(body, 'code');
+  const headings = split(code.rest, 'h[1-6]');
+  const bold = split(headings.rest, 'strong|b');
+  const title = split(head.replace(labels, ' '), 'h1');
   return {
-    sans: `${text(headSans)} ${text(body.replace(/<code\b[^>]*>[\s\S]*?<\/code>/g, ' '))}`,
-    mono: `${text(label).toUpperCase()} ${text(meta)} ${text(code.join(' '))}`,
+    display: text([...title.inner, ...headings.inner].join(' ')),
+    label: text((head.match(labels) ?? []).join(' ')),
+    text: `${text(title.rest)} ${text(bold.rest)}`,
+    bold: text(bold.inner.join(' ')),
+    mono: text(code.inner.join(' ')),
   };
 }
 
@@ -60,15 +91,12 @@ const codePoint = (char: string) =>
 
 /** Why a post page cannot be drawn in its own faces, one line per character. */
 export function glyphProblems(page: string): string[] {
-  const { sans, mono } = textByFace(page);
-  return [
-    ...missing(sans, SANS.chars).map(
-      (c) => `"${c}" (${codePoint(c)}) in the text: not in ${SANS.name}`,
+  const byFace = textByFace(page);
+  return (Object.keys(FACES) as Face[]).flatMap((key) =>
+    missing(byFace[key], CHARS[key]).map(
+      (c) => `"${c}" (${codePoint(c)}) in ${FACES[key].where}: not in ${FACES[key].name}`,
     ),
-    ...missing(mono, MONO.chars).map(
-      (c) => `"${c}" (${codePoint(c)}) in code or a label: not in ${MONO.name}`,
-    ),
-  ];
+  );
 }
 
 const FIX =
@@ -83,20 +111,33 @@ for (const file of posts) {
 }
 
 test('known answers: a missing character is named with its code point and its face', () => {
-  const page = (body: string) =>
-    '<header class="page-head"><p class="label">Essay</p><h1 class="page-title">A title</h1>' +
-    `<p class="post-meta">2026-10-20</p></header><div class="prose">${body}</div></article>`;
-  expect(glyphProblems(page('<p>Café, “quoted” – and ↑ back</p>'))).toEqual([]);
+  const page = (body: string, title = 'A title', label = 'Essay') =>
+    `<header class="page-head"><p class="label">${label}</p><h1 class="page-title">${title}</h1>` +
+    `<p class="post-meta">25 October 2026</p></header><div class="prose">${body}</div></article>`;
+  expect(glyphProblems(page('<p>Café, “quoted” – and <strong>façade</strong> back</p>'))).toEqual(
+    [],
+  );
   expect(glyphProblems(page('<p>p99 ≤ 2 s</p>'))).toEqual([
-    '"≤" (U+2264) in the text: not in Instrument Sans',
+    '"≤" (U+2264) in the text: not in Barlow',
+  ]);
+  // Barlow draws no arrow, in any of its widths: the design writes words instead.
+  expect(glyphProblems(page('<p>See below ↓</p>', 'Up ↗', 'Next →'))).toEqual([
+    '"↗" (U+2197) in a title or heading: not in Barlow Condensed',
+    '"→" (U+2192) in a label: not in Barlow Semi Condensed',
+    '"↓" (U+2193) in the text: not in Barlow',
+  ]);
+  expect(glyphProblems(page('<h2>Then ← back</h2><p><b>Bold ←</b></p>'))).toEqual([
+    '"←" (U+2190) in a title or heading: not in Barlow Condensed',
+    '"←" (U+2190) in bold text: not in Barlow SemiBold',
   ]);
   expect(glyphProblems(page('<pre><code>├── src</code></pre>'))).toEqual([
-    '"├" (U+251C) in code or a label: not in JetBrains Mono',
-    '"─" (U+2500) in code or a label: not in JetBrains Mono',
+    '"├" (U+251C) in code: not in B612 Mono',
+    '"─" (U+2500) in code: not in B612 Mono',
   ]);
-  // The same accented letter is fine in prose and missing in code: the mono subset is ASCII.
-  expect(glyphProblems(page('<p>é <code>é</code></p>'))).toEqual([
-    '"é" (U+00E9) in code or a label: not in JetBrains Mono',
+  // The same letter is fine in prose and missing in code: the faces are cut to one range, and B612
+  // Mono has no dotless i. A code span inside a heading is code.
+  expect(glyphProblems(page('<h2>On <code>ı</code></h2><p>ı</p>'))).toEqual([
+    '"ı" (U+0131) in code: not in B612 Mono',
   ]);
   // A page the check cannot read fails: a body under another class, or no header, is not clean.
   expect(() =>
@@ -109,5 +150,5 @@ test('known answers: a missing character is named with its code point and its fa
 
 test('every post page in this build is read: its body is found, so no page passes unread', () => {
   for (const file of posts)
-    expect(textByFace(read(file)).sans.trim().length, file).toBeGreaterThan(20);
+    expect(textByFace(read(file)).text.trim().length, file).toBeGreaterThan(20);
 });

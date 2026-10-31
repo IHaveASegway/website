@@ -26,10 +26,17 @@
   --font-*: initial;
 
   /* The self-hosted faces (astro.config.mjs, "fonts"), then fallback faces fitted to their widths
-     (font-fallbacks.css), then the system's. If the fonts' own style never arrives, the fitted
-     fallbacks still apply, so the page never falls back to a browser default. */
-  --font-sans: var(--font-instrument-sans, var(--font-sans-fallbacks)), var(--font-sans-fallbacks);
-  --font-mono: var(--font-jetbrains-mono, var(--font-mono-fallbacks)), var(--font-mono-fallbacks);
+     (font-fallbacks.css), then the system's. If a face's own style never arrives, or a page does
+     not declare it (B612 Mono, on a page without code), the fitted fallbacks still apply, so the
+     page never falls back to a browser default. One family in three widths: display for the name,
+     titles and figures; label for the navigation, buttons, labels and captions; sans for reading.
+     Mono sets code and nothing else (design-system.md, "The faces"). */
+  --font-display:
+    var(--font-barlow-condensed, var(--font-display-fallbacks)), var(--font-display-fallbacks);
+  --font-label:
+    var(--font-barlow-semi-condensed, var(--font-label-fallbacks)), var(--font-label-fallbacks);
+  --font-sans: var(--font-barlow, var(--font-sans-fallbacks)), var(--font-sans-fallbacks);
+  --font-mono: var(--font-b612-mono, var(--font-mono-fallbacks)), var(--font-mono-fallbacks);
 
   /* Square corners: a printed sheet has none (design-system.md, "Chosen direction"). Inline code
      keeps its 2px. */

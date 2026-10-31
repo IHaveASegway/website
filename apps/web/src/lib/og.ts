@@ -115,11 +115,11 @@ export function ogTree(
       { flexDirection: 'column', gap: 28 },
       node(
         {
-          fontFamily: 'Instrument Sans Condensed',
+          fontFamily: 'Barlow Condensed',
           fontWeight: 600,
           fontSize: titleSize(card.title),
-          lineHeight: 0.9,
-          letterSpacing: titleSize(card.title) * -0.035,
+          lineHeight: 0.95,
+          letterSpacing: titleSize(card.title) * -0.012,
           // A word longer than a line, such as a long identifier, breaks instead of leaving the card.
           wordBreak: 'break-word',
         },
@@ -127,9 +127,15 @@ export function ogTree(
       ),
       node(
         { alignItems: 'center', gap: 18 },
+        // A lit lamp, the one round thing the design draws (design-system.md, "Colour").
         node({ width: 14, height: 14, borderRadius: 7, backgroundColor: colors.accent }),
         node(
-          { fontFamily: 'Instrument Sans', fontWeight: 500, fontSize: 44, color: colors.muted },
+          {
+            fontFamily: 'Barlow Semi Condensed',
+            fontWeight: 500,
+            fontSize: 44,
+            color: colors.muted,
+          },
           card.label,
         ),
       ),
@@ -148,8 +154,8 @@ export function drawnStrings(tree: OgNode | string): string[] {
   return (tree.props.children ?? []).flatMap(drawnStrings);
 }
 
-// Static instances cut by scripts/fonts/build.sh: satori draws a variable font at its default
-// instance and ignores font-stretch, so the condensed name has a file of its own.
+// The two faces the card draws, cut by scripts/fonts/build.sh as TrueType, which satori reads:
+// Barlow Condensed for the title, Barlow Semi Condensed for the label.
 const fontFiles = import.meta.glob<string>('../og/fonts/*.ttf', {
   query: '?inline',
   import: 'default',
@@ -205,14 +211,14 @@ export async function renderOg(card: OgCard, picture?: Buffer): Promise<Buffer> 
     ...OG_SIZE,
     fonts: [
       {
-        name: 'Instrument Sans Condensed',
-        data: font('instrument-sans-80-620.ttf'),
+        name: 'Barlow Condensed',
+        data: font('barlow-condensed-semibold.ttf'),
         weight: 600,
         style: 'normal',
       },
       {
-        name: 'Instrument Sans',
-        data: font('instrument-sans-100-550.ttf'),
+        name: 'Barlow Semi Condensed',
+        data: font('barlow-semi-condensed-medium.ttf'),
         weight: 500,
         style: 'normal',
       },

@@ -40,6 +40,10 @@ const {
   ogType = 'website',
   jsonLd,
 } = Astro.props;
+// The body, rendered before the page around it: a body with a code span or block makes the page
+// declare B612 Mono, the face code is set in, and a body without one leaves it out (Base.astro).
+const body = await Astro.slots.render('default');
+const code = /<(code|pre)\b/i.test(body);
 ---
 
 <Base
@@ -48,6 +52,7 @@ const {
   path={path}
   noindex={noindex}
   ogType={ogType}
+  code={code}
   {...(og ? { og } : {})}
   {...(jsonLd ? { jsonLd } : {})}
 >
@@ -56,7 +61,7 @@ const {
       <slot name="meta" />
     </PageHead>
     <div class="prose">
-      <slot />
+      <Fragment set:html={body} />
     </div>
     <slot name="after" />
   </article>
