@@ -1,10 +1,10 @@
 ---
 import Activity from '../components/home/Activity.astro';
 import LabCards from '../components/home/LabCards.astro';
-import PostRows from '../components/home/PostRows.astro';
 import Stats from '../components/home/Stats.astro';
 import System from '../components/iso/System.astro';
 import Motion from '../components/Motion.astro';
+import PostList from '../components/PostList.astro';
 import WorkCard from '../components/WorkCard.astro';
 import Base from '../layouts/Base.astro';
 import { ABOUT_HEADINGS, aboutParts, LAB_NAMES, sectionOf, withLinks } from '../lib/about';
@@ -21,9 +21,8 @@ import {
   loadProfile,
   loadSelectedWork,
   loadWritingArea,
-  postEntry,
 } from '../lib/content';
-import { activity as activityOf, readingMinutes } from '../lib/home';
+import { activity as activityOf } from '../lib/home';
 import { countTests, readCommitDays, readDecisions } from '../lib/home-sources';
 import { system, type Counts, type Lab, type Part } from '../lib/iso/system';
 import { homeGraph, serialize } from '../lib/jsonld';
@@ -192,13 +191,9 @@ const stats = [
 ];
 const activity = activityOf(readCommitDays(), decisions);
 
-// The latest writing, with each post's reading time from its own words.
-const latest = await Promise.all(
-  writingRow(area.published, work).map(async (post) => ({
-    post,
-    minutes: readingMinutes((await postEntry(post)).body ?? ''),
-  })),
-);
+// The latest writing, in the dated list /writing/ shows (components/PostList.astro): one list, so
+// a post's day and reading time (lib/posts.ts, Post.minutes) read the same on both pages.
+const latest = writingRow(area.published, work);
 
 // The closing address may break after its "@", and only there.
 const [mailbox, domain] = CONTACT_EMAIL.split('@');
@@ -293,7 +288,7 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
           All writing
         </a>
       </div>
-      {latest.length > 0 && <PostRows posts={latest} />}
+      {latest.length > 0 && <PostList posts={latest} level={3} />}
       <ul class="post-links">
         <li>
           <a href="/rss.xml">RSS feed</a>

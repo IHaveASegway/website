@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
-import { activity, decisionOf, figure, readingMinutes, testsIn } from '../src/lib/home';
+import { activity, decisionOf, figure, testsIn } from '../src/lib/home';
 import { countTests, readCommitDays, readDecisions } from '../src/lib/home-sources';
 
 // Home's figures (docs/design/overhaul.md, "Stats row"; ADR 0027): every number Home prints is
@@ -57,17 +57,6 @@ describe('tests written', () => {
     const total = files.reduce((n, file) => n + testsIn(readFileSync(file, 'utf8')), 0);
     expect(total).toBeGreaterThan(0);
     expect(countTests()).toBe(total);
-  });
-});
-
-describe('reading time', () => {
-  test('known answers: 230 words a minute, rounded up, at least one', () => {
-    expect(readingMinutes('')).toBe(1);
-    expect(readingMinutes('word '.repeat(230))).toBe(1);
-    expect(readingMinutes('word '.repeat(231))).toBe(2);
-    // Punctuation and markup are not words; a contraction or a hyphenated word is one.
-    expect(readingMinutes('## Heading\n\nIt’s a well-known - fact.')).toBe(1);
-    expect(readingMinutes(`${'one-two '.repeat(460)}`)).toBe(2);
   });
 });
 

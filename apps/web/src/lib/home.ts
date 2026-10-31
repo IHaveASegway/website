@@ -34,12 +34,6 @@ export function testsIn(source: string): number {
   );
 }
 
-/** A post's reading time in whole minutes, at 230 words a minute, at least one. */
-export function readingMinutes(text: string): number {
-  const words = text.match(/[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu)?.length ?? 0;
-  return Math.max(1, Math.ceil(words / 230));
-}
-
 /** One day of the activity calendar. */
 export interface ActivityDay {
   readonly day: string;

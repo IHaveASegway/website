@@ -358,17 +358,31 @@ test.describe("Home's figures and activity", () => {
   });
 });
 
-test("Home's writing rows: the day, the title as the row's link, its summary, its kind and reading time", async ({
+// Home's rows are /writing/'s list (components/PostList.astro), so a post's day, kind and reading
+// time read the same on both. Until the overhaul's merge Home drew its own rows and counted 230
+// words a minute while /writing/ counted 220, and one post could read "6 min" on one page and
+// "7 min" on the other.
+test("Home's writing rows: the day, the title as the row's link, its summary, its kind and reading time, as /writing/ says them", async ({
   page,
 }) => {
   await page.goto('/');
   const rows = page.locator('#writing .post-row');
   test.skip((await rows.count()) === 0, 'this build lists no post');
+  const home = new Map<string, string>();
   for (const row of await rows.all()) {
-    await expect(row.locator('time.post-date')).toHaveText(/^\d{1,2} [A-Z][a-z]{2} \d{4}$/);
-    await expect(row.locator('.post-title a')).toHaveAttribute('href', /^\/(writing|notes)\/.+\/$/);
+    await expect(row.locator('.post-date time')).toHaveText(/^\d{1,2} [A-Z][a-z]{2} \d{4}$/);
+    const link = row.locator('.post-title a');
+    await expect(link).toHaveAttribute('href', /^\/(writing|notes)\/.+\/$/);
     await expect(row.locator('.post-summary')).not.toBeEmpty();
-    await expect(row.locator('.post-minutes')).toHaveText(/^\d+ min read$/);
+    await expect(row.locator('.post-kind')).toHaveText(/\d+ min read$/);
+    home.set((await link.getAttribute('href')) ?? '', (await row.innerText()).trim());
+  }
+  for (const section of new Set([...home.keys()].map((href) => href.split('/')[1]))) {
+    await page.goto(`/${section}/`);
+    for (const row of await page.locator('main .post-row').all()) {
+      const href = (await row.locator('.post-title a').getAttribute('href')) ?? '';
+      if (home.has(href)) expect((await row.innerText()).trim(), href).toBe(home.get(href));
+    }
   }
 });
 

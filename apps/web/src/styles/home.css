@@ -10,15 +10,6 @@
   same weight that they must beat.
 */
 
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
 /* The opening. Below 64rem one column: the name, the role and the ways to reach him, then the
    drawing, then the bio's blocks. From 64rem the name runs across the top, as the title on a
    drawing's sheet does, with the role and the buttons in a row under it, and the blocks stand in
@@ -961,58 +952,6 @@
 @media (width >= 64rem) {
   .lab-cards {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-/* The dated writing list (components/home/PostRows.astro): a hairline over each row and under
-   the last; from 48rem the day, the title with its summary, and the kind with its reading time,
-   in three columns. */
-.post-rows {
-  border-bottom: 1px solid var(--border);
-}
-
-.post-rows > .post-row {
-  max-inline-size: none;
-  row-gap: 0.375rem;
-  padding-block: 1.375rem 1.5rem;
-  border-top: 1px solid var(--border);
-}
-
-.post-date,
-.post-kind {
-  margin: 0;
-  color: var(--muted-foreground);
-  font-family: var(--font-wide);
-  font-size: var(--text-label);
-  font-weight: 500;
-  line-height: var(--text-label--line-height);
-  font-variant-numeric: tabular-nums;
-}
-
-.post-body {
-  display: grid;
-  row-gap: 0.375rem;
-}
-
-.post-minutes {
-  margin-inline-start: 0.75rem;
-}
-
-@media (width >= 48rem) {
-  .post-rows > .post-row {
-    grid-template-columns: 8.5rem minmax(0, 1fr) 8rem;
-    column-gap: var(--gutter);
-    align-items: baseline;
-  }
-
-  .post-kind {
-    display: grid;
-    justify-items: end;
-    row-gap: 0.25rem;
-  }
-
-  .post-minutes {
-    margin-inline-start: 0;
   }
 }
 
