@@ -114,21 +114,23 @@
   stroke-width: 2;
 }
 
-/* An order waiting: a filled square in the tank, hollow while it waits out a backoff; a poison
-   order is a diamond, filled on the dead-letter siding. */
+/* An order waiting in the tank: a hollow lamp, as on the board, with clock hands while it waits
+   out a backoff (design-system.md, "Lamps: one meaning per mark"). A poison order is a diamond
+   wherever it is, hollow in the tank and filled on the dead-letter siding. */
 .qu-order {
-  fill: var(--line);
+  fill: var(--surface-1);
   stroke: var(--line);
   stroke-width: 1.5;
+  stroke-linecap: round;
 }
 
-.qu-order[data-state='retry'] {
-  fill: var(--surface-1);
+.qu-order[data-state='dead'] {
+  fill: var(--line);
 }
 
-/* A worker's lamps: hollow while an order waits in its window, lit at the head while in work,
-   dashed while on its way, or dropped by a crash until the broker takes it back; a dot for each
-   slot still free. */
+/* A worker's lamps: hollow while an order waits in its window, lit at the head while in work, and
+   dashed while it is taken, not yet acknowledged: on its way, or dropped by a crash until the
+   broker takes it back, one state either way; a dot for each slot still free. */
 .qu-slot {
   fill: var(--surface-1);
   stroke: var(--line);
@@ -140,12 +142,8 @@
   stroke: var(--primary);
 }
 
-.qu-slot:is([data-state='coming'], [data-state='dropped']) {
+.qu-slot[data-state='taken'] {
   stroke-dasharray: 2 2;
-}
-
-.qu-slot[data-state='dropped'] {
-  stroke: var(--muted-foreground);
 }
 
 .qu-slot[data-state='room'] {
@@ -153,8 +151,9 @@
   stroke: none;
 }
 
-/* An oven ticket: filled once printed, with a second circle when it printed twice; a lost order's
-   ticket is hollow and crossed, never printed. */
+/* An oven ticket: filled once printed, with a second ring when it printed twice; a lost order's
+   ticket is hollow and struck through once, never printed, in the line's colour as the lamp table
+   draws every mark. */
 .qu-ticket {
   fill: var(--line);
   stroke: none;
@@ -289,8 +288,9 @@
   padding-inline-start: 2.75rem;
 }
 
-/* The three properties: a lamp filled while one holds, hollow and struck through once broken, and
-   the words beside it say which. */
+/* The three properties: a lamp filled while one holds, and once broken ⊗, a hollow lamp crossed,
+   the site's mark for failed (design-system.md, "Lamps: one meaning per mark"); the words beside
+   it say which. The slash alone is a lost order's, on the tickets. */
 .qu-props {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
@@ -324,14 +324,23 @@
   background-color: transparent;
 }
 
+/* The cross stands inside the ring, as the Backfill Lab's failed step's does: two bars through the
+   lamp's middle, each a little short of the ring. */
+.qu-prop[data-held='false'] .qu-lamp::before,
 .qu-prop[data-held='false'] .qu-lamp::after {
   content: '';
   position: absolute;
   inset-block-start: 50%;
-  inset-inline: -3px;
+  inset-inline-start: 50%;
+  inline-size: 0.5rem;
   block-size: 2px;
   margin-block-start: -1px;
+  margin-inline-start: -0.25rem;
   background-color: var(--line);
+  rotate: 45deg;
+}
+
+.qu-prop[data-held='false'] .qu-lamp::after {
   rotate: -45deg;
 }
 
@@ -574,6 +583,7 @@
    keep their shapes in the user's palette: a filled lamp stays filled, and a chosen one lit. */
 @media (forced-colors: active) {
   .qu-lamp,
+  .qu-prop[data-held='false'] .qu-lamp::before,
   .qu-prop[data-held='false'] .qu-lamp::after,
   .qu-choice input:checked + .qu-choice-lamp {
     forced-color-adjust: none;

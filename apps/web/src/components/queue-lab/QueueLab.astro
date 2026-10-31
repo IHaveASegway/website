@@ -184,15 +184,25 @@ if (pool.length > MAX_WORKERS) throw new Error('queue lab: more workers than the
     <ul class="qu-key" role="list" aria-hidden="true" data-qu-js>
       <li>
         <svg class="qu-key-mark" viewBox="0 0 20 20">
-          <rect class="qu-order" data-state="retry" x="5" y="5" width="10" height="10" />
+          <circle class="qu-order" data-state="ready" cx="10" cy="10" r="6" />
+        </svg>
+        Waiting
+      </li>
+      <li>
+        <svg class="qu-key-mark" viewBox="0 0 20 20">
+          <path
+            class="qu-order"
+            data-state="retry"
+            d="M4 10a6 6 0 1 0 12 0a6 6 0 1 0 -12 0M10 6.4V10h3"
+          />
         </svg>
         Waiting to retry
       </li>
       <li>
         <svg class="qu-key-mark" viewBox="0 0 20 20">
-          <circle class="qu-slot" data-state="coming" cx="10" cy="10" r="6" />
+          <circle class="qu-slot" data-state="taken" cx="10" cy="10" r="6" />
         </svg>
-        On its way, or dropped in a crash
+        Taken, not yet acknowledged
       </li>
       <li>
         <svg class="qu-key-mark" viewBox="0 0 20 20">

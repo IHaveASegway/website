@@ -27,6 +27,18 @@ const log = (page: Page) => page.locator('[data-qu-lines]');
 /** The picture the page shows at this width: the wide one on a laptop. */
 const map = (page: Page) => page.locator('[data-qu-map="wide"]');
 const property = (page: Page, id: string) => page.locator(`[data-qu-prop="${id}"]`);
+/** The stroke a mark is drawn in, beside the line's own: every mark takes the line's colour
+ *  (design-system.md, "Lamps: one meaning per mark"), and a track is the line itself. */
+const strokes = (page: Page, mark: string) =>
+  page.evaluate((selector) => {
+    const of = (el: Element | null) => (el ? getComputedStyle(el).stroke : 'missing');
+    const shown = document.querySelector('[data-qu-map="wide"]');
+    return {
+      mark: of(document.querySelector(selector)),
+      line: of(shown?.querySelector('.qu-track') ?? null),
+      ink: getComputedStyle(document.body).color,
+    };
+  }, mark);
 
 /** Collects policy violations the page reports. */
 async function watch(page: Page): Promise<() => Promise<string[]>> {
@@ -67,17 +79,41 @@ test('without JavaScript, the page is the opening run: order 18 printed twice, w
   await expect(map(page).locator('.qu-gap')).toHaveCount(1);
   await expect(map(page).locator('.qu-state')).toHaveText(['Down']);
   await expect(map(page).locator('.qu-slot[data-state="working"]')).toHaveCount(2);
-  // Orders 1 to 25 printed, order 18 with a second circle; 11 orders wait in the tank.
+  // Orders 1 to 25 printed, order 18 with a second ring; 11 orders wait in the tank, each a
+  // hollow round lamp as on the board, never a square.
   await expect(map(page).locator('.qu-ticket[data-state="printed"]')).toHaveCount(25);
   await expect(map(page).locator('.qu-again')).toHaveCount(1);
   await expect(map(page).locator('.qu-again')).toHaveAttribute('data-order', '18');
-  await expect(map(page).locator('.qu-order[data-state="ready"]')).toHaveCount(11);
+  await expect(map(page).locator('circle.qu-order[data-state="ready"]')).toHaveCount(11);
+  await expect(map(page).locator('rect.qu-order')).toHaveCount(0);
+  // Hollow: filled with the tank's own ground, the desk's surface.
+  const fill = (selector: string) =>
+    map(page)
+      .locator(selector)
+      .first()
+      .evaluate((el) => getComputedStyle(el).fill);
+  expect(await fill('.qu-order[data-state="ready"]')).toBe(await fill('.qu-tank'));
   for (const [id, held] of [
     ['no-loss', 'true'],
     ['once', 'false'],
     ['drains', 'true'],
   ] as const)
     await expect(property(page, id)).toHaveAttribute('data-held', held);
+  // The broken one is ⊗, its hollow lamp crossed in the line's colour: the site's mark for failed.
+  // The slash alone is a lost order's, and a property that holds has neither bar.
+  const bars = (id: string) =>
+    property(page, id)
+      .locator('.qu-lamp')
+      .evaluate((lamp) =>
+        ['::before', '::after'].map((part) => {
+          const bar = getComputedStyle(lamp, part);
+          return bar.content === 'none'
+            ? 'none'
+            : `${bar.rotate} ${bar.backgroundColor === getComputedStyle(lamp).borderTopColor}`;
+        }),
+      );
+  expect(await bars('once')).toEqual(['45deg true', '-45deg true']);
+  expect(await bars('no-loss')).toEqual(['none', 'none']);
   await expect(log(page)).toContainText("2.873 s Worker 1 prints order 18's ticket again");
   for (const control of await page.locator('.qu-controls, .qu-settings, .qu-clock, .qu-key').all())
     await expect(control).toBeHidden();
@@ -240,11 +276,15 @@ test('the second: switched to acknowledging before the work, a worker crashed at
   );
   await expect(property(page, 'no-loss')).toHaveAttribute('data-held', 'false');
   await expect(property(page, 'no-loss')).toContainText('Broken: 1 order lost');
-  // Its ticket never printed: a hollow lamp struck through once (design-system.md, Lamps), never
-  // the ⊗ the board gives a worker out of service. Its path is the ring and one stroke.
+  // Its ticket never printed: a hollow lamp struck through once (design-system.md, "Lamps: one
+  // meaning per mark"), never the ⊗ that means failed. Its path is the ring and one stroke, in the
+  // line's colour, not the ink.
   const lost = map(page).locator('.qu-ticket[data-order="26"]');
   await expect(lost).toHaveAttribute('data-state', 'lost');
   expect(((await lost.getAttribute('d')) ?? '').match(/M/g)).toHaveLength(2);
+  const ticket = await strokes(page, '[data-qu-map="wide"] .qu-ticket[data-order="26"]');
+  expect(ticket.mark).toBe(ticket.line);
+  expect(ticket.mark).not.toBe(ticket.ink);
   await expect(status(page)).toHaveText(
     '1 order was lost and 1 order was printed twice. Whether the queue drains is checked once orders stop.',
   );
