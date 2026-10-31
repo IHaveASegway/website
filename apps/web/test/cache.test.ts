@@ -10,11 +10,14 @@ import {
   STALE_LIMIT,
   TIMEOUT,
   TTL,
+  type Load,
+  type Placement,
 } from '../src/lib/cache/core';
 import {
   createSim,
   flush,
   loseNode,
+  nextTime,
   replay,
   restoreNode,
   runUntil,
@@ -25,14 +28,17 @@ import {
   setLoad,
   setPlacement,
   setStale,
+  setToggle,
   step,
   write,
+  type Action,
   type Config,
   type Faults,
   type Fetch,
   type Read,
   type Sample,
   type Sim,
+  type Toggle,
 } from '../src/lib/cache/sim';
 import {
   BUCKETS,
@@ -44,6 +50,7 @@ import {
   statusText,
   summary,
 } from '../src/lib/cache/view';
+import { schedule } from '../src/lib/sim/agenda';
 import { seeded } from '../src/lib/sim/random';
 
 // The Cache Lab's core: known answers for its rules (placement, the XFetch rule, the database's
@@ -70,6 +77,17 @@ const menuReads = (sim: Sim, from: number, to: number): Read[] => {
 /** A warm run at a busy hour whose menu entry expires at `at`. */
 const warm = (config: Partial<Config> = {}, at = 300): Sim =>
   createSim({ seed: 5, load: 'busy', menuExpires: at, ...config });
+/** Everything a run has done and holds, as one string: two runs that match are the same run. */
+const shape = (s: Sim) =>
+  JSON.stringify([
+    s.now,
+    s.events,
+    s.counts,
+    s.lines,
+    s.samples,
+    s.tally,
+    s.nodes.map((node) => [...node.entries]),
+  ]);
 
 describe('placement', () => {
   test('every page lives on a node that is up, on either placement, and on none when all are down', () => {
@@ -164,6 +182,37 @@ describe('the database', () => {
     expect(problems).toEqual([]);
     expect(longest).toBeGreaterThan(20);
     expect(sim.violation).toBeNull();
+  });
+
+  test('at the morning rush with nothing on, the overload comes in waves that clear: a fetch whose readers all gave up leaves the line unstarted', () => {
+    // Were such a fetch to keep its place, seed 1's line would hold 4,309 fetches at 30 s and
+    // 50,110 at 2 minutes: an overload that feeds itself (core.ts, DATABASE).
+    for (const seed of [1, 2, 3]) {
+      const sim = createSim({ seed, load: 'morning' });
+      runUntil(sim, 60_000);
+      expect(sim.violation).toBeNull();
+      const points = series(sim);
+      const late = points.filter((p) => p.at > 30_000);
+      expect(Math.max(...points.map((p) => p.waiting))).toBeLessThan(400);
+      // The lesson stands: without mitigations the rush overloads the database again and again.
+      expect(late.some((p) => p.waiting >= DATABASE.pool)).toBe(true);
+      expect(late.some((p) => p.waiting === 0)).toBe(true);
+      expect(sim.counts.cancelled).toBeGreaterThan(0);
+      expect(sim.counts.wasted).toBeGreaterThan(0);
+      // Only a fetch nobody waits on leaves the line, and only before it starts. One that has
+      // started runs on for its readers who have gone: the database cannot be told.
+      let checked = 0;
+      for (const read of sim.recent) {
+        const fetch = read.fetch;
+        if (read.outcome !== 'timeout' || !fetch) continue;
+        checked++;
+        if (fetch.state === 'cancelled') {
+          expect(fetch.started).toBeNaN();
+          expect(fetch.readers.some((r) => r.outcome === 'pending')).toBe(false);
+        } else expect(fetch.started).toBeLessThanOrEqual(read.at + TIMEOUT);
+      }
+      expect(checked).toBeGreaterThan(0);
+    }
   });
 });
 
@@ -282,9 +331,11 @@ describe('a read', () => {
     expect(gaveUp.length).toBeGreaterThan(0);
     for (const read of gaveUp) {
       expect(read.latency).toBe(TIMEOUT);
-      // Its fetch outlives it: still in line, or answered after the reader left.
+      // Its fetch had started, so it outlives the reader and is answered after it left. (One
+      // still in line when its last reader gives up leaves the line: see the morning rush test.)
       const fetch = read.fetch as Fetch;
-      expect(fetch.state === 'waiting' || fetch.ends > read.at + TIMEOUT).toBe(true);
+      expect(['running', 'done']).toContain(fetch.state);
+      expect(fetch.ends).toBeGreaterThan(read.at + TIMEOUT);
     }
     expect(sim.counts.wasted).toBeGreaterThan(0);
     const menu = sim.nodes[sim.owners[0] as number]?.entries.get(0);
@@ -322,7 +373,16 @@ describe('a read', () => {
     expect(sim.tally.overlaps).toBeGreaterThan(0);
     // Not a coalescing bug: no node fetched the page beside its own fetch.
     expect(sim.tally.sameNode).toBe(0);
-    expect(properties(sim)[0].held).toBe(false);
+    // one-fetch is about the database, so it breaks, and says why: coalescing is on, but the
+    // page changed node while its fetch ran.
+    const property = properties(sim)[0];
+    expect(property.held).toBe(false);
+    expect(property.first?.detail).toBe(
+      'The menu was being fetched 2 times at once: it changed node while a fetch of it still ran',
+    );
+    expect(sim.lines.map((line) => line.text)).toContain(
+      'The menu is fetched twice at once: it changed node while a fetch of it still ran',
+    );
   });
 
   test('a new load starts a new arrival stream at its rate', () => {
@@ -407,6 +467,91 @@ describe('conservation', () => {
     forgotten.counts.pending += 1;
     expect(conservation(forgotten)?.detail).toMatch(/has waited 1,500 ms, past the 1,000 ms/);
   });
+
+  test('catches a fetch the database never answered: it holds its connection past the time it was due', () => {
+    // The counts still agree: the fetch is counted as running, and it is. Only its time gives it
+    // away, so every connection's fetch is held to the time its answer was due.
+    const lost = createSim({ seed: 1, load: 'busy', faults: { lostEnd: true } });
+    runUntil(lost, 15_000);
+    const detail = lost.violation?.detail ?? '';
+    expect(detail).toMatch(
+      /^Fetch 40, of (the menu|page \d+), was due back at \d+\.\d{3} s, but still holds a connection: the database never answered it$/,
+    );
+    // Caught at the first event after the answer was due, not a sample or a pool later.
+    const due = 1_000 * Number(/due back at (\d+\.\d{3}) s/.exec(detail)?.[1]);
+    expect((lost.violation?.at ?? Infinity) - due).toBeLessThan(20);
+  });
+
+  test('catches a fetch left in line with nobody waiting on it, which would keep the line from clearing', () => {
+    const sim = createSim({ seed: 3, load: 'morning' });
+    runUntil(sim, 1_000);
+    flush(sim);
+    runUntil(sim, 1_200);
+    expect(sim.line.length - sim.lineHead).toBeGreaterThan(0);
+    expect(conservation(sim, true)).toBeNull();
+    const orphan: Fetch = {
+      n: 0,
+      key: 3,
+      why: 'miss',
+      node: 0,
+      life: 0,
+      shared: false,
+      asked: 1_100,
+      started: NaN,
+      ends: NaN,
+      state: 'waiting',
+      readers: [],
+    };
+    sim.line.push(orphan);
+    (sim.flying[3] as Fetch[]).push(orphan);
+    sim.counts.fetches += 1;
+    // Every count agrees: only the walk of the line, every 100 ms, finds it.
+    expect(conservation(sim)).toBeNull();
+    expect(conservation(sim, true)?.detail).toBe(
+      'Fetch 0, of page 3, waits in line with no reader left waiting on it',
+    );
+  });
+});
+
+describe('recorded actions', () => {
+  test('an action naming nothing the lab has is ignored and leaves no trace', () => {
+    // A page that restores a run from a link or from storage passes these on as it finds them.
+    const sim = createSim({ seed: 1 });
+    runUntil(sim, 500);
+    setLoad(sim, 'constructor' as Load);
+    setLoad(sim, 'toString' as Load);
+    setToggle(sim, 'now' as Toggle, true);
+    setToggle(sim, 'coalesce', 'yes' as unknown as boolean);
+    setPlacement(sim, 'spiral' as Placement);
+    loseNode(sim, '1' as unknown as number);
+    restoreNode(sim, 0.5);
+    expect(sim.actions).toEqual([]);
+    expect(sim.now).toBe(500);
+    runUntil(sim, 1_500);
+    expect(sim.violation).toBeNull();
+    expect(shape(sim)).toBe(shape(replay({ seed: 1 }, [], 1_500)));
+  });
+
+  test('replay skips an action that is malformed, out of order or past its end, and rebuilds the rest exactly', () => {
+    const clean = replay({ seed: 1 }, [{ at: 700, kind: 'flush' }], 1_500);
+    const dirty = replay(
+      { seed: 1 },
+      [
+        { at: Number.NaN, kind: 'flush' },
+        { at: 100, kind: 'toggle', toggle: 'now', on: true },
+        { at: 200, kind: 'load', load: 'constructor' },
+        { at: 300, kind: 'shout' },
+        { at: 400, kind: 'lose', node: 7 },
+        { at: 500, kind: 'placement', placement: 'spiral' },
+        { at: 700, kind: 'flush' },
+        { at: 600, kind: 'write', key: 0 },
+        { at: 9_000, kind: 'flush' },
+      ] as unknown as Action[],
+      1_500,
+    );
+    expect(dirty.actions).toEqual(clean.actions);
+    expect(shape(dirty)).toBe(shape(clean));
+  });
 });
 
 test('determinism: the same seed and actions give the same run, event for event', () => {
@@ -435,18 +580,62 @@ test('determinism: the same seed and actions give the same run, event for event'
   const a = run();
   const b = run();
   const again = replay({ seed: 42, load: 'busy' }, a.actions, 5_000);
-  const shape = (s: Sim) =>
-    JSON.stringify([
-      s.events,
-      s.counts,
-      s.lines,
-      s.samples,
-      s.tally,
-      s.nodes.map((node) => [...node.entries]),
-    ]);
   expect(a.actions).toHaveLength(12);
   expect(shape(b)).toBe(shape(a));
   expect(shape(again)).toBe(shape(a));
+});
+
+describe('running in frames', () => {
+  /** The page's loop: 16 virtual ms a frame, at most `cap` events a frame, and a flush at the
+   *  first frame that stands at `flushAt` or later. */
+  function framed(config: Config, until: number, cap: number, flushAt = Infinity): Sim {
+    const sim = createSim(config);
+    let flushed = false;
+    for (let frame = 0; frame < 200_000 && sim.now < until && !sim.violation; frame++) {
+      runUntil(sim, Math.min(until, sim.now + 16), cap);
+      if (!flushed && sim.now >= flushAt) {
+        flush(sim);
+        flushed = true;
+      }
+    }
+    return sim;
+  }
+
+  test('a cap on events a frame only slows the clock: the run is the one without a cap', () => {
+    const free = createSim({ seed: 3, load: 'morning' });
+    runUntil(free, 3_000);
+    const capped = framed({ seed: 3, load: 'morning' }, 3_000, 8);
+    expect(capped.violation).toBeNull();
+    expect(shape(capped)).toBe(shape(free));
+  });
+
+  test('a cap never stops between two events at one moment, so an action then is the one replay takes', () => {
+    const sim = createSim({ seed: 3, load: 'busy' });
+    runUntil(sim, 1_000);
+    // A second event due at the same moment as the next one, scheduled after it.
+    const moment = nextTime(sim);
+    schedule(sim.agenda, moment, { kind: 'sample' });
+    runUntil(sim, 2_000, 1);
+    expect(sim.now).toBe(moment);
+    expect(nextTime(sim)).toBeGreaterThan(moment);
+    expect(series(sim).at(-1)?.at).toBe(moment);
+  });
+
+  test.each([
+    ['morning', 8],
+    ['busy', 3],
+  ] as const)(
+    'at %s with %i events a frame, the actions replay exactly and the samples keep their 100 ms beat',
+    (load, cap) => {
+      for (let seed = 1; seed <= 10; seed++) {
+        const sim = framed({ seed, load }, 4_000, cap, 2_000);
+        expect(sim.violation).toBeNull();
+        expect(sim.actions).toHaveLength(1);
+        expect(shape(replay({ seed, load }, sim.actions, 4_000))).toBe(shape(sim));
+        for (const point of series(sim)) expect(point.at % 100).toBe(0);
+      }
+    },
+  );
 });
 
 describe('the opening the page draws', () => {
@@ -482,8 +671,9 @@ describe('the view', () => {
     expect(summary(sim)).toMatch(
       /^1,\d{3} reads in 5\.0 s, \d+\.\d% from the cache\. When the menu expired at 3\.0 s, the database fetched it \d+ times at once and \d+ reads timed out\.$/,
     );
+    // Each broken property says what happened, in numbers; each held one says what did not.
     expect(statusText(sim)).toMatch(
-      /^One fetch of a page at a time broke \d+ times and no timeouts broke (twice|\d+ times); fresh reads held\.$/,
+      /^\d+ fetches began while the same page was already being fetched and \d+ reads timed out; no reader got a page older than the stale limit allows\.$/,
     );
   });
 
@@ -520,15 +710,18 @@ describe('the view', () => {
 });
 
 const LOADS = ['calm', 'busy', 'morning'] as const;
+const TOGGLES = ['coalesce', 'stale', 'early', 'jitter', 'invalidate'] as const;
 
 /** A seeded run with faults: a random load, placement and set of toggles, then an action every
- *  0.25-1.75 s for 15 s: a flush, a lost or restored node, or a write, half of them to the menu. */
+ *  0.25-1.75 s for 15 s: a flush, a lost or restored node, a write (half of them to the menu), a
+ *  switch flipped, a new load or a new placement. */
 function randomRun(seed: number, faults: Faults = {}, force: Partial<Config> = {}) {
   const pick = seeded(seed * 7919 + 17);
   const coin = () => pick() < 0.5;
+  const one = <T>(list: readonly T[]): T => list[Math.floor(pick() * list.length)] as T;
   const config: Config = {
     seed,
-    load: LOADS[Math.floor(pick() * LOADS.length)] ?? 'busy',
+    load: one(LOADS),
     placement: coin() ? 'circle' : 'modulo',
     coalesce: coin(),
     stale: coin(),
@@ -548,16 +741,96 @@ function randomRun(seed: number, faults: Faults = {}, force: Partial<Config> = {
     if (sim.violation) break;
     const roll = pick();
     const node = Math.floor(pick() * 4);
-    if (roll < 0.15) flush(sim);
-    else if (roll < 0.4) loseNode(sim, node);
-    else if (roll < 0.6) restoreNode(sim, node);
-    else write(sim, pick() < 0.5 ? 0 : Math.floor(pick() * PAGES));
+    if (roll < 0.12) flush(sim);
+    else if (roll < 0.32) loseNode(sim, node);
+    else if (roll < 0.48) restoreNode(sim, node);
+    else if (roll < 0.66) write(sim, pick() < 0.5 ? 0 : Math.floor(pick() * PAGES));
+    else if (roll < 0.84) setToggle(sim, one(TOGGLES), coin());
+    else if (roll < 0.94) setLoad(sim, one(LOADS));
+    else setPlacement(sim, coin() ? 'circle' : 'modulo');
   }
   runUntil(sim, 15_000);
   return { sim, config };
 }
 
-/** How many seeds the sweep runs: about 2.3 s of the suite on a laptop, 4 ms a seed. */
+/** Whether a switch stood where `on` says for the whole run: set so at the start, never flipped. */
+function throughout(sim: Sim, config: Config, toggle: Toggle, on: boolean): boolean {
+  const start = config[toggle] ?? toggle === 'invalidate';
+  return (
+    start === on &&
+    !sim.actions.some((action) => action.kind === 'toggle' && action.toggle === toggle)
+  );
+}
+
+/** How long each entry set during the run lives, shortest first. The warm-up's entries were set
+ *  before the run began. */
+function lifetimes(sim: Sim): number[] {
+  const out: number[] = [];
+  for (const node of sim.nodes)
+    for (const entry of node.entries.values())
+      if (entry.writtenAt > 0) out.push(entry.expiresAt - entry.writtenAt);
+  return out.sort((a, b) => a - b);
+}
+
+/**
+ * Every promise the sweep holds a run to, as a sentence for each one the run broke, led by the
+ * promise's name. A clean run breaks none, and each deliberately broken cache must break one of
+ * them in some seed: the sweep's own checks catch it, not a check written for the fault.
+ */
+function problems(sim: Sim, config: Config): string[] {
+  const out: string[] = [];
+  if (sim.violation) out.push(`conservation: ${sim.violation.detail}`);
+  // Coalescing: a node never fetches a page while its own coalesced fetch of it is in flight. A
+  // page that changes node mid-fetch is fetched again on its new node: one-fetch counts that,
+  // being the database's property, but coalescing is per node and never promised to prevent it.
+  if (throughout(sim, config, 'coalesce', true) && sim.tally.sameNode > 0)
+    out.push('coalescing: one node fetched a page twice at once');
+  // Invalidation: no reader gets a replaced version, or an entry past the stale limit.
+  if (throughout(sim, config, 'invalidate', true) && sim.tally.staleReads > 0)
+    out.push(`fresh: broke with invalidation on: ${sim.tally.firstStale?.detail}`);
+  // Jitter: the entries set during the run live 6.4 to 9.6 s and spread over most of that, so
+  // pages fetched together do not expire together.
+  const lives = lifetimes(sim);
+  if (throughout(sim, config, 'jitter', true) && lives.length >= 20) {
+    const [shortest, longest] = [lives[0] as number, lives.at(-1) as number];
+    if (shortest < 0.8 * TTL - 1e-6 || longest > 1.2 * TTL + 1e-6 || longest - shortest < 2_000)
+      out.push(
+        `jitter: ${lives.length} entries live ${Math.round(shortest)} to ${Math.round(longest)} ms`,
+      );
+  }
+  // Placement, with the run's lost and restored nodes replayed beside it. On the circle a lost
+  // node moves exactly the pages it held, from any number of live nodes: consistent hashing's
+  // promise, whatever the hash. The share that losing one node of four moves is the spec's
+  // known answer, and it is only eight cases (four nodes, two placements): placement depends on
+  // nothing but the live nodes, so each such loss here is one the placement tests pin, met again
+  // through the simulation's own record of it.
+  const up = [true, true, true, true];
+  let placement: Placement = config.placement ?? 'circle';
+  let losses = 0;
+  for (const action of sim.actions) {
+    if (action.kind === 'placement') placement = action.placement;
+    else if (action.kind === 'restore') up[action.node] = true;
+    else if (action.kind === 'lose') {
+      const loss = sim.losses[losses++];
+      const held = count(owners(placement, up), (node) => node === action.node);
+      up[action.node] = false;
+      if (!loss) {
+        out.push(`placement: losing node ${action.node + 1} left no record`);
+        continue;
+      }
+      if (placement === 'circle' && loss.moved !== held)
+        out.push(
+          `placement: losing node ${action.node + 1} of ${loss.live} on the circle moved ${loss.moved} pages, but it held ${held}`,
+        );
+      const [low, high] = placement === 'circle' ? [0.2, 0.3] : [0.7, 0.8];
+      if (loss.live === 4 && (loss.moved / PAGES < low || loss.moved / PAGES > high))
+        out.push(`placement: losing a node of 4 moved ${loss.moved} pages (${placement})`);
+    }
+  }
+  return out;
+}
+
+/** How many seeds the sweep runs: about 2.0 s of the suite on a laptop, 3.4 ms a seed. */
 const SEEDS = SEEDS_IN_CI;
 
 // The limit only catches a hang: the work is the same on every machine, but a CI runner beside
@@ -566,41 +839,48 @@ describe('the property sweep', { timeout: 30_000 }, () => {
   test(`${SEEDS} random runs: conservation holds after every event, and each mitigation keeps its promise`, () => {
     const broken: string[] = [];
     let events = 0;
-    const seen = { herds: 0, timeouts: 0, stale: 0, moved: 0, losses: 0 };
+    const seen = {
+      herds: 0,
+      timeouts: 0,
+      stale: 0,
+      moved: 0,
+      jitter: 0,
+      losses: 0,
+      fromFewer: 0,
+      flips: 0,
+      loads: 0,
+      placements: 0,
+    };
     for (let seed = 1; seed <= SEEDS; seed++) {
       const { sim, config } = randomRun(seed);
       events += sim.events;
-      if (sim.violation) broken.push(`seed ${seed}: conservation: ${sim.violation.detail}`);
-      // Coalescing: a node never fetches a page while its own coalesced fetch of it is in flight.
-      if (config.coalesce && sim.tally.sameNode > 0)
-        broken.push(`seed ${seed}: one node fetched a page twice with coalescing on`);
-      // Invalidation: no reader gets a replaced version or an entry past the stale limit.
-      if (config.invalidate && sim.tally.staleReads > 0)
-        broken.push(
-          `seed ${seed}: fresh broke with invalidation on: ${sim.tally.firstStale?.detail}`,
-        );
-      for (const loss of sim.losses) {
-        if (loss.live !== 4) continue;
-        seen.losses++;
-        const share = loss.moved / PAGES;
-        const [low, high] = loss.placement === 'circle' ? [0.2, 0.3] : [0.7, 0.8];
-        if (share < low || share > high)
-          broken.push(
-            `seed ${seed}: losing a node of 4 moved ${loss.moved} pages (${loss.placement})`,
-          );
-      }
-      if (!config.coalesce && sim.tally.overlaps > 0) seen.herds++;
-      if (config.coalesce && sim.tally.overlaps > 0) seen.moved++;
-      if (!config.coalesce && !config.stale && !config.early && config.load !== 'calm')
+      for (const problem of problems(sim, config)) broken.push(`seed ${seed}: ${problem}`);
+      const on = (toggle: Toggle) => throughout(sim, config, toggle, true);
+      const off = (toggle: Toggle) => throughout(sim, config, toggle, false);
+      seen.losses += sim.losses.length;
+      seen.fromFewer += count(sim.losses, (loss) => loss.live < 4);
+      seen.flips += count(sim.actions, (action) => action.kind === 'toggle');
+      seen.loads += count(sim.actions, (action) => action.kind === 'load');
+      seen.placements += count(sim.actions, (action) => action.kind === 'placement');
+      if (on('jitter') && lifetimes(sim).length >= 20) seen.jitter++;
+      if (off('coalesce') && sim.tally.overlaps > 0) seen.herds++;
+      if (on('coalesce') && sim.tally.overlaps > 0) seen.moved++;
+      if (off('coalesce') && off('stale') && off('early') && config.load !== 'calm')
         if (sim.counts.timeout > 0) seen.timeouts++;
-      if (!config.invalidate && sim.tally.staleReads > 0) seen.stale++;
+      if (off('invalidate') && sim.tally.staleReads > 0) seen.stale++;
     }
     expect(broken).toEqual([]);
-    // The sweep did real work, and each property broke where the lesson says it does: herds
+    // The sweep did real work: lost nodes from four live and from fewer, and switches, loads and
+    // placements changed mid-run. Each property broke where the lesson says it does: herds
     // without coalescing, timeouts at a busy hour or the morning rush without mitigations, old
     // versions without invalidation, and fetches again for pages that moved mid-fetch.
     expect(events).toBeGreaterThan(SEEDS * 3_000);
-    expect(seen.losses).toBeGreaterThan(SEEDS / 2);
+    expect(seen.losses).toBeGreaterThan(SEEDS);
+    expect(seen.fromFewer).toBeGreaterThan(SEEDS / 2);
+    expect(seen.flips).toBeGreaterThan(SEEDS);
+    expect(seen.loads).toBeGreaterThan(SEEDS / 2);
+    expect(seen.placements).toBeGreaterThan(SEEDS / 4);
+    expect(seen.jitter).toBeGreaterThan(SEEDS / 4);
     expect(seen.herds).toBeGreaterThan(0);
     expect(seen.timeouts).toBeGreaterThan(0);
     expect(seen.stale).toBeGreaterThan(0);
@@ -612,25 +892,32 @@ describe('the property sweep', { timeout: 30_000 }, () => {
       'leaks a coalesced reader that times out',
       { leakFlight: true },
       { coalesce: true },
-      (sim: Sim) => /has waited/.test(sim.violation?.detail ?? ''),
+      /^conservation: Read \d+, of .+, has waited/,
+    ],
+    [
+      'never gets the answer to one fetch in 40',
+      { lostEnd: true },
+      {},
+      /^conservation: Fetch \d+, of .+: the database never answered it$/,
     ],
     [
       'serves an entry past the 4 s stale limit',
       { staleForever: true },
       { stale: true, invalidate: true },
-      (sim: Sim) => !fresh(sim).held,
+      /^fresh: /,
     ],
+    ['ignores the jitter toggle', { noJitter: true }, { jitter: true }, /^jitter: /],
     [
       'places pages by modulo on the circle',
       { moduloOnCircle: true },
       { placement: 'circle' },
-      (sim: Sim) => sim.losses.some((loss) => loss.live === 4 && loss.moved / PAGES > 0.3),
+      /^placement: /,
     ],
   ] as const)('a cache that %s is caught within the sweep', (_name, faults, force, caught) => {
     let found: string | null = null;
     for (let seed = 1; seed <= SEEDS && !found; seed++) {
-      const { sim } = randomRun(seed, faults, force);
-      if (caught(sim)) found = `seed ${seed}`;
+      const { sim, config } = randomRun(seed, faults, force);
+      if (problems(sim, config).some((problem) => caught.test(problem))) found = `seed ${seed}`;
     }
     expect(found).not.toBeNull();
   });

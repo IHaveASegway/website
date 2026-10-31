@@ -38,11 +38,19 @@ export const TIMEOUT = 1_000;
  * The menu is the one dear page: it gathers every item on sale, so building it takes twelve
  * ordinary fetches' time. A stampede needs a page that is both the most read and slow to rebuild,
  * the case the XFetch paper is about. At 35 ms the menu's readers would miss for only 35 ms after
- * each expiry: two or three fetches at 300 reads a second, which a pool of 8 absorbs unseen.
- * 420 ms is measured, not guessed: over 60 seeds at a busy hour the menu's expiry made 20 or
- * more fetches at once in 35 and timed readers out in 52, and the database recovered before the
- * next expiry in 19 of 20 one-minute runs. At 460 ms a busy hour alone left a line that never
- * cleared in 10 of those 20 runs, before the visitor had done anything.
+ * each expiry: two or three fetches at 300 reads a second, which a pool of 8 absorbs unseen (over
+ * 60 seeds at a busy hour, none made 20 fetches at once or timed a reader out). 420 ms is
+ * measured, not guessed: over the same 60 seeds the menu's expiry made 20 or more fetches at once
+ * in 35 and timed readers out in 52, and in each of 20 one-minute runs the line emptied again
+ * before the menu's next expiry.
+ *
+ * A line that feeds itself can outlive what started it: a metastable failure. Were a fetch to
+ * keep its place in line after every reader who waited on it had given up, the morning rush with
+ * nothing on would never recover: at seed 1 the line held 4,309 fetches after 30 s and 50,110
+ * after two minutes, each new fetch slower by 0.6 ms for every one of them, and 4% of reads hit.
+ * So such a fetch leaves the line unstarted (sim.ts, `cancel`), and the rush overloads the
+ * database in waves that clear: over 40 seeds of a minute each, the line never passed 314 fetches
+ * and emptied again in the second half of every run.
  */
 export const DATABASE = {
   /** Connections in the pool: at most this many fetches run at once; the rest wait in line. */

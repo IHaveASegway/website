@@ -1,6 +1,14 @@
 import { createAgenda, next, peekTime, schedule, type Agenda } from '../sim/agenda';
 import { exponential, seeded, zipf, type Random } from '../sim/random';
-import { conservation, createTally, overlapDetail, type Tally, type Violation } from './check';
+import {
+  CAUSES,
+  conservation,
+  createTally,
+  overlapDetail,
+  type Cause,
+  type Tally,
+  type Violation,
+} from './check';
 import {
   CACHE_MS,
   DATABASE,
@@ -32,14 +40,18 @@ import {
 //
 // The cache is look-aside, as in Nishtala et al. (NSDI 2013): a reader asks the page's node, and
 // on a miss fetches the page from the database itself, then stores it on the page's node. A reader
-// gives up after 1,000 ms, but the fetch it asked for still runs to the end and still stores the
-// page: the database works for a reader who has gone, which is how a stampede feeds itself.
+// gives up after 1,000 ms, but a fetch that has started still runs to the end and still stores
+// the page: the database works for a reader who has gone, which is how a stampede feeds itself. A
+// fetch still waiting in line for a connection when its last reader gives up leaves the line
+// unstarted, as a connection pool drops a caller who stopped waiting (see `cancel`).
 
 /**
  * Deliberately broken behaviours, for the tests only: each one is a bug the tests must catch
  * (test/cache.test.ts). The page never sets any.
  * - `leakFlight`: a reader waiting on a coalesced fetch is taken off it when it times out, but
  *   never ended, so it waits forever. Conservation must catch it.
+ * - `lostEnd`: the database never answers one fetch in 40, which holds its connection forever
+ *   while every count still agrees. Conservation must catch it by the time the answer was due.
  * - `staleForever`: stale-while-revalidate serves an entry however long ago it expired, past the
  *   4 s limit. `fresh` must break.
  * - `noJitter`: the jitter toggle is silently ignored. The known answer on how far apart entries
@@ -49,6 +61,7 @@ import {
  */
 export interface Faults {
   readonly leakFlight?: boolean;
+  readonly lostEnd?: boolean;
   readonly staleForever?: boolean;
   readonly noJitter?: boolean;
   readonly moduloOnCircle?: boolean;
@@ -56,6 +69,11 @@ export interface Faults {
 
 /** The four mitigations, all off at first, and whether a write deletes what it changed. */
 export type Toggle = 'coalesce' | 'stale' | 'early' | 'jitter' | 'invalidate';
+
+/** Every switch a recorded action may flip, and every placement it may choose: a page restoring a
+ *  run from a link or from storage hands on whatever it finds, so each action checks its names. */
+const TOGGLES: readonly Toggle[] = ['coalesce', 'stale', 'early', 'jitter', 'invalidate'];
+const PLACEMENTS: readonly Placement[] = ['modulo', 'circle'];
 
 export interface Config {
   readonly seed: number;
@@ -125,7 +143,9 @@ export interface Fetch {
   readonly asked: number;
   started: number;
   ends: number;
-  state: 'waiting' | 'running' | 'done';
+  /** In line for a connection, holding one, answered, or dropped from the line unstarted once
+   *  every reader who waited on it had given up. */
+  state: 'waiting' | 'running' | 'done' | 'cancelled';
   readonly readers: Read[];
 }
 
@@ -199,8 +219,10 @@ export interface Sim {
    *  written (writes[key][v - 1] is when version v + 1 was). */
   readonly versions: number[];
   readonly writes: number[][];
-  /** The pool: fetches running, and the line waiting for a connection, first in, first out. */
+  /** The pool: fetches running, the fetch on each connection in use, and the line waiting for a
+   *  connection, first in, first out. */
   running: number;
+  readonly connections: Fetch[];
   readonly line: Fetch[];
   lineHead: number;
   /** Each page's fetches in flight, asked and not yet answered. */
@@ -216,6 +238,8 @@ export interface Sim {
     timeout: number;
     fetches: number;
     ended: number;
+    /** Fetches dropped from the line before they started: every reader who waited had gone. */
+    cancelled: number;
     /** Fetches that ended with every reader who waited on them gone. */
     wasted: number;
   };
@@ -242,6 +266,7 @@ export interface Sim {
     menuExpiry: number;
     poolFull: boolean;
     timeouts: number;
+    dropped: boolean;
     readonly stale: Set<string>;
   };
 }
@@ -287,6 +312,7 @@ export function createSim(config: Config): Sim {
     versions: Array.from({ length: PAGES }, () => 1),
     writes: Array.from({ length: PAGES }, () => []),
     running: 0,
+    connections: [],
     line: [],
     lineHead: 0,
     flying: Array.from({ length: PAGES }, () => []),
@@ -300,6 +326,7 @@ export function createSim(config: Config): Sim {
       timeout: 0,
       fetches: 0,
       ended: 0,
+      cancelled: 0,
       wasted: 0,
     },
     waiting: [],
@@ -320,6 +347,7 @@ export function createSim(config: Config): Sim {
       menuExpiry: NaN,
       poolFull: false,
       timeouts: 0,
+      dropped: false,
       stale: new Set(),
     },
   };
@@ -393,10 +421,22 @@ export function step(sim: Sim): boolean {
   return true;
 }
 
-/** Runs every event up to a virtual time, then stands at it. */
+/**
+ * Runs every event up to a virtual time, then stands at it. With a `limit`, a page's frame runs at
+ * most that many events: when the limit stops it first, the run stands at the last event it ran,
+ * and the clock goes no further than the work done. Moving the clock on past events not yet run
+ * would run them late, in a different order from the run replay() rebuilds, and leave readers
+ * waiting past the moment they give up. The limit stops only between two moments, never between
+ * two events at the same one, so every event at or before the time the run stands at has run, and
+ * an action taken then is the action replay() takes at the same time.
+ */
 export function runUntil(sim: Sim, until: number, limit = Infinity): void {
   let left = limit;
-  while (!sim.violation && left-- > 0 && nextTime(sim) <= until) step(sim);
+  while (!sim.violation && nextTime(sim) <= until) {
+    if (left <= 0 && nextTime(sim) > sim.now) return;
+    step(sim);
+    left--;
+  }
   if (!sim.violation) sim.now = Math.max(sim.now, until);
 }
 
@@ -554,10 +594,11 @@ function ask(
     readers: [],
   };
   const flying = sim.flying[key] as Fetch[];
+  let cause: Cause | null = null;
   if (flying.length === 0) sim.herds[key] = { from: sim.now, expired, size: 0 };
-  else overlap(sim, fetch, flying);
+  else cause = overlap(sim, fetch, flying);
   flying.push(fetch);
-  noteHerd(sim, fetch, flying.length);
+  noteHerd(sim, fetch, flying.length, cause);
   sim.fetchesOf[key] = (sim.fetchesOf[key] as number) + 1;
   node?.flights.set(key, fetch);
   if (read) wait(sim, read, fetch);
@@ -565,22 +606,32 @@ function ask(
   else sim.line.push(fetch);
 }
 
-/** one-fetch broke: this page was already being fetched. With no node up there is nothing to
- *  coalesce on, so only a node that is up can overlap with itself. */
-function overlap(sim: Sim, fetch: Fetch, flying: readonly Fetch[]): void {
+/**
+ * one-fetch broke: this page was already being fetched. Returns why: another fetch from the same
+ * node and life (a herd, which coalescing prevents), only fetches the page's earlier node asked
+ * for (it changed node mid-fetch, which per-node coalescing cannot prevent), or no node up to
+ * coalesce on. one-fetch is the database's property, so it counts all three; the sweep holds
+ * coalescing to the first, the one it promises.
+ */
+function overlap(sim: Sim, fetch: Fetch, flying: readonly Fetch[]): Cause {
   const t = sim.tally;
   t.overlaps += 1;
+  let cause: Cause = fetch.node < 0 ? 'no node' : 'moved';
   for (const other of flying)
-    if (fetch.node >= 0 && other.shared && other.node === fetch.node && other.life === fetch.life) {
-      t.sameNode += 1;
-      break;
+    if (fetch.node >= 0 && other.node === fetch.node && other.life === fetch.life) {
+      cause = 'herd';
+      if (other.shared) {
+        t.sameNode += 1;
+        break;
+      }
     }
-  t.firstOverlap ??= { at: sim.now, detail: overlapDetail(fetch.key, flying.length + 1) };
+  t.firstOverlap ??= { at: sim.now, detail: overlapDetail(fetch.key, flying.length + 1, cause) };
+  return cause;
 }
 
 /** A herd grew to `size` fetches in flight, the latest being `fetch`: keep its peak, and say so
  *  at each step. */
-function noteHerd(sim: Sim, fetch: Fetch, size: number): void {
+function noteHerd(sim: Sim, fetch: Fetch, size: number, cause: Cause | null): void {
   const key = fetch.key;
   const herd = sim.herds[key];
   if (herd) herd.size = Math.max(herd.size, size);
@@ -599,7 +650,7 @@ function noteHerd(sim: Sim, fetch: Fetch, size: number): void {
   say(
     sim,
     size === 2
-      ? `${firstUp(pageName(key))} is fetched twice at once: ${second[fetch.why]}`
+      ? `${firstUp(pageName(key))} is fetched twice at once: ${cause && cause !== 'herd' ? CAUSES[cause] : second[fetch.why]}`
       : `${firstUp(pageName(key))} now has ${size} fetches in flight at once`,
   );
 }
@@ -615,13 +666,44 @@ function wait(sim: Sim, read: Read, fetch: Fetch): void {
  *  still waiting slows the database by 0.6 ms. */
 function start(sim: Sim, fetch: Fetch): void {
   sim.running += 1;
+  sim.connections.push(fetch);
   fetch.state = 'running';
   fetch.started = sim.now;
   const waiting = sim.line.length - sim.lineHead;
   const time = fetchTime(fetch.key, waiting, sim.random);
   // A fetch reaches the database after the cache's millisecond that told its reader to fetch.
   fetch.ends = Math.max(sim.now, fetch.asked + CACHE_MS) + time;
+  // The bug: the answer to one fetch in 40 never comes, and the fetch keeps its connection.
+  if (sim.faults.lostEnd && fetch.n % 40 === 0) return;
   schedule(sim.agenda, fetch.ends, { kind: 'end', fetch });
+}
+
+/** The first fetch in line leaves it. Now and then the line lets go of the front it has passed,
+ *  so a long run does not keep every fetch it ever queued. */
+function shiftLine(sim: Sim): Fetch | undefined {
+  const first = sim.line[sim.lineHead];
+  if (!first) return undefined;
+  sim.lineHead += 1;
+  if (sim.lineHead > 4_096) {
+    sim.line.splice(0, sim.lineHead);
+    sim.lineHead = 0;
+  }
+  return first;
+}
+
+/** A fetch is no longer in flight, answered or dropped: it leaves its page's fetches, the page's
+ *  herd ends with its last one, and the node that asked for it no longer waits on it. */
+function land(sim: Sim, fetch: Fetch): void {
+  const key = fetch.key;
+  const flying = sim.flying[key] as Fetch[];
+  const index = flying.indexOf(fetch);
+  if (index >= 0) flying.splice(index, 1);
+  if (flying.length === 0) {
+    sim.herds[key] = null;
+    sim.said.herd[key] = 0;
+  }
+  const asker = sim.nodes[fetch.node];
+  if (asker?.flights.get(key) === fetch) asker.flights.delete(key);
 }
 
 /** The database answers a fetch: its readers still waiting are served, the page is stored, and
@@ -636,15 +718,11 @@ function end(sim: Sim, fetch: Fetch): void {
   }
   fetch.state = 'done';
   sim.running -= 1;
+  const held = sim.connections.indexOf(fetch);
+  if (held >= 0) sim.connections.splice(held, 1);
   sim.counts.ended += 1;
   const key = fetch.key;
-  const flying = sim.flying[key] as Fetch[];
-  const index = flying.indexOf(fetch);
-  if (index >= 0) flying.splice(index, 1);
-  if (flying.length === 0) {
-    sim.herds[key] = null;
-    sim.said.herd[key] = 0;
-  }
+  land(sim, fetch);
   // The database answers with the version it holds now. A real fetch reads before it answers,
   // and a write in between can put the old version back after the write's delete: the stale set
   // that the NSDI paper's leases prevent. Here the read and the answer are one instant, so that
@@ -660,17 +738,8 @@ function end(sim: Sim, fetch: Fetch): void {
   // Every reader who waited on it has gone: the work is wasted, though the page is still stored.
   if (served === 0 && fetch.why !== 'stale') sim.counts.wasted += 1;
   store(sim, key, version, sim.now - fetch.asked);
-  const asker = sim.nodes[fetch.node];
-  if (asker?.flights.get(key) === fetch) asker.flights.delete(key);
-  if (sim.lineHead < sim.line.length) {
-    const following = sim.line[sim.lineHead] as Fetch;
-    sim.lineHead += 1;
-    if (sim.lineHead > 4_096) {
-      sim.line.splice(0, sim.lineHead);
-      sim.lineHead = 0;
-    }
-    start(sim, following);
-  }
+  const following = shiftLine(sim);
+  if (following) start(sim, following);
 }
 
 /** Look-aside: the fetcher stores the page on the node that holds it now, which is not the node
@@ -686,7 +755,8 @@ function store(sim: Sim, key: number, version: number, delta: number): void {
     say(sim, `The menu is cached again as version ${version}, until ${seconds(expiresAt)}`);
 }
 
-/** A reader's 1,000 ms are up. Its fetch, if any, runs on: the database cannot know. */
+/** A reader's 1,000 ms are up. A fetch it waited on that has started runs on: the database cannot
+ *  know. One still in line, with nobody left waiting on it, leaves the line unstarted. */
 function giveUp(sim: Sim, read: Read): void {
   if (read.outcome !== 'pending') return;
   const fetch = read.fetch;
@@ -706,6 +776,39 @@ function giveUp(sim: Sim, read: Read): void {
     };
     const waiting = sim.line.length - sim.lineHead;
     say(sim, `${t.firstTimeout.detail}, with ${waiting} fetches in line for the database`);
+  }
+  if (fetch?.state === 'waiting' && fetch.why !== 'stale' && !awaited(fetch)) cancel(sim, fetch);
+}
+
+/** Whether any reader still waits on a fetch. Readers join a fetch in the order they arrive and
+ *  give up in the same order, so the scan from the newest stops at once while one waits. */
+function awaited(fetch: Fetch): boolean {
+  for (let i = fetch.readers.length - 1; i >= 0; i--)
+    if ((fetch.readers[i] as Read).outcome === 'pending') return true;
+  return false;
+}
+
+/**
+ * Every reader who waited on a fetch still in line has given up: the fetch leaves the line before
+ * it reaches the database, as a pool drops a caller who stopped waiting for a connection. A stale
+ * refresh stays, since no reader asked for it. Kept in line, fetches for readers long gone made
+ * the line feed itself without limit at the morning rush (core.ts, DATABASE). Dropped, the line
+ * holds stale refreshes and fetches someone still waits for, each asked within the last second.
+ */
+function cancel(sim: Sim, fetch: Fetch): void {
+  fetch.state = 'cancelled';
+  sim.counts.cancelled += 1;
+  // Readers give up in the order they came, so the fetch is nearly always at the front.
+  const index = sim.line.indexOf(fetch, sim.lineHead);
+  if (index === sim.lineHead) shiftLine(sim);
+  else if (index > sim.lineHead) sim.line.splice(index, 1);
+  land(sim, fetch);
+  if (!sim.said.dropped) {
+    sim.said.dropped = true;
+    say(
+      sim,
+      `${firstUp(pageName(fetch.key))}'s fetch leaves the line before it reaches the database: every reader who waited on it has given up`,
+    );
   }
 }
 
@@ -806,7 +909,7 @@ export function flush(sim: Sim): void {
 /** A cache node is lost with everything it held. Fetches it asked for still run at the database,
  *  and their readers still get them; what they fetch is stored on the page's new node. */
 export function loseNode(sim: Sim, node: number): void {
-  const lost = sim.nodes[node];
+  const lost = Number.isInteger(node) ? sim.nodes[node] : undefined;
   if (!lost?.up) return;
   record(sim, { at: sim.now, kind: 'lose', node });
   let live = 0;
@@ -827,7 +930,7 @@ export function loseNode(sim: Sim, node: number): void {
 
 /** A lost node comes back, empty: a new process, which knows nothing of its last life. */
 export function restoreNode(sim: Sim, node: number): void {
-  const back = sim.nodes[node];
+  const back = Number.isInteger(node) ? sim.nodes[node] : undefined;
   if (!back || back.up) return;
   record(sim, { at: sim.now, kind: 'restore', node });
   back.up = true;
@@ -869,7 +972,8 @@ export function write(sim: Sim, key: number): void {
 }
 
 export function setLoad(sim: Sim, load: Load): void {
-  if (load === sim.load || !(load in LOADS)) return;
+  // Own names only: `in` would also match what every object inherits, such as 'constructor'.
+  if (load === sim.load || !Object.hasOwn(LOADS, load)) return;
   record(sim, { at: sim.now, kind: 'load', load });
   sim.load = load;
   // A new arrival stream at the new rate. A Poisson process has no memory, so starting one now is
@@ -907,7 +1011,8 @@ const TOGGLE_LINES: Record<Toggle, readonly [off: string, on: string]> = {
 };
 
 export function setToggle(sim: Sim, toggle: Toggle, on: boolean): void {
-  if (sim[toggle] === on) return;
+  // A switch the lab has, set to on or off: never another field of the run, such as its clock.
+  if (!TOGGLES.includes(toggle) || typeof on !== 'boolean' || sim[toggle] === on) return;
   record(sim, { at: sim.now, kind: 'toggle', toggle, on });
   sim[toggle] = on;
   say(sim, TOGGLE_LINES[toggle][on ? 1 : 0]);
@@ -921,7 +1026,7 @@ export const setJitter = (sim: Sim, on: boolean): void => setToggle(sim, 'jitter
 export const setInvalidate = (sim: Sim, on: boolean): void => setToggle(sim, 'invalidate', on);
 
 export function setPlacement(sim: Sim, placement: Placement): void {
-  if (placement === sim.placement) return;
+  if (!PLACEMENTS.includes(placement) || placement === sim.placement) return;
   record(sim, { at: sim.now, kind: 'placement', placement });
   sim.placement = placement;
   const moved = place(sim);
@@ -932,10 +1037,39 @@ export function setPlacement(sim: Sim, placement: Placement): void {
   settle(sim);
 }
 
-/** Replays recorded actions on a fresh run of the same config: the run they came from, exactly. */
+/** Whether a recorded action is one the lab can take: a kind it knows, at a real time, naming a
+ *  node, page, load, placement or switch the lab has. */
+function wellFormed(action: Action): boolean {
+  if (typeof action.at !== 'number' || !Number.isFinite(action.at)) return false;
+  switch (action.kind) {
+    case 'flush':
+      return true;
+    case 'lose':
+    case 'restore':
+      return Number.isInteger(action.node) && action.node >= 0 && action.node < NODES;
+    case 'write':
+      return Number.isInteger(action.key) && action.key >= 0 && action.key < PAGES;
+    case 'load':
+      return Object.hasOwn(LOADS, action.load);
+    case 'placement':
+      return PLACEMENTS.includes(action.placement);
+    case 'toggle':
+      return TOGGLES.includes(action.toggle) && typeof action.on === 'boolean';
+    default:
+      return false;
+  }
+}
+
+/**
+ * Replays recorded actions on a fresh run of the same config: the run they came from, exactly.
+ * Actions may come from a link or from storage, so an action the lab cannot take is skipped, and
+ * so is one earlier than the run already stands (out of order) or later than `until`: running
+ * to a time read from a link could otherwise run for ever, or put NaN on the clock.
+ */
 export function replay(config: Config, actions: readonly Action[], until: number): Sim {
   const sim = createSim(config);
   for (const action of actions) {
+    if (!wellFormed(action) || action.at < sim.now || action.at > until) continue;
     runUntil(sim, action.at);
     switch (action.kind) {
       case 'flush':

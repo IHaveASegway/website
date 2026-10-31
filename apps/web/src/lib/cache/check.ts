@@ -1,11 +1,12 @@
-import { firstUp, pageName, TIMEOUT, DATABASE } from './core';
-import type { Sim } from './sim';
+import { firstUp, pageName, seconds, TIMEOUT, DATABASE } from './core';
+import type { Fetch, Sim } from './sim';
 
 // What the Cache Lab checks, in two kinds. Conservation is an invariant: every read ends as exactly
-// one outcome, and every fetch the database starts ends. It holds in every configuration, and a
-// break is a bug in the simulation that freezes the run, as a broken safety property does in the
-// Raft Lab. The three properties are different: a weak configuration breaking one is the lesson,
-// so the run goes on and each break is counted, with the first one and the worst.
+// one outcome, and every fetch the database starts ends, by the time its answer is due. It holds
+// in every configuration, and a break is a bug in the simulation that freezes the run, as a
+// broken safety property does in the Raft Lab. The three properties are different: a weak
+// configuration breaking one is the lesson, so the run goes on and each break is counted, with the
+// first one and the worst.
 
 export const PROPERTIES = [
   { id: 'one-fetch', name: 'The database fetched each key once at a time' },
@@ -100,10 +101,22 @@ export function conservation(sim: Sim, deep = false): Violation | null {
   const waiting = sim.line.length - sim.lineHead;
   if (sim.running < 0 || sim.running > DATABASE.pool)
     return fail(`${sim.running} fetches are running on a pool of ${DATABASE.pool} connections`);
-  if (c.fetches !== c.ended + sim.running + waiting)
+  if (c.fetches !== c.ended + c.cancelled + sim.running + waiting)
     return fail(
-      `${c.fetches} fetches began, but ${c.ended} ended, ${sim.running} run and ${waiting} wait: some vanished`,
+      `${c.fetches} fetches began, but ${c.ended} ended, ${c.cancelled} left the line, ${sim.running} run and ${waiting} wait: some vanished`,
     );
+  // The counts agree for a fetch the database never answers: it is counted as running, and it
+  // runs. Only its time gives it away, so each connection's fetch is held to the time its answer
+  // was due. Events run in time order, so once the clock has passed that time, the answer is lost.
+  if (sim.connections.length !== sim.running)
+    return fail(
+      `${sim.running} fetches are counted as running, but ${sim.connections.length} hold a connection`,
+    );
+  for (const fetch of sim.connections)
+    if (fetch.ends < sim.now)
+      return fail(
+        `Fetch ${fetch.n}, of ${pageName(fetch.key)}, was due back at ${seconds(fetch.ends)}, but still holds a connection: the database never answered it`,
+      );
   // Every reader gives up at 1,000 ms, so a read still waiting past that was lost track of. The
   // waiting reads sit in the order they began, so the oldest is first.
   const oldest = sim.waiting[sim.waitingHead];
@@ -123,6 +136,16 @@ export function conservation(sim: Sim, deep = false): Violation | null {
     return fail(
       `${flying} fetches are in flight by page, but the pool holds ${sim.running + waiting}`,
     );
+  // Nothing waits in line for nobody: a fetch in line has a reader still waiting on it, or is a
+  // stale refresh, which no reader asked for. Every reader gives up within 1,000 ms, so a fetch
+  // never waits in line longer than its newest reader, and the line stays bounded.
+  for (let i = sim.lineHead; i < sim.line.length; i++) {
+    const fetch = sim.line[i] as Fetch;
+    if (fetch.why !== 'stale' && !fetch.readers.some((read) => read.outcome === 'pending'))
+      return fail(
+        `Fetch ${fetch.n}, of ${pageName(fetch.key)}, waits in line with no reader left waiting on it`,
+      );
+  }
   return null;
 }
 
@@ -153,6 +176,20 @@ export function properties(sim: Sim): readonly [PropertyState, PropertyState, Pr
   ];
 }
 
-/** The detail of a herd's first overlap, for the property's first break. */
-export const overlapDetail = (key: number, together: number): string =>
-  `${firstUp(pageName(key))} was being fetched ${together} times at once`;
+/**
+ * Why a page was fetched while a fetch of it was in flight: another fetch from the same node (a
+ * herd, which coalescing prevents), only fetches from the node it lived on before (it changed
+ * node mid-fetch, which coalescing cannot prevent, being per node), or no node up to hold it.
+ */
+export type Cause = 'herd' | 'moved' | 'no node';
+
+/** The causes that are not a herd, as the clause that says them. */
+export const CAUSES = {
+  moved: 'it changed node while a fetch of it still ran',
+  'no node': 'no cache node was up to hold it',
+} as const;
+
+/** The detail of an overlap, for the property's first break: with coalescing on, one-fetch can
+ *  still break, and the detail says why. */
+export const overlapDetail = (key: number, together: number, cause: Cause): string =>
+  `${firstUp(pageName(key))} was being fetched ${together} times at once${cause === 'herd' ? '' : `: ${CAUSES[cause]}`}`;

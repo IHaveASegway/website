@@ -61,10 +61,25 @@ export function summary(sim: Sim): string {
   return `${served} ${firstUp(and(findings))}.`;
 }
 
-const LABELS: Record<PropertyId, string> = {
-  'one-fetch': 'one fetch of a page at a time',
-  'no-timeouts': 'no timeouts',
-  fresh: 'fresh reads',
+interface Clause {
+  readonly broke: (n: number) => string;
+  readonly held: string;
+}
+
+/** Each property as a clause of the status line: what happened, counted, when it broke, and what
+ *  never happened when it held. A property's name read as "no timeouts broke twice" says the
+ *  opposite of what it means. */
+const CLAUSES: Record<PropertyId, Clause> = {
+  'one-fetch': {
+    broke: (n) =>
+      `${count(n)} ${n === 1 ? 'fetch' : 'fetches'} began while the same page was already being fetched`,
+    held: 'no page was fetched twice at once',
+  },
+  'no-timeouts': { broke: (n) => `${reads(n)} timed out`, held: 'no reader timed out' },
+  fresh: {
+    broke: (n) => `${reads(n)} got a page older than the stale limit allows`,
+    held: 'no reader got a page older than the stale limit allows',
+  },
 };
 
 /** The status line: the three properties in one sentence, or the conservation bug that froze the
@@ -75,11 +90,11 @@ export function statusText(sim: Sim): string {
   const held: string[] = [];
   const broke: string[] = [];
   for (const p of properties(sim)) {
-    if (p.held) held.push(LABELS[p.id]);
-    else broke.push(`${LABELS[p.id]} broke ${times(p.count)}`);
+    if (p.held) held.push(CLAUSES[p.id].held);
+    else broke.push(CLAUSES[p.id].broke(p.count));
   }
   if (broke.length === 0) return `All three properties held over ${reads(sim.counts.reads)}.`;
-  return `${firstUp(and(broke))}${held.length > 0 ? `; ${and(held)} held` : ''}.`;
+  return `${firstUp(and(broke))}${held.length > 0 ? `; ${and(held)}` : ''}.`;
 }
 
 /** The history strip's points, one every 100 ms, the last minute of them. */
