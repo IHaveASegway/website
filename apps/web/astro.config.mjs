@@ -138,9 +138,11 @@ export default defineConfig({
     syntaxHighlight: false,
     // Sätteri, Astro's default processor, configured only to write a footnote's way back as the
     // word "Back": its default "↩" is in no face's subset, and Barlow draws no arrow, so a footnote
-    // would fall back to a system font (the glyph check). Everything else is the processor's
-    // default.
-    processor: satteri({ features: { gfm: { footnotes: { backContent: 'Back' } } } }),
+    // would fall back to a system font (the glyph check). Every way back reads "Back", a second
+    // reference's too: the text form adds a raised 2 after the word, and "Back2" is not in its name,
+    // "Back to reference 1-2", which tells the two apart (SC 2.5.3, e2e/a11y.spec.ts). Everything
+    // else is the processor's default.
+    processor: satteri({ features: { gfm: { footnotes: { backContent: () => 'Back' } } } }),
   },
   // No security.csp: Astro's policy is a <meta>, which covers only what follows it and cannot
   // carry frame-ancestors. The page policy is the header pagePolicy writes (above), and a <meta>
