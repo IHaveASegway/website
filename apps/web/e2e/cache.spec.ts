@@ -651,3 +651,41 @@ for (const colorScheme of ['light', 'dark'] as const) {
     expect(results.violations.map((v) => `${v.id}: ${v.nodes.length}`)).toEqual([]);
   });
 }
+
+// The retry storm (test/cache-storm.test.ts): with readers retrying at once and every fetch kept,
+// the morning rush and a flush leave a line that grows on at calm load; dropping the fetches
+// nobody waits for empties it within a few seconds.
+test('a retry storm outlasts its trigger, and dropping the fetches nobody waits for ends it', async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await page.goto(`${CACHE}#seed-7&retry=at-once&drop=off`);
+  await expect(clock(page)).toHaveText(/, seed 7$/);
+  await expect(page.getByRole('radio', { name: 'Retry at once', exact: true })).toBeChecked();
+  const drop = page.getByRole('button', { name: 'Drop fetches nobody waits for' });
+  await expect(drop).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByRole('group', { name: 'When a reader times out' })).toBeVisible();
+  await choose(page, 'Morning');
+  await press(page, 'Flush every node');
+  await choose(page, 'Slow');
+  await press(page, 'Run');
+  await expect.poll(() => seconds(page), { timeout: 30_000 }).toBeGreaterThanOrEqual(5.5);
+  await choose(page, 'Calm');
+  await choose(page, 'Quick');
+  await expect.poll(() => seconds(page), { timeout: 60_000 }).toBeGreaterThanOrEqual(20);
+  await press(page, 'Pause');
+  // Calm for 14 s, and the line is longer than ever.
+  expect(Number((await waiting(page).textContent())?.replace(/,/g, ''))).toBeGreaterThan(1_000);
+  await expect(page.locator('[data-cl-readers]')).toHaveText(
+    /^Readers, 120 a second, and \d+ retries$/,
+  );
+  await expect(summary(page)).toHaveText(/, [\d,]+ of them retries, /);
+  await choose(page, 'Retry with backoff');
+  await expect(said(page)).toHaveText(/^A reader who times out now waits a random time/);
+  await drop.click();
+  await expect(drop).toHaveAttribute('aria-pressed', 'true');
+  await expect(said(page)).toHaveText(/^[\d,]+ fetches leave the line: nobody waits for them/);
+  const start = await seconds(page);
+  await runUntil(page, () => document.querySelector('[data-cl-waiting]')?.textContent === '0');
+  expect((await seconds(page)) - start).toBeLessThan(5);
+});

@@ -643,12 +643,18 @@ legend.cl-group-name {
   min-inline-size: 6.5rem;
 }
 
-/* The choices of one radio group stand edge to edge, one push-button of several parts. */
+/* The choices of one radio group stand edge to edge, one push-button of several parts. Each part
+   steps back over its neighbour's edge, and the row gives back the step, so a part that wraps to a
+   second row, as Retry with backoff does in a narrow panel, lines up under the first and shares
+   one edge with the row above. */
 .cl-segments {
   gap: 0;
+  padding-block-start: 1px;
+  padding-inline-start: 1px;
 }
 
-.cl-segments > .cl-choice + .cl-choice {
+.cl-segments > .cl-choice {
+  margin-block-start: -1px;
   margin-inline-start: -1px;
 }
 
