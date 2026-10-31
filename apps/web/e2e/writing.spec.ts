@@ -202,7 +202,8 @@ test("Home lists the three latest posts, /writing/ all five, and a post's way ba
   const home = await page
     .locator('#writing a')
     .evaluateAll((anchors) => anchors.map((a) => (a as HTMLAnchorElement).pathname));
-  expect(home).toEqual([...NEWEST_FIRST.slice(0, 3), '/writing/', '/rss.xml']);
+  // All writing heads the section, at its title's far end (ADR 0027); the feed follows the rows.
+  expect(home).toEqual(['/writing/', ...NEWEST_FIRST.slice(0, 3), '/rss.xml']);
   await page.goto('/writing/');
   const all = await page
     .locator('.post-title a')

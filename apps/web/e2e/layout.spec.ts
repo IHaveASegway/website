@@ -7,7 +7,8 @@ import { NOT_FOUND_PAGE, pages } from './expected';
 // columns 9 to 12; and on a phone the copyright alone stood flush right under lines that start at
 // the frame's edge. The hero checks run with the web fonts and without them, which are a little
 // wider. Since ADR 0025 the buttons are the address's and LinkedIn's, of two widths: each keeps its
-// own at every screen width.
+// own at every screen width. Since ADR 0027 they stand under the role, which is set in the wide
+// face: one line from 390 px, and at 320 px no more than two.
 
 type Fonts = 'loaded' | 'blocked';
 const FONTS: readonly Fonts[] = ['loaded', 'blocked'];
@@ -26,9 +27,9 @@ function linesOf(selector: string): number {
   return new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size;
 }
 
-/** The widths of Home's hero buttons, to the pixel. Runs in the page. */
+/** The widths of Home's opening buttons, to the pixel. Runs in the page. */
 function buttonWidths(): number[] {
-  return [...document.querySelectorAll('.hero-actions .btn')].map((button) =>
+  return [...document.querySelectorAll('.intro-actions .btn')].map((button) =>
     Math.round(button.getBoundingClientRect().width),
   );
 }
@@ -73,7 +74,7 @@ function footerParts(withoutLinks: boolean) {
 const WIDTHS = [320, 390, 600, 767, 768, 1023, 1024, 1060, 1100, 1199, 1200, 1440];
 
 for (const fonts of FONTS) {
-  test(`Home's buttons are one width and its title one line from 320 to 1440 px, fonts ${fonts}`, async ({
+  test(`Home's buttons are one width from 320 to 1440 px, and its role one line from 390 px, fonts ${fonts}`, async ({
     page,
   }) => {
     if (fonts === 'blocked') await page.route('**/*.woff2', (route) => route.abort());
@@ -83,7 +84,7 @@ for (const fonts of FONTS) {
       await page.setViewportSize({ width, height: 900 });
       await open(page, '/');
       (await page.evaluate(buttonWidths)).forEach((button, i) => (widths[i] ??= []).push(button));
-      titleLines[width] = await page.evaluate(linesOf, '.hero-title');
+      titleLines[width] = await page.evaluate(linesOf, '.intro-role');
     }
     // Each button one width at every screen width, within a pixel of rounding.
     expect(widths.length, 'Home has buttons').toBeGreaterThan(0);
@@ -92,9 +93,10 @@ for (const fonts of FONTS) {
         Math.max(...each) - Math.min(...each),
         `button ${i + 1}: ${each.join(', ')}`,
       ).toBeLessThanOrEqual(1);
-    expect(titleLines, 'lines of the title at each width').toEqual(
-      Object.fromEntries(WIDTHS.map((width) => [width, 1])),
+    expect(titleLines, 'lines of the role at each width').toEqual(
+      Object.fromEntries(WIDTHS.map((width) => [width, width < 390 ? titleLines[width] : 1])),
     );
+    expect(titleLines[320]).toBeLessThanOrEqual(2);
   });
 }
 
@@ -139,12 +141,13 @@ for (const width of [768, 1440, 2560]) {
 
 // Home's closing address fits its column on one line from 320 px up (home.css): at a title's size
 // it is wider than a phone's column, so below 27rem it takes a section's size. Until 2026-10-30 it
-// broke wherever the column ended, "hello@ihaveasegway.co" over "m".
+// broke wherever the column ended, "hello@ihaveasegway.co" over "m". Since ADR 0027 it closes the
+// page under Contact.
 test('Home’s closing address stands on one line from 320 to 1440 px', async ({ page }) => {
   for (const width of [320, 375, 390, 414, 431, 432, 768, 1440]) {
     await page.setViewportSize({ width, height: 800 });
     await open(page, '/');
-    const lines = await page.evaluate(linesOf, '.toward-mail');
+    const lines = await page.evaluate(linesOf, '.closing-mail');
     test.skip(lines === 0, 'Home has no closing address here');
     expect(lines, `${width}`).toBe(1);
   }
@@ -179,7 +182,7 @@ test('known answers: the layout checks count lines, read widths and find a line 
     [
       '<body style="margin: 0; font: 16px monospace">',
       '<p class="hero-title" style="width: 100px">Senior Software Engineer</p>',
-      '<div class="hero-actions"><a class="btn" style="display: inline-block; width: 132px">A</a>',
+      '<div class="intro-actions"><a class="btn" style="display: inline-block; width: 132px">A</a>',
       '<a class="btn" style="display: inline-block; width: 176px">B</a></div>',
       '<footer><div class="site-footer" style="display: flex; flex-wrap: wrap; width: 300px">',
       '<a style="width: 250px">hello@example.com</a><ul style="display: flex; margin: 0; padding: 0"><li>Link</li></ul>',

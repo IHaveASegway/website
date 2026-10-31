@@ -1,0 +1,40 @@
+---
+import { isoDay, KIND_LABELS, postPath, type Post } from '../../lib/posts';
+
+interface Props {
+  /** The posts, newest first, each with its reading time in minutes (index.astro). */
+  posts: readonly { readonly post: Post; readonly minutes: number }[];
+}
+
+const { posts } = Astro.props;
+// The dated writing list (docs/design/overhaul.md, "Writing list"; after syntaqx's): a hairline
+// over each row; from 48rem three columns, the day in the wide face, the title with its summary
+// under it, and the kind and reading time at the row's end; below 48rem the day over the title.
+// The row is its title's link (global.css stretches it over the row), and the 2 px sweep along its
+// top under the pointer is the one thing it moves. The day reads "31 Oct 2026", short, so the
+// column stays narrow; its datetime is the whole date.
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const short = (date: Date) =>
+  `${date.getUTCDate()} ${MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
+---
+
+<ol class="post-list post-rows" role="list">
+  {posts.map(({ post, minutes }) => (
+    <li class="post-row">
+      <time class="post-date" datetime={isoDay(post.published)}>
+        {short(post.published)}
+      </time>
+      <div class="post-body">
+        <h3 class="post-title">
+          <a href={postPath(post)}>{post.title}</a>
+        </h3>
+        <p class="post-summary">{post.summary}</p>
+      </div>
+      <p class="post-kind">
+        {KIND_LABELS[post.kind]}
+        <span class="visually-hidden">,</span>
+        <span class="post-minutes">{minutes} min read</span>
+      </p>
+    </li>
+  ))}
+</ol>

@@ -37,9 +37,8 @@ async function rows(page: Page): Promise<{ shown: string[]; active: string | nul
 
 test('Ctrl+K and ⌘K open it at once, with focus in its input; Esc closes it', async ({ page }) => {
   // With motion allowed, as most visitors have it: the menu still opens with no animation, its
-  // backdrop's included (design-system.md, "Motion"). Home's scene runs, and the board's day once
-  // the board is seen (ADR 0025), whatever the menu does, so only an animation of the menu's own
-  // is counted.
+  // backdrop's included (design-system.md, "Motion"). Home's drawing runs (ADR 0027), whatever
+  // the menu does, so only an animation of the menu's own is counted.
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await ready(page);
   for (const keys of ['Control+k', 'Meta+k']) {

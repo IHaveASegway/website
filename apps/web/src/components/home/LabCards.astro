@@ -1,0 +1,81 @@
+---
+import type { Part } from '../../lib/iso/system';
+import type { LabEntry } from '../../lib/lab';
+import { labPath } from '../../lib/lab';
+
+interface Props {
+  /** The labs this build writes, in the order the cards show them. */
+  labs: readonly LabEntry[];
+  /** Each lab's part of Home's drawing, by slug: its glyph is cut from it. */
+  parts: ReadonlyMap<string, Part>;
+  /** One fact from each lab's own build, by slug (index.astro). */
+  facts: ReadonlyMap<string, string>;
+}
+
+const { labs, parts, facts } = Astro.props;
+// The lab cards (docs/design/overhaul.md, "Lab cards"): a card for each live lab, its glyph cut
+// from Home's drawing and drawn in the lab's own colour, the lab's name beside it, then its title,
+// which is the card's link, its summary and one fact its build works out. The whole card is the
+// link (global.css stretches it), and under the pointer its edge darkens and its title turns to
+// the accent, at once. The cards keep the lab's order, as /about/'s Selected work does; with five,
+// the last takes two columns, so they fill their rows two or three abreast.
+const NAMES: Record<string, string> = {
+  routes: 'Route Lab',
+  raft: 'Raft Lab',
+  queue: 'Queue Lab',
+  cache: 'Cache Lab',
+  backfill: 'Backfill Lab',
+};
+const PAD = 6;
+const cards = labs.map((lab) => {
+  const part = parts.get(lab.slug);
+  const box = part?.bounds;
+  return {
+    lab,
+    part,
+    view: box
+      ? `${box[0] - PAD} ${box[1] - PAD} ${box[2] - box[0] + PAD * 2} ${box[3] - box[1] + PAD * 2}`
+      : undefined,
+  };
+});
+---
+
+<ul class="lab-cards" role="list">
+  {cards.map(({ lab, part, view }) => (
+    <li class="card lab-card" data-line={lab.slug}>
+      <div class="lab-card-head">
+        {part && view && (
+          <svg class="iso-glyph" viewBox={view} aria-hidden="true" focusable="false">
+            {part.ground && (
+              <>
+                <path class="iso-road" d={part.ground.road} />
+                <path
+                  class="iso-vans"
+                  d={part.ground.road}
+                  pathLength="100"
+                  stroke-dasharray={part.ground.vans}
+                />
+              </>
+            )}
+            {part.solids.map((s) => (
+              <g class="iso-glyph-solid">
+                <path class="iso-face-left" d={s.left} />
+                {s.right && <path class="iso-face-right" d={s.right} />}
+                {s.bands && <path class="iso-band" d={s.bands} />}
+                <path class="iso-face-top" d={s.top} />
+              </g>
+            ))}
+          </svg>
+        )}
+        <p class="lab-card-name">{NAMES[lab.slug] ?? lab.slug}</p>
+      </div>
+      <h3 class="card-title">
+        <a class="card-more" href={labPath(lab)}>
+          {lab.title}
+        </a>
+      </h3>
+      <p class="card-text">{lab.summary}</p>
+      {facts.get(lab.slug) && <p class="lab-card-fact">{facts.get(lab.slug)}</p>}
+    </li>
+  ))}
+</ul>
