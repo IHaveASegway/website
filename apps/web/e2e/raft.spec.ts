@@ -241,7 +241,7 @@ test('a link followed on the page opens that seed paused at the opening’s mome
   await expect(page.locator('[data-rf-seed]')).toHaveText('12');
   await expect(clock(page)).toHaveText('Virtual time 1.400 s');
   // Followed while a run plays: that seed's opening, paused.
-  await page.selectOption('[data-rf-speed]', '0.1');
+  await page.getByRole('radio', { name: 'Quick' }).check();
   await page.getByRole('button', { name: 'Run' }).click();
   await expect.poll(() => seconds(page)).toBeGreaterThan(1.45);
   await page.evaluate(() => (location.hash = '#seed-3'));
