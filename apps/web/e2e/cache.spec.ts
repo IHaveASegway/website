@@ -579,6 +579,66 @@ test('on a phone, the line waiting stands beside the database’s lamps, and a l
   expect(wraps).toBeGreaterThan(0);
 });
 
+/** From the top of the map to the bottom of the lowest of these buttons, in CSS px: what one screen
+ *  must hold to show the picture and the buttons that work it together. Says also whether anything
+ *  from the map up to the desk pins, which the site never does on a narrow screen. */
+const reach = (page: Page, names: string[]) =>
+  page.evaluate((names) => {
+    const map = document.querySelector('[data-cl-map]') as HTMLElement;
+    const top = map.getBoundingClientRect().top;
+    const bottoms = names.map((name) => {
+      const button = [...document.querySelectorAll('button')].find(
+        (b) => b.textContent?.trim() === name,
+      );
+      return button ? button.getBoundingClientRect().bottom : Number.POSITIVE_INFINITY;
+    });
+    let pinned = '';
+    for (let el: HTMLElement | null = map; el && !el.matches('.desk'); el = el.parentElement)
+      if (/sticky|fixed/.test(getComputedStyle(el).position)) pinned = el.className;
+    return { span: Math.max(...bottoms) - top, pinned };
+  }, names);
+
+// The first thing to try is to let the menu expire, then coalesce misses and start over: those
+// buttons sit by the map, so a press and the picture share one screen. Serve stale comes on the
+// next line; on Linux the map's labels set wider, the menu's words take a line of their own, and
+// the map grows by 70 px, so only the first switch is held to the screen.
+for (const [width, height] of [
+  [390, 844],
+  [1440, 900],
+] as const) {
+  test(`at ${width} × ${height}, the map, Time and Coalesce misses fit one screen, and nothing pins`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto(CACHE);
+    await page.evaluate(() => document.fonts.ready);
+    const { span, pinned } = await reach(page, [
+      'Run',
+      'Next event',
+      'Start over',
+      'Coalesce misses',
+    ]);
+    expect(pinned).toBe('');
+    expect(span).toBeLessThanOrEqual(height);
+  });
+}
+
+test('on a phone, Tab meets the controls in the order they are seen, top to bottom', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(CACHE);
+  const tops = await page
+    .locator('.cl-stage :is(button, input)')
+    .evaluateAll((controls) =>
+      controls
+        .filter((c) => !(c instanceof HTMLInputElement) || c.checked)
+        .map((c) => Math.round(c.getBoundingClientRect().top + scrollY)),
+    );
+  expect(tops.length).toBeGreaterThan(10);
+  expect(tops).toEqual([...tops].sort((a, b) => a - b));
+});
+
 for (const colorScheme of ['light', 'dark'] as const) {
   test(`axe finds no violation after a run, ${colorScheme}`, async ({ page }) => {
     await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });

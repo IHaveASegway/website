@@ -121,7 +121,11 @@ const fenced = (page: Page) =>
         }
       }
       for (const text of node.querySelectorAll('text')) {
-        const { x, y, width, height } = text.getBBox();
+        // getBBox leaves out a CSS transform, and on a phone the labels move down as they grow.
+        const shift = new DOMMatrix(getComputedStyle(text).transform).f;
+        const box = text.getBBox();
+        const { x, width, height } = box;
+        const y = box.y + shift;
         const [left, top, right, bottom] = [x - 2, y - 2, x + width + 2, y + height + 2];
         for (let t = 0; t <= 1; t += 1 / 64)
           points.push(
@@ -152,6 +156,19 @@ test('a cut network: a fence closes off the smaller side and crosses no node or 
   await page.getByRole('button', { name: 'Split 2 and 3' }).click();
   await expect.poll(() => fenced(page)).toBe(2);
 });
+
+// On a phone the role and term grow and move down (raft-lab.css); the fence must still keep clear.
+for (const width of [390, 320]) {
+  test(`at ${width} px wide, the fence still crosses no node or its text`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(RAFT);
+    await page.getByRole('button', { name: 'Cut off the leader' }).click();
+    await expect.poll(() => fenced(page)).toBe(1);
+    await page.getByRole('button', { name: 'Heal the network' }).click();
+    await page.getByRole('button', { name: 'Split 2 and 3' }).click();
+    await expect.poll(() => fenced(page)).toBe(2);
+  });
+}
 
 test('a node button crashes it and then restarts it, and says so in its name', async ({ page }) => {
   await page.goto(RAFT);
@@ -443,7 +460,8 @@ test('the speed is a radio group of lamps that the arrow keys move through, and 
   const slow = group.getByRole('radio', { name: 'Slow' });
   await expect(steady).toBeChecked();
 
-  await page.getByRole('button', { name: 'Next event' }).focus();
+  // Start over stands before the speed, so the three time buttons share a line on a phone.
+  await page.getByRole('button', { name: 'Start over' }).focus();
   await page.keyboard.press('Tab');
   await expect(steady).toBeFocused();
   await page.keyboard.press('ArrowRight');
@@ -454,7 +472,7 @@ test('the speed is a radio group of lamps that the arrow keys move through, and 
   await page.keyboard.press('ArrowLeft');
   await expect(quick).toBeChecked();
   await page.keyboard.press('Tab');
-  await expect(page.getByRole('button', { name: 'Start over' })).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Send a write' })).toBeFocused();
 
   const lit = await page.evaluate(() =>
     [...document.querySelectorAll('.rf-option')].map(
@@ -474,6 +492,84 @@ test('the speed is a radio group of lamps that the arrow keys move through, and 
   await page.waitForTimeout(1_000);
   await pause.click();
   expect((await seconds(page)) - from).toBeGreaterThan(0.07);
+});
+
+/** From the top of the picture to the bottom of the lowest of these buttons, in CSS px: what one
+ *  screen must hold to show the picture and the buttons that work it together. Says also whether
+ *  anything from the picture up to the desk pins, which the site never does on a narrow screen. */
+const reach = (page: Page, names: string[]) =>
+  page.evaluate((names) => {
+    const map = document.querySelector('[data-rf-map]') as SVGSVGElement;
+    const top = map.getBoundingClientRect().top;
+    const bottoms = names.map((name) => {
+      const button = [...document.querySelectorAll('button')].find(
+        (b) => b.textContent?.trim() === name,
+      );
+      return button ? button.getBoundingClientRect().bottom : Number.POSITIVE_INFINITY;
+    });
+    let pinned = '';
+    for (let el: Element | null = map; el && !el.matches('.desk'); el = el.parentElement)
+      if (/sticky|fixed/.test(getComputedStyle(el).position)) pinned = el.className.toString();
+    return { span: Math.max(...bottoms) - top, pinned };
+  }, names);
+
+// The first thing to try is Run, then Cut off the leader, then Send a write: those buttons and
+// Time's sit by the picture, so a press and what it does share one screen.
+for (const [width, height] of [
+  [390, 844],
+  [1440, 900],
+] as const) {
+  test(`at ${width} × ${height}, the picture and Time, Cut off the leader and Send a write fit one screen, and nothing pins`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto(RAFT);
+    await page.evaluate(() => document.fonts.ready);
+    const { span, pinned } = await reach(page, [
+      'Run',
+      'Next event',
+      'Start over',
+      'Cut off the leader',
+      'Send a write',
+    ]);
+    expect(pinned).toBe('');
+    expect(span).toBeLessThanOrEqual(height);
+  });
+}
+
+// A node's role and term are set in the picture's units, which shrink with a phone's width; they
+// must still draw 13 px at the least, and the leader's number above them more.
+for (const width of [390, 320]) {
+  test(`at ${width} px wide, every label in the picture draws 13 px or more`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(RAFT);
+    const sizes = await page
+      .locator('[data-rf-map] text')
+      .evaluateAll((texts) =>
+        texts.map(
+          (t) =>
+            parseFloat(getComputedStyle(t).fontSize) *
+            ((t as SVGTextElement).getScreenCTM()?.a ?? 0),
+        ),
+      );
+    expect(sizes).toHaveLength(15);
+    expect(Math.min(...sizes)).toBeGreaterThanOrEqual(13);
+  });
+}
+
+test('the loss slider is a 44 px target on a phone, as the buttons beside it are', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(RAFT);
+  await page.locator('[data-rf-loss]').scrollIntoViewIfNeeded();
+  const box = await page.locator('[data-rf-loss]').boundingBox();
+  expect(box?.height).toBeGreaterThanOrEqual(44);
+  expect(box?.width).toBeGreaterThanOrEqual(44);
+  // A tap near the box's top edge, off the track drawn in its middle, still moves it.
+  if (!box) return;
+  await page.mouse.click(box.x + box.width * 0.75, box.y + 4);
+  await expect(page.locator('[data-rf-loss]')).not.toHaveValue('0');
 });
 
 for (const colorScheme of ['light', 'dark'] as const) {
