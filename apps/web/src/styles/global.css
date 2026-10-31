@@ -2229,8 +2229,10 @@
     }
   }
 
+  /* Sections closer on paper than on screen: Linux sets the skills and the writing a line longer
+     each than macOS does, and the sheet must hold either (e2e/about-print.spec.ts). */
   .resume .section {
-    padding-top: 0.875rem;
+    padding-top: 0.5rem;
     break-inside: avoid;
   }
 

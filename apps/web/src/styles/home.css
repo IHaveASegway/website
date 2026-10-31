@@ -490,6 +490,14 @@
     padding-block: 1.75rem 0.5rem;
   }
 
+  /* The words under the figures hold the scene's live clock, so their length changes as the day
+     runs, and in a narrow column they take one line in one face and two in another (Linux's
+     fallback wraps them where Barlow does not). Two lines are kept for them, so the hero is one
+     height whichever face draws it (e2e/fold.spec.ts). */
+  .figure-words {
+    min-block-size: 2lh;
+  }
+
   .hero-caption {
     margin-block-start: 0;
     padding-block: 0.75rem 0;
