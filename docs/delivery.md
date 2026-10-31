@@ -545,6 +545,14 @@ Each check sees one layer, so each property is checked where it lives:
 
 What no check sees: paraphrased identifying details, what an image shows, and keyboard and screen-reader flows that axe cannot judge. In Deque's own audit data, automated axe tests found about 57% of accessibility issues by volume ([Deque, 2021](https://www.deque.com/blog/automated-testing-study-identifies-57-percent-of-digital-accessibility-issues/)). So the PR template adds a keyboard and screen-reader pass to the firewall checklist that [security.md](security.md) describes.
 
+### Local checks
+
+Every check above has a local command (README, "Commands"): `pnpm test` after the three builds, `pnpm e2e`, `pnpm firewall:test`. What a laptop cannot match on its own is the operating system. macOS and Linux set the same web fonts differently, with their own font rendering and line metrics, so a check that measures layout can pass on a Mac and fail in CI. On 2026-10-31 two did, and both were found only after the push: the hero's height at 390 px (`e2e/fold.spec.ts`) and the résumé fitting one printed sheet (`e2e/about-print.spec.ts`).
+
+`pnpm --filter web e2e:linux` (`apps/web/scripts/e2e-linux.sh`) runs the `site` project in the image `e2e` runs in, `mcr.microsoft.com/playwright:v<version>-noble`, at the version the lockfile installs, read as `verify` reads it. It serves `dist/` with `wrangler dev` on port 8789 (`E2E_LINUX_PORT`), points the container at `http://host.docker.internal:<port>`, and stops the server when Playwright exits. Arguments pass on to Playwright: `pnpm --filter web e2e:linux e2e/fold.spec.ts e2e/about-print.spec.ts` runs those two specs, 18 tests in about 5 seconds; the whole project took about 70. It needs Docker and a build (`pnpm build`).
+
+Over `http://host.docker.internal` the page is not a secure context (only https, `localhost` and `127.0.0.1` are), so three tests fail there that pass in CI: the clipboard copy (`palette.spec.ts`), the known answer for the worker's WebAssembly policy (`lab.spec.ts`) and the known answer for a font file no text uses (`glyphs.spec.ts`). The script leaves them out with `--grep-invert`; with `E2E_LINUX_ALL=1` it runs them, and those three are the expected failures. On 2026-10-31 the other 435 passed. One difference remains: on an Apple-silicon Mac, Docker runs the image's arm64 build, and CI the amd64 one. Both carry the same versions of the font libraries, so no difference is expected, but none has been measured either.
+
 ## Dependency policy
 
 - One root `pnpm-lock.yaml`, always committed. CI installs with `--frozen-lockfile` and runs `pnpm dedupe --check`. Nobody edits the lockfile by hand.
