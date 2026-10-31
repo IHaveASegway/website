@@ -591,10 +591,14 @@
     display: none;
   }
 
+  /* Paper's small text is set at 1.3, a print résumé's usual leading, not the screen's 1.4: Linux
+     sets these lines a little wider than macOS and wraps more of them, and at 1.4 the sheet that
+     held on macOS with 34 px to spare ran 10 to 20 px onto a second page on Linux, the Writing
+     section with it (e2e/about-print.spec.ts, in CI's Linux image). */
   .bio-now > p {
     max-width: none;
     font-size: 0.875rem;
-    line-height: 1.4;
+    line-height: 1.3;
   }
 
   .resume .block-label {
@@ -696,7 +700,7 @@
 
   .resume :is(.skills dt, .card-text, .card-more, .post-summary, .resume-notes, .kv dd) {
     font-size: 0.8125rem;
-    line-height: 1.4;
+    line-height: 1.3;
   }
 
   .resume .roles + .resume-notes {
