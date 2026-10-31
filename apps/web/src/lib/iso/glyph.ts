@@ -61,7 +61,19 @@ export interface Glyph {
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
-const pt = (at: At) => project(at).map(r2).join(' ');
+
+/** Where the model's origin lands in the picture, in px: right of and below every glyph's reach, so
+ *  every number a path names is positive, as in the system drawing (lib/iso/system.ts). The box is
+ *  measured from the paths, so the picture is the same wherever the origin sits. */
+export const ORIGIN = [128, 32] as const;
+
+/** Where a point of the model is drawn: its projection from ORIGIN, to a hundredth of a pixel. */
+export function place(at: At): [number, number] {
+  const [x, y] = project(at);
+  return [r2(x + ORIGIN[0]), r2(y + ORIGIN[1])];
+}
+
+const pt = (at: At) => place(at).join(' ');
 const poly = (points: readonly At[], close = true) =>
   `M${points.map(pt).join('L')}${close ? 'Z' : ''}`;
 
@@ -189,7 +201,7 @@ export function cylinder(
   // radius, its axes level with the page.
   const rx = r2(r * Math.SQRT2 * COS * UNIT);
   const ry = r2(r * Math.SQRT2 * SIN * UNIT);
-  const [cx, bottom] = project([x, y, z]).map(r2) as [number, number];
+  const [cx, bottom] = place([x, y, z]);
   const top = r2(bottom - h * UNIT);
   const [l, rr] = [r2(cx - rx), r2(cx + rx)];
   // Left down the side, along the near half of the base, up the right side, back along the near
@@ -213,7 +225,7 @@ export const wire = (points: readonly At[], paint: 'wire' | 'cut' = 'wire'): Mar
 
 /** A junction on a wire. */
 export function node(at: At, radius = 2.75): Mark {
-  const [cx, cy] = project(at).map(r2) as [number, number];
+  const [cx, cy] = place(at);
   return {
     paint: 'node',
     d: `M${r2(cx - radius)} ${cy}a${radius} ${radius} 0 1 0 ${radius * 2} 0a${radius} ${radius} 0 1 0 ${-radius * 2} 0Z`,

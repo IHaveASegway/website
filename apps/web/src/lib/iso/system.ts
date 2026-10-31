@@ -137,7 +137,7 @@ export const PLANE = { x: 13.5, y: 10 } as const;
 
 /** Room around the plane: above it for the exploded view's highest lift and the labels, and to
  *  the sides for the labels. */
-const PAD = { top: 96, side: 40, right: 60, bottom: 12 } as const;
+const PAD = { top: 96, side: 41, right: 60, bottom: 12 } as const;
 
 const ORIGIN_X = PAD.side + (PLANE.y + 1.4) * C * UNIT;
 const ORIGIN_Y = PAD.top;

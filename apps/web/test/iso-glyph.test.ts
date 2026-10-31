@@ -7,6 +7,7 @@ import {
   box,
   cylinder,
   glyph,
+  place,
   project,
   queueGlyph,
   raftGlyph,
@@ -99,7 +100,7 @@ describe('the projection', () => {
 
   test('a cylinder’s lid, which bulges above its arcs’ ends, is inside the box', () => {
     const g = glyph(tile(2, 2), [], [cylinder([1, 1, 0], 1, 2)]);
-    const [, top] = project([1, 1, 2]);
+    const [, top] = place([1, 1, 2]);
     const ry = Math.SQRT2 * Math.sin(Math.PI / 6) * UNIT;
     expect(g.box[1]).toBeLessThanOrEqual(top - ry);
   });
@@ -113,6 +114,14 @@ describe("each lab's glyph, from the run its page opens on", () => {
       expect(await labFact(slug), slug).toMatch(/\S.*\.$/);
     }
     expect(await labGlyph('nothing')).toBeUndefined();
+  });
+
+  test('every glyph is drawn right of and below ORIGIN’s corner: each number its paths name is positive', async () => {
+    for (const slug of LABS) {
+      const [x = 0, y = 0] = (await labGlyph(slug))?.box ?? [];
+      expect(x, slug).toBeGreaterThan(0);
+      expect(y, slug).toBeGreaterThan(0);
+    }
   });
 
   // One module writes every card's fact, Home's and the Lab index's (lib/lab-facts.ts). Until the
