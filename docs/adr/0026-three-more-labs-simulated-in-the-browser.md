@@ -193,3 +193,28 @@ The kernel's determinism is the load-bearing part. Every opening picture, every 
 - **Tolerant reader**, the link: Robert Daigneau, *Service Design Patterns* (2011).
 - **Fitness functions**, the budgets and the one-row table: Neal Ford, Rebecca Parsons, Patrick Kua and Pramod Sadalage, *Building Evolutionary Architectures* (2nd edition), chapter 2.
 - **The rule of three**, for the run loop: Martin Fowler, *Refactoring* (2nd edition, 2018), chapter 2.
+
+## Postscript 2026-10-31
+
+**The Cache Lab gains the retry storm that Modelling decisions left for a decision of its own.** Two settings, both at today's behaviour until the visitor changes them: what a reader does when it times out (give up, retry at once, or retry with backoff and full jitter, after Marc Brooker, "Timeouts, retries, and backoff with jitter", Amazon Builders' Library, 2019), and whether the pool drops a fetch nobody waits for any more (on). A reader asks at most three times; backoff waits a uniform draw up to 2 s, then up to 4 s (`RETRY` in `core.ts`). A link names the two after every other setting and leaves out the defaults (`#seed-7&retry=at-once&drop=off`), so every link already shared opens the same run. At the defaults every pinned number, the opening, the links and the index facts are unchanged: `test/cache.test.ts` and `test/cache-lab.test.ts` pass without an edit. The backoff's draw comes from the run's one stream, and only when a reader backs off.
+
+With retries at once and nothing dropped, the morning rush and a flush at 5.0 s, then calm half a second later, leave the line for the database in the thousands at calm load: the sustaining effect of Bronson, Aghayev, Charapko and Zhu ("Metastable Failures in Distributed Systems", HotOS 2021) and Huang et al. (OSDI 2022). Over seeds 1 to 200 from the opening's run (`test/cache-storm.test.ts`; a storm is a line of 100 or more at every 100 ms from 10 s to 30 s after calm returns):
+
+| Settings | Storm | Line emptied for good after calm returned: median, 90th, worst |
+|---|---|---|
+| Give up, drop (the lab as it was) | 0 of 200 | 1.4 s, all 200 |
+| Give up, keep | 9 of 200 | 191 recover |
+| Retry at once, keep | **190 of 200 (95.0%)** | 10 recover |
+| The same with no trigger, calm again at 5.5 s | 1 of 200 | |
+| Retry with backoff, keep | 150 of 200 | 50 recover |
+| Retry at once, drop | 0 of 200 | 2.6, 3.2, 4.0 s, all 200 |
+| Retry with backoff, drop | 0 of 200 | 1.7, 2.1, 3.0 s, all 200 |
+
+Applied at 20 s to the 190 storms, dropping empties the line in every one (2.6, 3.3 and 3.8 s), backoff and dropping together in every one (2.2, 2.7 and 3.2 s), and backoff alone in none. Backoff sends as many retries, later: in an open system it delays the work instead of shedding it (Marc Brooker, "Fixing retries with token buckets and circuit breakers", 2022). What ends the storm is dropping the work nobody wants. A pilot over the first 60 seeds found 57 storms; 200 seeds put a 95% interval of about ±3 points on a share near 95%.
+
+Two rules of this record bent, and why:
+
+- **Conservation's walk of the line is skipped while dropping is off** (`check.ts`). A fetch in line with no reader waiting is the lesson then, not a bug. Turning dropping on takes every such fetch out at once, as each would have left when its last reader gave up, so the walk holds again from that moment.
+- **The Cache Lab's budget rises to 12,000 B.** Measured on 2026-10-31, gzip -9: 11,848 B, its app 10,929 B with the link's 327 B and the agenda's and stream's 592 B, from 11,166 B. Revisit if asks two things first. The test-only fault branches left the shipped chunk: they now sit behind `import.meta.env?.MODE === 'test'`, which Vite fixes at build, about 80 B. This ties the core to Vite, the cost this record named. The build and Vitest are Vite; Playwright also loads the core, for `e2e/index.spec.ts`, and has no `import.meta.env`, so the check reads it with `?.` and the faults are off there, as they should be. Splitting the view from the model would not lower the figure, since the budget counts every chunk the module loads, and would add a chunk's overhead. The rest, about 760 B, is the two settings, their controls, the event log's lines and the retries counted beside the readers. 12,000 B is the measure rounded up to the next 500 B (`test/support/labs.ts`).
+
+The decision stands. A Revisit if condition was met, a lab's lazy graph passing its budget, and was answered as it asks.
