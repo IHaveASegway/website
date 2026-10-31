@@ -11,7 +11,7 @@
     "serve:fixture": "wrangler dev --local --ip 127.0.0.1 --port 8788 --assets .fixtures/fixture-many --show-interactive-dev-session=false",
     "typecheck": "astro check",
     "test": "vitest run",
-    "e2e": "playwright test --project=site",
+    "e2e": "playwright test --project=site --project=phone",
     "e2e:writing": "E2E_SITE=writing-fixture playwright test --project=writing-fixture",
     "e2e:linux": "scripts/e2e-linux.sh",
     "smoke": "playwright test --project=smoke",

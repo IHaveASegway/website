@@ -215,8 +215,11 @@
   margin: -1px auto 0;
 }
 
+/* The time a step tries again, under its lamp: its line is kept while there is none, so a retry
+   does not make the day's row a pixel taller. */
 .bf-retry {
   display: block;
+  min-block-size: 1lh;
   color: var(--foreground);
   font-size: var(--text-label);
   line-height: var(--text-label--line-height);
@@ -233,8 +236,17 @@
   color: var(--muted-foreground);
 }
 
+/* A total and the difference under it each keep their line while the run has not written them
+   yet, so the row is one height before the week, during it and after it. */
+[data-bf-report],
+[data-bf-week-report] {
+  display: block;
+  min-block-size: 1lh;
+}
+
 .bf-diff {
   display: block;
+  min-block-size: 1lh;
   font-size: var(--text-label);
   line-height: var(--text-label--line-height);
 }
@@ -419,11 +431,47 @@
   stroke-width: 1.5;
 }
 
+/* The caption keeps the room its longest words take at that width from the first paint, so what
+   is under it never moves while the week plays: six lines at 320 px, five from 24rem, four from
+   48rem, the most its words took. The day totals' check keeps the lines its broken words take. */
 .bf-summary {
   max-width: var(--measure);
+  min-block-size: 6lh;
   margin: 0;
   font-size: var(--text-label);
   line-height: var(--text-label--line-height);
+  font-variant-numeric: tabular-nums;
+}
+
+[data-bf-check='totals'] .bf-check-word {
+  min-block-size: 3lh;
+}
+
+@media (width >= 24rem) {
+  .bf-summary {
+    min-block-size: 5lh;
+  }
+
+  [data-bf-check='totals'] .bf-check-word {
+    min-block-size: 2lh;
+  }
+}
+
+@media (width >= 48rem) {
+  .bf-summary {
+    min-block-size: 4lh;
+  }
+
+  [data-bf-check='totals'] .bf-check-word {
+    min-block-size: 1lh;
+  }
+}
+
+/* From 64rem the checks share the picture's column, and a broken check's words take three lines. */
+@media (width >= 64rem) {
+  [data-bf-check='totals'] .bf-check-word {
+    min-block-size: 3lh;
+  }
 }
 
 /* The properties, under the strip. */
@@ -642,8 +690,10 @@
   gap: 0.75rem;
 }
 
+/* The log's box is one size whatever it holds, before the run's first line and after its sixtieth,
+   so a run that empties it, or fills it, moves nothing under it (steady.spec.ts). */
 .bf-lines {
-  max-height: 16rem;
+  block-size: 16rem;
   padding: 0.75rem 1rem;
   overflow-y: auto;
   background-color: var(--surface-2);
@@ -706,7 +756,7 @@
   }
 
   .bf-lines {
-    max-height: none;
+    block-size: auto;
   }
 
   /* Side by side where the column has room for three of them, as at 1440 px. */

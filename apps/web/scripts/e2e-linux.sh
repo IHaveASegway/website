@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The site's Playwright suite in CI's own Linux image, against the local build on wrangler dev.
 #
-#   pnpm --filter web e2e:linux                         every spec of the site project
+#   pnpm --filter web e2e:linux                         every spec of the site and phone projects
 #   pnpm --filter web e2e:linux e2e/fold.spec.ts        one spec; any Playwright argument passes on
 #
 # Why it exists: macOS and Linux set the same web fonts differently, so a layout check can pass on
@@ -96,5 +96,5 @@ docker run --rm --add-host=host.docker.internal:host-gateway \
   -v "$repo:/work" -w /work/apps/web \
   -e BASE_URL="http://host.docker.internal:$port" \
   "mcr.microsoft.com/playwright:v$version-noble" \
-  node node_modules/@playwright/test/cli.js test --project=site ${skip[@]+"${skip[@]}"} "$@" || rc=$?
+  node node_modules/@playwright/test/cli.js test --project=site --project=phone ${skip[@]+"${skip[@]}"} "$@" || rc=$?
 exit "$rc"

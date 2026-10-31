@@ -284,6 +284,14 @@
   text-wrap: balance;
 }
 
+/* What VROOM saves keeps the three lines its longest sentence takes below 24rem, so a new plan's
+   numbers never move the maps under it; from there it takes the same lines whatever it says. */
+@media (width < 24rem) {
+  .rl-saved {
+    min-block-size: 3lh;
+  }
+}
+
 .rl-capacity {
   margin: 0;
   color: var(--muted-foreground);
@@ -410,6 +418,27 @@
 
 .rl-note {
   color: var(--muted-foreground);
+}
+
+/* The note shows only while VROOM's plan is for the previous orders. */
+.rl-note[data-rl-off] {
+  display: none;
+}
+
+/* Below 24rem the plan's words wrap by their numbers, onto two lines or three, and the note adds
+   another: there each part takes a line of its own, and the note keeps its line while the plan is
+   fresh, unseen, so a new plan never moves the map under the heading (steady.spec.ts). */
+@media (width < 24rem) {
+  .rl-line,
+  .rl-back,
+  .rl-note {
+    flex-basis: 100%;
+  }
+
+  .rl-note[data-rl-off] {
+    display: inline;
+    visibility: hidden;
+  }
 }
 
 .rl-map {

@@ -209,14 +209,32 @@
   color: var(--foreground);
 }
 
-/* A node's pages, a lamp each, the menu first where it lives, with its words. */
-.cl-pages {
+/* A node's pages, a lamp each, the menu first where it lives, with its words. Under them, in the
+   same cell, the node's room (picture.ts, roomLamps): as many lamps as a node holds with one node
+   down, and the menu's longest words, laid out the same way and never seen. The cell is as tall as
+   the taller of the two, so the box keeps one height while the menu's words change and the lamps
+   move between nodes, and the four rows, which take the tallest node's height, keep theirs. */
+.cl-room {
+  display: grid;
+}
+
+.cl-room > * {
+  grid-area: 1 / 1;
+}
+
+.cl-pages,
+.cl-room-pages {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  align-content: start;
   gap: 0.25rem;
   min-block-size: 0.875rem;
   margin: 0;
+}
+
+.cl-room-pages {
+  visibility: hidden;
 }
 
 /* A lamp: filled while fresh, half filled once expired, hollow when missing, and a dot inside its
@@ -364,10 +382,13 @@
   }
 }
 
-/* Where the picture has less than about 17 lines of its labels' width, a phone of 320 px or a larger
-   text size, the database stands under the nodes, whole, rather than past the window's edge
-   (SC 1.4.10); the lines to it are left out, and the fan still runs in from the left. */
-@container (width < 17rem) {
+/* Where the picture has less than about 26 lines of its labels' width, any phone held upright or a
+   larger text size, the database stands under the nodes, whole, rather than past the window's edge
+   (SC 1.4.10); the lines to it are left out, and the fan still runs in from the left. The nodes
+   then have the picture's width, so the room each keeps for its lamps and the menu's words
+   (.cl-room) is three rows and two lines, not the five and three a box beside the database needs
+   at 390 px. */
+@container (width < 26rem) {
   .cl-map {
     grid-template-columns: 1.75rem minmax(0, 1fr);
   }
@@ -380,16 +401,29 @@
     display: none;
   }
 
+  /* Under the nodes it is one line where the width allows, its name, its eight lamps and the
+     count beside them, so the map, Time and the switches still share a 390 by 844 screen; with
+     larger text its parts take more lines, rather than run past the window (SC 1.4.10). */
   .cl-db {
     grid-column: 1 / -1;
     grid-row: 3;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
     justify-self: start;
+    gap: 0.375rem 0.75rem;
     margin-top: 0.5rem;
   }
 
-  /* With the width to itself, its lamps stand four by two again. */
   .cl-conns {
-    grid-template-columns: repeat(4, auto);
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .cl-waiting {
+    grid-auto-flow: column;
+    align-items: baseline;
+    column-gap: 0.375rem;
   }
 
   .cl-legend {
@@ -493,14 +527,30 @@
   border-block-end-color: var(--border);
 }
 
+/* The caption keeps the room its longest words take at that width from the first paint, so the
+   panel under it never moves while the run plays: five lines at 320 px, four from 24rem, three
+   from 48rem, the most a busy run's words took, measured with each number a digit longer. */
 .cl-summary {
   max-width: var(--measure);
+  min-block-size: 5lh;
   margin: 0;
   font-family: var(--font-label);
   font-size: var(--text-label);
   font-weight: var(--text-label--font-weight);
   line-height: var(--text-label--line-height);
   font-variant-numeric: tabular-nums;
+}
+
+@media (width >= 24rem) {
+  .cl-summary {
+    min-block-size: 4lh;
+  }
+}
+
+@media (width >= 48rem) {
+  .cl-summary {
+    min-block-size: 3lh;
+  }
 }
 
 /* The properties, under the strip: a lamp each, filled while it holds and crossed once it breaks,
@@ -568,7 +618,9 @@
   line-height: var(--text-ui--line-height);
 }
 
+/* A property's words take one line or two, by its count: each keeps two. */
 .cl-prop-words {
+  min-block-size: 2lh;
   color: var(--muted-foreground);
   font-family: var(--font-label);
   font-size: var(--text-label);
@@ -589,12 +641,21 @@
 }
 
 /* The Time group's name with the clock beside it, so the clock that Next event moves sits on the
-   line over the button, and costs the phone no line of its own. */
+   line over the button. Where the two do not always fit one line, below 24rem and in the panel's
+   column from 64rem, the clock takes a line of its own and keeps two, the most a long run's clock
+   takes there, so a clock that grows a digit never moves the buttons under it. */
 .cl-group-head {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0 0.75rem;
+}
+
+@media (width < 24rem) or (width >= 64rem) {
+  .cl-clock {
+    flex-basis: 100%;
+    min-block-size: 2lh;
+  }
 }
 
 .cl-clock {
@@ -729,8 +790,10 @@ legend.cl-group-name {
   font-weight: 500;
 }
 
+/* The log's box is one size whatever it holds, before the run's first line and after its sixtieth,
+   so a run that empties it, or fills it, moves nothing under it (steady.spec.ts). */
 .cl-lines {
-  max-height: 16rem;
+  block-size: 16rem;
   padding: 0.75rem 1rem;
   overflow-y: auto;
   background-color: var(--surface-2);

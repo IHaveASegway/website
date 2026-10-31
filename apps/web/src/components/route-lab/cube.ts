@@ -778,11 +778,14 @@ export function start(root: HTMLElement): boolean {
 
 /** Hides the cube's controls and takes the cubes out of the tab order, where nothing turns them
  *  any more: each is its picture again, named by it. Focus moves to the cube's section first if it
- *  was on one of them, so a keyboard user is not left on the page's body. */
+ *  was on one of them, so a keyboard user is not left on the page's body; the page stays where it
+ *  is, since the section's top is often far above the screen, and the visitor was looking at the
+ *  cube, not there. */
 export function hideControls(section: HTMLElement): void {
   const parts = section.querySelectorAll<HTMLElement>('[data-rl-cube-controls]');
   const frames = section.querySelectorAll<HTMLElement>('[data-rl-cube-stage]');
-  if ([...parts, ...frames].some((part) => part.contains(document.activeElement))) section.focus();
+  if ([...parts, ...frames].some((part) => part.contains(document.activeElement)))
+    section.focus({ preventScroll: true });
   for (const part of parts) part.hidden = true;
   for (const frame of frames) {
     for (const name of ['tabindex', 'role', 'aria-labelledby', 'aria-describedby', 'aria-label'])

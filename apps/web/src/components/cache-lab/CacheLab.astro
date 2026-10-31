@@ -20,6 +20,7 @@ import {
   LANES,
   linkPath,
   pageLamps,
+  roomLamps,
   STRIP,
   STRIP_BASES,
   stripEnds,
@@ -119,7 +120,10 @@ const mitigations: { toggle: Toggle; name: string }[] = [
                     {nodeWords(sim, id)}
                   </span>
                 </p>
-                <p class="cl-pages" data-cl-pages={id} set:html={pageLamps(sim, id)} />
+                <div class="cl-room">
+                  <p class="cl-pages" data-cl-pages={id} set:html={pageLamps(sim, id)} />
+                  <p class="cl-room-pages" aria-hidden="true" set:html={roomLamps()} />
+                </div>
               </div>
             </li>
           ))}

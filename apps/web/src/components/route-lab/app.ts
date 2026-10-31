@@ -173,8 +173,9 @@ export async function start(root: HTMLElement, queued: Element[], nearest: Neare
     const after = figure('after');
     after?.toggleAttribute('data-rl-stale', !isFresh);
     $('[data-rl-readout]')?.toggleAttribute('data-rl-stale', !isFresh);
-    const stale = after && $<HTMLElement>('[data-rl-note]', after);
-    if (stale) stale.hidden = isFresh;
+    const stale = after && $('[data-rl-note]', after);
+    // Unseen while fresh, but in its place (route-lab.css), so the map under it never moves.
+    stale?.toggleAttribute('data-rl-off', isFresh);
     if (after)
       text(
         $('title', after),

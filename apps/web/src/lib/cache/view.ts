@@ -246,6 +246,11 @@ export function menuWords(sim: Sim): string {
   }
 }
 
+/** The menu's longest words, its times and its version at the most digits a run gives them: the
+ *  room its words keep beside its lamp (components/cache-lab/picture.ts, roomLamps), so a run whose
+ *  menu says more never moves the picture. test/cache-lab.test.ts holds menuWords to it. */
+export const MENU_ROOM = 'Menu, fresh until 888.8 s, still version 88';
+
 /** Fetches waiting in line for a connection. */
 export const waiting = (sim: Sim): number => sim.line.length - sim.lineHead;
 

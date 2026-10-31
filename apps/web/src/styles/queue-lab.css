@@ -222,10 +222,29 @@
 
 .qu-summary {
   max-width: var(--measure);
+  min-block-size: 6lh;
   color: var(--muted-foreground);
   font-family: var(--font-label);
   font-size: var(--text-label);
   line-height: var(--text-label--line-height);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The caption, the status line and the strip's head say the run in words, and their words change
+   with every frame of it; each keeps the room its longest words take at that width from the first
+   paint, so nothing under it moves while the run plays or when Start over shortens it. The counts:
+   the opening's story at 320 px is six lines, and a busy run's at 384 px five; the status line's
+   three; the head's two (measured with each number a digit longer than a run made it). */
+@media (width >= 24rem) {
+  .qu-summary {
+    min-block-size: 5lh;
+  }
+}
+
+@media (width >= 48rem) {
+  .qu-summary {
+    min-block-size: 4lh;
+  }
 }
 
 /* The history strip: the orders waiting over the last 30 s as a line in the lab's colour, with a
@@ -248,6 +267,17 @@
   justify-content: space-between;
   gap: 0 1rem;
   margin: 0;
+}
+
+/* How many wait, under the strip's name or beside it: two lines where it can go under. */
+.qu-strip-head {
+  min-block-size: 2lh;
+}
+
+@media (width >= 48rem) {
+  .qu-strip-head {
+    min-block-size: 1lh;
+  }
 }
 
 .qu-strip-now {
@@ -375,7 +405,15 @@
 }
 
 .qu-status {
+  min-block-size: 3lh;
   color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (width >= 48rem) {
+  .qu-status {
+    min-block-size: 2lh;
+  }
 }
 
 .qu-clock {
@@ -556,8 +594,10 @@
   line-height: var(--text-ui--line-height);
 }
 
+/* The log's box is one size whatever it holds, before the run's first line and after its sixtieth,
+   so a run that empties it, or fills it, moves nothing under it (steady.spec.ts). */
 .qu-lines {
-  max-height: 16rem;
+  block-size: 16rem;
   padding: 0.75rem 1rem;
   overflow-y: auto;
   background-color: var(--surface-2);

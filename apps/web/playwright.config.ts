@@ -34,8 +34,11 @@ export default defineConfig({
     {
       name: 'site',
       use: { ...devices['Desktop Chrome'] },
-      testIgnore: ['prod.spec.ts', 'writing.spec.ts'],
+      testIgnore: ['prod.spec.ts', 'writing.spec.ts', 'steady.spec.ts'],
     },
+    // The e2e job too: a page holds still on a phone, in WebKit, as iOS Safari draws it
+    // (steady.spec.ts). Playwright's image ships WebKit beside Chromium, so CI installs nothing.
+    { name: 'phone', use: { ...devices['iPhone 14'] }, testMatch: ['steady.spec.ts'] },
     // The deploy job's smoke of the Version URL: HTTP checks only, so no browser is installed.
     { name: 'smoke', testMatch: ['smoke.spec.ts', 'headers.spec.ts'] },
     // The writing fixture: every check that walks the page list, plus what only posts have, and

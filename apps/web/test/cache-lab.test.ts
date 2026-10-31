@@ -4,11 +4,13 @@ import {
   LANES,
   linkPath,
   pageLamps,
+  ROOM,
+  roomLamps,
   STRIP,
   stripEnds,
   stripPaths,
 } from '../src/components/cache-lab/picture';
-import { LOADS, NODES, PAGES } from '../src/lib/cache/core';
+import { LOADS, NODES, owners, PAGES } from '../src/lib/cache/core';
 import {
   flush,
   loseNode,
@@ -23,6 +25,7 @@ import {
   clockWords,
   linkTo,
   mapWords,
+  MENU_ROOM,
   menuWords,
   nodeWords,
   OPENING,
@@ -144,6 +147,35 @@ describe('the nodes and their pages', () => {
     );
     loseNode(sim, 0);
     expect(pageLamps(sim, 0)).toBe('');
+  });
+});
+
+describe("a node's room: the lamps and words its box keeps room for (e2e/steady.spec.ts)", () => {
+  test('the room holds the most pages a node takes with one node down, by either placement', () => {
+    expect(ROOM).toBe(47);
+    for (const placement of ['circle', 'modulo'] as const) {
+      for (let down = 0; down < NODES; down++) {
+        const up = Array.from({ length: NODES }, (_, id) => id !== down);
+        const held = owners(placement, up);
+        for (let id = 0; id < NODES; id++)
+          expect(held.filter((o) => o === id).length).toBeLessThanOrEqual(ROOM);
+      }
+    }
+    // Two down is past it: the box gets taller then, at that press.
+    const two = owners('circle', [true, true, false, false]);
+    expect(two.filter((o) => o === 0)).toHaveLength(66);
+    expect(roomLamps().match(/class="cl-lamp[ "]/g)).toHaveLength(ROOM);
+    expect(roomLamps()).not.toContain('data-');
+  });
+
+  test("the menu's words never run longer than its room, over a long run with writes", () => {
+    const sim = replay({ ...OPENING.config, invalidate: false }, [], OPENING.until);
+    for (let k = 0; k < 40; k++) {
+      write(sim, 0);
+      runUntil(sim, sim.now + 2_500);
+      expect(menuWords(sim).length).toBeLessThanOrEqual(MENU_ROOM.length);
+    }
+    expect(sim.now).toBeGreaterThan(100_000);
   });
 });
 

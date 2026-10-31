@@ -172,6 +172,11 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
   function drawLines(): void {
     if (!lines) return;
     const from = shownLines ? sim.lines.indexOf(shownLines) + 1 : 0;
+    // The newest line stays in view while the reader is at the log's end, as an emptied log is. A
+    // reader who has scrolled back to read is left there, not pulled down again by the next frame:
+    // on a phone a finger on the log would otherwise fight every draw.
+    const box = lines.parentElement;
+    const following = box && box.scrollHeight - box.scrollTop - box.clientHeight < 2;
     if (shownLines && from === 0) lines.replaceChildren();
     const first = from === 0 ? Math.max(0, sim.lines.length - 60) : from;
     for (const line of sim.lines.slice(first)) {
@@ -183,8 +188,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
       lines.append(item);
     }
     while (lines.children.length > 60) lines.firstElementChild?.remove();
-    const box = lines.parentElement;
-    if (box && sim.lines.length > first) box.scrollTop = box.scrollHeight;
+    if (box && following && sim.lines.length > first) box.scrollTop = box.scrollHeight;
     shownLines = sim.lines.at(-1);
   }
 
