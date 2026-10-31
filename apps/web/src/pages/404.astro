@@ -1,8 +1,12 @@
 ---
 import Base from '../layouts/Base.astro';
 import { loadProfile } from '../lib/content';
+import { END_OF_LINE } from '../lib/ground';
 
 const { name } = (await loadProfile()).basics;
+// Under the way home, the end of the line (lib/ground.ts): a track across the column that ends in
+// a buffer stop at its right edge, its lamp lit. A picture with nothing to say to assistive
+// technology, and it takes no pointer.
 ---
 
 <Base title={`Page not found · ${name}`} description="There is no page at this address." noindex>
@@ -17,4 +21,11 @@ const { name } = (await loadProfile()).basics;
       </a>
     </p>
   </section>
+  <svg class="line-end" height={END_OF_LINE.height} aria-hidden="true" focusable="false">
+    <line class="line-end-track" x1="0" y1={END_OF_LINE.track} x2="100%" y2={END_OF_LINE.track} />
+    <svg x="100%" overflow="visible">
+      <path class="line-end-stop" d={END_OF_LINE.stop} />
+      <path class="ground-mark" d={END_OF_LINE.lamp} />
+    </svg>
+  </svg>
 </Base>

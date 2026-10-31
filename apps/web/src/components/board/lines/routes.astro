@@ -44,7 +44,11 @@ interface Size {
   readonly lamp: number;
   readonly van: number;
   readonly loop: number;
-  readonly labels: boolean;
+  /** Where the bakery's name starts, or null for none: on the board, the panel's text inset, so
+   *  it lines up with the words above it rather than standing against the bezel. */
+  readonly bakery: number | null;
+  /** Whether each van's name stands at the end of its track. */
+  readonly vans: boolean;
 }
 
 const SIZES: Record<LineAt, readonly Size[]> = {
@@ -62,8 +66,11 @@ const SIZES: Record<LineAt, readonly Size[]> = {
       lamp: 6,
       van: 9,
       loop: 7,
-      labels: true,
+      bakery: 20,
+      vans: true,
     },
+    // On a phone each van still has its name at its track's end, so the last van's track stops
+    // short enough for its name to fit inside the bezel from 320 px up.
     {
       name: 'compact',
       height: 64,
@@ -72,12 +79,13 @@ const SIZES: Record<LineAt, readonly Size[]> = {
       side: 10,
       fork: 30,
       from: 19,
-      to: 93,
+      to: 80,
       room: 3.9,
       lamp: 3.75,
       van: 6,
       loop: 4.5,
-      labels: false,
+      bakery: null,
+      vans: true,
     },
   ],
   // Made for a column of 30rem at the least, beside the words from 64rem, and the whole column of
@@ -96,7 +104,8 @@ const SIZES: Record<LineAt, readonly Size[]> = {
       lamp: 7,
       van: 10.5,
       loop: 8,
-      labels: true,
+      bakery: 0,
+      vans: true,
     },
     {
       name: 'compact',
@@ -111,7 +120,8 @@ const SIZES: Record<LineAt, readonly Size[]> = {
       lamp: 3.75,
       van: 6,
       loop: 4.5,
-      labels: false,
+      bakery: null,
+      vans: false,
     },
   ],
 };
@@ -166,8 +176,8 @@ const drawings = SIZES[at].map((size) => {
         width={size.side}
         height={size.side}
       />
-      {size.labels && (
-        <text class="line-label" x="0" y={middle - 13}>
+      {size.bakery !== null && (
+        <text class="line-label" x={size.bakery} y={middle - 13}>
           Bakery
         </text>
       )}
@@ -175,7 +185,7 @@ const drawings = SIZES[at].map((size) => {
         <g class="line-van" data-van={row}>
           <svg x={`${van.back}%`} overflow="visible">
             <circle class="line-loop" cx={size.loop} cy={van.y} r={size.loop} />
-            {size.labels && (
+            {size.vans && (
               <text class="line-label" x={size.loop * 2 + 10} y={van.y + 4.5}>
                 {van.name}
               </text>

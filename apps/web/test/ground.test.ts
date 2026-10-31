@@ -1,41 +1,50 @@
 import { gzipSync } from 'node:zlib';
 import { describe, expect, test } from 'vitest';
-import { GROUND_BOX, groundFor, groundKindFor, type GroundKind } from '../src/lib/ground';
+import { END_OF_LINE, groundFor, groundKindFor, type GroundKind } from '../src/lib/ground';
 import { html, read } from './support/dist';
 
-// Page geometry (design-system.md, "Page geometry"; lib/ground.ts): the two background symbols,
-// About's wheels and the 404's buffer stop (ADR 0025), each fixed and small. e2e/ground.spec.ts
-// keeps the one mark clear of text and checks the drawing is hidden in print.
+// Page geometry (design-system.md, "Page geometry"; lib/ground.ts): the background symbol, About's
+// wheels (ADR 0025), fixed and small, and the 404's line, which ends in a buffer stop under its
+// words. e2e/ground.spec.ts keeps the 404's one mark clear of text and checks the drawings are
+// hidden in print.
 
-const KINDS: GroundKind[] = ['about', 'lost'];
+const KINDS: GroundKind[] = ['about'];
 const markup = (kind: GroundKind) =>
   groundFor(kind)
     .paths.map((p) => p.d)
     .join('');
 
 // Writing's ruled sheet and the Lab's street plans went with ADR 0025: a rule is functional or a
-// lab's line. On main at f65dcc1 those pages carried them.
-test('known answers: which drawing a path carries: the wheels on /about/, the stop on the 404', () => {
+// lab's line. On main at f65dcc1 those pages carried them. Until 2026-10-30 the 404 carried its
+// buffer stop as a background drawing too ('lost'); it is in the 404's own flow now.
+test('known answers: which drawing a path carries: the wheels on /about/, and none elsewhere', () => {
   expect(groundKindFor('/about/')).toBe('about');
-  expect(groundKindFor(undefined)).toBe('lost');
+  expect(groundKindFor(undefined)).toBeNull();
   for (const path of ['/', '/writing/', '/writing/a-post/', '/notes/', '/lab/', '/lab/routes/'])
     expect(groundKindFor(path), path).toBeNull();
   expect(groundKindFor('/colophon/')).toBeNull();
 });
 
-// The 404's drawing (ADR 0025): one track that ends in a buffer stop, the track, the beam and the
-// stop's body filled in the ground color, and its lamp the one mark. The field of stops it replaced
-// had no track to end.
-test('known answer: the 404 draws a line that ends in a buffer stop, with its lamp lit', () => {
-  const { paths } = groundFor('lost');
-  expect(paths.map((p) => p.kind)).toEqual(['block', 'mark']);
-  const [stop, lamp] = paths;
-  // The track from the box's left edge to the beam, then the beam across its end.
-  const [, y, end] = /^M0 (\d+)H(\d+)v4H0z/.exec(stop?.d ?? '') ?? [];
-  expect(Number(end)).toBeGreaterThan(GROUND_BOX.width / 2);
-  expect(stop?.d).toContain(`M${end} ${Number(y) - 30}h6v64h-6z`);
-  // The lamp stands over the beam, above the track.
-  expect(lamp?.d).toMatch(new RegExp(`^M${Number(end) - 5} (\\d+)a8 8 `));
+// The 404's drawing (ADR 0025): one track across the column that ends at its right edge in a
+// buffer stop, under the way home, its lamp the one mark. As a background drawing anchored to the
+// window's corner it ended past the column at 2560 px and touched the button at 390.
+test('known answer: the 404 draws a line across its column that ends in a buffer stop, with its lamp lit', () => {
+  const page = read('404.html');
+  const drawing = /<svg class="line-end"[\s\S]*?<\/svg>\s*<\/svg>/.exec(page)?.[0] ?? '';
+  expect(drawing).toContain('aria-hidden="true"');
+  // The track from the column's left edge to its right.
+  expect(drawing).toMatch(
+    new RegExp(`<line class="line-end-track" x1="0" y1="${END_OF_LINE.track}" x2="100%"`),
+  );
+  // The stop and its lamp, drawn back from the right edge: the beam on the track, the lamp over it.
+  expect(drawing).toContain('<svg x="100%" overflow="visible">');
+  expect(drawing).toContain(`d="${END_OF_LINE.stop}"`);
+  expect(drawing).toContain(`class="ground-mark" d="${END_OF_LINE.lamp}"`);
+  const [, beamTop] = /^M-24 (\d+)h6v64h-6z/.exec(END_OF_LINE.stop) ?? [];
+  expect(Number(beamTop) + 32).toBe(END_OF_LINE.track);
+  expect(END_OF_LINE.lamp).toMatch(/^M-29 8a8 8 /);
+  // Under the words, never behind them: the page carries no background drawing.
+  expect(page).not.toMatch(/<svg class="ground"/);
 });
 
 describe.each(KINDS)('%s', (kind) => {

@@ -3,15 +3,18 @@ import { expect, test, type Page } from '@playwright/test';
 
 // The Raft Lab in a browser (ADR 0020): without JavaScript the page is the opening run the build
 // drew, with no control; with it, nothing moves or loads until the visitor shows intent, the
-// simulation takes over at the picture's exact moment, runs only between Run and Pause, and keeps
-// the five safety properties through a cut-off leader; under reduced motion it advances in
-// discrete steps; and the page meets axe after a run, since script redrew it.
+// simulation takes over at the picture's exact moment, runs only while Run is pressed (a toggle:
+// a second press stops it), and keeps the five safety properties through a cut-off leader; under
+// reduced motion it advances in discrete steps; and the page meets axe after a run, since script
+// redrew it.
 
 const RAFT = '/lab/raft/';
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 const HELD = /^All five safety properties held over [\d,]+ events\.$/;
 
 const clock = (page: Page) => page.locator('[data-rf-clock]');
+/** The Run toggle: its name stays "Run", and aria-pressed says whether the run is on. */
+const run = (page: Page) => page.getByRole('button', { name: 'Run', exact: true });
 const summary = (page: Page) => page.locator('[data-rf-summary]');
 const status = (page: Page) => page.locator('[data-rf-status]');
 
@@ -47,7 +50,7 @@ test('without JavaScript, the page is the opening run: five nodes, three committ
   await context.close();
 });
 
-test('nothing loads or moves before intent; Run plays, Pause stops, with no policy violation', async ({
+test('nothing loads or moves before intent; Run plays and a second press stops it, with no policy violation', async ({
   page,
 }) => {
   const violations = await watch(page);
@@ -60,11 +63,12 @@ test('nothing loads or moves before intent; Run plays, Pause stops, with no poli
   expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
 
   const opening = await seconds(page);
-  await page.getByRole('button', { name: 'Run' }).click();
-  await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
+  await run(page).click();
+  await expect(run(page)).toHaveAttribute('aria-pressed', 'true');
   expect(app).toHaveLength(1);
   await expect.poll(() => seconds(page), { timeout: 5_000 }).toBeGreaterThan(opening + 0.02);
-  await page.getByRole('button', { name: 'Pause' }).click();
+  await run(page).click();
+  await expect(run(page)).toHaveAttribute('aria-pressed', 'false');
   const paused = await seconds(page);
   await page.waitForTimeout(400);
   expect(await seconds(page)).toBe(paused);
@@ -79,7 +83,7 @@ test('cut off the leader: a new term elects another leader, and every safety pro
   const [, oldLeader, oldTerm] = /^Node (\d) leads term (\d+)/.exec(before) ?? [];
   await page.getByRole('button', { name: 'Cut off the leader' }).click();
   await page.selectOption('[data-rf-speed]', '0.1');
-  await page.getByRole('button', { name: 'Run' }).click();
+  await run(page).click();
   // The old leader still leads its own term on its side; the majority elects a newer one.
   await expect
     .poll(
@@ -91,7 +95,8 @@ test('cut off the leader: a new term elects another leader, and every safety pro
       { timeout: 15_000 },
     )
     .toBe(true);
-  await page.getByRole('button', { name: 'Pause' }).click();
+  await run(page).click();
+  await expect(run(page)).toHaveAttribute('aria-pressed', 'false');
   await expect(status(page)).toHaveText(HELD);
   await expect(page.locator('[data-rf-lines]')).toContainText('The network splits');
 });
@@ -170,9 +175,10 @@ test('under reduce, Run advances in steps of 50 virtual ms, and nothing animates
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto(RAFT);
   const opening = await seconds(page);
-  await page.getByRole('button', { name: 'Run' }).click();
+  await run(page).click();
   await expect.poll(() => seconds(page), { timeout: 3_000 }).toBeGreaterThan(opening);
-  await page.getByRole('button', { name: 'Pause' }).click();
+  await run(page).click();
+  await expect(run(page)).toHaveAttribute('aria-pressed', 'false');
   const moved = Math.round(((await seconds(page)) - opening) * 1000);
   expect(moved % 50).toBe(0);
   expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
@@ -189,21 +195,39 @@ test('a link to a run opens it: #seed-8 loads that seed with no other intent, an
 });
 
 // The desk's lamps (ADR 0025): Run is a push-button whose lamp is hollow until the run is on and
-// lit while it runs; a server and each log entry are lamps in the lab's own line, the colour its
+// lit while it runs, and whose name stays "Run" either way, so the lamp, the state a screen reader
+// hears and the word agree. Until 2026-10-30 the word turned to "Pause" while the lamp was lit:
+// "Pause, pressed". A server and each log entry are lamps in the lab's own line, the colour its
 // head runs across the page in, whatever the entry's term, which its number under it tells. Until
 // then each term took one of the map's van colours, the Route Lab's yellow among them.
-test('Run lights its lamp while the run is on, and every lamp on the desk is the lab’s line, whatever the term', async ({
+test('Run lights its lamp and keeps its name while the run is on, and every lamp on the desk is the lab’s line, whatever the term', async ({
   page,
 }) => {
   await page.goto(RAFT);
-  const run = page.locator('[data-rf-run]');
-  const lamp = () => run.evaluate((button) => getComputedStyle(button, '::before').backgroundColor);
-  await expect(run).toHaveAttribute('aria-pressed', 'false');
+  const button = page.locator('[data-rf-run]');
+  const lamp = () =>
+    button.evaluate((element) => getComputedStyle(element, '::before').backgroundColor);
+  await expect(button).toHaveAttribute('aria-pressed', 'false');
+  await expect(button).toHaveAccessibleName('Run');
   expect(await lamp()).toBe('rgba(0, 0, 0, 0)');
-  await run.click();
-  await expect(page.getByRole('button', { name: 'Pause' })).toHaveAttribute('aria-pressed', 'true');
+  await button.click();
+  await expect(button).toHaveAttribute('aria-pressed', 'true');
+  await expect(button).toHaveAccessibleName('Run');
   expect(await lamp()).not.toBe('rgba(0, 0, 0, 0)');
-  await page.getByRole('button', { name: 'Pause' }).click();
+  await button.click();
+  await expect(button).toHaveAttribute('aria-pressed', 'false');
+  await expect(button).toHaveAccessibleName('Run');
+  // The lab's line as the stylesheet names it, read from a probe, so the drawing is tied to the
+  // token and not only to itself.
+  const token = await page.evaluate(() => {
+    const probe = document.createElement('span');
+    probe.style.setProperty('background-color', 'var(--line-raft)');
+    document.body.append(probe);
+    const colour = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return colour;
+  });
+  expect(token).not.toBe('rgba(0, 0, 0, 0)');
   const colours = await page.evaluate(() => {
     // An entry of another term, as a later run writes one, beside the opening's.
     document
@@ -238,10 +262,10 @@ test('Run lights its lamp while the run is on, and every lamp on the desk is the
     };
   });
   expect(colours).toEqual({
-    line: colours.line,
-    marks: [colours.line],
-    filled: [colours.line],
-    servers: [colours.line],
+    line: token,
+    marks: [token],
+    filled: [token],
+    servers: [token],
     round: '50%',
   });
 });

@@ -53,14 +53,21 @@ function linesOffTheEdge(): string[] {
     .map((item) => (item.textContent ?? '').trim());
 }
 
-/** How far the copyright ends before the footer's end, in px, optionally with the footer's links
- *  removed first, as on a build with no page or checked profile to list. Runs in the page. */
-function copyrightShortOfTheEnd(withoutLinks: boolean): number | null {
+/** How far the copyright starts after the item before it on its line, in px, optionally with the
+ *  footer's links removed first, as on a build with no page or checked profile to list; null if
+ *  it stands on a line of its own. Runs in the page. */
+function copyrightAfterTheLast(withoutLinks: boolean): number | null {
   const footer = document.querySelector('.site-footer');
   const copyright = footer?.querySelector('.fine-print');
   if (!footer || !copyright) return null;
   if (withoutLinks) footer.querySelector('.footer-links')?.remove();
-  return footer.getBoundingClientRect().right - copyright.getBoundingClientRect().right;
+  const own = copyright.getBoundingClientRect();
+  const before = [...footer.querySelectorAll(':scope > a, :scope > ul > li')]
+    .map((item) => item.getBoundingClientRect())
+    .filter((box) => Math.abs(box.top + box.height / 2 - (own.top + own.height / 2)) < 4)
+    .map((box) => box.right)
+    .filter((right) => right <= own.left + 0.5);
+  return before.length === 0 ? null : own.left - Math.max(...before);
 }
 
 const WIDTHS = [320, 390, 600, 767, 768, 1023, 1024, 1060, 1100, 1199, 1200, 1440];
@@ -101,28 +108,111 @@ for (const width of [320, 390]) {
   });
 }
 
-// From 48rem the footer is one line, and the copyright ends it, whether or not there are links
-// between it and the address: the links take the rest of the line, or, with none, the address's end
-// margin does. On the first fix of 2026-10-25 the links alone pushed it, and without them it stood
-// at 211 to 384 px of a 1,312 px frame.
-for (const width of [768, 1440]) {
-  test(`the copyright ends the footer's line at ${width} px, with links and without`, async ({
+// From 48rem the footer is one line, flush left and ragged right as everything is (ADR 0025): the
+// copyright follows the last link, or the address with no links, a gap's width after it. Until
+// 2026-10-30 the links took the rest of the line and the copyright stood at its far end, a second
+// right edge on every page.
+for (const width of [768, 1440, 2560]) {
+  test(`the copyright follows the footer's links at ${width} px, with links and without`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 800 });
     for (const path of [...pages(), NOT_FOUND_PAGE]) {
       for (const withoutLinks of [false, true]) {
         await open(page, path);
-        const short = await page.evaluate(copyrightShortOfTheEnd, withoutLinks);
-        expect(short, `${path}, ${withoutLinks ? 'no links' : 'links'}`).not.toBeNull();
-        expect(
-          Math.abs(short ?? 0),
-          `${path}, ${withoutLinks ? 'no links' : 'links'}`,
-        ).toBeLessThanOrEqual(0.5);
+        const gap = await page.evaluate(copyrightAfterTheLast, withoutLinks);
+        const where = `${path}, ${withoutLinks ? 'no links' : 'links'}`;
+        expect(gap, where).not.toBeNull();
+        expect(gap ?? Infinity, where).toBeLessThanOrEqual(24);
       }
     }
   });
 }
+
+// Below 80rem the header is one bar of one height on every page, 56 px with its rule under it,
+// the name at its start on every page but Home (ADR 0025). Until 2026-10-30 the name took a line
+// of its own at 390 px, and the bar was 108 px on every page but Home's 64.
+for (const width of [390, 1024]) {
+  test(`below 80rem the bar is one line, 56 px tall, on every page, at ${width} px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 844 });
+    for (const path of [...pages(), NOT_FOUND_PAGE]) {
+      await open(page, path);
+      await page.waitForFunction(() => 'palette' in document.documentElement.dataset);
+      const bar = await page.evaluate(() => {
+        const header = document.querySelector('.site-header')?.getBoundingClientRect();
+        const name = document.querySelector('.site-header .wordmark')?.getBoundingClientRect();
+        const nav = document.querySelector('.site-header .site-nav')?.getBoundingClientRect();
+        return {
+          height: header?.height ?? 0,
+          oneLine: !name || !nav || Math.abs(name.top - nav.top) < 1,
+        };
+      });
+      expect(bar, path).toEqual({ height: 56, oneLine: true });
+    }
+  });
+}
+
+// Everything stands flush left on one edge (ADR 0025): on a large screen the frame starts the
+// page's gutter past the rail, and the room the screen adds is left at its end. Until 2026-10-30
+// the frame was centred, and at 2560 px the words stood some 510 px from the rail.
+test('at 2560 px every page starts the gutter past the rail, and so does its footer', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 2560, height: 1440 });
+  for (const path of [...pages(), NOT_FOUND_PAGE]) {
+    await open(page, path);
+    const edges = await page.evaluate(() => {
+      const rail = document.querySelector('.masthead')?.getBoundingClientRect().right ?? 0;
+      const gutter = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) * 4;
+      // The page's left edge: where its headings and paragraphs start, the leftmost of them.
+      const words = [...document.querySelectorAll('main :is(h1, h2, h3, p, li)')]
+        .map((element) => element.getBoundingClientRect())
+        .filter((box) => box.width > 0)
+        .map((box) => box.left);
+      const footer = document.querySelector('.site-footer')?.getBoundingClientRect().left ?? 0;
+      return { words: Math.min(...words) - rail - gutter, footer: footer - rail - gutter };
+    });
+    // A title's own side bearing (Home's name starts 0.055em left of the edge) is under 10 px.
+    expect(Math.abs(edges.words), path).toBeLessThan(10);
+    expect(Math.abs(edges.footer), path).toBeLessThan(0.5);
+  }
+});
+
+// Home's closing address fits its column on one line from 320 px up (home.css): at a title's size
+// it is wider than a phone's column, so below 27rem it takes a section's size. Until 2026-10-30 it
+// broke wherever the column ended, "hello@ihaveasegway.co" over "m".
+test('Home’s closing address stands on one line from 320 to 1440 px', async ({ page }) => {
+  for (const width of [320, 375, 390, 414, 431, 432, 768, 1440]) {
+    await page.setViewportSize({ width, height: 800 });
+    await open(page, '/');
+    const lines = await page.evaluate(linesOf, '.toward-mail');
+    test.skip(lines === 0, 'Home has no closing address here');
+    expect(lines, `${width}`).toBe(1);
+  }
+});
+
+// How I work reads as a section with five points under it: its title a step larger than each
+// point's lead (design-system.md, "Type scale"). Until 2026-10-30 the leads were the title's size.
+test('How I work’s title is larger than each of its leads, at 390 and 1440 px', async ({
+  page,
+}) => {
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await open(page, '/');
+    const sizes = await page.evaluate(() => ({
+      title: Number.parseFloat(
+        getComputedStyle(document.querySelector('#how-title') ?? document.body).fontSize,
+      ),
+      leads: [...document.querySelectorAll('.principle-lead')].map((lead) =>
+        Number.parseFloat(getComputedStyle(lead).fontSize),
+      ),
+    }));
+    test.skip(sizes.leads.length === 0, 'Home has no How I work here');
+    for (const lead of sizes.leads) expect(lead, `${width}`).toBeLessThan(sizes.title);
+  }
+});
 
 test('known answers: the layout checks count lines, read widths and find a line off the edge', async ({
   page,
@@ -145,23 +235,23 @@ test('known answers: the layout checks count lines, read widths and find a line 
   expect(await page.evaluate(linesOffTheEdge)).toEqual(['© 2026']);
 });
 
-test('known answers: the copyright check measures how far it ends from the line end, links or none', async ({
+test('known answers: the copyright check measures its gap after the last item, links or none', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 800, height: 600 });
-  // The first fix's footer: the links grow, and nothing else pushes the copyright.
-  const footer = (address: string) =>
+  // The footer before 2026-10-30: the links grow, and push the copyright to the line's end.
+  const footer = (links: string) =>
     page.setContent(
       '<body style="margin: 0; font: 16px monospace">' +
-        '<div class="site-footer" style="display: flex; flex-wrap: wrap; width: 600px">' +
-        `<a class="footer-email" style="${address}">hi@example.com</a>` +
-        '<ul class="footer-links" style="display: flex; flex: 1 1 auto; margin: 0; padding: 0"><li>Link</li></ul>' +
+        '<div class="site-footer" style="display: flex; flex-wrap: wrap; gap: 0 22px; width: 600px">' +
+        '<a class="footer-email">hi@example.com</a>' +
+        `<ul class="footer-links" style="display: flex; margin: 0; padding: 0; ${links}"><li>Link</li></ul>` +
         '<p class="fine-print" style="margin: 0">© 2026</p></div></body>',
     );
+  await footer('flex: 1 1 auto');
+  expect(await page.evaluate(copyrightAfterTheLast, false)).toBeGreaterThan(300);
+  // Ragged right: it follows the last link, and without the links the address, a gap after it.
   await footer('');
-  expect(await page.evaluate(copyrightShortOfTheEnd, false)).toBe(0);
-  // Without the links it follows the address, most of the 600 px line short of the end.
-  expect(await page.evaluate(copyrightShortOfTheEnd, true)).toBeGreaterThan(300);
-  await footer('margin-inline-end: auto');
-  expect(await page.evaluate(copyrightShortOfTheEnd, true)).toBe(0);
+  expect(await page.evaluate(copyrightAfterTheLast, false)).toBe(22);
+  expect(await page.evaluate(copyrightAfterTheLast, true)).toBe(22);
 });

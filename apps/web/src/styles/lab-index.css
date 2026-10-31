@@ -21,22 +21,8 @@ body > main:has(> .lab-index) {
   }
 }
 
-/* From 90rem main spans the column beside the rail, as Home's does (home.css), so the lines still
-   come in from the rail's edge on a large screen, and every row keeps the frame's edges through
-   --frame-side. 100cqw is the column exactly; 100vw would count a scrollbar. */
-@media (width >= 90rem) {
-  body > main:has(> .lab-index) {
-    --frame-side: max(4rem, (100cqw - 82rem) / 2);
-    --lab-edge: var(--frame-side);
-    container-type: inline-size;
-    max-width: none;
-    padding-inline: 0;
-  }
-
-  body > main:has(> .lab-index) > * {
-    margin-inline: var(--frame-side);
-  }
-}
+/* On a large screen main stands against the rail at the frame's start (global.css, .frame), so
+   the lines come in from the rail's edge there too, across the same 4rem. */
 
 .lab-rows {
   margin-block-start: 2.5rem;
@@ -107,10 +93,4 @@ body > main:has(> .lab-index) {
     align-self: center;
     margin-block-end: 0;
   }
-}
-
-/* A server's number in its lamp, at the label's size: the index draws its lamps larger than the
-   board does. */
-.lab-row .line-number {
-  font-size: var(--text-label);
 }

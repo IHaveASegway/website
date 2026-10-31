@@ -11,10 +11,15 @@ import { app, files, html, read } from './support/dist';
 //   1. Capitals and tracking. No rule sets text-transform: uppercase, no letter-spacing is above
 //      zero (the tracked, all-capital eyebrow), and a rule that sets the label face or a label's
 //      size sets no letter-spacing but 0: labels are signage, in sentence case and untracked.
-//   2. A dot or an arrow between words. Outside a post's body (.prose, which is Joseph's writing),
-//      the text a page shows is links, buttons, labels and page heads, and none of it holds a
-//      middle dot or an arrow: the site writes "Remote, US", "View all demos", "Up and down to
-//      move". A stylesheet's generated content is held to the same rule.
+//   2. A dot or an arrow between words. Outside .prose, the text a page shows is links, buttons,
+//      labels and page heads, and none of it holds a middle dot or an arrow: the site writes
+//      "Remote, US", "View all demos", "Up and down to move". A stylesheet's generated content is
+//      held to the same rule. .prose is Markdown from src/content, Joseph's writing, which this
+//      check leaves to him: a post's body, the About page's bio and a lab's write-up; the Route
+//      Lab's notes on how it is built stand in the write-up's .prose too, but they are this
+//      repository's words, so the sources check below reads them where they are written. That
+//      check also reads what a script writes once the page has loaded (a tip, a readout, a
+//      status, the command menu's notes), which no built page holds.
 //   3. Mono for code. A rule that sets a monospaced face targets code, kbd, samp or pre, and no
 //      drawing sets one by attribute: the mono label of a value is gone.
 //
@@ -295,6 +300,29 @@ export function pageTells(page: string, file: string): string[] {
   });
 }
 
+/** A line that may hold a dot: a page's <title> or its link preview's title, the browser's and
+ *  other sites' labels for the page, as the <head> is above. */
+const TITLE_LINE = /\btitle=\{|<title>|\bogTitle\b/;
+
+/** Why a source file writes a dot or an arrow into a page's words, one line each: every line but
+ *  a title's. The table of character entities (lib/held-names.ts) names them, and is not read. */
+export function sourceTells(text: string, file: string): string[] {
+  return text.split('\n').flatMap((line, i) => {
+    const tell = TITLE_LINE.test(line) ? undefined : tellIn(line);
+    return tell ? [`${file}:${i + 1}: ${tell}: ${line.trim().slice(0, 60)}`] : [];
+  });
+}
+
+/** The sources whose words reach a page, at build or in the browser: every component, layout,
+ *  library, page and script under src/, but the content, which is Joseph's. */
+const SOURCE_DIRS = ['components', 'layouts', 'lib', 'pages', 'scripts'];
+const sourceFiles = SOURCE_DIRS.flatMap((dir) =>
+  readdirSync(join(app, 'src', dir), { recursive: true })
+    .map(String)
+    .filter((name) => /\.(astro|ts|js|mjs)$/.test(name))
+    .map((name) => join('src', dir, name)),
+).filter((file) => !file.endsWith(join('lib', 'held-names.ts')));
+
 // ---------------------------------------------------------------------------------------------
 // 3. Mono for code
 
@@ -480,6 +508,28 @@ describe('no dot and no arrow in what a page says, outside a post’s body', () 
     expect([...sources, ...built].flatMap(({ css, file }) => generatedTells(css, file))).toEqual(
       [],
     );
+  });
+
+  test("no source writes one into a page's words, at build or from a script", () => {
+    expect(sourceFiles.length).toBeGreaterThan(40);
+    expect(
+      sourceFiles.flatMap((file) => sourceTells(readFileSync(join(app, file), 'utf8'), file)),
+    ).toEqual([]);
+  });
+
+  test('known answers: the sources check finds main’s Raft Lab clock and passes a title', () => {
+    // components/raft-lab/RaftLab.astro on main at ffb6fe5, and its route-lab format's readout.
+    expect(
+      sourceTells(
+        "<span data-rf-clock>Virtual time {seconds(sim.now)}</span> · seed{' '}\n" +
+          'return `${miles} mi · ${vans} vans`;',
+        'main.astro',
+      ),
+    ).toEqual([
+      'main.astro:1: a dot (·): <span data-rf-clock>Virtual time {seconds(sim.now)}</span> ·',
+      'main.astro:2: a dot (·): return `${miles} mi · ${vans} vans`;',
+    ]);
+    expect(sourceTells('  title={`${entry.title} · ${name}`}', 'demo.astro')).toEqual([]);
   });
 
   test('every page is read: its links, buttons and labels are found, so no page passes unread', () => {

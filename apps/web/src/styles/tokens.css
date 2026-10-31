@@ -64,10 +64,11 @@
      "deliveries" still fits the screen whole, where at twice the size it ran 2px past 320px. */
   --text-title: min(clamp(2.625rem, 1.928571rem + 2.857143vw, 4.5rem), 13.125vw);
   --text-title--line-height: 0.95;
-  /* A section's title, and How I work's leads: 30px to 48px. */
+  /* A section's title: 30px to 48px. */
   --text-section: clamp(1.875rem, 1.457143rem + 1.714286vw, 3rem);
   --text-section--line-height: 1;
-  /* An index row's title, a post's h2, a board line's title at room size: 24px to 28px. */
+  /* An index row's title, a post's h2, How I work's leads, a board line's title at room size:
+     24px to 28px. */
   --text-headline: clamp(1.5rem, 1.407143rem + 0.380952vw, 1.75rem);
   --text-headline--line-height: 1.1;
   /* A page's lead: 19px to 22px. */
@@ -101,8 +102,8 @@
   --muted-foreground: oklch(0.8 0.025 158); /* secondary text, labels inside drawings */
   --subtle-foreground: var(--muted-foreground);
   --border: oklch(0.42 0.026 162); /* a hairline only: no contrast duty */
-  /* Background symbols (About's wheels, the 404's buffer stop): a step off the enamel, so they
-     read, and text keeps 4.5:1 on them. */
+  /* Background symbols (About's wheels): a step off the enamel, so they read, and text keeps
+     4.5:1 on them. */
   --ground: oklch(0.36 0.03 162);
   /* Rules that work: the board's bezel, a button's edge, ticks, the rail's edge. 3:1 on every
      surface, the ground's included: at L 0.62 it measured 2.98:1 there, so 0.625. */
@@ -127,12 +128,17 @@
      preview's. The water is the page itself, so a map has no edge where its data stops; the land a
      step up, the raised surface; parks a step greener. The six isochrone bands step from the land
      toward the ink, band-1 the nearest to the bakery, so nearer reads as more ink. Between the
-     land and the lightest fill the labels allow (4.5:1) there is less lightness than six steps of
-     ΔE_OK 0.045 need, so the bands rise in chroma too, from the land's grey to the panel's green.
+     water and the lightest fill the labels allow (4.5:1) there is 0.19 of lightness, and six steps
+     of ΔE_OK 0.045 need 0.225, so the bands rise in chroma too, from a cool grey to the panel's
+     green: measured on 2026-10-30, no six-step ramp at one hue passes those checks under a
+     chroma of 0.16, and one of 0.07 has to turn through 100 degrees of hue, to a blue that reads
+     as water. The far band is a cool grey, so beside the green land it reads grey, not brown.
      Marks reach 3:1 on every fill: the four vans, and the places, the bakery and the 10 and 20
      minute lines, all in ink; a stop's number is the page's background on its van, at 4.5:1. Van
-     A is the Route Lab's own line. Streets and roads are the rule colour, translucent: decoration
-     under the routes. */
+     A is the Route Lab's own line; the others keep off every lab's line (no pink, which is the
+     Raft Lab's) and off the bands' green: apricot, sky and lavender, told apart from A's yellow by
+     hue and lightness. Streets and roads are the rule colour, translucent: decoration under the
+     routes. */
   --map-water: var(--background);
   --map-land: var(--surface-2);
   --map-park: oklch(0.375 0.045 152);
@@ -141,13 +147,13 @@
   --map-band-3: oklch(0.454 0.101 152);
   --map-band-4: oklch(0.421 0.067 158);
   --map-band-5: oklch(0.387 0.034 164);
-  --map-band-6: oklch(0.353 0.002 170);
+  --map-band-6: oklch(0.35 0.018 225);
   --map-street: oklch(0.625 0.03 160 / 0.14);
   --map-road: oklch(0.625 0.03 160 / 0.3);
   --map-road-major: oklch(0.625 0.03 160 / 0.5);
   --map-van-a: var(--line-routes);
-  --map-van-b: oklch(0.86 0.085 350);
-  --map-van-c: oklch(0.92 0.12 125);
+  --map-van-b: oklch(0.84 0.09 62);
+  --map-van-c: oklch(0.87 0.06 240);
   --map-van-d: oklch(0.86 0.07 285);
   --map-place: var(--foreground);
   --map-depot: var(--foreground);
@@ -192,8 +198,8 @@
   --map-road: oklch(0.56 0.02 165 / 0.28);
   --map-road-major: oklch(0.56 0.02 165 / 0.45);
   --map-van-a: oklch(0.38 0.075 75);
-  --map-van-b: oklch(0.38 0.15 355);
-  --map-van-c: oklch(0.37 0.1 140);
+  --map-van-b: oklch(0.4 0.13 30);
+  --map-van-c: oklch(0.38 0.06 230);
   --map-van-d: oklch(0.38 0.14 290);
   --map-place: var(--foreground);
   --map-depot: var(--foreground);
@@ -240,8 +246,8 @@
     --map-road: oklch(0.56 0.02 165 / 0.28);
     --map-road-major: oklch(0.56 0.02 165 / 0.45);
     --map-van-a: oklch(0.38 0.075 75);
-    --map-van-b: oklch(0.38 0.15 355);
-    --map-van-c: oklch(0.37 0.1 140);
+    --map-van-b: oklch(0.4 0.13 30);
+    --map-van-c: oklch(0.38 0.06 230);
     --map-van-d: oklch(0.38 0.14 290);
     --map-place: var(--foreground);
     --map-depot: var(--foreground);
@@ -301,8 +307,8 @@
     --map-road: oklch(0.56 0.02 165 / 0.28);
     --map-road-major: oklch(0.56 0.02 165 / 0.45);
     --map-van-a: oklch(0.38 0.075 75);
-    --map-van-b: oklch(0.38 0.15 355);
-    --map-van-c: oklch(0.37 0.1 140);
+    --map-van-b: oklch(0.4 0.13 30);
+    --map-van-c: oklch(0.38 0.06 230);
     --map-van-d: oklch(0.38 0.14 290);
     --map-place: var(--foreground);
     --map-depot: var(--foreground);

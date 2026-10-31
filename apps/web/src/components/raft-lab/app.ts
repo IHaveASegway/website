@@ -28,9 +28,12 @@ import {
 
 // The Raft Lab in the browser (ADR 0020): the simulation, run in virtual time and drawn on every
 // frame while it runs. It opens paused, on the same opening the build drew, and moves only when
-// the visitor presses Run, which Pause stops (SC 2.2.2); a hidden tab pauses it too. With reduced
-// motion, messages do not glide: each one stands half way along its path, and Run advances in
-// steps of 50 virtual milliseconds twice a second.
+// the visitor presses Run, a toggle that a second press stops (SC 2.2.2); a hidden tab pauses it
+// too. Run keeps its name, and its state is aria-pressed, which lights the lamp before its word
+// (ADR 0025): until 2026-10-30 the word changed to "Pause" as well, so a lit lamp stood beside
+// "Pause" while the run went on and a screen reader heard "Pause, pressed". With reduced motion,
+// messages do not glide: each one stands half way along its path, and Run advances in steps of 50
+// virtual milliseconds twice a second.
 
 const FRAME_CAP = 100; // real ms: a frame after a long pause does not leap ahead
 const EVENTS_PER_FRAME = 4_000;
@@ -147,7 +150,6 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     playing = false;
     cancelAnimationFrame(frame);
     clearInterval(timer);
-    if (run) run.textContent = 'Run';
     run?.setAttribute('aria-pressed', 'false');
     draw();
   }
@@ -169,7 +171,6 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
   function play(): void {
     if (sim.violation) return;
     playing = true;
-    if (run) run.textContent = 'Pause';
     run?.setAttribute('aria-pressed', 'true');
     if (still.matches) {
       timer = window.setInterval(() => {

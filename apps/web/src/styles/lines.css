@@ -103,7 +103,9 @@
 }
 
 /* Labels inside a drawing are the panel's engraving: the label face at the label's size, in
-   sentence case. A server's number sits in its lamp, in the surface's colour on a filled lamp. */
+   sentence case, the scale's floor for a drawing (tokens.css). A server's number sits in its lamp,
+   at the same size, in the surface's colour on a filled lamp; until 2026-10-30 it was 12 px on the
+   board, off the scale. */
 .line-label,
 .line-number {
   font-family: var(--font-label);
@@ -122,7 +124,6 @@
 
 .line-number {
   fill: var(--foreground);
-  font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
   text-anchor: middle;
   dominant-baseline: central;

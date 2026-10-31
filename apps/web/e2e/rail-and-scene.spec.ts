@@ -121,7 +121,10 @@ test.describe('the rail', () => {
       if (stops.at(-1)?.name === 'main') break;
     }
     const names = stops.map((stop) => stop.name);
-    expect(names.slice(0, 3)).toEqual(['Skip to content', 'Joseph Peterson', 'Search']);
+    // The search field's name holds the keys it shows (SC 2.5.3): "Ctrl K", or "K" beside the
+    // drawn command key on an Apple keyboard.
+    expect(names.slice(0, 2)).toEqual(['Skip to content', 'Joseph Peterson']);
+    expect(names[2]).toMatch(/^Search( Ctrl)? K$/);
     expect(names.at(-1)).toBe('main');
     const items = ['Lab', 'Writing', 'About'].filter(
       (step) => step !== 'Writing' || pages().includes('/writing/'),
@@ -309,6 +312,12 @@ test.describe("Home's scene", () => {
     await expect(drawing(page)).toBeVisible();
     await expect(toggle(page)).toBeHidden();
     await expect(page.locator('.motion-item')).toHaveCSS('visibility', 'hidden');
+    // Seen, the board without the scene's data stays its still drawing: nothing marks it seen, and
+    // its day does not run. Unscrolled, the check could not fail, since the day waits to be seen.
+    const board = page.locator('[data-board]');
+    await board.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(500);
+    await expect(board).not.toHaveAttribute('data-seen');
     expect(await boardDay(page)).toEqual([]);
   });
 
@@ -341,6 +350,7 @@ const stageLayout = (page: Page) =>
       caption: box('.hero-caption'),
       actions: box('.hero-actions'),
       lede: box('.hero-lede'),
+      figures: box('.figures'),
       scene: box('.scene'),
       picture: box('.scene-picture'),
       chapter: box('[data-stage-chapter]'),
@@ -351,10 +361,13 @@ const stageLayout = (page: Page) =>
   });
 
 // Below 64rem the column leads with the name, the role and the buttons, then the map's band, then
-// the opening sentence (ADR 0025); the Route Lab's chapter opens below the band, on the page's own
-// background (home.css). Until 2026-10-30 a later rule with the same specificity won, the chapter
-// centred its words in a screen-tall box, and its title ran over the live scene. The checks on a
-// larger screen run at 1440 × 900 and up, so none of them would see it.
+// the opening sentence (ADR 0025). While the scene runs, the band stays at the window's top over the
+// words, from where it starts to the end of the Route Lab's chapter, so the day lifts into the cube
+// in view beside the chapter's words, and then it leaves with them, before the board. Until
+// 2026-10-30 the words after the band scrolled over it on the page's own ground and the chapter
+// kept a band's height open above its title, where the band no longer stood: some 340 px of
+// nothing, and the cube cut off at the canvas's top. The checks on a larger screen run at 1440 ×
+// 900 and up, so none of them would see it.
 test.describe("Home's scene on a phone", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
@@ -364,20 +377,53 @@ test.describe("Home's scene on a phone", () => {
     expect(at.overflow).toBe(0);
     expect(at.scene.top).toBeGreaterThanOrEqual(at.actions.bottom - 0.5);
     expect(at.lede.top).toBeGreaterThanOrEqual(at.scene.bottom - 0.5);
+    // Its caption, which names what it shows and credits the map, stands right under it, inside
+    // the first screen.
+    expect(at.caption.top - at.scene.bottom).toBeLessThan(16);
+    expect(at.caption.bottom).toBeLessThanOrEqual(at.window.height);
     expect(at.scene.height).toBeGreaterThanOrEqual(280);
     expect([at.scene.left, at.scene.width]).toEqual([0, at.window.width]);
   });
 
-  test("the Route Lab's words start below the scene's band, not over it", async ({ page }) => {
+  test('while the scene runs the band stays over the words to the chapter’s end, then leaves with it', async ({
+    page,
+  }) => {
+    await home(page);
+    const at = await stageLayout(page);
+    // The chapter follows the figures with no band-sized gap: its title is a section's space down.
+    expect(at.chapter.top - at.figures.bottom).toBeLessThan(16);
+    const title = await page.locator('.chapter-title').boundingBox();
+    expect((title?.y ?? 0) - at.chapter.top).toBeLessThan(64);
+    // From where the band starts to the chapter's end, the band stands at the window's top and
+    // nothing covers it: the canvas answers at its middle.
+    const top = at.scene.top + (await page.evaluate(() => scrollY));
+    const end = at.chapter.bottom + (await page.evaluate(() => scrollY)) - at.scene.height;
+    for (const y of [top + 1, (top + end) / 2, end - 1].map(Math.round)) {
+      await scrollToY(page, y);
+      const band = await page.evaluate(() => {
+        const box = document.querySelector('.scene')?.getBoundingClientRect();
+        const hit = box && document.elementFromPoint(box.width / 2, box.top + box.height / 2);
+        return { top: box?.top ?? NaN, hit: hit?.localName ?? '' };
+      });
+      expect(band, `${y}`).toEqual({ top: 0, hit: 'canvas' });
+    }
+    // Past the chapter it leaves with it, and the board follows it, under nothing.
+    await scrollToY(page, end + 200);
+    const after = await stageLayout(page);
+    expect(after.scene.bottom).toBeCloseTo(after.covers.top, 0);
+    expect(after.scene.bottom).toBeLessThan(at.scene.height);
+  });
+
+  test('under reduced motion the band is the picture in the column, and scrolls away with it', async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/');
-    const band = (await stageLayout(page)).scene.height;
-    const gap = await page.locator('[data-stage-chapter]').evaluate((chapter) => {
-      const title = chapter.querySelector('.chapter-title') as HTMLElement;
-      return title.getBoundingClientRect().top - chapter.getBoundingClientRect().top;
-    });
-    // Above the band's height the chapter's background is transparent, and the scene shows
-    // through it: its words start below, once its top reaches the band's.
-    expect(gap).toBeGreaterThanOrEqual(band);
+    const at = await stageLayout(page);
+    await page.evaluate((y) => scrollTo(0, y), at.scene.bottom + 200);
+    const after = await stageLayout(page);
+    expect(after.scene.bottom).toBeLessThan(0);
+    expect(after.chapter.top - after.figures.bottom).toBeLessThan(16);
   });
 });
 
@@ -430,11 +476,12 @@ test.describe("Home's stage on a larger screen", () => {
       const where = `${width} × ${height}`;
       expect(at.overflow, where).toBe(0);
       // The scene's box runs to the window's right edge and nearly its full height, past the
-      // Route Lab chapter's words, and what covers the scene reaches the column's edges.
+      // Route Lab chapter's words, and the board after the chapter stands in the frame, as every
+      // row does: the scene has left with the chapter, so nothing covers it.
       expect(at.picture.right, where).toBeCloseTo(at.window.width, 0);
       expect(at.picture.height, where).toBeGreaterThan(at.window.height * 0.85);
       expect(at.picture.left, where).toBeGreaterThanOrEqual(at.chapter.right + 32 - 0.5);
-      expect([at.covers.left, at.covers.width], where).toEqual([at.main.left, at.main.width]);
+      expect(at.covers.left, where).toBeCloseTo(at.how.left, 0);
       // The words start at the frame's edge, as every row below them does, at the name's size.
       expect(at.title.left, where).toBeCloseTo(at.how.left, 0);
       expect(at.size, where).toBe(design.size);

@@ -82,25 +82,22 @@
   gap: 0.5rem;
 }
 
-/* On a phone the days are one row that scrolls sideways inside itself, so the map comes sooner;
-   the page itself never scrolls sideways. */
+/* On a phone the days are two columns of push-buttons, every one whole on screen, and one column
+   where two would squeeze a word, at 320 px or with a larger text size. Until 2026-10-30 they were
+   one row that scrolled sideways inside the desk, and the third was cut at the bezel with nothing
+   to say the row went on. */
 @media (width < 48rem) {
   .rl-days .rl-chips {
-    flex-wrap: nowrap;
-    margin-inline: calc(var(--desk-side) * -1);
-    padding: 0 var(--desk-side) 0.375rem;
-    overflow-x: auto;
-    scroll-padding-inline: var(--desk-side);
-  }
-
-  .rl-days .rl-chip {
-    flex: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr));
   }
 }
 
 /* A choice is a push-button (global.css, .btn): a native radio inside its label, drawn as the
    lamp before its words, hollow until it is chosen and then lit, with the button pressed in. No
-   colour fills it: its state is the lamp and the word. The radio keeps its own focus ring. */
+   colour fills it: its state is the lamp and the word. Focus rings the whole button, 2 px of the
+   lit lamp as every button's ring is (global.css), not the 10 px lamp alone (SC 2.4.11, 2.4.13);
+   where :has() is not known the radio keeps its own ring. */
 .rl-chip {
   display: inline-grid;
   grid-template-columns: auto 1fr;
@@ -115,6 +112,15 @@
 .rl-chip:hover,
 .rl-chip:has(:checked) {
   background-color: var(--surface-2);
+}
+
+.rl-chip:has(:focus-visible) {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+
+.rl-chip:has(:focus-visible) input:focus-visible {
+  outline: none;
 }
 
 .rl-chip input {
@@ -749,6 +755,20 @@
   }
 }
 
+/* On a phone a label is set larger against the map than its place was chosen for, so the 10 and
+   20 minute lines go unnamed there, as the two small bays do: "10 min" ran into "The bakery", and
+   the dotted line ran through "20 min". The legend names the dotted line. Every other label keeps
+   a wider halo in the water's colour, so a route or a dotted line crossing it stops at its edge. */
+@media (width < 30rem) {
+  .rl-label-contour {
+    display: none;
+  }
+
+  .rl-label {
+    stroke-width: 18px;
+  }
+}
+
 /* The legend under the maps, its labels in the label face. */
 .rl-legend {
   display: grid;
@@ -856,15 +876,40 @@
   border-top: 1px solid var(--input);
 }
 
+/* Each summary says it opens with the rail's mark (global.css, .nav-fold): a chevron in the
+   rule's colour after its words, pointing on while it is closed and down once it is open. Until
+   2026-10-30 a summary was its words alone in a box, which read as a label, not a control. */
 .rl-orders summary,
 .rl-stops summary {
   display: flex;
   align-items: center;
+  gap: 0.625rem;
   min-height: 2.75rem;
   font-size: var(--text-ui);
   font-family: var(--font-label);
   font-weight: 500;
   cursor: pointer;
+}
+
+.rl-orders summary::after,
+.rl-stops summary::after {
+  content: '';
+  flex: none;
+  inline-size: 0.4375rem;
+  block-size: 0.4375rem;
+  border-inline-end: 1.5px solid var(--input);
+  border-block-end: 1.5px solid var(--input);
+  rotate: -45deg;
+}
+
+.rl-orders[open] > summary::after,
+.rl-stops[open] > summary::after {
+  rotate: 45deg;
+}
+
+.rl-orders summary:hover::after,
+.rl-stops summary:hover::after {
+  border-color: currentColor;
 }
 
 .rl-orders fieldset {

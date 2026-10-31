@@ -66,6 +66,30 @@ export function rising(top: number, view: number): number {
  *  read, then all of it by nine tenths. */
 export const liftFor = (p: number): number => Math.min(1, Math.max(0, (p - 0.2) / 0.7));
 
+/** 0 to 1, eased at both ends, as the camera's own easing is (lib/route-lab/scene.ts, cameraAt). */
+export const smooth = (x: number): number => {
+  const t = Math.min(1, Math.max(0, x));
+  return t * t * (3 - 2 * t);
+};
+
+/** How far into the lift the map has moved from where the build's picture draws it into the
+ *  cube's room. The cube's frame comes in only after that, so every frame of it stands inside the
+ *  room, never past the window's edge while the map is still on its way. */
+export const PLACED = 0.4;
+/** How far into the lift the map's edges have faded in full: from the first turn of the camera,
+ *  so the straight edge where its data stops never shows on the way. */
+export const FADED = 0.2;
+
+/** Where the cube's frame stands for an eased lift `k`: how far the map has moved into the room,
+ *  how strong the fade at the map's edges is, and how strong the frame is. */
+export function liftStages(k: number): { placed: number; faded: number; frame: number } {
+  return {
+    placed: smooth(k / PLACED),
+    faded: smooth(k / FADED),
+    frame: smooth((k - PLACED) / (1 - PLACED)),
+  };
+}
+
 /** The orders handed over by day-time `t`: each stop counts once its van has arrived. */
 export function served(vans: readonly SceneTrack[], t: number): number {
   let n = 0;
@@ -147,7 +171,7 @@ export async function boot(canvas: HTMLCanvasElement): Promise<boolean> {
   const picture = figure?.querySelector<SVGSVGElement>('svg.scene-picture');
   const stage = canvas.closest<HTMLElement>('[data-stage]') ?? figure;
   // The Route Lab's chapter, which lifts the day as it comes up the window, and the board, which
-  // covers the scene once its top reaches the window's; and the caption's clock, in the column.
+  // follows the chapter once the scene has left with it; and the caption's clock, in the column.
   const chapter = stage?.querySelector<HTMLElement>('[data-stage-chapter]');
   const end = stage?.querySelector<HTMLElement>('[data-board]');
   const clock = stage?.querySelector<HTMLElement>('[data-scene-clock]');
@@ -165,6 +189,11 @@ export async function boot(canvas: HTMLCanvasElement): Promise<boolean> {
   }
   if (!data?.tracks?.length) return false;
   const vans = data.tracks;
+  // What the stylesheet says of the scene's box (home.css): the gutter the cube keeps inside it, in
+  // pixels, and whether it stands over the column's words, as the phone's band does while it runs.
+  const looks = getComputedStyle(figure);
+  const inset = () => Number.parseFloat(looks.getPropertyValue('--cube-inset')) || 0;
+  const over = () => looks.getPropertyValue('--over-words').trim() === '1';
   // The floor's paths come from the picture: one copy of the map on the page.
   const floor = (name: string) =>
     new Path2D(picture.querySelector(`[data-floor="${name}"]`)?.getAttribute('d') ?? '');
@@ -214,17 +243,19 @@ export async function boot(canvas: HTMLCanvasElement): Promise<boolean> {
   };
 
   /** Where the lifted cube stands: the part of the picture's box the canvas shows, beside the
-   *  words from 64rem and the band below that, in device pixels. */
+   *  words from 64rem and the band below that, kept the page's gutter inside the canvas's edges,
+   *  in device pixels. */
   const room = () => {
     const c = canvas.getBoundingClientRect();
     const p = picture.getBoundingClientRect();
-    const left = Math.max(p.left, c.left);
-    const top = Math.max(p.top, c.top);
+    const gutter = inset();
+    const left = Math.max(p.left, c.left + gutter);
+    const top = Math.max(p.top, c.top + gutter);
     return {
       x: (left - c.left) * ratio,
       y: (top - c.top) * ratio,
-      width: Math.max(1, Math.min(p.right, c.right) - left) * ratio,
-      height: Math.max(1, Math.min(p.bottom, c.bottom) - top) * ratio,
+      width: Math.max(1, Math.min(p.right, c.right - gutter) - left) * ratio,
+      height: Math.max(1, Math.min(p.bottom, c.bottom - gutter) - top) * ratio,
     };
   };
 
@@ -234,10 +265,12 @@ export async function boot(canvas: HTMLCanvasElement): Promise<boolean> {
     // pointer, only as time stands up: flat, the city stands still beside the words.
     const lifted = cameraAt(state.lift);
     const k = lifted.lift;
+    const stages = liftStages(k);
     const sway = (SWAY * Math.sin((state.seconds / SWAY_S) * 2 * Math.PI) + state.lean) * k;
     const camera: Camera = { ...lifted, azimuth: lifted.azimuth + sway };
     // Flat, the map is where the picture draws it; lifted, the cube fills the room beside the
-    // words; between the two the framing moves from one to the other with the lift.
+    // words; the framing moves from one to the other over the lift's first part (PLACED), and from
+    // then on the cube is fitted to the room at every turn of the camera.
     const what = extent(data.focus, data.seconds, camera);
     const pad = 0.03 * Math.max(what.width, what.height);
     const cube = fit(
@@ -250,10 +283,11 @@ export async function boot(canvas: HTMLCanvasElement): Promise<boolean> {
       room(),
     );
     const map = flat() ?? cube;
+    const w = stages.placed;
     const at = {
-      scale: map.scale + (cube.scale - map.scale) * k,
-      x: map.x + (cube.x - map.x) * k,
-      y: map.y + (cube.y - map.y) * k,
+      scale: map.scale + (cube.scale - map.scale) * w,
+      x: map.x + (cube.x - map.x) * w,
+      y: map.y + (cube.y - map.y) * w,
     };
     const project = projector(data.focus, data.seconds, camera);
     const screen = (x: number, y: number, s: number): [number, number] => {
@@ -287,12 +321,13 @@ export async function boot(canvas: HTMLCanvasElement): Promise<boolean> {
     ctx.stroke(laid(major));
     // Flat, the map runs past the screen's edges, and its water is the page, so nothing fades it.
     // As it lifts into the cube its whole floor comes into view, and the floor fades in from the
-    // map's own edges (EDGE) as it does, along each axis in turn, laid through the floor's matrix
-    // so the fades lie on the map: a straight edge across the water would read as a slab.
+    // map's own edges (EDGE), in full from the camera's first turn (FADED), along each axis in
+    // turn, laid through the floor's matrix so the fades lie on the map: a straight edge across
+    // the water would read as a slab, and the map has no edge where its data stops.
     if (k > 0) {
       const [mx0, my0, mx1, my1] = data.map;
       ctx.globalCompositeOperation = 'destination-out';
-      ctx.globalAlpha = k;
+      ctx.globalAlpha = stages.faded;
       ctx.setTransform(m);
       for (const [ax, ay, bx, by] of [
         [mx0, 0, mx1, 0],
@@ -311,8 +346,9 @@ export async function boot(canvas: HTMLCanvasElement): Promise<boolean> {
     }
     ctx.globalCompositeOperation = 'source-over';
 
-    // The cube, once time stands up: its edges, and a plane at the day's hour.
-    if (state.lift > 0.02) {
+    // The cube, once time stands up and the map is in the room: its edges, and a plane at the
+    // day's hour.
+    if (stages.frame > 0) {
       const [x0, y0, x1, y1] = data.focus;
       const top = data.seconds;
       const corners: [number, number][] = [
@@ -322,7 +358,7 @@ export async function boot(canvas: HTMLCanvasElement): Promise<boolean> {
         [x0, y1],
       ];
       ctx.strokeStyle = ink.rule;
-      ctx.globalAlpha = state.lift;
+      ctx.globalAlpha = stages.frame;
       ctx.lineWidth = px;
       ctx.beginPath();
       for (const [x, y] of corners) {
@@ -332,7 +368,7 @@ export async function boot(canvas: HTMLCanvasElement): Promise<boolean> {
       corners.forEach(([x, y], k) => ctx[k ? 'lineTo' : 'moveTo'](...screen(x, y, top)));
       ctx.closePath();
       ctx.stroke();
-      ctx.globalAlpha = state.lift * 0.9;
+      ctx.globalAlpha = stages.frame * 0.9;
       ctx.strokeStyle = ink.depot;
       ctx.setLineDash([4 * px, 6 * px]);
       ctx.beginPath();
@@ -342,7 +378,7 @@ export async function boot(canvas: HTMLCanvasElement): Promise<boolean> {
       ctx.setLineDash([]);
       // The bakery's pillar, the time axis, with a tick each hour.
       const [bx, by] = data.bakery;
-      ctx.globalAlpha = state.lift;
+      ctx.globalAlpha = stages.frame;
       ctx.strokeStyle = ink.depot;
       ctx.beginPath();
       ctx.moveTo(...screen(bx, by, 0));
@@ -515,7 +551,8 @@ export async function boot(canvas: HTMLCanvasElement): Promise<boolean> {
   // The board (components/board/Board.astro) runs the Route Lab's day too, in CSS, while this
   // scene runs and on its button (styles/board.css). It comes up the first time it is seen while
   // the day runs: until then its lamps are out. Seen while paused, it keeps its still drawing, and
-  // comes up when the day plays again with the board in view.
+  // comes up when the day plays again with the board in view. Out of the window its day waits
+  // (data-away), so it runs where it is seen and never on out of sight, far from the button.
   const board = end;
   let boardInView = false;
   const comeUp = () => {
@@ -526,6 +563,7 @@ export async function boot(canvas: HTMLCanvasElement): Promise<boolean> {
     new IntersectionObserver(
       ([entry]) => {
         boardInView = entry?.isIntersecting ?? false;
+        board.toggleAttribute('data-away', !boardInView);
         comeUp();
       },
       { threshold: 0.25 },
@@ -563,8 +601,11 @@ export async function boot(canvas: HTMLCanvasElement): Promise<boolean> {
 
   const scrolled = () => {
     const b = (chapter ?? stage).getBoundingClientRect();
+    // The chapter rises through the part of the window the words scroll in: below the band while
+    // the band stands over them (a phone), and the whole window beside the scene from 64rem.
+    const from = over() ? Math.max(0, figure.getBoundingClientRect().bottom) : 0;
     state.toLift = liftFor(
-      chapter ? rising(b.top, innerHeight) : progress(b.top, b.height, innerHeight),
+      chapter ? rising(b.top - from, innerHeight - from) : progress(b.top, b.height, innerHeight),
     );
     const covered = (end?.getBoundingClientRect().top ?? Infinity) <= 0;
     if (covered !== state.covered) {
@@ -617,14 +658,17 @@ export async function boot(canvas: HTMLCanvasElement): Promise<boolean> {
     if (!state.frame) draw();
   }).observe(canvas);
 
+  // Live first, so the canvas has its box and the stylesheet's rules for a running scene hold (a
+  // phone's band over the words) before the lift is read and the first frame drawn; nothing paints
+  // until this returns.
   function start() {
     if (reduce.matches) return;
     state.off = false;
+    root.dataset['sceneLive'] = '';
     fitCanvas();
     scrolled();
     state.lift = state.toLift;
     draw();
-    root.dataset['sceneLive'] = '';
     show();
     schedule();
   }

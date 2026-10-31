@@ -206,21 +206,27 @@ for (const file of html) {
     });
 
     // Two buttons, one shown at a time (ADR 0022): the rail's search field, then the header row's.
-    // A button's name is its words; its keys are shown beside them and hidden from assistive
-    // technology, which aria-keyshortcuts tells instead (ADR 0025): the command key is a drawing,
-    // since Barlow has no ⌘. Until then the name was "Search Ctrl K", the keys read as words.
-    test("the header's buttons open it, name themselves in words, and show its keys", () => {
+    // A button's name is its words and the keys it shows, since in the bar the keys are all a
+    // sighted visitor sees of it, and a name holds the visible label (SC 2.5.3). The command key is
+    // a drawing (Barlow has no ⌘), hidden from assistive technology; aria-keyshortcuts tells the
+    // keys too. From 2026-10-30 until the review that day the keys were hidden as well, and the
+    // bar's button was "Command menu" alone, with "Ctrl K" on screen.
+    test("the header's buttons open it, name themselves with the keys they show", () => {
       const buttons = elementsOf(page).filter((e) => attribute(e, 'data-palette-open') === '');
-      expect(buttons.map((b) => nameOf(b))).toEqual(['Search', 'Command menu']);
+      expect(buttons.map((b) => nameOf(b))).toEqual(['Search Ctrl K', 'Command menu Ctrl K']);
       for (const button of buttons) {
         expect(button.tagName).toBe('button');
         expect(attribute(button, 'aria-haspopup')).toBe('dialog');
         expect(attribute(button, 'aria-keyshortcuts')).toBe('Meta+K Control+K');
         const keys = descendants(button).filter((e) => e.tagName === 'kbd');
         expect(keys).toHaveLength(1);
-        expect(attribute(keys[0] as Element, 'aria-hidden')).toBe('true');
+        expect(attribute(keys[0] as Element, 'aria-hidden')).toBeUndefined();
         expect(textOf(keys[0] as Element)).toBe('Ctrl K');
-        expect(descendants(keys[0] as Element).some((e) => e.tagName === 'svg')).toBe(true);
+        const drawn = descendants(keys[0] as Element).filter((e) => e.tagName === 'svg');
+        expect(drawn).toHaveLength(1);
+        expect(attribute(drawn[0] as Element, 'aria-hidden')).toBe('true');
+        // What a sighted visitor reads on the button is in its name.
+        expect(nameOf(button)).toContain(textOf(keys[0] as Element));
       }
     });
 

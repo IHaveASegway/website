@@ -26,9 +26,12 @@ import { tracks } from '../src/lib/route-lab/timeline';
 import {
   dayClock,
   DAY_S,
+  FADED,
   HOLD_S,
   liftFor,
+  liftStages,
   nextRatio,
+  PLACED,
   progress,
   rising,
   served,
@@ -162,6 +165,26 @@ describe('the clock and the scroll', () => {
     expect(liftFor(0.2)).toBe(0);
     expect(liftFor(0.9)).toBe(1);
     expect(close(liftFor(0.55), 0.5)).toBe(true);
+  });
+
+  // The lift in stages (route-scene.ts): the map moves from where the picture draws it into the
+  // cube's room first, and the cube's frame comes in only once it is there, fitted to the room at
+  // every turn of the camera after that, so no frame of the tilt runs past the window's edge; the
+  // map's edges fade in full from the camera's first turn. Until 2026-10-30 the frame came in with
+  // the lift itself, and at 1440 × 900 it ran past the window's right edge on its way.
+  test('known answers: the lift places the map, then draws the frame, and fades the map’s edges first', () => {
+    expect(liftStages(0)).toEqual({ placed: 0, faded: 0, frame: 0 });
+    expect(liftStages(1)).toEqual({ placed: 1, faded: 1, frame: 1 });
+    expect(liftStages(FADED).faded).toBe(1);
+    expect(liftStages(PLACED)).toEqual({ placed: 1, faded: 1, frame: 0 });
+    for (let k = 0; k <= 1.0001; k += 0.01) {
+      const at = liftStages(k);
+      if (at.frame > 0) expect(at.placed, `lift ${k}`).toBe(1);
+      expect(at.faded, `lift ${k}`).toBeGreaterThanOrEqual(at.placed);
+    }
+    // The weaker staging of before: the frame as strong as the lift, while the map is still on its way.
+    const before = (k: number) => ({ placed: k, frame: k });
+    expect(before(0.3).frame > 0 && before(0.3).placed < 1).toBe(true);
   });
 
   test('known answers: the governor keeps the ratio while frames keep up, then sheds load', () => {

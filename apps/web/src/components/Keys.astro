@@ -1,14 +1,17 @@
 ---
 // The keys that open the command menu, beside the button that opens it (Header.astro). Barlow has
 // no ⌘, so the command key is drawn, an SVG of the key's symbol, and only the letter is text (ADR
-// 0025). The keys are shown, not read: the button's name is its words, "Search" or "Command menu",
-// and aria-keyshortcuts on the button tells assistive technology the keys. src/scripts/palette.js
-// names the keys of the keyboard at hand once it binds the button, which stays unseen until then:
-// "Ctrl K" on a PC, the drawn key and "K" on an Apple keyboard.
+// 0025). The drawing is hidden from assistive technology and the letters are not: in the bar the
+// keys are all a sighted visitor sees of the button, so its name holds them, "Command menu Ctrl
+// K", as a name must hold the visible label (SC 2.5.3), and a voice saying "Ctrl K" finds it.
+// Until 2026-10-30 the keys were hidden too, and the name was "Command menu" alone.
+// aria-keyshortcuts on the button tells the keys as well. src/scripts/palette.js names the keys of
+// the keyboard at hand once it binds the button, which stays unseen until then: "Ctrl K" on a PC,
+// the drawn key and "K" on an Apple keyboard.
 ---
 
-<kbd class="keys" aria-hidden="true" data-keys>
-  <svg class="key-command" viewBox="0 0 12 12" focusable="false">
+<kbd class="keys" data-keys>
+  <svg class="key-command" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
     <path d="M4 4V2.6A1.6 1.6 0 1 0 2.6 4H4zm0 0h4M4 4v4m0 0H2.6A1.6 1.6 0 1 0 4 9.4V8zm0 0h4m0 0v1.4A1.6 1.6 0 1 0 9.4 8H8zm0 0V4m0 0h1.4A1.6 1.6 0 1 0 8 2.6V4z" />
   </svg>
   <span data-keys-text>Ctrl K</span>
