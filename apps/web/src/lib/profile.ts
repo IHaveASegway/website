@@ -261,9 +261,11 @@ export function projectCards(profile: Profile, holds: readonly Hold[]): ProjectC
     }));
 }
 
-/** Test builds only. A fixture adds projects, roles and skills to the real profile's, and can
- *  record the GitHub profile's check, which a project card needs; every other field stays the real
- *  one, so a fixture build cannot drift from profile.json. Only scripts/build-fixtures.mjs names a fixture, through
+/** Test builds only. A fixture adds projects and roles to the real profile's, puts its skills in
+ *  place of the real ones (the schema caps skills at twelve, and the fixture holds twelve, so the
+ *  résumé is drawn at its limit whatever profile.json lists), and can record the GitHub profile's
+ *  check, which a project card needs; every other field stays the real one, so a fixture build
+ *  cannot drift from profile.json. Only scripts/build-fixtures.mjs names a fixture, through
  *  PROFILE_FIXTURE; every real build reads src/content/profile.json alone (test/profile.test.ts). */
 export interface ProfileFixture {
   readonly githubChecked?: unknown;
@@ -299,6 +301,6 @@ export function withFixture(
     },
     projects: [...list('projects'), ...(fixture.projects ?? [])],
     work: [...list('work'), ...(fixture.work ?? [])],
-    skills: [...list('skills'), ...(fixture.skills ?? [])],
+    skills: fixture.skills === undefined ? list('skills') : [...fixture.skills],
   };
 }

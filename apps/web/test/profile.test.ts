@@ -32,8 +32,11 @@ interface Loose {
 
 // profile.json with both networks, a LinkedIn record under a made-up slug among them, so each
 // network's rules are tested whatever profile.json holds today.
+// Its skills start empty, so the cases that count to the schema's limit count from zero whatever
+// profile.json lists.
 const valid: Profile = {
   ...structuredClone(profile),
+  skills: [],
   basics: {
     ...structuredClone(profile.basics),
     profiles: [
@@ -296,6 +299,7 @@ test('only a fixture name selects test projects; every real build reads profile.
   const data = {
     basics: { profiles: [{ network: 'GitHub' }, { network: 'LinkedIn' }] },
     projects: [{ name: 'x' }],
+    skills: [{ name: 'real' }],
   };
   expect(withFixture(data, null)).toBe(data);
   expect(
@@ -311,6 +315,8 @@ test('only a fixture name selects test projects; every real build reads profile.
     work: [role],
     skills: [skill],
   });
+  // A fixture's skills stand in for the real ones; with none, the real ones stay.
+  expect(withFixture(data, { projects: [] })['skills']).toEqual([{ name: 'real' }]);
   // Nothing that builds or deploys the site sets PROFILE_FIXTURE: only the fixture script does.
   for (const file of ['package.json', '../../package.json', '../../.github/workflows/ci.yml']) {
     expect(readFileSync(join(app, file), 'utf8'), file).not.toContain('PROFILE_FIXTURE');
