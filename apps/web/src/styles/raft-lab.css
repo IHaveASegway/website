@@ -73,8 +73,8 @@
 
 .rf-summary {
   color: var(--muted-foreground);
-  font-size: var(--text-sm);
-  line-height: var(--text-sm--line-height);
+  font-size: var(--text-label);
+  line-height: var(--text-label--line-height);
 }
 
 /* A server: its body, its election timer as a dial around it, its number and its role. */
@@ -99,25 +99,26 @@
 
 .rf-name {
   fill: var(--foreground);
-  font-family: var(--font-sans);
+  font-family: var(--font-label);
   font-size: 20px;
-  font-weight: 620;
+  font-weight: 500;
   text-anchor: middle;
 }
 
 .rf-role {
   fill: var(--foreground);
-  font-family: var(--font-sans);
+  font-family: var(--font-label);
   font-size: 12px;
-  font-weight: 560;
+  font-weight: 500;
   text-anchor: middle;
 }
 
 .rf-term {
   fill: var(--muted-foreground);
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 10.5px;
   text-anchor: middle;
+  font-variant-numeric: tabular-nums;
 }
 
 .rf-node[data-role='leader'] .rf-role {
@@ -213,7 +214,8 @@
 .rf-heading {
   margin: 0;
   font-size: var(--text-ui);
-  font-weight: 600;
+  font-family: var(--font-label);
+  font-weight: 500;
 }
 
 .rf-logs {
@@ -234,8 +236,9 @@
 .rf-log-name {
   padding-top: 0.125rem;
   color: var(--muted-foreground);
-  font-family: var(--font-mono);
-  font-size: var(--text-meta);
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-variant-numeric: tabular-nums;
 }
 
 .rf-cells {
@@ -285,9 +288,10 @@
 
 .rf-num {
   color: var(--muted-foreground);
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 0.625rem;
   line-height: 1.4;
+  font-variant-numeric: tabular-nums;
 }
 
 .rf-legend,
@@ -295,8 +299,8 @@
 .rf-clock {
   margin: 0;
   max-width: var(--measure);
-  font-size: var(--text-sm);
-  line-height: var(--text-sm--line-height);
+  font-size: var(--text-label);
+  line-height: var(--text-label--line-height);
 }
 
 .rf-legend {
@@ -309,8 +313,9 @@
 
 .rf-clock {
   color: var(--muted-foreground);
-  font-family: var(--font-mono);
-  font-size: var(--text-meta);
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Controls: time, the network, and a button a server. */
@@ -334,7 +339,7 @@
   align-items: center;
   gap: 0.5rem;
   max-width: 100%;
-  font-size: var(--text-sm);
+  font-size: var(--text-label);
 }
 
 .rf-field input[type='range'] {
@@ -352,8 +357,9 @@
 
 .rf-field output {
   min-width: 2.5rem;
-  font-family: var(--font-mono);
-  font-size: var(--text-meta);
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-variant-numeric: tabular-nums;
 }
 
 .rf-toggle {
@@ -384,8 +390,8 @@
   padding: 0.75rem 0;
   overflow-y: auto;
   border-block: 1px solid var(--border);
-  font-size: var(--text-sm);
-  line-height: var(--text-sm--line-height);
+  font-size: var(--text-label);
+  line-height: var(--text-label--line-height);
 }
 
 .rf-list {
@@ -398,8 +404,9 @@
   display: inline-block;
   min-width: 5.5rem;
   color: var(--muted-foreground);
-  font-family: var(--font-mono);
-  font-size: var(--text-meta);
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-variant-numeric: tabular-nums;
 }
 
 @media (forced-colors: active) {

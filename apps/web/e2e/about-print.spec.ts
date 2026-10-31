@@ -154,8 +154,12 @@ for (const size of [16, 32]) {
       for (const address of lines) expect(address.rows, address.text).toHaveLength(1);
     } else {
       expect(web?.rows, web?.text).toHaveLength(1);
-      // The email breaks only after its "@"; LinkedIn's, wider than the screen, may break anywhere.
-      expect(email?.rows).toEqual(['hello@', 'ihaveasegway.com']);
+      // The email breaks, if it must, only after its "@": in the label face it fits one line here
+      // (2026-10-30), where Instrument Sans broke it after the "@". LinkedIn's, wider than the
+      // screen, may break anywhere.
+      expect([['hello@ihaveasegway.com'], ['hello@', 'ihaveasegway.com']]).toContainEqual(
+        email?.rows,
+      );
       expect(linkedIn?.rows.length).toBeGreaterThan(1);
     }
   });

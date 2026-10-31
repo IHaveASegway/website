@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { create } from 'fontkitten';
 import { NOT_FOUND_PAGE, pages } from './expected';
 import { fallbacksOn } from './fonts-drawn';
 
@@ -54,21 +55,15 @@ async function unusedFonts(
   await page.goto(path);
   await before?.();
   const { drawn } = await fallbacksOn(page);
-  // Each file's family, read from the page's own @font-face rules, without the Fonts API's hash.
-  const families = await page.evaluate(() =>
-    Object.fromEntries(
-      [...document.styleSheets]
-        .flatMap((sheet) => [...sheet.cssRules])
-        .filter((rule): rule is CSSFontFaceRule => rule instanceof CSSFontFaceRule)
-        .flatMap((rule) => {
-          const src = /url\("?([^")]+)"?\)/.exec(rule.style.getPropertyValue('src'))?.[1];
-          const family = rule.style.getPropertyValue('font-family').replace(/"/g, '');
-          return src
-            ? [[new URL(src, location.href).pathname, family.replace(/-[0-9a-f]+$/, '')]]
-            : [];
-        }),
-    ),
-  );
+  // Each file's family as the font names itself, read from the file: Chromium reports a web face
+  // by the family in its own name table (CSS.getPlatformFontsForNode), and a static instance's
+  // carries its weight ("Barlow Condensed SemiBold", "Barlow SemiBold"), not the @font-face rule's
+  // name. So the match is per face: a SemiBold fetched beside a Regular that draws is still caught.
+  const families: Record<string, string> = {};
+  for (const file of new Set(fetched)) {
+    const font = create(Buffer.from(await (await page.request.get(file)).body()));
+    if (!font.isCollection) families[file] = font.familyName;
+  }
   return { fetched, unused: fetched.filter((file) => !drawn.has(families[file] ?? file)), drawn };
 }
 

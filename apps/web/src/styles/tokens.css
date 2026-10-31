@@ -46,53 +46,48 @@
   --radius-sm: 2px;
   --radius-md: 0px;
 
-  /* Type scale, from the approved mockup at 390 px and 1440 px (design-system.md, "Type scale").
-     Fluid sizes run linearly between those two widths and stop at both ends. Each has a rem floor
-     and a rem term, and each maximum is at most 2.5 times its minimum, so zoom always enlarges text
-     (SC 1.4.4; test/tokens.test.ts checks all three). */
-  --text-kv: 0.65625rem; /* 10.5px: key-value labels on cards */
-  --text-kv--line-height: 1.6;
-  --text-label: 0.6875rem; /* 11px: uppercase mono labels */
-  --text-label--line-height: 1.4;
-  --text-label--letter-spacing: 0.1em;
+  /* Type scale (design-system.md, "Type scale"; ADR 0025): eight steps. Each fluid size runs
+     linearly from 390 px to 1440 px and stops at both ends, so a wide screen gets more picture, not
+     bigger letters. Each has a rem floor and a rem term, and each maximum is at most 2.5 times its
+     minimum, so zoom always enlarges text (SC 1.4.4; test/tokens.test.ts checks all three). Hero,
+     title, section and headline are Barlow Condensed; lead and base Barlow; ui and label Barlow
+     Semi Condensed. */
+  /* The name on Home: 56px to 136px, a ratio of 2.43, set on two lines. It also stops at 20vw,
+     64px at 320px, so at the default text size the cap never binds from 320px up and zoom enlarges
+     the name as before. With a larger default text size on a phone it binds, and "Peterson" still
+     fits the screen whole instead of breaking inside the word. */
+  --text-hero: min(clamp(3.5rem, 1.642857rem + 7.619048vw, 8.5rem), 20vw);
+  --text-hero--line-height: 0.88;
+  /* A page's title, a featured lab's title, and the figures: 42px to 72px. It stops at 13.125vw,
+     its 42px floor at 320px, for the hero's reason: at the default text size the cap never binds
+     from 320px up, and with a larger default text size on a phone it does, so a long word such as
+     "deliveries" still fits the screen whole, where at twice the size it ran 2px past 320px. */
+  --text-title: min(clamp(2.625rem, 1.928571rem + 2.857143vw, 4.5rem), 13.125vw);
+  --text-title--line-height: 0.95;
+  /* A section's title, and How I work's leads: 30px to 48px. */
+  --text-section: clamp(1.875rem, 1.457143rem + 1.714286vw, 3rem);
+  --text-section--line-height: 1;
+  /* An index row's title, a post's h2, a board line's title at room size: 24px to 28px. */
+  --text-headline: clamp(1.5rem, 1.407143rem + 0.380952vw, 1.75rem);
+  --text-headline--line-height: 1.1;
+  /* A page's lead: 19px to 22px. */
+  --text-lead: clamp(1.1875rem, 1.117857rem + 0.285714vw, 1.375rem);
+  --text-lead--line-height: 1.4;
+  /* Prose and a card's text: 17px to 18px. */
+  --text-base: clamp(1.0625rem, 1.039286rem + 0.095238vw, 1.125rem);
+  --text-base--line-height: 1.6;
+  /* The navigation, buttons and a board line's title: 15px to 16px. */
+  --text-ui: clamp(0.9375rem, 0.914286rem + 0.095238vw, 1rem);
+  --text-ui--line-height: 1.25;
+  /* Status, describers, a date, a key's name, captions and the labels inside drawings: 13px to
+     14px, in sentence case, untracked, never mono. */
+  --text-label: clamp(0.8125rem, 0.789286rem + 0.095238vw, 0.875rem);
+  --text-label--line-height: 1.35;
   --text-label--font-weight: 500;
-  --text-meta: 0.75rem; /* 12px: a post's dates in a list */
-  --text-meta--line-height: 1.5;
-  --text-sm: 0.875rem;
-  --text-sm--line-height: 1.375rem;
-  --text-ui: 0.9375rem; /* 15px: buttons, links in rows, section titles */
-  --text-ui--line-height: 1.4;
-  --text-base: 1rem;
-  --text-base--line-height: 1.625rem;
-  --text-card: 1.0625rem; /* 17px: card copy */
-  --text-card--line-height: 1.5;
-  --text-lead: clamp(1.03125rem, 0.9268rem + 0.4286vw, 1.3125rem); /* 16.5px to 21px */
-  --text-lead--line-height: 1.45;
-  --text-title: clamp(1.3125rem, 1.15rem + 0.6667vw, 1.75rem); /* 21px to 28px */
-  --text-title--line-height: 1.15;
-  /* Long-form pages (design-system.md, "Type scale"): h2 and h3 for headings inside a post. A
-     page's or a post's title, and the 404's, take the statement size, as Home's display type does. */
-  --text-h2: clamp(1.375rem, 1.3054rem + 0.2857vw, 1.5625rem); /* 22px to 25px */
-  --text-h2--line-height: 1.2;
-  --text-h3: 1.25rem; /* 20px: an h3 in a post */
-  --text-h3--line-height: 1.75rem;
   /* The reading measure: about 68 characters of English a line (design-system.md, "Type scale").
-     Set in em, not ch: ch is the width of "0", which Instrument Sans draws wide, so 68ch measured
-     99 characters a line at 16px, and 31em measures 68 (e2e/writing.spec.ts checks it). */
+     Set in em, not ch: ch is the width of "0", which differs from face to face, so
+     e2e/writing.spec.ts counts the characters a line in the face a reader gets. */
   --measure: 31em;
-  /* Poster sizes (design-system.md, "Type scale"). The name on Home: 64px up to 390px, 160px at
-     1440px (ADR 0024), a ratio of 2.5, the most the zoom rule allows. It is set on two lines. It
-     also stops at 20vw, 64px at 320px, so at the default text size the cap never binds from 320px
-     up and zoom enlarges the name as before. With a larger default text size on a phone it binds, and
-     "Peterson", 3.13em wide, still fits the screen whole instead of breaking inside the word. */
-  --text-hero: min(clamp(4rem, 1.7714rem + 9.1429vw, 10rem), 20vw);
-  /* Home's figures and its address (ADR 0024): 36px to 88px. A featured demo's title: 36px to
-     72px. */
-  --text-poster: clamp(2.25rem, 1.0432rem + 4.9524vw, 5.5rem);
-  --text-figure: clamp(2.25rem, 1.4143rem + 3.4286vw, 4.5rem);
-  /* A work card's title, and a page's title: 30px to 52px. */
-  --text-statement: clamp(1.875rem, 1.3643rem + 2.0952vw, 3.25rem);
-  --text-statement--line-height: 1.02;
 }
 
 /* Night: the designed default, and what a stored "dark" asks for. */

@@ -76,6 +76,16 @@
     font-variant-numeric: tabular-nums;
   }
 
+  /* Titles share their words evenly across their lines, and a paragraph leaves no word alone on
+     its last (design-system.md, "Type scale"). */
+  :is(h1, h2, h3, h4) {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
   /* A lab's line (ADR 0025): whatever belongs to a lab names it with data-line, and draws in
      var(--line), the lab's own colour (tokens.css). Colour means which line, and nothing else, so a
      new lab's drawing needs its slug here and its token there, and no other rule. */
@@ -134,8 +144,8 @@
     padding-inline: inherit;
     background-color: var(--surface-2);
     color: var(--foreground);
-    font-size: var(--text-sm);
-    line-height: var(--text-sm--line-height);
+    font-size: var(--text-label);
+    line-height: var(--text-label--line-height);
     transform: translateY(-200%);
   }
 
@@ -201,8 +211,9 @@
     align-items: center;
     min-height: 2.75rem;
     font-size: 1.125rem;
-    font-weight: 650;
-    letter-spacing: -0.01em;
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.005em;
     text-decoration-line: none;
   }
 
@@ -510,12 +521,10 @@
   /* A value beside the words: a post's kind and date over its title, a card's tag. */
   .label {
     color: var(--muted-foreground);
-    font-family: var(--font-mono);
+    font-family: var(--font-label);
     font-size: var(--text-label);
     font-weight: var(--text-label--font-weight);
     line-height: var(--text-label--line-height);
-    letter-spacing: var(--text-label--letter-spacing);
-    text-transform: uppercase;
   }
 
   /* Row 1: the poster. The name on two lines: its box is as wide as its widest line
@@ -536,10 +545,10 @@
     max-inline-size: 100%;
     margin: 0 0 0 calc(var(--bearing) * -1);
     font-size: var(--text-hero);
-    font-weight: 620;
-    font-stretch: 80%;
+    font-weight: 600;
+    font-family: var(--font-display);
     line-height: 0.86;
-    letter-spacing: -0.035em;
+    letter-spacing: -0.012em;
     overflow-wrap: break-word;
   }
 
@@ -557,9 +566,9 @@
 
   .hero-title {
     margin: 0;
-    font-size: var(--text-title);
+    font-size: var(--text-headline);
     font-weight: 600;
-    line-height: var(--text-title--line-height);
+    line-height: var(--text-headline--line-height);
     letter-spacing: -0.01em;
   }
 
@@ -605,7 +614,8 @@
     border-radius: var(--radius-md);
     color: var(--foreground);
     font-size: var(--text-ui);
-    font-weight: 550;
+    font-family: var(--font-label);
+    font-weight: 500;
     text-decoration-line: none;
   }
 
@@ -634,9 +644,9 @@
     color: var(--background);
   }
 
-  /* The arrow on a button: ↗ leaves the site, ↓ goes down the page. It is drawn in the button's
-     own face, which carries both, so a page whose only mono glyph was an arrow fetches no mono
-     face at all: the 404 loads Instrument Sans alone. */
+  /* The arrow on a button: ↗ leaves the site, ↓ goes down the page. Barlow draws no arrow, so
+     until a button says where it goes in words alone, the arrow falls back to a system face
+     (design-system.md, "The faces"). */
   .btn .hint {
     font-size: var(--text-label);
     font-weight: 500;
@@ -681,11 +691,11 @@
     margin: 0 0 1.25rem;
     padding-top: 0.875rem;
     border-top: 2px solid var(--foreground);
-    font-size: var(--text-title);
-    font-weight: 620;
-    font-stretch: 90%;
-    line-height: var(--text-title--line-height);
-    letter-spacing: -0.01em;
+    font-size: var(--text-section);
+    font-weight: 600;
+    font-family: var(--font-display);
+    line-height: var(--text-section--line-height);
+    letter-spacing: -0.005em;
   }
 
   /* Selected work, as an index: one card a row, each under a rule. */
@@ -820,26 +830,29 @@
 
   .card-title {
     margin: 0;
-    font-size: var(--text-statement);
-    font-weight: 620;
-    font-stretch: 80%;
-    line-height: var(--text-statement--line-height);
-    letter-spacing: -0.025em;
+    font-size: var(--text-section);
+    font-weight: 600;
+    font-family: var(--font-display);
+    line-height: var(--text-section--line-height);
+    letter-spacing: -0.005em;
   }
 
   .card-text {
     margin: 0;
     color: var(--muted-foreground);
-    font-size: var(--text-card);
-    line-height: var(--text-card--line-height);
+    font-size: var(--text-base);
+    line-height: var(--text-base--line-height);
     text-wrap: pretty;
   }
 
   /* A card's link keeps its underline: inline links are marked by it, not by color (SC 1.4.1). */
   .card-more {
     justify-self: start;
-    font-size: var(--text-sm);
-    font-weight: 600;
+    font-size: var(--text-label);
+    font-family: var(--font-label);
+    font-weight: 500;
+    /* 24 px tall at the default text size, a target's least (SC 2.5.8), however small its words. */
+    line-height: 1.5rem;
   }
 
   .kv {
@@ -851,20 +864,19 @@
 
   .kv dt {
     color: var(--muted-foreground);
-    font-family: var(--font-mono);
-    font-size: var(--text-kv);
+    font-family: var(--font-label);
+    font-size: var(--text-label);
     font-weight: 500;
-    line-height: var(--text-kv--line-height);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    line-height: var(--text-label--line-height);
   }
 
   .kv dd {
     margin: 0;
-    font-family: var(--font-mono);
+    font-family: var(--font-label);
     font-size: 0.84375rem;
     font-weight: 500;
     line-height: 1.5;
+    font-variant-numeric: tabular-nums;
     font-variant-numeric: tabular-nums;
   }
 
@@ -1026,7 +1038,8 @@
      can hover, so a keyboard is likely at hand, and only once the menu's script has bound it: until
      then it holds its place unseen, so nothing moves, and without the script it is not there. On a
      touch screen the nav, the toggle and the footer hold everything the menu offers. Its keys are
-     set in mono, the face that has ⌘ (design-system.md, "The faces"). */
+     set in the label face. Barlow has no ⌘, so on an Apple keyboard that one character falls back
+     to a system face until the key is drawn instead (design-system.md, "The faces"). */
   .palette-item {
     display: none;
   }
@@ -1060,9 +1073,9 @@
   }
 
   .palette-open kbd {
-    font-family: var(--font-mono);
-    font-size: var(--text-meta);
-    line-height: var(--text-meta--line-height);
+    font-family: var(--font-label);
+    font-size: var(--text-label);
+    line-height: var(--text-label--line-height);
   }
 
   /* The rail as an index of the site (ADR 0022). The name heads it on every page; under it a
@@ -1090,8 +1103,8 @@
       background-color: transparent;
       color: var(--muted-foreground);
       font: inherit;
-      font-size: var(--text-sm);
-      line-height: var(--text-sm--line-height);
+      font-size: var(--text-label);
+      line-height: var(--text-label--line-height);
       cursor: pointer;
       visibility: hidden;
     }
@@ -1116,9 +1129,9 @@
 
     .rail-search kbd {
       margin-inline-start: auto;
-      font-family: var(--font-mono);
-      font-size: var(--text-meta);
-      line-height: var(--text-meta--line-height);
+      font-family: var(--font-label);
+      font-size: var(--text-label);
+      line-height: var(--text-label--line-height);
     }
 
     .site-nav {
@@ -1189,7 +1202,8 @@
     }
 
     .site-nav .nav-all a {
-      font-weight: 550;
+      font-family: var(--font-label);
+      font-weight: 500;
     }
 
     .site-nav .nav-leaves {
@@ -1198,7 +1212,7 @@
       padding: 0 0 0 0.875rem;
       border-inline-start: 1px solid var(--border);
       list-style: none;
-      font-size: var(--text-sm);
+      font-size: var(--text-label);
       font-weight: 400;
     }
 
@@ -1207,7 +1221,7 @@
       min-height: 0;
       padding-block: 0.375rem;
       color: var(--muted-foreground);
-      line-height: var(--text-sm--line-height);
+      line-height: var(--text-label--line-height);
       text-wrap: pretty;
     }
 
@@ -1238,8 +1252,8 @@
       margin: 0;
       color: var(--muted-foreground);
       font: inherit;
-      font-size: var(--text-sm);
-      line-height: var(--text-sm--line-height);
+      font-size: var(--text-label);
+      line-height: var(--text-label--line-height);
     }
 
     .header-tools :is(.motion-toggle, .theme-toggle):hover {
@@ -1444,9 +1458,9 @@
 
   .palette-value {
     color: var(--muted-foreground);
-    font-family: var(--font-mono);
-    font-size: var(--text-meta);
-    line-height: var(--text-meta--line-height);
+    font-family: var(--font-label);
+    font-size: var(--text-label);
+    line-height: var(--text-label--line-height);
     overflow-wrap: anywhere;
   }
 
@@ -1477,9 +1491,9 @@
     padding: 0.625rem 1rem;
     border-top: 1px solid var(--border);
     color: var(--muted-foreground);
-    font-family: var(--font-mono);
-    font-size: var(--text-meta);
-    line-height: var(--text-meta--line-height);
+    font-family: var(--font-label);
+    font-size: var(--text-label);
+    line-height: var(--text-label--line-height);
   }
 
   @media (forced-colors: active) {
@@ -1522,11 +1536,11 @@
   .page-title,
   .notice-title {
     max-width: none;
-    font-size: var(--text-statement);
-    font-weight: 620;
-    font-stretch: 80%;
-    line-height: var(--text-statement--line-height);
-    letter-spacing: -0.025em;
+    font-size: var(--text-title);
+    font-weight: 600;
+    font-family: var(--font-display);
+    line-height: var(--text-title--line-height);
+    letter-spacing: -0.005em;
     text-wrap: balance;
     overflow-wrap: break-word;
   }
@@ -1578,19 +1592,20 @@
 
   .prose h2 {
     margin-top: 2.75rem;
-    font-size: var(--text-h2);
-    font-weight: 620;
-    font-stretch: 80%;
-    line-height: var(--text-h2--line-height);
-    letter-spacing: -0.015em;
+    font-size: var(--text-headline);
+    font-weight: 600;
+    font-family: var(--font-display);
+    line-height: var(--text-headline--line-height);
+    letter-spacing: -0.005em;
   }
 
   .prose h3 {
     margin-top: 2rem;
-    font-size: var(--text-h3);
+    font-size: var(--text-lead);
     font-weight: 600;
-    line-height: var(--text-h3--line-height);
-    letter-spacing: -0.01em;
+    line-height: var(--text-lead--line-height);
+    font-family: var(--font-display);
+    letter-spacing: -0.005em;
   }
 
   .prose h2 + *,
@@ -1645,7 +1660,7 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     background-color: var(--surface-1);
-    font-size: var(--text-sm);
+    font-size: var(--text-label);
     line-height: 1.6;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
@@ -1671,8 +1686,8 @@
      attribute, which the policy refuses (test/csp.test.ts names it). */
   .prose table {
     width: 100%;
-    font-size: var(--text-sm);
-    line-height: var(--text-sm--line-height);
+    font-size: var(--text-label);
+    line-height: var(--text-label--line-height);
     font-variant-numeric: tabular-nums;
   }
 
@@ -1702,8 +1717,8 @@
     padding-top: 1.25rem;
     border-top: 1px solid var(--border);
     color: var(--muted-foreground);
-    font-size: var(--text-sm);
-    line-height: var(--text-sm--line-height);
+    font-size: var(--text-label);
+    line-height: var(--text-label--line-height);
   }
 
   .prose .footnotes li + li {
@@ -1783,18 +1798,19 @@
   .post-meta {
     margin: 0;
     color: var(--muted-foreground);
-    font-family: var(--font-mono);
-    font-size: var(--text-meta);
-    line-height: var(--text-meta--line-height);
+    font-family: var(--font-label);
+    font-size: var(--text-label);
+    line-height: var(--text-label--line-height);
+    font-variant-numeric: tabular-nums;
   }
 
   .post-title {
     margin: 0;
-    font-size: var(--text-title);
-    font-weight: 620;
-    font-stretch: 80%;
-    line-height: var(--text-title--line-height);
-    letter-spacing: -0.015em;
+    font-size: var(--text-headline);
+    font-weight: 600;
+    font-family: var(--font-display);
+    line-height: var(--text-headline--line-height);
+    letter-spacing: -0.005em;
     text-wrap: balance;
   }
 
@@ -1920,26 +1936,27 @@
   .role-years {
     margin: 0;
     color: var(--muted-foreground);
-    font-family: var(--font-mono);
-    font-size: var(--text-meta);
-    line-height: var(--text-meta--line-height);
+    font-family: var(--font-label);
+    font-size: var(--text-label);
+    line-height: var(--text-label--line-height);
+    font-variant-numeric: tabular-nums;
     font-variant-numeric: tabular-nums;
   }
 
   .role-title {
     margin: 0;
-    font-size: var(--text-title);
-    font-weight: 620;
-    font-stretch: 80%;
-    line-height: var(--text-title--line-height);
-    letter-spacing: -0.015em;
+    font-size: var(--text-headline);
+    font-weight: 600;
+    font-family: var(--font-display);
+    line-height: var(--text-headline--line-height);
+    letter-spacing: -0.005em;
     text-wrap: balance;
   }
 
   .skills dt {
-    font-size: var(--text-card);
+    font-size: var(--text-base);
     font-weight: 600;
-    line-height: var(--text-card--line-height);
+    line-height: var(--text-base--line-height);
   }
 
   .skills dd {
@@ -2022,7 +2039,7 @@
     display: inline-block;
     margin-inline-start: 0.375em;
     color: var(--muted-foreground);
-    font-family: var(--font-mono);
+    font-family: var(--font-label);
     font-size: 0.6875rem;
     font-weight: 400;
     overflow-wrap: anywhere;
