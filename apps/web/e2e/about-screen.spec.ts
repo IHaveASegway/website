@@ -1,7 +1,8 @@
 import { expect, test } from '@playwright/test';
 
 // /about/ on screen (2026-10-31 visitor review): Selected work's lab cards are their labs' lines,
-// as the board's bands and /lab/'s rows are (ADR 0025).
+// as the board's bands and /lab/'s rows are (ADR 0025), and the bio's headings take a step of the
+// eight-size scale (design-system.md, "Type scale"), not a size and face of their own.
 
 /** Each lab card's link, its line, and the colours its sweep and its lab's line resolve to. */
 const labCards = (page: import('@playwright/test').Page) =>
@@ -47,4 +48,28 @@ test('known answer: lab cards without their line all sweep in one colour', async
   const cards = await labCards(page);
   expect(cards.length).toBeGreaterThan(1);
   expect(new Set(cards.map((card) => card.sweep)).size).toBe(1);
+});
+
+// The bio's h3s (What I build, How I work) are its sections under "About me": the headline, the
+// step a card's title takes on the same page. Until 2026-10-31 they were the lead's size in the
+// display face, a ninth size and face. The fixture builds hold no bio, so there is nothing to read.
+test("the bio's headings take the headline's size and face, a card title's", async ({ page }) => {
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/about/');
+    const type = await page.evaluate(() => {
+      const of = (e: Element) => {
+        const s = getComputedStyle(e);
+        return `${s.fontSize} ${s.fontFamily} ${s.fontWeight} ${s.lineHeight}`;
+      };
+      const card = document.querySelector('.card-title');
+      return {
+        headings: [...document.querySelectorAll('.bio .prose h3')].map(of),
+        headline: card ? of(card) : null,
+      };
+    });
+    test.skip(type.headings.length === 0, 'this build has no bio');
+    expect(type.headline).not.toBeNull();
+    for (const heading of type.headings) expect(heading, String(width)).toBe(type.headline);
+  }
 });

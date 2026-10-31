@@ -1652,12 +1652,25 @@
     letter-spacing: -0.005em;
   }
 
+  /* h3 is a step under a post's h2, which already takes the headline. The scale has no display
+     size below the headline, and the lead's size in the display face, which h3 had, was a ninth
+     size and face the eight-size scale does not hold. So it takes the base size in the body face
+     at 600, the bold a paragraph's run-in lead already sets: set apart by its weight and the space
+     above it, not by a size of its own. */
   .prose h3 {
     margin-top: 2rem;
-    font-size: var(--text-lead);
+    font-size: var(--text-base);
     font-weight: 600;
-    line-height: var(--text-lead--line-height);
+    line-height: var(--text-base--line-height);
+  }
+
+  /* The bio's h3s are its own sections (What I build, How I work), under the page's section title,
+     "About me": the headline, one step under a section's title, as How I work's leads take it on
+     Home. */
+  .bio .prose h3 {
+    font-size: var(--text-headline);
     font-family: var(--font-display);
+    line-height: var(--text-headline--line-height);
     letter-spacing: -0.005em;
   }
 
