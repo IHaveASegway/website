@@ -34,6 +34,7 @@ const DIST_CHECKS = [
   'readouts',
   'resume',
   'scripts',
+  'tells',
   'theme-color',
   'tokens',
   'urls',
