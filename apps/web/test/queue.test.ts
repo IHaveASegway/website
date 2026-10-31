@@ -37,12 +37,20 @@ import {
 } from '../src/lib/queue/sim';
 import {
   history,
+  LAYOUTS,
   lifecycles,
+  mapMarkup,
   OPENING,
+  openingOf,
   openingRun,
+  propertyWords,
   SEEDS_IN_CI,
+  startOver,
   statusText,
+  strip,
+  stripWords,
   summary,
+  waitWords,
   workerText,
 } from '../src/lib/queue/view';
 import { seeded } from '../src/lib/sim/random';
@@ -832,5 +840,172 @@ describe('the property sweep', { timeout: 30_000 }, () => {
       expect(split.skipped).toBe(0);
       expect(split.tallies).toEqual(off.tallies);
     }
+  });
+});
+
+// The page (components/queue-lab): what it says and draws of a run, from lib/queue/view.ts.
+describe('the page', () => {
+  test('Start over replays the opening with the visitor’s settings: with the key on, order 18 is printed once', () => {
+    const sim = openingRun();
+    runUntil(sim, 9_000);
+    crash(sim, 0);
+    setKey(sim, true);
+    const again = startOver(sim);
+    // The same seed, the same crash of worker 2 at 2.4 s, and the key on from the start; the
+    // crash at 9 s belonged to the old run.
+    expect([again.seed, again.now, again.key]).toEqual([28, OPENING.until, true]);
+    expect(again.workers.slice(0, 3).map((w) => w.state)).toEqual(['up', 'down', 'up']);
+    expect(jobOf(again, 18).effects).toEqual([{ at: 2_371, worker: 1 }]);
+    expect(jobOf(again, 18).delivered).toEqual([2_265, 2_450]);
+    expect([again.duplicates, again.skipped, again.lostCount]).toEqual([0, 1, 0]);
+    expect(summary(again)).toBe(
+      'Order 18 was sent twice and printed once: worker 2 crashed after printing its ticket and before its ack left, so the broker sent it again, and worker 1 found it in the done set and skipped the ticket. Nothing was lost; 25 orders are done and 13 are queued or with a worker.',
+    );
+    expect(statusText(again)).toBe(
+      'All three held over 143 events: no order was lost, no order was printed twice and the queue drains.',
+    );
+    // A link to a run opens the same opening on its own seed.
+    expect([openingOf(8).seed, openingOf(8).now]).toEqual([8, OPENING.until]);
+  });
+
+  test('the caption tells the latest break: acknowledging first, a crash loses order 28 after order 18 printed twice', () => {
+    const sim = openingRun();
+    setAck(sim, 'before');
+    // Worker 1's order 26 came before the switch; its next one is acknowledged as it is delivered.
+    while (workerOf(sim, 0).busy !== 28) runUntil(sim, nextTime(sim));
+    crash(sim, 0);
+    expect(summary(sim)).toBe(
+      'Order 28 was lost: worker 1 crashed holding it, and it was acknowledged on delivery. 1 order was lost; 26 orders are done and 12 are queued or with a worker.',
+    );
+    expect(statusText(sim)).toBe(
+      'The queue drains, but 1 order was lost and 1 order was printed twice.',
+    );
+    expect(properties(sim).map((p) => propertyWords(sim, p))).toEqual([
+      'Broken: 1 order lost',
+      'Broken: 1 order printed twice',
+      'Holds; checked once orders stop',
+    ]);
+  });
+
+  test('the strip: the orders waiting over the first 30 s, on a scale of 20, with worker 2’s crash at 2.4 s', () => {
+    const sim = openingRun();
+    const shown = strip(sim);
+    expect([shown.from, shown.to, shown.peak, shown.most]).toEqual([0, 30_000, 11, 20]);
+    expect(shown.crashes).toEqual([{ x: 24, at: 2_400, worker: 1 }]);
+    expect(shown.points.split(' ')).toHaveLength(OPENING.until / 250 + 1);
+    expect(stripWords(sim)).toBe(
+      'Orders waiting from 0.0 s to 30.0 s: at most 11, 11 now. Worker 2 crashed at 2.400 s.',
+    );
+    expect(waitWords(sim)).toBe('11 waiting, the oldest for 1.0 s');
+    // Past 30 s it keeps the last 30 s, and the crash leaves it.
+    runUntil(sim, 40_000);
+    const later = strip(sim);
+    expect([later.from, later.to, later.crashes]).toEqual([10_000, 40_000, []]);
+    expect(later.points.split(' ')).toHaveLength(121);
+  });
+
+  test('whether the queue drains is checked once orders stop, and a drain that fails is said, counted', () => {
+    const sim = openingRun();
+    expect(propertyWords(sim, property(sim, 'drains'))).toBe('Holds; checked once orders stop');
+    poison(sim);
+    stopProducer(sim);
+    expect(propertyWords(sim, property(sim, 'drains'))).toBe('Holds');
+    runUntil(sim, OPENING.until + DRAIN_WITHIN + 1_000);
+    expect(propertyWords(sim, property(sim, 'drains'))).toBe(
+      'Broken: not empty 30 s after orders stopped',
+    );
+  });
+
+  test('the picture of the opening: worker 2 hollow and down, orders 1 to 25 printed, order 18 twice, 11 waiting', () => {
+    for (const layout of Object.values(LAYOUTS)) {
+      const markup = mapMarkup(openingRun(), layout);
+      const count = (pattern: RegExp) => markup.match(pattern)?.length ?? 0;
+      expect(count(/class="qu-gap"/g), layout.name).toBe(1);
+      expect(markup).toContain('Worker 2<tspan class="qu-state" dx="6">Down</tspan>');
+      expect(count(/class="qu-ticket" data-state="printed"/g)).toBe(25);
+      expect(markup.match(/class="qu-again" data-order="\d+"/g)).toEqual([
+        'class="qu-again" data-order="18"',
+      ]);
+      expect(count(/class="qu-order" data-state="ready"/g)).toBe(11);
+      expect(markup.match(/data-state="working" data-worker="\d" data-order="\d+"/g)).toEqual([
+        'data-state="working" data-worker="0" data-order="26"',
+        'data-state="working" data-worker="2" data-order="27"',
+      ]);
+      // Classes and attributes only: the page's policy refuses inline styles.
+      expect(markup).not.toMatch(/style=/);
+    }
+  });
+
+  test('whatever a run draws, it draws inside the picture, with only the classes the opening draws', () => {
+    // The stylesheet may style only classes a built page carries (test/css-classes.test.ts), and
+    // the opening is the page as built: a lamp a later run lights must be one it already has.
+    const runs: Sim[] = [];
+    let sim = openingRun();
+    setPoisonHandling(sim, 'dead-letter');
+    poison(sim);
+    stopProducer(sim);
+    runUntil(sim, 6_300);
+    runs.push(sim); // a poison order waiting out a backoff, and the producer stopped
+    sim = openingRun();
+    restart(sim, 1);
+    setLoad(sim, 'rush');
+    setPrefetch(sim, 10);
+    slow(sim, 0, true);
+    runUntil(sim, 30_000);
+    runs.push(sim); // more than the tank holds, full windows, a slow worker
+    sim = openingRun();
+    setPoisonHandling(sim, 'dead-letter');
+    for (let k = 0; k < 3; k++) poison(sim);
+    stopProducer(sim);
+    runUntil(sim, 20_000);
+    runs.push(sim); // three dead letters on the siding
+    sim = openingRun();
+    setAck(sim, 'before');
+    setPrefetch(sim, 5);
+    setLoad(sim, 'rush');
+    runUntil(sim, 6_000);
+    crash(sim, 0);
+    runs.push(sim); // lost orders, crossed
+    const classes = (markup: string) =>
+      new Set(
+        [...markup.matchAll(/class="([^"]+)"/g)].flatMap(([, names = '']) => names.split(' ')),
+      );
+    const states = new Set<string>();
+    for (const layout of Object.values(LAYOUTS)) {
+      const opening = classes(mapMarkup(openingRun(), layout));
+      for (const run of runs) {
+        const markup = mapMarkup(run, layout);
+        expect([...classes(markup)].filter((name) => !opening.has(name))).toEqual([]);
+        for (const [, state = ''] of markup.matchAll(/data-state="([^"]+)"/g)) states.add(state);
+        const across = [...markup.matchAll(/ (?:cx|x)="([\d.-]+)"/g)].map(([, x]) => Number(x));
+        const down = [...markup.matchAll(/ (?:cy|y)="([\d.-]+)"/g)].map(([, y]) => Number(y));
+        for (const [, points = ''] of markup.matchAll(/points="([^"]+)"/g))
+          for (const point of points.split(' ')) {
+            const [x, y] = point.split(',').map(Number);
+            across.push(x as number);
+            down.push(y as number);
+          }
+        expect(
+          across.every((x) => x >= 0 && x <= layout.width),
+          layout.name,
+        ).toBe(true);
+        expect(
+          down.every((y) => y >= 0 && y <= layout.height),
+          layout.name,
+        ).toBe(true);
+      }
+      expect(mapMarkup(runs[1] as Sim, layout)).toMatch(/>\d+ waiting</);
+      expect(mapMarkup(runs[1] as Sim, layout)).toContain('>Slow</tspan>');
+    }
+    expect([...states].sort()).toEqual([
+      'dead',
+      'lost',
+      'printed',
+      'ready',
+      'retry',
+      'room',
+      'waiting',
+      'working',
+    ]);
   });
 });

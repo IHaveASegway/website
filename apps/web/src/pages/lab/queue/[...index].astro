@@ -1,0 +1,77 @@
+---
+import { render } from 'astro:content';
+import QueueLab from '../../../components/queue-lab/QueueLab.astro';
+import Base from '../../../layouts/Base.astro';
+import { labEntry, loadLabArea, loadProfile } from '../../../lib/content';
+import { labPath, type LabEntry } from '../../../lib/lab';
+import { labCard } from '../../../lib/og';
+import {
+  BACKOFF,
+  DRAIN_WITHIN,
+  LATENCY,
+  MAX_WORKERS,
+  SAMPLE_EVERY,
+  WRAP_UP,
+} from '../../../lib/queue/sim';
+import { openingRun, SEEDS_IN_CI } from '../../../lib/queue/view';
+
+// The Queue Lab (ADR 0026, after ADR 0020's pattern), a page of its own so it links none of the
+// other labs' styles or code ([demo].astro leaves it out, lib/lab.ts OWN_PAGE). Static: the
+// simulation runs in the browser, with no Worker and no Durable Object. A rest parameter, so the
+// page builds only while its lab entry is live, as /lab/ does ([...index].astro beside
+// [demo].astro). Its head and its desk are in its component (QueueLab.astro).
+export async function getStaticPaths() {
+  const lab = await loadLabArea();
+  const entry = lab.entries.find((e) => e.slug === 'queue');
+  return entry ? [{ params: { index: undefined }, props: { entry } }] : [];
+}
+
+interface Props {
+  entry: LabEntry;
+}
+
+const { entry } = Astro.props;
+
+const { name } = (await loadProfile()).basics;
+const { Content } = await render(await labEntry(entry));
+const lead =
+  'Three workers take the bakery’s orders from a queue. Crash one, choose when they acknowledge, and watch every order end up printed once, twice, or not at all.';
+// How it is built, in figures from the core itself, so none is typed here.
+const opening = openingRun();
+const ms = (range: readonly [number, number]) => `${range[0]} to ${range[1]} ms`;
+const backoff = `${BACKOFF.slice(0, -1).join(', ')} and ${BACKOFF.at(-1)} ms`;
+---
+
+<Base
+  title={`${entry.title} · ${name}`}
+  description={entry.summary}
+  path={labPath(entry)}
+  og={labCard(entry)}
+>
+  <article class="page qu-page" aria-labelledby="page-title">
+    <QueueLab heading={entry.title} lead={lead} />
+    <div class="prose">
+      <Content />
+      <h2>How it is built</h2>
+      <p>
+        The broker, the workers and the orders are one TypeScript module, run in virtual time. A
+        message takes {ms(LATENCY)} each way, a worker spends {ms(WRAP_UP)} between printing a
+        ticket and sending its acknowledgement, and with dead-lettering a failing order waits{' '}
+        {backoff} between tries. Every random choice comes from one seeded stream, and your presses
+        are recorded at the moment they happened, so the same seed and the same presses give the
+        same run. That is how the page opens with a picture drawn in advance, {opening.events}{' '}
+        events into the first run, and how your browser then takes over at that exact moment.
+      </p>
+      <p>
+        After every event, a checker finds every order in exactly one place: the queue, the wire, a
+        worker, done, the dead letters or lost. Every {SAMPLE_EVERY} ms it also checks each order
+        against its own record. The site's tests make {SEEDS_IN_CI.toLocaleString('en-US')} seeded
+        runs of crashes, restarts and slow spells, acknowledging after the work with the key on. In
+        every one no order is lost or printed twice, and once orders stop and the pool grows to{' '}
+        {MAX_WORKERS} workers, the queue drains within {DRAIN_WITHIN / 1000} s. The same runs with
+        the key off, or acknowledging first, break a property in some of them, and so do a broker
+        and workers broken on purpose.
+      </p>
+    </div>
+  </article>
+</Base>

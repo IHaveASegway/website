@@ -61,6 +61,8 @@ export function measure(page: string) {
  *
  * The Raft Lab (ADR 0020) has one too: its app chunk, and the first view of its page.
  *
+ * So does the Queue Lab (ADR 0026), the same way.
+ *
  * So does Home's scene (ADR 0024): the chunk that drives it, which Home's motion module loads after
  * the page has painted, the day's data it fetches, and Home's first view with both. It shares the
  * Route Lab's camera and formats (lib/route-lab), whose chunks the Route Lab owns; Home's first
@@ -90,6 +92,18 @@ export const FEATURES = {
     entry: /^_astro\/RaftLab\.astro_astro_type_script_index_0_lang\.[\w-]+\.js$/,
     paths: [],
     lazyJavaScript: 8_000,
+    firstView: 150_000,
+  },
+  // The Queue Lab (ADR 0026): its app, the broker and workers, the checker and what it draws, in one
+  // chunk loaded on intent, as the Raft Lab's. No data file and no WebAssembly; its page keeps 150 KB.
+  // Its chunk measured 11,050 B on 2026-10-30, so its budget is that rounded up to the next 1,000 B,
+  // not the Raft Lab's 8,000: the core alone (lib/queue, lib/sim) is 6,224 B, and the picture, its
+  // words and the controls the rest. Nothing it ships goes unused: the bundler drops the rest.
+  'queue-lab': {
+    page: 'lab/queue/index.html',
+    entry: /^_astro\/QueueLab\.astro_astro_type_script_index_0_lang\.[\w-]+\.js$/,
+    paths: [],
+    lazyJavaScript: 12_000,
     firstView: 150_000,
   },
   // Home's scene (ADR 0024): the canvas that drives the Route Lab's day behind the hero, and the

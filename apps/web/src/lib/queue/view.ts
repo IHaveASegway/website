@@ -1,20 +1,24 @@
 import { properties, type PropertyState } from './check';
 import {
+  DRAIN_WITHIN,
   jobOf,
   live,
   replay,
   type Action,
   type Config,
   type Effect,
+  type Job,
   type Place,
   type Sample,
   type Sim,
   type Worker,
 } from './sim';
 
-// What the Queue Lab says about a run, as words and series, with no markup: the page draws them
-// at build, for the opening run, so the demo is complete without JavaScript, and in the browser on
-// every frame of a run, which it drives with runUntil, as replay does. Pure functions of the run.
+// What the Queue Lab says about a run, as words, series and the picture's markup: the page draws
+// them at build, for the opening run, so the demo is complete without JavaScript, and in the
+// browser on every frame of a run, which it drives with runUntil, as replay does. Pure functions
+// of the run. Markup carries classes and attributes only, never a style attribute: the page's
+// policy refuses inline styles.
 
 /**
  * The opening, the page's first picture: the bakery's orders at `busy`, three workers, prefetch 1,
@@ -44,6 +48,9 @@ export const openingRun = (): Sim => replay(OPENING.config, OPENING.actions, OPE
 export const SEEDS_IN_CI = 2_000;
 
 export const seconds = (ms: number): string => `${(ms / 1000).toFixed(3)} s`;
+
+/** A time to a tenth of a second, for the history strip's ends. */
+export const tenths = (ms: number): string => `${(ms / 1000).toFixed(1)} s`;
 
 const firstUp = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 const firstDown = (text: string) => text.charAt(0).toLowerCase() + text.slice(1);
@@ -82,10 +89,28 @@ export function statusText(sim: Sim): string {
   return `${firstUp(list(held))}, but ${list(broken)}.`;
 }
 
-/** The run's story in one sentence: the first order printed twice, else the first order lost,
- *  else the queue that did not drain. A printed order goes back to the broker only when its
- *  worker crashed before its ack left, so a second ticket always has that story. */
+/** The first order the idempotency key kept from printing twice: done, printed once, and sent
+ *  again after that ticket, so a later delivery found it in the done set. A done order's last
+ *  delivery has run its ticket step, so that is the delivery that skipped. */
+function skippedOrder(sim: Sim): Job | undefined {
+  return sim.jobs.find(
+    (job) =>
+      job.place === 'done' &&
+      job.effects.length === 1 &&
+      job.delivered.length > 1 &&
+      (job.effects[0] as Effect).at < (job.delivered.at(-1) as number),
+  );
+}
+
+/**
+ * The run's story in one sentence: of the first order printed twice, the first order lost and the
+ * queue that did not drain, the one that happened last, which is what the visitor did last; with
+ * none, the first order the idempotency key printed once. A printed order goes back to the broker
+ * only when its worker crashed before its ack left, so a second ticket, or a skipped one, always
+ * has that story.
+ */
 function story(sim: Sim): string | null {
+  const told: { at: number; text: string }[] = [];
   const twice = sim.tallies.once.first;
   if (twice) {
     const job = jobOf(sim, twice.job);
@@ -95,19 +120,32 @@ function story(sim: Sim): string | null {
       a.worker === b.worker
         ? `worker ${b.worker + 1} printed it a second time after its restart`
         : `worker ${b.worker + 1} printed it a second time`;
-    return `Order ${job.id} was printed ${times}: worker ${a.worker + 1} crashed after printing its ticket and before its ack left, so the broker sent it again and ${again}.`;
+    told.push({
+      at: twice.at,
+      text: `Order ${job.id} was printed ${times}: worker ${a.worker + 1} crashed after printing its ticket and before its ack left, so the broker sent it again and ${again}.`,
+    });
   }
   const lost = sim.tallies['no-loss'].first;
-  if (lost) return `${firstUp(lost.detail)}.`;
+  if (lost) told.push({ at: lost.at, text: `${firstUp(lost.detail)}.` });
   const stuck = sim.tallies.drains.first;
   if (stuck) {
     const job = jobOf(sim, stuck.job);
     const poison = job.poison
       ? `, while poison order ${job.id} kept failing and going back to the head of the queue`
       : '';
-    return `The queue did not drain: ${stuck.detail}${poison}.`;
+    told.push({ at: stuck.at, text: `The queue did not drain: ${stuck.detail}${poison}.` });
   }
-  return null;
+  // The latest; at the same moment, the earlier in the list above.
+  const latest = told.reduce<(typeof told)[number] | undefined>(
+    (shown, next) => (shown && shown.at >= next.at ? shown : next),
+    undefined,
+  );
+  if (latest) return latest.text;
+  const kept = skippedOrder(sim);
+  if (!kept) return null;
+  const printer = (kept.effects[0] as Effect).worker + 1;
+  const sent = kept.delivered.length === 2 ? 'twice' : `${kept.delivered.length} times`;
+  return `Order ${kept.id} was sent ${sent} and printed once: worker ${printer} crashed after printing its ticket and before its ack left, so the broker sent it again, and worker ${kept.worker + 1} found it in the done set and skipped the ticket.`;
 }
 
 function totals(sim: Sim): string {
@@ -188,4 +226,443 @@ export function lifecycles(sim: Sim, count = 120): Lifecycle[] {
     redelivered: job.redelivered,
     outcome: OUTCOME[job.place],
   }));
+}
+
+// The page: its settings, the words beside the picture, the history strip and the picture.
+
+/** How fast Run plays: virtual milliseconds for each real one. */
+export const SPEEDS = [
+  { name: 'Slow', value: 0.25 },
+  { name: 'Steady', value: 1 },
+  { name: 'Quick', value: 5 },
+] as const;
+
+/** How many orders a worker may hold, the choices the page offers. */
+export const PREFETCHES = [1, 2, 5, 10] as const;
+
+/**
+ * Start over: the opening again, on this run's seed and with the visitor's settings (the load,
+ * the prefetch, when workers acknowledge, the key and what a failing order gets), so the same crash
+ * comes at the same moment and the settings are all that differ. Crashes, slow spells, poison
+ * orders and a stopped producer are things the visitor did, so they go with the old run.
+ */
+export function startOver(sim: Sim): Sim {
+  const config: Config = {
+    ...OPENING.config,
+    seed: sim.seed,
+    load: sim.load,
+    prefetch: sim.prefetch,
+    ack: sim.ack,
+    key: sim.key,
+    handling: sim.handling,
+  };
+  return replay(config, OPENING.actions, OPENING.until);
+}
+
+/** The opening on another seed, for a link to a run (#seed-8). */
+export const openingOf = (seed: number): Sim =>
+  replay({ ...OPENING.config, seed }, OPENING.actions, OPENING.until);
+
+/** A property's words beside its lamp: "Holds", or "Broken" and what broke it, counted. Whether
+ *  the queue drains is asked only once orders stop, which the words say while they still come. */
+export function propertyWords(sim: Sim, p: PropertyState): string {
+  if (p.held)
+    return p.id === 'drains' && sim.producing ? 'Holds; checked once orders stop' : 'Holds';
+  const n = p.count;
+  const orders = `${n} ${n === 1 ? 'order' : 'orders'}`;
+  switch (p.id) {
+    case 'no-loss':
+      return `Broken: ${orders} lost`;
+    case 'once':
+      return `Broken: ${orders} printed ${sim.duplicates > n ? 'more than once' : 'twice'}`;
+    case 'drains': {
+      const times = n === 1 ? '' : `, ${n} times`;
+      return `Broken: not empty ${DRAIN_WITHIN / 1000} s after orders stopped${times}`;
+    }
+  }
+}
+
+/** How many orders wait in the queue, and how long the oldest of them has waited. */
+export function waitWords(sim: Sim): string {
+  const n = sim.ready.length;
+  if (n === 0) return 'None waiting';
+  let oldest = Infinity;
+  for (const id of sim.ready) oldest = Math.min(oldest, jobOf(sim, id).published);
+  return `${n} waiting, the oldest for ${((sim.now - oldest) / 1000).toFixed(1)} s`;
+}
+
+const round1 = (n: number) => Math.round(n * 10) / 10;
+
+/** The history strip: the orders waiting over the last 30 s, or the first 30 s while the run is
+ *  younger, in the strip's own units, which the page stretches across its column. */
+export const STRIP = { span: 30_000, width: 300, height: 60 } as const;
+
+/** The strip's scale stops at the first of these that the most orders waiting fit under. */
+const SCALE = [10, 20, 50, 100, 200, 500, 1_000, 2_000, 5_000, 10_000];
+
+export interface Strip {
+  readonly from: number;
+  readonly to: number;
+  /** The most orders waiting in the span. */
+  readonly peak: number;
+  /** The top of the scale. */
+  readonly most: number;
+  /** The orders waiting, as a polyline's points. */
+  readonly points: string;
+  /** Each crash in the span: where it is across the strip, when, and which worker. */
+  readonly crashes: readonly { readonly x: number; readonly at: number; readonly worker: number }[];
+}
+
+export function strip(sim: Sim): Strip {
+  const to = Math.max(STRIP.span, sim.now);
+  const from = to - STRIP.span;
+  const shown = sim.samples.filter((s) => s.at >= from && s.at <= to);
+  const peak = shown.reduce((most, s) => Math.max(most, s.ready), 0);
+  const most = SCALE.find((n) => n >= peak) ?? Math.ceil(peak / 10_000) * 10_000;
+  const x = (at: number) => round1(((at - from) / STRIP.span) * STRIP.width);
+  const y = (n: number) => round1(STRIP.height - 2 - (n / most) * (STRIP.height - 4));
+  const points = shown.map((s) => `${x(s.at)},${y(s.ready)}`).join(' ');
+  const crashes = sim.actions.flatMap((a) =>
+    a.kind === 'crash' && a.at >= from && a.at <= to
+      ? [{ x: x(a.at), at: a.at, worker: a.worker }]
+      : [],
+  );
+  return { from, to, peak, most, points, crashes };
+}
+
+/** The strip in words, for the picture's name. */
+export function stripWords(sim: Sim): string {
+  const { from, to, peak, crashes } = strip(sim);
+  const span = `${tenths(from)} to ${tenths(to)}`;
+  const head = `Orders waiting from ${span}: at most ${peak}, ${sim.ready.length} now.`;
+  const told = crashes.map((c) => `Worker ${c.worker + 1} crashed at ${seconds(c.at)}.`);
+  return [head, ...told].join(' ');
+}
+
+/**
+ * One way to draw the picture: wide on a laptop's desk, narrow on a phone. Lengths are in the
+ * drawing's own units, and the page scales the drawing to its column, words and all, so each
+ * layout is drawn for the width it is shown at and keeps its words near the label size there.
+ */
+export interface Layout {
+  readonly name: 'wide' | 'narrow';
+  readonly width: number;
+  readonly height: number;
+  /** How high the main line runs; the middle track keeps to it. */
+  readonly line: number;
+  /** The tank: its left edge, the square lamps it holds across and down, from one square to the
+   *  next, and from the outer squares to its walls. */
+  readonly tank: {
+    readonly x: number;
+    readonly cols: number;
+    readonly rows: number;
+    readonly pitch: number;
+    readonly pad: number;
+  };
+  /** The tracks: from one to the next, how far a diagonal runs along for each unit it climbs,
+   *  where a track's first lamp (the order in work) sits, and from one lamp to the next. */
+  readonly tracks: {
+    readonly gap: number;
+    readonly slope: number;
+    readonly head: number;
+    readonly pitch: number;
+  };
+  /** The oven tickets: consecutive orders in rows, from the left edge, each row numbered at its
+   *  end with its last order where there is room. */
+  readonly tickets: {
+    readonly x: number;
+    readonly cols: number;
+    readonly rows: number;
+    readonly pitch: number;
+    readonly numbered: boolean;
+  };
+  /** The dead-letter siding: how high it runs, and where its buffer stops stand. */
+  readonly siding: { readonly y: number; readonly end: number };
+  readonly lamp: number;
+  /** Where three captions stand: the end they are set from, and their baseline. */
+  readonly words: {
+    readonly orders: Caption;
+    readonly tickets: Caption;
+    readonly dead: Caption;
+  };
+}
+
+interface Caption {
+  readonly x: number;
+  readonly y: number;
+  readonly anchor: 'start' | 'end';
+}
+
+export const LAYOUTS = {
+  wide: {
+    name: 'wide',
+    width: 960,
+    height: 236,
+    line: 96,
+    tank: { x: 56, cols: 10, rows: 4, pitch: 17, pad: 7 },
+    tracks: { gap: 56, slope: 1, head: 514, pitch: 22 },
+    tickets: { x: 620, cols: 10, rows: 5, pitch: 20, numbered: true },
+    siding: { y: 200, end: 900 },
+    lamp: 7,
+    words: {
+      orders: { x: 0, y: 80, anchor: 'start' },
+      tickets: { x: 612, y: 32, anchor: 'start' },
+      dead: { x: 612, y: 226, anchor: 'start' },
+    },
+  },
+  narrow: {
+    name: 'narrow',
+    width: 360,
+    height: 202,
+    line: 92,
+    tank: { x: 8, cols: 4, rows: 5, pitch: 15, pad: 5 },
+    tracks: { gap: 50, slope: 0.5, head: 246, pitch: 14 },
+    tickets: { x: 298, cols: 5, rows: 6, pitch: 13, numbered: false },
+    siding: { y: 180, end: 338 },
+    lamp: 5,
+    words: {
+      orders: { x: 0, y: 40, anchor: 'start' },
+      tickets: { x: 356, y: 40, anchor: 'end' },
+      dead: { x: 111, y: 185, anchor: 'start' },
+    },
+  },
+} as const satisfies Record<string, Layout>;
+
+type Point = readonly [number, number];
+const pts = (points: readonly Point[]) =>
+  points.map(([x, y]) => `${round1(x)},${round1(y)}`).join(' ');
+const text = (x: number, y: number, words: string, cls = 'qu-label', anchor = 'start') =>
+  `<text class="${cls}" x="${round1(x)}" y="${round1(y)}"${anchor === 'start' ? '' : ` text-anchor="${anchor}"`}>${words}</text>`;
+/** A diamond, the poison order's lamp, around (x, y). */
+const diamond = (x: number, y: number, r: number) =>
+  `M${round1(x)} ${round1(y - r)}L${round1(x + r)} ${round1(y)}L${round1(x)} ${round1(y + r)}L${round1(x - r)} ${round1(y)}Z`;
+
+/** The workers the picture draws a track for: the pool, and any worker still leaving it. */
+function tracked(sim: Sim): Worker[] {
+  return sim.workers.filter((w) => w.id < sim.size || w.state !== 'off');
+}
+
+/** The word under a worker's name: down, slow or leaving the pool, or none. */
+export function workerWord(w: Worker): string {
+  if (w.state === 'down') return 'Down';
+  if (w.leaving) return 'Leaving';
+  return w.slow ? 'Slow' : '';
+}
+
+/**
+ * The picture, as the markup inside its <svg>: orders come in on the left to the tank, where the
+ * ready ones wait as square lamps; a track a worker leaves it, holding the orders that worker has
+ * taken, up to its prefetch, the one in work lit at its head; the main line runs on to the oven
+ * tickets, one lamp an order in rows of consecutive orders, filled once printed, with a second
+ * circle around it when it printed twice, and crossed when it was lost; and the dead-letter siding
+ * runs under them to its buffer stops. A crashed worker's track is drawn hollow. A poison order's
+ * lamp is a diamond wherever it is.
+ */
+export function mapMarkup(sim: Sim, layout: Layout): string {
+  const { line, tank, tracks, tickets, siding, lamp, words } = layout;
+  const out: string[] = [];
+  const workers = tracked(sim);
+  const n = workers.length;
+  const yOf = (i: number) => line + (i - (n - 1) / 2) * tracks.gap;
+  const climb = ((n - 1) / 2) * tracks.gap;
+
+  // The tank and the lines into and out of it.
+  const tankW = tank.cols * tank.pitch + 2 * tank.pad;
+  const tankH = tank.rows * tank.pitch + 2 * tank.pad;
+  const tankTop = line - tankH / 2;
+  const fork = tank.x + tankW + 8;
+  const along = fork + climb * tracks.slope;
+  const end = tracks.head + tracks.pitch / 2 + 6;
+  const merged = end + climb * tracks.slope;
+  const ticketTop = line - ((tickets.rows - 1) / 2) * tickets.pitch;
+  const inflow: Point[] = [
+    [0, line],
+    [tank.x, line],
+  ];
+  const track = (points: readonly Point[], hollow: boolean) =>
+    `<polyline class="qu-track" points="${pts(points)}"/>${hollow ? `<polyline class="qu-gap" points="${pts(points)}"/>` : ''}`;
+  out.push(track(inflow, !sim.producing));
+  out.push(
+    track(
+      [
+        [tank.x + tankW, line],
+        [fork, line],
+      ],
+      false,
+    ),
+  );
+  out.push(
+    track(
+      [
+        [merged, line],
+        [tickets.x - 14, line],
+      ],
+      false,
+    ),
+  );
+  // The siding leaves the last track where it straightens, and runs under the tickets.
+  const last = yOf(n - 1);
+  const drop = siding.y - last;
+  out.push(
+    track(
+      [
+        [end - 6, last],
+        [end - 6 + drop * tracks.slope, siding.y],
+        [siding.end, siding.y],
+      ],
+      false,
+    ),
+  );
+  out.push(
+    `<path class="qu-stop" d="M${siding.end + 4} ${siding.y - 9}V${siding.y + 9}M${siding.end + 10} ${siding.y - 6}V${siding.y + 6}"/>`,
+  );
+  workers.forEach((w, i) => {
+    const y = yOf(i);
+    const dy = Math.abs(y - line) * tracks.slope;
+    out.push(
+      track(
+        [
+          [fork, line],
+          [fork + dy, y],
+          [end, y],
+          [end + dy, line],
+        ],
+        w.state !== 'up',
+      ),
+    );
+  });
+  out.push(
+    `<rect class="qu-tank" x="${tank.x}" y="${round1(tankTop)}" width="${tankW}" height="${tankH}"/>`,
+  );
+
+  // The tank: the head of the queue at the exit, the rest filling back from it, column by column;
+  // orders waiting out a backoff after them, hollow.
+  const waiting = [
+    ...sim.ready.map((id) => ({ id, state: 'ready' })),
+    ...[...sim.retrying].map((id) => ({ id, state: 'retry' })),
+  ];
+  const room = tank.cols * tank.rows;
+  const side = tank.pitch - 5;
+  waiting.slice(0, room).forEach(({ id, state }, k) => {
+    const col = tank.cols - 1 - Math.floor(k / tank.rows);
+    const row = k % tank.rows;
+    const cx = tank.x + tank.pad + (col + 0.5) * tank.pitch;
+    const cy = tankTop + tank.pad + (row + 0.5) * tank.pitch;
+    out.push(
+      jobOf(sim, id).poison
+        ? `<path class="qu-order" data-state="${state}" data-poison="" data-order="${id}" d="${diamond(cx, cy, side / 2 + 1)}"/>`
+        : `<rect class="qu-order" data-state="${state}" data-order="${id}" x="${round1(cx - side / 2)}" y="${round1(cy - side / 2)}" width="${side}" height="${side}"/>`,
+    );
+  });
+  out.push(text(tank.x, tankTop + tankH + 18, 'Queue'));
+  // More than the tank shows: how many, under its name.
+  if (waiting.length > room)
+    out.push(text(tank.x, tankTop + tankH + 36, `${waiting.length} waiting`, 'qu-label qu-count'));
+  const say = (at: Caption, what: string) => text(at.x, at.y, what, 'qu-label', at.anchor);
+  out.push(say(words.orders, sim.producing ? 'Orders' : 'Orders stopped'));
+
+  // A track a worker: its name and word, then its lamps, the order in work at the head.
+  const nameX = along + 4;
+  workers.forEach((w, i) => {
+    const y = yOf(i);
+    const name = `Worker ${w.id + 1}`;
+    const word = workerWord(w);
+    out.push(
+      `<text class="qu-label" x="${round1(nameX)}" y="${round1(y - lamp - 7)}">${name}${word ? `<tspan class="qu-state" dx="6">${word}</tspan>` : ''}</text>`,
+    );
+    const held =
+      w.state === 'up'
+        ? [
+            ...w.window.map((id) => ({ id, state: id === w.busy ? 'working' : 'waiting' })),
+            ...[...sim.wire]
+              .filter((id) => jobOf(sim, id).worker === w.id)
+              .map((id) => ({ id, state: 'coming' })),
+          ]
+        : // What it dropped, and what is still on its way to it, until the broker sees the close.
+          [...sim.orphans, ...sim.wire]
+            .filter((id) => jobOf(sim, id).worker === w.id)
+            .map((id) => ({ id, state: 'dropped' }));
+    held.forEach(({ id, state }, k) => {
+      const x = tracks.head - k * tracks.pitch;
+      out.push(
+        jobOf(sim, id).poison
+          ? `<path class="qu-slot" data-state="${state}" data-poison="" data-worker="${w.id}" data-order="${id}" d="${diamond(x, y, lamp + 1)}"/>`
+          : `<circle class="qu-slot" data-state="${state}" data-worker="${w.id}" data-order="${id}" cx="${round1(x)}" cy="${round1(y)}" r="${lamp}"/>`,
+      );
+    });
+    if (w.state === 'up' && !w.leaving)
+      for (let k = held.length; k < sim.prefetch; k++)
+        out.push(
+          `<circle class="qu-slot" data-state="room" cx="${round1(tracks.head - k * tracks.pitch)}" cy="${round1(y)}" r="1.5"/>`,
+        );
+  });
+
+  // The oven tickets: rows of consecutive orders, the last rows that hold a ticket or a loss.
+  let newest = 0;
+  for (let k = sim.jobs.length - 1; k >= 0; k--) {
+    const job = sim.jobs[k] as Job;
+    if (job.effects.length > 0 || job.place === 'lost') {
+      newest = job.id;
+      break;
+    }
+  }
+  const lastRow = Math.max(0, Math.floor((newest - 1) / tickets.cols));
+  const firstRow = Math.max(0, lastRow - tickets.rows + 1);
+  for (
+    let id = firstRow * tickets.cols + 1;
+    id <= Math.min(newest, (lastRow + 1) * tickets.cols);
+    id++
+  ) {
+    const job = jobOf(sim, id);
+    const k = id - 1 - firstRow * tickets.cols;
+    const x = tickets.x + (k % tickets.cols) * tickets.pitch;
+    const y = ticketTop + Math.floor(k / tickets.cols) * tickets.pitch;
+    if (job.effects.length > 0) {
+      out.push(
+        `<circle class="qu-ticket" data-state="printed" data-order="${id}" cx="${round1(x)}" cy="${round1(y)}" r="${lamp - 1}"/>`,
+      );
+      if (job.effects.length > 1)
+        out.push(
+          `<circle class="qu-again" data-order="${id}" cx="${round1(x)}" cy="${round1(y)}" r="${lamp + 2}"/>`,
+        );
+    } else if (job.place === 'lost') {
+      const r = lamp - 1;
+      const c = r * 0.7;
+      out.push(
+        `<path class="qu-ticket" data-state="lost" data-order="${id}" d="M${round1(x - r)} ${round1(y)}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0M${round1(x - c)} ${round1(y - c)}l${round1(2 * c)} ${round1(2 * c)}M${round1(x + c)} ${round1(y - c)}l${round1(-2 * c)} ${round1(2 * c)}"/>`,
+      );
+    }
+  }
+  if (tickets.numbered && newest > 0)
+    for (let row = firstRow; row <= lastRow; row++)
+      out.push(
+        text(
+          tickets.x + tickets.cols * tickets.pitch - 2,
+          ticketTop + (row - firstRow) * tickets.pitch + 5,
+          String((row + 1) * tickets.cols),
+          'qu-label qu-count',
+        ),
+      );
+  out.push(say(words.tickets, 'Oven tickets'));
+  out.push(
+    text(
+      tickets.x,
+      ticketTop + (tickets.rows - 1) * tickets.pitch + 22,
+      `${sim.doneCount} done`,
+      'qu-label qu-count',
+    ),
+  );
+
+  // The dead letters, along the siding from its buffer stops back.
+  const step = 2 * lamp + 4;
+  const fit = Math.floor((siding.end - (end + drop * tracks.slope)) / step) - 1;
+  sim.dead.slice(-fit).forEach((id, k, shown) => {
+    const x = siding.end - 10 - (shown.length - 1 - k) * step;
+    out.push(
+      `<path class="qu-order" data-state="dead" data-poison="" data-order="${id}" d="${diamond(x, siding.y, lamp + 1)}"/>`,
+    );
+  });
+  const deadWords = sim.dead.length > fit ? `Dead letters, ${sim.dead.length}` : 'Dead letters';
+  out.push(say(words.dead, deadWords));
+  return out.join('');
 }
