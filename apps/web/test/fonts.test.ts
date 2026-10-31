@@ -295,6 +295,13 @@ describe('what the Fonts API writes into every page', () => {
       expect(fontFile(page, 'B612 Mono', 400) !== undefined, 'B612 Mono only with code').toBe(
         drawsCode(page),
       );
+      // A preloaded face is optional, never swapped in late; a face fetched on demand swaps
+      // (astro.config.mjs, PRELOADED; e2e/steady.spec.ts).
+      const preloaded = preloads(page);
+      for (const [, src, display] of page.matchAll(
+        /@font-face\{[^}]*src:url\("([^"]+)"\)[^}]*font-display:(\w+);/g,
+      ))
+        expect(display, src).toBe(preloaded.includes(src ?? '') ? 'optional' : 'swap');
     });
   }
 

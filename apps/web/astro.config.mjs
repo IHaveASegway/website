@@ -25,9 +25,23 @@ const font = (name, cssVariable, weights) => ({
       src: [`./src/assets/fonts/${file}`],
       weight,
       style: 'normal',
+      display: PRELOADED.has(file) ? 'optional' : 'swap',
     })),
   },
 });
+
+// The three faces every page preloads (Base.astro) are optional: one not here within the
+// browser's first moment, about 100 ms, is not swapped in, and that page stays in its fitted
+// fallback until the next, which has the file cached. The fitting matches widths on average, not
+// line by line, so a swap moved what a reader had on the screen: the Queue Lab's key by 24 px, a
+// paragraph of a write-up by a line (e2e/steady.spec.ts). Barlow's SemiBold and B612 Mono keep
+// swap: a page fetches them only once it sets <strong> or code, never in that first moment, and
+// every glyph is drawn in a self-hosted face (e2e/glyphs.spec.ts).
+const PRELOADED = new Set([
+  'barlow-condensed-semibold.woff2',
+  'barlow-semi-condensed-medium.woff2',
+  'barlow-regular.woff2',
+]);
 
 // Which command Astro is running, fixed into the build as a constant. lib/content.ts includes
 // drafts in astro dev from this, not from NODE_ENV, which any environment can set: a build then
