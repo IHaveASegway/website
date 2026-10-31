@@ -98,6 +98,18 @@ if (root) {
   // failed leaves the pictures, and the next intent tries again. A press of Play is kept for it.
   const cube = root.querySelector<HTMLElement>('[data-rl-cube]');
   if (cube) {
+    // Each cube is a stop for Tab from the first paint, before three.js is here: the focus is the
+    // intent that loads it, and the keys that turn it reach the same element once it has. Until
+    // 2026-10-31 only the canvas took focus, and it arrives after the focus that loads it has
+    // already passed, so Tab skipped both cubes. Script sets it, so without script there is no
+    // stop that does nothing; cube.ts takes it away again where the cube cannot be drawn.
+    for (const stage of cube.querySelectorAll<HTMLElement>('[data-rl-cube-stage]')) {
+      const title = stage.querySelector('title');
+      stage.tabIndex = 0;
+      stage.setAttribute('role', 'img');
+      if (title) stage.setAttribute('aria-labelledby', title.id);
+      stage.setAttribute('aria-describedby', 'rl-cube-hint');
+    }
     let cubed: Promise<unknown> | undefined;
     let live = false;
     // A mouse or a focus does not try again after a failed load; a click, a tap or the slider
@@ -112,12 +124,8 @@ if (root) {
             return;
           }
           live = scene.start(root);
-          if (!live) {
-            // No WebGL here: the pictures stay, and so does the visitor's focus.
-            const parts = cube.querySelectorAll<HTMLElement>('[data-rl-cube-controls]');
-            if ([...parts].some((p) => p.contains(document.activeElement))) cube.focus();
-            for (const part of parts) part.hidden = true;
-          }
+          // No WebGL here: the pictures stay, and so does the visitor's focus.
+          if (!live) scene.hideControls(cube);
         })
         .catch(() => {
           cubed = undefined;
