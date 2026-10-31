@@ -310,7 +310,7 @@ sequenceDiagram
   end
 ```
 
-- The gate is the pipeline. On a private repo on GitHub Free, rulesets and branch protection return 403, so the deploy jobs `needs:` verify and firewall, and a local pre-push hook refuses `main`. Required checks arrive when the repo goes public ([ADR 0006](adr/0006-github-actions-owns-deploys.md), [ADR 0012](adr/0012-public-repository.md)).
+- The gate is the pipeline. On a private repo on GitHub Free, rulesets and branch protection return 403, so the deploy jobs `needs:` verify, firewall and the firewall self-test, and a local pre-push hook refuses `main`. Required checks arrive when the repo goes public ([ADR 0006](adr/0006-github-actions-owns-deploys.md), [ADR 0012](adr/0012-public-repository.md)).
 - The firewall runs before the preview job because previews are public on workers.dev, with `X-Robots-Tag: noindex`. Nothing unscanned is published, not even to a preview.
 - Upload, smoke the Version URL, promote: blue/green in miniature. The exact artifact is tested on Cloudflare's edge before it takes traffic.
 - A rollback runs as the `rollback` job, with the same scoped token ([ADR 0006](adr/0006-github-actions-owns-deploys.md)). The dashboard's Rollback button is the break-glass path when GitHub is down. Either way a rollback ships nothing new: it points traffic back at a version the pipeline already uploaded, so the pipeline stays the only source of code in production, and no deploy credential lives on a laptop ([operations.md](operations.md)). Rollback reaches the 100 most recently published versions.[^rollback]
