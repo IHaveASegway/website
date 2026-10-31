@@ -541,8 +541,9 @@ export const eventsText = (sim: Sim): string =>
  * beside it, in a column as wide as their names), from the minute the
  * graph was switched on. A sensor waiting for its file is a hollow bar, a step at work a filled
  * one, and an attempt that failed ends in a cross; the dotted track is the run's life, from the
- * switch to its end, so a run waiting for a slot is a track with nothing on it; the upright line
- * is now. The span grows by whole hours, so the picture rescales once an hour,
+ * switch to its end, so a run waiting for a slot is a track with nothing on it; a run cleared after
+ * it finished has a track for each life, and nothing between its end and the clear; the upright
+ * line is now. The span grows by whole hours, so the picture rescales once an hour,
  * not on every frame. Across, everything is in percent, so the strip fills any width; down, it is in
  * em of the strip's own text, so a larger text size makes the strip taller and its words never meet.
  */
@@ -568,9 +569,10 @@ export function stripMarkup(sim: Sim): string {
     const y = STRIP.top + day * STRIP.lane + STRIP.lane / 2;
     const run = sim.runs[day];
     if (!run) continue;
-    out.push(
-      `<line class="bf-strip-track" x1="${x(from)}" x2="${x(run.ended ?? sim.now)}" y1="${em(y)}" y2="${em(y)}"/>`,
-    );
+    for (const life of run.lives)
+      out.push(
+        `<line class="bf-strip-track" x1="${x(life.from)}" x2="${x(life.to ?? sim.now)}" y1="${em(y)}" y2="${em(y)}"/>`,
+      );
     for (const task of run.tasks)
       for (const a of task.attempts) {
         const end = a.end ?? sim.now;

@@ -14,8 +14,9 @@ interface Props {
   checked: string;
 }
 
-// One of the desk's choices (backfill-lab.css): a row of push-buttons, each a native radio whose
-// lamp is lit while it is chosen. The arrow keys move between them, as between any radios.
+// One of the desk's choices (backfill-lab.css): a row of push-buttons, each a native radio that
+// covers its button, so its focus ring goes around the whole of it, with a lamp after it that is lit
+// while it is chosen. The arrow keys move between them, as between any radios.
 const { legend, name, options, checked } = Astro.props;
 ---
 
@@ -31,6 +32,7 @@ const { legend, name, options, checked } = Astro.props;
           checked={option.value === checked}
           autocomplete="off"
         />
+        <span class="bf-option-lamp" />
         {option.long ? <span aria-hidden="true">{option.words}</span> : option.words}
         {option.long && <span class="bf-sr">{option.long}</span>}
       </label>

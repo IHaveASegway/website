@@ -305,8 +305,13 @@ const KEY = [
         </button>
       </div>
       <div class="bf-row" role="group" aria-label="The job">
-        <button type="button" class="btn" aria-pressed="true" data-bf-on>
-          Switch the job on
+        <button
+          type="button"
+          class="btn bf-switch"
+          aria-disabled={sim.on ? 'true' : undefined}
+          data-bf-on
+        >
+          {sim.on ? 'The job is on' : 'Switch the job on'}
         </button>
         <Choice
           legend="Runs at once"

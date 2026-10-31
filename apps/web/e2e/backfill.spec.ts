@@ -54,9 +54,8 @@ async function startOver(page: Page): Promise<void> {
  *  job is switched on, so a run from 00:00 can be watched. */
 async function rewind(page: Page): Promise<void> {
   await page.getByRole('button', { name: "Make Monday's file 5 hours late" }).click();
-  await expect(page.getByRole('button', { name: 'Switch the job on' })).toHaveAttribute(
-    'aria-pressed',
-    'false',
+  await expect(page.getByRole('button', { name: 'Switch the job on' })).not.toHaveAttribute(
+    'aria-disabled',
   );
   await expect(page.locator('[data-bf-clock]')).toHaveText('00:00 on Monday 26 October');
 }
@@ -148,20 +147,26 @@ test('with the job off, Next event and Run switch it on first, so the clock neve
   await rewind(page);
   await expect(summary(page)).toHaveText(/^The job graph is off\./);
   await page.getByRole('button', { name: 'Next event' }).click();
-  await expect(page.getByRole('button', { name: 'Switch the job on' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  // The switch only switches on, so it is no toggle: once the job is on it says so, unavailable.
+  const on = page.getByRole('button', { name: 'The job is on' });
+  await expect(on).toHaveAttribute('aria-disabled', 'true');
+  await expect(on).not.toHaveAttribute('aria-pressed');
   await expect(page.locator('[data-bf-clock]')).toHaveText('00:00 on Monday 26 October');
   await expect(page.locator('[data-bf-said]')).toHaveText(
     /^The job graph is switched on with catch-up, which creates all 7 days' runs at once; 3 may run at a time\./,
+  );
+  // Unavailable, it is still a button a keyboard reaches, and pressed it says why it does nothing.
+  await on.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('[data-bf-said]')).toHaveText(
+    'The job is on already: it was switched on at 00:00.',
   );
   // Back before the switch from the opening again, Run switches it on at 00:00 and plays.
   await startOver(page);
   await rewind(page);
   await page.getByRole('button', { name: 'Run', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Switch the job on' })).toHaveAttribute(
-    'aria-pressed',
+  await expect(page.getByRole('button', { name: 'The job is on' })).toHaveAttribute(
+    'aria-disabled',
     'true',
   );
   await expect(page.locator('[data-bf-lines] li').filter({ hasText: 'is switched on' })).toHaveText(
@@ -437,15 +442,105 @@ test('a link followed on the page opens its week paused where the build’s woul
   await page.evaluate(() => (location.hash = '#seed-12'));
   await expect(page.getByRole('radio', { name: "The run's own day" })).toBeChecked();
   const bare = await shown(page);
+  // Followed from another seed's week under other settings, so a page that ignored it would show
+  // that week instead.
+  await page.evaluate(() => (location.hash = '#seed-9&mode=overwrite&runs=1'));
+  await expect(page.locator('[data-bf-seed]')).toHaveText('9');
+  await expect(page.getByRole('radio', { name: '1 run at once' })).toBeChecked();
   await page.evaluate(
     () => (location.hash = '#seed-12&runs=9&mode=delete&partition=yesterday&colour=red'),
   );
+  await expect(page.locator('[data-bf-seed]')).toHaveText('12');
   await expect(page.getByRole('radio', { name: '3 runs at once' })).toBeChecked();
+  await expect(page.getByRole('radio', { name: 'Append rows' })).toBeChecked();
   expect(await shown(page)).toEqual(bare);
   // A hash that links to no week, as the skip link's, leaves the week alone.
   await page.evaluate(() => (location.hash = '#main'));
   await page.waitForTimeout(200);
   expect(await shown(page)).toEqual(bare);
+});
+
+test('a link followed before the app has loaded loads it, and opens that week with its settings', async ({
+  page,
+}) => {
+  const app: string[] = [];
+  page.on('request', (r) => /\/_astro\/app\./.test(r.url()) && app.push(r.url()));
+  await page.goto(BACKFILL);
+  await page.waitForTimeout(300);
+  expect(app).toEqual([]);
+  // The boot script hears the link and loads the app, which opens the week the link names.
+  await page.evaluate(() => (location.hash = '#seed-12&mode=overwrite'));
+  await expect(page.locator('[data-bf-seed]')).toHaveText('12');
+  await expect(page.getByRole('radio', { name: 'Overwrite the day' })).toBeChecked();
+  expect(app).toHaveLength(1);
+});
+
+test('the opening’s week has happened, so Run plays it again from the switch, and Next event steps it from there', async ({
+  page,
+}) => {
+  await page.goto(BACKFILL);
+  await page.locator('[data-bf-board]').hover();
+  await expect(page.locator('[data-bf-lines] li')).not.toHaveCount(0);
+  const opening = await shown(page);
+  await page.getByRole('button', { name: 'Run', exact: true }).click();
+  // Back at the switch, said, and on the clock: the week plays as the entry tells it.
+  await expect(page.locator('[data-bf-said]')).toHaveText(
+    /^The week plays again from the switch\. The job graph is switched on with catch-up/,
+  );
+  expect(await minutes(page)).toBeLessThan(60);
+  await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
+  await page.getByRole('radio', { name: 'Quick' }).check();
+  await expect(page.locator('[data-bf-lines]')).toContainText(
+    "Wednesday's load fails after appending 96 of its 179 rows, and they stay in the report",
+    { timeout: 20_000 },
+  );
+  // It stops where the picture stood, the same week: board, caption, clock and log.
+  await expect(summary(page)).toHaveText(OPENING_SUMMARY, { timeout: 20_000 });
+  await expect(page.getByRole('button', { name: 'Run', exact: true })).toBeVisible();
+  expect(await shown(page)).toEqual(opening);
+  // Next event on a finished week takes it back to the switch too, one step at a time.
+  await page.getByRole('button', { name: 'Next event' }).click();
+  await expect(page.locator('[data-bf-clock]')).toHaveText('00:00 on Monday 26 October');
+  await expect(page.locator('[data-bf-said]')).toHaveText(
+    /^The week plays again from the switch\. /,
+  );
+  await expect(page.locator('[data-bf-events]')).toHaveText('0 events');
+});
+
+test('the log shows its newest line once the app wakes, as it does for a link', async ({
+  page,
+}) => {
+  await page.goto(BACKFILL);
+  const box = page.locator('.bf-lines');
+  // The build writes the log oldest first, and it is longer than its box.
+  expect(await box.evaluate((b) => b.scrollHeight > b.clientHeight && b.scrollTop === 0)).toBe(
+    true,
+  );
+  await page.locator('[data-bf-board]').hover();
+  await expect
+    .poll(() => box.evaluate((b) => b.scrollHeight - b.clientHeight - b.scrollTop))
+    .toBeLessThanOrEqual(1);
+});
+
+test('a choice shows its focus around its whole push-button, as a button does', async ({
+  page,
+}) => {
+  await page.goto(BACKFILL);
+  await page.getByRole('button', { name: 'Next event' }).focus();
+  await page.keyboard.press('Tab');
+  const steady = page.getByRole('radio', { name: 'Steady' });
+  await expect(steady).toBeFocused();
+  const ring = await steady.evaluate((input) => {
+    const style = getComputedStyle(input);
+    const own = input.getBoundingClientRect();
+    const button = (input.closest('label') as HTMLElement).getBoundingClientRect();
+    return {
+      style: style.outlineStyle,
+      width: parseFloat(style.outlineWidth),
+      around: own.width >= button.width && own.height >= button.height,
+    };
+  });
+  expect(ring).toEqual({ style: 'solid', width: 2, around: true });
 });
 
 for (const colorScheme of ['light', 'dark'] as const) {

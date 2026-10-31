@@ -204,6 +204,13 @@ export interface Verdict {
   readonly source: number;
 }
 
+/** One stretch of a run's life: from the switch that created it, or the clear that sent it back
+ *  to the queue after it had finished, to its end, null while it goes on. */
+export interface Life {
+  readonly from: number;
+  to: number | null;
+}
+
 export interface Run {
   readonly day: number;
   state: RunState;
@@ -211,6 +218,8 @@ export interface Run {
   readonly tasks: Task[];
   started: number | null;
   ended: number | null;
+  /** Each stretch of its life, oldest first: a run cleared after it finished has two or more. */
+  readonly lives: Life[];
   verdict: Verdict | null;
 }
 
@@ -244,13 +253,14 @@ export interface Faults {
 export const isFinal = (state: TaskState): boolean =>
   state === 'success' || state === 'failed' || state === 'upstream-failed';
 
-export function createRun(day: number): Run {
+export function createRun(day: number, at: number): Run {
   return {
     day,
     state: 'queued',
     tasks: TASKS.map((name) => ({ name, state: 'pending', tries: 0, queuedAt: 0, attempts: [] })),
     started: null,
     ended: null,
+    lives: [{ from: at, to: null }],
     verdict: null,
   };
 }
