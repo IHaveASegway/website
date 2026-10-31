@@ -123,6 +123,34 @@ test('without JavaScript, the page is the opening run: order 18 printed twice, w
   await context.close();
 });
 
+test('room for one more is a dot in the line’s colour, in the picture and in the key, not the muted text’s', async ({
+  page,
+}) => {
+  // Ten orders of prefetch, so a worker's window has room to show.
+  await page.goto(`${QUEUE}#seed-9&prefetch=10`);
+  await expect(map(page).locator('.qu-slot[data-state="room"]').first()).toBeAttached();
+  // The lamp table's row for it (design-system.md, "Lamps: one meaning per mark"): a filled dot,
+  // with no ring, in the line's colour as every mark there is, on a plate of the desk's surface,
+  // which sets it clear of the track it stands on, the line's colour too.
+  await expect(page.locator('.qu-key')).toContainText('Room for one more');
+  const dots = await page.evaluate(() => {
+    const shown = document.querySelector('[data-qu-map="wide"]');
+    const of = (el: Element) => getComputedStyle(el);
+    return {
+      fills: [
+        ...document.querySelectorAll('.qu-key .qu-slot[data-state="room"]'),
+        ...(shown?.querySelectorAll('.qu-slot[data-state="room"]') ?? []),
+      ].map((dot) => `${of(dot).fill} ${of(dot).stroke} ${of(dot).paintOrder}`),
+      line: of(shown?.querySelector('.qu-track') as Element).stroke,
+      surface: of(shown?.querySelector('.qu-tank') as Element).fill,
+      muted: of(document.querySelector('.qu-key') as Element).color,
+    };
+  });
+  expect(dots.fills.length).toBeGreaterThan(0);
+  expect(new Set(dots.fills)).toEqual(new Set([`${dots.line} ${dots.surface} stroke`]));
+  expect(dots.line).not.toBe(dots.muted);
+});
+
 test('nothing loads or moves before intent; Run plays, Pause stops, with no policy violation', async ({
   page,
 }) => {

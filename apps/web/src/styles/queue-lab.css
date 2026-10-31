@@ -130,7 +130,11 @@
 
 /* A worker's lamps: hollow while an order waits in its window, lit at the head while in work, and
    dashed while it is taken, not yet acknowledged: on its way, or dropped by a crash until the
-   broker takes it back, one state either way; a dot for each slot still free. */
+   broker takes it back, one state either way; a dot for each slot still free, room for one more.
+   The dot is a mark of the lamp table's, so it is in the line's colour, as every mark there is:
+   until 2026-10-31 it was in the muted text's, and in no row of the table. It stands on the track,
+   which is the line's colour too, so a plate of the desk's surface, its stroke painted under its
+   fill, sets it clear, as the Backfill Lab's plate sets its marks clear of the track. */
 .qu-slot {
   fill: var(--surface-1);
   stroke: var(--line);
@@ -147,8 +151,10 @@
 }
 
 .qu-slot[data-state='room'] {
-  fill: var(--muted-foreground);
-  stroke: none;
+  fill: var(--line);
+  stroke: var(--surface-1);
+  stroke-width: 4;
+  paint-order: stroke;
 }
 
 /* An oven ticket: filled once printed, with a second ring when it printed twice; a lost order's
