@@ -274,6 +274,10 @@ export function stripWords(sim: Sim): string {
   return `In the last 2 s, readers got ${count(total.hit)} pages from the cache, ${count(total.stale)} ${copies} and ${count(total.served)} ${fetches}; ${reads(total.timeout)} timed out, and ${count(total.pending)} still ${total.pending === 1 ? 'waits' : 'wait'}.`;
 }
 
-/** The clock under the picture: the run's virtual time and its seed. */
-export const clockWords = (sim: Sim): string =>
-  `Virtual time ${seconds(sim.now)}, seed ${sim.seed}`;
+/** Where a run stands: its virtual time and the events it has run, so two moments in one
+ *  millisecond, which Next event can step between, still read differently. */
+export const whereWords = (sim: Sim): string =>
+  `Virtual time ${seconds(sim.now)}, ${count(sim.events)} ${sim.events === 1 ? 'event' : 'events'}`;
+
+/** The clock under the picture: where the run stands, and its seed. */
+export const clockWords = (sim: Sim): string => `${whereWords(sim)}, seed ${sim.seed}`;

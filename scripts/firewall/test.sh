@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Self-test for check.sh: proves exit 0, 1 and 2 on throwaway fixtures. The only rules besides the
 # canary are throwaway ones for nonsense terms, so no real rule is needed, read or revealed.
-# It runs in verify (delivery.md); a check that cannot fail proves nothing.
+# It runs in CI's firewall-selftest job, beside verify (delivery.md, "Pipeline"); a check that
+# cannot fail proves nothing.
 #
 # Each case is one way a term could pass unseen or a scan could pass unproven: a file name git
 # quotes, a merge, a .gitattributes, an archive, a WebAssembly module (built here byte by byte, and

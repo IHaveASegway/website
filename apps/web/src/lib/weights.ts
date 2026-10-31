@@ -65,6 +65,20 @@ export function pageStyles(html: string): { linked: string[]; inline: string[] }
   };
 }
 
+/** The scripts a page asks the browser to fetch as it loads, ahead of any use: module preloads, and
+ *  preloads of a script. A page that preloads a module fetches it eagerly, as if it named it. */
+export function preloadedScripts(html: string): string[] {
+  return tags(html, 'link')
+    .filter((link) => {
+      const rel = (link.attributes['rel'] ?? '').toLowerCase().split(/\s+/);
+      return (
+        rel.includes('modulepreload') ||
+        (rel.includes('preload') && link.attributes['as']?.toLowerCase() === 'script')
+      );
+    })
+    .map((link) => link.attributes['href'] ?? '');
+}
+
 /** The font files a page preloads. */
 export function preloadedFonts(html: string): string[] {
   return tags(html, 'link')

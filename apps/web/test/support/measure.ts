@@ -5,6 +5,7 @@ import {
   gzipBytes,
   pageStyles,
   preloadedFonts,
+  preloadedScripts,
 } from '../../src/lib/weights';
 import { bytes, fileFor, files, read } from './dist';
 import {
@@ -28,27 +29,29 @@ export const BUDGETS = {
 } as const;
 
 /** One page's figures, measured with lib/weights.ts. Its eager JavaScript is every script it
- *  names and every chunk those import statically: the browser fetches them all before any intent.
- *  Since 2026-10-27 two demos' entries share Vite's preload helper as a chunk of its own, which a
- *  count of <script src> alone would miss. */
+ *  names or preloads and every chunk those import statically: the browser fetches them all before
+ *  any intent. Since 2026-10-27 two demos' entries share Vite's preload helper as a chunk of its
+ *  own, which a count of <script src> alone would miss.
+ *
+ *  Its first view is what a visitor fetches before any intent: the page, gzip -9, which holds its
+ *  inline scripts and styles already, then the stylesheets it links, its eager script files and
+ *  the fonts it declares. Its inline code counts once there, and in its eager JavaScript and CSS,
+ *  which their own budgets hold, as well. */
 export function measure(page: string) {
   const { inline } = eagerScripts(page);
   const styles = pageStyles(page);
+  const linkedCss = styles.linked.reduce((sum, href) => sum + gzipBytes(bytes(fileFor(href))), 0);
+  const scriptFiles = eagerFiles(page).reduce((sum, file) => sum + gzipBytes(bytes(file)), 0);
+  const fonts = declaredFonts(page).reduce((sum, href) => sum + bytes(fileFor(href)).byteLength, 0);
   return {
-    eagerJavaScript:
-      inline.reduce((sum, body) => sum + gzipBytes(body), 0) +
-      eagerFiles(page).reduce((sum, file) => sum + gzipBytes(bytes(file)), 0),
-    css:
-      styles.linked.reduce((sum, href) => sum + gzipBytes(bytes(fileFor(href))), 0) +
-      styles.inline.reduce((sum, body) => sum + gzipBytes(body), 0),
+    eagerJavaScript: inline.reduce((sum, body) => sum + gzipBytes(body), 0) + scriptFiles,
+    css: linkedCss + styles.inline.reduce((sum, body) => sum + gzipBytes(body), 0),
     preloadedFonts: preloadedFonts(page).reduce(
       (sum, href) => sum + bytes(fileFor(href)).byteLength,
       0,
     ),
-    declaredFonts: declaredFonts(page).reduce(
-      (sum, href) => sum + bytes(fileFor(href)).byteLength,
-      0,
-    ),
+    declaredFonts: fonts,
+    firstView: gzipBytes(page) + linkedCss + scriptFiles + fonts,
   };
 }
 
@@ -172,9 +175,9 @@ export function staticClosure(scripts: readonly string[]): string[] {
   return [...seen];
 }
 
-/** A page's eager JavaScript files: the scripts it names and their static imports. */
+/** A page's eager JavaScript files: the scripts it names or preloads, and their static imports. */
 export const eagerFiles = (page: string): string[] =>
-  staticClosure(eagerScripts(page).external.map(fileFor));
+  staticClosure([...eagerScripts(page).external, ...preloadedScripts(page)].map(fileFor));
 
 /** The relative modules a script imports, statically or with import(): "./x.js" and the like. */
 export function importsOf(script: string): string[] {

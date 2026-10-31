@@ -8,12 +8,19 @@
   and no animation.
 
   State is a lamp's shape (ADR 0025): hollow not started, lit running, filled succeeded, a cross
-  failed, a clock face waiting to retry, a dash never run. Colour only says which line: the track,
-  and the lamps that are the lab's own, are its colour; the marks that report a fault are ink.
+  inside its ring failed, a clock face waiting to retry, a dash never run. Colour only says which
+  line: the track, and the lamps that are the lab's own, failed ones too, are its colour, as on the
+  board's lines (lines.css, .line-cross); the clock face and the dash are ink.
 
   The page's head is the lab's line (PageHead.astro), and the demo is the lab's desk (ADR 0025;
   global.css, .desk): the controls are set apart from the board by a rule from bezel to bezel, and
   what stands on the desk takes its surface, --surface-1, for ground.
+
+  The controls that play the week stand by the board at every width, so a visitor watches the
+  lamps change as they press (the review of 2026-10-31 found Run 1,145 px under the board on a
+  phone): beside it from 64rem, as the Cache Lab's panel stands; under it below, before anything
+  else. Nothing is pinned to the screen to get there: a pinned board would cover the words
+  scrolled under it.
 */
 
 .bf {
@@ -35,11 +42,28 @@
   gap: 1.75rem;
 }
 
-.bf-figure {
-  display: grid;
-  gap: 1.25rem;
+/* Below 64rem the picture and the panel are one column, and the controls that play the week come
+   second, right under the board: the order the eye needs, without a pinned board. Only the board
+   is focusable before them, so the keyboard's order is still the order on screen, and assistive
+   technology reads the picture's words before its controls, as on a wide desk. */
+@media (width < 64rem) {
+  .bf-picture,
+  .bf-panel {
+    display: contents;
+  }
+
+  .bf-board-box {
+    order: -2;
+  }
+
+  .bf-play {
+    order: -1;
+  }
+}
+
+.bf-picture,
+.bf-panel {
   min-width: 0;
-  margin: 0;
 }
 
 /* The run board: a row a day, a lamp a step, on the day's track; the totals on the right. A table
@@ -50,6 +74,7 @@
 .bf-board-box {
   position: relative;
   overflow-x: auto;
+  container: bf-board / inline-size;
 }
 
 .bf-board {
@@ -89,8 +114,13 @@
   inline-size: 3rem;
 }
 
-/* A step's head is its first word on a phone, set on two staggered lines so the long words have
-   room; from 40rem each is whole on one line. */
+/* A step's head is its first word on a narrow board, set on two staggered lines so the long words
+   have room. The board's own width decides, not the window's: from 64rem the board shares the
+   desk with the panel, so a wide window can hold a narrow board. "Wait for the file" is 84 px at
+   its widest; it stands whole on one line once a step's column, a fifth of what the day and the
+   totals leave, keeps 14 px between it and "Extract" (38rem); before that, from 32rem, "for the
+   file" stands under "Wait" on a line of its own. A window's width chose until 2026-10-31, and at
+   1,280 px the words ran together: "Wait for the fileExtract". */
 .bf-col-name {
   display: inline-block;
   margin-inline: -2rem;
@@ -110,7 +140,7 @@
   padding-bottom: 1.35em;
 }
 
-@media (width >= 40rem) {
+@container bf-board (inline-size >= 32rem) {
   .bf-col-day {
     inline-size: 5.5rem;
   }
@@ -122,15 +152,20 @@
   .bf-board thead th:is(:nth-child(3), :nth-child(5)) .bf-col-name {
     padding-bottom: 0;
   }
-}
 
-@media (width >= 64rem) {
   .bf-col-rest {
     position: static;
+    display: block;
     inline-size: auto;
     block-size: auto;
     overflow: visible;
     clip-path: none;
+  }
+}
+
+@container bf-board (inline-size >= 38rem) {
+  .bf-col-rest {
+    display: inline;
   }
 }
 
@@ -245,15 +280,18 @@
   stroke-width: 1.5;
 }
 
-.bf-x,
 .bf-hands,
 .bf-dash {
   stroke: var(--foreground);
   stroke-linecap: round;
 }
 
+/* A failed step: its hollow lamp crossed, in the line's colour, as the board's lines draw a failed
+   station. Until 2026-10-31 it was a bare ink cross, a second mark for one state. */
 .bf-x {
-  stroke-width: 2.5;
+  stroke: var(--line);
+  stroke-width: 2;
+  stroke-linecap: square;
 }
 
 .bf-hands {
@@ -267,13 +305,14 @@
 [data-lamp='hollow'] .bf-disc,
 [data-lamp='filled'] .bf-disc,
 [data-lamp='lit'] :is(.bf-plate, .bf-halo, .bf-disc),
-[data-lamp='cross'] :is(.bf-plate, .bf-x),
+[data-lamp='cross'] :is(.bf-plate, .bf-disc, .bf-x),
 [data-lamp='clock'] :is(.bf-plate, .bf-disc, .bf-hands),
 [data-lamp='dash'] :is(.bf-plate, .bf-dash) {
   display: inline;
 }
 
-[data-lamp='hollow'] .bf-disc {
+[data-lamp='hollow'] .bf-disc,
+[data-lamp='cross'] .bf-disc {
   fill: var(--surface-1);
   stroke: var(--line);
 }
@@ -316,8 +355,13 @@
   line-height: 1.25em;
 }
 
+.bf-strip-part {
+  display: grid;
+  gap: 0.75rem;
+}
+
 .bf-strip-title {
-  margin: 0 0 -0.5rem;
+  margin: 0;
   color: var(--muted-foreground);
   font-family: var(--font-label);
   font-size: var(--text-label);
@@ -375,13 +419,13 @@
 
 .bf-summary {
   max-width: var(--measure);
+  margin: 0;
   font-size: var(--text-label);
   line-height: var(--text-label--line-height);
 }
 
-/* The properties, under the board; beside it, the clock and what the lamps mean. */
-.bf-checks-block,
-.bf-side {
+/* The properties, under the strip. */
+.bf-checks-block {
   display: grid;
   gap: 1.25rem;
   align-content: start;
@@ -455,15 +499,30 @@
   flex: none;
 }
 
-/* The controls: push-buttons in rows, under a rule from bezel to bezel. A choice is a row of
-   buttons whose chosen one shows its lamp lit and is pressed in, raised, as a pressed button is
-   (global.css): the radio itself is the lamp. */
+/* The controls: push-buttons in rows. A choice is a row of buttons whose chosen one shows its
+   lamp lit and is pressed in, raised, as a pressed button is (global.css): the radio itself is the
+   lamp. The first part plays the week, with the choice that fixes it, how a load writes; the
+   second holds the settings and the faults, which a visitor reaches for later. */
 .bf-controls {
   display: grid;
   gap: 1.25rem;
-  margin-inline: calc(var(--desk-side) * -1);
-  padding: 1.25rem var(--desk-side) 0;
-  border-top: 1px solid var(--input);
+  align-content: start;
+}
+
+/* Below 64rem each part of the controls is a part of the desk of its own, set apart by a rule from
+   bezel to bezel: the first between the board and what the board's words say, the second before
+   the settings. */
+@media (width < 64rem) {
+  .bf-controls {
+    margin-inline: calc(var(--desk-side) * -1);
+    padding: 1.25rem var(--desk-side) 0;
+    border-top: 1px solid var(--input);
+  }
+
+  .bf-play {
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--input);
+  }
 }
 
 .bf-row {
@@ -494,12 +553,19 @@
   flex-wrap: wrap;
 }
 
+/* The radio covers its push-button, edge included, and draws nothing itself: the one focus ring
+   every focusable element has (global.css) goes around the whole button, as a button's does, as
+   in the Queue Lab's choices. The lamp after it is hollow, and lit while its radio is chosen. */
 .bf-option {
+  position: relative;
   padding-inline: 0.75rem;
 }
 
-/* A button that shows a short name, a number or a day's first letters, keeps to its words. */
+/* A button that shows a short name, a number or a day's first letters, keeps to its words, and is
+   still 44 px across, the target size every other control on the desk has (SC 2.5.5): "1" to "7"
+   in "Runs at once" were 41 px. */
 .bf-option[data-short] {
+  min-inline-size: 2.75rem;
   padding-inline: 0.5rem;
 }
 
@@ -512,16 +578,27 @@
 }
 
 .bf-option input {
+  position: absolute;
+  inset-block-start: -1px;
+  inset-inline-start: -1px;
+  inline-size: calc(100% + 2px);
+  block-size: calc(100% + 2px);
+  margin: 0;
+  border: 0;
+  appearance: none;
+  background-color: transparent;
+  cursor: pointer;
+}
+
+.bf-option-lamp {
   flex: none;
   inline-size: 0.625rem;
   block-size: 0.625rem;
-  margin: 0;
   border: 1.5px solid currentColor;
   border-radius: 50%;
-  appearance: none;
 }
 
-.bf-option input:checked {
+.bf-option input:checked + .bf-option-lamp {
   border-color: var(--primary);
   background-color: var(--primary);
 }
@@ -530,6 +607,17 @@
    under the pointer. */
 .bf-run-button {
   min-inline-size: 6.5rem;
+}
+
+/* The job's switch only switches on: once the job is on it reads as a state, and pressing it only
+   says so. */
+.bf-switch[aria-disabled='true'] {
+  color: var(--muted-foreground);
+  cursor: default;
+}
+
+.bf-switch[aria-disabled='true']:hover {
+  background-color: transparent;
 }
 
 /* Read by assistive technology, hidden on screen: a lamp's word, a day's full name, what the
@@ -579,35 +667,39 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* On a wide desk the board has beside it the clock, the lamps' key and the event log, which fills
-   the column's height and scrolls, so what happened reads beside the lamps it changed. The
-   properties run under both, as the lab's write-up reads them: the three properties under the
-   board. A phone stacks the same parts in the same order. */
+/* On a wide desk, as the Cache Lab's: the picture on the left, the board first and the checks
+   last; the panel on the right, the controls first, so Run stands beside the board above the fold,
+   and the event log under them, filling the column's height and scrolling, so what happened reads
+   beside the lamps it changed. A phone stacks the same parts, the controls that play the week
+   second. */
 @media (width >= 64rem) {
   .bf-stage {
-    grid-template-columns: minmax(0, 1.7fr) minmax(15rem, 1fr);
-    grid-template-rows: auto minmax(0, 1fr) auto;
-    grid-template-areas:
-      'figure side'
-      'figure events'
-      'checks checks';
+    grid-template-columns: minmax(0, 1.7fr) minmax(16rem, 1fr);
     column-gap: 2.5rem;
-    align-items: start;
   }
 
-  .bf-figure {
-    grid-area: figure;
+  .bf-picture {
+    display: grid;
+    gap: 1.75rem;
+    align-content: start;
   }
 
-  .bf-side {
-    grid-area: side;
+  .bf-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
   }
 
-  /* Its size is the column's, never its lines': they scroll inside it. */
+  /* The settings under the controls that play the week, set apart by a rule across the column. */
+  .bf-more {
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--input);
+  }
+
+  /* Its size is the column's, never its lines': they scroll inside it, in at least 12rem. */
   .bf-events {
-    grid-area: events;
+    flex: 1 0 12rem;
     grid-template-rows: auto minmax(0, 1fr);
-    align-self: stretch;
     contain: size;
   }
 
@@ -615,12 +707,9 @@
     max-height: none;
   }
 
-  .bf-checks-block {
-    grid-area: checks;
-  }
-
+  /* Side by side where the column has room for three of them, as at 1440 px. */
   .bf-checks {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
     column-gap: 2rem;
   }
 }
@@ -630,12 +719,13 @@
 @media (forced-colors: active) {
   .bf-lamp,
   .bf-strip,
-  .bf-option input:checked {
+  .bf-option input:checked + .bf-option-lamp {
     forced-color-adjust: none;
   }
 
   .bf-plate,
   [data-lamp='hollow'] .bf-disc,
+  [data-lamp='cross'] .bf-disc,
   [data-lamp='clock'] .bf-disc,
   .bf-strip-wait {
     fill: Canvas;
@@ -669,7 +759,7 @@
     stroke: Highlight;
   }
 
-  .bf-option input:checked {
+  .bf-option input:checked + .bf-option-lamp {
     border-color: ButtonText;
     background-color: ButtonText;
   }

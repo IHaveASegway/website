@@ -329,9 +329,9 @@ export function openLink(hash: string): Sim | null {
   return openingWeek({ ...OPENING.config, seed: link.seed, mode, partition, maxActiveRuns: runs });
 }
 
-/** Start over: the week this one's link names, the opening's week again on the same seed under
- *  the visitor's settings, so the lab entry's "start over" shows the week each setting gives at
- *  once. */
+/** The week this one's link names: the opening's week again on the same seed under the
+ *  visitor's settings, standing where a played week stops, as a reload of the link opens it.
+ *  Start over takes it back to its switch (fromTheSwitch). */
 export const startOver = (sim: Sim): Sim => openLink(linkTo(sim)) as Sim;
 
 /**
@@ -345,6 +345,22 @@ export function beforeSwitch(sim: Sim): Sim {
     .slice(0, switched < 0 ? sim.actions.length : switched)
     .filter((a) => a.kind === 'fail-next-load' || a.kind === 'late-file');
   return replay(settingsOf(sim), setUp, WEEK_END);
+}
+
+/**
+ * What Start over shows: the week this one's link names (startOver), taken back to its switch, the
+ * job off at 00:00 with Wednesday's failed load set, as Run takes a finished week back. Both go
+ * back through beforeSwitch, so the week replays from one point, never one each: Run then plays
+ * the failed load at 00:24 and the day counted twice at 00:39, four and seven seconds in at
+ * Steady, rather than landing past them, as Start over did until 2026-10-31.
+ */
+export const fromTheSwitch = (sim: Sim): Sim => beforeSwitch(startOver(sim));
+
+/** The job's switch only switches on, so its words say the job's state once it has: on, and from
+ *  when, which a press on it then can only repeat. */
+export function switchWords(sim: Sim): string {
+  const on = sim.actions.find((a) => a.kind === 'start');
+  return sim.on && on ? `Job on since ${moment(on.at)}` : 'Switch the job on';
 }
 
 /** How much later "make its file late" makes a day's export file land: 5 hours, in minutes. */
@@ -541,8 +557,9 @@ export const eventsText = (sim: Sim): string =>
  * beside it, in a column as wide as their names), from the minute the
  * graph was switched on. A sensor waiting for its file is a hollow bar, a step at work a filled
  * one, and an attempt that failed ends in a cross; the dotted track is the run's life, from the
- * switch to its end, so a run waiting for a slot is a track with nothing on it; the upright line
- * is now. The span grows by whole hours, so the picture rescales once an hour,
+ * switch to its end, so a run waiting for a slot is a track with nothing on it; a run cleared after
+ * it finished has a track for each life, and nothing between its end and the clear; the upright
+ * line is now. The span grows by whole hours, so the picture rescales once an hour,
  * not on every frame. Across, everything is in percent, so the strip fills any width; down, it is in
  * em of the strip's own text, so a larger text size makes the strip taller and its words never meet.
  */
@@ -568,9 +585,10 @@ export function stripMarkup(sim: Sim): string {
     const y = STRIP.top + day * STRIP.lane + STRIP.lane / 2;
     const run = sim.runs[day];
     if (!run) continue;
-    out.push(
-      `<line class="bf-strip-track" x1="${x(from)}" x2="${x(run.ended ?? sim.now)}" y1="${em(y)}" y2="${em(y)}"/>`,
-    );
+    for (const life of run.lives)
+      out.push(
+        `<line class="bf-strip-track" x1="${x(life.from)}" x2="${x(life.to ?? sim.now)}" y1="${em(y)}" y2="${em(y)}"/>`,
+      );
     for (const task of run.tasks)
       for (const a of task.attempts) {
         const end = a.end ?? sim.now;

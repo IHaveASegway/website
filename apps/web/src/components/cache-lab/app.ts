@@ -31,6 +31,7 @@ import {
   stripWords,
   summary,
   waiting,
+  whereWords,
 } from '../../lib/cache/view';
 import { pageLamps, stripEnds, stripPaths } from './picture';
 
@@ -39,8 +40,8 @@ import { pageLamps, stripEnds, stripPaths } from './picture';
 // presses Run, which Pause stops (SC 2.2.2); a hidden tab pauses it too. The opening's picture
 // tells a stampede that has already happened, so Run on a run still standing untouched at that
 // moment plays it again from half a second before the menu expires, as Start over does: the
-// visitor watches it happen. With reduced motion, Run advances in steps of 100 virtual
-// milliseconds twice a second, so the picture changes in still steps. Every action lands between
+// visitor watches it happen. With reduced motion, Run advances half a second of the chosen speed
+// twice a second, so the picture changes in still steps. Every action lands between
 // two moments of the run, never inside one: the frames and Next event move the clock with
 // runUntil, which stops only there (lib/cache/sim.ts), so an action is the one a replay of the
 // same run would take. A link to a run (lib/sim/link.ts) opens it, paused at the opening's moment,
@@ -48,8 +49,7 @@ import { pageLamps, stripEnds, stripPaths } from './picture';
 
 const FRAME_CAP = 100; // real ms: a frame after a long pause does not leap ahead
 const EVENTS_PER_FRAME = 4_000;
-const STILL_STEP = 100; // virtual ms per step under reduced motion
-const STILL_EVERY = 500; // real ms between those steps
+const STILL_EVERY = 500; // real ms between steps under reduced motion
 const TOGGLES: readonly Toggle[] = ['coalesce', 'stale', 'early', 'jitter', 'invalidate'];
 
 /** A broken invariant, the one thing that stops a run: a bug in the simulation, said where it
@@ -219,7 +219,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     attribute(run, 'data-lamp', 'on');
     if (still.matches) {
       timer = window.setInterval(() => {
-        runUntil(sim, sim.now + STILL_STEP, EVENTS_PER_FRAME);
+        runUntil(sim, sim.now + STILL_EVERY * speed(), EVENTS_PER_FRAME);
         draw();
         if (sim.violation) {
           say(broken(sim));
@@ -287,6 +287,8 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     } else return;
     const latest = sim.lines.at(-1);
     if (latest && latest !== shownLines) say(latest.text);
+    // A moment the log does not tell, as most are: where the run stands now, so the press is heard.
+    else if (control.matches('[data-cl-step]')) say(whereWords(sim));
     draw();
   }
 
@@ -318,5 +320,9 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
 
   if (linked) lines?.replaceChildren();
   draw();
+  // The newest line in view, as each line the run adds keeps it: the build wrote the log's oldest
+  // first, and a page that kept them has added none.
+  const box = lines?.parentElement;
+  if (box) box.scrollTop = box.scrollHeight;
   for (const control of queued) press(control);
 }

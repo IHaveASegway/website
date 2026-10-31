@@ -1,4 +1,11 @@
-import { TASKS, weekday, when, type Mode, type PartitionKey } from '../../lib/backfill/core';
+import {
+  TASKS,
+  WEEK_END,
+  weekday,
+  when,
+  type Mode,
+  type PartitionKey,
+} from '../../lib/backfill/core';
 import {
   clear,
   failNextLoad,
@@ -13,8 +20,10 @@ import {
   type Sim,
 } from '../../lib/backfill/sim';
 import {
+  beforeSwitch,
   boardView,
   eventsText,
+  fromTheSwitch,
   holdFile,
   lineTime,
   linkTo,
@@ -22,11 +31,11 @@ import {
   openingRun,
   openLink,
   propertyViews,
-  startOver,
   statusText,
   stripLabel,
   stripMarkup,
   summary,
+  switchWords,
 } from '../../lib/backfill/view';
 
 // The Backfill Lab in the browser (ADR 0026, as ADR 0020 for the Raft Lab): the simulation, run in
@@ -37,12 +46,15 @@ import {
 // paid in whole minutes, through runUntil, never a bare step between actions, so every press lands
 // where replay would put it. With reduced motion it moves in still steps, twice a second.
 //
-// Start over, like a link to a week (lib/sim/link.ts), shows the opening's week under the chosen
-// settings, as the build draws it (view.ts, openingWeek), and writes the link to it; a link opens
-// its week paused, on load or when followed on the page. The job is off only once a late file has
-// sent the week back to before the switch (holdFile); then Run, or Next event, switches it on
-// first, so the clock never moves with the job off and the week starts at 00:00, as the lab
-// entry's does.
+// A link to a week (lib/sim/link.ts) opens the opening's week under its settings where the build
+// draws it, finished (view.ts, openingWeek), paused, on load or when followed on the page. Start
+// over writes that link, and shows the same week back at its switch (view.ts, fromTheSwitch): the
+// job off at 00:00, so Run plays Wednesday's failed load and its day counted twice as they
+// happen, as the Cache Lab's Start over plays its stampede, and never lands past them. The job is
+// also off once a late file has sent the week back to before the switch (holdFile). With the job
+// off, Run, or Next event, switches it on first, so the clock never moves with the job off and
+// the week starts at 00:00, as the lab entry's does. A week whose runs have all finished, as the
+// opening's has, goes back to the switch the same way when Run or Next event is pressed.
 
 const FRAME_CAP = 100; // real ms: a frame after a long pause does not leap ahead
 const EVENTS_PER_FRAME = 2_000;
@@ -123,7 +135,12 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     set($('[data-bf-clock]'), when(sim.now));
     set($('[data-bf-events]'), eventsText(sim));
     set($('[data-bf-seed]'), String(sim.seed));
-    mark(on, 'aria-pressed', String(sim.on));
+    // The job's switch only switches on, so it is no toggle: once the job is on, it says so, and
+    // since when, and it is unavailable until Start over or a late file sends the week back to
+    // before the switch.
+    set(on, switchWords(sim));
+    if (sim.on) mark(on, 'aria-disabled', 'true');
+    else on?.removeAttribute('aria-disabled');
     const markup = stripMarkup(sim);
     if (strip && markup !== shownStrip) {
       strip.innerHTML = markup;
@@ -163,9 +180,15 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     if (sim.violation) return statusText(sim);
     if (Number.isFinite(nextTime(sim))) return null;
     return finished(sim)
-      ? "Every run has finished, so the clock stops here. Clear a day to rerun it, or make a day's file late to run the week again from before the switch."
+      ? 'Every run has finished, so the clock stops here. Run plays the week again from the switch, or clear a day to rerun it.'
       : 'Nothing more is due, so the clock stops here.';
   }
+
+  /** Whether every run has finished and nothing is left to happen: Run and Next event then take
+   *  the week back to its switch, under the settings chosen now (view.ts, beforeSwitch). */
+  const over = () => !sim.violation && finished(sim) && !Number.isFinite(nextTime(sim));
+  const AGAIN = 'The week plays again from the switch.';
+  const STARTED = `The week starts over under these settings, at ${moment(WEEK_END)}, before the job is switched on.`;
 
   /** What happened after a line, in the log's words: its lines, up to the last four of them. */
   function since(line: Line | undefined): string {
@@ -230,6 +253,18 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     }
   }
 
+  /** Plays the week, switching the job on first if it is off: with the job off nothing but a file
+   *  landing could happen, and the week would start late, so the switch comes at the minute the
+   *  week ends. `again` says the week went back to its switch to get here. */
+  function go(before: Line | undefined, again = ''): void {
+    if (!sim.on) {
+      switchOn(sim);
+      draw();
+      say(`${again}${since(before)}`);
+    }
+    play();
+  }
+
   /** Names the day the day's buttons act on. */
   function pick(next: number): void {
     day = next;
@@ -260,14 +295,9 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     if (control.matches('[data-bf-run]')) {
       if (playing) pause();
       else {
-        // With the job off nothing but a file landing could happen, and the week would start
-        // late, so Run switches it on first, at the minute the week ends.
-        if (!sim.on) {
-          switchOn(sim);
-          draw();
-          say(since(before));
-        }
-        play();
+        const again = over();
+        if (again) show(beforeSwitch(sim));
+        go(before, again ? `${AGAIN} ` : '');
       }
       return;
     } else if (name === 'bf-speed') {
@@ -281,17 +311,28 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
       pick(Number(value));
       return;
     } else if (control.matches('[data-bf-step]')) {
+      const again = over();
+      if (again) show(beforeSwitch(sim));
       const at = nextTime(sim);
       // With the job off, the switch is the week's next step, as Run takes it.
-      if (!sim.on) switchOn(sim);
-      else if (Number.isFinite(at) && !sim.violation) runUntil(sim, at, EVENTS_PER_FRAME);
+      if (!sim.on) {
+        switchOn(sim);
+        if (again) words = `${AGAIN} ${since(before)}`;
+      } else if (Number.isFinite(at) && !sim.violation) runUntil(sim, at, EVENTS_PER_FRAME);
       else words = stuck() ?? '';
     } else if (control.matches('[data-bf-reset]')) {
-      show(startOver(sim));
+      const wasPlaying = playing;
+      show(fromTheSwitch(sim));
       // The address names the week, settings and all, so a reload or the link shared opens it.
       history.replaceState(null, '', linkTo(sim));
-      words = `The week starts over under these settings, and stands at ${moment(sim.now)}. ${summary(sim)}`;
+      // A week that was playing plays on from the switch, as the Cache Lab's does from its start.
+      if (wasPlaying) {
+        go(sim.lines.at(-1), `${STARTED} `);
+        return;
+      }
+      words = `${STARTED} Press Run to watch it.`;
     } else if (control.matches('[data-bf-on]')) {
+      // A switch that only switches on: once the job is on, it says so and does nothing.
       const on = sim.actions.find((a) => a.kind === 'start');
       if (on) words = `The job is on already: it was switched on at ${moment(on.at)}.`;
       else switchOn(sim);
@@ -348,5 +389,9 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
   if (linked) lines?.replaceChildren();
   else shownLine = sim.lines.at(-1);
   draw();
+  // The newest line in view, as each line the run adds keeps it: the build wrote the log's oldest
+  // first, and a page that kept them has added none.
+  const box = lines?.parentElement;
+  if (box) box.scrollTop = box.scrollHeight;
   for (const control of queued) press(control);
 }

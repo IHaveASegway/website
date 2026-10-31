@@ -10,8 +10,10 @@ import { hex, themeColors } from './tokens';
 // build time from a page's title and label, in the site's tokens. Satori lays the card out and
 // turns its text into paths; sharp rasterizes that SVG. The card takes exactly two strings, and
 // test/og.test.ts checks that they are the page's og:title and og:image:alt, so every word in the
-// picture is also text the build's scans read. A demo's card may also carry a picture of the demo
-// with no word in it (lib/route-lab/og-map.ts), at the card's right edge.
+// picture is also text the build's scans read. A card may also carry a picture with no word in it:
+// the Route Lab's map at the card's right edge (lib/route-lab/og-map.ts), or a lab's line, or the
+// board's lines stacked, across its top (lib/og-lines.ts). A lab's card lights its lamp in the
+// lab's own colour, so a link to it is that lab's before a word is read.
 
 export interface OgCard {
   readonly title: string;
@@ -79,11 +81,19 @@ export interface OgNode {
   };
 }
 
-/** A picture on a card: a PNG as a data URI, at its own size. */
+/** A picture on a card: a PNG as a data URI, at its own size. One as wide as the card goes above
+ *  the words; a narrower one fills the right edge, at the card's full height. */
 export interface OgPicture {
   readonly src: string;
   readonly width: number;
   readonly height: number;
+}
+
+/** What a card carries besides its two strings: a picture as a PNG, and the lab whose colour,
+ *  --line-<slug>, its lamp takes instead of --primary. */
+export interface OgArt {
+  readonly picture?: Buffer | undefined;
+  readonly line?: string | undefined;
 }
 
 const node = (style: OgNode['props']['style'], ...children: (OgNode | string)[]): OgNode => ({
@@ -92,22 +102,26 @@ const node = (style: OgNode['props']['style'], ...children: (OgNode | string)[])
 });
 
 /** The card as satori's element tree. Colors come in, so the tree holds no literal of its own.
- *  With a picture, the text keeps the left of the card and the picture fills the right edge. */
+ *  With a picture at the right, the text keeps the left of the card. With one across the top, the
+ *  text keeps the rest beneath it: the two are boxes side by side or one over the other, never
+ *  layered, so the picture cannot cover a word. */
 export function ogTree(
   card: OgCard,
   colors: Record<'background' | 'foreground' | 'muted' | 'accent', string>,
   picture?: OgPicture,
 ): OgNode {
+  const above = picture?.width === OG_SIZE.width;
   const text = node(
     {
       // Satori sizes boxes as content-box: without border-box, the padding would push the card
       // past the canvas and clip its last line.
-      width: picture ? OG_SIZE.width - picture.width : '100%',
-      height: '100%',
+      width: picture && !above ? OG_SIZE.width - picture.width : '100%',
+      height: picture && above ? OG_SIZE.height - picture.height : '100%',
       boxSizing: 'border-box',
       flexDirection: 'column',
       justifyContent: 'flex-end',
-      padding: '72px',
+      // Under a picture the words need no room above them: the picture's own margin is it.
+      padding: above ? '0 72px 72px' : '72px',
       backgroundColor: colors.background,
       color: colors.foreground,
     },
@@ -142,10 +156,22 @@ export function ogTree(
     ),
   );
   if (!picture) return text;
-  return node({ width: '100%', height: '100%', backgroundColor: colors.background }, text, {
+  const img: OgNode = {
     type: 'img',
     props: { src: picture.src, width: picture.width, height: picture.height },
-  });
+  };
+  return above
+    ? node(
+        {
+          width: '100%',
+          height: '100%',
+          flexDirection: 'column',
+          backgroundColor: colors.background,
+        },
+        img,
+        text,
+      )
+    : node({ width: '100%', height: '100%', backgroundColor: colors.background }, text, img);
 }
 
 /** Every string the tree draws, in order. */
@@ -184,9 +210,10 @@ export function stripPng(png: Buffer): Buffer {
   return Buffer.concat(parts);
 }
 
-/** The card as a PNG, with no metadata chunks (scripts/image-metadata.mjs checks it again). A
- *  picture, a PNG, sits at the card's right edge. */
-export async function renderOg(card: OgCard, picture?: Buffer): Promise<Buffer> {
+/** The card as a PNG, with no metadata chunks (scripts/image-metadata.mjs checks it again), with
+ *  its picture, a PNG, and its lab's colour on the lamp, when it has them. */
+export async function renderOg(card: OgCard, art: OgArt = {}): Promise<Buffer> {
+  const { picture, line } = art;
   const colors = themeColors(tokensCss, 'dark');
   const token = (name: string) => {
     const value = colors.get(name);
@@ -199,7 +226,7 @@ export async function renderOg(card: OgCard, picture?: Buffer): Promise<Buffer> 
       background: token('background'),
       foreground: token('foreground'),
       muted: token('muted-foreground'),
-      accent: token('primary'),
+      accent: token(line ? `line-${line}` : 'primary'),
     },
     picture && {
       src: `data:image/png;base64,${picture.toString('base64')}`,

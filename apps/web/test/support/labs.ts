@@ -20,21 +20,29 @@ export interface SimulatedLab {
 }
 
 /**
- * One row per simulated lab. The Raft Lab keeps the 8,000 B of ADR 0020; the Cache and Backfill
- * Labs have 12,000 B each and the Queue Lab 12,500 B, raises for ADR 0026 to accept or refuse.
- * Measured on 2026-10-30, every chunk a lab's module can load: the Raft Lab 6,861 B in one chunk;
- * the Queue Lab 12,048 B, the Cache Lab 11,005 B and the Backfill Lab 11,319 B, each its app and
- * lib/sim's chunk, 841 B, which all three load: the agenda, the seeded stream and, since the three
- * share one link to a run, the link's reader and writer, 249 B of it. That link took the Queue Lab
- * past 12,000 B. The apps alone: the Queue Lab's 11,207 B, of which the test-only faults are about
- * 118 B and resizing the pool 111 B, which no control reaches; the Cache Lab's 10,164 B, about
- * 7,700 B with every string emptied; and the Backfill Lab's 10,478 B, about 6,200 B of it the
- * simulator, its checker and the model. The Backfill Lab's map class is its board's.
+ * One row per simulated lab. The Raft Lab keeps the 8,000 B of ADR 0020. The others' budgets are
+ * proposed in ADR 0026, each its lab's measure rounded up to the next 500 B, so the next growth
+ * past it is a decision and not a default.
+ *
+ * Measured on 2026-10-31 on the labs' review fixes merged with the signal box, every chunk a lab's
+ * module can load, gzip -9:
+ * - the Raft Lab 7,343 B: its app, 7,016 B, and the link's chunk, 327 B;
+ * - the Queue Lab 12,474 B (budget 12,500 B): its app, 11,555 B, the link's chunk and lib/sim's
+ *   other chunk, the agenda and the seeded stream, 592 B;
+ * - the Cache Lab 11,166 B (11,500 B): its app, 10,247 B, and the same two;
+ * - the Backfill Lab 11,572 B (12,000 B): its app, 10,653 B, and the same two.
+ * The merge moved each app by 13 to 44 B, and no budget.
+ * The Cache and Backfill Labs' branches set 11,000 B each. The link the three share took them past
+ * it on 2026-10-31, to 11,005 and 11,319 B, and the Queue Lab past 12,000 B, to 12,048 B; then the
+ * Raft Lab's link joined it, and the bundler gave the link a chunk of its own, 78 B more for each
+ * of the three. Of the Queue Lab's app, the test-only faults are about 118 B and resizing the pool
+ * 111 B, which no control reaches: ADR 0026 takes them out before any budget is raised again. The
+ * Backfill Lab's map class is its board's.
  */
 export const SIMULATED_LABS = [
   { slug: 'raft', bundle: 'RaftLab', map: 'rf-map', lazyJavaScript: 8_000 },
   { slug: 'queue', bundle: 'QueueLab', map: 'qu-map', lazyJavaScript: 12_500 },
-  { slug: 'cache', bundle: 'CacheLab', map: 'cl-map', lazyJavaScript: 12_000 },
+  { slug: 'cache', bundle: 'CacheLab', map: 'cl-map', lazyJavaScript: 11_500 },
   { slug: 'backfill', bundle: 'BackfillLab', map: 'bf-board', lazyJavaScript: 12_000 },
 ] as const satisfies readonly SimulatedLab[];
 

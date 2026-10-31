@@ -77,6 +77,63 @@ test('on paper the site chrome is gone, the name is at a print size, and links s
   for (const content of paper.contact) expect(content).toBe('none');
 });
 
+// A printed résumé never asks its reader for the résumé (2026-10-31): the sheet in their hand is
+// it. The screen offers the full résumé; paper drops the offer, and drops the Experience section
+// too when nothing is left in it to print. Read as the printed
+// text, so whatever hides the line, or fails to, is what the check sees.
+const ASKS = /on request/i;
+
+/** The résumé's text as the page lays it out, and its Experience section's and that title's. */
+const onPaper = (page: Page) =>
+  page.evaluate(() => {
+    const resume = document.querySelector('.resume') as HTMLElement;
+    const experience = document.querySelector<HTMLElement>('[aria-labelledby="experience-title"]');
+    const title = document.querySelector<HTMLElement>('#experience-title');
+    const printed = (e: HTMLElement | null) => (e?.checkVisibility() ? e.innerText.trim() : '');
+    return {
+      text: resume.innerText,
+      experience: printed(experience),
+      title: printed(title),
+    };
+  });
+
+test('on paper the résumé never asks for the résumé, and Experience prints only what it holds', async ({
+  page,
+}) => {
+  await page.goto(RESUME);
+  await page.emulateMedia({ media: 'print' });
+  const paper = await onPaper(page);
+  expect(paper.text).not.toMatch(ASKS);
+  // A section is never only its title on paper: a heading over nothing reads as a gap.
+  if (paper.experience !== '') expect(paper.experience.length).toBeGreaterThan(paper.title.length);
+});
+
+// The known answer: the same reading finds the offer where it does show, on screen, so a check
+// that read nothing would not pass the paper.
+test('known answer: on screen the same reading finds the offer of the full résumé', async ({
+  page,
+}) => {
+  await page.goto(RESUME);
+  expect((await onPaper(page)).text).toMatch(ASKS);
+});
+
+// The Experience section on paper with no role and no LinkedIn profile, as a profile without either
+// would build it: the class the page sets then hides the whole section, title and all.
+test('known answer: an Experience section with nothing to print is left off the sheet', async ({
+  page,
+}) => {
+  await page.goto(RESUME);
+  await page.evaluate(() => {
+    const section = document.querySelector('[aria-labelledby="experience-title"]');
+    if (!section) throw new Error('the résumé has no Experience section');
+    section.querySelector('.roles')?.remove();
+    section.querySelector('.resume-notes')?.remove();
+    section.classList.add('screen-only');
+  });
+  await page.emulateMedia({ media: 'print' });
+  expect((await onPaper(page)).experience).toBe('');
+});
+
 // A larger default text size scales the printed type with it. The addresses stand beside the name
 // while the two fit across the page, and go under it from a larger size, so the name breaks only
 // between its words. Emulated print lays the page out at the viewport's width, so the viewport is

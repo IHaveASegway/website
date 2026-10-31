@@ -11,6 +11,7 @@ import {
   stripLabel,
   stripMarkup,
   summary,
+  switchWords,
 } from '../../lib/backfill/view';
 import '../../styles/backfill-lab.css';
 import Choice from './Choice.astro';
@@ -21,9 +22,13 @@ import Choice from './Choice.astro';
 // loads the simulation on the visitor's first intent; it replays the same opening, so it takes over
 // exactly where this stands.
 //
-// It all sits on the lab's desk (ADR 0025; global.css, .desk), the controls under a rule from bezel
-// to bezel. Run is a push-button whose lamp is lit while the run is on (app.ts sets data-lamp; its
-// words change, so it is no toggle and has no aria-pressed).
+// It all sits on the lab's desk (ADR 0025; global.css, .desk), in two parts: the picture (the
+// board, the lamps' key, the caption, the strip and the checks) and the panel (the controls, then
+// the log). The controls that play the week, and the choice that fixes it, come first, so on a
+// phone they stand right under the board, and a visitor sees the lamps change as they press;
+// on a wide desk the panel is the column beside the picture (backfill-lab.css). Run is a
+// push-button whose lamp is lit while the run is on (app.ts sets data-lamp; its words change, so
+// it is no toggle and has no aria-pressed).
 const sim = openingRun();
 const board = boardView(sim);
 const checks = propertyViews(sim);
@@ -62,6 +67,9 @@ const PICKS = days.map((day) => ({
   words: weekday(day).slice(0, 3),
   long: weekday(day),
 }));
+/** A failed step's mark, a cross inside its lamp's ring, as the board's lines draw a failed
+ *  station (lines.css, .line-cross), so a cross in a ring means failed wherever it stands. */
+const CROSS = 'M-3.5-3.5l7 7m0-7-7 7';
 const KEY = [
   { lamp: 'hollow', word: 'Not started' },
   { lamp: 'lit', word: 'Running' },
@@ -74,8 +82,14 @@ const KEY = [
 
 <div class="bf desk" id="backfill-lab">
   <div class="bf-stage">
-    <figure class="bf-figure">
-      <div class="bf-board-box" role="region" aria-labelledby="bf-board-name" tabindex="0">
+    <div class="bf-picture">
+      <div
+        class="bf-board-box"
+        role="region"
+        aria-labelledby="bf-board-name"
+        aria-describedby="bf-summary"
+        tabindex="0"
+      >
         <table class="bf-board" data-bf-board>
           <caption class="bf-sr" id="bf-board-name">
             The run board: a row for each day, and a lamp for each step of its run
@@ -119,7 +133,7 @@ const KEY = [
                       <circle class="bf-plate" r="9" />
                       <circle class="bf-halo" r="9" />
                       <circle class="bf-disc" r="6" />
-                      <path class="bf-x" d="M-4.5-4.5l9 9m0-9-9 9" />
+                      <path class="bf-x" d={CROSS} />
                       <path class="bf-hands" d="M0-3.5V0h3" />
                       <path class="bf-dash" d="M-4.5 0h9" />
                     </svg>
@@ -180,59 +194,7 @@ const KEY = [
           </tfoot>
         </table>
       </div>
-      <p class="bf-strip-title">
-        Over time, each day's steps: a hollow bar is a sensor waiting for its file, a filled one a
-        step at work, and a cross an attempt that failed. A dotted track with nothing on it is a run
-        waiting for a slot or a retry, and the upright line is now.
-      </p>
-      <div class="bf-strip-box">
-        <ol class="bf-strip-days" aria-hidden="true">
-          {days.map((day) => (
-            <li>{weekday(day).slice(0, 3)}</li>
-          ))}
-        </ol>
-        <svg
-          class="bf-strip"
-          height={STRIP_HEIGHT}
-          role="img"
-          aria-label={stripLabel(sim)}
-          data-bf-strip
-          set:html={stripMarkup(sim)}
-        />
-      </div>
-      <figcaption class="bf-summary" id="bf-summary" data-bf-summary>
-        {summary(sim)}
-      </figcaption>
-    </figure>
 
-    <section class="bf-checks-block" aria-labelledby="bf-checks">
-      <h2 class="bf-heading" id="bf-checks">
-        Checked after every event
-      </h2>
-      <ul class="bf-checks" aria-labelledby="bf-checks" role="list">
-        {checks.map((check) => (
-          <li class="bf-check" data-bf-check={check.id} data-lamp={check.held ? 'filled' : 'cross'}>
-            <svg class="bf-lamp" viewBox="-11 -11 22 22" aria-hidden="true">
-              <circle class="bf-plate" r="9" />
-              <circle class="bf-disc" r="6" />
-              <path class="bf-x" d="M-4.5-4.5l9 9m0-9-9 9" />
-            </svg>
-            <span>
-              <span class="bf-check-name">{check.name}</span>
-              <span class="bf-check-word" data-bf-check-word>
-                {check.word}
-              </span>
-            </span>
-          </li>
-        ))}
-      </ul>
-    </section>
-
-    <div class="bf-side">
-      <p class="bf-clock" data-bf-js>
-        <span data-bf-clock>{when(sim.now)}</span>, <span data-bf-events>{eventsText(sim)}</span>,
-        seed <span data-bf-seed>{sim.seed}</span>
-      </p>
       <ul class="bf-key" aria-label="What the lamps mean" role="list">
         {KEY.map((item) => (
           <li data-lamp={item.lamp}>
@@ -240,7 +202,7 @@ const KEY = [
               <circle class="bf-plate" r="9" />
               <circle class="bf-halo" r="9" />
               <circle class="bf-disc" r="6" />
-              <path class="bf-x" d="M-4.5-4.5l9 9m0-9-9 9" />
+              <path class="bf-x" d={CROSS} />
               <path class="bf-hands" d="M0-3.5V0h3" />
               <path class="bf-dash" d="M-4.5 0h9" />
             </svg>
@@ -248,76 +210,146 @@ const KEY = [
           </li>
         ))}
       </ul>
-    </div>
 
-    <div class="bf-events">
-      <h2 class="bf-heading" id="bf-events">
-        What happened
-      </h2>
-      <div class="bf-lines" role="log" aria-live="off" aria-labelledby="bf-events" tabindex="0">
-        <ol class="bf-list" data-bf-lines>
-          {lines.map((line) => (
-            <li>
-              <span class="bf-at">{lineTime(line.at)}</span> {line.text}
+      <p class="bf-summary" id="bf-summary" data-bf-summary>
+        {summary(sim)}
+      </p>
+
+      <div class="bf-strip-part">
+        <p class="bf-strip-title">
+          Over time, each day's steps: a hollow bar is a sensor waiting for its file, a filled one a
+          step at work, and a cross an attempt that failed. A dotted track with nothing on it is a
+          run waiting for a slot or a retry, and the upright line is now.
+        </p>
+        <div class="bf-strip-box">
+          <ol class="bf-strip-days" aria-hidden="true">
+            {days.map((day) => (
+              <li>{weekday(day).slice(0, 3)}</li>
+            ))}
+          </ol>
+          <svg
+            class="bf-strip"
+            height={STRIP_HEIGHT}
+            role="img"
+            aria-label={stripLabel(sim)}
+            data-bf-strip
+            set:html={stripMarkup(sim)}
+          />
+        </div>
+      </div>
+
+      <section class="bf-checks-block" aria-labelledby="bf-checks">
+        <h2 class="bf-heading" id="bf-checks">
+          Checked after every event
+        </h2>
+        <ul class="bf-checks" aria-labelledby="bf-checks" role="list">
+          {checks.map((check) => (
+            <li
+              class="bf-check"
+              data-bf-check={check.id}
+              data-lamp={check.held ? 'filled' : 'cross'}
+            >
+              <svg class="bf-lamp" viewBox="-11 -11 22 22" aria-hidden="true">
+                <circle class="bf-plate" r="9" />
+                <circle class="bf-disc" r="6" />
+                <path class="bf-x" d={CROSS} />
+              </svg>
+              <span>
+                <span class="bf-check-name">{check.name}</span>
+                <span class="bf-check-word" data-bf-check-word>
+                  {check.word}
+                </span>
+              </span>
             </li>
           ))}
-        </ol>
+        </ul>
+      </section>
+    </div>
+
+    <div class="bf-panel">
+      <div class="bf-controls bf-play" data-bf-js>
+        <p class="bf-clock">
+          <span data-bf-clock>{when(sim.now)}</span>, <span data-bf-events>{eventsText(sim)}</span>,
+          seed <span data-bf-seed>{sim.seed}</span>
+        </p>
+        <div class="bf-row" role="group" aria-label="Time">
+          <button type="button" class="btn bf-run-button" data-lamp="off" data-bf-run>
+            Run
+          </button>
+          <button type="button" class="btn" data-bf-step>
+            Next event
+          </button>
+          <button type="button" class="btn" data-bf-reset>
+            Start over
+          </button>
+          <Choice legend="Speed" name="bf-speed" options={SPEEDS} checked="6" />
+        </div>
+        <div class="bf-row" role="group" aria-label="Its loads">
+          <Choice legend="How a load writes" name="bf-mode" options={MODES} checked={sim.mode} />
+        </div>
+        <p class="bf-sr" role="status" data-bf-said></p>
+      </div>
+
+      <div class="bf-controls bf-more" data-bf-js>
+        <div class="bf-row" role="group" aria-label="The job">
+          <button
+            type="button"
+            class="btn bf-switch"
+            aria-disabled={sim.on ? 'true' : undefined}
+            data-bf-on
+          >
+            {switchWords(sim)}
+          </button>
+          <Choice
+            legend="Runs at once"
+            name="bf-runs"
+            options={RUNS}
+            checked={String(sim.maxActiveRuns)}
+          />
+        </div>
+        <div class="bf-row" role="group" aria-label="Where its loads write">
+          <Choice
+            legend="Which day a load writes"
+            name="bf-partition"
+            options={PARTITIONS}
+            checked={sim.partition}
+          />
+        </div>
+        <div class="bf-row" role="group" aria-label="One day">
+          <Choice legend="Day" name="bf-day" options={PICKS} checked="0" />
+          <button type="button" class="btn" data-bf-fail>
+            <span>
+              Fail <span data-bf-picked>{weekday(0)}</span>'s next load
+            </span>
+          </button>
+          <button type="button" class="btn" data-bf-late>
+            <span>
+              Make <span data-bf-picked>{weekday(0)}</span>'s file {LATE_BY / 60} hours late
+            </span>
+          </button>
+          <button type="button" class="btn" data-bf-clear>
+            <span>
+              Clear <span data-bf-picked>{weekday(0)}</span> and rerun it
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <div class="bf-events">
+        <h2 class="bf-heading" id="bf-events">
+          What happened
+        </h2>
+        <div class="bf-lines" role="log" aria-live="off" aria-labelledby="bf-events" tabindex="0">
+          <ol class="bf-list" data-bf-lines>
+            {lines.map((line) => (
+              <li>
+                <span class="bf-at">{lineTime(line.at)}</span> {line.text}
+              </li>
+            ))}
+          </ol>
+        </div>
       </div>
     </div>
-  </div>
-
-  <div class="bf-controls" data-bf-js>
-    <div class="bf-row" role="group" aria-label="Time">
-      <button type="button" class="btn bf-run-button" data-lamp="off" data-bf-run>
-        Run
-      </button>
-      <button type="button" class="btn" data-bf-step>
-        Next event
-      </button>
-      <Choice legend="Speed" name="bf-speed" options={SPEEDS} checked="6" />
-      <button type="button" class="btn" data-bf-reset>
-        Start over
-      </button>
-    </div>
-    <div class="bf-row" role="group" aria-label="The job">
-      <button type="button" class="btn" aria-pressed="true" data-bf-on>
-        Switch the job on
-      </button>
-      <Choice
-        legend="Runs at once"
-        name="bf-runs"
-        options={RUNS}
-        checked={String(sim.maxActiveRuns)}
-      />
-    </div>
-    <div class="bf-row" role="group" aria-label="Its loads">
-      <Choice legend="How a load writes" name="bf-mode" options={MODES} checked={sim.mode} />
-      <Choice
-        legend="Which day a load writes"
-        name="bf-partition"
-        options={PARTITIONS}
-        checked={sim.partition}
-      />
-    </div>
-    <div class="bf-row" role="group" aria-label="One day">
-      <Choice legend="Day" name="bf-day" options={PICKS} checked="0" />
-      <button type="button" class="btn" data-bf-fail>
-        <span>
-          Fail <span data-bf-picked>{weekday(0)}</span>'s next load
-        </span>
-      </button>
-      <button type="button" class="btn" data-bf-late>
-        <span>
-          Make <span data-bf-picked>{weekday(0)}</span>'s file {LATE_BY / 60} hours late
-        </span>
-      </button>
-      <button type="button" class="btn" data-bf-clear>
-        <span>
-          Clear <span data-bf-picked>{weekday(0)}</span> and rerun it
-        </span>
-      </button>
-    </div>
-    <p class="bf-sr" role="status" data-bf-said></p>
   </div>
 </div>
 

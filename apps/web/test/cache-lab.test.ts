@@ -9,7 +9,16 @@ import {
   stripPaths,
 } from '../src/components/cache-lab/picture';
 import { LOADS, NODES, PAGES } from '../src/lib/cache/core';
-import { flush, loseNode, replay, setToggle, write, type Sim } from '../src/lib/cache/sim';
+import {
+  flush,
+  loseNode,
+  nextTime,
+  replay,
+  runUntil,
+  setToggle,
+  write,
+  type Sim,
+} from '../src/lib/cache/sim';
 import {
   clockWords,
   linkTo,
@@ -30,6 +39,7 @@ import {
   stripWords,
   summary,
   waiting,
+  whereWords,
   type Bucket,
 } from '../src/lib/cache/view';
 
@@ -186,7 +196,20 @@ test('the lines: three readers join into one at each node, and each node runs on
 test('the labels say the load and the clock', () => {
   const sim = openingRun();
   expect(readersWords(sim)).toBe('Readers, 300 a second');
-  expect(clockWords(sim)).toBe('Virtual time 5.000 s, seed 7');
+  expect(clockWords(sim)).toBe('Virtual time 5.000 s, 1,704 events, seed 7');
+});
+
+test('where a run stands reads differently at each moment Next event reaches, two in one millisecond too', () => {
+  const sim = openingRun();
+  const said: string[] = [];
+  for (let i = 0; i < 40; i++) {
+    runUntil(sim, nextTime(sim));
+    said.push(whereWords(sim));
+  }
+  expect(new Set(said).size).toBe(said.length);
+  // Some of those moments share their millisecond: the events counted tell them apart.
+  const times = said.map((words) => /^Virtual time (\S+) s/.exec(words)?.[1]);
+  expect(new Set(times).size).toBeLessThan(times.length);
 });
 
 test('the picture is named by what its parts show, not by the caption’s account of the run', () => {
@@ -222,7 +245,7 @@ test('Start over, and the first Run, play from half a second before the menu exp
   expect(REPLAY_FROM).toBe(2_500);
   const before = at(REPLAY_FROM);
   expect(menuWords(before)).toBe('Menu, fresh until 3.0 s');
-  expect(clockWords(before)).toBe('Virtual time 2.500 s, seed 7');
+  expect(clockWords(before)).toBe('Virtual time 2.500 s, 789 events, seed 7');
   // Played on, the same run reaches the opening's moment: the same events, the same caption.
   expect(summary(replay(OPENING.config, [], OPENING.until))).toBe(summary(openingRun()));
 });

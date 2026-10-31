@@ -7,7 +7,9 @@ import { expect, test, type Page } from '@playwright/test';
 // between Run and Pause, and a hidden tab pauses it; each of the lab entry's "Three things to try"
 // plays on the page with the entry's own numbers, in the entry's own steps; under reduced motion
 // time moves in still steps of whole minutes; a link to a seed draws that seed's week, every
-// column of it; and the page meets axe after a run, since script redrew it.
+// column of it; Start over goes back to the switch, so Run plays the failed load and the day
+// counted twice as they happen; the controls that play the week stand by the board, on a phone
+// and on a laptop; and the page meets axe after a run, since script redrew it.
 
 const BACKFILL = '/lab/backfill/';
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
@@ -42,21 +44,21 @@ async function minutes(page: Page): Promise<number> {
   return Number(h) * 60 + Number(m);
 }
 
-/** Start over: the opening's week under the chosen settings, drawn at once. */
+/** Start over: the opening's week under the chosen settings, back at its switch, the job off. */
 async function startOver(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Start over' }).click();
   await expect(page.locator('[data-bf-said]')).toHaveText(
-    /^The week starts over under these settings, and stands at /,
+    'The week starts over under these settings, at 00:00, before the job is switched on. Press Run to watch it.',
   );
+  await expect(page.locator('[data-bf-clock]')).toHaveText('00:00 on Monday 26 October');
 }
 
 /** Make Monday's file late on a week whose Monday has found it: the week goes back to before the
  *  job is switched on, so a run from 00:00 can be watched. */
 async function rewind(page: Page): Promise<void> {
   await page.getByRole('button', { name: "Make Monday's file 5 hours late" }).click();
-  await expect(page.getByRole('button', { name: 'Switch the job on' })).toHaveAttribute(
-    'aria-pressed',
-    'false',
+  await expect(page.getByRole('button', { name: 'Switch the job on' })).not.toHaveAttribute(
+    'aria-disabled',
   );
   await expect(page.locator('[data-bf-clock]')).toHaveText('00:00 on Monday 26 October');
 }
@@ -184,20 +186,25 @@ test('with the job off, Next event and Run switch it on first, so the clock neve
   await rewind(page);
   await expect(summary(page)).toHaveText(/^The job graph is off\./);
   await page.getByRole('button', { name: 'Next event' }).click();
-  await expect(page.getByRole('button', { name: 'Switch the job on' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  // The switch only switches on, so it is no toggle: once the job is on it says so, unavailable.
+  const on = page.getByRole('button', { name: 'Job on since 00:00' });
+  await expect(on).toHaveAttribute('aria-disabled', 'true');
+  await expect(on).not.toHaveAttribute('aria-pressed');
   await expect(page.locator('[data-bf-clock]')).toHaveText('00:00 on Monday 26 October');
   await expect(page.locator('[data-bf-said]')).toHaveText(
     /^The job graph is switched on with catch-up, which creates all 7 days' runs at once; 3 may run at a time\./,
   );
-  // Back before the switch from the opening again, Run switches it on at 00:00 and plays.
+  // Unavailable, it is still a button a keyboard reaches, and pressed it says why it does nothing.
+  await on.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('[data-bf-said]')).toHaveText(
+    'The job is on already: it was switched on at 00:00.',
+  );
+  // Back before the switch again, Run switches it on at 00:00 and plays.
   await startOver(page);
-  await rewind(page);
   await page.getByRole('button', { name: 'Run', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Switch the job on' })).toHaveAttribute(
-    'aria-pressed',
+  await expect(page.getByRole('button', { name: 'Job on since 00:00' })).toHaveAttribute(
+    'aria-disabled',
     'true',
   );
   await expect(page.locator('[data-bf-lines] li').filter({ hasText: 'is switched on' })).toHaveText(
@@ -224,9 +231,10 @@ test('watch Wednesday count twice; then overwrite the day and start over, and ev
     "Loads now overwrite their day's partition in one atomic step.",
   );
   await startOver(page);
-  // As the entry says, and at once: Start over keeps the choice, and Wednesday's first load
-  // fails again, but this time it leaves nothing behind.
+  // As the entry says, once the week is run: Start over keeps the choice, and Wednesday's first
+  // load fails again, but this time it leaves nothing behind.
   await expect(page.getByRole('radio', { name: 'Overwrite the day' })).toBeChecked();
+  await runToTheEnd(page);
   await expect(summary(page)).toHaveText(
     "Every run has finished, and all 7 succeeded. Every day's total matches the source: 2,012 orders in all.",
   );
@@ -247,8 +255,9 @@ test("write to today: every day's orders land on Monday 26 October, and every ch
 }) => {
   await page.goto(BACKFILL);
   await page.getByRole('radio', { name: 'Today, by the clock' }).check();
-  // The backfill runs again under the clock's day as the week starts over.
+  // The backfill runs again under the clock's day as the week starts over and runs.
   await startOver(page);
+  await runToTheEnd(page);
   // Every check finds its day empty and fails, and every run with it.
   await expect(summary(page)).toHaveText(
     "Every run has finished, and all 7 failed. 7 days show no orders in the report, because their rows were filed under Monday 26 October, the clock's day.",
@@ -293,6 +302,7 @@ test("rerun a finished day: with append Tuesday's total doubles; with overwrite 
 
   await page.getByRole('radio', { name: 'Overwrite the day' }).check();
   await startOver(page);
+  await runToTheEnd(page);
   await expect(tuesday.locator('[data-bf-report]')).toHaveText('379');
   await page.getByRole('button', { name: 'Clear Tuesday and rerun it' }).click();
   await runToTheEnd(page);
@@ -411,6 +421,7 @@ test("a link to a week opens it: #seed-12 draws that seed's week, every column o
   await seedTwelve();
   await startOver(page);
   await expect(page.locator('[data-bf-seed]')).toHaveText('12');
+  await runToTheEnd(page);
   await seedTwelve();
 });
 
@@ -438,13 +449,19 @@ test('Start over writes the link to its week, the seed and each setting changed,
   // The address names the week and replaces itself: no new entry in the history.
   expect(new URL(page.url()).hash).toBe('#seed-9&mode=overwrite&runs=1');
   expect(await page.evaluate(() => history.length)).toBe(entries);
-  const before = await shown(page);
-  expect(before[3]).not.toBe(OPENING_SUMMARY);
+  await runToTheEnd(page);
+  const played = await shown(page);
+  expect(played[3]).not.toBe(OPENING_SUMMARY);
   await page.reload();
-  // The link loads the app with no other intent, and the week it opens has the settings chosen.
+  // The link loads the app with no other intent, and the week it opens has the settings chosen,
+  // standing where the build's picture stands, at 02:10; Start over there takes it back to its
+  // switch, and played, it is the same week.
   await expect(page.getByRole('radio', { name: 'Overwrite the day' })).toBeChecked();
   await expect(page.getByRole('radio', { name: '1 run at once' })).toBeChecked();
-  expect(await shown(page)).toEqual(before);
+  await expect(page.locator('[data-bf-clock]')).toHaveText('02:10 on Monday 26 October');
+  await startOver(page);
+  await runToTheEnd(page);
+  expect(await shown(page)).toEqual(played);
 });
 
 test('a link followed on the page opens its week paused where the build’s would stand, and a value the lab cannot take is left out', async ({
@@ -473,15 +490,279 @@ test('a link followed on the page opens its week paused where the build’s woul
   await page.evaluate(() => (location.hash = '#seed-12'));
   await expect(page.getByRole('radio', { name: "The run's own day" })).toBeChecked();
   const bare = await shown(page);
+  // Followed from another seed's week under other settings, so a page that ignored it would show
+  // that week instead.
+  await page.evaluate(() => (location.hash = '#seed-9&mode=overwrite&runs=1'));
+  await expect(page.locator('[data-bf-seed]')).toHaveText('9');
+  await expect(page.getByRole('radio', { name: '1 run at once' })).toBeChecked();
   await page.evaluate(
     () => (location.hash = '#seed-12&runs=9&mode=delete&partition=yesterday&colour=red'),
   );
+  await expect(page.locator('[data-bf-seed]')).toHaveText('12');
   await expect(page.getByRole('radio', { name: '3 runs at once' })).toBeChecked();
+  await expect(page.getByRole('radio', { name: 'Append rows' })).toBeChecked();
   expect(await shown(page)).toEqual(bare);
   // A hash that links to no week, as the skip link's, leaves the week alone.
   await page.evaluate(() => (location.hash = '#main'));
   await page.waitForTimeout(200);
   expect(await shown(page)).toEqual(bare);
+});
+
+test('a link followed before the app has loaded loads it, and opens that week with its settings', async ({
+  page,
+}) => {
+  const app: string[] = [];
+  page.on('request', (r) => /\/_astro\/app\./.test(r.url()) && app.push(r.url()));
+  await page.goto(BACKFILL);
+  await page.waitForTimeout(300);
+  expect(app).toEqual([]);
+  // The boot script hears the link and loads the app, which opens the week the link names.
+  await page.evaluate(() => (location.hash = '#seed-12&mode=overwrite'));
+  await expect(page.locator('[data-bf-seed]')).toHaveText('12');
+  await expect(page.getByRole('radio', { name: 'Overwrite the day' })).toBeChecked();
+  expect(app).toHaveLength(1);
+});
+
+test('the opening’s week has happened, so Run plays it again from the switch, and Next event steps it from there', async ({
+  page,
+}) => {
+  await page.goto(BACKFILL);
+  await page.locator('[data-bf-board]').hover();
+  await expect(page.locator('[data-bf-lines] li')).not.toHaveCount(0);
+  const opening = await shown(page);
+  await page.getByRole('button', { name: 'Run', exact: true }).click();
+  // Back at the switch, said, and on the clock: the week plays as the entry tells it.
+  await expect(page.locator('[data-bf-said]')).toHaveText(
+    /^The week plays again from the switch\. The job graph is switched on with catch-up/,
+  );
+  expect(await minutes(page)).toBeLessThan(60);
+  await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
+  await page.getByRole('radio', { name: 'Quick' }).check();
+  await expect(page.locator('[data-bf-lines]')).toContainText(
+    "Wednesday's load fails after appending 96 of its 179 rows, and they stay in the report",
+    { timeout: 20_000 },
+  );
+  // It stops where the picture stood, the same week: board, caption, clock and log.
+  await expect(summary(page)).toHaveText(OPENING_SUMMARY, { timeout: 20_000 });
+  await expect(page.getByRole('button', { name: 'Run', exact: true })).toBeVisible();
+  expect(await shown(page)).toEqual(opening);
+  // Next event on a finished week takes it back to the switch too, one step at a time.
+  await page.getByRole('button', { name: 'Next event' }).click();
+  await expect(page.locator('[data-bf-clock]')).toHaveText('00:00 on Monday 26 October');
+  await expect(page.locator('[data-bf-said]')).toHaveText(
+    /^The week plays again from the switch\. /,
+  );
+  await expect(page.locator('[data-bf-events]')).toHaveText('0 events');
+});
+
+test('the log shows its newest line once the app wakes, as it does for a link', async ({
+  page,
+}) => {
+  await page.goto(BACKFILL);
+  const box = page.locator('.bf-lines');
+  // The build writes the log oldest first, and it is longer than its box.
+  expect(await box.evaluate((b) => b.scrollHeight > b.clientHeight && b.scrollTop === 0)).toBe(
+    true,
+  );
+  await page.locator('[data-bf-board]').hover();
+  await expect
+    .poll(() => box.evaluate((b) => b.scrollHeight - b.clientHeight - b.scrollTop))
+    .toBeLessThanOrEqual(1);
+});
+
+test('a choice shows its focus around its whole push-button, as a button does', async ({
+  page,
+}) => {
+  await page.goto(BACKFILL);
+  await page.getByRole('button', { name: 'Start over' }).focus();
+  await page.keyboard.press('Tab');
+  const steady = page.getByRole('radio', { name: 'Steady' });
+  await expect(steady).toBeFocused();
+  const ring = await steady.evaluate((input) => {
+    const style = getComputedStyle(input);
+    const own = input.getBoundingClientRect();
+    const button = (input.closest('label') as HTMLElement).getBoundingClientRect();
+    return {
+      style: style.outlineStyle,
+      width: parseFloat(style.outlineWidth),
+      around: own.width >= button.width && own.height >= button.height,
+    };
+  });
+  expect(ring).toEqual({ style: 'solid', width: 2, around: true });
+});
+
+// The review of 2026-10-31: Start over landed on a finished week, past the failed load and the day
+// counted twice, so the lab's one story could only be read, never watched. It goes back to the
+// switch now, and Run plays both as they happen: every value Wednesday's report and its load's
+// lamp take on screen is recorded, so a run that leapt past them would fail.
+test('Start over goes back to the switch, and Run plays the failed load and the day counted twice as they happen', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto(BACKFILL);
+  await startOver(page);
+  await expect(page.locator('[data-bf-events]')).toHaveText('0 events');
+  await expect(summary(page)).toHaveText(/^The job graph is off\./);
+  await expect(day(page, 2).locator('[data-bf-report]')).toHaveText('');
+  await expect(page.getByRole('button', { name: 'Switch the job on' })).not.toHaveAttribute(
+    'aria-disabled',
+  );
+  await page.evaluate(() => {
+    const wednesday = document.querySelector('[data-bf-day="2"]');
+    const report = wednesday?.querySelector('[data-bf-report]');
+    const load = wednesday?.querySelector('[data-bf-step="3"]');
+    const seen = { report: [report?.textContent ?? ''], load: [load?.getAttribute('data-lamp')] };
+    Object.defineProperty(window, '__wednesday', { value: seen });
+    new MutationObserver(() => {
+      const [text, lamp] = [report?.textContent ?? '', load?.getAttribute('data-lamp')];
+      if (seen.report.at(-1) !== text) seen.report.push(text);
+      if (seen.load.at(-1) !== lamp) seen.load.push(lamp);
+    }).observe(wednesday as Node, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+      attributes: true,
+    });
+  });
+  await runToTheEnd(page);
+  await expect(summary(page)).toHaveText(OPENING_SUMMARY);
+  const seen = await page.evaluate(
+    () => (window as unknown as { __wednesday: { report: string[]; load: string[] } }).__wednesday,
+  );
+  // Empty, then the 96 rows the failed load left, then 275 once the retry appended all 179.
+  expect(seen.report).toEqual(['', '96', '275']);
+  // Not started, waiting for a slot, running, failed and waiting to retry, running again, done.
+  expect(seen.load).toEqual(['hollow', 'lit', 'clock', 'lit', 'filled']);
+});
+
+test('the job’s switch says since when the job is on, and Start over makes it a switch again', async ({
+  page,
+}) => {
+  await page.goto(BACKFILL);
+  const on = page.getByRole('button', { name: 'Job on since 00:00' });
+  await expect(on).toHaveAttribute('aria-disabled', 'true');
+  await startOver(page);
+  await page.getByRole('button', { name: 'Switch the job on' }).click();
+  // Pressed, the runs are there to see: the first three running, the rest waiting for a slot.
+  await expect(on).toHaveAttribute('aria-disabled', 'true');
+  await expect(page.locator('[data-bf-run-word]')).toHaveText([
+    'running',
+    'running',
+    'running',
+    'waiting',
+    'waiting',
+    'waiting',
+    'waiting',
+  ]);
+});
+
+// The review of 2026-10-31 (LAB-1): on a phone Run stood 1,145 px under the board, and on a laptop
+// under the fold, so a press could not be watched. The board and the controls that play the week
+// fit one screen now, at a phone's size and a laptop's, with nothing pinned to get there.
+for (const [width, height] of [
+  [390, 844],
+  [768, 1024],
+  [1024, 768],
+  [1440, 900],
+] as const) {
+  test(`at ${width} by ${height}, the board and the controls that play the week fit one screen`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto(BACKFILL);
+    const span = await page.evaluate(() => {
+      const box = (selector: string) => {
+        const rect = document.querySelector(selector)?.getBoundingClientRect();
+        return rect ? [rect.top + scrollY, rect.bottom + scrollY] : [NaN, NaN];
+      };
+      const parts = [
+        '.bf-board-box',
+        '[data-bf-run]',
+        '[data-bf-step]',
+        '[data-bf-reset]',
+        'input[name="bf-speed"]',
+        'input[name="bf-mode"][value="overwrite"]',
+      ].map(box);
+      const pinned = [...document.querySelectorAll('#backfill-lab *')].filter((e) =>
+        ['sticky', 'fixed'].includes(getComputedStyle(e).position),
+      );
+      return {
+        top: Math.min(...parts.map(([top]) => top as number)),
+        bottom: Math.max(...parts.map(([, bottom]) => bottom as number)),
+        pinned: pinned.length,
+        across: document.documentElement.scrollWidth,
+      };
+    });
+    expect(span.bottom - span.top).toBeLessThanOrEqual(height);
+    expect(span.pinned).toBe(0);
+    expect(span.across).toBe(width);
+  });
+}
+
+// The review of 2026-10-31 (BF-1): at 1,280 px the heads ran together, "Wait for the fileExtract",
+// as a window's width chose where "for the file" went. The board's own width chooses now.
+for (const width of [390, 768, 1024, 1280, 1366, 1440, 1920]) {
+  test(`at ${width} px, no head of the board touches the next`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(BACKFILL);
+    await page.evaluate(() => document.fonts.ready);
+    const touching = await page.evaluate(() => {
+      // The words' own boxes, never their elements': a staggered head is padded under its word.
+      const heads = [...document.querySelectorAll('.bf-board thead th')].map((th) => {
+        const words = document.createTreeWalker(th, NodeFilter.SHOW_TEXT);
+        const rects: DOMRect[] = [];
+        for (let text = words.nextNode(); text; text = words.nextNode()) {
+          const range = document.createRange();
+          range.selectNodeContents(text);
+          rects.push(...range.getClientRects());
+        }
+        // Only what is drawn: the words assistive technology alone reads are 1 px.
+        return rects.filter((r) => r.width > 1 && r.height > 1);
+      });
+      const found: string[] = [];
+      heads.forEach((rects, i) => {
+        for (const a of rects)
+          for (const b of heads[i + 1] ?? [])
+            if (
+              a.right + 4 > b.left &&
+              b.right + 4 > a.left &&
+              a.bottom > b.top &&
+              b.bottom > a.top
+            )
+              found.push(`${i} and ${i + 1}`);
+      });
+      return found;
+    });
+    expect(touching).toEqual([]);
+  });
+}
+
+test('on a phone every choice is a 44 px target, and a failed step is a crossed lamp in the line’s colour', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(BACKFILL);
+  const small = await page.evaluate(() =>
+    [...document.querySelectorAll('.bf-option')].flatMap((option) => {
+      const { width, height } = option.getBoundingClientRect();
+      return width < 44 || height < 44 ? [`${option.textContent?.trim()}: ${width}x${height}`] : [];
+    }),
+  );
+  expect(small).toEqual([]);
+  // Wednesday's check failed: its ring and its cross are drawn, both in the line's colour, the
+  // colour a hollow lamp's ring has.
+  const failed = await lamp(page, 2, CHECK).evaluate((cell) => {
+    const style = (selector: string) => getComputedStyle(cell.querySelector(selector) as Element);
+    const hollow = document.querySelector('[data-lamp="hollow"] .bf-disc');
+    return {
+      ring: style('.bf-disc').display !== 'none',
+      cross: style('.bf-x').display !== 'none',
+      colours: [style('.bf-disc').stroke, style('.bf-x').stroke],
+      line: hollow ? getComputedStyle(hollow).stroke : '',
+    };
+  });
+  expect(failed.ring && failed.cross).toBe(true);
+  expect(failed.colours).toEqual([failed.line, failed.line]);
 });
 
 for (const colorScheme of ['light', 'dark'] as const) {
@@ -490,8 +771,6 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await page.goto(BACKFILL);
     await page.getByRole('radio', { name: 'Today, by the clock' }).check();
     await startOver(page);
-    await expect(page.locator('[data-bf-stray]')).toBeVisible();
-    await rewind(page);
     await page.getByRole('button', { name: 'Switch the job on' }).click();
     for (let i = 0; i < 12; i++) await page.getByRole('button', { name: 'Next event' }).click();
     await expect(page.locator('[data-bf-step][data-lamp="lit"]').first()).toBeVisible();

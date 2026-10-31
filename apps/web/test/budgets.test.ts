@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { declaredFonts, gzipBytes, preloadedFonts } from '../src/lib/weights';
+import { declaredFonts, gzipBytes, preloadedFonts, preloadedScripts } from '../src/lib/weights';
 import { bytes, fileFor, files, html, kinds, read } from './support/dist';
 import { labEntry, labName, labTitle, SIMULATED_LABS } from './support/labs';
 import {
@@ -106,8 +106,7 @@ describe('the Route Lab', () => {
     () => {
       const figures = measure(page ?? '');
       expect(declaredFonts(page ?? '')).toEqual(expect.arrayContaining(preloadedFonts(page ?? '')));
-      const firstView =
-        gzipBytes(page ?? '') + figures.css + figures.declaredFonts + figures.eagerJavaScript;
+      const firstView = figures.firstView;
       expect(firstView).toBeLessThanOrEqual(feature.firstView);
       const firstSolve = firstView + gz(data ?? '') + lazyBytes + wasmBytes;
       expect(firstSolve).toBeLessThanOrEqual(feature.firstSolve);
@@ -126,9 +125,7 @@ describe('the Route Lab', () => {
   test.runIf(page !== null)(
     `its first view, the app, the route data and the cube stay within ${feature.cube.firstCube} B`,
     () => {
-      const figures = measure(page ?? '');
-      const firstView =
-        gzipBytes(page ?? '') + figures.css + figures.declaredFonts + figures.eagerJavaScript;
+      const { firstView } = measure(page ?? '');
       const appBytes = ownJs.filter((f) => !f.endsWith('.mjs')).reduce((s, f) => s + gz(f), 0);
       expect(firstView + appBytes + gz(data ?? '') + cubeBytes).toBeLessThanOrEqual(
         feature.cube.firstCube,
@@ -176,13 +173,11 @@ for (const lab of SIMULATED_LABS) {
       expect([...reachable(feature.page)].sort()).toEqual([...loads].sort());
     });
 
+    const firstView = page === null ? 0 : measure(page).firstView + lazyBytes;
     test.runIf(page !== null)(
-      `its first view, and with its app, stays within ${feature.firstView} B`,
+      `its first view, and with its app: ${firstView} B of ${feature.firstView}`,
       () => {
-        const figures = measure(page ?? '');
-        const firstView =
-          gzipBytes(page ?? '') + figures.css + figures.declaredFonts + figures.eagerJavaScript;
-        expect(firstView + lazyBytes).toBeLessThanOrEqual(feature.firstView);
+        expect(firstView).toBeLessThanOrEqual(feature.firstView);
       },
     );
   });
@@ -234,10 +229,7 @@ describe("Home's scene", () => {
   });
 
   test(`Home's first view, with it, stays within ${feature.firstView} B`, () => {
-    const page = read(feature.page);
-    const figures = measure(page);
-    const firstView =
-      gzipBytes(page) + figures.css + figures.declaredFonts + figures.eagerJavaScript;
+    const { firstView } = measure(read(feature.page));
     expect(firstView + lazyBytes + dataBytes).toBeLessThanOrEqual(feature.firstView);
   });
 });
@@ -259,6 +251,27 @@ test('known answers: the measure counts inline scripts and styles, and skips dat
   expect(figures.css).toBe(gzipBytes('a{color:red}'));
   expect(figures.preloadedFonts).toBe(0);
   expect(figures.declaredFonts).toBe(0);
+  // The first view counts the page, which holds its inline code: once, not again beside it.
+  expect(figures.firstView).toBe(gzipBytes(page));
+});
+
+test('known answers: a page that preloads a module loads it eagerly, with what that imports', () => {
+  expect(
+    preloadedScripts(
+      '<link rel="modulepreload" href="/_astro/a.js"><link rel="preload" as="script" href="/_astro/b.js">' +
+        '<link rel="preload" href="/_astro/fonts/c.woff2" as="font"><link rel="stylesheet" href="/_astro/d.css">',
+    ),
+  ).toEqual(['/_astro/a.js', '/_astro/b.js']);
+  // Every chunk a simulated lab loads, preloaded by some page, is that page's eager JavaScript, so
+  // the check that nothing a lab loads is loaded eagerly by any page would refuse it.
+  for (const lab of SIMULATED_LABS) {
+    const loads = reachableFrom(files.filter((file) => labEntry(lab).test(file)));
+    for (const file of loads) {
+      const page = `<link rel="modulepreload" href="/${file}">`;
+      expect(eagerFiles(page), file).toContain(file);
+      expect(measure(page).eagerJavaScript).toBeGreaterThanOrEqual(gz(file));
+    }
+  }
 });
 
 test('known answers: a page declares each face its @font-face names once, preloaded or not', () => {

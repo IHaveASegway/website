@@ -9,8 +9,11 @@
   this file declares no transition and no animation.
 
   The page's head is the lab's line (PageHead.astro), and the demo is the lab's desk (ADR 0025;
-  global.css, .desk): the controls and the event log are set apart from the picture by rules from
-  bezel to bezel, and what stands on the desk takes its surface, --surface-1, for ground.
+  global.css, .desk), and what stands on it takes its surface, --surface-1, for ground. The
+  picture's own controls stand right under it with no rule between, as an instrument's knobs do,
+  so the picture and the controls a visitor tries it with fit one screen, a phone's too: nothing
+  is pinned to the screen, so nothing covers the words. The settings a run is tried under and the
+  event log follow, each set apart by a rule from bezel to bezel.
 */
 
 .qu {
@@ -40,14 +43,10 @@
 
 /* The picture: the wide layout from 64rem, the narrow one below, each drawn for its width so its
    words stay near the label size (lib/queue/view.ts, LAYOUTS). The wide one fills the desk, so on
-   a large screen it grows, words and all, as a stage would. Its labels cannot be selected: the
-   caption, the properties and the event log carry its facts as text. */
-.qu-figure {
-  display: grid;
-  gap: 0.875rem;
-  margin: 0;
-}
-
+   a large screen it grows, words and all, as a stage would; the wide drawing is four times as wide
+   as it is tall, so it keeps the desk's width rather than share it with a column of controls, and
+   the controls come under it instead. Its labels cannot be selected: the caption, the properties
+   and the event log carry its facts as text. */
 .qu-map {
   display: block;
   width: 100%;
@@ -365,18 +364,32 @@
 }
 
 .qu-clock {
+  margin-block-start: 0.5rem;
   color: var(--muted-foreground);
   font-variant-numeric: tabular-nums;
 }
 
-/* The controls: push-buttons in groups, each named, under a rule from bezel to bezel. A choice is
-   a radio drawn as a push-button, its lamp lit while it is the one chosen, as a pressed button's
-   is (global.css, .btn). */
-.qu-controls {
+/* The opening's crash, on a line of its own under the clock, in the ink: it says where to look
+   in a run started over, which stands before it. */
+.qu-ahead {
+  display: block;
+  color: var(--foreground);
+}
+
+/* The controls: push-buttons in groups, each named. A choice is a radio drawn as a push-button,
+   its lamp lit while it is the one chosen, as a pressed button's is (global.css, .btn). The
+   picture's own, under it: Time, Speed, the key and the workers, in groups that flow on as the
+   desk allows, one under another on a phone. The settings, after the properties, under a rule
+   from bezel to bezel. */
+.qu-controls,
+.qu-settings {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
   gap: 1.25rem 2rem;
+}
+
+.qu-settings {
   margin-inline: calc(var(--desk-side) * -1);
   padding: 1.25rem var(--desk-side) 0;
   border-block-start: 1px solid var(--input);

@@ -194,9 +194,16 @@ test('let the menu expire: the first run plays it, 23 fetches at once and two ti
   // Turn on coalescing and serving stale, and start over: the same seed, from the same moment.
   await press(page, 'Coalesce misses');
   await press(page, 'Serve stale while refreshing');
+  // A switch alone writes nothing: the link names how a run starts.
+  expect(new URL(page.url()).hash).toBe('');
+  const first = await page.evaluate(() => history.length);
   await press(page, 'Start over');
-  await expect(clock(page)).toHaveText('Virtual time 2.500 s, seed 7');
-  await expect(said(page)).toHaveText('Virtual time 2.500 s, seed 7. Menu, fresh until 3.0 s.');
+  await expect(clock(page)).toHaveText('Virtual time 2.500 s, 780 events, seed 7');
+  // Start over writes the link with history.replaceState: no new entry in the history.
+  expect(await page.evaluate(() => history.length)).toBe(first);
+  await expect(said(page)).toHaveText(
+    'Virtual time 2.500 s, 780 events, seed 7. Menu, fresh until 3.0 s.',
+  );
   const restarted = [await summary(page).textContent(), await waiting(page).textContent()];
   await runUntil(page, () =>
     /Virtual time ([5-9]|\d\d)\./.test(
@@ -219,7 +226,7 @@ test('let the menu expire: the first run plays it, 23 fetches at once and two ti
   // at the picture's moment: the tamed run, not the opening.
   expect(new URL(page.url()).hash).toBe('#seed-7&coalesce=on&stale=on');
   await page.reload();
-  await expect(clock(page)).toHaveText('Virtual time 5.000 s, seed 7');
+  await expect(clock(page)).toHaveText('Virtual time 5.000 s, 1,613 events, seed 7');
   await expect(summary(page)).toHaveText(TAMED);
   for (const name of ['Coalesce misses', 'Serve stale while refreshing'])
     await expect(page.getByRole('button', { name, exact: true })).toHaveAttribute(
@@ -227,8 +234,11 @@ test('let the menu expire: the first run plays it, 23 fetches at once and two ti
       'true',
     );
   // It is the run Start over played: started over again, it stands where that one stood.
+  const entries = await page.evaluate(() => history.length);
   await press(page, 'Start over');
-  await expect(clock(page)).toHaveText('Virtual time 2.500 s, seed 7');
+  await expect(clock(page)).toHaveText('Virtual time 2.500 s, 780 events, seed 7');
+  // The address names the run and replaces itself: no new entry in the history.
+  expect(await page.evaluate(() => history.length)).toBe(entries);
   expect([await summary(page).textContent(), await waiting(page).textContent()]).toEqual(restarted);
   expect(new URL(page.url()).hash).toBe('#seed-7&coalesce=on&stale=on');
 });
@@ -352,19 +362,74 @@ test('write to the menu with invalidation off: readers get the old version until
   );
 });
 
-test('under reduce, Run advances in steps of 100 virtual ms, and nothing animates', async ({
+test('under reduce, Run advances in still steps of half a second of the chosen speed, and nothing animates', async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto(CACHE);
   // Run plays the stampede from 2.5 s, in still steps.
   await press(page, 'Run');
-  await expect(clock(page)).toHaveText('Virtual time 2.500 s, seed 7');
-  await expect.poll(() => seconds(page), { timeout: 3_000 }).toBeGreaterThan(2.5);
+  await expect(clock(page)).toHaveText('Virtual time 2.500 s, 789 events, seed 7');
   await press(page, 'Pause');
-  const moved = Math.round(((await seconds(page)) - 2.5) * 1000);
-  expect(moved % 100).toBe(0);
+  // Every time the clock shows, as it changes: a step the test did not sample cannot hide.
+  await page.evaluate(() => {
+    const shown = document.querySelector('[data-cl-clock]');
+    const seen: string[] = [];
+    Object.defineProperty(window, '__clockSeen', { value: seen });
+    if (shown)
+      new MutationObserver(() => seen.push(shown.textContent ?? '')).observe(shown, {
+        childList: true,
+        characterData: true,
+        subtree: true,
+      });
+  });
+  /** Runs until the clock has moved a few steps, then pauses: the steps it took, in virtual ms. */
+  const steps = async (span: number) => {
+    const from = await clock(page).textContent();
+    await page.evaluate(() => {
+      (window as unknown as { __clockSeen: string[] }).__clockSeen.length = 0;
+    });
+    const before = await seconds(page);
+    await press(page, 'Run');
+    await expect.poll(() => seconds(page), { timeout: 3_000 }).toBeGreaterThan(before + span);
+    await press(page, 'Pause');
+    const seen = await page.evaluate(
+      () => (window as unknown as { __clockSeen: string[] }).__clockSeen,
+    );
+    const ms = [from, ...seen].map((text) =>
+      Math.round(Number(/([\d.]+) s/.exec(text ?? '')?.[1]) * 1000),
+    );
+    return ms.slice(1).map((at, i) => at - (ms[i] as number));
+  };
+  // At Steady, 0.5 virtual seconds a second: steps of 250 virtual ms.
+  const steady = await steps(0.6);
+  expect(steady.length).toBeGreaterThan(2);
+  expect(new Set(steady)).toEqual(new Set([250]));
+  // At Slow, a fifth as fast: steps of 50, so the choice changes the steps as it changes a run.
+  await choose(page, 'Slow');
+  const slow = await steps(0.12);
+  expect(slow.length).toBeGreaterThan(2);
+  expect(new Set(slow)).toEqual(new Set([50]));
   expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
+});
+
+test('Next event says where the run stands when the log has nothing to tell, and the clock counts the events', async ({
+  page,
+}) => {
+  await page.goto(CACHE);
+  await expect(clock(page)).toHaveText('Virtual time 5.000 s, 1,704 events, seed 7');
+  const heard: string[] = [];
+  for (let i = 0; i < 5; i++) {
+    await press(page, 'Next event');
+    await expect(said(page)).not.toHaveText(heard.at(-1) ?? '');
+    heard.push((await said(page).textContent()) ?? '');
+  }
+  // Each press is heard and says something new, even two moments in one millisecond, since the
+  // events counted differ: the clock says the same, less its seed.
+  expect(new Set(heard).size).toBe(heard.length);
+  const last = heard.at(-1) ?? '';
+  expect(last).toMatch(/^Virtual time 5\.\d{3} s, 1,7\d\d events$/);
+  await expect(clock(page)).toHaveText(`${last}, seed 7`);
 });
 
 test('a link to a run opens it: #seed-8 loads that seed with no other intent, and Start over plays it from 2.5 s', async ({
@@ -373,10 +438,25 @@ test('a link to a run opens it: #seed-8 loads that seed with no other intent, an
   await page.goto(`${CACHE}#seed-8`);
   await expect(summary(page)).not.toHaveText(OPENING);
   await expect(summary(page)).toHaveText(/When the menu expired at 3\.0 s/);
-  await expect(clock(page)).toHaveText('Virtual time 5.000 s, seed 8');
+  await expect(clock(page)).toHaveText('Virtual time 5.000 s, 1,702 events, seed 8');
   await press(page, 'Start over');
-  await expect(clock(page)).toHaveText('Virtual time 2.500 s, seed 8');
+  await expect(clock(page)).toHaveText('Virtual time 2.500 s, 813 events, seed 8');
   expect(new URL(page.url()).hash).toBe('#seed-8');
+});
+
+test('a link followed before the app has loaded loads it, and opens that run with its settings', async ({
+  page,
+}) => {
+  const app: string[] = [];
+  page.on('request', (r) => /\/_astro\/app\./.test(r.url()) && app.push(r.url()));
+  await page.goto(CACHE);
+  await page.waitForTimeout(300);
+  expect(app).toEqual([]);
+  // The boot script hears the link and loads the app, which opens the run the link names.
+  await page.evaluate(() => (location.hash = '#seed-9&load=morning'));
+  await expect(clock(page)).toHaveText('Virtual time 5.000 s, 3,167 events, seed 9');
+  await expect(page.getByRole('radio', { name: 'Morning', exact: true })).toBeChecked();
+  expect(app).toHaveLength(1);
 });
 
 test('a link names a run’s switches, load and placement; followed on the page it opens that run paused, and a value the lab cannot take is left out', async ({
@@ -390,7 +470,7 @@ test('a link names a run’s switches, load and placement; followed on the page 
   await expect.poll(() => seconds(page)).toBeGreaterThan(2.6);
   const open = (hash: string) => page.evaluate((link) => (location.hash = link), hash);
   await open('#seed-9&load=morning&placement=modulo&invalidate=off');
-  await expect(clock(page)).toHaveText('Virtual time 5.000 s, seed 9');
+  await expect(clock(page)).toHaveText('Virtual time 5.000 s, 3,167 events, seed 9');
   await expect(page.getByRole('button', { name: 'Run', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Coalesce misses' })).toHaveAttribute(
     'aria-pressed',
@@ -403,16 +483,23 @@ test('a link names a run’s switches, load and placement; followed on the page 
     'false',
   );
   // A load the lab does not have, a switch's word it does not know and a name it lacks are left
-  // out: the run is seed 9's under the opening's settings, as the bare link gives it.
+  // out: the run is seed 9's under the opening's settings, as the bare link gives it. It is
+  // followed from another seed's run under other settings, so a page that ignored it would show
+  // that run instead.
   await open('#seed-9');
   await expect(page.getByRole('radio', { name: 'Busy', exact: true })).toBeChecked();
   const bare = [
     await summary(page).textContent(),
     await page.locator('[data-cl-map]').getAttribute('aria-label'),
   ];
+  await open('#seed-12&load=morning&coalesce=on');
+  await expect(page.locator('[data-cl-clock]')).toHaveText(/, seed 12$/);
+  await expect(page.getByRole('radio', { name: 'Morning', exact: true })).toBeChecked();
   await open('#seed-9&load=rush&coalesce=yes&colour=red');
   await expect(page.locator('[data-cl-readers]')).toHaveText('Readers, 300 a second');
-  await expect(page.locator('[data-cl-clock]')).toHaveText('Virtual time 5.000 s, seed 9');
+  await expect(page.locator('[data-cl-clock]')).toHaveText(
+    'Virtual time 5.000 s, 1,658 events, seed 9',
+  );
   await expect(page.getByRole('button', { name: 'Coalesce misses' })).toHaveAttribute(
     'aria-pressed',
     'false',
@@ -490,6 +577,66 @@ test('on a phone, the line waiting stands beside the database’s lamps, and a l
       (items) => items.filter((item) => (item.getClientRects()[0]?.height ?? 0) > 30).length,
     );
   expect(wraps).toBeGreaterThan(0);
+});
+
+/** From the top of the map to the bottom of the lowest of these buttons, in CSS px: what one screen
+ *  must hold to show the picture and the buttons that work it together. Says also whether anything
+ *  from the map up to the desk pins, which the site never does on a narrow screen. */
+const reach = (page: Page, names: string[]) =>
+  page.evaluate((names) => {
+    const map = document.querySelector('[data-cl-map]') as HTMLElement;
+    const top = map.getBoundingClientRect().top;
+    const bottoms = names.map((name) => {
+      const button = [...document.querySelectorAll('button')].find(
+        (b) => b.textContent?.trim() === name,
+      );
+      return button ? button.getBoundingClientRect().bottom : Number.POSITIVE_INFINITY;
+    });
+    let pinned = '';
+    for (let el: HTMLElement | null = map; el && !el.matches('.desk'); el = el.parentElement)
+      if (/sticky|fixed/.test(getComputedStyle(el).position)) pinned = el.className;
+    return { span: Math.max(...bottoms) - top, pinned };
+  }, names);
+
+// The first thing to try is to let the menu expire, then coalesce misses and start over: those
+// buttons sit by the map, so a press and the picture share one screen. Serve stale comes on the
+// next line; on Linux the map's labels set wider, the menu's words take a line of their own, and
+// the map grows by 70 px, so only the first switch is held to the screen.
+for (const [width, height] of [
+  [390, 844],
+  [1440, 900],
+] as const) {
+  test(`at ${width} × ${height}, the map, Time and Coalesce misses fit one screen, and nothing pins`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto(CACHE);
+    await page.evaluate(() => document.fonts.ready);
+    const { span, pinned } = await reach(page, [
+      'Run',
+      'Next event',
+      'Start over',
+      'Coalesce misses',
+    ]);
+    expect(pinned).toBe('');
+    expect(span).toBeLessThanOrEqual(height);
+  });
+}
+
+test('on a phone, Tab meets the controls in the order they are seen, top to bottom', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(CACHE);
+  const tops = await page
+    .locator('.cl-stage :is(button, input)')
+    .evaluateAll((controls) =>
+      controls
+        .filter((c) => !(c instanceof HTMLInputElement) || c.checked)
+        .map((c) => Math.round(c.getBoundingClientRect().top + scrollY)),
+    );
+  expect(tops.length).toBeGreaterThan(10);
+  expect(tops).toEqual([...tops].sort((a, b) => a - b));
 });
 
 for (const colorScheme of ['light', 'dark'] as const) {

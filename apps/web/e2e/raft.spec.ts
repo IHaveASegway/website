@@ -121,7 +121,11 @@ const fenced = (page: Page) =>
         }
       }
       for (const text of node.querySelectorAll('text')) {
-        const { x, y, width, height } = text.getBBox();
+        // getBBox leaves out a CSS transform, and on a phone the labels move down as they grow.
+        const shift = new DOMMatrix(getComputedStyle(text).transform).f;
+        const box = text.getBBox();
+        const { x, width, height } = box;
+        const y = box.y + shift;
         const [left, top, right, bottom] = [x - 2, y - 2, x + width + 2, y + height + 2];
         for (let t = 0; t <= 1; t += 1 / 64)
           points.push(
@@ -153,6 +157,19 @@ test('a cut network: a fence closes off the smaller side and crosses no node or 
   await expect.poll(() => fenced(page)).toBe(2);
 });
 
+// On a phone the role and term grow and move down (raft-lab.css); the fence must still keep clear.
+for (const width of [390, 320]) {
+  test(`at ${width} px wide, the fence still crosses no node or its text`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(RAFT);
+    await page.getByRole('button', { name: 'Cut off the leader' }).click();
+    await expect.poll(() => fenced(page)).toBe(1);
+    await page.getByRole('button', { name: 'Heal the network' }).click();
+    await page.getByRole('button', { name: 'Split 2 and 3' }).click();
+    await expect.poll(() => fenced(page)).toBe(2);
+  });
+}
+
 test('a node button crashes it and then restarts it, and says so in its name', async ({ page }) => {
   await page.goto(RAFT);
   const first = page.locator('[data-rf-toggle="0"]');
@@ -165,18 +182,74 @@ test('a node button crashes it and then restarts it, and says so in its name', a
   await expect(page.locator('[data-rf-node="0"]')).toHaveAttribute('data-up', 'true');
 });
 
-test('under reduce, Run advances in steps of 50 virtual ms, and nothing animates', async ({
+test('under reduce, Run advances in still steps of half a second of the chosen speed, and nothing animates', async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto(RAFT);
-  const opening = await seconds(page);
-  await page.getByRole('button', { name: 'Run' }).click();
-  await expect.poll(() => seconds(page), { timeout: 3_000 }).toBeGreaterThan(opening);
-  await page.getByRole('button', { name: 'Pause' }).click();
-  const moved = Math.round(((await seconds(page)) - opening) * 1000);
-  expect(moved % 50).toBe(0);
+  // Every time the clock shows, as it changes: a step the test did not sample cannot hide.
+  await page.locator('[data-rf-map]').hover();
+  await expect(log(page)).toHaveCount(13);
+  await page.evaluate(() => {
+    const clock = document.querySelector('[data-rf-clock]');
+    const seen: string[] = [];
+    Object.defineProperty(window, '__clockSeen', { value: seen });
+    if (clock)
+      new MutationObserver(() => seen.push(clock.textContent ?? '')).observe(clock, {
+        childList: true,
+        characterData: true,
+        subtree: true,
+      });
+  });
+  /** Runs until the clock has moved a few steps, then pauses: the steps it took, in virtual ms. */
+  const steps = async () => {
+    const from = await clock(page).textContent();
+    await page.evaluate(() => {
+      (window as unknown as { __clockSeen: string[] }).__clockSeen.length = 0;
+    });
+    const before = await seconds(page);
+    await page.getByRole('button', { name: 'Run' }).click();
+    await expect.poll(() => seconds(page), { timeout: 3_000 }).toBeGreaterThan(before + 0.06);
+    await page.getByRole('button', { name: 'Pause' }).click();
+    const seen = await page.evaluate(
+      () => (window as unknown as { __clockSeen: string[] }).__clockSeen,
+    );
+    const ms = [from, ...seen].map((text) =>
+      Math.round(Number(/([\d.]+) s/.exec(text ?? '')?.[1]) * 1000),
+    );
+    return ms.slice(1).map((at, i) => at - (ms[i] as number));
+  };
+  // At Steady, 0.05 virtual seconds a second: steps of 25 virtual ms.
+  const steady = await steps();
+  expect(steady.length).toBeGreaterThan(2);
+  expect(new Set(steady)).toEqual(new Set([25]));
+  // At Quick, twice as fast: steps of 50, so the choice changes the steps as it changes a run.
+  await page.getByRole('radio', { name: 'Quick' }).check();
+  const quick = await steps();
+  expect(quick.length).toBeGreaterThan(1);
+  expect(new Set(quick)).toEqual(new Set([50]));
   expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
+});
+
+test('Next event says where the run stands when the log has nothing to tell', async ({ page }) => {
+  await page.goto(RAFT);
+  const said = page.locator('[data-rf-said]');
+  const heard: string[] = [];
+  let told = 0;
+  for (let i = 0; i < 4; i++) {
+    await page.getByRole('button', { name: 'Next event' }).click();
+    await expect(said).not.toHaveText(heard.at(-1) ?? '');
+    const words = (await said.textContent()) ?? '';
+    heard.push(words);
+    // An event the log does not tell is said as the clock and the status line count it.
+    if (!words.startsWith('Virtual time')) continue;
+    told += 1;
+    const events = /over ([\d,]+) events/.exec((await status(page).textContent()) ?? '')?.[1];
+    expect(words).toBe(`${await clock(page).textContent()}, ${events} events`);
+  }
+  // Each press is heard, and each says something new.
+  expect(told).toBeGreaterThan(0);
+  expect(new Set(heard).size).toBe(heard.length);
 });
 
 test('the app writes the event log once: the build’s lines go on as the run’s, and a link’s run shows only its own', async ({
@@ -236,10 +309,12 @@ test('a link followed on the page opens that seed paused at the opening’s mome
   page,
 }) => {
   await page.goto(RAFT);
-  // Followed before any intent: the link loads the app, which opens it.
-  await page.evaluate(() => (location.hash = '#seed-12'));
+  // Followed before any intent: the link loads the app, which opens it, its loss and all.
+  await page.evaluate(() => (location.hash = '#seed-12&loss=10'));
   await expect(page.locator('[data-rf-seed]')).toHaveText('12');
   await expect(clock(page)).toHaveText('Virtual time 1.400 s');
+  await expect(page.locator('[data-rf-loss]')).toHaveValue('10');
+  await expect(page.locator('[data-rf-loss-out]')).toHaveText('10%');
   // Followed while a run plays: that seed's opening, paused.
   await page.getByRole('radio', { name: 'Quick' }).check();
   await page.getByRole('button', { name: 'Run' }).click();
@@ -266,6 +341,47 @@ test('a link to a run opens it: #seed-8 loads that seed with no other intent, an
   await page.getByRole('button', { name: 'Start over' }).click();
   await expect(page.locator('[data-rf-seed]')).toHaveText('9');
   expect(new URL(page.url()).hash).toBe('#seed-9');
+  // A name the lab does not have is dropped, and the seed still opens.
+  await page.goto(`${RAFT}#seed-12&foo=bar`);
+  await expect(page.locator('[data-rf-seed]')).toHaveText('12');
+  // After the last seed a link can name, Start over comes back to 0, which a reload opens.
+  await page.goto(`${RAFT}#seed-999999`);
+  await expect(page.locator('[data-rf-seed]')).toHaveText('999999');
+  await page.getByRole('button', { name: 'Start over' }).click();
+  expect(new URL(page.url()).hash).toBe('#seed-0');
+  await page.reload();
+  await expect(page.locator('[data-rf-seed]')).toHaveText('0');
+});
+
+test('Start over writes the loss into its link, and a reload opens the same run, which loses messages too', async ({
+  page,
+}) => {
+  /** The run, forty events on from its opening. */
+  const forty = async () => {
+    for (let i = 0; i < 40; i++) await page.getByRole('button', { name: 'Next event' }).click();
+    return [
+      await clock(page).textContent(),
+      await summary(page).textContent(),
+      await status(page).textContent(),
+      await page.locator('[data-rf-flights]').innerHTML(),
+    ];
+  };
+  await page.goto(RAFT);
+  await page.locator('[data-rf-loss]').fill('30');
+  const entries = await page.evaluate(() => history.length);
+  await page.getByRole('button', { name: 'Start over' }).click();
+  await expect(page.locator('[data-rf-seed]')).toHaveText('8');
+  expect(new URL(page.url()).hash).toBe('#seed-8&loss=30');
+  expect(await page.evaluate(() => history.length)).toBe(entries);
+  const before = await forty();
+  await page.reload();
+  await expect(page.locator('[data-rf-loss]')).toHaveValue('30');
+  await expect(page.locator('[data-rf-loss-out]')).toHaveText('30%');
+  expect(await forty()).toEqual(before);
+  // The same seed without the loss is another run: the link is what tells them apart.
+  await page.goto(`${RAFT}#seed-8`);
+  await expect(page.locator('[data-rf-loss]')).toHaveValue('0');
+  expect(await forty()).not.toEqual(before);
 });
 
 // The desk's lamps (ADR 0025): Run is a push-button whose lamp is off until the run is on and lit
@@ -344,7 +460,8 @@ test('the speed is a radio group of lamps that the arrow keys move through, and 
   const slow = group.getByRole('radio', { name: 'Slow' });
   await expect(steady).toBeChecked();
 
-  await page.getByRole('button', { name: 'Next event' }).focus();
+  // Start over stands before the speed, so the three time buttons share a line on a phone.
+  await page.getByRole('button', { name: 'Start over' }).focus();
   await page.keyboard.press('Tab');
   await expect(steady).toBeFocused();
   await page.keyboard.press('ArrowRight');
@@ -355,7 +472,7 @@ test('the speed is a radio group of lamps that the arrow keys move through, and 
   await page.keyboard.press('ArrowLeft');
   await expect(quick).toBeChecked();
   await page.keyboard.press('Tab');
-  await expect(page.getByRole('button', { name: 'Start over' })).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Send a write' })).toBeFocused();
 
   const lit = await page.evaluate(() =>
     [...document.querySelectorAll('.rf-option')].map(
@@ -375,6 +492,84 @@ test('the speed is a radio group of lamps that the arrow keys move through, and 
   await page.waitForTimeout(1_000);
   await pause.click();
   expect((await seconds(page)) - from).toBeGreaterThan(0.07);
+});
+
+/** From the top of the picture to the bottom of the lowest of these buttons, in CSS px: what one
+ *  screen must hold to show the picture and the buttons that work it together. Says also whether
+ *  anything from the picture up to the desk pins, which the site never does on a narrow screen. */
+const reach = (page: Page, names: string[]) =>
+  page.evaluate((names) => {
+    const map = document.querySelector('[data-rf-map]') as SVGSVGElement;
+    const top = map.getBoundingClientRect().top;
+    const bottoms = names.map((name) => {
+      const button = [...document.querySelectorAll('button')].find(
+        (b) => b.textContent?.trim() === name,
+      );
+      return button ? button.getBoundingClientRect().bottom : Number.POSITIVE_INFINITY;
+    });
+    let pinned = '';
+    for (let el: Element | null = map; el && !el.matches('.desk'); el = el.parentElement)
+      if (/sticky|fixed/.test(getComputedStyle(el).position)) pinned = el.className.toString();
+    return { span: Math.max(...bottoms) - top, pinned };
+  }, names);
+
+// The first thing to try is Run, then Cut off the leader, then Send a write: those buttons and
+// Time's sit by the picture, so a press and what it does share one screen.
+for (const [width, height] of [
+  [390, 844],
+  [1440, 900],
+] as const) {
+  test(`at ${width} × ${height}, the picture and Time, Cut off the leader and Send a write fit one screen, and nothing pins`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto(RAFT);
+    await page.evaluate(() => document.fonts.ready);
+    const { span, pinned } = await reach(page, [
+      'Run',
+      'Next event',
+      'Start over',
+      'Cut off the leader',
+      'Send a write',
+    ]);
+    expect(pinned).toBe('');
+    expect(span).toBeLessThanOrEqual(height);
+  });
+}
+
+// A node's role and term are set in the picture's units, which shrink with a phone's width; they
+// must still draw 13 px at the least, and the leader's number above them more.
+for (const width of [390, 320]) {
+  test(`at ${width} px wide, every label in the picture draws 13 px or more`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(RAFT);
+    const sizes = await page
+      .locator('[data-rf-map] text')
+      .evaluateAll((texts) =>
+        texts.map(
+          (t) =>
+            parseFloat(getComputedStyle(t).fontSize) *
+            ((t as SVGTextElement).getScreenCTM()?.a ?? 0),
+        ),
+      );
+    expect(sizes).toHaveLength(15);
+    expect(Math.min(...sizes)).toBeGreaterThanOrEqual(13);
+  });
+}
+
+test('the loss slider is a 44 px target on a phone, as the buttons beside it are', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(RAFT);
+  await page.locator('[data-rf-loss]').scrollIntoViewIfNeeded();
+  const box = await page.locator('[data-rf-loss]').boundingBox();
+  expect(box?.height).toBeGreaterThanOrEqual(44);
+  expect(box?.width).toBeGreaterThanOrEqual(44);
+  // A tap near the box's top edge, off the track drawn in its middle, still moves it.
+  if (!box) return;
+  await page.mouse.click(box.x + box.width * 0.75, box.y + 4);
+  await expect(page.locator('[data-rf-loss]')).not.toHaveValue('0');
 });
 
 for (const colorScheme of ['light', 'dark'] as const) {
