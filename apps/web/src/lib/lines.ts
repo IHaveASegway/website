@@ -106,10 +106,13 @@ export function routesWords(day: Day, before: Measured, after: Measured): string
 export const routesFact = (day: Day, before: Measured, after: Measured): string =>
   `${day.name}: ${formatDuration(after.drive)} of driving instead of ${formatDuration(before.drive)}.`;
 
-/** The figure pair's caption on Home: "of driving on a busy Saturday, planned by VROOM in your
- *  browser", the day's own name in it. */
+/** The figure pair's caption on Home: "of driving for a made-up bakery on a busy Saturday, planned
+ *  by VROOM in your browser", the day's own name in it. The bakery and its orders are invented and
+ *  the streets are Seattle's. The hero is where a visitor first meets the bakery, so it says so
+ *  there, once: until 2026-10-31 nothing on Home did, and a visitor could take the figures for a
+ *  client's. */
 export const figureWords = (day: Day): string =>
-  `of driving on ${day.name.replace(/^A /, 'a ')}, planned by VROOM in your browser`;
+  `of driving for a made-up bakery on ${day.name.replace(/^A /, 'a ')}, planned by VROOM in your browser`;
 
 const WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
 

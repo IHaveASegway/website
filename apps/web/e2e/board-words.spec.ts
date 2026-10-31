@@ -137,3 +137,35 @@ for (const size of SIZES)
       // Well inside the drawing: at least a fifth of its width is left after the stop.
       expect(svg.right - stop.right).toBeGreaterThan(svg.width / 5);
     });
+
+// The hero's struck figure is named beside it, in view, with the Route Lab's own name for that
+// plan; until 2026-10-31 only a screen reader heard what it measured. And Home says once, plainly,
+// that the bakery is made up. Neither is covered by the scene (content vs display).
+for (const size of [...SIZES, { width: 1024, height: 768 }])
+  test(`at ${size.width} px the hero names its struck figure's baseline and says the bakery is made up`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(size);
+    await page.goto('/');
+    const before = page.locator('.figure-before');
+    test.skip((await before.count()) === 0, 'this build has no Route Lab figures');
+    const baseline = page.locator('.figure-baseline');
+    await expect(baseline).toHaveText('as the orders came in');
+    await baseline.scrollIntoViewIfNeeded();
+    await expect(baseline).toBeVisible();
+    const [figure, name] = [await before.boundingBox(), await baseline.boundingBox()];
+    if (!figure || !name) throw new Error('the figure or its baseline is not drawn');
+    // On the figure's line, after it.
+    expect(name.y + name.height / 2).toBeGreaterThan(figure.y);
+    expect(name.y + name.height / 2).toBeLessThan(figure.y + figure.height);
+    expect(name.x).toBeGreaterThanOrEqual(figure.x + figure.width);
+    // Nothing covers it: the element at its middle is the name itself.
+    const top = await page.evaluate(
+      ({ x, y }) => document.elementFromPoint(x, y)?.closest('.figure-baseline') !== null,
+      { x: name.x + name.width / 2, y: name.y + name.height / 2 },
+    );
+    expect(top).toBe(true);
+    const text = await page.evaluate(() => document.body.innerText);
+    expect(text.match(/made-up bakery/g)).toHaveLength(1);
+    await expect(page.locator('.figure-words')).toContainText('for a made-up bakery');
+  });

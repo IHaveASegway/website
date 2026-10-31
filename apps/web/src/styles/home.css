@@ -400,6 +400,25 @@
   font-size: var(--text-label);
   font-weight: var(--text-label--font-weight);
   line-height: var(--text-label--line-height);
+  text-wrap: balance;
+}
+
+/* The struck figure and what it measures, on one line: the baseline's name in the label face,
+   muted as the figure is, on the figure's baseline (Hero.astro). A very large text size wraps the
+   name under the figure rather than run off a 320 px screen (SC 1.4.10). */
+.figure-was {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.75rem;
+}
+
+.figure-baseline {
+  color: var(--muted-foreground);
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  line-height: var(--text-label--line-height);
 }
 
 /* Display type set closer than its face is tall takes the headings' selection (global.css, base):

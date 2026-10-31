@@ -124,8 +124,9 @@ describe('the Routes line', () => {
     expect(routesWords(day, dealt, plan)).toBe(
       `3 orders on 2 vans: 2${NBSP}h 0${NBSP}min of driving as the orders came in, 1${NBSP}h 15${NBSP}min planned by VROOM, the last van back after 45${NBSP}min.`,
     );
+    // The hero says once, plainly, that the bakery is made up.
     expect(figureWords(day)).toBe(
-      'of driving on a busy Saturday, planned by VROOM in your browser',
+      'of driving for a made-up bakery on a busy Saturday, planned by VROOM in your browser',
     );
     // The index's one fact: the day's driving with VROOM, against the orders as they came in.
     const before = measured([{ arrives: [600], back: 7200 }]);
