@@ -1,4 +1,5 @@
 import { properties } from '../../lib/queue/check';
+import { valueOf, word } from '../../lib/sim/link';
 import {
   crash,
   nextTime,
@@ -18,11 +19,13 @@ import {
 } from '../../lib/queue/sim';
 import {
   LAYOUTS,
+  linkTo,
   mapMarkup,
-  OPENING,
-  openingOf,
+  openingRun,
+  openLink,
   propertyWords,
   seconds,
+  SETTINGS,
   startOver,
   statusText,
   STRIP,
@@ -38,22 +41,28 @@ import {
 // when the visitor presses Run, which Pause stops (SC 2.2.2); a hidden tab pauses it too. Each
 // frame runs the core with runUntil to a whole millisecond, as replay does, never event by event,
 // so the run a visitor makes is the run its recorded actions replay. With reduced motion, Run
-// moves in still steps: half a second of the chosen speed, twice a second.
+// moves in still steps: half a second of the chosen speed, twice a second. A link to a run
+// (lib/sim/link.ts) opens it, paused, on load or when followed on the page; Start over writes the
+// link to the run it opens.
 
 const FRAME_CAP = 100; // real ms: a frame after a long pause does not leap ahead
 const EVENTS_PER_FRAME = 4_000;
 const STILL_EVERY = 500; // real ms between steps under reduced motion
 
-const seedFromHash = (): number | null => {
-  const match = /^#seed-(\d{1,6})$/.exec(location.hash);
-  return match ? Number(match[1]) : null;
-};
+/** What a choice of each setting does to the run. */
+const SETTERS = {
+  load: setLoad,
+  prefetch: setPrefetch,
+  ack: setAck,
+  key: setKey,
+  handling: setPoisonHandling,
+} satisfies Record<keyof typeof SETTINGS, unknown>;
 
-const ACKS = ['after', 'before'] as const;
-const LOADS = ['calm', 'busy', 'rush'] as const;
-const HANDLINGS = ['requeue', 'dead-letter'] as const;
-const known = <T extends string>(values: readonly T[], value: string): T | undefined =>
-  values.find((v) => v === value);
+/** The setting a group of choices sets, by its name, qu-ack for the ack; null for the speed. */
+const setting = (group: string): keyof typeof SETTINGS | null => {
+  const name = group.slice(3);
+  return Object.hasOwn(SETTINGS, name) ? (name as keyof typeof SETTINGS) : null;
+};
 
 export function start(root: HTMLElement, queued: readonly Element[]): void {
   const $ = <T extends Element>(selector: string) => root.querySelector<T>(selector);
@@ -72,8 +81,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     if (element && element.getAttribute(name) !== value) element.setAttribute(name, value);
   };
 
-  const hashed = seedFromHash();
-  let sim: Sim = openingOf(hashed ?? OPENING.seed);
+  let sim: Sim = openLink(location.hash) ?? openingRun();
   let speed = 1;
   let playing = false;
   let last = 0;
@@ -134,17 +142,11 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
       );
     }
     text($('[data-qu-producer]'), sim.producing ? 'Stop taking orders' : 'Take orders');
-    // The choices follow the run: Start over and a link to a run set them too.
-    const chosen: Record<string, string> = {
-      'qu-speed': String(speed),
-      'qu-ack': sim.ack,
-      'qu-key': sim.key ? 'on' : 'off',
-      'qu-prefetch': String(sim.prefetch),
-      'qu-load': sim.load,
-      'qu-handling': sim.handling,
-    };
+    // The choices follow the run: Start over and a link to a run set them too. Each group is a
+    // setting (view.ts, SETTINGS) and names its values as a link does, but for the speed.
     for (const radio of root.querySelectorAll<HTMLInputElement>('input[type="radio"]')) {
-      const on = chosen[radio.name] === radio.value;
+      const name = setting(radio.name);
+      const on = radio.value === (name ? word(sim[name]) : String(speed));
       if (radio.checked !== on) radio.checked = on;
     }
     drawLines();
@@ -191,7 +193,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     draw();
   }
 
-  /** Shows another run from its opening: Start over's, or a link's to another seed. */
+  /** Shows another run from its opening: Start over's, or a link's. */
   function open(next: Sim, resume: boolean): void {
     pause();
     sim = next;
@@ -234,9 +236,10 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     }
   }
 
-  /** A choice from one of the radio groups. */
-  function choose(name: string, value: string): void {
-    if (name === 'qu-speed') {
+  /** A choice from one of the radio groups: the speed, or a setting, by the value it names. */
+  function choose(group: string, value: string): void {
+    const name = setting(group);
+    if (!name) {
       speed = Number(value) || 1;
       if (playing) {
         pause();
@@ -244,14 +247,8 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
       }
       return;
     }
-    const ack = known(ACKS, value);
-    const load = known(LOADS, value);
-    const handling = known(HANDLINGS, value);
-    if (name === 'qu-ack' && ack) setAck(sim, ack);
-    else if (name === 'qu-key') setKey(sim, value === 'on');
-    else if (name === 'qu-prefetch') setPrefetch(sim, Number(value));
-    else if (name === 'qu-load' && load) setLoad(sim, load);
-    else if (name === 'qu-handling' && handling) setPoisonHandling(sim, handling);
+    const chosen = valueOf(SETTINGS[name], value);
+    if (chosen !== undefined) SETTERS[name](sim, chosen as never);
   }
 
   function press(control: Element): void {
@@ -259,7 +256,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     if (control instanceof HTMLInputElement && control.type === 'radio') {
       if (!control.checked) return;
       choose(control.name, control.value);
-      if (control.name === 'qu-speed') return;
+      if (!setting(control.name)) return;
     } else if (control.matches('[data-qu-run]')) {
       if (playing) pause();
       else play();
@@ -273,6 +270,8 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
       stopped();
     } else if (control.matches('[data-qu-reset]')) {
       open(startOver(sim), playing);
+      // The address names the run, settings and all, so a reload or the link shared opens it.
+      history.replaceState(null, '', linkTo(sim));
       return;
     } else if (control.matches('[data-qu-producer]')) {
       if (sim.producing) stopProducer(sim);
@@ -303,10 +302,10 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && playing) pause();
   });
-  // A link to another seed followed on this page opens that run, paused, as loading it would.
+  // A link to a run followed on this page opens that run, paused, as loading it would.
   addEventListener('hashchange', () => {
-    const seed = seedFromHash();
-    if (seed !== null && seed !== sim.seed) open(openingOf(seed), false);
+    const linked = openLink(location.hash);
+    if (linked) open(linked, false);
   });
   still.addEventListener('change', () => {
     if (playing) {

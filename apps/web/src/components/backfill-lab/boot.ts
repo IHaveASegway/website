@@ -49,8 +49,13 @@ if (root) {
     queued.push(event.target);
     start();
   });
-  // A link to a week (#seed-12) is intent enough: it opens that week at once.
-  if (/^#seed-\d{1,6}$/.test(location.hash)) start();
+  // A link to a week (#seed-12, with any settings after it: lib/sim/link.ts) is intent enough: it
+  // opens that week at once, on load or later.
+  const linked = () => /^#seed-\d{1,6}(&|$)/.test(location.hash);
+  if (linked()) start();
+  addEventListener('hashchange', () => {
+    if (linked() && !failed) start();
+  });
 }
 
 // A module, so its names are its own: as a plain script it would share the global scope with the

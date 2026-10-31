@@ -39,12 +39,15 @@ import {
   history,
   LAYOUTS,
   lifecycles,
+  linkTo,
   mapMarkup,
   OPENING,
-  openingOf,
   openingRun,
+  openLink,
+  PREFETCHES,
   propertyWords,
   SEEDS_IN_CI,
+  SETTINGS,
   startOver,
   statusText,
   strip,
@@ -928,7 +931,67 @@ describe('the page', () => {
       'No order was lost and no order was printed twice over 143 events. Whether the queue drains is checked once orders stop.',
     );
     // A link to a run opens the same opening on its own seed.
-    expect([openingOf(8).seed, openingOf(8).now]).toEqual([8, OPENING.until]);
+    const eight = openLink('#seed-8');
+    expect([eight?.seed, eight?.now]).toEqual([8, OPENING.until]);
+  });
+
+  test('a link to a run: Start over’s names the seed and each setting the visitor changed, and opens the run Start over did', () => {
+    // Each setting the link names opens as the opening's run has it, and takes the page's values.
+    const opening = openingRun();
+    for (const [name, setting] of Object.entries(SETTINGS))
+      expect(opening[name as keyof typeof SETTINGS], name).toBe(setting.opening);
+    expect(SETTINGS.load.values).toEqual(Object.keys(LOADS));
+    expect(SETTINGS.prefetch.values).toEqual(PREFETCHES);
+    // A link that names no setting is the build's picture for its seed.
+    expect(linkTo(opening)).toBe('#seed-28');
+    expect(shape(openLink('#seed-28') as Sim)).toBe(shape(opening));
+
+    const sim = openingRun();
+    runUntil(sim, 6_000);
+    setKey(sim, true);
+    setPoisonHandling(sim, 'dead-letter');
+    setPrefetch(sim, 5);
+    setLoad(sim, 'rush');
+    poison(sim);
+    const again = startOver(sim);
+    expect(linkTo(again)).toBe('#seed-28&load=rush&prefetch=5&key=on&handling=dead-letter');
+    // Opened, the link gives the run Start over gave, event for event, and the same link again.
+    const linked = openLink(linkTo(again)) as Sim;
+    expect(shape(linked)).toBe(shape(again));
+    expect(linkTo(linked)).toBe(linkTo(again));
+    expect([linked.now, linked.actions]).toEqual([OPENING.until, OPENING.actions]);
+
+    // Every value the page offers reads back as written.
+    for (const load of SETTINGS.load.values)
+      for (const prefetch of SETTINGS.prefetch.values)
+        for (const ack of SETTINGS.ack.values)
+          for (const key of SETTINGS.key.values)
+            for (const handling of SETTINGS.handling.values) {
+              const run = openLink(
+                linkTo({ ...opening, seed: 3, load, prefetch, ack, key, handling }),
+              );
+              expect([
+                run?.seed,
+                run?.load,
+                run?.prefetch,
+                run?.ack,
+                run?.key,
+                run?.handling,
+              ]).toEqual([3, load, prefetch, ack, key, handling]);
+            }
+  });
+
+  test('a link’s unknown names and values the lab cannot take are dropped: the run keeps the opening’s', () => {
+    const odd = openLink('#seed-28&load=storm&prefetch=3&ack=never&key=yes&workers=5&colour=red');
+    expect(odd && shape(odd)).toBe(shape(openingRun()));
+    const some = openLink('#seed-9&ack=before&prefetch=4&handling=dead-letter');
+    expect([some?.seed, some?.ack, some?.prefetch, some?.handling]).toEqual([
+      9,
+      'before',
+      1,
+      'dead-letter',
+    ]);
+    for (const hash of ['', '#main', '#seed-', '#seed-1234567']) expect(openLink(hash)).toBeNull();
   });
 
   test('the caption tells the latest break: acknowledging first, a crash loses order 26 after order 18 printed twice', () => {

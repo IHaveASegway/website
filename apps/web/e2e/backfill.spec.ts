@@ -367,6 +367,76 @@ test("a link to a week opens it: #seed-12 draws that seed's week, every column o
   await seedTwelve();
 });
 
+/** What the page says of the week it shows: its seed, clock, events, caption, board and log. */
+const shown = async (page: Page) => [
+  await page.locator('[data-bf-seed]').textContent(),
+  await page.locator('[data-bf-clock]').textContent(),
+  await page.locator('[data-bf-events]').textContent(),
+  await summary(page).textContent(),
+  await page.locator('[data-bf-day]').allTextContents(),
+  await page.locator('[data-bf-week-report]').textContent(),
+  await page.locator('[data-bf-lines] li').allTextContents(),
+];
+
+test('Start over writes the link to its week, the seed and each setting changed, and a reload opens the same week', async ({
+  page,
+}) => {
+  await page.goto(BACKFILL);
+  await page.getByRole('radio', { name: 'Overwrite the day' }).check();
+  await page.getByRole('radio', { name: '1 run at once' }).check();
+  // A choice alone writes nothing: the link names how a week starts.
+  expect(new URL(page.url()).hash).toBe('');
+  const entries = await page.evaluate(() => history.length);
+  await startOver(page);
+  // The address names the week and replaces itself: no new entry in the history.
+  expect(new URL(page.url()).hash).toBe('#seed-9&mode=overwrite&runs=1');
+  expect(await page.evaluate(() => history.length)).toBe(entries);
+  const before = await shown(page);
+  expect(before[3]).not.toBe(OPENING_SUMMARY);
+  await page.reload();
+  // The link loads the app with no other intent, and the week it opens has the settings chosen.
+  await expect(page.getByRole('radio', { name: 'Overwrite the day' })).toBeChecked();
+  await expect(page.getByRole('radio', { name: '1 run at once' })).toBeChecked();
+  expect(await shown(page)).toEqual(before);
+});
+
+test('a link followed on the page opens its week paused where the build’s would stand, and a value the lab cannot take is left out', async ({
+  page,
+}) => {
+  await page.goto(BACKFILL);
+  await rewind(page);
+  await page.getByRole('radio', { name: 'Quick' }).check();
+  await page.getByRole('button', { name: 'Run', exact: true }).click();
+  await expect.poll(() => minutes(page), { timeout: 5_000 }).toBeGreaterThan(10);
+  // Followed while the week plays: that week, paused, under the link's settings and the
+  // opening's for every setting it does not name.
+  await page.evaluate(() => (location.hash = '#seed-12&partition=today'));
+  await expect(page.locator('[data-bf-seed]')).toHaveText('12');
+  await expect(page.getByRole('button', { name: 'Run', exact: true })).toBeVisible();
+  await expect(page.getByRole('radio', { name: 'Today, by the clock' })).toBeChecked();
+  await expect(page.getByRole('radio', { name: 'Append rows' })).toBeChecked();
+  await expect(page.getByRole('radio', { name: '3 runs at once' })).toBeChecked();
+  await expect(page.locator('[data-bf-stray]')).toBeVisible();
+  const today = await shown(page);
+  await page.waitForTimeout(300);
+  expect(await shown(page)).toEqual(today);
+
+  // A name the lab does not have and values its settings cannot take are dropped: the week is
+  // seed 12's under the opening's settings, as the bare link gives it.
+  await page.evaluate(() => (location.hash = '#seed-12'));
+  await expect(page.getByRole('radio', { name: "The run's own day" })).toBeChecked();
+  const bare = await shown(page);
+  await page.evaluate(
+    () => (location.hash = '#seed-12&runs=9&mode=delete&partition=yesterday&colour=red'),
+  );
+  await expect(page.getByRole('radio', { name: '3 runs at once' })).toBeChecked();
+  expect(await shown(page)).toEqual(bare);
+  // A hash that links to no week, as the skip link's, leaves the week alone.
+  await page.evaluate(() => (location.hash = '#main'));
+  await page.waitForTimeout(200);
+  expect(await shown(page)).toEqual(bare);
+});
+
 for (const colorScheme of ['light', 'dark'] as const) {
   test(`axe finds no violation after a run, ${colorScheme}`, async ({ page }) => {
     await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });

@@ -1,3 +1,4 @@
+import { readLink, writeLink } from '../sim/link';
 import { properties, type PropertyId } from './check';
 import {
   BACKOFF,
@@ -8,12 +9,14 @@ import {
   dayOf,
   dayText,
   isoDate,
+  MAX_ACTIVE_RUNS,
   TASKS,
   WEEK_END,
   weekday,
   when,
   type Mode,
   type Outcome,
+  type PartitionKey,
   type RunState,
   type TaskName,
   type TaskState,
@@ -285,8 +288,9 @@ export function statusText(sim: Sim): string {
 // The page (components/backfill-lab): the run board, the properties and the strip, as the build
 // draws them and the browser redraws them, from the same functions, so the two never disagree.
 
-/** A week's settings, which carry into the week it starts over as: the seed, how a load writes,
- *  which day it writes and the limit of runs, and the test-only failure rate and faults. */
+/** A week's settings, which carry into the week before its switch (beforeSwitch): the seed, how a
+ *  load writes, which day it writes and the limit of runs, and the test-only failure rate and
+ *  faults. */
 const settingsOf = (sim: Sim): Config => ({
   seed: sim.seed,
   mode: sim.mode,
@@ -296,9 +300,35 @@ const settingsOf = (sim: Sim): Config => ({
   faults: sim.faults,
 });
 
-/** Start over: the opening's week again, on the same seed, under the visitor's settings, so the
- *  lab entry's "start over" shows the week each setting gives at once. */
-export const startOver = (sim: Sim): Sim => openingWeek(settingsOf(sim));
+/** The settings a link to a week names (lib/sim/link.ts), with the values the page offers and the
+ *  opening's: how a load writes, which day it writes, and how many runs may be active at once. */
+export const SETTINGS = {
+  mode: { values: ['append', 'overwrite'] as Mode[], opening: 'append' },
+  partition: { values: ['run-day', 'today'] as PartitionKey[], opening: 'run-day' },
+  runs: { values: Array.from({ length: DAYS }, (_, i) => i + 1), opening: MAX_ACTIVE_RUNS },
+} as const;
+
+/** The link to a week: its seed, and each setting not the opening's (#seed-9&mode=overwrite). */
+export const linkTo = (sim: Sim): string =>
+  writeLink(
+    sim.seed,
+    { mode: sim.mode, partition: sim.partition, runs: sim.maxActiveRuns },
+    SETTINGS,
+  );
+
+/** The week a link names: the opening's week on its seed, under its settings, standing where the
+ *  build's stands (openingWeek). Null when the hash links to no week. */
+export function openLink(hash: string): Sim | null {
+  const link = readLink(hash, SETTINGS);
+  if (!link) return null;
+  const { mode, partition, runs } = link.values;
+  return openingWeek({ ...OPENING.config, seed: link.seed, mode, partition, maxActiveRuns: runs });
+}
+
+/** Start over: the week this one's link names, the opening's week again on the same seed under
+ *  the visitor's settings, so the lab entry's "start over" shows the week each setting gives at
+ *  once. */
+export const startOver = (sim: Sim): Sim => openLink(linkTo(sim)) as Sim;
 
 /**
  * The week as it stood before the job was switched on: the minute the week ends, the job off,

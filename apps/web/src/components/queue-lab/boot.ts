@@ -49,8 +49,9 @@ if (root) {
     queued.push(event.target);
     start();
   });
-  // A link to a run (#seed-8) is intent enough: it opens that run at once, on load or later.
-  const linked = () => /^#seed-\d{1,6}$/.test(location.hash);
+  // A link to a run (#seed-8, with any settings after it: lib/sim/link.ts) is intent enough: it
+  // opens that run at once, on load or later.
+  const linked = () => /^#seed-\d{1,6}(&|$)/.test(location.hash);
   if (linked()) start();
   addEventListener('hashchange', () => {
     if (linked() && !failed) start();

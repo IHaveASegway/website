@@ -3,7 +3,6 @@ import {
   flush,
   loseNode,
   nextTime,
-  replay,
   restoreNode,
   runUntil,
   setLoad,
@@ -16,10 +15,13 @@ import {
 } from '../../lib/cache/sim';
 import {
   clockWords,
+  linkTo,
   mapWords,
   menuWords,
   nodeWords,
   OPENING,
+  openingRun,
+  openLink,
   outcomeStrip,
   pagesOn,
   pageState,
@@ -30,7 +32,6 @@ import {
   summary,
   waiting,
 } from '../../lib/cache/view';
-import { fromLink, settingsOf, toLink, type Settings } from './link';
 import { pageLamps, stripEnds, stripPaths } from './picture';
 
 // The Cache Lab in the browser: the simulation, run in virtual time and drawn on every frame while
@@ -42,7 +43,8 @@ import { pageLamps, stripEnds, stripPaths } from './picture';
 // milliseconds twice a second, so the picture changes in still steps. Every action lands between
 // two moments of the run, never inside one: the frames and Next event move the clock with
 // runUntil, which stops only there (lib/cache/sim.ts), so an action is the one a replay of the
-// same run would take.
+// same run would take. A link to a run (lib/sim/link.ts) opens it, paused at the opening's moment,
+// on load or when followed on the page; Start over writes the link to the run it plays.
 
 const FRAME_CAP = 100; // real ms: a frame after a long pause does not leap ahead
 const EVENTS_PER_FRAME = 4_000;
@@ -55,16 +57,6 @@ const TOGGLES: readonly Toggle[] = ['coalesce', 'stale', 'early', 'jitter', 'inv
  *  ship. */
 const broken = (sim: Sim): string =>
   sim.violation ? `Broken at ${seconds(sim.violation.at)}: ${sim.violation.detail}.` : '';
-
-/**
- * A seed's opening with some settings, replayed to `until`: by default the opening's moment, where
- * the build's picture stands. Start over keeps the seed and the settings, so it plays the same
- * seed again with what the visitor changed. Not the same readers: every draw comes from one
- * seeded stream, so a switch that changes how many draws the run makes, as coalescing does by
- * making fewer fetches, moves every arrival after it. Two runs compare by their counts.
- */
-const fresh = (seed: number, settings: Settings = {}, until: number = OPENING.until): Sim =>
-  replay({ ...OPENING.config, ...settings, seed }, OPENING.actions, until);
 
 export function start(root: HTMLElement, queued: readonly Element[]): void {
   const $ = <T extends Element>(selector: string) => root.querySelector<T>(selector);
@@ -83,15 +75,15 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     Number($<HTMLInputElement>('input[name="cl-speed"]:checked')?.value ?? 0.5) || 0.5;
 
   // A link to a run opens it; anything else opens the opening the build drew.
-  const link = fromLink(location.hash);
-  let sim: Sim = fresh(link?.seed ?? OPENING.seed, link?.settings);
+  const linked = openLink(location.hash);
+  let sim: Sim = linked ?? openingRun();
   let playing = false;
   let last = 0;
   let frame = 0;
   let timer = 0;
   // What the page shows: the last line of the event log, which node held each page when its lamps
   // were last laid out, and each page's lamp and state since.
-  let shownLines: Line | undefined = link ? undefined : sim.lines.at(-1);
+  let shownLines: Line | undefined = linked ? undefined : sim.lines.at(-1);
   let shownOwners: readonly number[] = [];
   let lamps: (Element | undefined)[] = [];
   const shownState: string[] = [];
@@ -237,13 +229,18 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     }
   }
 
-  /** The run again from REPLAY_FROM, with its seed and settings, drawn, and said where it stands:
-   *  the clock, and the menu that is about to expire. */
-  function begin(): void {
-    sim = fresh(sim.seed, settingsOf(sim), REPLAY_FROM);
+  /** Shows another run from its start, its own event log and all. */
+  function show(next: Sim): void {
+    sim = next;
     shownLines = undefined;
     lines?.replaceChildren();
     draw();
+  }
+
+  /** The run again from REPLAY_FROM, the one its link names (Start over keeps the seed and the
+   *  settings), drawn, and said where it stands: the clock, and the menu about to expire. */
+  function begin(): void {
+    show(openLink(linkTo(sim), REPLAY_FROM) as Sim);
     say(`${clockWords(sim)}. ${menuWords(sim)}.`);
   }
 
@@ -265,8 +262,8 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
       const wasPlaying = playing;
       pause();
       begin();
-      // The address names this run, switches and all, so it opens it again.
-      history.replaceState(null, '', toLink(sim));
+      // The address names this run, switches and all, so a reload or the link shared opens it.
+      history.replaceState(null, '', linkTo(sim));
       if (wasPlaying) play();
       return;
     } else if (control.matches('[data-cl-toggle]')) {
@@ -301,6 +298,14 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && playing) pause();
   });
+  // A link to a run followed on this page opens that run, paused, as loading it would.
+  addEventListener('hashchange', () => {
+    const next = openLink(location.hash);
+    if (!next) return;
+    pause();
+    show(next);
+    say(summary(sim));
+  });
   still.addEventListener('change', () => {
     if (playing) {
       pause();
@@ -308,7 +313,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     }
   });
 
-  if (link) lines?.replaceChildren();
+  if (linked) lines?.replaceChildren();
   draw();
   for (const control of queued) press(control);
 }

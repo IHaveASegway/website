@@ -42,13 +42,16 @@ import {
   holdFile,
   LATE_BY,
   lineTime,
+  linkTo,
   moment,
   OPENING,
   openingRun,
   openingWeek,
+  openLink,
   PROPERTY_NAMES,
   propertyViews,
   SEEDS_IN_CI,
+  SETTINGS,
   shortDay,
   startOver,
   statusText,
@@ -878,6 +881,54 @@ describe('what the page draws, and the three things to try', () => {
     expect(propertyViews(twelve)[0]?.word).toBe(
       "Broke 3 times, first at 00:28: Wednesday's report holds 415 orders and the source 303.",
     );
+  });
+
+  test('a link to a week: Start over’s names the seed and each setting the visitor changed, and opens the week Start over did; one that names none is the build’s', () => {
+    const shape = (sim: Sim) =>
+      JSON.stringify([sim.now, sim.events, sim.runs, sim.report, sim.writes, sim.lines]);
+    const settings = (sim: Sim | null) => [
+      sim?.seed,
+      sim?.mode,
+      sim?.partition,
+      sim?.maxActiveRuns,
+    ];
+    // Each setting a link names opens as the opening's week has it.
+    const opening = openingRun();
+    expect([opening.mode, opening.partition, opening.maxActiveRuns]).toEqual([
+      SETTINGS.mode.opening,
+      SETTINGS.partition.opening,
+      SETTINGS.runs.opening,
+    ]);
+    expect(SETTINGS.runs.values).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(linkTo(opening)).toBe('#seed-9');
+    expect(shape(openLink('#seed-9') as Sim)).toBe(shape(opening));
+
+    setMode(opening, 'overwrite');
+    setMaxActiveRuns(opening, 1);
+    const again = startOver(opening);
+    expect(linkTo(again)).toBe('#seed-9&mode=overwrite&runs=1');
+    const linked = openLink(linkTo(again)) as Sim;
+    expect(shape(linked)).toBe(shape(again));
+    expect(linkTo(linked)).toBe(linkTo(again));
+
+    // Every value the page offers reads back as written.
+    for (const mode of SETTINGS.mode.values)
+      for (const partition of SETTINGS.partition.values)
+        for (const runs of SETTINGS.runs.values) {
+          const link = linkTo({ ...createSim({ seed: 4 }), mode, partition, maxActiveRuns: runs });
+          expect(settings(openLink(link)), link).toEqual([4, mode, partition, runs]);
+        }
+    // A name the lab does not have, or a value it cannot take, is dropped.
+    expect(
+      settings(openLink('#seed-12&runs=9&mode=delete&partition=yesterday&colour=red')),
+    ).toEqual([12, 'append', 'run-day', 3]);
+    expect(settings(openLink('#seed-12&runs=0&partition=today'))).toEqual([
+      12,
+      'append',
+      'today',
+      3,
+    ]);
+    for (const hash of ['', '#main', '#seed-', '#seed-1234567']) expect(openLink(hash)).toBeNull();
   });
 
   test('before the switch: the job off at the minute the week ends, under the chosen settings, with what was set before the switch; switched on, it is the opening again', () => {
