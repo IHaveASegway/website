@@ -209,7 +209,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     run?.setAttribute('data-lamp', 'on');
     if (still.matches) {
       timer = window.setInterval(() => {
-        runUntil(sim, sim.now + STILL_EVERY * Number(speed?.value ?? 0.05), EVENTS_PER_FRAME);
+        runUntil(sim, sim.now + STILL_EVERY * speed(), EVENTS_PER_FRAME);
         draw();
         if (sim.violation) pause();
       }, STILL_EVERY);
