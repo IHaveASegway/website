@@ -273,7 +273,8 @@ export function menuWords(sim: Sim): string {
 export const waiting = (sim: Sim): number => sim.line.length - sim.lineHead;
 
 /** The readers, as the picture labels them: how many pages they ask for a second, and how many
- *  retries came on top in the last second, when any did. */
+ *  retries came on top in the last second, when any did. Both are rates, and the label says so
+ *  for each: beside the caption's run total of retries, a bare count would read as a total. */
 export function readersWords(sim: Sim): string {
   let retries = 0;
   for (let i = sim.recent.length - 1; i >= 0; i--) {
@@ -281,7 +282,7 @@ export function readersWords(sim: Sim): string {
     if (read.at <= sim.now - 1_000) break;
     if (read.attempt) retries++;
   }
-  return `Readers, ${count(LOADS[sim.load])} a second${retries > 0 ? `, and ${count(retries)} retries` : ''}`;
+  return `Readers, ${count(LOADS[sim.load])} a second${retries > 0 ? `, and ${count(retries)} retries a second` : ''}`;
 }
 
 /** The picture's own name, for assistive technology: what its parts show now, the nodes' lamps

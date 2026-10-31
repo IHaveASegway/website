@@ -213,7 +213,7 @@ describe('the two settings', () => {
 
   test('the page says the storm: retries beside the readers, retries in the caption, the line in thousands in the log', () => {
     const { sim } = run(7, STORMY);
-    expect(readersWords(sim)).toMatch(/^Readers, 120 a second, and \d+ retries$/);
+    expect(readersWords(sim)).toMatch(/^Readers, 120 a second, and \d+ retries a second$/);
     expect(summary(sim)).toMatch(/^[\d,]+ reads in 35\.5 s, [\d,]+ of them retries, [\d.]+% from/);
     expect(
       sim.lines.some((line) =>

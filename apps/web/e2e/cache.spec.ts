@@ -677,7 +677,7 @@ test('a retry storm outlasts its trigger, and dropping the fetches nobody waits 
   // Calm for 14 s, and the line is longer than ever.
   expect(Number((await waiting(page).textContent())?.replace(/,/g, ''))).toBeGreaterThan(1_000);
   await expect(page.locator('[data-cl-readers]')).toHaveText(
-    /^Readers, 120 a second, and \d+ retries$/,
+    /^Readers, 120 a second, and \d+ retries a second$/,
   );
   await expect(summary(page)).toHaveText(/, [\d,]+ of them retries, /);
   await choose(page, 'Retry with backoff');
