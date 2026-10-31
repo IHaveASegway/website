@@ -97,6 +97,7 @@ const store = (paused: boolean): void => {
 };
 
 interface Ink {
+  land: string;
   water: string;
   road: string;
   major: string;
@@ -104,6 +105,8 @@ interface Ink {
   depot: string;
   rule: string;
   vans: string[];
+  /** The van itself: a lit lamp on its line (tokens.css, --primary). */
+  lamp: string;
   glow: boolean;
 }
 
@@ -120,6 +123,7 @@ function inkOf(picture: SVGSVGElement): Ink {
   const root = getComputedStyle(document.documentElement);
   const theme = document.documentElement.dataset['theme'];
   return {
+    land: style('.scene-land')?.fill ?? 'transparent',
     water: style('.scene-water')?.fill ?? 'transparent',
     road: style('.scene-road')?.stroke ?? 'transparent',
     major: style('.scene-road-major')?.stroke ?? 'transparent',
@@ -127,6 +131,7 @@ function inkOf(picture: SVGSVGElement): Ink {
     depot: style('.scene-depot')?.stroke ?? 'currentcolor',
     rule: root.getPropertyValue('--border').trim() || 'currentcolor',
     vans,
+    lamp: getComputedStyle(picture).getPropertyValue('--primary').trim() || 'currentcolor',
     // Light trails glow on the dark page; on paper they are drawn plainly.
     glow:
       theme === 'dark' ||
@@ -162,6 +167,7 @@ export async function boot(canvas: HTMLCanvasElement): Promise<boolean> {
   // The floor's paths come from the picture: one copy of the map on the page.
   const floor = (name: string) =>
     new Path2D(picture.querySelector(`[data-floor="${name}"]`)?.getAttribute('d') ?? '');
+  const land = floor('land');
   const water = floor('water');
   const minor = floor('minor');
   const major = floor('major');
@@ -246,6 +252,8 @@ export async function boot(canvas: HTMLCanvasElement): Promise<boolean> {
       out.addPath(path, m);
       return out;
     };
+    ctx.fillStyle = ink.land;
+    ctx.fill(laid(land));
     ctx.fillStyle = ink.water;
     ctx.fill(laid(water));
     ctx.strokeStyle = ink.road;
@@ -401,7 +409,7 @@ export async function boot(canvas: HTMLCanvasElement): Promise<boolean> {
           ctx.stroke();
         }
       }
-      // The van, while it is out: a dot with a halo.
+      // The van, while it is out: a lit lamp with a halo in its line's color.
       if (t > 0 && t < track.back) {
         ctx.globalAlpha = ink.glow ? 0.28 : 0.18;
         ctx.fillStyle = color;
@@ -409,6 +417,7 @@ export async function boot(canvas: HTMLCanvasElement): Promise<boolean> {
         ctx.arc(hx, hy, 13 * px, 0, 2 * Math.PI);
         ctx.fill();
         ctx.globalAlpha = 1;
+        ctx.fillStyle = ink.lamp;
         ctx.beginPath();
         ctx.arc(hx, hy, 4.5 * px, 0, 2 * Math.PI);
         ctx.fill();

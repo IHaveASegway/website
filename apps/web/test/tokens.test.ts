@@ -32,6 +32,11 @@ const TEXT = [
 ];
 /** Non-text: focus outlines, functional borders and indicators, 3:1 on every surface (SC 1.4.11). */
 const NON_TEXT = ['ring', 'input'];
+/** The labs' lines (ADR 0025): strokes and lamps, never text, 3:1 (SC 1.4.11) on the surfaces a line
+ *  is drawn on: the page, the board and a raised surface. The ground is a background symbol of its
+ *  own, which no line crosses. */
+const LINES = ['line-routes', 'line-raft', 'line-queue', 'line-cache', 'line-backfill'];
+const LINE_SURFACES = ['background', 'surface-1', 'surface-2'];
 /** Text drawn on an accent fill, such as a button label, against each fill it sits on. */
 const ON_FILL: Record<string, string[]> = { 'primary-foreground': ['primary', 'primary-strong'] };
 /** Decoration only: no contrast claim, but still inside sRGB. The map's streets and roads are
@@ -51,13 +56,14 @@ const DECORATIVE = [
 /** Pairs a design must never draw; each is listed with its reason (none yet). */
 const FORBIDDEN: [string, string][] = [];
 
-// The Route Lab's map (design-system.md, "Map colors"; ADR 0016). Its fills are the surfaces of
-// the map: the land is the page's background, then water, parks and the six isochrone bands. Every
-// mark on the map (each van's route and stops, a place, the bakery) meets 3:1 against every fill,
-// since a route crosses all of them, and a label meets 4.5:1. The same cross product as above.
+// The maps (design-system.md, "Map colors"; ADR 0016, ADR 0025). Their fills: the water, which is
+// the page's background, the land, a raised surface, parks and the six isochrone bands. Every mark on
+// the map (each van's route and stops, a place, the bakery) meets 3:1 against every fill, since a
+// route crosses all of them, and a label meets 4.5:1. The same cross product as above.
 const MAP_FILLS = [
   'background',
   'map-water',
+  'map-land',
   'map-park',
   'map-band-1',
   'map-band-2',
@@ -135,6 +141,7 @@ test('every color token has a declared role', () => {
     ...SURFACES,
     ...TEXT,
     ...NON_TEXT,
+    ...LINES,
     ...Object.keys(ON_FILL),
     ...DECORATIVE,
     ...MAP_FILLS,
@@ -174,6 +181,19 @@ for (const [themeName, colors] of Object.entries(themes)) {
         });
       }
     }
+
+    for (const surface of LINE_SURFACES) {
+      for (const name of LINES) {
+        test(`${name} on ${surface} reaches 3:1`, () => {
+          expect(wcagContrast(get(name), get(surface))).toBeGreaterThanOrEqual(3);
+        });
+      }
+    }
+
+    test('map: the water is the page and the land a raised surface, so a map has no edge', () => {
+      expect(get('map-water')).toEqual(get('background'));
+      expect(get('map-land')).toEqual(get('surface-2'));
+    });
 
     for (const [name, fills] of Object.entries(ON_FILL)) {
       for (const fill of fills) {
@@ -226,6 +246,21 @@ for (const [themeName, colors] of Object.entries(themes)) {
     }
   });
 }
+
+// Each lab's line is reached by its slug (global.css, [data-line]): a token with no selector is a
+// colour no drawing can name, and a selector with no token draws nothing at all.
+test("every line token is a lab's [data-line], and every [data-line] names a line token", () => {
+  const global = stripComments(
+    readFileSync(new URL('../src/styles/global.css', import.meta.url), 'utf8'),
+  );
+  const slugs = [
+    ...global.matchAll(/\[data-line='([a-z-]+)'\]\s*\{\s*--line:\s*var\(--line-\1\);\s*\}/g),
+  ].map(([, slug]) => `line-${slug}`);
+  expect(slugs.sort()).toEqual([...LINES].sort());
+  expect([...themes.dark.keys()].filter((name) => name.startsWith('line-')).sort()).toEqual(
+    [...LINES].sort(),
+  );
+});
 
 test('known answer: a band lightened until a route on it drops below 3:1 fails the map check', () => {
   const dark = themeColors(source, 'dark');

@@ -118,6 +118,10 @@
   mask-type: alpha;
 }
 
+.scene-land {
+  fill: var(--map-land);
+}
+
 .scene-water {
   fill: var(--map-water);
 }
@@ -164,6 +168,16 @@
   stroke-width: 8px;
   stroke-linecap: square;
   vector-effect: non-scaling-stroke;
+}
+
+/* Every van in the scene is the Route Lab's line, whichever van it is: here colour names the lab,
+   and the vans are told apart by where they drive (ADR 0025). The scene's script reads these from
+   the picture's own elements, so the override lives on the scene and nowhere else. */
+.scene {
+  --map-van-a: var(--line-routes);
+  --map-van-b: var(--line-routes);
+  --map-van-c: var(--line-routes);
+  --map-van-d: var(--line-routes);
 }
 
 .scene-van-a {

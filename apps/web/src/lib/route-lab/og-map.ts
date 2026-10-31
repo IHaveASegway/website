@@ -57,7 +57,7 @@ async function draw(app: string): Promise<Buffer> {
   const bakery = at(BAKERY);
   const svg = [
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x0} ${y0} ${width} ${height}" width="${OG_MAP.width}" height="${OG_MAP.height}" preserveAspectRatio="xMidYMid slice">`,
-    `<rect x="${x0}" y="${y0}" width="${width}" height="${height}" fill="${token('background')}"/>`,
+    `<rect x="${x0}" y="${y0}" width="${width}" height="${height}" fill="${token('map-land')}"/>`,
     ...bands,
     `<path fill-rule="evenodd" fill="${token('map-water')}" d="${basemap.water}"/>`,
     ...routes,

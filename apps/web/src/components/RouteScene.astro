@@ -30,8 +30,10 @@ interface Props {
 // every stop marked. With motion, src/scripts/route-scene.ts takes its place in the same box at the
 // same angle and drives the day; the canvas reads the floor's paths from this picture, so the page
 // holds one copy of the map. The floor is drawn in the map's own units through one matrix, the
-// routes in screen units. No style attribute (security.md): color comes from classes. The map is
-// OpenStreetMap's, under the ODbL, so wherever it shows, its credit shows with it, as on the lab.
+// routes in screen units. No style attribute (security.md): color comes from classes. The land is
+// the map's rectangle and the water is drawn over it in the page's own color, so the sound is the
+// page (ADR 0025). The map is OpenStreetMap's, under the ODbL, so wherever it shows, its credit
+// shows with it, as on the lab.
 const { picture, href, data } = Astro.props;
 const seconds = sceneSeconds(picture.after.measured.back);
 // The camera holds the part of the map the day happens in; the rest of the map runs on past the
@@ -119,6 +121,7 @@ const done = `All ${day.orders.length} delivered · last van back after ${format
     <g class="scene-floor" transform={`matrix(${matrix})`}>
       <g mask="url(#scene-edge-x)">
         <g mask="url(#scene-edge-y)">
+          <path class="scene-land" d={`M${mx} ${my}h${mw}v${mh}h${-mw}z`} data-floor="land" />
           <path class="scene-water" d={basemap.water} data-floor="water" />
           <path class="scene-road" d={basemap.roads.secondary} data-floor="minor" />
           <path

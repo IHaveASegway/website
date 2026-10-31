@@ -75,6 +75,29 @@
   data {
     font-variant-numeric: tabular-nums;
   }
+
+  /* A lab's line (ADR 0025): whatever belongs to a lab names it with data-line, and draws in
+     var(--line), the lab's own colour (tokens.css). Colour means which line, and nothing else, so a
+     new lab's drawing needs its slug here and its token there, and no other rule. */
+  [data-line='routes'] {
+    --line: var(--line-routes);
+  }
+
+  [data-line='raft'] {
+    --line: var(--line-raft);
+  }
+
+  [data-line='queue'] {
+    --line: var(--line-queue);
+  }
+
+  [data-line='cache'] {
+    --line: var(--line-cache);
+  }
+
+  [data-line='backfill'] {
+    --line: var(--line-backfill);
+  }
 }
 
 /* Motion is authored inside no-preference only (design-system.md, "Motion"): a visitor who asks

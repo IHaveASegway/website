@@ -5,9 +5,12 @@
   Tier 2, semantic: shadcn's names, which components use through Tailwind (bg-background,
   text-muted-foreground, outline-ring) or var(). A component never carries its own literal.
 
-  The values are direction C, "Instrument", in Petrol + Apricot, chosen on 2026-10-23
-  (design-system.md, "Chosen direction"). Apricot is the one accent, so the signal and the focus
-  ring point at it. The contrast test (test/tokens.test.ts) reads every block in this file.
+  The values are the signal box (ADR 0025, 2026-10-30): the page is a panel's green enamel, the
+  board a recessed surface in it, all text engraving. Colour means one thing, which line: each lab
+  draws its line in its own colour (--line-*), set per lab by [data-line] in global.css. State is
+  a lamp's shape and a word, never a hue. --primary is the lit lamp, warm white at night and ink
+  by day: the primary button, the focus ring, a van, where the work is now. The contrast test
+  (test/tokens.test.ts) reads every block in this file.
 
   Themes. The pre-paint script (src/scripts/theme.js) sets data-theme on <html> to "light" or
   "dark" while a choice is stored, and to "system" otherwise. CSS treats "system" and a missing
@@ -92,147 +95,174 @@
   --text-statement--line-height: 1.02;
 }
 
-/* Dark: the designed default, and what a stored "dark" asks for. */
+/* Night: the designed default, and what a stored "dark" asks for. */
 :root,
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --background: oklch(0.233 0.035 225); /* petrol */
-  --surface-1: oklch(0.272 0.041 225); /* panels: code in a post */
-  --surface-2: oklch(0.31 0.044 225); /* a step above: hover, the skip link */
-  --foreground: oklch(0.961 0.01 205);
-  --muted-foreground: oklch(0.8 0.025 216);
-  --subtle-foreground: oklch(0.72 0.03 218);
-  --border: oklch(0.431 0.04 223); /* hairline rules only */
-  --ground: oklch(
-    0.3 0.042 224
-  ); /* a page's background lines (design-system.md, "Page geometry"): text holds 4.5:1 on it */
-  --input: oklch(0.6 0.035 220); /* functional borders and link underlines: 3:1 */
-  --primary: oklch(0.84 0.095 60); /* apricot */
-  --primary-strong: oklch(0.88 0.068 62); /* hover */
-  --primary-foreground: oklch(0.2 0.029 60); /* text on an apricot fill */
-  --signal: var(--primary); /* one accent: the signal is the apricot */
+  --background: oklch(0.3 0.025 163); /* the panel's enamel, and the water on every map */
+  --surface-1: oklch(0.268 0.023 163); /* the board, recessed in its bezel; code */
+  --surface-2: oklch(0.35 0.028 163); /* raised: describers, a pressed button, hover; map land */
+  --foreground: oklch(0.955 0.012 150); /* engraving: all text */
+  --muted-foreground: oklch(0.8 0.025 158); /* secondary text, labels inside drawings */
+  --subtle-foreground: var(--muted-foreground);
+  --border: oklch(0.42 0.026 162); /* a hairline only: no contrast duty */
+  /* Background symbols (About's wheels, the 404's buffer stop): a step off the enamel, so they
+     read, and text keeps 4.5:1 on them. */
+  --ground: oklch(0.36 0.03 162);
+  /* Rules that work: the board's bezel, a button's edge, ticks, the rail's edge. 3:1 on every
+     surface, the ground's included: at L 0.62 it measured 2.98:1 there, so 0.625. */
+  --input: oklch(0.625 0.03 160);
+  --primary: oklch(0.96 0.045 98); /* the lit lamp */
+  /* Its hover. Chroma 0.02 at L 0.99 is outside sRGB; 0.018 is the nearest inside. */
+  --primary-strong: oklch(0.99 0.018 98);
+  --primary-foreground: var(--surface-1); /* text on a lamp */
+  --signal: var(--primary);
   --destructive: var(--foreground); /* placeholder until a page shows an error state */
   --ring: var(--primary);
+  /* One colour per lab, drawn as its line: strokes and lamps, never text, 3:1 on the enamel, the
+     board and a raised surface. Hue is never the only cue: each line has its shape and its title.
+     The smallest difference between two of them under full-severity colour-vision simulation is
+     ΔE_OK 0.100 at night and 0.088 by day. */
+  --line-routes: oklch(0.89 0.15 100); /* signal yellow */
+  --line-raft: oklch(0.74 0.12 350);
+  --line-queue: oklch(0.69 0.15 258);
+  --line-cache: oklch(0.72 0.17 45);
+  --line-backfill: oklch(0.87 0.09 205);
   /* The faces of Home's isometric drawings (ADR 0023), from the surfaces the page already has:
      the roof lightest, the side toward the lower left next, the lower right darkest. */
   --face-top: var(--surface-2);
   --face-left: var(--surface-1);
   --face-right: var(--background);
-  /* The Route Lab's map (design-system.md, "Map colors"). Fills: water, parks and the six
-     isochrone bands, band-1 the nearest to the bakery, a step toward the foreground each, so nearer
-     reads as more ink, and a step in hue, teal-green near to petrol far. Marks at 3:1 on every fill
-     and on the page: the four vans, the places, the bakery, the 10 and 20 minute lines. Text at
-     4.5:1 on every fill: the labels; a stop's number is the page's background on its van's color,
-     at 4.5:1 too. The marks are as light as they go, so the bands can span as much lightness as
-     3:1 leaves them. Streets and roads are decoration, drawn translucent so they read on every
-     band. */
-  --map-water: oklch(0.17 0.035 240);
-  --map-park: oklch(0.27 0.035 180);
-  --map-band-1: oklch(0.52 0.085 178);
-  --map-band-2: oklch(0.47 0.08 186);
-  --map-band-3: oklch(0.42 0.07 195);
-  --map-band-4: oklch(0.37 0.062 204);
-  --map-band-5: oklch(0.325 0.056 212);
-  --map-band-6: oklch(0.28 0.046 220);
-  --map-street: oklch(0.9 0.02 210 / 0.14);
-  --map-road: oklch(0.9 0.02 210 / 0.3);
-  --map-road-major: oklch(0.9 0.02 210 / 0.5);
-  --map-van-a: var(--primary);
-  --map-van-b: oklch(0.86 0.088 350);
+  /* The maps (design-system.md, "Map colors"): the Route Lab's, Home's scene and the link
+     preview's. The water is the page itself, so a map has no edge where its data stops; the land a
+     step up, the raised surface; parks a step greener. The six isochrone bands step from the land
+     toward the ink, band-1 the nearest to the bakery, so nearer reads as more ink. Between the
+     land and the lightest fill the labels allow (4.5:1) there is less lightness than six steps of
+     ΔE_OK 0.045 need, so the bands rise in chroma too, from the land's grey to the panel's green.
+     Marks reach 3:1 on every fill: the four vans, and the places, the bakery and the 10 and 20
+     minute lines, all in ink; a stop's number is the page's background on its van, at 4.5:1. Van
+     A is the Route Lab's own line. Streets and roads are the rule colour, translucent: decoration
+     under the routes. */
+  --map-water: var(--background);
+  --map-land: var(--surface-2);
+  --map-park: oklch(0.375 0.045 152);
+  --map-band-1: oklch(0.522 0.168 140);
+  --map-band-2: oklch(0.488 0.134 146);
+  --map-band-3: oklch(0.454 0.101 152);
+  --map-band-4: oklch(0.421 0.067 158);
+  --map-band-5: oklch(0.387 0.034 164);
+  --map-band-6: oklch(0.353 0.002 170);
+  --map-street: oklch(0.625 0.03 160 / 0.14);
+  --map-road: oklch(0.625 0.03 160 / 0.3);
+  --map-road-major: oklch(0.625 0.03 160 / 0.5);
+  --map-van-a: var(--line-routes);
+  --map-van-b: oklch(0.86 0.085 350);
   --map-van-c: oklch(0.92 0.12 125);
   --map-van-d: oklch(0.86 0.07 285);
-  --map-place: oklch(0.86 0.025 215);
+  --map-place: var(--foreground);
   --map-depot: var(--foreground);
-  --map-contour: oklch(0.88 0.03 190);
-  --map-label: oklch(0.95 0.012 210);
+  --map-contour: var(--foreground);
+  --map-label: var(--foreground);
 }
 
-/* Light, chosen in this browser. */
+/* Day, chosen in this browser: the same panel by daylight. */
 :root[data-theme='light'] {
   color-scheme: light;
-  --background: oklch(0.955 0.012 215); /* tinted paper (2026-10-27) */
-  --surface-1: oklch(0.932 0.014 212);
-  --surface-2: oklch(0.91 0.016 212);
-  --foreground: oklch(0.219 0.03 231);
-  --muted-foreground: oklch(0.455 0.03 225);
-  --subtle-foreground: oklch(0.475 0.03 222);
-  --border: oklch(0.861 0.015 213);
-  --ground: oklch(0.905 0.016 213);
-  --input: oklch(0.56 0.03 220);
-  --primary: oklch(0.49 0.12 48); /* apricot, darkened to text contrast on the light surfaces */
-  --primary-strong: oklch(0.43 0.11 46);
-  --primary-foreground: oklch(0.991 0.005 211);
+  --background: oklch(0.94 0.008 165);
+  --surface-1: oklch(0.975 0.004 165);
+  --surface-2: oklch(0.905 0.011 165);
+  --foreground: oklch(0.24 0.022 165);
+  --muted-foreground: oklch(0.44 0.022 165);
+  --subtle-foreground: var(--muted-foreground);
+  --border: oklch(0.84 0.01 165);
+  --ground: oklch(0.88 0.012 165);
+  --input: oklch(0.56 0.02 165);
+  --primary: var(--foreground);
+  --primary-strong: oklch(0.32 0.025 165);
+  --primary-foreground: var(--surface-1);
   --signal: var(--primary);
   --destructive: var(--foreground);
   --ring: var(--primary);
+  --line-routes: oklch(0.6 0.125 75);
+  --line-raft: oklch(0.48 0.165 352);
+  --line-queue: oklch(0.46 0.15 260);
+  --line-cache: oklch(0.52 0.18 28);
+  --line-backfill: oklch(0.56 0.09 205);
   --face-top: var(--background);
   --face-left: var(--surface-1);
   --face-right: var(--surface-2);
 
-  --map-water: oklch(0.85 0.065 245);
-  --map-park: oklch(0.95 0.03 150);
-  --map-band-1: oklch(0.72 0.08 182);
-  --map-band-2: oklch(0.77 0.07 187);
-  --map-band-3: oklch(0.815 0.06 192);
-  --map-band-4: oklch(0.86 0.048 197);
-  --map-band-5: oklch(0.905 0.036 202);
-  --map-band-6: oklch(0.95 0.024 207);
-  --map-street: oklch(0.3 0.03 225 / 0.12);
-  --map-road: oklch(0.3 0.03 225 / 0.28);
-  --map-road-major: oklch(0.3 0.03 225 / 0.45);
-  --map-van-a: oklch(0.44 0.115 45); /* the apricot, darker than --primary: the bands go darker */
-  --map-van-b: oklch(0.43 0.16 355);
-  --map-van-c: oklch(0.43 0.11 140);
-  --map-van-d: oklch(0.43 0.15 290);
-  --map-place: oklch(0.42 0.03 222);
+  --map-water: var(--background);
+  --map-land: var(--surface-2);
+  --map-park: oklch(0.88 0.03 150);
+  --map-band-1: oklch(0.648 0.034 171);
+  --map-band-2: oklch(0.695 0.027 172);
+  --map-band-3: oklch(0.742 0.02 172);
+  --map-band-4: oklch(0.789 0.014 173);
+  --map-band-5: oklch(0.836 0.007 173);
+  --map-band-6: oklch(0.883 0.002 174);
+  --map-street: oklch(0.56 0.02 165 / 0.12);
+  --map-road: oklch(0.56 0.02 165 / 0.28);
+  --map-road-major: oklch(0.56 0.02 165 / 0.45);
+  --map-van-a: oklch(0.38 0.075 75);
+  --map-van-b: oklch(0.38 0.15 355);
+  --map-van-c: oklch(0.38 0.1 140);
+  --map-van-d: oklch(0.38 0.14 290);
+  --map-place: var(--foreground);
   --map-depot: var(--foreground);
-  --map-contour: oklch(0.38 0.05 200);
-  --map-label: oklch(0.26 0.03 228);
+  --map-contour: var(--foreground);
+  --map-label: var(--foreground);
 }
 
-/* Light, from the OS, unless "dark" is stored. :where() keeps this at :root's specificity, so a
+/* Day, from the OS, unless "dark" is stored. :where() keeps this at :root's specificity, so a
    stored "dark" ([data-theme='dark'], one attribute more) wins over it. */
 @media (prefers-color-scheme: light) {
   :root:where(:not([data-theme='dark'])) {
     color-scheme: light;
-    --background: oklch(0.955 0.012 215);
-    --surface-1: oklch(0.932 0.014 212);
-    --surface-2: oklch(0.91 0.016 212);
-    --foreground: oklch(0.219 0.03 231);
-    --muted-foreground: oklch(0.455 0.03 225);
-    --subtle-foreground: oklch(0.475 0.03 222);
-    --border: oklch(0.861 0.015 213);
-    --ground: oklch(0.905 0.016 213);
-    --input: oklch(0.56 0.03 220);
-    --primary: oklch(0.49 0.12 48);
-    --primary-strong: oklch(0.43 0.11 46);
-    --primary-foreground: oklch(0.991 0.005 211);
+    --background: oklch(0.94 0.008 165);
+    --surface-1: oklch(0.975 0.004 165);
+    --surface-2: oklch(0.905 0.011 165);
+    --foreground: oklch(0.24 0.022 165);
+    --muted-foreground: oklch(0.44 0.022 165);
+    --subtle-foreground: var(--muted-foreground);
+    --border: oklch(0.84 0.01 165);
+    --ground: oklch(0.88 0.012 165);
+    --input: oklch(0.56 0.02 165);
+    --primary: var(--foreground);
+    --primary-strong: oklch(0.32 0.025 165);
+    --primary-foreground: var(--surface-1);
     --signal: var(--primary);
     --destructive: var(--foreground);
     --ring: var(--primary);
+    --line-routes: oklch(0.6 0.125 75);
+    --line-raft: oklch(0.48 0.165 352);
+    --line-queue: oklch(0.46 0.15 260);
+    --line-cache: oklch(0.52 0.18 28);
+    --line-backfill: oklch(0.56 0.09 205);
     --face-top: var(--background);
     --face-left: var(--surface-1);
     --face-right: var(--surface-2);
 
-    --map-water: oklch(0.85 0.065 245);
-    --map-park: oklch(0.95 0.03 150);
-    --map-band-1: oklch(0.72 0.08 182);
-    --map-band-2: oklch(0.77 0.07 187);
-    --map-band-3: oklch(0.815 0.06 192);
-    --map-band-4: oklch(0.86 0.048 197);
-    --map-band-5: oklch(0.905 0.036 202);
-    --map-band-6: oklch(0.95 0.024 207);
-    --map-street: oklch(0.3 0.03 225 / 0.12);
-    --map-road: oklch(0.3 0.03 225 / 0.28);
-    --map-road-major: oklch(0.3 0.03 225 / 0.45);
-    --map-van-a: oklch(0.44 0.115 45);
-    --map-van-b: oklch(0.43 0.16 355);
-    --map-van-c: oklch(0.43 0.11 140);
-    --map-van-d: oklch(0.43 0.15 290);
-    --map-place: oklch(0.42 0.03 222);
+    --map-water: var(--background);
+    --map-land: var(--surface-2);
+    --map-park: oklch(0.88 0.03 150);
+    --map-band-1: oklch(0.648 0.034 171);
+    --map-band-2: oklch(0.695 0.027 172);
+    --map-band-3: oklch(0.742 0.02 172);
+    --map-band-4: oklch(0.789 0.014 173);
+    --map-band-5: oklch(0.836 0.007 173);
+    --map-band-6: oklch(0.883 0.002 174);
+    --map-street: oklch(0.56 0.02 165 / 0.12);
+    --map-road: oklch(0.56 0.02 165 / 0.28);
+    --map-road-major: oklch(0.56 0.02 165 / 0.45);
+    --map-van-a: oklch(0.38 0.075 75);
+    --map-van-b: oklch(0.38 0.15 355);
+    --map-van-c: oklch(0.38 0.1 140);
+    --map-van-d: oklch(0.38 0.14 290);
+    --map-place: var(--foreground);
     --map-depot: var(--foreground);
-    --map-contour: oklch(0.38 0.05 200);
-    --map-label: oklch(0.26 0.03 228);
+    --map-contour: var(--foreground);
+    --map-label: var(--foreground);
   }
 }
 
@@ -266,26 +296,34 @@
        theme's, whose hairlines are near-white on light and dark gray on dark. */
     --border: oklch(0.75 0 0);
     --input: oklch(0.55 0 0);
-    /* The map prints in its light colors. */
-    --map-water: oklch(0.85 0.065 245);
-    --map-park: oklch(0.95 0.03 150);
-    --map-band-1: oklch(0.72 0.08 182);
-    --map-band-2: oklch(0.77 0.07 187);
-    --map-band-3: oklch(0.815 0.06 192);
-    --map-band-4: oklch(0.86 0.048 197);
-    --map-band-5: oklch(0.905 0.036 202);
-    --map-band-6: oklch(0.95 0.024 207);
-    --map-street: oklch(0.3 0.03 225 / 0.12);
-    --map-road: oklch(0.3 0.03 225 / 0.28);
-    --map-road-major: oklch(0.3 0.03 225 / 0.45);
-    --map-van-a: oklch(0.44 0.115 45); /* apricot on paper: ink is the bakery's color */
-    --map-van-b: oklch(0.43 0.16 355);
-    --map-van-c: oklch(0.43 0.11 140);
-    --map-van-d: oklch(0.43 0.15 290);
-    --map-place: oklch(0.42 0.03 222);
+    /* The lines print in their day colours, made for a light page. */
+    --line-routes: oklch(0.6 0.125 75);
+    --line-raft: oklch(0.48 0.165 352);
+    --line-queue: oklch(0.46 0.15 260);
+    --line-cache: oklch(0.52 0.18 28);
+    --line-backfill: oklch(0.56 0.09 205);
+    /* The map prints in its day colours: the water is the white paper, so the land keeps its own
+       gray rather than the page's white surface. */
+    --map-water: var(--background);
+    --map-land: oklch(0.905 0.011 165);
+    --map-park: oklch(0.88 0.03 150);
+    --map-band-1: oklch(0.648 0.034 171);
+    --map-band-2: oklch(0.695 0.027 172);
+    --map-band-3: oklch(0.742 0.02 172);
+    --map-band-4: oklch(0.789 0.014 173);
+    --map-band-5: oklch(0.836 0.007 173);
+    --map-band-6: oklch(0.883 0.002 174);
+    --map-street: oklch(0.56 0.02 165 / 0.12);
+    --map-road: oklch(0.56 0.02 165 / 0.28);
+    --map-road-major: oklch(0.56 0.02 165 / 0.45);
+    --map-van-a: oklch(0.38 0.075 75);
+    --map-van-b: oklch(0.38 0.15 355);
+    --map-van-c: oklch(0.38 0.1 140);
+    --map-van-d: oklch(0.38 0.14 290);
+    --map-place: var(--foreground);
     --map-depot: var(--foreground);
-    --map-contour: oklch(0.38 0.05 200);
-    --map-label: oklch(0.26 0.03 228);
+    --map-contour: var(--foreground);
+    --map-label: var(--foreground);
   }
 }
 

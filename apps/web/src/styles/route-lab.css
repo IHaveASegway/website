@@ -348,7 +348,8 @@
   width: 100%;
   height: auto;
   border: 1px solid var(--border);
-  background-color: var(--background);
+  /* The land: the water is drawn over it in the page's own color (tokens.css, "The maps"). */
+  background-color: var(--map-land);
   /* A map is a picture: its colors are the information, and the tables carry it as text. */
   forced-color-adjust: none;
   /* For the same reason its labels, its stops' numbers and its tip are not text to select: a drag

@@ -3,10 +3,10 @@ import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 import { expect, test } from 'vitest';
 
-// The touch icon's wheel is drawn last, filled with the tile's petrol, so neither the rider's leg
+// The touch icon's wheel is drawn last, filled with the tile's enamel, so neither the rider's leg
 // nor the stem shows inside it (design-system.md, "Icons"). Read from the PNG iOS shows, at 180 px,
 // which `pnpm --filter web icons` renders from the SVG: until 2026-10-25 the leg and the stem,
-// drawn after the wheel, filled most of it, and the center was apricot.
+// drawn after the wheel, filled most of it, and the center was the rider's color.
 const svg = readFileSync(new URL('../icons/touch-icon.svg', import.meta.url), 'utf8');
 const png = fileURLToPath(new URL('../public/apple-touch-icon.png', import.meta.url));
 
@@ -65,11 +65,11 @@ test('known answer: a mark inside the wheel is found', async () => {
       {
         input: Buffer.from(
           '<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180">' +
-            `<circle cx="${cx * 5.625}" cy="${cy * 5.625}" r="3" fill="#f9bc8b"/></svg>`,
+            `<circle cx="${cx * 5.625}" cy="${cy * 5.625}" r="3" fill="#f9f3d1"/></svg>`,
         ),
       },
     ])
     .png()
     .toBuffer();
-  expect(await insideTheWheel(marked)).toContain('#f9bc8b');
+  expect(await insideTheWheel(marked)).toContain('#f9f3d1');
 });
