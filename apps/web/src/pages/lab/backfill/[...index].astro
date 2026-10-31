@@ -34,7 +34,7 @@ const { entry } = Astro.props;
 const { name } = (await loadProfile()).basics;
 const { Content } = await render(await labEntry(entry));
 const lead =
-  "A nightly job counts the bakery's orders, one run per day. Backfill the week, fail a load, rerun a day, and check every total against the source.";
+  'A nightly job counts the bakery’s orders, one run per day. Backfill the week, fail a load, rerun a day, and check every total against the source.';
 // How it is built, in the model's own figures, so none is typed here. Each paragraph is one string:
 // a figure that a formatter moves to the start of a line would lose the space before it.
 const opening = openingRun();
