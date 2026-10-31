@@ -104,19 +104,18 @@ for (const size of SIZES)
   });
 
 // The Raft line's log ends in a buffer stop a step past its last entry, well inside the panel on
-// Home and short of the words on the Lab index, as every other line ends at a station of its own.
-// Until 2026-10-31 its track ran on to the drawing's right edge, into the panel's.
+// Home, as every other line ends at a station of its own. Until 2026-10-31 its track ran on to the
+// drawing's right edge, into the panel's. The Lab index drew the same line until ADR 0027, and
+// draws each lab's glyph now (e2e/index.spec.ts).
 for (const size of SIZES)
-  for (const path of ['/', '/lab/'])
+  for (const path of ['/'])
     test(`at ${size.width} px the Raft line on ${path} ends in a buffer stop, short of the edge`, async ({
       page,
     }) => {
       test.skip(!pages().includes('/lab/raft/'), 'this build has no Raft lab');
       await page.setViewportSize(size);
       await page.goto(path);
-      const row = page.locator(
-        path === '/' ? '[data-board] .band[data-line="raft"]' : 'main .lab-row[data-line="raft"]',
-      );
+      const row = page.locator('[data-board] .band[data-line="raft"]');
       const drawing = row.locator('svg.line-draw').filter({ visible: true });
       await expect(drawing).toHaveCount(1);
       const { svg, track, stop, lamps } = await drawing.evaluate((element) => {

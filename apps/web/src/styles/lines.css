@@ -1,8 +1,8 @@
 /*
   The labs' lines (ADR 0025; components/board/lines/): each lab drawn as its mechanism, in its own
-  colour, var(--line), which its slug sets (global.css, [data-line]), on Home's board and on the Lab
-  index. The line components import this sheet, so a page that draws a line carries it and no other
-  page does. Every colour is a token from tokens.css. A track is the lab's colour at a lamp's
+  colour, var(--line), which its slug sets (global.css, [data-line]), on Home's board (until ADR
+  0027 on the Lab index too). The line components import this sheet, so a page that draws a line
+  carries it and no other page does. Every colour is a token from tokens.css. A track is the lab's colour at a lamp's
   weight; a lamp is round, the only round thing on the page: hollow is a ring in the line's colour
   on the surface it stands on, filled is the line's colour, the lit lamp, --primary, is where the
   work is now, and a cross over a hollow lamp has failed. A station that is down has no lamp and its
@@ -143,11 +143,6 @@
 
 .line-label {
   fill: var(--muted-foreground);
-}
-
-/* A station named under or over its lamp: the Lab index's servers, log, queue and days. */
-.line-label-middle {
-  text-anchor: middle;
 }
 
 .line-number {

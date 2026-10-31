@@ -7,8 +7,8 @@
   (test/css-classes.test.ts). The demo moves only while the visitor runs it, and in JavaScript, so
   this file declares no transition and no animation.
 
-  The page's head is the lab's line (PageHead.astro), and the demo is the lab's desk (ADR 0025;
-  global.css, .desk): the event log is set apart from the picture and the controls by a rule from
+  The page's head is the lab's own (components/lab/LabHead.astro), and the demo is the lab's
+  desk (ADR 0027; lab-page.css, .desk): the event log is set apart from the picture and the controls by a rule from
   bezel to bezel, and what stands on the desk takes its surface, --surface-1, for ground.
 */
 
@@ -55,7 +55,7 @@
   .cl-panel + .cl-strip {
     margin-inline: calc(var(--desk-side) * -1);
     padding: 1.25rem var(--desk-side) 0;
-    border-block-start: 1px solid var(--input);
+    border-block-start: 1px solid var(--border);
   }
 }
 
@@ -780,7 +780,7 @@ legend.cl-group-name {
   gap: 0.75rem;
   margin-inline: calc(var(--desk-side) * -1);
   padding: 1.5rem var(--desk-side) 0;
-  border-block-start: 1px solid var(--input);
+  border-block-start: 1px solid var(--border);
 }
 
 .cl-heading {

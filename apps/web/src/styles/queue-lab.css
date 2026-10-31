@@ -8,8 +8,8 @@
   (test/css-classes.test.ts). The demo moves only while the visitor runs it, and in JavaScript, so
   this file declares no transition and no animation.
 
-  The page's head is the lab's line (PageHead.astro), and the demo is the lab's desk (ADR 0025;
-  global.css, .desk), and what stands on it takes its surface, --surface-1, for ground. The
+  The page's head is the lab's own (components/lab/LabHead.astro), and the demo is the lab's
+  desk (ADR 0027; lab-page.css, .desk), and what stands on it takes its surface, --surface-1, for ground. The
   picture's own controls stand right under it with no rule between, as an instrument's knobs do,
   so the picture and the controls a visitor tries it with fit one screen, a phone's too: nothing
   is pinned to the screen, so nothing covers the words. The settings a run is tried under and the
@@ -445,7 +445,7 @@
 .qu-settings {
   margin-inline: calc(var(--desk-side) * -1);
   padding: 1.25rem var(--desk-side) 0;
-  border-block-start: 1px solid var(--input);
+  border-block-start: 1px solid var(--border);
 }
 
 /* Each group as wide as its buttons, flowing on as the desk allows. */
@@ -583,7 +583,7 @@
   gap: 0.75rem;
   margin-inline: calc(var(--desk-side) * -1);
   padding: 1.5rem var(--desk-side) 0;
-  border-block-start: 1px solid var(--input);
+  border-block-start: 1px solid var(--border);
 }
 
 .qu-heading {

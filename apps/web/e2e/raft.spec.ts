@@ -386,9 +386,10 @@ test('Start over writes the loss into its link, and a reload opens the same run,
 
 // The desk's lamps (ADR 0025): Run is a push-button whose lamp is off until the run is on and lit
 // while it runs, said by data-lamp, since its words already change (Run, Pause) and a button whose
-// words change is no toggle, so it carries no aria-pressed; a server and each log entry are lamps in the lab's own line, the colour its
-// head runs across the page in, whatever the entry's term, which its number under it tells. Until
-// then each term took one of the map's van colours, the Route Lab's yellow among them.
+// words change is no toggle, so it carries no aria-pressed; a server and each log entry are lamps
+// in the lab's own line, --line-raft, the colour its glyph draws in (ADR 0027; until then its head
+// ran a line across the page in it), whatever the entry's term, which its number under it tells.
+// Until then each term took one of the map's van colours, the Route Lab's yellow among them.
 test('Run lights its lamp while the run is on, and every lamp on the desk is the lab’s line, whatever the term', async ({
   page,
 }) => {
@@ -410,9 +411,14 @@ test('Run lights its lamp while the run is on, and every lamp on the desk is the
         'beforeend',
         '<li class="rf-cell" data-term="2"><span class="rf-mark"></span><span class="rf-num">3</span></li>',
       );
-    const line = getComputedStyle(document.querySelector('.page-line') as Element, '::before');
+    // The lab's own line token, as the page resolves it, read from a probe on the desk.
+    const probe = document.createElement('span');
+    probe.style.setProperty('border-top', '1px solid var(--line-raft)');
+    document.querySelector('#raft-lab')?.append(probe);
+    const line = getComputedStyle(probe).borderTopColor;
+    probe.remove();
     return {
-      line: line.backgroundColor,
+      line,
       marks: [
         ...new Set(
           [...document.querySelectorAll('.rf-mark')].map((m) => getComputedStyle(m).borderTopColor),

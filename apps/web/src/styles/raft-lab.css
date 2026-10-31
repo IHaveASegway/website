@@ -6,7 +6,7 @@
   (test/css-classes.test.ts). The demo moves only while the visitor runs it, and in JavaScript, so
   this file declares no transition and no animation.
 
-  The demo is the lab's desk (ADR 0025; global.css, .desk). A server is a lamp in the lab's line,
+  The demo is the lab's desk (ADR 0027; lab-page.css, .desk). A server is a lamp in the lab's line,
   var(--line), hollow while it follows, lit while it stands for election, filled while it leads, and
   hollow down its middle while it is down; each log entry is a lamp, filled once committed, with its
   term under it as a number: colour means the lab, never the term. Each mark means what it means on
@@ -295,7 +295,7 @@
   .rf-side {
     margin-inline: calc(var(--desk-side) * -1);
     padding: 1.5rem var(--desk-side) 0;
-    border-top: 1px solid var(--input);
+    border-top: 1px solid var(--border);
   }
 }
 
@@ -409,7 +409,7 @@
   gap: 1rem;
   margin-inline: calc(var(--desk-side) * -1);
   padding: 1.25rem var(--desk-side) 0;
-  border-top: 1px solid var(--input);
+  border-top: 1px solid var(--border);
 }
 
 /* Run keeps one width as its words turn to Pause, so the row never shifts under the pointer. Its
@@ -559,7 +559,7 @@
   gap: 0.75rem;
   margin-inline: calc(var(--desk-side) * -1);
   padding: 1.5rem var(--desk-side) 0;
-  border-top: 1px solid var(--input);
+  border-top: 1px solid var(--border);
 }
 
 /* The log's box is one size whatever it holds, before the run's first line and after its sixtieth,

@@ -1,6 +1,7 @@
 ---
 import { render } from 'astro:content';
-import PageHead from '../../../components/PageHead.astro';
+import LabHead from '../../../components/lab/LabHead.astro';
+import LabWriteUp from '../../../components/lab/LabWriteUp.astro';
 import RaftLab from '../../../components/raft-lab/RaftLab.astro';
 import Base from '../../../layouts/Base.astro';
 import { labEntry, loadLabArea, loadProfile } from '../../../lib/content';
@@ -12,7 +13,7 @@ import { SEEDS_IN_CI } from '../../../lib/raft/view';
 // ([demo].astro leaves it out, lib/lab.ts OWN_PAGE). Static: the simulation runs in the browser,
 // with no Worker and no Durable Object. A rest parameter, so the page builds only while its lab
 // entry is live, as /lab/ does ([...index].astro beside [demo].astro). The page is its lab's line
-// (ADR 0025): data-line gives it the lab's colour, which its head runs across the top and its log
+// (ADR 0025): data-line gives it the lab's colour, which its glyph and its log
 // lamps light in.
 export async function getStaticPaths() {
   const lab = await loadLabArea();
@@ -27,7 +28,7 @@ interface Props {
 const { entry } = Astro.props;
 
 const { name } = (await loadProfile()).basics;
-const { Content } = await render(await labEntry(entry));
+const { Content, headings } = await render(await labEntry(entry));
 const lead =
   'Five servers agree on one log with Raft. Crash them, cut the network and lose messages, and watch the five safety properties hold.';
 ---
@@ -39,11 +40,13 @@ const lead =
   og={labCard(entry)}
 >
   <article class="page rf-page" data-line={entry.slug} aria-labelledby="page-title">
-    <PageHead heading={entry.title} lead={lead} line />
+    <LabHead slug={entry.slug} heading={entry.title} lead={lead} />
     <RaftLab />
-    <div class="prose">
+    <LabWriteUp
+      headings={[...headings, { depth: 2, slug: 'how-it-is-built', text: 'How it is built' }]}
+    >
       <Content />
-      <h2>How it is built</h2>
+      <h2 id="how-it-is-built">How it is built</h2>
       <p>
         The servers are one TypeScript module that follows Figure 2 of the Raft paper. Time, the
         network and every random choice belong to a simulator around them: virtual time, one seeded
@@ -58,6 +61,6 @@ const lead =
         a real bug: one that votes without checking the candidate's log, and one that commits an old
         term's entry by counting copies.
       </p>
-    </div>
+    </LabWriteUp>
   </article>
 </Base>

@@ -1,0 +1,35 @@
+---
+import type { MarkdownHeading } from 'astro';
+
+interface Props {
+  /** The write-up's sections: the lab entry's headings, then the page's own. */
+  headings: readonly Pick<MarkdownHeading, 'depth' | 'slug' | 'text'>[];
+}
+
+// A lab's write-up (docs/design/overhaul.md, "A lab's page chrome"): the prose in its reading
+// measure, and a list of its sections beside it from 64rem, which stays in view as the write-up
+// scrolls past, in its own column, so it covers no word. On a phone the list comes first, under
+// the desk. Only the sections, h2: a lab's h3s are steps inside one.
+const { headings } = Astro.props;
+const sections = headings.filter((h) => h.depth === 2);
+---
+
+<div class="lab-write">
+  {sections.length > 1 && (
+    <nav class="lab-contents" aria-labelledby="lab-contents-title">
+      <h2 id="lab-contents-title" class="lab-contents-title">
+        On this page
+      </h2>
+      <ol role="list">
+        {sections.map((h) => (
+          <li>
+            <a href={`#${h.slug}`}>{h.text}</a>
+          </li>
+        ))}
+      </ol>
+    </nav>
+  )}
+  <div class="prose">
+    <slot />
+  </div>
+</div>
