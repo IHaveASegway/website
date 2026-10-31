@@ -446,14 +446,12 @@
   }
 
   /* Page geometry (design-system.md, "Page geometry"): a page's background symbol, About's wheels
-     (lib/ground.ts), behind its top right corner, at its natural size from 75rem and cut by the
-     window below that. It fades toward the text column and toward the fold, and every shape is
-     --ground, which every text token reads on at 4.5:1, so a shape under a word never costs it
-     contrast. On a phone, where the column is the window's whole width, it would stand behind
-     the words, so it is not drawn there. Nothing moves. The masks are alpha only, so any opaque
-     color would do; currentcolor keeps literals out of the stylesheet. The drawing is never
-     taller than the page: on a page shorter than it, its foot reached past the body's and the
-     window scrolled on into nothing, beyond the rail and the footer (ADR 0022). */
+     (lib/ground.ts), behind its top right corner at its natural size, and only where it clears the
+     words (below). It fades toward the text column and toward the fold, and every shape is
+     --ground, which every text token reads on at 4.5:1. Nothing moves. The masks are alpha only,
+     so any opaque color would do; currentcolor keeps literals out of the stylesheet. The drawing
+     is never taller than the page: on a page shorter than it, its foot reached past the body's and
+     the window scrolled on into nothing, beyond the rail and the footer (ADR 0022). */
   body {
     position: relative;
     isolation: isolate;
@@ -473,7 +471,16 @@
     mask-composite: intersect;
   }
 
-  @media (width < 48rem) {
+  /* The drawing is display, the words beside it content, and display never stands under content
+     (2026-10-31). It sits at its natural size against the window's right edge, so its left wheel
+     starts 560 px in from that edge, and it is drawn only where that clears the text column, the
+     reading measure from the column's start, by at least a gutter. Without the rail the measure
+     ends near 606 px, which the wheels clear from 75rem (34 px at 1200); from 80rem the rail moves
+     the column 224 px right, to end near 846 px, which they clear from 90rem (34 px at 1440).
+     Between, at 768 to 1199 and 1280 to 1439 px, the wheels stood behind the bio, so they are not
+     drawn. The breakpoints are in rem and the wheels in px, so a larger default text size, which
+     widens the measure, only moves the breakpoints further out (e2e/ground.spec.ts). */
+  @media (width < 75rem), (80rem <= width < 90rem) {
     .ground {
       display: none;
     }
