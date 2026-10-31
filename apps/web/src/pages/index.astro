@@ -172,8 +172,11 @@ const linkedIn = checkedProfiles(profile).find((p) => p.network === 'LinkedIn');
           <p class="toward-text">{paragraph}</p>
         ))}
       </div>
+      {/* A phone breaks the address after its @, never inside a word (a <wbr>, unseen and unread). */}
       <a class="toward-mail" href={`mailto:${CONTACT_EMAIL}`}>
-        {CONTACT_EMAIL}
+        {CONTACT_EMAIL.slice(0, CONTACT_EMAIL.indexOf('@') + 1)}
+        <wbr />
+        {CONTACT_EMAIL.slice(CONTACT_EMAIL.indexOf('@') + 1)}
       </a>
       {linkedIn && (
         <div class="toward-actions">
