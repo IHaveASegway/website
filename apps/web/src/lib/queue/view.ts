@@ -76,17 +76,37 @@ function brokenWords(sim: Sim, p: PropertyState): string {
   }
 }
 
-/** The status line: the three properties as one sentence, or the bug that froze the run. */
+/**
+ * When the page will know whether the queue drains, or null once it knows. The property is asked
+ * only once orders stop, and answered when nothing is left or 30 s after the stop (sim.ts,
+ * watchDrain), and a poison order can fail on every try until then. With every worker down the
+ * wait stops, and its 30 s start again when one is up.
+ */
+function drainCheck(sim: Sim): string | null {
+  if (sim.tallies.drains.count > 0) return null;
+  if (sim.producing) return 'once orders stop';
+  if (live(sim) === 0) return null;
+  const since = sim.drain.since;
+  return since === null ? '30 s after a worker is up' : `at ${tenths(since + DRAIN_WITHIN)}`;
+}
+
+/** The status line: the three properties as one sentence, or the bug that froze the run. Whether
+ *  the queue drains is claimed only once it is known, and until then the line says when it is. */
 export function statusText(sim: Sim): string {
   if (sim.violation)
     return `Stopped at ${seconds(sim.violation.at)}: an order appeared or disappeared, which is a bug. ${firstUp(sim.violation.detail)}.`;
-  const all = properties(sim);
-  const held = all.flatMap((p) => (p.held ? [firstDown(p.name)] : []));
-  const broken = all.flatMap((p) => (p.held ? [] : [brokenWords(sim, p)]));
+  const check = drainCheck(sim);
+  const asked = properties(sim).filter((p) => check === null || p.id !== 'drains');
+  const held = asked.flatMap((p) => (p.held ? [firstDown(p.name)] : []));
+  const broken = asked.flatMap((p) => (p.held ? [] : [brokenWords(sim, p)]));
+  const events = sim.events.toLocaleString('en-US');
+  const tail = check === null ? '' : ` Whether the queue drains is checked ${check}.`;
   if (broken.length === 0)
-    return `All three held over ${sim.events.toLocaleString('en-US')} events: ${list(held)}.`;
-  if (held.length === 0) return `${firstUp(list(broken))}.`;
-  return `${firstUp(list(held))}, but ${list(broken)}.`;
+    return check === null
+      ? `All three held over ${events} events: ${list(held)}.`
+      : `${firstUp(list(held))} over ${events} events.${tail}`;
+  if (held.length === 0) return `${firstUp(list(broken))}.${tail}`;
+  return `${firstUp(list(held))}, but ${list(broken)}.${tail}`;
 }
 
 /** The first order the idempotency key kept from printing twice: done, printed once, and sent
@@ -103,11 +123,11 @@ function skippedOrder(sim: Sim): Job | undefined {
 }
 
 /**
- * The run's story in one sentence: of the first order printed twice, the first order lost and the
- * queue that did not drain, the one that happened last, which is what the visitor did last; with
- * none, the first order the idempotency key printed once. A printed order goes back to the broker
- * only when its worker crashed before its ack left, so a second ticket, or a skipped one, always
- * has that story.
+ * The run's story in one sentence: of the first order printed twice, the first order lost, a
+ * poison order failing over and over under requeue, and the queue that did not drain, the one that
+ * happened last, which is what the visitor did last; with none, the first order the idempotency
+ * key printed once. A printed order goes back to the broker only when its worker crashed before
+ * its ack left, so a second ticket, or a skipped one, always has that story.
  */
 function story(sim: Sim): string | null {
   const told: { at: number; text: string }[] = [];
@@ -127,6 +147,19 @@ function story(sim: Sim): string | null {
   }
   const lost = sim.tallies['no-loss'].first;
   if (lost) told.push({ at: lost.at, text: `${firstUp(lost.detail)}.` });
+  // Told from when it was published: it is a problem from then on, while orders still come too,
+  // and a later break takes the caption over.
+  const looping =
+    sim.handling === 'requeue'
+      ? sim.jobs.find((job) => job.poison && job.ended === null && job.failures > 0)
+      : undefined;
+  if (looping) {
+    const n = looping.failures;
+    told.push({
+      at: looping.published,
+      text: `Poison order ${looping.id} has failed ${n} ${n === 1 ? 'time' : 'times'}: each time it comes straight back to the head of the queue and keeps a worker busy.`,
+    });
+  }
   const stuck = sim.tallies.drains.first;
   if (stuck) {
     const job = jobOf(sim, stuck.job);
@@ -263,11 +296,13 @@ export function startOver(sim: Sim): Sim {
 export const openingOf = (seed: number): Sim =>
   replay({ ...OPENING.config, seed }, OPENING.actions, OPENING.until);
 
-/** A property's words beside its lamp: "Holds", or "Broken" and what broke it, counted. Whether
- *  the queue drains is asked only once orders stop, which the words say while they still come. */
+/** A property's words beside its lamp: "Holds", or "Broken" and what broke it, counted. Until the
+ *  page knows whether the queue drains, the words say when it will. */
 export function propertyWords(sim: Sim, p: PropertyState): string {
-  if (p.held)
-    return p.id === 'drains' && sim.producing ? 'Holds; checked once orders stop' : 'Holds';
+  if (p.held) {
+    const check = p.id === 'drains' ? drainCheck(sim) : null;
+    return check === null ? 'Holds' : `Holds; checked ${check}`;
+  }
   const n = p.count;
   const orders = `${n} ${n === 1 ? 'order' : 'orders'}`;
   switch (p.id) {
@@ -633,13 +668,14 @@ export function mapMarkup(sim: Sim, layout: Layout): string {
       );
     }
   }
+  // Each row's number is the last order it shows, so a row still filling says how far it has got.
   if (tickets.numbered && newest > 0)
     for (let row = firstRow; row <= lastRow; row++)
       out.push(
         text(
           tickets.x + tickets.cols * tickets.pitch - 2,
           ticketTop + (row - firstRow) * tickets.pitch + 5,
-          String((row + 1) * tickets.cols),
+          String(Math.min((row + 1) * tickets.cols, newest)),
           'qu-label qu-count',
         ),
       );

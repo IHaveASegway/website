@@ -54,7 +54,7 @@ test('without JavaScript, the page is the opening run: order 18 printed twice, w
   await page.goto(QUEUE);
   await expect(summary(page)).toHaveText(OPENING_STORY);
   await expect(status(page)).toHaveText(
-    'No order was lost and the queue drains, but 1 order was printed twice.',
+    'No order was lost, but 1 order was printed twice. Whether the queue drains is checked once orders stop.',
   );
   // Worker 2's track is hollow and says Down; workers 1 and 3 each light the order in work.
   await expect(map(page).locator('.qu-gap')).toHaveCount(1);
@@ -72,7 +72,7 @@ test('without JavaScript, the page is the opening run: order 18 printed twice, w
   ] as const)
     await expect(property(page, id)).toHaveAttribute('data-held', held);
   await expect(log(page)).toContainText("2.873 s Worker 1 prints order 18's ticket again");
-  for (const control of await page.locator('.qu-controls, .qu-clock').all())
+  for (const control of await page.locator('.qu-controls, .qu-clock, .qu-key').all())
     await expect(control).toBeHidden();
   await context.close();
 });
@@ -133,49 +133,38 @@ test('the first thing to try: worker 2 crashes at 2.4 s and order 18 prints twic
     'data-state',
     'printed',
   );
-  await expect(status(page)).toHaveText(/^All three held over 143 events/);
+  await expect(status(page)).toHaveText(
+    /^No order was lost and no order was printed twice over 143 events\. Whether the queue drains is checked once orders stop\.$/,
+  );
   // The key is a setting: it stays on for the run that starts over.
   await expect(page.getByRole('radio', { name: 'On' })).toBeChecked();
 });
 
-test('the second: acknowledging before the work, a crash loses the order the worker held, never printed', async ({
+test('the second: switched to acknowledging before the work, a worker crashed at once loses the order it held, never printed', async ({
   page,
 }) => {
   await page.goto(QUEUE);
+  // Worker 1 holds order 26 and worker 3 order 27, both sent before the switch.
   await page.getByRole('radio', { name: 'Before the work' }).check();
   await expect(log(page)).toContainText(
-    'From the next delivery, an order is acknowledged as it is',
+    'Orders are now acknowledged as they are delivered, before the work: at-most-once. The broker lets go at once of what it has already sent: orders 26 and 27',
   );
-  // Worker 1 holds order 26, delivered before the switch; its next order comes acknowledged. It
-  // has no lamp lit between two orders, so the page is read without waiting for one.
-  const working = map(page).locator('.qu-slot[data-worker="0"][data-state="working"]');
-  const workingOn = () =>
-    page.evaluate(
-      () =>
-        document
-          .querySelector('[data-qu-map="wide"] .qu-slot[data-worker="0"][data-state="working"]')
-          ?.getAttribute('data-order') ?? null,
-    );
-  await expect(working).toHaveAttribute('data-order', '26');
-  for (let presses = 0; presses < 80 && (await workingOn()) !== '28'; presses++)
-    await page.getByRole('button', { name: 'Next event' }).click();
-  await expect(working).toHaveAttribute('data-order', '28');
   await page.getByRole('button', { name: 'Crash worker 1' }).click();
-  await expect(summary(page)).toHaveText(
-    /^Order 28 was lost: worker 1 crashed holding it, and it was acknowledged on delivery\./,
+  await expect(page.locator('[data-qu-said]')).toHaveText(
+    'Worker 1 crashes holding order 26. The broker had already let it go, so it is lost',
   );
-  await expect(log(page)).toContainText(
-    'Worker 1 crashes holding order 28. The broker had already let it go, so it is lost',
+  await expect(summary(page)).toHaveText(
+    /^Order 26 was lost: worker 1 crashed holding it, and it was acknowledged at the switch, before its ticket printed\./,
   );
   await expect(property(page, 'no-loss')).toHaveAttribute('data-held', 'false');
   await expect(property(page, 'no-loss')).toContainText('Broken: 1 order lost');
   // Its ticket never printed: hollow, and crossed.
-  await expect(map(page).locator('.qu-ticket[data-order="28"]')).toHaveAttribute(
+  await expect(map(page).locator('.qu-ticket[data-order="26"]')).toHaveAttribute(
     'data-state',
     'lost',
   );
   await expect(status(page)).toHaveText(
-    'The queue drains, but 1 order was lost and 1 order was printed twice.',
+    '1 order was lost and 1 order was printed twice. Whether the queue drains is checked once orders stop.',
   );
 });
 
@@ -188,6 +177,8 @@ test('the third: a poison order under requeue never drains; dead-lettered after 
   await expect(map(page).locator('.qu-order[data-poison]')).toHaveAttribute('data-order', '39');
   await page.getByRole('button', { name: 'Stop taking orders' }).click();
   await expect(page.getByRole('button', { name: 'Take orders' })).toBeVisible();
+  // Until the 30 s are up, no line claims the queue drains.
+  await expect(status(page)).toHaveText(/Whether the queue drains is checked at 34\.0 s\.$/);
   await runUntil(
     page,
     async () => (await property(page, 'drains').getAttribute('data-held')) === 'false',
@@ -219,6 +210,23 @@ test('the third: a poison order under requeue never drains; dead-lettered after 
     '39',
   );
   await expect(property(page, 'drains')).toHaveAttribute('data-held', 'true');
+});
+
+test('while orders still come, a poison order under requeue fails over and over: the caption tells it, and no line claims the queue drains', async ({
+  page,
+}) => {
+  await page.goto(QUEUE);
+  await page.getByRole('button', { name: 'Publish a poison order' }).click();
+  await runUntil(page, async () =>
+    /^Poison order 39 has failed [2-9]/.test((await summary(page).textContent()) ?? ''),
+  );
+  await expect(summary(page)).toHaveText(
+    /^Poison order 39 has failed \d+ times: each time it comes straight back to the head of the queue and keeps a worker busy\./,
+  );
+  await expect(status(page)).toHaveText(
+    'No order was lost, but 1 order was printed twice. Whether the queue drains is checked once orders stop.',
+  );
+  await expect(property(page, 'drains')).toContainText('Holds; checked once orders stop');
 });
 
 test('then a slow worker: with ten orders of prefetch it sits on nine it cannot reach, with one it holds one', async ({
@@ -288,7 +296,7 @@ test('under reduce, Run advances in still steps of half a second, and nothing an
   expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
 });
 
-test('a link to a run opens it: #seed-8 loads that seed with no other intent, and Start over keeps it and the settings', async ({
+test('a link to a run opens it: #seed-8 loads that seed with no other intent, Start over keeps it and the settings, and a link followed on the page opens its own', async ({
   page,
 }) => {
   await page.goto(`${QUEUE}#seed-8`);
@@ -298,7 +306,42 @@ test('a link to a run opens it: #seed-8 loads that seed with no other intent, an
   await expect(page.locator('[data-qu-seed]')).toHaveText('8');
   await expect(clock(page)).toHaveText('Virtual time 4.000 s');
   await expect(page.getByRole('radio', { name: 'On' })).toBeChecked();
-  expect(new URL(page.url()).hash).toBe('#seed-8');
+  // The page loaded, a link to another seed opens that run at its opening, paused, as a load would.
+  await page.getByRole('button', { name: 'Next event' }).click();
+  await expect(clock(page)).not.toHaveText('Virtual time 4.000 s');
+  await page.evaluate(() => (location.hash = '#seed-9'));
+  await expect(page.locator('[data-qu-seed]')).toHaveText('9');
+  await expect(clock(page)).toHaveText('Virtual time 4.000 s');
+  await expect(page.getByRole('button', { name: 'Run' })).toBeVisible();
+});
+
+test('a choice shows its focus around its whole push-button, as a button does', async ({
+  page,
+}) => {
+  await page.goto(QUEUE);
+  await page.getByRole('button', { name: 'Start over' }).focus();
+  await page.keyboard.press('Tab');
+  const steady = page.getByRole('radio', { name: 'Steady' });
+  await expect(steady).toBeFocused();
+  const ring = await steady.evaluate((input) => {
+    const style = getComputedStyle(input);
+    const own = input.getBoundingClientRect();
+    const button = (input.closest('label') as HTMLElement).getBoundingClientRect();
+    return {
+      style: style.outlineStyle,
+      width: parseFloat(style.outlineWidth),
+      around: own.width >= button.width && own.height >= button.height,
+    };
+  });
+  expect(ring).toEqual({ style: 'solid', width: 2, around: true });
+});
+
+test('on a large screen the picture fills the desk', async ({ page }) => {
+  await page.setViewportSize({ width: 2560, height: 1440 });
+  await page.goto(QUEUE);
+  const picture = await map(page).boundingBox();
+  const figure = await page.locator('.qu-figure').boundingBox();
+  expect(Math.round(picture?.width ?? 0)).toBe(Math.round(figure?.width ?? -1));
 });
 
 test('on a phone the narrow picture shows, and nothing scrolls sideways', async ({ page }) => {

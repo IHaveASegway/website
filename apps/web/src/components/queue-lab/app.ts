@@ -191,6 +191,18 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     draw();
   }
 
+  /** Shows another run from its opening: Start over's, or a link's to another seed. */
+  function open(next: Sim, resume: boolean): void {
+    pause();
+    sim = next;
+    clock = sim.now;
+    shownLines = undefined;
+    lines?.replaceChildren();
+    draw();
+    say(summary(sim));
+    if (resume) play();
+  }
+
   function stopped(): boolean {
     if (!sim.violation) return false;
     say(statusText(sim));
@@ -260,15 +272,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
       else if (sim.lines.at(-1) === before) say(`Virtual time ${seconds(sim.now)}`);
       stopped();
     } else if (control.matches('[data-qu-reset]')) {
-      const wasPlaying = playing;
-      pause();
-      sim = startOver(sim);
-      clock = sim.now;
-      shownLines = undefined;
-      lines?.replaceChildren();
-      draw();
-      say(summary(sim));
-      if (wasPlaying) play();
+      open(startOver(sim), playing);
       return;
     } else if (control.matches('[data-qu-producer]')) {
       if (sim.producing) stopProducer(sim);
@@ -298,6 +302,11 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
   });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && playing) pause();
+  });
+  // A link to another seed followed on this page opens that run, paused, as loading it would.
+  addEventListener('hashchange', () => {
+    const seed = seedFromHash();
+    if (seed !== null && seed !== sim.seed) open(openingOf(seed), false);
   });
   still.addEventListener('change', () => {
     if (playing) {

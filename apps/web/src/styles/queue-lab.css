@@ -71,7 +71,8 @@
 }
 
 /* The picture: the wide layout from 64rem, the narrow one below, each drawn for its width so its
-   words stay near the label size (lib/queue/view.ts, LAYOUTS). Its labels cannot be selected: the
+   words stay near the label size (lib/queue/view.ts, LAYOUTS). The wide one fills the desk, so on
+   a large screen it grows, words and all, as a stage would. Its labels cannot be selected: the
    caption, the properties and the event log carry its facts as text. */
 .qu-figure {
   display: grid;
@@ -88,7 +89,6 @@
 
 .qu-map[data-qu-map='wide'] {
   display: none;
-  max-width: 64rem;
 }
 
 .qu-map[data-qu-map='narrow'] {
@@ -219,6 +219,33 @@
 
 .qu-state {
   fill: var(--foreground);
+}
+
+/* The key under the picture: each mark the write-up's key leaves out, near the size the picture
+   draws it, then its words. */
+.qu-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted-foreground);
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  line-height: var(--text-label--line-height);
+}
+
+.qu-key li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.qu-key-mark {
+  flex: none;
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
 }
 
 .qu-summary {
@@ -411,6 +438,7 @@
 }
 
 .qu-choice {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
@@ -429,20 +457,31 @@
   background-color: var(--surface-2);
 }
 
-/* The radio is the lamp: hollow, and lit while chosen. It keeps the one focus ring every focusable
-   element has (global.css), around the lamp. */
+/* The radio covers its push-button, edge included, and draws nothing itself: the one focus ring
+   every focusable element has (global.css) goes around the whole button, as a button's does. The
+   lamp after it is hollow, and lit while its radio is chosen. */
 .qu-choice input {
-  flex: none;
-  appearance: none;
-  inline-size: 0.625rem;
-  block-size: 0.625rem;
+  position: absolute;
+  inset-block-start: -1px;
+  inset-inline-start: -1px;
+  inline-size: calc(100% + 2px);
+  block-size: calc(100% + 2px);
   margin: 0;
-  border: 1.5px solid currentColor;
-  border-radius: 50%;
+  border: 0;
+  appearance: none;
+  background-color: transparent;
   cursor: pointer;
 }
 
-.qu-choice input:checked {
+.qu-choice-lamp {
+  flex: none;
+  inline-size: 0.625rem;
+  block-size: 0.625rem;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+}
+
+.qu-choice input:checked + .qu-choice-lamp {
   border-color: var(--primary);
   background-color: var(--primary);
 }
@@ -531,9 +570,13 @@
   list-style: none;
 }
 
+/* A line's time in a column of its own, so its words wrap under themselves, never under the time. */
+.qu-list li {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+}
+
 .qu-at {
-  display: inline-block;
-  min-width: 5.5rem;
   color: var(--muted-foreground);
   font-family: var(--font-label);
   font-variant-numeric: tabular-nums;
@@ -546,7 +589,7 @@
   .qu-head-lamp,
   .qu-lamp,
   .qu-prop[data-held='false'] .qu-lamp::after,
-  .qu-choice input:checked {
+  .qu-choice input:checked + .qu-choice-lamp {
     forced-color-adjust: none;
     border-color: CanvasText;
     background-color: CanvasText;

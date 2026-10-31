@@ -96,9 +96,11 @@ export const FEATURES = {
   },
   // The Queue Lab (ADR 0026): its app, the broker and workers, the checker and what it draws, in one
   // chunk loaded on intent, as the Raft Lab's. No data file and no WebAssembly; its page keeps 150 KB.
-  // Its chunk measured 11,050 B on 2026-10-30, so its budget is that rounded up to the next 1,000 B,
-  // not the Raft Lab's 8,000: the core alone (lib/queue, lib/sim) is 6,224 B, and the picture, its
-  // words and the controls the rest. Nothing it ships goes unused: the bundler drops the rest.
+  // Its chunk measured 11,524 B on 2026-10-30, over the Raft Lab's 8,000: the core alone (lib/queue,
+  // lib/sim) is about 6.2 KB, and the picture, its words and the controls the rest. Some of it never
+  // runs on the page: the test-only faults (118 B) and resizing the pool (111 B, besides a leaving
+  // worker's steps), which replay reaches and no control does; without both it would be 11,273 B.
+  // So the budget is 12,000 B, a raise for ADR 0026 to accept or refuse.
   'queue-lab': {
     page: 'lab/queue/index.html',
     entry: /^_astro\/QueueLab\.astro_astro_type_script_index_0_lang\.[\w-]+\.js$/,

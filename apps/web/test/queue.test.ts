@@ -209,7 +209,7 @@ describe('a crash', () => {
     expect(sim.jobs.filter((j) => j.effects.length > 1)).toEqual([job]);
     expect([sim.duplicates, property(sim, 'once').count]).toEqual([2, 1]);
     expect(statusText(sim)).toBe(
-      'No order was lost and the queue drains, but 1 order was printed more than once.',
+      'No order was lost, but 1 order was printed more than once. Whether the queue drains is checked once orders stop.',
     );
     expect(summary(sim)).toMatch(new RegExp(`^Order ${job.id} was printed 3 times: worker 1 `));
   });
@@ -256,6 +256,66 @@ describe('a crash', () => {
     runUntil(sim, sim.now + 1_000);
     expect(job.place).toBe('done');
     expect([job.delivered.length, job.effects.length, job.redelivered]).toEqual([1, 1, false]);
+  });
+
+  // The write-up's second thing to try, as written: switch, then crash at once.
+  test('switching to before lets go of what the broker has sent: a crash right after loses it, never printed', () => {
+    const sim = openingRun();
+    setAck(sim, 'before');
+    expect(sim.lines.at(-1)?.text).toBe(
+      'Orders are now acknowledged as they are delivered, before the work: at-most-once. The broker lets go at once of what it has already sent: orders 26 and 27',
+    );
+    crash(sim, 0);
+    const job = jobOf(sim, 26);
+    expect([job.place, job.effects.length]).toEqual(['lost', 0]);
+    expect(sim.lines.at(-1)?.text).toBe(
+      'Worker 1 crashes holding order 26. The broker had already let it go, so it is lost',
+    );
+    expect(property(sim, 'no-loss').first?.detail).toBe(
+      'order 26 was lost: worker 1 crashed holding it, and it was acknowledged at the switch, before its ticket printed',
+    );
+    runUntil(sim, sim.now + 3_000);
+    // Nobody sends it again, and conservation holds.
+    expect([job.place, job.delivered.length, sim.violation]).toEqual(['lost', 1, null]);
+    // A switch back applies from the next delivery: what the broker let go stays let go.
+    setAck(sim, 'after');
+    expect(sim.lines.at(-1)?.text).toBe(
+      'From the next delivery, a worker acknowledges an order after its ticket prints: at-least-once',
+    );
+    // An order still on its way at the switch is let go too, and reaches the crashed worker lost.
+    const sent = createSim({ seed: 6, load: 'rush', prefetch: 2 });
+    const onWire = (s: Sim) => [...s.wire].find((id) => jobOf(s, id).worker === 0);
+    stepUntil(sent, (s) => onWire(s) !== undefined);
+    const coming = jobOf(sent, onWire(sent) as number);
+    setAck(sent, 'before');
+    crash(sent, 0);
+    runUntil(sent, sent.now + 3_000);
+    expect([coming.place, coming.delivered.length, sent.violation]).toEqual(['lost', 0, null]);
+  });
+
+  test('an order past its ticket step at the switch is done, printed once, and never worked on again', () => {
+    // Printed, its ack not yet left.
+    const printed = createSim({ seed: 5, load: 'busy' });
+    stepUntil(printed, (s) => betweenTicketAndAck(s, 0));
+    const job = jobOf(printed, workerOf(printed, 0).busy as number);
+    setAck(printed, 'before');
+    expect(job.place).toBe('done');
+    crash(printed, 0);
+    runUntil(printed, printed.now + 3_000);
+    expect([job.place, job.effects.length, job.delivered.length]).toEqual(['done', 1, 1]);
+    expect([printed.lostCount, printed.violation]).toEqual([0, null]);
+    // Sent again after a crash, its ticket skipped by the key, its ack not yet left.
+    const skipped = createSim({ seed: 5, load: 'busy', key: true });
+    stepUntil(skipped, (s) => betweenTicketAndAck(s, 0));
+    const again = jobOf(skipped, workerOf(skipped, 0).busy as number);
+    crash(skipped, 0);
+    stepUntil(skipped, (s) => s.workers.some((w) => w.busy === again.id && w.ticketed));
+    expect(skipped.skipped).toBe(1);
+    setAck(skipped, 'before');
+    expect(again.place).toBe('done');
+    runUntil(skipped, skipped.now + 3_000);
+    expect([again.effects.length, again.delivered.length, skipped.skipped]).toEqual([1, 2, 1]);
+    expect(skipped.violation).toBeNull();
   });
 
   test.each(['after', 'before'] as const)(
@@ -623,7 +683,10 @@ describe('the event lines', () => {
   ];
 
   test('each is a plain sentence, with no exclamation mark and none of the banned words', () => {
-    const runs = [everyAction(), openingRun(), createSim({ seed: 1 })];
+    const switched = openingRun();
+    setAck(switched, 'before');
+    crash(switched, 0);
+    const runs = [everyAction(), openingRun(), createSim({ seed: 1 }), switched];
     for (const handling of ['requeue', 'dead-letter'] as const) {
       const sim = createSim({ seed: 9, load: 'rush', ack: 'before', handling });
       poison(sim);
@@ -667,7 +730,7 @@ test('the opening the page draws: worker 2 crashes between a ticket and its ack,
     'Order 18 was printed twice: worker 2 crashed after printing its ticket and before its ack left, so the broker sent it again and worker 1 printed it a second time. Nothing was lost; 25 orders are done and 13 are queued or with a worker.',
   );
   expect(statusText(sim)).toBe(
-    'No order was lost and the queue drains, but 1 order was printed twice.',
+    'No order was lost, but 1 order was printed twice. Whether the queue drains is checked once orders stop.',
   );
   expect(workerText(sim, 1)).toBe('Worker 2, down');
   const life = lifecycles(sim).find((l) => l.id === 18);
@@ -862,29 +925,66 @@ describe('the page', () => {
       'Order 18 was sent twice and printed once: worker 2 crashed after printing its ticket and before its ack left, so the broker sent it again, and worker 1 found it in the done set and skipped the ticket. Nothing was lost; 25 orders are done and 13 are queued or with a worker.',
     );
     expect(statusText(again)).toBe(
-      'All three held over 143 events: no order was lost, no order was printed twice and the queue drains.',
+      'No order was lost and no order was printed twice over 143 events. Whether the queue drains is checked once orders stop.',
     );
     // A link to a run opens the same opening on its own seed.
     expect([openingOf(8).seed, openingOf(8).now]).toEqual([8, OPENING.until]);
   });
 
-  test('the caption tells the latest break: acknowledging first, a crash loses order 28 after order 18 printed twice', () => {
+  test('the caption tells the latest break: acknowledging first, a crash loses order 26 after order 18 printed twice', () => {
     const sim = openingRun();
     setAck(sim, 'before');
-    // Worker 1's order 26 came before the switch; its next one is acknowledged as it is delivered.
-    while (workerOf(sim, 0).busy !== 28) runUntil(sim, nextTime(sim));
     crash(sim, 0);
     expect(summary(sim)).toBe(
-      'Order 28 was lost: worker 1 crashed holding it, and it was acknowledged on delivery. 1 order was lost; 26 orders are done and 12 are queued or with a worker.',
+      'Order 26 was lost: worker 1 crashed holding it, and it was acknowledged at the switch, before its ticket printed. 1 order was lost; 25 orders are done and 12 are queued or with a worker.',
     );
     expect(statusText(sim)).toBe(
-      'The queue drains, but 1 order was lost and 1 order was printed twice.',
+      '1 order was lost and 1 order was printed twice. Whether the queue drains is checked once orders stop.',
     );
     expect(properties(sim).map((p) => propertyWords(sim, p))).toEqual([
       'Broken: 1 order lost',
       'Broken: 1 order printed twice',
       'Holds; checked once orders stop',
     ]);
+  });
+
+  test('while a poison order fails under requeue, the caption tells it, and no line claims the queue drains until that is known', () => {
+    const sim = openingRun();
+    poison(sim);
+    runUntil(sim, 6_000);
+    expect(summary(sim)).toMatch(
+      /^Poison order 39 has failed \d+ times?: each time it comes straight back to the head of the queue and keeps a worker busy\. Nothing was lost;/,
+    );
+    expect(statusText(sim)).toBe(
+      'No order was lost, but 1 order was printed twice. Whether the queue drains is checked once orders stop.',
+    );
+    stopProducer(sim);
+    const deadline = (sim.drain.since as number) + DRAIN_WITHIN;
+    expect(statusText(sim)).toBe(
+      `No order was lost, but 1 order was printed twice. Whether the queue drains is checked at ${(deadline / 1000).toFixed(1)} s.`,
+    );
+    expect(propertyWords(sim, property(sim, 'drains'))).toBe(
+      `Holds; checked at ${(deadline / 1000).toFixed(1)} s`,
+    );
+    runUntil(sim, deadline);
+    expect(statusText(sim)).toBe(
+      'No order was lost, but 1 order was printed twice and the queue did not drain within 30 s.',
+    );
+    // With every worker down, the 30 s start again when one is up.
+    const down = openingRun();
+    stopProducer(down);
+    crash(down, 0);
+    crash(down, 2);
+    expect(propertyWords(down, property(down, 'drains'))).toBe(
+      'Holds; checked 30 s after a worker is up',
+    );
+    // Once it has drained, it is claimed.
+    const drained = openingRun();
+    stopProducer(drained);
+    runUntil(drained, 10_000);
+    expect(statusText(drained)).toBe(
+      'No order was lost and the queue drains, but 1 order was printed twice.',
+    );
   });
 
   test('the strip: the orders waiting over the first 30 s, on a scale of 20, with worker 2’s crash at 2.4 s', () => {
@@ -909,7 +1009,7 @@ describe('the page', () => {
     expect(propertyWords(sim, property(sim, 'drains'))).toBe('Holds; checked once orders stop');
     poison(sim);
     stopProducer(sim);
-    expect(propertyWords(sim, property(sim, 'drains'))).toBe('Holds');
+    expect(propertyWords(sim, property(sim, 'drains'))).toBe('Holds; checked at 34.0 s');
     runUntil(sim, OPENING.until + DRAIN_WITHIN + 1_000);
     expect(propertyWords(sim, property(sim, 'drains'))).toBe(
       'Broken: not empty 30 s after orders stopped',
@@ -931,6 +1031,13 @@ describe('the page', () => {
         'data-state="working" data-worker="0" data-order="26"',
         'data-state="working" data-worker="2" data-order="27"',
       ]);
+      // Each row of tickets ends in the last order it shows: the third holds 21 to 25.
+      if (layout.tickets.numbered)
+        expect([...markup.matchAll(/qu-count"[^>]*>(\d+)</g)].map(([, n]) => n)).toEqual([
+          '10',
+          '20',
+          '25',
+        ]);
       // Classes and attributes only: the page's policy refuses inline styles.
       expect(markup).not.toMatch(/style=/);
     }

@@ -5,9 +5,10 @@
 // writes no markup. Focus stays in the input, a combobox, and aria-activedescendant names the
 // selected row; typing filters the rows by subsequence over each label and its keywords, and by the
 // query whole over a demo's or a post's summary, whose many words would let a subsequence find
-// almost anything; it selects the first row that holds the query whole, where there is one. It is one
-// module with no imports, so every page loads one file and nothing more (test/scripts.test.ts,
-// test/budgets.test.ts). The three pure functions are exported for test/palette.test.ts.
+// almost anything; it selects the first row that holds the query whole, in its name before in a
+// summary, where there is one. It is one module with no imports, so every page loads one file and
+// nothing more (test/scripts.test.ts, test/budgets.test.ts). The three pure functions are exported
+// for test/palette.test.ts.
 
 /** Whether a keydown opens or closes the menu: ⌘K or Ctrl+K, never a bare key (SC 2.1.4), and never
  *  inside a composition, where an input method uses Ctrl+K itself. On a layout whose K key types a
@@ -109,10 +110,13 @@ function boot() {
     empty.hidden = shown.length > 0;
     note.textContent = '';
     // The first row that holds the query whole, else the first row: a scattered subsequence ("bak"
-    // in "Break") never takes Enter from a word that starts the same way.
-    const whole = shown.find((option) =>
-      wholes(option).some((text) => contains(input.value, text)),
-    );
+    // in "Break") never takes Enter from a word that starts the same way. A row's own name holds it
+    // before a summary does, so "bak" opens the demo titled for the bakery, not the first demo
+    // whose summary mentions one.
+    const holds = (texts) => texts.some((text) => contains(input.value, text));
+    const whole =
+      shown.find((option) => holds(found(option) ? [option.textContent ?? ''] : words(option))) ??
+      shown.find((option) => holds(wholes(option)));
     select(whole ?? shown[0]);
     clearTimeout(timer);
     const count = shown.length === 1 ? '1 result' : `${shown.length} results`;
