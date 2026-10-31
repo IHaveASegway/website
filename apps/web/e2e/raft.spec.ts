@@ -207,7 +207,7 @@ test('under reduce, Run advances in still steps of half a second of the chosen s
   expect(steady.length).toBeGreaterThan(2);
   expect(new Set(steady)).toEqual(new Set([25]));
   // At Quick, twice as fast: steps of 50, so the choice changes the steps as it changes a run.
-  await page.selectOption('[data-rf-speed]', '0.1');
+  await page.getByRole('radio', { name: 'Quick' }).check();
   const quick = await steps();
   expect(quick.length).toBeGreaterThan(1);
   expect(new Set(quick)).toEqual(new Set([50]));
