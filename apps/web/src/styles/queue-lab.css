@@ -556,8 +556,10 @@
   line-height: var(--text-ui--line-height);
 }
 
+/* The log's box is one size whatever it holds, before the run's first line and after its sixtieth,
+   so a run that empties it, or fills it, moves nothing under it (steady.spec.ts). */
 .qu-lines {
-  max-height: 16rem;
+  block-size: 16rem;
   padding: 0.75rem 1rem;
   overflow-y: auto;
   background-color: var(--surface-2);
