@@ -114,8 +114,8 @@ Measured on 2026-10-31, gzip -9 with zlib, as `test/budgets.test.ts` measures; `
 | of which the link's chunk, shared | 327 B | 327 B | 327 B | 327 B | |
 | of which `lib/sim`'s other chunk, shared | | 592 B | 592 B | 592 B | |
 | Eager JavaScript on its page | 3,716 B | 3,726 B | 3,725 B | 3,727 B | 5,000 B |
-| CSS on its page | 10,547 B | 10,979 B | 11,321 B | 11,378 B | 15,000 B |
-| First view with the app: the page, which holds its inline code, the stylesheets it links, declared fonts, eager script files and the lazy chunks | 81,093 B | 88,284 B | 87,143 B | 88,618 B | 150,000 B |
+| CSS on its page | 10,547 B | 10,979 B | 11,321 B | 11,384 B | 15,000 B |
+| First view with the app: the page, which holds its inline code, the stylesheets it links, declared fonts, eager script files and the lazy chunks | 81,093 B | 88,284 B | 87,143 B | 88,644 B | 150,000 B |
 
 - **`lib/sim`'s two chunks.** The link, `lib/sim/link.ts`, is a chunk of its own, which all four apps import, and the agenda and the stream a second, which the three new apps import; each lab's budget counts what it loads in full: a visitor who opens one lab downloads it with that lab. Until the Raft Lab's link joined it, one chunk held all three, 841 B; the split costs each new lab 78 B.
 - **The first view counts a page's inline code once.** Its inline scripts and styles are part of the page's own bytes. Until 2026-10-31 the measure added them again beside the page, 1,145 B on each lab page; each figure was an upper bound.
