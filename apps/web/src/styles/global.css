@@ -2232,11 +2232,28 @@
     row-gap: 0;
   }
 
+  /* Selected work on paper: two cards a row, past the years' gutter, so each title stands where the
+     roles' and the posts' titles stand. One a row, five lab cards took most of the sheet while
+     their text ran in half its width beside an empty gutter. */
   .resume .cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 1.5rem;
+    max-inline-size: none;
+    padding-inline-start: 8rem;
+  }
+
+  .resume .card {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 0;
+    padding-block: 0.1875rem 0.25rem;
+    break-inside: avoid;
+  }
+
+  .resume .card-text {
     max-inline-size: none;
   }
 
-  .resume :is(.roles > li, .card, .post-list > li) {
+  .resume :is(.roles > li, .post-list > li) {
     grid-template-columns: 7rem minmax(0, 1fr);
     column-gap: 1rem;
     row-gap: 0;
@@ -2249,7 +2266,7 @@
     grid-column: 1;
   }
 
-  .resume :is(.role-title, .card-title, .card-text, .card .kv, .card-more) {
+  .resume .role-title {
     grid-column: 2;
   }
 
@@ -2265,9 +2282,12 @@
 
   /* On paper the skills are one line of names, a comma after each but the last: the pages that
      show each are the web edition's. */
+  /* The names' lines stand as close as a paragraph's: the screen's 1rem between skills, each with
+     its pages under it, would open a blank line between two lines of names. */
   .resume .skills {
     display: flex;
     flex-wrap: wrap;
+    row-gap: 0;
   }
 
   .resume .skills > div {
