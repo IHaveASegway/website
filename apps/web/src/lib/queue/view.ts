@@ -754,8 +754,8 @@ export function mapMarkup(sim: Sim, layout: Layout): string {
         );
     } else if (job.place === 'lost') {
       // A hollow lamp struck through once, corner to corner and a little past its ring: the
-      // site's lost order (design-system.md, Lamps). A cross in a ring, ⊗, is a worker out of
-      // service on the board, so the desk no longer draws it for an order.
+      // site's lost order (design-system.md, "Lamps: one meaning per mark"). A cross in a ring, ⊗,
+      // is a station that failed, so the desk no longer draws it for an order.
       const r = lamp - 1;
       out.push(
         `<path class="qu-ticket" data-state="lost" data-order="${id}" d="M${round1(x - r)} ${round1(y)}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0M${round1(x - r)} ${round1(y + r)}l${2 * r} ${-2 * r}"/>`,
