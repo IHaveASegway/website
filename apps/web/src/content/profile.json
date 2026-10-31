@@ -15,7 +15,17 @@
   },
   "work": [],
   "education": [],
-  "skills": [],
+  "skills": [
+    { "name": "Message brokers: RabbitMQ, LavinMQ, SQS", "evidence": ["/lab/queue/"] },
+    { "name": "Caching: look-aside, coalescing, TTLs", "evidence": ["/lab/cache/"] },
+    { "name": "Scheduled pipelines: Airflow", "evidence": ["/lab/backfill/"] },
+    { "name": "Consensus: Raft", "evidence": ["/lab/raft/"] },
+    { "name": "Route optimization: VROOM, OSRM", "evidence": ["/lab/routes/"] },
+    { "name": "WebAssembly", "evidence": ["/lab/routes/"] },
+    { "name": "TypeScript", "evidence": ["/lab/raft/", "/lab/queue/", "/lab/cache/"] },
+    { "name": "AWS Lambda and API Gateway", "evidence": ["/writing/trading-bot-teardown/"] },
+    { "name": "Coding agents and their harness", "evidence": ["/writing/the-road-closed/"] }
+  ],
   "projects": [
     {
       "name": "stillhere",
@@ -28,5 +38,5 @@
       "url": "https://github.com/IHaveASegway/gitops"
     }
   ],
-  "meta": { "firewall_reviewed": null }
+  "meta": { "firewall_reviewed": "2026-10-31" }
 }
