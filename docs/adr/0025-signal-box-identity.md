@@ -154,3 +154,24 @@ The public identity is closer to one-way. As [ADR 0010](0010-quiet-console-desig
 - **The diagram as an interface**: Ken Garland, *Mr Beck's Underground Map* (1994).
 - **One owner, many views**: the board and the Lab index as views of the labs, derived at build. Martin Kleppmann, *Designing Data-Intensive Applications*, chapter 11, "derived data".
 - **Semantic tokens**: names by role, values in one place. Nathan Curtis, "Naming Tokens in Design Systems".
+
+## Postscript 2026-10-31
+
+On a phone in daylight Joseph read the Cache line as the Raft line's colour. By day the Cache line was a brick red, `oklch(0.52 0.18 28)`, ΔE_OK 0.115 from the Raft line's crimson: "one colour per lab" held in the table and not on the screen. Two of the Route Lab's van colours borrowed the same way: by day van B's brick sat beside both lines, and at night van C's sky blue sat 0.053 from the Backfill line's cyan.
+
+What changed, in every block that repeats the day values (the stored light theme, light from the OS, and print):
+
+| Token | Before | After | Nearest line after, ΔE_OK | Contrast after, page / board / raised |
+|---|---|---|---|---|
+| day `--line-cache` | brick `oklch(0.52 0.18 28)` `#ba2c25` | burnt orange `oklch(0.535 0.15 46)` `#b04a01` | Routes, 0.137 (Raft 0.154, was 0.115) | 4.63 / 5.12 / 4.16 |
+| day `--line-routes` | golden ochre `oklch(0.6 0.125 75)` `#ab7306` | dark yellow `oklch(0.59 0.12 100)` `#8e7e0b` | Cache, 0.137 | 3.44 / 3.80 / 3.09 |
+| day `--map-van-a` … `d` | ochre, brick, steel, violet | dark yellow `oklch(0.38 0.075 95)`, brown `oklch(0.32 0.05 50)`, slate `oklch(0.37 0.035 240)`, indigo `oklch(0.27 0.11 287)` | slate to Queue, 0.148 | each 3:1 or more on every map fill |
+| night `--map-van-b` … `d` | apricot, sky, lavender | amber `oklch(0.835 0.16 80)`, pale lilac `oklch(0.92 0.06 320)`, lavender `oklch(0.84 0.09 298)` | lavender to Backfill, 0.134 | each 3:1 or more on every map fill |
+
+The night lines did not change.
+
+The Routes line moved because the Cache line did. A search of the sRGB gamut on 2026-10-31 found no orange at hue 45 to 55, chroma 0.14 or more, that keeps 3:1 on a raised surface and sits more than 0.130 from the day ochre (a darker, greyer one does, and reads as brown): a light theme has room for an ochre or an orange, not both, since neither can be light. At hue 100, its night hue, the day Routes line is a dark yellow and the pair sits 0.137 apart.
+
+`test/tokens.test.ts` now holds the rule as a fitness function: in each theme, every two lines sit ΔE_OK 0.133 or more apart, and every van sits that far from every lab's line but the Route Lab's. The floor comes from the measured pairs: every pair readers took for one colour sat at 0.130 or under, and the nearest pair nobody confused, the night Raft and Cache lines, at 0.142. It sits low in that gap because the night map has no more room, which is this postscript's open question: van D shares van A's square stops, so it stays 20 apart in CIEDE2000 from A's yellow under every simulated deficiency, and no colour that does, on the night fills, sits more than 0.135 from the Raft and Backfill lines. Four van colours, five lab colours and the bands' green fill the night's hue circle, and the vans pay for it among themselves (A and B 0.078 apart at night). Its known answer is the values of 2026-10-30, which fail it on seven pairs.
+
+The decision stands; this is the condition under Revisit if, "a sixth lab cannot get a line colour", arriving early for the vans. If a sixth lab ships, or the night vans read as one colour, the proper design is the one that condition names: the Route Lab's vans told apart by stop shape and dash first, with one shape per van, so their colours no longer have to share the night with five labs.

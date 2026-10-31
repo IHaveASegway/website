@@ -117,8 +117,12 @@
   --ring: var(--primary);
   /* One colour per lab, drawn as its line: strokes and lamps, never text, 3:1 on the enamel, the
      board and a raised surface. Hue is never the only cue: each line has its shape and its title.
-     The smallest difference between two of them under full-severity colour-vision simulation is
-     ΔE_OK 0.100 at night and 0.088 by day. */
+     Any two sit ΔE_OK 0.133 or more apart (test/tokens.test.ts): the nearest are 0.142 at night,
+     Raft and Cache, and 0.137 by day, Routes and Cache. Under full-severity colour-vision
+     simulation the smallest difference is 0.100 at night and 0.090 by day. By day the Cache line
+     is orange, not the brick red it was until 2026-10-31, which read as the Raft line's crimson;
+     and the Routes line is a dark yellow at its night hue, not an ochre, which beside an orange
+     read as a second orange (ADR 0025, postscript of 2026-10-31). */
   --line-routes: oklch(0.89 0.15 100); /* signal yellow */
   --line-raft: oklch(0.74 0.12 350);
   --line-queue: oklch(0.69 0.15 258);
@@ -135,10 +139,13 @@
      as water. The far band is a cool grey, so beside the green land it reads grey, not brown.
      Marks reach 3:1 on every fill: the four vans, and the places, the bakery and the 10 and 20
      minute lines, all in ink; a stop's number is the page's background on its van, at 4.5:1. Van
-     A is the Route Lab's own line; the others keep off every lab's line (no pink, which is the
-     Raft Lab's) and off the bands' green: apricot, sky and lavender, told apart from A's yellow by
-     hue and lightness. Streets and roads are the rule colour, translucent: decoration under the
-     routes. */
+     A is the Route Lab's own line. The others sit 0.133 or more from every other lab's line, as
+     the lines sit from each other, and keep off the bands' green: at night amber, a pale lilac
+     and lavender; by day brown, slate and indigo under A's dark yellow. Until 2026-10-31 night's
+     sky sat beside the Backfill line's cyan, and day's brick beside the Cache line's red. At night
+     that leaves little room: D shares A's square stops, so it stays 20 apart from A's yellow under
+     every deficiency, and no colour that does sits further than 0.135 from the Raft and Backfill
+     lines. Streets and roads are the rule colour, translucent: decoration under the routes. */
   --map-water: var(--background);
   --map-land: var(--surface-2);
   --map-park: oklch(0.375 0.045 152);
@@ -152,9 +159,9 @@
   --map-road: oklch(0.625 0.03 160 / 0.3);
   --map-road-major: oklch(0.625 0.03 160 / 0.5);
   --map-van-a: var(--line-routes);
-  --map-van-b: oklch(0.84 0.09 62);
-  --map-van-c: oklch(0.87 0.06 240);
-  --map-van-d: oklch(0.86 0.07 285);
+  --map-van-b: oklch(0.835 0.16 80);
+  --map-van-c: oklch(0.92 0.06 320);
+  --map-van-d: oklch(0.84 0.09 298);
   --map-place: var(--foreground);
   --map-depot: var(--foreground);
   --map-contour: var(--foreground);
@@ -179,10 +186,10 @@
   --signal: var(--primary);
   --destructive: var(--foreground);
   --ring: var(--primary);
-  --line-routes: oklch(0.6 0.125 75);
+  --line-routes: oklch(0.59 0.12 100);
   --line-raft: oklch(0.48 0.165 352);
   --line-queue: oklch(0.46 0.15 260);
-  --line-cache: oklch(0.52 0.18 28);
+  --line-cache: oklch(0.535 0.15 46);
   --line-backfill: oklch(0.56 0.09 205);
 
   --map-water: var(--background);
@@ -197,10 +204,10 @@
   --map-street: oklch(0.56 0.02 165 / 0.12);
   --map-road: oklch(0.56 0.02 165 / 0.28);
   --map-road-major: oklch(0.56 0.02 165 / 0.45);
-  --map-van-a: oklch(0.38 0.075 75);
-  --map-van-b: oklch(0.4 0.13 30);
-  --map-van-c: oklch(0.38 0.06 230);
-  --map-van-d: oklch(0.38 0.14 290);
+  --map-van-a: oklch(0.38 0.075 95);
+  --map-van-b: oklch(0.32 0.05 50);
+  --map-van-c: oklch(0.37 0.035 240);
+  --map-van-d: oklch(0.27 0.11 287);
   --map-place: var(--foreground);
   --map-depot: var(--foreground);
   --map-contour: var(--foreground);
@@ -227,10 +234,10 @@
     --signal: var(--primary);
     --destructive: var(--foreground);
     --ring: var(--primary);
-    --line-routes: oklch(0.6 0.125 75);
+    --line-routes: oklch(0.59 0.12 100);
     --line-raft: oklch(0.48 0.165 352);
     --line-queue: oklch(0.46 0.15 260);
-    --line-cache: oklch(0.52 0.18 28);
+    --line-cache: oklch(0.535 0.15 46);
     --line-backfill: oklch(0.56 0.09 205);
 
     --map-water: var(--background);
@@ -245,10 +252,10 @@
     --map-street: oklch(0.56 0.02 165 / 0.12);
     --map-road: oklch(0.56 0.02 165 / 0.28);
     --map-road-major: oklch(0.56 0.02 165 / 0.45);
-    --map-van-a: oklch(0.38 0.075 75);
-    --map-van-b: oklch(0.4 0.13 30);
-    --map-van-c: oklch(0.38 0.06 230);
-    --map-van-d: oklch(0.38 0.14 290);
+    --map-van-a: oklch(0.38 0.075 95);
+    --map-van-b: oklch(0.32 0.05 50);
+    --map-van-c: oklch(0.37 0.035 240);
+    --map-van-d: oklch(0.27 0.11 287);
     --map-place: var(--foreground);
     --map-depot: var(--foreground);
     --map-contour: var(--foreground);
@@ -287,10 +294,10 @@
     --border: oklch(0.75 0 0);
     --input: oklch(0.55 0 0);
     /* The lines print in their day colours, made for a light page. */
-    --line-routes: oklch(0.6 0.125 75);
+    --line-routes: oklch(0.59 0.12 100);
     --line-raft: oklch(0.48 0.165 352);
     --line-queue: oklch(0.46 0.15 260);
-    --line-cache: oklch(0.52 0.18 28);
+    --line-cache: oklch(0.535 0.15 46);
     --line-backfill: oklch(0.56 0.09 205);
     /* The map prints in its day colours: the water is the white paper, so the land keeps its own
        gray rather than the page's white surface. */
@@ -306,10 +313,10 @@
     --map-street: oklch(0.56 0.02 165 / 0.12);
     --map-road: oklch(0.56 0.02 165 / 0.28);
     --map-road-major: oklch(0.56 0.02 165 / 0.45);
-    --map-van-a: oklch(0.38 0.075 75);
-    --map-van-b: oklch(0.4 0.13 30);
-    --map-van-c: oklch(0.38 0.06 230);
-    --map-van-d: oklch(0.38 0.14 290);
+    --map-van-a: oklch(0.38 0.075 95);
+    --map-van-b: oklch(0.32 0.05 50);
+    --map-van-c: oklch(0.37 0.035 240);
+    --map-van-d: oklch(0.27 0.11 287);
     --map-place: var(--foreground);
     --map-depot: var(--foreground);
     --map-contour: var(--foreground);
