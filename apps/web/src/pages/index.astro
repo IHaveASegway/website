@@ -77,6 +77,9 @@ const demoPages = new Set(lab.entries.map(labPath));
 const cards = list.filter((card) => !demoPages.has(card.link.href));
 const latest = writingRow(area.published, list);
 const linkedIn = checkedProfiles(profile).find((p) => p.network === 'LinkedIn');
+// The closing address may break after its "@", and only there unless a part alone is wider than
+// the column (home.css), as the footer's does.
+const [mailbox, domain] = CONTACT_EMAIL.split('@');
 ---
 
 <Base
@@ -174,9 +177,8 @@ const linkedIn = checkedProfiles(profile).find((p) => p.network === 'LinkedIn');
       </div>
       {/* A phone breaks the address after its @, never inside a word (a <wbr>, unseen and unread). */}
       <a class="toward-mail" href={`mailto:${CONTACT_EMAIL}`}>
-        {CONTACT_EMAIL.slice(0, CONTACT_EMAIL.indexOf('@') + 1)}
-        <wbr />
-        {CONTACT_EMAIL.slice(CONTACT_EMAIL.indexOf('@') + 1)}
+        {mailbox}@<wbr />
+        {domain}
       </a>
       {linkedIn && (
         <div class="toward-actions">

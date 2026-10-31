@@ -22,14 +22,19 @@
 }
 
 /* The stage: the first screens, edge to edge of main. The scene stands still at the window's top
-   while the column, then the Route Lab's chapter, scroll over it, and src/scripts/route-scene.ts
-   lifts the day into the space-time cube as the chapter comes up; then the board covers it. Its
-   measures: the column's width, and the water between the column and the map's west edge, the
-   shore. Without the scene (a build without the Route Lab) the stage is the column alone. */
+   while the column, then the Route Lab's chapter, scroll past it, and src/scripts/route-scene.ts
+   lifts the day into the space-time cube as the chapter comes up; the scene stands still only as
+   far as the chapter's end, so the cube leaves with the chapter's words and the board follows
+   them, never sliding over a cube in mid-air. Its measures: the column's width, the water between
+   the column and the map's west edge, the shore, and the band a phone's map takes. Without the
+   scene (a build without the Route Lab) the stage is the column alone. */
+:root {
+  --band: 18.75rem;
+}
+
 .stage {
   --column: 28rem;
   --shore: 2rem;
-  --band: 18.75rem;
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -49,20 +54,41 @@
   padding-inline: 0;
 }
 
+/* The cube's room inside the scene keeps the page's gutter, the frame's side, so no corner of the
+   cube comes nearer the window's edge than the words do (route-scene.ts reads it, in pixels). */
+@property --cube-inset {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+/* The scene's track: the stage's rows the scene stands still through, from where it starts to the
+   end of the Route Lab's chapter. A sticky box stands still only inside its parent, not its grid
+   area, so the track, as long as those rows, is where the stillness ends: with the chapter. */
+.scene-track {
+  grid-column: 1;
+  margin-inline: -1.125rem;
+}
+
+@media (width >= 48rem) {
+  .scene-track {
+    margin-inline: -4rem;
+  }
+}
+
 .scene {
+  --cube-inset: 1.125rem;
   position: sticky;
   inset-block-start: 0;
   z-index: 0;
-  grid-column: 1;
-  align-self: start;
-  margin: 0 -1.125rem;
+  margin: 0;
   overflow: hidden;
   pointer-events: none;
 }
 
 @media (width >= 48rem) {
   .scene {
-    margin-inline: -4rem;
+    --cube-inset: 4rem;
   }
 }
 
@@ -95,19 +121,49 @@
   grid-column: 1;
 }
 
-/* Below 64rem, one column: the name, the role and the buttons first, then the map's band, then the
-   opening sentence, the figures and the caption, then the chapter and the board. The stage's rows
+/* Selected work takes two of the stage's rows, the chapter's and the board's, through a subgrid,
+   so the scene's rows can end with the chapter's: the scene stands still beside the chapter's words
+   and leaves with them, and the board comes after it. Its heading is hidden, so it takes no row. */
+.stage:not(.stage-plain) > .work {
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Below 64rem, one column: the name, the role and the buttons first, then the map's band and its
+   caption, then the opening sentence and the figures, then the chapter and the board. The stage's rows
    give each item of the column its own row, the hero's items take them through a subgrid in the
-   order of the markup, and the band is a row of its own, which the scene starts at and sticks
-   from. As the words after the band scroll up they pass over it on the page's own ground. */
+   order of the markup, and the band is a row of its own. While the scene runs, the band stays at
+   the window's top from there to the chapter's end, over the words, which scroll on under it, so
+   the cube lifts in view beside the chapter's words: nothing covers the band, and no gap opens
+   between the words and it. Without the scene running (no script, a reduced-motion preference)
+   the band is the build's picture in the column's flow, and scrolls with it. Focus scrolls a
+   control clear of the band (SC 2.4.11). */
 @media (width < 64rem) {
   .stage:not(.stage-plain) {
-    grid-template-rows: repeat(3, auto) var(--band) repeat(4, auto);
+    grid-template-rows: repeat(3, auto) var(--band) repeat(5, auto);
+  }
+
+  .scene-track {
+    grid-row: 4 / 9;
   }
 
   .scene {
-    grid-row: 4 / 9;
+    position: relative;
     height: var(--band);
+  }
+
+  :root[data-scene-live] {
+    scroll-padding-block-start: var(--band);
+  }
+
+  /* Over the words, the band takes the pointer, so a press on it reaches no word hidden under it. */
+  :root[data-scene-live] .scene {
+    --over-words: 1;
+    position: sticky;
+    z-index: 2;
+    background-color: var(--background);
+    pointer-events: auto;
   }
 
   /* The band shows the city around the bakery, a thousand of the map's units across: the picture's
@@ -145,34 +201,29 @@
     margin-block-end: 1.5rem;
   }
 
-  .stage:not(.stage-plain) > .hero > .hero-lede {
+  /* The caption names what the band shows and credits its map, so it stands right under it, on
+     the first screen: until 2026-10-30 it came after the opening sentence and the figures, and
+     the map had no words on the first screen. Its link still follows the buttons, as in the
+     markup. */
+  .stage:not(.stage-plain) > .hero > .hero-caption {
     grid-row: 5;
+  }
+
+  .stage:not(.stage-plain) > .hero > .hero-lede {
+    grid-row: 6;
     padding-block-start: 1.5rem;
   }
 
   .stage:not(.stage-plain) > .hero > .figures {
-    grid-row: 6;
-  }
-
-  .stage:not(.stage-plain) > .hero > .hero-caption {
     grid-row: 7;
-  }
-
-  .stage:not(.stage-plain) > .hero > :is(.hero-lede, .figures, .hero-caption) {
-    margin-inline: -1.125rem;
-    padding-inline: 1.125rem;
-    background-color: var(--background);
   }
 
   .stage > .work {
     grid-row: 8;
   }
-}
 
-@media (48rem <= width < 64rem) {
-  .stage:not(.stage-plain) > .hero > :is(.hero-lede, .figures, .hero-caption) {
-    margin-inline: -4rem;
-    padding-inline: 4rem;
+  .stage:not(.stage-plain) > .work {
+    grid-row: 8 / 10;
   }
 }
 
@@ -184,16 +235,16 @@
    than stretching between them. */
 @media (width >= 64rem) {
   .stage:not(.stage-plain) {
-    grid-template-rows: auto auto;
+    grid-template-rows: repeat(3, auto);
   }
 
-  .scene {
+  .scene-track {
     grid-row: 1 / 3;
-    height: 100svh;
   }
 
   .scene {
     --start: calc(4rem + var(--column) + var(--shore));
+    height: 100svh;
   }
 
   .scene-picture {
@@ -220,6 +271,10 @@
 
   .stage > .work {
     grid-row: 2;
+  }
+
+  .stage:not(.stage-plain) > .work {
+    grid-row: 2 / 4;
   }
 
   .stage:not(.stage-plain) > :is(.hero, .work) {
@@ -275,8 +330,7 @@
   letter-spacing: 0;
 }
 
-/* The measure is the sentence's, not its box's: below 64rem the box spans the band's width, so its
-   ground covers the band as it scrolls over it. */
+/* The measure is the sentence's, not its box's. */
 .hero-lede {
   display: grid;
   gap: 0.75rem;
@@ -326,12 +380,25 @@
   line-height: var(--text-title--line-height);
 }
 
-.figure-after::after {
-  content: '';
+/* A stretch of the Routes line with a van on it, as the board draws one: the track in the line's
+   colour at its weight, and the van a lit lamp ringed in the line. Not a bar alone, which read as a
+   dash after the figure. */
+.figure-line {
   flex: none;
-  inline-size: 2.5rem;
-  block-size: 6px;
-  background-color: var(--line-routes);
+  inline-size: 3rem;
+  block-size: 1rem;
+  overflow: visible;
+}
+
+.figure-track {
+  stroke: var(--line-routes);
+  stroke-width: 6px;
+}
+
+.figure-van {
+  fill: var(--primary);
+  stroke: var(--line-routes);
+  stroke-width: 3px;
 }
 
 .figure-words {
@@ -420,12 +487,12 @@
 
   .figures {
     margin-block-start: 0;
-    padding-block-start: 1.75rem;
+    padding-block: 1.75rem 0.5rem;
   }
 
   .hero-caption {
     margin-block-start: 0;
-    padding-block: 1.25rem 0.5rem;
+    padding-block: 0.75rem 0;
   }
 }
 
@@ -507,9 +574,8 @@
 
 /* The Route Lab's chapter, the stage's second row: the lab's line across the column, its title,
    one sentence, the vans' days and the way to the lab. From 64rem it is a screen tall with its
-   words in the middle, and the day lifts into the cube beside them; below 64rem its words start
-   below the band, where it turns to the page's own ground, so the cube shows in the band above
-   them as they come up. */
+   words in the middle, and the day lifts into the cube beside them; below 64rem its words follow
+   the caption and pass under the band, where the cube lifts as they come up. */
 .chapter {
   display: grid;
   align-content: center;
@@ -575,11 +641,7 @@
 
 @media (width < 64rem) {
   .chapter {
-    padding-block: calc(var(--band) + 2rem) 3rem;
-    background-image: linear-gradient(
-      transparent calc(var(--band) + 0.5rem),
-      var(--background) calc(var(--band) + 0.5rem)
-    );
+    padding-block: 3rem;
   }
 }
 
@@ -590,25 +652,11 @@
   }
 }
 
-/* What covers the scene: the board, then any card, on the page's own ground, edge to edge of the
-   column. Its top edge is a fade, not a cut: as it comes up over the cube it dims the cube first,
-   then covers it, so the cube is never sliced across mid-air. route-scene.ts stops drawing once
-   the board itself reaches the window's top. */
+/* What follows the chapter: the board, then any card. The scene has left with the chapter by the
+   time the board comes up, so nothing of the cube stands over or under the panel. */
 .covers {
-  --fade: 10rem;
-  position: relative;
   display: grid;
   row-gap: 1.5rem;
-  margin-inline: -1.125rem;
-  padding: var(--fade) 1.125rem 0;
-  background-image: linear-gradient(transparent, var(--background) var(--fade));
-}
-
-@media (width >= 48rem) {
-  .covers {
-    margin-inline: -4rem;
-    padding-inline: 4rem;
-  }
 }
 
 /* A screen larger than 1440 × 900 (ADR 0024, "A larger screen"). The type keeps its 1440 sizes,
@@ -617,41 +665,38 @@
    screen's right edge, and a taller window splits its extra height above and below the words, so
    they stand level with the map. Main spans the column beside the rail here and is the query
    container, so 100cqw is the column exactly; 100vw would count a scrollbar and scroll the page
-   sideways. Every row keeps the frame's edges through --frame-side, the frame's content edge
-   (global.css, .frame); the scene, and what covers it, reach out to the column's edges. */
+   sideways. Every row keeps the frame (global.css, .frame): it starts the page's gutter past the
+   rail, as on every page, and is at most 82rem wide, so its right side is ragged; the scene alone
+   reaches out to the column's edges. */
 @media (width >= 90rem) {
   body > main {
-    --frame-side: max(4rem, (100cqw - 82rem) / 2);
+    --frame-start: 4rem;
+    --frame-end: max(4rem, 100cqw - 86rem);
     container-type: inline-size;
     max-width: none;
     padding-inline: 0;
   }
 
   body > main > * {
-    margin-inline: var(--frame-side);
+    margin-inline: var(--frame-start) var(--frame-end);
   }
 
   .stage {
     margin-inline: 0;
-    padding-inline: var(--frame-side);
+    padding-inline: var(--frame-start) var(--frame-end);
   }
 
   .stage-plain {
-    margin-inline: var(--frame-side);
+    margin-inline: var(--frame-start) var(--frame-end);
     padding-inline: 0;
   }
 
-  .scene,
-  .covers {
-    margin-inline: calc(var(--frame-side) * -1);
-  }
-
-  .covers {
-    padding-inline: var(--frame-side);
+  .scene-track {
+    margin-inline: calc(var(--frame-start) * -1) calc(var(--frame-end) * -1);
   }
 
   .scene {
-    --start: calc(var(--frame-side) + var(--column) + var(--shore));
+    --start: calc(var(--frame-start) + var(--column) + var(--shore));
   }
 
   .stage:not(.stage-plain) > .hero {
@@ -660,10 +705,10 @@
 }
 
 /* How I work: the bio's principles, unnumbered, each its bold sentence as its title, in the title
-   face at a section's size, and the evidence beside it from 64rem, under it before that, in the
-   reading face and the ink. No rule between them: the space sets them apart. */
-/* The section's title and the first lead share a size (design-system.md, "Type scale"), so the list
-   stands further from the title than its leads stand from each other's evidence. */
+   face at a headline's size, a step under the section's own title, so the title reads as theirs
+   (design-system.md, "Type scale"), and the evidence beside it from 64rem, under it before that, in
+   the reading face and the ink. No rule between them: the space sets them apart. Until 2026-10-30
+   the leads were the section title's size, 48 px at 1440, and the title read as one more lead. */
 .principles-list {
   display: grid;
   row-gap: 2.75rem;
@@ -681,9 +726,9 @@
 .principle-lead {
   margin: 0;
   font-family: var(--font-display);
-  font-size: var(--text-section);
+  font-size: var(--text-headline);
   font-weight: 600;
-  line-height: var(--text-section--line-height);
+  line-height: var(--text-headline--line-height);
   letter-spacing: -0.005em;
   text-wrap: balance;
 }
@@ -708,7 +753,7 @@
 
   .principle-text {
     grid-column: 7 / 13;
-    padding-top: 0.375rem;
+    padding-top: 0.125rem;
   }
 }
 
@@ -731,6 +776,11 @@
   text-wrap: pretty;
 }
 
+/* The address is about 8.9 times its size wide. At a title's size it needs 375 px, more than a
+   phone's column (354 px at 390), so below 27rem it takes a section's size, 30 px, and stands on
+   one line down to 320 px; from 27rem the title's size fits the column. With a larger text size it
+   breaks after its "@" (index.astro), as the footer's does, and inside a part only as the last
+   resort. Until 2026-10-30 it broke wherever the column ended: "hello@ihaveasegway.co", then "m". */
 .toward-mail {
   display: inline-block;
   max-inline-size: 100%;
@@ -746,6 +796,12 @@
   text-underline-offset: 0.12em;
 }
 
+@media (width < 27rem) {
+  .toward-mail {
+    font-size: var(--text-section);
+  }
+}
+
 .toward-actions {
   display: flex;
   flex-wrap: wrap;
@@ -758,9 +814,11 @@
 
 /* On paper the stage is the column and then the work, each as tall as its words, with no scene,
    and so no caption for it: the words, the board's still drawing and the links' addresses are
-   what a printed Home holds. */
+   what a printed Home holds. A page is narrower than 64rem, so the phone's rows apply on paper
+   too; every row there is as tall as what it holds, the band's included, which holds nothing.
+   Until 2026-10-30 the band's row kept its 18.75rem, an empty gap under the buttons. */
 @media print {
-  .scene,
+  .scene-track,
   .hero-caption {
     display: none;
   }
@@ -770,16 +828,13 @@
     padding: 0;
   }
 
+  .stage:not(.stage-plain) {
+    grid-template-rows: none;
+  }
+
   .stage > .hero,
   .chapter {
     min-height: 0;
     padding-block: 1.5rem;
-    background-image: none;
-  }
-
-  .covers {
-    margin-inline: 0;
-    padding: 0;
-    background-image: none;
   }
 }

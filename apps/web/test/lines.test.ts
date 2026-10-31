@@ -76,7 +76,6 @@ describe('the Routes line', () => {
     // The still board is the middle round: van 1 at its sixth stop, van 3 long back.
     expect(MIDDAY).toBe(6);
     expect(line.vans.map((van) => van.now)).toEqual([6, 2]);
-    expect(line.delivered).toBe(5 + 1);
   });
 
   test('a day the board cannot hold is refused, not drawn wrong', () => {
@@ -163,7 +162,6 @@ describe('the Raft line', () => {
   test('the opening run: server 1 leads term 1 at the hub, four on spokes, three entries committed', () => {
     const line = raftLine(openingRun());
     expect(line.leader).toBe(1);
-    expect(line.term).toBe(1);
     expect(line.followers).toEqual([2, 3, 4, 5]);
     expect(line.log).toEqual([true, true, true]);
     expect(line.words).toBe('Server 1 leads term 1. All five safety properties hold.');
@@ -294,10 +292,15 @@ describe("the board's stylesheet counts what the model draws", () => {
       expect(has(`[data-vans='${n}']`, `--every: ${n}s;`), `vans ${n}`).toBe(true);
   });
 
-  test("the clock spans ROUNDS and starts at the still board's round", () => {
+  test("the clock spans ROUNDS, starts at the still board's round, and stops there a day later", () => {
     expect(css).toContain(`animation-duration: calc(var(--every) * ${ROUNDS});`);
     expect(css).toContain(`animation-timing-function: steps(${ROUNDS});`);
     expect(css).toContain(`--day: ${ROUNDS};`);
     expect(css).toContain(`- var(--every) * ${MIDDAY + 1})`);
+    // One day from the middle round back to it: half a round of the clock after a whole one, held
+    // where it ends, so the day stops on the still drawing rather than looping forever.
+    expect(css).toContain(`animation-iteration-count: ${1 + MIDDAY / ROUNDS};`);
+    expect(css).toContain('animation-fill-mode: forwards;');
+    expect(css).not.toContain('infinite');
   });
 });

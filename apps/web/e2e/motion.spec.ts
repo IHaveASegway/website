@@ -79,6 +79,29 @@ test('under reduce nothing would move, and nothing runs after a hover or any Tab
   expect(await moving(page)).toEqual([]);
   expect(await running(page)).toBe(0);
 
+  // The board's day stays still under reduce (ADR 0025), seen or not: its moving rules need the
+  // board seen (data-seen) and the scene running (data-motion), and they are authored for no
+  // preference only. Scrolled into view it moves nothing, and marked seen and running by hand, as
+  // a script gone wrong could mark it, it still moves nothing.
+  const board = page.locator('[data-board]');
+  if ((await board.count()) > 0) {
+    await board.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(500);
+    expect(await moving(page)).toEqual([]);
+    expect(await running(page)).toBe(0);
+    await page.evaluate(() => {
+      document.documentElement.dataset['motion'] = 'on';
+      document.querySelector('[data-board]')?.setAttribute('data-seen', '');
+    });
+    expect(await moving(page)).toEqual([]);
+    expect(await running(page)).toBe(0);
+    await page.evaluate(() => {
+      delete document.documentElement.dataset['motion'];
+      document.querySelector('[data-board]')?.removeAttribute('data-seen');
+      scrollTo(0, 0);
+    });
+  }
+
   const controls = await page.evaluate(
     () =>
       [...document.querySelectorAll<HTMLElement>('a[href], button')].filter((e) =>

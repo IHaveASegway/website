@@ -563,9 +563,14 @@ test('every focusable element shows a visible outline from the keyboard (SC 2.4.
       const focus = await page.evaluate(() => {
         const element = document.activeElement;
         if (!element || element === document.body) return null;
-        const style = getComputedStyle(element);
+        // A choice drawn as a push-button rings the whole button, the label it stands in, not the
+        // 10 px lamp its radio is drawn as (route-lab.css, ADR 0025); every other control rings
+        // itself.
+        const own = getComputedStyle(element);
+        const label = element.closest('label');
+        const style = own.outlineStyle === 'none' && label ? getComputedStyle(label) : own;
         return {
-          name: element.textContent?.trim(),
+          name: element.textContent?.trim() || label?.textContent?.trim(),
           style: style.outlineStyle,
           width: parseFloat(style.outlineWidth),
         };

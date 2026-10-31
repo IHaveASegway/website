@@ -43,8 +43,6 @@ export interface RoutesVan {
 
 export interface RoutesLine {
   readonly vans: readonly RoutesVan[];
-  /** The orders delivered on the still board: every stop behind a van. */
-  readonly delivered: number;
 }
 
 /** The Routes line for a plan, measured: every van with a stop, in van order, its stops placed by
@@ -63,8 +61,7 @@ export function routesLine(measured: Measured): RoutesLine {
     back: van.back / day,
     now: Math.min(MIDDAY, van.stops.length + 1),
   }));
-  const behind = (van: RoutesVan) => Math.max(0, Math.min(van.now - 1, van.stops.length));
-  return { vans, delivered: vans.reduce((sum, van) => sum + behind(van), 0) };
+  return { vans };
 }
 
 /**
@@ -120,7 +117,6 @@ export const inWords = (n: number): string => WORDS[n] ?? String(n);
 export interface RaftLine {
   /** The leading server's number, 1 to 5, or null while none leads. */
   readonly leader: number | null;
-  readonly term: number;
   /** The other servers' numbers, in order. */
   readonly followers: readonly number[];
   /** The leader's log, an entry each: true once a majority holds it, so it is committed. */
@@ -138,7 +134,6 @@ export function raftLine(sim: Sim): RaftLine {
   const lead = leader ? `Server ${leader.id + 1} leads term ${leader.term}.` : 'No server leads.';
   return {
     leader: leader ? leader.id + 1 : null,
-    term: leader?.term ?? 0,
     followers: sim.servers.filter((s) => s !== leader).map((s) => s.id + 1),
     log: (leader?.log ?? []).map((_, i) => i < (leader?.commitIndex ?? 0)),
     words: `${lead} ${held}`,

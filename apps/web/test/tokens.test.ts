@@ -272,15 +272,17 @@ test('known answer: a band lightened until a route on it drops below 3:1 fails t
 });
 
 // The known answers for the bands' steps and the vans' shapes: the values of 2026-10-24, which the
-// review found a reader could not tell apart, fail; and so would vans A and C sharing a shape.
-test('known answer: the bands of 2026-10-24 fail the step check, and vans A and C could not share a shape', () => {
+// review found a reader could not tell apart, fail; and so would vans A and B sharing a shape, the
+// day's ochre and brick, close under a red-green deficiency. Until 2026-10-30 the pair was A and
+// C, the day's dark green, which a review found too near the bands' green and moved to a blue.
+test('known answer: the bands of 2026-10-24 fail the step check, and vans A and B could not share a shape', () => {
   const old = (l: number, c: number, h: number) => ({ mode: 'oklch', l, c, h }) as Color;
   expect(deltaOk(old(0.445, 0.07, 205), old(0.41, 0.066, 208))).toBeLessThan(BAND_STEP);
   expect(deltaOk(old(0.89, 0.034, 209), old(0.89, 0.035, 230))).toBeLessThan(BAND_STEP);
   const light = themeColors(source, 'light');
-  const [a, c] = [light.get('map-van-a'), light.get('map-van-c')];
-  if (!a || !c) throw new Error('tokens.css lost a van');
-  expect(apartUnderDeficiency(a, c)).toBeLessThan(SHAPE_APART);
+  const [a, b] = [light.get('map-van-a'), light.get('map-van-b')];
+  if (!a || !b) throw new Error('tokens.css lost a van');
+  expect(apartUnderDeficiency(a, b)).toBeLessThan(SHAPE_APART);
 });
 
 // Selected text (SC 1.4.3): global.css gives every ::selection rule a text color and a fill, each a

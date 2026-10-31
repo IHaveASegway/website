@@ -419,24 +419,30 @@ test('a chosen day or number of vans is a lit lamp, the others hollow, and no co
         },
       ),
     );
-  const primary = await page.evaluate(() => {
-    const probe = document.createElement('span');
-    probe.style.setProperty('background-color', 'var(--primary)');
-    document.body.append(probe);
-    const colour = getComputedStyle(probe).backgroundColor;
-    probe.remove();
-    return colour;
-  });
+  // A token as the page resolves it, read from a probe.
+  const token = (name: string) =>
+    page.evaluate((property) => {
+      const probe = document.createElement('span');
+      probe.style.setProperty('background-color', `var(${property})`);
+      document.body.append(probe);
+      const colour = getComputedStyle(probe).backgroundColor;
+      probe.remove();
+      return colour;
+    }, name);
+  const primary = await token('--primary');
+  const raised = await token('--surface-2');
+  expect(raised).not.toBe(primary);
   const check = async (chosen: string[]) => {
     const all = await chips();
     expect(all.filter((c) => c.checked).map((c) => c.value)).toEqual(chosen);
     for (const c of all) {
       expect(c.size, c.value).toEqual(['10px', '10px', '50%']);
       expect(c.lamp, c.value).toBe(c.checked ? primary : 'rgba(0, 0, 0, 0)');
+      // No colour fills a button: the pressed one is raised, the others stand on the desk.
+      expect(c.chip, c.value).toBe(c.checked ? raised : 'rgba(0, 0, 0, 0)');
     }
-    // One edge for every button, and the pressed one only raised.
+    // One edge for every button.
     expect(new Set(all.map((c) => c.edge)).size).toBe(1);
-    expect(all.find((c) => c.checked)?.chip).not.toBe('rgba(0, 0, 0, 0)');
   };
   await check(['rl-day=busy', 'rl-vans=3']);
   // Another number of vans lets go of the day, once the app has the press.

@@ -110,3 +110,20 @@ test('inline code has no padding on paper or in forced colors, and keeps it on s
   // Every build with a post has one with inline code, so this check always has something to read.
   expect(seen).toBeGreaterThan(0);
 });
+
+// Home on paper is the column and then the work, each as tall as its words (home.css): a page is
+// narrower than 64rem, so the phone's rows apply on paper, and the band's row, which holds the map
+// on screen, holds nothing there. Until 2026-10-30 it kept its 18.75rem, a blank gap of 300 px
+// between the buttons and the bio's opening.
+test('Home on paper keeps no gap where the scene stands on screen', async ({ page }) => {
+  await page.setViewportSize({ width: 816, height: 1056 });
+  await page.goto('/');
+  await page.emulateMedia({ media: 'print' });
+  const gap = await page.evaluate(() => {
+    const actions = document.querySelector('.hero-actions')?.getBoundingClientRect();
+    const lede = document.querySelector('.hero-lede, .figures')?.getBoundingClientRect();
+    return actions && lede ? lede.top - actions.bottom : null;
+  });
+  test.skip(gap === null, 'Home has no opening or figures here');
+  expect(gap ?? Infinity).toBeLessThan(48);
+});

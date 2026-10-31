@@ -77,7 +77,11 @@ for (const path of [...pages(), NOT_FOUND_PAGE]) {
 
 // The known answer: a page that fetches the mono file and draws nothing in it is reported, with that
 // one file. Only a page with code declares B612 Mono (Base.astro), so the copy here is such a page
-// with its code taken out, and the face is loaded anyway, as a preload of it would.
+// with its code taken out, and the face is loaded anyway, as a preload of it would. It needs one
+// page with code in the build it runs on: on the site that is a post (since 2026-10-30, the
+// trading-bot teardown), on the writing fixture its posts, as test/fonts.test.ts assumes for the
+// fixture too. Should no page hold code, it fails saying so rather than pass unproven; then a
+// fixture page with code is the fix, not a weaker check.
 test('known answer: a font file fetched for a face that draws no text is reported', async ({
   page,
 }) => {

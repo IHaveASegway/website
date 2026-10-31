@@ -22,7 +22,8 @@ const { profile, lede = [], figures, caption } = Astro.props;
 const external = checkedProfiles(profile);
 // The column over the water (ADR 0025), one order for the markup and the keyboard: the name on two
 // lines, the role in a sentence, the bio's opening, the Route Lab's result, the ways to reach him,
-// and the scene's caption. Below 64rem the name, the role and the buttons lead and the map's band
+// and the scene's caption. Beside VROOM's figure stands a stretch of the Route Lab's line with a van
+// on it, a lit lamp, as the board and the map draw them: the key to the routes on the water. Below 64rem the name, the role and the buttons lead and the map's band
 // follows them (home.css places each item; the order stays this one). Each button is its words
 // alone: no arrows. The sentence is the bio's opening sentence, which Joseph cleared with the bio
 // (content.md, row 1), so Home and /about/ say it from one file (ADR 0023).
@@ -44,7 +45,13 @@ const external = checkedProfiles(profile);
     <p class="figures">
       <s class="figure-before">{figures.before}</s>
       <span class="visually-hidden"> of driving as the orders came in, now </span>
-      <span class="figure-after">{figures.after}</span>
+      <span class="figure-after">
+        {figures.after}
+        <svg class="figure-line" viewBox="0 0 48 16" aria-hidden="true" focusable="false">
+          <line class="figure-track" x1="0" y1="8" x2="38" y2="8" />
+          <circle class="figure-van" cx="38" cy="8" r="6" />
+        </svg>
+      </span>
       <span class="figure-words">{figures.words}</span>
     </p>
   )}
