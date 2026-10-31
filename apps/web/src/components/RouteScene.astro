@@ -32,10 +32,13 @@ interface Props {
 // the sound, so the words stand on the water and the city runs off the edges of the screen. The
 // floor is drawn in the map's own units through one matrix, the routes in the camera's. No style
 // attribute (security.md): colour comes from classes. The map is OpenStreetMap's, under the ODbL,
-// so its credit is in the words beside it (Hero.astro), as on the lab. The scene stands still at
-// the window's top only inside its track, which runs from where the scene starts to the end of the
-// Route Lab's chapter (home.css): a box held at the window's top is held only within its parent,
-// so the scene leaves with the chapter's words and the board follows it.
+// so its credit is in the words beside it (Hero.astro), as on the lab. The scene's box starts where
+// the words end, and nothing it draws covers one (ADR 0024, postscript 2026-10-31). From 64rem it
+// stands still at the window's top only inside its track, which runs from the stage's top to the
+// end of the Route Lab's chapter (home.css): a box held at the window's top is held only within its
+// parent, so the scene leaves with the chapter's words and the board follows it. Below 64rem the
+// track is one row of the column, between the figures and the chapter, and the scene scrolls with
+// the page.
 const { picture, data } = Astro.props;
 const seconds = sceneSeconds(picture.after.measured.back);
 const focus = focusOf(dayPlaces(routeData, picture.after.plan));

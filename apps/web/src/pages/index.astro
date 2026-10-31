@@ -39,10 +39,11 @@ import '../styles/home.css';
 // edge to edge, its water the page itself, and Joseph's column standing on the water: his name,
 // his role, the bio's opening, what VROOM saves that day, the ways to reach him and the scene's
 // caption. Scrolling brings up the Route Lab's chapter while the day lifts into the space-time
-// cube, then the board, every live lab as a line, which slides over the scene; then how he works,
-// in the bio's words; then the writing; then what he is working toward and how to reach him. An
-// element renders only when its source and its link target exist; until then it is left out,
-// never a placeholder.
+// cube, then the board, every live lab as a line, once the scene has left with the chapter; below
+// 64rem the scene is a picture between the figures and the chapter, and lifts as it passes up the
+// window. Then how he works, in the bio's words; then the writing; then what he is working toward
+// and how to reach him. An element renders only when its source and its link target exist; until
+// then it is left out, never a placeholder.
 const profile = await loadProfile();
 const { name, label } = profile.basics;
 const area = await loadWritingArea();

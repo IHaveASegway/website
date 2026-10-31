@@ -112,7 +112,7 @@ test('inline code has no padding on paper or in forced colors, and keeps it on s
 });
 
 // Home on paper is the column and then the work, each as tall as its words (home.css): a page is
-// narrower than 64rem, so the phone's rows apply on paper, and the band's row, which holds the map
+// narrower than 64rem, so the phone's rows apply on paper, and the scene's row, which holds the map
 // on screen, holds nothing there. Until 2026-10-30 it kept its 18.75rem, a blank gap of 300 px
 // between the buttons and the bio's opening.
 test('Home on paper keeps no gap where the scene stands on screen', async ({ page }) => {

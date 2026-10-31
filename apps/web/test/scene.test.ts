@@ -31,6 +31,7 @@ import {
   liftFor,
   liftStages,
   nextRatio,
+  passing,
   PLACED,
   progress,
   rising,
@@ -165,6 +166,22 @@ describe('the clock and the scroll', () => {
     expect(liftFor(0.2)).toBe(0);
     expect(liftFor(0.9)).toBe(1);
     expect(close(liftFor(0.55), 0.5)).toBe(true);
+  });
+
+  // Below 64rem the scene lifts with its own passage up the window, and only while it is wholly on
+  // screen: flat with its foot at the window's foot, all the way up as its top reaches the window's
+  // top. At 390 × 844 the scene is 351 px tall: 493 px of scroll for the lift, which plays from its
+  // top at 394 px to its top at 49 px.
+  test('known answers: a scene in the flow lifts while it is wholly on screen', () => {
+    expect(passing(844, 351, 844)).toBe(0);
+    expect(passing(493, 351, 844)).toBe(0);
+    expect(passing(0, 351, 844)).toBe(1);
+    expect(passing(-100, 351, 844)).toBe(1);
+    expect(close(liftFor(passing(0.8 * 493, 351, 844)), 0)).toBe(true);
+    expect(close(liftFor(passing(0.1 * 493, 351, 844)), 1)).toBe(true);
+    // A box as tall as the window is never wholly on screen: it lifts as its top comes up.
+    expect(passing(900, 900, 900)).toBe(0);
+    expect(passing(450, 1000, 900)).toBe(0.5);
   });
 
   // The lift in stages (route-scene.ts): the map moves from where the picture draws it into the

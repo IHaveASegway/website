@@ -360,61 +360,74 @@ const stageLayout = (page: Page) =>
     };
   });
 
-// Below 64rem the column leads with the name, the role and the buttons, then the map's band, then
-// the opening sentence (ADR 0025). While the scene runs, the band stays at the window's top over the
-// words, from where it starts to the end of the Route Lab's chapter, so the day lifts into the cube
-// in view beside the chapter's words, and then it leaves with them, before the board. Until
-// 2026-10-30 the words after the band scrolled over it on the page's own ground and the chapter
-// kept a band's height open above its title, where the band no longer stood: some 340 px of
-// nothing, and the cube cut off at the canvas's top. The checks on a larger screen run at 1440 ×
-// 900 and up, so none of them would see it.
+// Below 64rem the column leads with the name, the role and the buttons, then the opening sentence
+// and the figures, then the scene with its caption, then the Route Lab's chapter (ADR 0024,
+// postscript 2026-10-31). The scene is a picture in the page's flow, live or still: no word scrolls
+// under it, and it lifts the day into the cube as it passes up the window, wholly on screen. Until
+// 2026-10-31 a running scene was a band held at the window's top from the buttons to the chapter's
+// end, and the figures and the vans' days scrolled under it, cut in half at its edge
+// (e2e/scene-covers-nothing.spec.ts holds every width and scroll to that).
 test.describe("Home's scene on a phone", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test('the band stands between the buttons and the opening sentence', async ({ page }) => {
+  test('the scene stands between the figures and the chapter, its caption under it', async ({
+    page,
+  }) => {
     await page.goto('/');
     const at = await stageLayout(page);
     expect(at.overflow).toBe(0);
-    expect(at.scene.top).toBeGreaterThanOrEqual(at.actions.bottom - 0.5);
-    expect(at.lede.top).toBeGreaterThanOrEqual(at.scene.bottom - 0.5);
-    // Its caption, which names what it shows and credits the map, stands right under it, inside
-    // the first screen.
+    expect(at.lede.top).toBeGreaterThanOrEqual(at.actions.bottom - 0.5);
+    expect(at.scene.top).toBeGreaterThanOrEqual(at.figures.bottom - 0.5);
+    // Its caption, which names what it shows and credits the map, stands right under it, and the
+    // chapter follows the caption.
     expect(at.caption.top - at.scene.bottom).toBeLessThan(16);
-    expect(at.caption.bottom).toBeLessThanOrEqual(at.window.height);
+    expect(at.chapter.top).toBeGreaterThanOrEqual(at.caption.bottom - 0.5);
     expect(at.scene.height).toBeGreaterThanOrEqual(280);
     expect([at.scene.left, at.scene.width]).toEqual([0, at.window.width]);
   });
 
-  test('while the scene runs the band stays over the words to the chapter’s end, then leaves with it', async ({
+  // Paused, the clock stands still, so a frame changes only with the scroll. The scene's own
+  // passage up the window lifts the day (route-scene.ts, passing): flat while its foot is at the
+  // window's foot, all the way up before its top leaves the window, and set down again on the way
+  // back. It moves with the page all the while, never held at the window's top.
+  test('it scrolls with the page, and its own passage up the window lifts the day into the cube', async ({
     page,
   }) => {
     await home(page);
+    await toggle(page).click();
     const at = await stageLayout(page);
-    // The chapter follows the figures with no band-sized gap: its title is a section's space down.
-    expect(at.chapter.top - at.figures.bottom).toBeLessThan(16);
-    const title = await page.locator('.chapter-title').boundingBox();
-    expect((title?.y ?? 0) - at.chapter.top).toBeLessThan(64);
-    // From where the band starts to the chapter's end, the band stands at the window's top and
-    // nothing covers it: the canvas answers at its middle.
-    const top = at.scene.top + (await page.evaluate(() => scrollY));
-    const end = at.chapter.bottom + (await page.evaluate(() => scrollY)) - at.scene.height;
-    for (const y of [top + 1, (top + end) / 2, end - 1].map(Math.round)) {
-      await scrollToY(page, y);
-      const band = await page.evaluate(() => {
-        const box = document.querySelector('.scene')?.getBoundingClientRect();
-        const hit = box && document.elementFromPoint(box.width / 2, box.top + box.height / 2);
-        return { top: box?.top ?? NaN, hit: hit?.localName ?? '' };
-      });
-      expect(band, `${y}`).toEqual({ top: 0, hit: 'canvas' });
-    }
-    // Past the chapter it leaves with it, and the board follows it, under nothing.
-    await scrollToY(page, end + 200);
-    const after = await stageLayout(page);
-    expect(after.scene.bottom).toBeCloseTo(after.covers.top, 0);
-    expect(after.scene.bottom).toBeLessThan(at.scene.height);
+    const y0 = await page.evaluate(() => scrollY);
+    const top = at.scene.top + y0;
+    // Its foot at the window's foot: wholly on screen, and flat.
+    const foot = Math.max(0, Math.round(top + at.scene.height - at.window.height));
+    await scrollToY(page, foot);
+    await page.clock.runFor(3_000);
+    const flat = await frame(page);
+    // Its top near the window's top: wholly on screen, and lifted.
+    const high = Math.round(top - 8);
+    await scrollToY(page, high);
+    await page.clock.runFor(3_000);
+    const lifted = await frame(page);
+    expect(lifted === flat, 'lifted, the frame changes').toBe(false);
+    const there = await stageLayout(page);
+    expect(there.scene.top, 'it scrolled with the page').toBeCloseTo(8, 0);
+    expect(there.scene.bottom).toBeLessThanOrEqual(there.window.height);
+    expect(
+      await page.evaluate(
+        () => getComputedStyle(document.querySelector('.scene') as Element).position,
+      ),
+    ).toBe('relative');
+    // Past it, nothing of it stands over the chapter: it has scrolled away.
+    await scrollToY(page, Math.round(top + at.scene.height + 200));
+    const past = await stageLayout(page);
+    expect(past.scene.bottom).toBeLessThan(0);
+    // Back where its foot meets the window's foot, the same flat frame again.
+    await scrollToY(page, foot);
+    await page.clock.runFor(3_000);
+    expect((await frame(page)) === flat, 'set down, the same frame again').toBe(true);
   });
 
-  test('under reduced motion the band is the picture in the column, and scrolls away with it', async ({
+  test('under reduced motion the scene is the picture in the column, and scrolls away with it', async ({
     page,
   }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -423,7 +436,7 @@ test.describe("Home's scene on a phone", () => {
     await page.evaluate((y) => scrollTo(0, y), at.scene.bottom + 200);
     const after = await stageLayout(page);
     expect(after.scene.bottom).toBeLessThan(0);
-    expect(after.chapter.top - after.figures.bottom).toBeLessThan(16);
+    expect(after.caption.top - after.scene.bottom).toBeLessThan(16);
   });
 });
 

@@ -106,6 +106,41 @@ const BAND_STEP = 0.045;
 /** How far two vans that share a shape must stay apart under each deficiency, in CIEDE2000. */
 const SHAPE_APART = 20;
 
+/** One colour per lab (ADR 0025): how far apart, in OKLab, two labs' lines must sit, and a Route Lab
+ *  van and any other lab's line. Set from the pairs measured on 2026-10-30. The pairs readers took
+ *  for one colour all sat at 0.130 or under: by day the Cache line's brick and the Raft line's
+ *  crimson, 0.115, which Joseph read as one colour on a phone in daylight, and van B's brick beside
+ *  them, 0.129 from the Raft line and 0.130 from the Cache line; van C's steel and the Queue line's
+ *  blue, 0.130; and at night van C's sky and the Backfill line's cyan, 0.053. The nearest pair no
+ *  reader confused, the Raft line's pink and the Cache line's orange at night, sat at 0.142. So the
+ *  floor sits between them, and low in that gap, because the gap is narrower than one
+ *  just-noticeable step (0.02) and the night map has no more room: van D shares van A's square
+ *  stops, so it must stay SHAPE_APART from A's yellow under every deficiency, and measured on
+ *  2026-10-31 no colour that does so, on the night map's fills, sits more than 0.135 from the Raft
+ *  and Backfill lines. Distance is not the only cue: each line also has its shape and its title. */
+const LINE_APART = 0.133;
+/** The lines a Route Lab van must keep off: every lab's but its own. */
+const OTHER_LINES = LINES.filter((name) => name !== 'line-routes');
+const VANS = ['map-van-a', 'map-van-b', 'map-van-c', 'map-van-d'];
+
+/** Every pair a reader could take for one colour, with its distance: two labs' lines, or a van and
+ *  a line other than its own lab's, nearer than LINE_APART. */
+function nearPairs(colors: Map<string, Color>): string[] {
+  const get = (name: string): Color => {
+    const color = colors.get(name);
+    if (!color) throw new Error(`--${name} is missing or not a color`);
+    return color;
+  };
+  const pairs = [
+    ...LINES.flatMap((a, k) => LINES.slice(k + 1).map((b) => [a, b] as const)),
+    ...VANS.flatMap((van) => OTHER_LINES.map((line) => [van, line] as const)),
+  ];
+  return pairs
+    .map(([a, b]) => ({ a, b, apart: deltaOk(get(a), get(b)) }))
+    .filter(({ apart }) => apart < LINE_APART)
+    .map(({ a, b, apart }) => `${a} and ${b}: ${apart.toFixed(3)}`);
+}
+
 const source = readFileSync(new URL('../src/styles/tokens.css', import.meta.url), 'utf8');
 const css = stripComments(source);
 const blocks = themeBlocks(source);
@@ -186,6 +221,10 @@ for (const [themeName, colors] of Object.entries(themes)) {
         });
       }
     }
+
+    test(`no two labs' lines, nor a van and another lab's line, sit nearer than ${LINE_APART}`, () => {
+      expect(nearPairs(colors)).toEqual([]);
+    });
 
     test('map: the water is the page and the land a raised surface, so a map has no edge', () => {
       expect(get('map-water')).toEqual(get('background'));
@@ -271,10 +310,48 @@ test('known answer: a band lightened until a route on it drops below 3:1 fails t
   expect(wcagContrast(van, lighter)).toBeLessThan(3);
 });
 
+// The known answer for one colour per lab: the values of 2026-10-30, live on main at f193bc1, fail.
+// By day the Cache line was a brick red beside the Raft line's crimson, and van B a darker brick
+// beside both; vans C and D were blues beside the Queue line; at night van C was a sky blue beside
+// the Backfill line's cyan, and van D a lavender near it. The night lines did not change: no pair of
+// them is listed, the nearest, the Raft line's pink and the Cache line's orange, at 0.142.
+test('known answer: the lines and vans of 2026-10-30 fail the one-colour-per-lab check', () => {
+  const at = (l: number, c: number, h: number) => ({ mode: 'oklch', l, c, h }) as Color;
+  const before = {
+    dark: new Map([
+      ...themes.dark,
+      ['map-van-b', at(0.84, 0.09, 62)],
+      ['map-van-c', at(0.87, 0.06, 240)],
+      ['map-van-d', at(0.86, 0.07, 285)],
+    ]),
+    light: new Map([
+      ...themes.light,
+      ['line-routes', at(0.6, 0.125, 75)],
+      ['line-cache', at(0.52, 0.18, 28)],
+      ['map-van-a', at(0.38, 0.075, 75)],
+      ['map-van-b', at(0.4, 0.13, 30)],
+      ['map-van-c', at(0.38, 0.06, 230)],
+      ['map-van-d', at(0.38, 0.14, 290)],
+    ]),
+  };
+  expect(nearPairs(before.light)).toEqual([
+    'line-raft and line-cache: 0.115',
+    'map-van-b and line-raft: 0.129',
+    'map-van-b and line-cache: 0.130',
+    'map-van-c and line-queue: 0.130',
+    'map-van-d and line-queue: 0.110',
+  ]);
+  expect(nearPairs(before.dark)).toEqual([
+    'map-van-c and line-backfill: 0.053',
+    'map-van-d and line-backfill: 0.104',
+  ]);
+});
+
 // The known answers for the bands' steps and the vans' shapes: the values of 2026-10-24, which the
 // review found a reader could not tell apart, fail; and so would vans A and B sharing a shape, the
-// day's ochre and brick, close under a red-green deficiency. Until 2026-10-30 the pair was A and
-// C, the day's dark green, which a review found too near the bands' green and moved to a blue.
+// day's olive and brown, close under a red-green deficiency (its ochre and brick until 2026-10-31).
+// Until 2026-10-30 the pair was A and C, the day's dark green, which a review found too near the
+// bands' green and moved to a blue.
 test('known answer: the bands of 2026-10-24 fail the step check, and vans A and B could not share a shape', () => {
   const old = (l: number, c: number, h: number) => ({ mode: 'oklch', l, c, h }) as Color;
   expect(deltaOk(old(0.445, 0.07, 205), old(0.41, 0.066, 208))).toBeLessThan(BAND_STEP);
