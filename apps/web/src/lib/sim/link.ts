@@ -1,5 +1,5 @@
-// A link to a run, the same in every lab that simulates a system from a seed (the queue, the cache
-// and the backfill): the seed, then each setting whose value is not the opening's, as
+// A link to a run, the same in every lab that simulates a system from a seed (the Raft, Queue,
+// Cache and Backfill Labs): the seed, then each setting whose value is not the opening's, as
 // #seed-7&coalesce=on&stale=on. Start over writes it; a page loaded with it, or a link followed on
 // a page already loaded, opens that run paused at the lab's opening moment. A link names how a run
 // starts, never the presses made during it: those go with the run.

@@ -165,18 +165,74 @@ test('a node button crashes it and then restarts it, and says so in its name', a
   await expect(page.locator('[data-rf-node="0"]')).toHaveAttribute('data-up', 'true');
 });
 
-test('under reduce, Run advances in steps of 50 virtual ms, and nothing animates', async ({
+test('under reduce, Run advances in still steps of half a second of the chosen speed, and nothing animates', async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto(RAFT);
-  const opening = await seconds(page);
-  await page.getByRole('button', { name: 'Run' }).click();
-  await expect.poll(() => seconds(page), { timeout: 3_000 }).toBeGreaterThan(opening);
-  await page.getByRole('button', { name: 'Pause' }).click();
-  const moved = Math.round(((await seconds(page)) - opening) * 1000);
-  expect(moved % 50).toBe(0);
+  // Every time the clock shows, as it changes: a step the test did not sample cannot hide.
+  await page.locator('[data-rf-map]').hover();
+  await expect(log(page)).toHaveCount(13);
+  await page.evaluate(() => {
+    const clock = document.querySelector('[data-rf-clock]');
+    const seen: string[] = [];
+    Object.defineProperty(window, '__clockSeen', { value: seen });
+    if (clock)
+      new MutationObserver(() => seen.push(clock.textContent ?? '')).observe(clock, {
+        childList: true,
+        characterData: true,
+        subtree: true,
+      });
+  });
+  /** Runs until the clock has moved a few steps, then pauses: the steps it took, in virtual ms. */
+  const steps = async () => {
+    const from = await clock(page).textContent();
+    await page.evaluate(() => {
+      (window as unknown as { __clockSeen: string[] }).__clockSeen.length = 0;
+    });
+    const before = await seconds(page);
+    await page.getByRole('button', { name: 'Run' }).click();
+    await expect.poll(() => seconds(page), { timeout: 3_000 }).toBeGreaterThan(before + 0.06);
+    await page.getByRole('button', { name: 'Pause' }).click();
+    const seen = await page.evaluate(
+      () => (window as unknown as { __clockSeen: string[] }).__clockSeen,
+    );
+    const ms = [from, ...seen].map((text) =>
+      Math.round(Number(/([\d.]+) s/.exec(text ?? '')?.[1]) * 1000),
+    );
+    return ms.slice(1).map((at, i) => at - (ms[i] as number));
+  };
+  // At Steady, 0.05 virtual seconds a second: steps of 25 virtual ms.
+  const steady = await steps();
+  expect(steady.length).toBeGreaterThan(2);
+  expect(new Set(steady)).toEqual(new Set([25]));
+  // At Quick, twice as fast: steps of 50, so the choice changes the steps as it changes a run.
+  await page.selectOption('[data-rf-speed]', '0.1');
+  const quick = await steps();
+  expect(quick.length).toBeGreaterThan(1);
+  expect(new Set(quick)).toEqual(new Set([50]));
   expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
+});
+
+test('Next event says where the run stands when the log has nothing to tell', async ({ page }) => {
+  await page.goto(RAFT);
+  const said = page.locator('[data-rf-said]');
+  const heard: string[] = [];
+  let told = 0;
+  for (let i = 0; i < 4; i++) {
+    await page.getByRole('button', { name: 'Next event' }).click();
+    await expect(said).not.toHaveText(heard.at(-1) ?? '');
+    const words = (await said.textContent()) ?? '';
+    heard.push(words);
+    // An event the log does not tell is said as the clock and the status line count it.
+    if (!words.startsWith('Virtual time')) continue;
+    told += 1;
+    const events = /over ([\d,]+) events/.exec((await status(page).textContent()) ?? '')?.[1];
+    expect(words).toBe(`${await clock(page).textContent()}, ${events} events`);
+  }
+  // Each press is heard, and each says something new.
+  expect(told).toBeGreaterThan(0);
+  expect(new Set(heard).size).toBe(heard.length);
 });
 
 test('the app writes the event log once: the build’s lines go on as the run’s, and a link’s run shows only its own', async ({
@@ -236,10 +292,12 @@ test('a link followed on the page opens that seed paused at the opening’s mome
   page,
 }) => {
   await page.goto(RAFT);
-  // Followed before any intent: the link loads the app, which opens it.
-  await page.evaluate(() => (location.hash = '#seed-12'));
+  // Followed before any intent: the link loads the app, which opens it, its loss and all.
+  await page.evaluate(() => (location.hash = '#seed-12&loss=10'));
   await expect(page.locator('[data-rf-seed]')).toHaveText('12');
   await expect(clock(page)).toHaveText('Virtual time 1.400 s');
+  await expect(page.locator('[data-rf-loss]')).toHaveValue('10');
+  await expect(page.locator('[data-rf-loss-out]')).toHaveText('10%');
   // Followed while a run plays: that seed's opening, paused.
   await page.getByRole('radio', { name: 'Quick' }).check();
   await page.getByRole('button', { name: 'Run' }).click();
@@ -266,6 +324,47 @@ test('a link to a run opens it: #seed-8 loads that seed with no other intent, an
   await page.getByRole('button', { name: 'Start over' }).click();
   await expect(page.locator('[data-rf-seed]')).toHaveText('9');
   expect(new URL(page.url()).hash).toBe('#seed-9');
+  // A name the lab does not have is dropped, and the seed still opens.
+  await page.goto(`${RAFT}#seed-12&foo=bar`);
+  await expect(page.locator('[data-rf-seed]')).toHaveText('12');
+  // After the last seed a link can name, Start over comes back to 0, which a reload opens.
+  await page.goto(`${RAFT}#seed-999999`);
+  await expect(page.locator('[data-rf-seed]')).toHaveText('999999');
+  await page.getByRole('button', { name: 'Start over' }).click();
+  expect(new URL(page.url()).hash).toBe('#seed-0');
+  await page.reload();
+  await expect(page.locator('[data-rf-seed]')).toHaveText('0');
+});
+
+test('Start over writes the loss into its link, and a reload opens the same run, which loses messages too', async ({
+  page,
+}) => {
+  /** The run, forty events on from its opening. */
+  const forty = async () => {
+    for (let i = 0; i < 40; i++) await page.getByRole('button', { name: 'Next event' }).click();
+    return [
+      await clock(page).textContent(),
+      await summary(page).textContent(),
+      await status(page).textContent(),
+      await page.locator('[data-rf-flights]').innerHTML(),
+    ];
+  };
+  await page.goto(RAFT);
+  await page.locator('[data-rf-loss]').fill('30');
+  const entries = await page.evaluate(() => history.length);
+  await page.getByRole('button', { name: 'Start over' }).click();
+  await expect(page.locator('[data-rf-seed]')).toHaveText('8');
+  expect(new URL(page.url()).hash).toBe('#seed-8&loss=30');
+  expect(await page.evaluate(() => history.length)).toBe(entries);
+  const before = await forty();
+  await page.reload();
+  await expect(page.locator('[data-rf-loss]')).toHaveValue('30');
+  await expect(page.locator('[data-rf-loss-out]')).toHaveText('30%');
+  expect(await forty()).toEqual(before);
+  // The same seed without the loss is another run: the link is what tells them apart.
+  await page.goto(`${RAFT}#seed-8`);
+  await expect(page.locator('[data-rf-loss]')).toHaveValue('0');
+  expect(await forty()).not.toEqual(before);
 });
 
 // The desk's lamps (ADR 0025): Run is a push-button whose lamp is off until the run is on and lit

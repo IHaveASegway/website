@@ -1,3 +1,4 @@
+import { readLink, writeLink } from '../sim/link';
 import type { Server } from './core';
 import { leaderOf, replay, type Action, type Flight, type Sim } from './sim';
 
@@ -19,6 +20,29 @@ export const OPENING = {
 } as const;
 
 export const openingRun = (): Sim => replay({ seed: OPENING.seed }, OPENING.actions, OPENING.until);
+
+/** The shares of messages lost the page's slider offers, in percent: 0 to 50 in steps of 5. */
+export const LOSSES: readonly number[] = Array.from({ length: 11 }, (_, i) => i * 5);
+
+/**
+ * The settings a link to a run names (lib/sim/link.ts), as the other simulated labs' do: the share
+ * of messages lost from the opening's moment on, in percent, as the slider sets it. A run started
+ * over with 30% lost is #seed-8&loss=30, so the link opens that run and not the one without loss.
+ * The speed is not a setting: it changes how fast a run plays, never the run.
+ */
+export const SETTINGS = { loss: { values: LOSSES, opening: 0 } } as const;
+
+/** The link to a run: its seed, and its loss when it loses messages (#seed-8&loss=30). */
+export const linkTo = (seed: number, loss: number): string => writeLink(seed, { loss }, SETTINGS);
+
+/** The run a link names, its seed and its loss in percent; null when the hash names no run. */
+export const readRun = (hash: string): { seed: number; loss: number } | null => {
+  const link = readLink(hash, SETTINGS);
+  return link && { seed: link.seed, loss: link.values.loss };
+};
+
+/** Start over's seed: the next one, and 0 after the last a link can name, six digits' worth. */
+export const nextSeed = (seed: number): number => (seed >= 999_999 ? 0 : seed + 1);
 
 /** How many seeded runs the property sweep in test/raft.test.ts makes: the page says the number. */
 export const SEEDS_IN_CI = 3_000;

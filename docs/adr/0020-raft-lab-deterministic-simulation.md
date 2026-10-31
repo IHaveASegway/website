@@ -58,3 +58,18 @@ Two-way. Every file is static; the demo can be withdrawn by removing its entry, 
 - The sweep stops catching either broken server within its 3,000 seeds after a change to the fault schedule or the timing: the sweep has gone blind, and its schedule needs widening before anything else changes.
 - A visitor finds a run that breaks a property with the real servers: the seed and the actions replay it, so it becomes a known answer in `test/raft.test.ts` before the fix.
 - A demo needs real network behaviour that a simulation cannot honestly show, such as clock skew across machines: then a cluster of Durable Objects, with the lab platform of ADR 0009.
+
+## Postscript 2026-10-31
+
+The mutation figures in Decision are wrong, and no committed version of the sweep gives them. Counted over every one of the 3,000 seeds on 2026-10-31, with `faultyRun` from `test/raft.test.ts`, whose test stops at the first seed that catches each server and so never printed a total:
+
+| Broken server | Runs that break a property | First at seed | Recorded above |
+|---|---|---|---|
+| Votes without the up-to-date check (`anyLogVotes`) | 774 of 3,000, each by Leader Completeness | 2 | 550, first at seed 8 |
+| Commits an older term's entry by counting (`oldTermCommits`, Figure 8) | 4 of 3,000, each by Leader Completeness | 523 | 2, first at seed 523 |
+
+The counts are the same at b6f709c, the commit that built the lab and wrote this record, at 37faf7c, just before the fix below, and at 983f735, after it. The servers, the simulator, the checker and `faultyRun` did not change between the first two, and the sweep without faults runs the same 3,274,892 events at all three.
+
+The fix, 8c36fbe: a frame cut short keeps time, and an action lands where its replay puts it. `runUntil` with an event limit moved the clock to the frame's end even when the limit had stopped the frame first, so the events still due ran late. It now stands at its last event, and stops only between two moments. Every action now first runs the events still due in its millisecond, as the Queue Lab's do ([ADR 0026](0026-three-more-labs-simulated-in-the-browser.md)), so a replay puts it where the run did. Runs moved without a limit never stood inside a millisecond, so the opening, the 3,000 runs and both catches are the same before and after.
+
+The decision stands, and no Revisit if condition was met: both broken servers are still caught within the 3,000 seeds. lab.md's Raft Lab section carries the corrected counts.

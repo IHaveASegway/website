@@ -424,6 +424,8 @@ function finish(sim: Sim, run: Run): void {
   const failed = run.tasks.find((t) => t.state === 'failed');
   run.state = failed ? 'failed' : 'success';
   run.ended = sim.now;
+  const life = run.lives.at(-1);
+  if (life) life.to = sim.now;
   const name = weekday(run.day);
   say(
     sim,
@@ -569,7 +571,7 @@ export function start(sim: Sim): void {
   if (sim.on) return;
   record(sim, { kind: 'start' });
   sim.on = true;
-  for (let day = 0; day < DAYS; day++) sim.runs.push(createRun(day));
+  for (let day = 0; day < DAYS; day++) sim.runs.push(createRun(day, sim.now));
   say(
     sim,
     `The job graph is switched on with catch-up, which creates all ${DAYS} days' runs at once; ${sim.maxActiveRuns} may run at a time`,
@@ -601,6 +603,7 @@ export function clear(sim: Sim, day: number): void {
   if (run.state === 'success' || run.state === 'failed') {
     run.state = 'queued';
     run.ended = null;
+    run.lives.push({ from: sim.now, to: null });
   }
   say(sim, `${dayText(day)} is cleared, and its run starts again from ${from}`);
   settle(sim);

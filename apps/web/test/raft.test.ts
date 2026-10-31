@@ -31,7 +31,18 @@ import {
   type Flight,
   type Sim,
 } from '../src/lib/raft/sim';
-import { cutFence, footprint, OPENING, openingRun, SEEDS_IN_CI, SIZE } from '../src/lib/raft/view';
+import {
+  cutFence,
+  footprint,
+  linkTo,
+  LOSSES,
+  nextSeed,
+  OPENING,
+  openingRun,
+  readRun,
+  SEEDS_IN_CI,
+  SIZE,
+} from '../src/lib/raft/view';
 
 // The Raft Lab's core (ADR 0020): known answers for each of Figure 2's rules, then a property
 // sweep. The sweep runs many seeded runs with crashes, partitions and loss, checks the five safety
@@ -541,6 +552,24 @@ test('a run the page opens with messages lost records the loss at the opening’
   // With none lost nothing is recorded, and the run is the build's for its seed.
   expect(fresh(7, 0).actions).toEqual(OPENING.actions);
   expect(differences(fresh(7, 0), openingRun())).toEqual([]);
+});
+
+test('a link names a run’s seed and its loss, read as the other labs read theirs, and Start over’s seed comes back to 0 after six digits', () => {
+  // Start over with the slider at 30% writes the loss, so the link opens the run that loses them.
+  expect(linkTo(8, 30)).toBe('#seed-8&loss=30');
+  expect(linkTo(8, 0)).toBe('#seed-8');
+  expect(readRun('#seed-8&loss=30')).toEqual({ seed: 8, loss: 30 });
+  for (const loss of LOSSES) expect(readRun(linkTo(9, loss))).toEqual({ seed: 9, loss });
+  // A name the lab lacks, or a share the slider cannot set, is dropped: the seed still opens.
+  expect(readRun('#seed-12&foo=bar')).toEqual({ seed: 12, loss: 0 });
+  expect(readRun('#seed-12&loss=33')).toEqual({ seed: 12, loss: 0 });
+  expect(readRun('#seed-12&loss=10')).toEqual({ seed: 12, loss: 10 });
+  expect(readRun('#main')).toBeNull();
+  // The link reads six digits, so the seed after the last of them is one it can name.
+  expect(nextSeed(41)).toBe(42);
+  expect(nextSeed(999_999)).toBe(0);
+  expect(readRun(linkTo(nextSeed(999_999), 20))).toEqual({ seed: 0, loss: 20 });
+  expect(readRun(`#seed-${999_999 + 1}`)).toBeNull();
 });
 
 test('the opening the page draws: a leader, three committed writes, and every follower caught up', () => {

@@ -15,10 +15,13 @@ import {
 import {
   cutFence,
   flightsMarkup,
+  linkTo,
   logMarkup,
   logWords,
+  nextSeed,
   nodeText,
   OPENING,
+  readRun,
   ROLE_WORD,
   seconds,
   statusText,
@@ -31,18 +34,13 @@ import {
 // the visitor presses Run, which Pause stops (SC 2.2.2); a hidden tab pauses it too. Run says what
 // it does next, Run or Pause, and has no pressed state, as the other labs' Run does. With reduced
 // motion, messages do not glide: each one stands half way along its path, and Run advances in
-// steps of 50 virtual milliseconds twice a second. A link to a seed (#seed-8) opens that seed's
-// opening, paused, on load or when followed on the page.
+// still steps, half a second of the chosen speed twice a second. A link to a run (lib/sim/link.ts)
+// names its seed and the share of messages it loses (#seed-8&loss=30), and opens that run's
+// opening, paused, on load or when followed on the page; Start over writes the link to its run.
 
 const FRAME_CAP = 100; // real ms: a frame after a long pause does not leap ahead
 const EVENTS_PER_FRAME = 4_000;
-const STILL_STEP = 50; // virtual ms per step under reduced motion
-const STILL_EVERY = 500; // real ms between those steps
-
-const seedFromHash = (): number | null => {
-  const match = /^#seed-(\d{1,6})$/.exec(location.hash);
-  return match ? Number(match[1]) : null;
-};
+const STILL_EVERY = 500; // real ms between steps under reduced motion
 
 /**
  * A seed's opening, as the build draws seed 7's, with `loss` of the messages lost from the
@@ -75,10 +73,21 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     if (element && element.textContent !== value) element.textContent = value;
   };
 
-  /** The share of messages lost that the slider is set to. */
-  const lost = () => Number(loss?.value ?? 0) / 100;
+  /** The share of messages lost that the slider is set to, in percent, and as a share. */
+  const percent = () => Number(loss?.value ?? 0);
+  const lost = () => percent() / 100;
+  /** Sets the slider to a run's loss: the link's, or none for the build's run. */
+  const showLoss = (value: number) => {
+    if (loss) loss.value = String(value);
+    if (lossOut) lossOut.textContent = `${value}%`;
+  };
 
-  let sim: Sim = fresh(seedFromHash() ?? OPENING.seed, lost());
+  // A link names the run, its loss included; without one the run is the build's, which loses
+  // none, whatever the slider kept from an earlier visit. A slider moved before the app arrived is
+  // the visitor's, and plays as a press below.
+  const linked = readRun(location.hash);
+  if (!queued.includes(loss as Element)) showLoss(linked?.loss ?? 0);
+  let sim: Sim = fresh(linked?.seed ?? OPENING.seed, (linked?.loss ?? 0) / 100);
   let playing = false;
   let last = 0;
   let frame = 0;
@@ -200,7 +209,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     run?.setAttribute('data-lamp', 'on');
     if (still.matches) {
       timer = window.setInterval(() => {
-        runUntil(sim, sim.now + STILL_STEP, EVENTS_PER_FRAME);
+        runUntil(sim, sim.now + STILL_EVERY * Number(speed?.value ?? 0.05), EVENTS_PER_FRAME);
         draw();
         if (sim.violation) pause();
       }, STILL_EVERY);
@@ -245,8 +254,9 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
       heal(sim);
     } else if (control.matches('[data-rf-reset]')) {
       const wasPlaying = playing;
-      open(fresh(sim.seed + 1, lost()));
-      history.replaceState(null, '', `#seed-${sim.seed}`);
+      open(fresh(nextSeed(sim.seed), lost()));
+      // The address names the run, its loss and all, so a reload or the link shared opens it.
+      history.replaceState(null, '', linkTo(sim.seed, percent()));
       if (wasPlaying) play();
       return;
     } else if (control.matches('[data-rf-loss]') && loss) {
@@ -259,6 +269,9 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     } else return;
     const latest = sim.lines.at(-1);
     if (latest && latest !== shownLines) say(latest.text);
+    // An event the log does not tell, as most are: where the run stands now, so the press is heard.
+    else if (control.matches('[data-rf-step]'))
+      say(`Virtual time ${seconds(sim.now)}, ${sim.events.toLocaleString('en-US')} events`);
     draw();
   }
 
@@ -273,10 +286,12 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && playing) pause();
   });
-  // A link to a seed followed on this page opens that seed's opening, paused, as loading it would.
+  // A link to a run followed on this page opens that run's opening, paused, as loading it would.
   addEventListener('hashchange', () => {
-    const seed = seedFromHash();
-    if (seed !== null) open(fresh(seed, lost()));
+    const link = readRun(location.hash);
+    if (!link) return;
+    showLoss(link.loss);
+    open(fresh(link.seed, link.loss / 100));
   });
   still.addEventListener('change', () => {
     if (playing) {
