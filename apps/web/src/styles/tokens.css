@@ -5,19 +5,19 @@
   Tier 2, semantic: shadcn's names, which components use through Tailwind (bg-background,
   text-muted-foreground, outline-ring) or var(). A component never carries its own literal.
 
-  The values are the signal box (ADR 0025, 2026-10-30): the page is a panel's green enamel, the
-  board a recessed surface in it, all text engraving. Colour means one thing, which line: each lab
-  draws its line in its own colour (--line-*), set per lab by [data-line] in global.css. State is
-  a lamp's shape and a word, never a hue. --primary is the lit lamp, warm white at night and ink
-  by day: the primary button, the focus ring, a van, where the work is now. The contrast test
-  (test/tokens.test.ts) reads every block in this file.
+  The values are the drawing (ADR 0027, docs/design/overhaul.md, 2026-10-31): by day a technical
+  drawing on cool drafting paper, in Prussian ink, with one accent, cobalt, for what a visitor can
+  act on and the path a drawing lights; by night the same drawing as a blueprint, white lines on
+  cyanotype blue. The labs keep a colour each (--line-*), drawn inside a lab's own picture and
+  never in the chrome. The contrast test (test/tokens.test.ts) reads every block in this file.
 
-  Themes. The pre-paint script (src/scripts/theme.js) sets data-theme on <html> to "light" or
-  "dark" while a choice is stored, and to "system" otherwise. CSS treats "system" and a missing
-  attribute alike: both follow the OS. So no JavaScript, a blocked script and System share one
-  path, and the OS is the fail-safe. The light values appear twice, once for a stored choice and
-  once for the OS; the test fails if the two copies differ. light-dark() would remove the copy, but
-  a browser without it would get no colors at all (design-system.md revisits it).
+  Themes. Light is the default: the bare :root holds it. The pre-paint script
+  (src/scripts/theme.js) sets data-theme on <html> to "light" or "dark" while a choice is stored,
+  and to "system" otherwise. CSS treats "system" and a missing attribute alike: both follow the
+  OS, and an OS with no preference gets light. So no JavaScript, a blocked script and System share
+  one path. The dark values appear twice, once for a stored choice and once for the OS; the test
+  fails if the two copies differ. light-dark() would remove the copy, but a browser without it
+  would get no colors at all (design-system.md revisits it).
 */
 
 @theme {
@@ -31,98 +31,151 @@
   /* The self-hosted faces (astro.config.mjs, "fonts"), then fallback faces fitted to their widths
      (font-fallbacks.css), then the system's. If a face's own style never arrives, or a page does
      not declare it (B612 Mono, on a page without code), the fitted fallbacks still apply, so the
-     page never falls back to a browser default. One family in three widths: display for the name,
-     titles and figures; label for the navigation, buttons, labels and captions; sans for reading.
-     Mono sets code and nothing else (design-system.md, "The faces"). */
+     page never falls back to a browser default. One family, Archivo, across its width axis (ADR 0027):
+     display, ExtraCondensed ExtraBold, for the name, titles and figures; wide, Expanded Medium,
+     for signage, the navigation, a block's name and dates; label, Condensed SemiBold, for
+     buttons, controls and the labels inside drawings, where room is short; sans, Regular, for
+     reading. Mono sets code and nothing else (docs/design/overhaul.md, "Type"). */
   --font-display:
-    var(--font-barlow-condensed, var(--font-display-fallbacks)), var(--font-display-fallbacks);
-  --font-label:
-    var(--font-barlow-semi-condensed, var(--font-label-fallbacks)), var(--font-label-fallbacks);
-  --font-sans: var(--font-barlow, var(--font-sans-fallbacks)), var(--font-sans-fallbacks);
+    var(--font-archivo-display, var(--font-display-fallbacks)), var(--font-display-fallbacks);
+  --font-wide: var(--font-archivo-wide, var(--font-wide-fallbacks)), var(--font-wide-fallbacks);
+  --font-label: var(--font-archivo-label, var(--font-label-fallbacks)), var(--font-label-fallbacks);
+  --font-sans: var(--font-archivo, var(--font-sans-fallbacks)), var(--font-sans-fallbacks);
   --font-mono: var(--font-b612-mono, var(--font-mono-fallbacks)), var(--font-mono-fallbacks);
 
-  /* Square corners: a printed sheet has none (design-system.md, "Chosen direction"). Inline code
-     keeps its 2px. */
+  /* Corners by hierarchy (docs/design/overhaul.md, "Shape"): the bar and full-width bands are
+     square; a control is 4px; a card or a lab's desk 8px. Inline code keeps 2px. */
   --radius-sm: 2px;
-  --radius-md: 0px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
 
-  /* Type scale (design-system.md, "Type scale"; ADR 0025): eight steps. Each fluid size runs
-     linearly from 390 px to 1440 px and stops at both ends, so a wide screen gets more picture, not
-     bigger letters. Each has a rem floor and a rem term, and each maximum is at most 2.5 times its
-     minimum, so zoom always enlarges text (SC 1.4.4; test/tokens.test.ts checks all three). Hero,
-     title, section and headline are Barlow Condensed; lead and base Barlow; ui and label Barlow
-     Semi Condensed. */
-  /* The name on Home: 56px to 136px, a ratio of 2.43, set on two lines. It also stops at 20vw,
-     64px at 320px, so at the default text size the cap never binds from 320px up and zoom enlarges
-     the name as before. With a larger default text size on a phone it binds, and "Peterson" still
-     fits the screen whole instead of breaking inside the word. */
-  --text-hero: min(clamp(3.5rem, 1.642857rem + 7.619048vw, 8.5rem), 20vw);
-  --text-hero--line-height: 0.88;
-  /* A page's title, a featured lab's title, and the figures: 42px to 72px. It stops at 13.125vw,
-     its 42px floor at 320px, for the hero's reason: at the default text size the cap never binds
-     from 320px up, and with a larger default text size on a phone it does, so a long word such as
-     "deliveries" still fits the screen whole, where at twice the size it ran 2px past 320px. */
-  --text-title: min(clamp(2.625rem, 1.928571rem + 2.857143vw, 4.5rem), 13.125vw);
+  /* Type scale (docs/design/overhaul.md, "Type"; ADR 0027): eight steps on the classic scale of
+     The Elements of Typographic Style (12, 14, 18, 21, 24, 36, 48, 60, 72, 96), each fluid size
+     running linearly from 390 px to 1440 px and stopping at both ends, so a wide screen gets more
+     room, not bigger letters. Each has a rem floor and a rem term, and each maximum is at most 2.5
+     times its minimum, so zoom always enlarges text (SC 1.4.4; test/tokens.test.ts checks all
+     three). Hero, title, section and headline are Archivo ExtraCondensed; lead and base Archivo;
+     ui and label Archivo Condensed SemiBold or, for signage, Archivo Expanded, which is wide, so
+     a step smaller than the roles suggest. */
+  /* The name on Home, in capitals (.nameplate): 48px to 104px, a ratio of 2.17, on one line from
+     390 px (6.8em wide). It stops at 15vw, its 48px floor at 320px, so at the default text size
+     the cap never binds, and with a larger default text size on a phone it does, so the two words
+     wrap whole instead of running off the screen. */
+  --text-hero: min(clamp(3rem, 1.7rem + 5.333333vw, 6.5rem), 15vw);
+  --text-hero--line-height: 0.9;
+  /* A page's title and the figures in a stats row: 40px to 64px, stopping at 12.5vw for the
+     hero's reason. */
+  --text-title: min(clamp(2.5rem, 1.942857rem + 2.285714vw, 4rem), 12.5vw);
   --text-title--line-height: 0.95;
-  /* A section's title: 30px to 48px. */
-  --text-section: clamp(1.875rem, 1.457143rem + 1.714286vw, 3rem);
+  /* A section's title: 28px to 40px. */
+  --text-section: clamp(1.75rem, 1.471429rem + 1.142857vw, 2.5rem);
   --text-section--line-height: 1;
-  /* An index row's title, a post's h2, How I work's leads, a board line's title at room size:
-     24px to 28px. */
-  --text-headline: clamp(1.5rem, 1.407143rem + 0.380952vw, 1.75rem);
-  --text-headline--line-height: 1.1;
-  /* A page's lead: 19px to 22px. */
-  --text-lead: clamp(1.1875rem, 1.117857rem + 0.285714vw, 1.375rem);
-  --text-lead--line-height: 1.4;
+  /* A card's or a row's title, a post's h2: 21px to 26px. */
+  --text-headline: clamp(1.3125rem, 1.196429rem + 0.47619vw, 1.625rem);
+  --text-headline--line-height: 1.15;
+  /* A page's lead and the bio's paragraphs: 19px to 21px. It stops at 11.5vw, 36.8px at 320px,
+     which never binds at the default text size; at twice the default on a 320px phone it does, so
+     the lead's longest word ("WebAssembly," on the Route Lab, 6.5em in Archivo) keeps to the
+     frame whole instead of breaking or running past it. */
+  --text-lead: min(clamp(1.1875rem, 1.141071rem + 0.190476vw, 1.3125rem), 11.5vw);
+  --text-lead--line-height: 1.5;
   /* Prose and a card's text: 17px to 18px. */
   --text-base: clamp(1.0625rem, 1.039286rem + 0.095238vw, 1.125rem);
   --text-base--line-height: 1.6;
-  /* The navigation, buttons and a board line's title: 15px to 16px. */
-  --text-ui: clamp(0.9375rem, 0.914286rem + 0.095238vw, 1rem);
+  /* The navigation and buttons: 14px to 15px. */
+  --text-ui: clamp(0.875rem, 0.851786rem + 0.095238vw, 0.9375rem);
   --text-ui--line-height: 1.25;
-  /* Status, describers, a date, a key's name, captions and the labels inside drawings: 13px to
-     14px, in sentence case, untracked, never mono. */
-  --text-label: clamp(0.8125rem, 0.789286rem + 0.095238vw, 0.875rem);
-  --text-label--line-height: 1.35;
+  /* A block's name (Currently, What I build), a date, a figure's caption, a key, the labels inside
+     drawings: 12.5px to 13.5px, in sentence case, untracked, never mono. */
+  --text-label: clamp(0.78125rem, 0.758036rem + 0.095238vw, 0.84375rem);
+  --text-label--line-height: 1.4;
   --text-label--font-weight: 500;
-  /* The reading measure: about 68 characters of English a line (design-system.md, "Type scale").
+  /* The reading measure: about 68 characters of English a line in Archivo, whose average letter
+     is 0.433em, within 1% of Barlow's (docs/design/overhaul.md, "Type").
      Set in em, not ch: ch is the width of "0", which differs from face to face, so
      e2e/writing.spec.ts counts the characters a line in the face a reader gets. */
   --measure: 31em;
 }
 
-/* Night: the designed default, and what a stored "dark" asks for. */
+/* Day: the default, and what a stored "light" asks for. */
 :root,
+:root[data-theme='light'] {
+  color-scheme: light;
+  --background: oklch(0.975 0.006 265); /* drafting paper #f5f7fb, and the water on every map */
+  --surface-1: oklch(1 0 0); /* a card, the nav bar, a lab's desk: white on the paper #ffffff */
+  --surface-2: oklch(0.94 0.012 265); /* raised: hover, a pressed control, code, map land #e7ebf4 */
+  --foreground: oklch(0.22 0.06 268); /* Prussian ink: all text #0f1836 */
+  --muted-foreground: oklch(0.45 0.05 268); /* secondary text, captions, dates #495472 */
+  --subtle-foreground: var(--muted-foreground);
+  --border: oklch(0.9 0.014 265); /* a hairline: no contrast duty #d9dee8 */
+  --ground: oklch(0.955 0.009 265); /* a background band, such as the stats row #edf0f6 */
+  --input: oklch(0.6 0.04 265); /* rules that work: a control's edge, ticks, 3:1 #758099 */
+  --primary: oklch(0.48 0.22 266); /* cobalt, the one accent #2349d7 */
+  --primary-strong: oklch(0.4 0.2 266); /* its hover and pressed state #1633b1 */
+  --primary-foreground: oklch(1 0 0); /* text on cobalt */
+  --signal: var(--primary);
+  --destructive: var(--foreground);
+  --ring: var(--primary);
+  /* The isometric drawings: three faces of a solid lit from the top left, and the plane's grid.
+     Fills only, never the only cue: every solid is edged in --foreground. */
+  --iso-top: oklch(1 0 0);
+  --iso-left: oklch(0.93 0.016 265);
+  --iso-right: oklch(0.87 0.024 265);
+  --iso-grid: oklch(0.6 0.04 265 / 0.22);
+  /* One colour per lab, drawn as its line: strokes and marks inside the lab's own picture, never
+     text and never the chrome; 3:1 on the paper, a card and a raised surface. Hue is never the
+     only cue: each line has its shape and its title. Any two sit ΔE_OK 0.133 or more apart
+     (test/tokens.test.ts; ADR 0025, postscript of 2026-10-31). */
+  --line-routes: oklch(0.59 0.12 100);
+  --line-raft: oklch(0.48 0.165 352);
+  --line-queue: oklch(0.46 0.15 260);
+  --line-cache: oklch(0.535 0.15 46);
+  --line-backfill: oklch(0.56 0.09 205);
+
+  --map-water: var(--background);
+  --map-land: var(--surface-2);
+  --map-park: oklch(0.88 0.03 150);
+  --map-band-1: oklch(0.648 0.034 171);
+  --map-band-2: oklch(0.695 0.027 172);
+  --map-band-3: oklch(0.742 0.02 172);
+  --map-band-4: oklch(0.789 0.014 173);
+  --map-band-5: oklch(0.836 0.007 173);
+  --map-band-6: oklch(0.883 0.002 174);
+  --map-street: oklch(0.56 0.02 165 / 0.12);
+  --map-road: oklch(0.56 0.02 165 / 0.28);
+  --map-road-major: oklch(0.56 0.02 165 / 0.45);
+  --map-van-a: oklch(0.38 0.075 95);
+  --map-van-b: oklch(0.32 0.05 50);
+  --map-van-c: oklch(0.37 0.035 240);
+  --map-van-d: oklch(0.27 0.11 287);
+  --map-place: var(--foreground);
+  --map-depot: var(--foreground);
+  --map-contour: var(--foreground);
+  --map-label: var(--foreground);
+}
+
+/* Night, chosen in this browser: the blueprint. */
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --background: oklch(0.3 0.025 163); /* the panel's enamel, and the water on every map */
-  --surface-1: oklch(0.268 0.023 163); /* the board, recessed in its bezel; code */
-  --surface-2: oklch(0.35 0.028 163); /* raised: describers, a pressed button, hover; map land */
-  --foreground: oklch(0.955 0.012 150); /* engraving: all text */
-  --muted-foreground: oklch(0.8 0.025 158); /* secondary text, labels inside drawings */
+  --background: oklch(0.27 0.085 264); /* the blueprint, a cyanotype #10234f */
+  --surface-1: oklch(0.31 0.085 264); /* a card, the nav bar, a lab's desk #1a2e5b */
+  --surface-2: oklch(0.355 0.085 264); /* raised: hover, pressed, code, land #243a68 */
+  --foreground: oklch(0.96 0.015 255); /* the print's white line: all text */
+  --muted-foreground: oklch(0.82 0.05 258); /* secondary text, captions, dates #b0c6e5 */
   --subtle-foreground: var(--muted-foreground);
-  --border: oklch(0.42 0.026 162); /* a hairline only: no contrast duty */
-  /* Background symbols (About's wheels): a step off the enamel, so they read, and text keeps
-     4.5:1 on them. */
-  --ground: oklch(0.36 0.03 162);
-  /* Rules that work: the board's bezel, a button's edge, ticks, the rail's edge. 3:1 on every
-     surface, the ground's included: at L 0.62 it measured 2.98:1 there, so 0.625. */
-  --input: oklch(0.625 0.03 160);
-  --primary: oklch(0.96 0.045 98); /* the lit lamp */
-  /* Its hover. Chroma 0.02 at L 0.99 is outside sRGB; 0.018 is the nearest inside. */
-  --primary-strong: oklch(0.99 0.018 98);
-  --primary-foreground: var(--surface-1); /* text on a lamp */
+  --border: oklch(0.4 0.08 264); /* a hairline: no contrast duty #314673 */
+  --ground: oklch(0.295 0.085 264); /* a background band, such as the stats row #162a56 */
+  --input: oklch(0.66 0.07 262); /* rules that work, 3:1 on every surface #7b93be */
+  --primary: oklch(0.8 0.1 268); /* cobalt, lit: the one accent at night #a2bcff */
+  --primary-strong: oklch(0.88 0.05 268); /* its hover and pressed state */
+  --primary-foreground: var(--background); /* text on the lit accent */
   --signal: var(--primary);
-  --destructive: var(--foreground); /* placeholder until a page shows an error state */
+  --destructive: var(--foreground);
   --ring: var(--primary);
-  /* One colour per lab, drawn as its line: strokes and lamps, never text, 3:1 on the enamel, the
-     board and a raised surface. Hue is never the only cue: each line has its shape and its title.
-     Any two sit ΔE_OK 0.133 or more apart (test/tokens.test.ts): the nearest are 0.142 at night,
-     Raft and Cache, and 0.137 by day, Routes and Cache. Under full-severity colour-vision
-     simulation the smallest difference is 0.100 at night and 0.090 by day. By day the Cache line
-     is orange, not the brick red it was until 2026-10-31, which read as the Raft line's crimson;
-     and the Routes line is a dark yellow at its night hue, not an ochre, which beside an orange
-     read as a second orange (ADR 0025, postscript of 2026-10-31). */
+  --iso-top: oklch(0.36 0.085 264);
+  --iso-left: oklch(0.31 0.085 264);
+  --iso-right: oklch(0.27 0.085 264);
+  --iso-grid: oklch(0.66 0.07 262 / 0.22);
   --line-routes: oklch(0.89 0.15 100); /* signal yellow */
   --line-raft: oklch(0.74 0.12 350);
   --line-queue: oklch(0.69 0.15 258);
@@ -168,94 +221,69 @@
   --map-label: var(--foreground);
 }
 
-/* Day, chosen in this browser: the same panel by daylight. */
-:root[data-theme='light'] {
-  color-scheme: light;
-  --background: oklch(0.94 0.008 165);
-  --surface-1: oklch(0.975 0.004 165);
-  --surface-2: oklch(0.905 0.011 165);
-  --foreground: oklch(0.24 0.022 165);
-  --muted-foreground: oklch(0.44 0.022 165);
-  --subtle-foreground: var(--muted-foreground);
-  --border: oklch(0.84 0.01 165);
-  --ground: oklch(0.88 0.012 165);
-  --input: oklch(0.56 0.02 165);
-  --primary: var(--foreground);
-  --primary-strong: oklch(0.32 0.025 165);
-  --primary-foreground: var(--surface-1);
-  --signal: var(--primary);
-  --destructive: var(--foreground);
-  --ring: var(--primary);
-  --line-routes: oklch(0.59 0.12 100);
-  --line-raft: oklch(0.48 0.165 352);
-  --line-queue: oklch(0.46 0.15 260);
-  --line-cache: oklch(0.535 0.15 46);
-  --line-backfill: oklch(0.56 0.09 205);
-
-  --map-water: var(--background);
-  --map-land: var(--surface-2);
-  --map-park: oklch(0.88 0.03 150);
-  --map-band-1: oklch(0.648 0.034 171);
-  --map-band-2: oklch(0.695 0.027 172);
-  --map-band-3: oklch(0.742 0.02 172);
-  --map-band-4: oklch(0.789 0.014 173);
-  --map-band-5: oklch(0.836 0.007 173);
-  --map-band-6: oklch(0.883 0.002 174);
-  --map-street: oklch(0.56 0.02 165 / 0.12);
-  --map-road: oklch(0.56 0.02 165 / 0.28);
-  --map-road-major: oklch(0.56 0.02 165 / 0.45);
-  --map-van-a: oklch(0.38 0.075 95);
-  --map-van-b: oklch(0.32 0.05 50);
-  --map-van-c: oklch(0.37 0.035 240);
-  --map-van-d: oklch(0.27 0.11 287);
-  --map-place: var(--foreground);
-  --map-depot: var(--foreground);
-  --map-contour: var(--foreground);
-  --map-label: var(--foreground);
-}
-
-/* Day, from the OS, unless "dark" is stored. :where() keeps this at :root's specificity, so a
-   stored "dark" ([data-theme='dark'], one attribute more) wins over it. */
-@media (prefers-color-scheme: light) {
-  :root:where(:not([data-theme='dark'])) {
-    color-scheme: light;
-    --background: oklch(0.94 0.008 165);
-    --surface-1: oklch(0.975 0.004 165);
-    --surface-2: oklch(0.905 0.011 165);
-    --foreground: oklch(0.24 0.022 165);
-    --muted-foreground: oklch(0.44 0.022 165);
+/* Night, from the OS, unless "light" is stored. :where() keeps this at :root's specificity, so a
+   stored "light" ([data-theme='light'], one attribute more) wins over it. */
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme='light'])) {
+    color-scheme: dark;
+    --background: oklch(0.27 0.085 264); /* the blueprint, a cyanotype #10234f */
+    --surface-1: oklch(0.31 0.085 264); /* a card, the nav bar, a lab's desk #1a2e5b */
+    --surface-2: oklch(0.355 0.085 264); /* raised: hover, pressed, code, land #243a68 */
+    --foreground: oklch(0.96 0.015 255); /* the print's white line: all text */
+    --muted-foreground: oklch(0.82 0.05 258); /* secondary text, captions, dates #b0c6e5 */
     --subtle-foreground: var(--muted-foreground);
-    --border: oklch(0.84 0.01 165);
-    --ground: oklch(0.88 0.012 165);
-    --input: oklch(0.56 0.02 165);
-    --primary: var(--foreground);
-    --primary-strong: oklch(0.32 0.025 165);
-    --primary-foreground: var(--surface-1);
+    --border: oklch(0.4 0.08 264); /* a hairline: no contrast duty #314673 */
+    --ground: oklch(0.295 0.085 264); /* a background band, such as the stats row #162a56 */
+    --input: oklch(0.66 0.07 262); /* rules that work, 3:1 on every surface #7b93be */
+    --primary: oklch(0.8 0.1 268); /* cobalt, lit: the one accent at night #a2bcff */
+    --primary-strong: oklch(0.88 0.05 268); /* its hover and pressed state */
+    --primary-foreground: var(--background); /* text on the lit accent */
     --signal: var(--primary);
     --destructive: var(--foreground);
     --ring: var(--primary);
-    --line-routes: oklch(0.59 0.12 100);
-    --line-raft: oklch(0.48 0.165 352);
-    --line-queue: oklch(0.46 0.15 260);
-    --line-cache: oklch(0.535 0.15 46);
-    --line-backfill: oklch(0.56 0.09 205);
-
+    --iso-top: oklch(0.36 0.085 264);
+    --iso-left: oklch(0.31 0.085 264);
+    --iso-right: oklch(0.27 0.085 264);
+    --iso-grid: oklch(0.66 0.07 262 / 0.22);
+    --line-routes: oklch(0.89 0.15 100); /* signal yellow */
+    --line-raft: oklch(0.74 0.12 350);
+    --line-queue: oklch(0.69 0.15 258);
+    --line-cache: oklch(0.72 0.17 45);
+    --line-backfill: oklch(0.87 0.09 205);
+    /* The maps (design-system.md, "Map colors"): the Route Lab's, Home's scene and the link
+       preview's. The water is the page itself, so a map has no edge where its data stops; the land a
+       step up, the raised surface; parks a step greener. The six isochrone bands step from the land
+       toward the ink, band-1 the nearest to the bakery, so nearer reads as more ink. Between the
+       water and the lightest fill the labels allow (4.5:1) there is 0.19 of lightness, and six steps
+       of ΔE_OK 0.045 need 0.225, so the bands rise in chroma too, from a cool grey to the panel's
+       green: measured on 2026-10-30, no six-step ramp at one hue passes those checks under a
+       chroma of 0.16, and one of 0.07 has to turn through 100 degrees of hue, to a blue that reads
+       as water. The far band is a cool grey, so beside the green land it reads grey, not brown.
+       Marks reach 3:1 on every fill: the four vans, and the places, the bakery and the 10 and 20
+       minute lines, all in ink; a stop's number is the page's background on its van, at 4.5:1. Van
+       A is the Route Lab's own line. The others sit 0.133 or more from every other lab's line, as
+       the lines sit from each other, and keep off the bands' green: at night amber, a pale lilac
+       and lavender; by day brown, slate and indigo under A's dark yellow. Until 2026-10-31 night's
+       sky sat beside the Backfill line's cyan, and day's brick beside the Cache line's red. At night
+       that leaves little room: D shares A's square stops, so it stays 20 apart from A's yellow under
+       every deficiency, and no colour that does sits further than 0.135 from the Raft and Backfill
+       lines. Streets and roads are the rule colour, translucent: decoration under the routes. */
     --map-water: var(--background);
     --map-land: var(--surface-2);
-    --map-park: oklch(0.88 0.03 150);
-    --map-band-1: oklch(0.648 0.034 171);
-    --map-band-2: oklch(0.695 0.027 172);
-    --map-band-3: oklch(0.742 0.02 172);
-    --map-band-4: oklch(0.789 0.014 173);
-    --map-band-5: oklch(0.836 0.007 173);
-    --map-band-6: oklch(0.883 0.002 174);
-    --map-street: oklch(0.56 0.02 165 / 0.12);
-    --map-road: oklch(0.56 0.02 165 / 0.28);
-    --map-road-major: oklch(0.56 0.02 165 / 0.45);
-    --map-van-a: oklch(0.38 0.075 95);
-    --map-van-b: oklch(0.32 0.05 50);
-    --map-van-c: oklch(0.37 0.035 240);
-    --map-van-d: oklch(0.27 0.11 287);
+    --map-park: oklch(0.375 0.045 152);
+    --map-band-1: oklch(0.522 0.168 140);
+    --map-band-2: oklch(0.488 0.134 146);
+    --map-band-3: oklch(0.454 0.101 152);
+    --map-band-4: oklch(0.421 0.067 158);
+    --map-band-5: oklch(0.387 0.034 164);
+    --map-band-6: oklch(0.35 0.018 225);
+    --map-street: oklch(0.625 0.03 160 / 0.14);
+    --map-road: oklch(0.625 0.03 160 / 0.3);
+    --map-road-major: oklch(0.625 0.03 160 / 0.5);
+    --map-van-a: var(--line-routes);
+    --map-van-b: oklch(0.835 0.16 80);
+    --map-van-c: oklch(0.92 0.06 320);
+    --map-van-d: oklch(0.84 0.09 298);
     --map-place: var(--foreground);
     --map-depot: var(--foreground);
     --map-contour: var(--foreground);
@@ -321,6 +349,11 @@
     --map-depot: var(--foreground);
     --map-contour: var(--foreground);
     --map-label: var(--foreground);
+    /* Drawings print as line art: white faces, a light grid. */
+    --iso-top: oklch(1 0 0);
+    --iso-left: oklch(0.95 0 0);
+    --iso-right: oklch(0.9 0 0);
+    --iso-grid: oklch(0.55 0 0 / 0.25);
   }
 }
 

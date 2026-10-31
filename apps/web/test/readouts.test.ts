@@ -210,7 +210,7 @@ test('known answers for the timestamp check', () => {
     'build 8c2067e',
     'v1.2.1',
     'a 16:9 frame',
-    'fonts/OFL-Barlow.txt',
+    'fonts/OFL-Archivo.txt',
     'Version 2.304',
     '© 2026 Joseph Peterson',
   ]) {

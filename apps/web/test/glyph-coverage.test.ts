@@ -5,13 +5,14 @@ import { expect, test } from 'vitest';
 import { decodeReferences } from '../src/lib/held-names';
 import { app, html, read } from './support/dist';
 
-// The characters a post may use (design-system.md, "The faces"). Every face is a subset of Google's
-// latin range: Latin-1 and common punctuation, and no arrow, which Barlow does not draw. e2e's glyph
-// check sees a character outside them only on a published page, as a font a browser fell back to.
-// This reads every post page in the build, a draft's included, splits its text by the face that
-// draws it (titles and headings in Barlow Condensed, the register, the post's kind, day and tags, in
-// Barlow Semi Condensed, bold in Barlow SemiBold, code in B612 Mono, the rest in Barlow) and names
-// each missing character, with the way out, so a post fails with a sentence instead of a font name.
+// The characters a post may use (docs/design/overhaul.md, "Type"). Every face is a subset of
+// Google's latin range: Latin-1, common punctuation, and of the arrows only up and down, which
+// Archivo draws. e2e's glyph check sees a character outside them only on a published page, as a
+// font a browser fell back to. This reads every post page in the build, a draft's included, splits
+// its text by the face that draws it (titles and headings in Archivo ExtraCondensed, the register,
+// the post's kind, day and tags, in Archivo Condensed SemiBold, bold in Archivo SemiBold, code in
+// B612 Mono, the rest in Archivo) and names each missing character, with the way out, so a post
+// fails with a sentence instead of a font name.
 
 /** The characters a self-hosted face carries, read from its own cmap (the files fonts.test.ts locks). */
 function face(file: string): Set<number> {
@@ -21,17 +22,17 @@ function face(file: string): Set<number> {
 }
 const FACES = {
   display: {
-    name: 'Barlow Condensed',
+    name: 'Archivo ExtraCondensed',
     where: 'a title or heading',
-    file: 'barlow-condensed-semibold.woff2',
+    file: 'archivo-condensed-extrabold.woff2',
   },
   label: {
-    name: 'Barlow Semi Condensed',
+    name: 'Archivo Condensed SemiBold',
     where: 'a label',
-    file: 'barlow-semi-condensed-medium.woff2',
+    file: 'archivo-condensed-semibold.woff2',
   },
-  text: { name: 'Barlow', where: 'the text', file: 'barlow-regular.woff2' },
-  bold: { name: 'Barlow SemiBold', where: 'bold text', file: 'barlow-semibold.woff2' },
+  text: { name: 'Archivo', where: 'the text', file: 'archivo-regular.woff2' },
+  bold: { name: 'Archivo SemiBold', where: 'bold text', file: 'archivo-semibold.woff2' },
   mono: { name: 'B612 Mono', where: 'code', file: 'b612-mono-regular.woff2' },
 } as const;
 type Face = keyof typeof FACES;
@@ -124,17 +125,18 @@ test('known answers: a missing character is named with its code point and its fa
     [],
   );
   expect(glyphProblems(page('<p>p99 ≤ 2 s</p>'))).toEqual([
-    '"≤" (U+2264) in the text: not in Barlow',
+    '"≤" (U+2264) in the text: not in Archivo',
   ]);
-  // Barlow draws no arrow, in any of its widths: the design writes words instead.
-  expect(glyphProblems(page('<p>See below ↓</p>', 'Up ↗', 'Next →'))).toEqual([
-    '"↗" (U+2197) in a title or heading: not in Barlow Condensed',
-    '"→" (U+2192) in a label: not in Barlow Semi Condensed',
-    '"↓" (U+2193) in the text: not in Barlow',
+  // The cut keeps only the up and down arrows: no sideways arrow in any width, so the design
+  // writes words instead; "↓" is drawn.
+  expect(glyphProblems(page('<p>See below ↓, next →</p>', 'Up ↗', 'Next →'))).toEqual([
+    '"↗" (U+2197) in a title or heading: not in Archivo ExtraCondensed',
+    '"→" (U+2192) in a label: not in Archivo Condensed SemiBold',
+    '"→" (U+2192) in the text: not in Archivo',
   ]);
   expect(glyphProblems(page('<h2>Then ← back</h2><p><b>Bold ←</b></p>'))).toEqual([
-    '"←" (U+2190) in a title or heading: not in Barlow Condensed',
-    '"←" (U+2190) in bold text: not in Barlow SemiBold',
+    '"←" (U+2190) in a title or heading: not in Archivo ExtraCondensed',
+    '"←" (U+2190) in bold text: not in Archivo SemiBold',
   ]);
   expect(glyphProblems(page('<pre><code>├── src</code></pre>'))).toEqual([
     '"├" (U+251C) in code: not in B612 Mono',

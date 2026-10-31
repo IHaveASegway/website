@@ -189,8 +189,9 @@ for (const width of [768, 1024, 1199, 1200, 1279, 1280, 1366, 1439, 1440, 1920, 
     await page.evaluate(() => document.fonts.ready);
     const at = await wheelsAgainstText(page, GUTTER);
     expect(at.crowded, `wheels from ${at.left} px`).toEqual([]);
-    // The room the drawing needs: beside the words from 1200 without the rail and from 1440 with it.
-    expect(at.drawn).toBe((width >= 1200 && width < 1280) || width >= 1440);
+    // The room the drawing needs: beside the words from 1200 (75rem). Until ADR 0027 the rail took
+    // 224 px from 1280, and the wheels came back only at 1440.
+    expect(at.drawn).toBe(width >= 1200);
   });
 }
 

@@ -10,11 +10,12 @@ interface Props {
 }
 
 const { profile, generated } = Astro.props;
-// One line: the address, the pages that exist (RSS, Now, Colophon), the external profiles whose
-// readiness check is recorded (rel="me" pairs each with the profile's link back to this site), and
-// the copyright, in the build's year. The command menu's button moved to the header on 2026-10-29,
-// so the rail holds it (ADR 0021). The address may break after its "@" when a larger text size
-// leaves it no room on one line, and never elsewhere unless a part alone is wider than the screen.
+// The footer (docs/design/overhaul.md, "Footer"; ADR 0027): who this is and how to write to him on
+// the left, then the links, the pages this build writes (RSS, Colophon, from the manifest's footer
+// items) and the external profiles whose readiness check is recorded (rel="me" pairs each with the
+// profile's link back to this site), and the copyright, in the build's year, under them. The
+// address may break after its "@" when a larger text size leaves it no room on one line, and never
+// elsewhere unless a part alone is wider than the screen.
 const year = new Date().getUTCFullYear();
 const [mailbox, domain] = CONTACT_EMAIL.split('@');
 const links = [
@@ -27,12 +28,16 @@ const links = [
 ];
 ---
 
-<footer class="frame">
-  <div class="site-footer">
-    <a class="footer-email" href={`mailto:${CONTACT_EMAIL}`}>
-      {mailbox}@<wbr />
-      {domain}
-    </a>
+<footer class="site-foot">
+  <div class="frame site-footer">
+    <div class="footer-who">
+      <p class="footer-name">{profile.basics.name}</p>
+      <p class="footer-role">{profile.basics.label}</p>
+      <a class="footer-email" href={`mailto:${CONTACT_EMAIL}`}>
+        {mailbox}@<wbr />
+        {domain}
+      </a>
+    </div>
     <ul class="footer-links">
       {links.map((link) => (
         <li>

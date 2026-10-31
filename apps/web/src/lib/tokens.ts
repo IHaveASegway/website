@@ -67,33 +67,34 @@ export function resolve(theme: Map<string, string>): Map<string, Color> {
   return colors;
 }
 
-/** The selectors of the theme blocks, as tokens.css writes them. */
+/** The selectors of the theme blocks, as tokens.css writes them. Light is the default since ADR
+ *  0027: the bare :root holds it, and dark is a stored choice or the OS's. */
 export const SELECTORS = {
-  dark: ":root, :root[data-theme='dark']",
-  light: ":root[data-theme='light']",
-  lightMedia: '@media (prefers-color-scheme: light)',
-  lightFromOs: ":root:where(:not([data-theme='dark']))",
+  light: ":root, :root[data-theme='light']",
+  dark: ":root[data-theme='dark']",
+  darkMedia: '@media (prefers-color-scheme: dark)',
+  darkFromOs: ":root:where(:not([data-theme='light']))",
 } as const;
 
-/** The three theme blocks: dark, light by choice, and light from the OS. */
+/** The three theme blocks: light, dark by choice, and dark from the OS. */
 export function themeBlocks(css: string): {
-  dark: Map<string, string>;
   light: Map<string, string>;
-  lightFromOs: Map<string, string>;
+  dark: Map<string, string>;
+  darkFromOs: Map<string, string>;
 } {
   const source = stripComments(css);
   return {
-    dark: declarations(block(source, SELECTORS.dark)),
     light: declarations(block(source, SELECTORS.light)),
-    lightFromOs: declarations(block(block(source, SELECTORS.lightMedia), SELECTORS.lightFromOs)),
+    dark: declarations(block(source, SELECTORS.dark)),
+    darkFromOs: declarations(block(block(source, SELECTORS.darkMedia), SELECTORS.darkFromOs)),
   };
 }
 
-/** Every color token of one theme, resolved. The light theme starts from the dark one, the way the
- *  cascade does, so a token light forgot to redeclare would show up with its dark value. */
+/** Every color token of one theme, resolved. The dark theme starts from the light one, the way the
+ *  cascade does, so a token dark forgot to redeclare would show up with its light value. */
 export function themeColors(css: string, theme: 'dark' | 'light'): Map<string, Color> {
   const { dark, light } = themeBlocks(css);
-  return resolve(theme === 'dark' ? dark : new Map([...dark, ...light]));
+  return resolve(theme === 'light' ? light : new Map([...light, ...dark]));
 }
 
 /** A color as #rrggbb, for renderers that cannot read OKLCH, such as satori. */

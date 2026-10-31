@@ -36,8 +36,9 @@ const shipped = files.filter((file) => kinds.get(file) === 'woff2');
 
 test('every font the site serves is a locked output, byte for byte', () => {
   const locked = new Set(Object.values(lock.outputs).map((entry) => entry.sha256));
-  // Barlow Condensed, Barlow Semi Condensed, Barlow and its SemiBold, and B612 Mono.
-  expect(shipped.length).toBe(5);
+  // Archivo ExtraCondensed ExtraBold, Condensed SemiBold, Expanded Medium, Regular and SemiBold,
+  // and B612 Mono.
+  expect(shipped.length).toBe(6);
   for (const file of shipped) expect(locked.has(sha256(bytes(file))), file).toBe(true);
 });
 
@@ -85,8 +86,8 @@ const committed = sources(repository)
   .map((path) => relative(app, path).split(sep).join('/'));
 
 test('every font in the repository is a locked output of scripts/fonts/build.sh', () => {
-  // The five faces the site serves, and the two the Open Graph images draw with.
-  expect(committed.length).toBe(7);
+  // The six faces the site serves, and the two the Open Graph images draw with.
+  expect(committed.length).toBe(8);
   for (const path of committed) expect(lock.outputs[path], path).toBeDefined();
 });
 
@@ -94,46 +95,29 @@ test('every font in the repository is a locked output of scripts/fonts/build.sh'
 // TrueType name table stores UTF-16. So the strings are read here, in every font the site serves
 // and every font the repository holds, and each must be on its family's list; an extended-metadata
 // or private block, or a table outside the outline and layout tables, is refused outright.
-const BARLOW = 'Copyright 2017 The Barlow Project Authors (https://github.com/jpt/barlow)';
-/** Each face's name strings, keyed by its family name as the font itself records it: every face
- *  is a static instance from google/fonts, whose family name carries the weight. */
+const ARCHIVO =
+  'Copyright 2020 The Archivo Project Authors (https://github.com/Omnibus-Type/Archivo)';
+/** Each face's name strings, keyed by its family name as the font itself records it. The four
+ *  Archivo faces are static instances scripts/fonts/cut.py cuts from google/fonts' variable font
+ *  and names as themselves (ADR 0027); B612 Mono is google/fonts' own static instance. */
+const archivo = (family: string, postscript: string, full = family): string[] => [
+  ARCHIVO,
+  family,
+  'Regular',
+  `2.001;OMNI;${postscript}`,
+  full,
+  'Version 2.001',
+  postscript,
+];
 const NAMES: Record<string, string[]> = {
-  'Barlow Condensed SemiBold': [
-    BARLOW,
-    'Barlow Condensed SemiBold',
-    'Regular',
-    '1.408;TRBY;BarlowCondensed-SemiBold',
-    'Barlow Condensed SemiBold',
-    'Version 1.408',
-    'BarlowCondensed-SemiBold',
-  ],
-  'Barlow Semi Condensed Medium': [
-    BARLOW,
-    'Barlow Semi Condensed Medium',
-    'Regular',
-    '1.408;TRBY;BarlowSemiCondensed-Medium',
-    'Barlow Semi Condensed Medium',
-    'Version 1.408',
-    'BarlowSemiCondensed-Medium',
-  ],
-  Barlow: [
-    BARLOW,
-    'Barlow',
-    'Regular',
-    '1.408;TRBY;Barlow-Regular',
-    'Barlow Regular',
-    'Version 1.408',
-    'Barlow-Regular',
-  ],
-  'Barlow SemiBold': [
-    BARLOW,
-    'Barlow SemiBold',
-    'Regular',
-    '1.408;TRBY;Barlow-SemiBold',
-    'Barlow SemiBold',
-    'Version 1.408',
-    'Barlow-SemiBold',
-  ],
+  'Archivo ExtraCondensed ExtraBold': archivo(
+    'Archivo ExtraCondensed ExtraBold',
+    'Archivo-ExtraCondensedExtraBold',
+  ),
+  'Archivo Condensed SemiBold': archivo('Archivo Condensed SemiBold', 'Archivo-CondensedSemiBold'),
+  'Archivo Expanded Medium': archivo('Archivo Expanded Medium', 'Archivo-ExpandedMedium'),
+  Archivo: archivo('Archivo', 'Archivo-Regular', 'Archivo Regular'),
+  'Archivo SemiBold': archivo('Archivo SemiBold', 'Archivo-SemiBold'),
   'B612 Mono': [
     'Copyright 2012 The B612 Project Authors (https://github.com/polarsys/b612)',
     'B612 Mono',
@@ -206,7 +190,7 @@ describe("every font's strings and blocks, served or committed", () => {
     const privateBlock = Buffer.from(real);
     privateBlock.writeUInt32BE(1, 44);
     expect(fontProblems(privateBlock)).toContain('a WOFF2 metadata or private block');
-    const ttf = readFileSync(join(app, 'src/og/fonts/barlow-condensed-semibold.ttf'));
+    const ttf = readFileSync(join(app, 'src/og/fonts/archivo-condensed-extrabold.ttf'));
     // The same bytes with one name string changed: "Regular" becomes "Rxgular", in UTF-16.
     const at = ttf.indexOf(Buffer.from('Regular', 'utf16le').swap16());
     expect(at).toBeGreaterThan(0);
@@ -225,11 +209,12 @@ describe("every font's strings and blocks, served or committed", () => {
 describe('axes and coverage', () => {
   const faces = shipped.map((file) => open(bytes(file)));
   const byFamily = Object.fromEntries(faces.map((font) => [font.familyName, font]));
-  const barlow = [
-    'Barlow Condensed SemiBold',
-    'Barlow Semi Condensed Medium',
-    'Barlow',
-    'Barlow SemiBold',
+  const archivoFaces = [
+    'Archivo ExtraCondensed ExtraBold',
+    'Archivo Condensed SemiBold',
+    'Archivo Expanded Medium',
+    'Archivo',
+    'Archivo SemiBold',
   ].map((family) => byFamily[family]);
   const mono = byFamily['B612 Mono'];
 
@@ -242,9 +227,9 @@ describe('axes and coverage', () => {
     [...text].filter((c) => !font?.hasGlyphForCodePoint(c.codePointAt(0) ?? 0));
   const ascii = Array.from({ length: 95 }, (_, i) => String.fromCodePoint(0x20 + i)).join('');
 
-  test('each Barlow face covers Latin-1 and the punctuation the design sets', () => {
-    for (const font of barlow) {
-      expect(font, 'a Barlow face is missing').toBeDefined();
+  test('each Archivo face covers Latin-1 and the punctuation the design sets', () => {
+    for (const font of archivoFaces) {
+      expect(font, 'an Archivo face is missing').toBeDefined();
       expect(missing(font, `${ascii}àéñöüçÆß·©–—‘’“”…€`), font?.familyName).toEqual([]);
     }
   });
@@ -253,16 +238,19 @@ describe('axes and coverage', () => {
     expect(missing(mono, `${ascii}àéñöüç·©–—‘’“”…`)).toEqual([]);
   });
 
-  test('known answers: Barlow draws no arrow and no ⌘, so the design writes words and draws the key', () => {
-    for (const font of barlow) expect(missing(font, '←↑→↓↗⌘')).toEqual([...'←↑→↓↗⌘']);
+  // The cut keeps Google Fonts' latin range, which holds the up and down arrows (U+2191, U+2193)
+  // and no other: Archivo draws those two, and the design sets none (test/tells.test.ts).
+  test('known answers: no face draws a sideways arrow or ⌘, so the design writes words and draws the key', () => {
+    for (const font of archivoFaces) expect(missing(font, '←→↗⌘')).toEqual([...'←→↗⌘']);
     expect(missing(mono, '⌘')).toEqual(['⌘']);
   });
 });
 
 // Spike S9 (roadmap.md): what the Fonts API writes into every page. A regression here would set
 // the name in a fallback (no face) or load it late (no preload). Every page's first screen draws
-// the three Barlow faces, so each is preloaded; Barlow SemiBold draws <strong> only, so it is
-// declared and fetched where a page sets some. B612 Mono draws code and nothing else, so a page
+// four of Archivo's faces, the display, wide, label and reading faces, so each is preloaded;
+// Archivo SemiBold draws <strong> only, so it is declared and fetched where a page sets some. B612
+// Mono draws code and nothing else, so a page
 // declares it exactly when it has code (Prose.astro): until 2026-10-30 every page declared the mono
 // face, and the Route Lab's first view counted a face it never drew (design-system.md, "The
 // faces").
@@ -284,14 +272,16 @@ describe('what the Fonts API writes into every page', () => {
   for (const file of html) {
     test(file, () => {
       const page = read(file);
-      const condensed = fontFile(page, 'Barlow Condensed', 600);
-      const semi = fontFile(page, 'Barlow Semi Condensed', 500);
-      const regular = fontFile(page, 'Barlow', 400);
-      expect(condensed, 'Barlow Condensed has an @font-face').toBeDefined();
-      expect(semi, 'Barlow Semi Condensed has an @font-face').toBeDefined();
-      expect(regular, 'Barlow has an @font-face').toBeDefined();
-      expect(fontFile(page, 'Barlow', 600), "Barlow's SemiBold has an @font-face").toBeDefined();
-      expect(preloads(page)).toEqual([condensed, semi, regular]);
+      const display = fontFile(page, 'Archivo Display', 800);
+      const wide = fontFile(page, 'Archivo Wide', 500);
+      const label = fontFile(page, 'Archivo Label', 600);
+      const regular = fontFile(page, 'Archivo', 400);
+      expect(display, 'Archivo Display has an @font-face').toBeDefined();
+      expect(wide, 'Archivo Wide has an @font-face').toBeDefined();
+      expect(label, 'Archivo Label has an @font-face').toBeDefined();
+      expect(regular, 'Archivo has an @font-face').toBeDefined();
+      expect(fontFile(page, 'Archivo', 600), "Archivo's SemiBold has an @font-face").toBeDefined();
+      expect(preloads(page)).toEqual([display, wide, label, regular]);
       expect(fontFile(page, 'B612 Mono', 400) !== undefined, 'B612 Mono only with code').toBe(
         drawsCode(page),
       );
@@ -323,13 +313,13 @@ describe('what the Fonts API writes into every page', () => {
     const link = (href: string) =>
       `<link rel="preload" href="${href}" as="font" type="font/woff2" crossorigin>`;
     const page =
-      face('Barlow Condensed', '/_astro/fonts/c.woff2', 600) +
-      face('Barlow', '/_astro/fonts/r.woff2', 400) +
-      face('Barlow', '/_astro/fonts/b.woff2', 600);
-    expect(fontFile(page, 'Barlow Condensed', 600)).toBe('/_astro/fonts/c.woff2');
-    // A family's name is matched whole: "Barlow" is not "Barlow Condensed".
-    expect(fontFile(page, 'Barlow', 400)).toBe('/_astro/fonts/r.woff2');
-    expect(fontFile(page, 'Barlow', 600)).toBe('/_astro/fonts/b.woff2');
+      face('Archivo Display', '/_astro/fonts/c.woff2', 800) +
+      face('Archivo', '/_astro/fonts/r.woff2', 400) +
+      face('Archivo', '/_astro/fonts/b.woff2', 600);
+    expect(fontFile(page, 'Archivo Display', 800)).toBe('/_astro/fonts/c.woff2');
+    // A family's name is matched whole: "Archivo" is not "Archivo Display".
+    expect(fontFile(page, 'Archivo', 400)).toBe('/_astro/fonts/r.woff2');
+    expect(fontFile(page, 'Archivo', 600)).toBe('/_astro/fonts/b.woff2');
     expect(fontFile(page, 'B612 Mono', 400)).toBeUndefined();
     expect(preloads(page + link('/_astro/fonts/c.woff2'))).toEqual(['/_astro/fonts/c.woff2']);
     expect(drawsCode('<p>Run <code>pnpm</code></p>')).toBe(true);
@@ -341,7 +331,7 @@ describe('the fallback faces', () => {
   const css = readFileSync(join(app, 'src/styles/font-fallbacks.css'), 'utf8');
 
   test('the condensed faces were fitted to the name profile.json holds now', () => {
-    // Barlow Condensed's fallbacks fit the name's own widths; a new name needs
+    // Archivo ExtraCondensed's fallbacks fit the name's own widths; a new name needs
     // scripts/fonts/build.sh --write.
     expect(css).toContain(`fitted to "${profile.basics.name}"`);
   });
@@ -349,6 +339,7 @@ describe('the fallback faces', () => {
   test('every family in the fallback stacks has faces, and each stack ends in a generic family', () => {
     for (const stack of [
       '--font-display-fallbacks',
+      '--font-wide-fallbacks',
       '--font-label-fallbacks',
       '--font-sans-fallbacks',
       '--font-mono-fallbacks',

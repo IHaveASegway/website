@@ -2,8 +2,8 @@
   The Lab index (/lab/; ADR 0025): a row per live lab, its line drawn large and its words beside
   it, the title, the summary and one fact from its build. A row is an index's row (global.css,
   .post-list): its title's link covers it, and its sweep runs along its top in its line's colour.
-  No rule between rows. Each line comes in from the page's edge, the rail's from 80rem and the
-  window's below, to its first station on the text's own edge (components/board/lines/). Only
+  No rule between rows. Each line comes in from the frame's edge (global.css, --frame-pad) to its
+  first station on the text's own edge (components/board/lines/). Only
   this page links this file. Every colour is a token from tokens.css.
 */
 
@@ -11,18 +11,9 @@
    window on a phone. Clipped: main does not become a scroll container. --lab-edge is how far the
    page's edge lies past the text's: the frame's side. */
 body > main:has(> .lab-index) {
-  --lab-edge: 1.125rem;
+  --lab-edge: var(--frame-pad);
   overflow-x: clip;
 }
-
-@media (width >= 48rem) {
-  body > main:has(> .lab-index) {
-    --lab-edge: 4rem;
-  }
-}
-
-/* On a large screen main stands against the rail at the frame's start (global.css, .frame), so
-   the lines come in from the rail's edge there too, across the same 4rem. */
 
 .lab-rows {
   margin-block-start: 2.5rem;

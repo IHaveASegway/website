@@ -10,11 +10,10 @@ import { NOT_FOUND_PAGE, pages } from './expected';
 
 const menu = (page: Page) => page.locator('dialog[data-palette]');
 const input = (page: Page) => page.getByRole('combobox', { name: 'Find a page or an action' });
-/** The button that opens it where the test runs: the rail's search field from 80rem (ADR 0022),
- *  the bar's button below. Its name is its words and the keys it shows (SC 2.5.3): "Search Ctrl
- *  K", or "Command menu K" on an Apple keyboard, whose command key is a drawing. */
+/** The button that opens it: the top bar's Search, at every width (ADR 0027), named with the keys
+ *  it shows, or "Search" alone where it shows none. */
 const opener = (page: Page) =>
-  page.getByRole('button', { name: /^(Command menu|Search)( Ctrl)? K$/ }).filter({ visible: true });
+  page.getByRole('button', { name: /^Search(( Ctrl)? K)?$/ }).filter({ visible: true });
 const said = (page: Page) => page.locator('[data-palette-say]');
 const note = (page: Page) => page.locator('[data-palette-note]');
 
@@ -69,10 +68,11 @@ test('Ctrl+K and ⌘K open it at once, with focus in its input; Esc closes it', 
 });
 
 // The button shows the keys of the keyboard it runs on: here a PC's, whatever machine runs the test.
-// One button shows at a time: the rail's search field from 80rem, the bar's below.
+// One button at every width since ADR 0027, the top bar's Search; until then the rail's search
+// field from 80rem and the bar's "Command menu" below.
 for (const { width, name } of [
   { width: 1280, name: 'Search Ctrl K' },
-  { width: 1024, name: 'Command menu Ctrl K' },
+  { width: 1024, name: 'Search Ctrl K' },
 ]) {
   test(`at ${width} px its one button, ${name}, opens it, and focus goes back to it when it closes`, async ({
     page,
@@ -97,13 +97,13 @@ for (const { width, name } of [
   });
 }
 
-// Barlow has no ⌘, so the command key is drawn (components/Keys.astro), and only the letter is text.
+// No face draws ⌘, so the command key is drawn (components/Keys.astro), and only the letter is text.
 test('on an Apple keyboard the button shows the drawn command key and K', async ({ page }) => {
   await page.addInitScript(() =>
     Object.defineProperty(navigator, 'platform', { get: () => 'MacIntel' }),
   );
   await ready(page);
-  await expect(opener(page)).toHaveAccessibleName(/^(Command menu|Search) K$/);
+  await expect(opener(page)).toHaveAccessibleName(/^Search K$/);
   await expect(opener(page).locator('kbd')).toHaveText('K');
   await expect(opener(page).locator('kbd svg')).toBeVisible();
 });
@@ -258,14 +258,22 @@ test('in forced colors the theme entry is gone, as the toggle is', async ({ page
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'system');
 });
 
-// Where the button shows: on a page whose script runs, under a pointer that can hover. A phone has
-// the nav and the footer for everything the menu holds, and the keys still open it.
+// Where the button shows: on a page whose script runs, on every screen (ADR 0027). On a touch
+// screen it is the glass alone, named Search, and shows no keys; it opens the menu, and so do the
+// keys of a keyboard paired with it. Until ADR 0027 a touch screen had no button.
 test.describe('on a touch screen', () => {
-  test.use({ hasTouch: true, isMobile: true });
-  test('the button is not there, and the keys still open the menu', async ({ page }) => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
+  test('the button is the glass, shows no keys, and opens the menu, as the keys still do', async ({
+    page,
+  }) => {
     await ready(page);
-    // Not there at all, so it holds no place in the footer's row.
-    expect(await page.locator('.palette-item').boundingBox()).toBeNull();
+    await expect(opener(page)).toBeVisible();
+    await expect(opener(page)).toHaveAccessibleName('Search');
+    await expect(opener(page).locator('kbd')).toBeHidden();
+    await opener(page).tap();
+    await expect(menu(page)).toHaveJSProperty('open', true);
+    await page.keyboard.press('Escape');
+    await expect(menu(page)).toHaveJSProperty('open', false);
     await page.keyboard.press('Control+k');
     await expect(menu(page)).toHaveJSProperty('open', true);
   });

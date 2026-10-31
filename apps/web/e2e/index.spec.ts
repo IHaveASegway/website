@@ -15,7 +15,7 @@ import { OPENING as QUEUE, openingRun as queueOpening } from '../src/lib/queue/v
 import { pages } from './expected';
 
 // The site as an index (ADR 0022): a row of an index opens its page wherever it is pressed, the
-// rail lists every demo and marks the one on screen, and no page scrolls on past its own end.
+// top bar marks the section on screen, and no page scrolls on past its own end.
 
 const LISTS = ['/', '/lab/', '/writing/', '/notes/'];
 
@@ -50,54 +50,8 @@ for (const path of LISTS) {
   });
 }
 
-// ADR 0023: an item that holds pages is a disclosure in the rail, closed until pressed, and open on
-// a page it lists, with the page marked and "View all" last.
-test('the rail drops down to every demo under Lab, open on a demo and marking it', async ({
-  page,
-}) => {
-  const demos = pages().filter((path) => /^\/lab\/[^/]+\/$/.test(path));
-  test.skip(demos.length === 0, 'this build has no demo');
-  await page.setViewportSize({ width: 1440, height: 900 });
-  const fold = page.locator('.nav-fold:has(> summary:text-is("Lab"))');
-  const leaves = fold.locator('.nav-leaves a');
-  for (const demo of demos) {
-    await page.goto(demo);
-    await expect(fold).toHaveAttribute('open', '');
-    expect(await leaves.evaluateAll((links) => links.map((a) => a.getAttribute('href')))).toEqual([
-      ...[...demos].sort(),
-      '/lab/',
-    ]);
-    await expect(leaves.last()).toHaveText(/^View all demos/);
-    await expect(leaves.and(page.locator('[aria-current="page"]'))).toHaveAttribute('href', demo);
-    await expect(fold).toHaveAttribute('data-current', '');
-  }
-  // Below 80rem the header is the row across the top, with its items alone, each a link.
-  await page.setViewportSize({ width: 1024, height: 900 });
-  await expect(fold).toBeHidden();
-  await expect(page.locator('.site-nav a.bar-only[href="/lab/"]')).toBeVisible();
-});
-
-test('on Home the rail is closed until pressed; pressing one item closes the other', async ({
-  page,
-}) => {
-  test.skip(!pages().includes('/lab/'), 'this build has no lab');
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('/');
-  const lab = page.locator('.nav-fold:has(> summary:text-is("Lab"))');
-  await expect(lab).not.toHaveAttribute('open');
-  await expect(lab.locator('.nav-leaves')).toBeHidden();
-  await lab.locator('summary').click();
-  await expect(lab).toHaveAttribute('open', '');
-  await expect(lab.locator('.nav-leaves a').last()).toBeVisible();
-  // The keyboard opens one the same way, and the rail's items share a name, so it closes Lab.
-  const writing = page.locator('.nav-fold:has(> summary:text-is("Writing"))');
-  if ((await writing.count()) > 0) {
-    await writing.locator('summary').focus();
-    await page.keyboard.press('Enter');
-    await expect(writing).toHaveAttribute('open', '');
-    await expect(lab).not.toHaveAttribute('open');
-  }
-});
+// The rail's drop-downs (ADR 0023) gave way to the top bar, whose items are one link each
+// (e2e/top-bar.spec.ts, ADR 0027): a demo is found on /lab/ and in Search.
 
 // The page's drawing is 900 px tall; on a page shorter than that it reached past the body, and the
 // window scrolled on into nothing, beyond the rail and the footer (2026-10-29, /lab/ at 1512 × 737).
@@ -303,9 +257,8 @@ test("each lab's page heads its title with its line, in its own colour, ending i
     const head = await page.locator('.page-head > .page-line').evaluate((line) => {
       const before = getComputedStyle(line, '::before');
       const after = getComputedStyle(line, '::after');
-      const lamp = document.querySelector('.nav-leaves a[aria-current] .nav-lamp');
       // The lab's own line token, as the page resolves it from the lab's slug, read from a probe,
-      // so the drawing is tied to the token and not only to the rail's lamp.
+      // so the drawing is tied to the token. Until ADR 0027 the rail drew a lamp in it too.
       const slug = line.closest('[data-line]')?.getAttribute('data-line') ?? '';
       const probe = document.createElement('span');
       probe.style.setProperty('background-color', `var(--line-${slug})`);
@@ -318,7 +271,6 @@ test("each lab's page heads its title with its line, in its own colour, ending i
         height: before.height,
         lamp: after.backgroundColor,
         round: after.borderRadius,
-        rail: lamp ? getComputedStyle(lamp).fill : null,
         token,
       };
     });
@@ -329,7 +281,6 @@ test("each lab's page heads its title with its line, in its own colour, ending i
       height: '6px',
       lamp: head.token,
       round: '50%',
-      rail: head.token,
       token: head.token,
     });
     seen.add(head.line);

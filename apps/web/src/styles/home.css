@@ -40,15 +40,8 @@
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  margin-inline: -1.125rem;
-  padding-inline: 1.125rem;
-}
-
-@media (width >= 48rem) {
-  .stage {
-    margin-inline: -4rem;
-    padding-inline: 4rem;
-  }
+  margin-inline: calc(var(--frame-pad) * -1);
+  padding-inline: var(--frame-pad);
 }
 
 .stage-plain {
@@ -70,13 +63,7 @@
    stillness ends, with the chapter. Below 64rem it is one row of its own. */
 .scene-track {
   grid-column: 1;
-  margin-inline: -1.125rem;
-}
-
-@media (width >= 48rem) {
-  .scene-track {
-    margin-inline: -4rem;
-  }
+  margin-inline: calc(var(--frame-pad) * -1);
 }
 
 /* In the page's flow unless a width range says otherwise: only from 64rem, where it stands beside
@@ -92,7 +79,7 @@
 
 @media (width >= 48rem) {
   .scene {
-    --cube-inset: 4rem;
+    --cube-inset: var(--frame-pad);
   }
 }
 
@@ -236,7 +223,7 @@
      cube from the words, at four tenths of its strength at their edge. It stands still at the
      window's top, and --held says so to route-scene.ts, so the chapter beside it lifts the day. */
   .scene {
-    --start: calc(4rem + var(--column) + var(--shore));
+    --start: calc(var(--frame-pad) + var(--column) + var(--shore));
     --held: 1;
     position: sticky;
     inset-block-start: 0;
@@ -289,19 +276,9 @@
 
 @media (width >= 64rem) {
   .stage:not(.stage-plain) > .hero {
-    min-height: calc(100svh - 3.5rem);
+    min-height: calc(100svh - 4rem);
     padding-block: 3rem;
     border-top: 0;
-  }
-}
-
-@media (width >= 80rem) {
-  .stage:not(.stage-plain) {
-    margin-block-start: -5.25rem;
-  }
-
-  .stage:not(.stage-plain) > .hero {
-    min-height: 100svh;
   }
 }
 
@@ -709,15 +686,14 @@
    which are as large as text may grow with the window and still double under zoom (SC 1.4.4), and
    the room the screen adds goes to the city: the scene's box runs from beside the words to the
    screen's right edge, and a taller window splits its extra height above and below the words, so
-   they stand level with the map. Main spans the column beside the rail here and is the query
-   container, so 100cqw is the column exactly; 100vw would count a scrollbar and scroll the page
-   sideways. Every row keeps the frame (global.css, .frame): it starts the page's gutter past the
-   rail, as on every page, and is at most 82rem wide, so its right side is ragged; the scene alone
-   reaches out to the column's edges. */
+   they stand level with the map. Main is the query container, so 100cqw is the window's width
+   less any scrollbar; 100vw would count a scrollbar and scroll the page sideways. Every row keeps
+   the frame (global.css, .frame), 76rem centred; the scene alone reaches out to the window's
+   edges. */
 @media (width >= 90rem) {
   body > main {
-    --frame-start: 4rem;
-    --frame-end: max(4rem, 100cqw - 86rem);
+    --frame-start: max(2.5rem, (100cqw - 76rem) / 2);
+    --frame-end: max(2.5rem, (100cqw - 76rem) / 2);
     container-type: inline-size;
     max-width: none;
     padding-inline: 0;
