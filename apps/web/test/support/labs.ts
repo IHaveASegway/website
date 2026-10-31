@@ -24,12 +24,14 @@ export interface SimulatedLab {
  * proposed in ADR 0026, each its lab's measure rounded up to the next 500 B, so the next growth
  * past it is a decision and not a default.
  *
- * Measured on 2026-10-31, every chunk a lab's module can load, gzip -9:
- * - the Raft Lab 7,320 B: its app, 6,993 B, and the link's chunk, 327 B;
- * - the Queue Lab 12,430 B (budget 12,500 B): its app, 11,511 B, the link's chunk and lib/sim's
+ * Measured on 2026-10-31 on the labs' review fixes merged with the signal box, every chunk a lab's
+ * module can load, gzip -9:
+ * - the Raft Lab 7,343 B: its app, 7,016 B, and the link's chunk, 327 B;
+ * - the Queue Lab 12,474 B (budget 12,500 B): its app, 11,555 B, the link's chunk and lib/sim's
  *   other chunk, the agenda and the seeded stream, 592 B;
- * - the Cache Lab 11,150 B (11,500 B): its app, 10,231 B, and the same two;
- * - the Backfill Lab 11,559 B (12,000 B): its app, 10,640 B, and the same two.
+ * - the Cache Lab 11,166 B (11,500 B): its app, 10,247 B, and the same two;
+ * - the Backfill Lab 11,572 B (12,000 B): its app, 10,653 B, and the same two.
+ * The merge moved each app by 13 to 44 B, and no budget.
  * The Cache and Backfill Labs' branches set 11,000 B each. The link the three share took them past
  * it on 2026-10-31, to 11,005 and 11,319 B, and the Queue Lab past 12,000 B, to 12,048 B; then the
  * Raft Lab's link joined it, and the bundler gave the link a chunk of its own, 78 B more for each
