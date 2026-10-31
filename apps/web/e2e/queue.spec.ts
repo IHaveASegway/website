@@ -1,12 +1,16 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { REPLAY_FROM } from '../src/lib/queue/view';
 
 // The Queue Lab in a browser (ADR 0026, after ADR 0020's pattern): without JavaScript the page is
 // the opening run the build drew, with no control; with it, nothing moves or loads until the
 // visitor shows intent, the simulation takes over at the picture's exact moment and runs only
-// between Run and Pause; each of the write-up's "Three things to try" plays as it says, with its
-// seeds, times and numbers; under reduced motion Run moves in still steps; and the page meets axe
-// after a run, since script redrew it.
+// between Run and Pause; Run on that untouched moment, and Start over, play the run from
+// REPLAY_FROM (1.5 s), so worker 2's crash happens in front of the visitor; each of the
+// write-up's "Three things to try" plays as it says, with its seeds, times and numbers; the
+// picture and the controls that try it fit one screen, a phone's too, with nothing pinned; under
+// reduced motion Run moves in still steps; and the page meets axe after a run, since script
+// redrew it.
 
 const QUEUE = '/lab/queue/';
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
@@ -14,6 +18,9 @@ const OPENING_STORY =
   'Order 18 was printed twice: worker 2 crashed after printing its ticket and before its ack left, so the broker sent it again and worker 1 printed it a second time. Nothing was lost; 25 orders are done and 13 are queued or with a worker.';
 
 const clock = (page: Page) => page.locator('[data-qu-clock]');
+/** The line under the clock: the opening's crash, which every run takes. */
+const crashLine = (page: Page) => page.locator('[data-qu-ahead]');
+const STARTED_OVER = `Virtual time ${(REPLAY_FROM / 1000).toFixed(3)} s`;
 const summary = (page: Page) => page.locator('[data-qu-summary]');
 const status = (page: Page) => page.locator('[data-qu-status]');
 const log = (page: Page) => page.locator('[data-qu-lines]');
@@ -72,7 +79,7 @@ test('without JavaScript, the page is the opening run: order 18 printed twice, w
   ] as const)
     await expect(property(page, id)).toHaveAttribute('data-held', held);
   await expect(log(page)).toContainText("2.873 s Worker 1 prints order 18's ticket again");
-  for (const control of await page.locator('.qu-controls, .qu-clock, .qu-key').all())
+  for (const control of await page.locator('.qu-controls, .qu-settings, .qu-clock, .qu-key').all())
     await expect(control).toBeHidden();
   await context.close();
 });
@@ -90,12 +97,13 @@ test('nothing loads or moves before intent; Run plays, Pause stops, with no poli
   expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
 
   await expect(summary(page)).toHaveText(OPENING_STORY);
-  const opening = await seconds(page);
-  expect(opening).toBe(4);
+  expect(await seconds(page)).toBe(4);
   await page.getByRole('button', { name: 'Run' }).click();
   await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
   expect(app).toHaveLength(1);
-  await expect.poll(() => seconds(page), { timeout: 5_000 }).toBeGreaterThan(opening + 0.1);
+  // Run on the untouched opening plays it from REPLAY_FROM: back to 1.5 s, then on, past the
+  // crash and order 18's second ticket at 2.873 s.
+  await expect.poll(() => seconds(page), { timeout: 5_000 }).toBeGreaterThan(3);
   await page.getByRole('button', { name: 'Pause' }).click();
   const paused = await seconds(page);
   await page.waitForTimeout(400);
@@ -103,7 +111,7 @@ test('nothing loads or moves before intent; Run plays, Pause stops, with no poli
   expect(await violations()).toEqual([]);
   // The log the build wrote is the run's, each line once: the app writes it again from the start.
   const lines = await log(page).locator('li').allTextContents();
-  expect(lines.length).toBeGreaterThanOrEqual(4);
+  expect(lines.length).toBeGreaterThanOrEqual(3);
   expect(new Set(lines).size).toBe(lines.length);
 });
 
@@ -141,6 +149,41 @@ test('Run turns to Pause and back, its lamp lit while the run is on, and it is n
   await off();
 });
 
+// The opening's picture tells a crash that has already happened. Run on it, untouched, goes back to
+// REPLAY_FROM and plays the crash, so the visitor watches order 18 print twice rather than read it;
+// Next event stops on the crash itself, which is a moment of the run as an event is.
+test('Run on the untouched opening plays worker 2’s crash as it happens, and Next event stops on it', async ({
+  page,
+}) => {
+  await page.goto(QUEUE);
+  await expect(crashLine(page)).toHaveText('Every run crashes worker 2 at 2.400 s.');
+  // A speed is no action: the run still stands untouched. Slow gives the eye time to see it.
+  await page.getByRole('radio', { name: 'Slow' }).check();
+  await page.getByRole('button', { name: 'Run' }).click();
+  await expect.poll(() => seconds(page)).toBeLessThan(2.4);
+  await page.getByRole('button', { name: 'Pause' }).click();
+  // Before the crash: worker 2 up and nothing printed twice.
+  await expect(map(page).locator('.qu-state')).toHaveCount(0);
+  await expect(map(page).locator('.qu-again')).toHaveCount(0);
+  await expect(summary(page)).not.toHaveText(/printed twice/);
+  // Event by event to the crash: it lands at 2.400 s, after its millisecond's events, as replay
+  // puts it.
+  const step = page.getByRole('button', { name: 'Next event' });
+  for (let n = 0; n < 200 && (await seconds(page)) < 2.4; n++) await step.click();
+  await expect(clock(page)).toHaveText('Virtual time 2.400 s');
+  await expect(log(page)).toContainText(
+    '2.400 s Worker 2 crashes holding order 18, after its ticket printed and before its ack left.',
+  );
+  await expect(map(page).locator('.qu-state')).toHaveText(['Down']);
+  // Run on: order 18 comes back and prints a second time, and the run is the opening's again.
+  await runUntil(page, async () => (await seconds(page)) > 4);
+  await expect(map(page).locator('.qu-again')).toHaveAttribute('data-order', '18');
+  await expect(log(page)).toContainText(
+    "2.873 s Worker 1 prints order 18's ticket again: order 18 is printed twice",
+  );
+  await expect(summary(page)).toHaveText(/^Order 18 was printed twice: worker 2 crashed/);
+});
+
 test('the first thing to try: worker 2 crashes at 2.4 s and order 18 prints twice; with the key on, Start over prints it once', async ({
   page,
 }) => {
@@ -154,10 +197,15 @@ test('the first thing to try: worker 2 crashes at 2.4 s and order 18 prints twic
     await expect(log(page)).toContainText(line);
 
   await page.getByRole('radio', { name: 'On' }).check();
+  // Start over stands before the crash; Run plays it.
   await page.getByRole('button', { name: 'Start over' }).click();
-  await expect(clock(page)).toHaveText('Virtual time 4.000 s');
+  await expect(clock(page)).toHaveText(STARTED_OVER);
+  await expect(map(page).locator('.qu-state')).toHaveCount(0);
+  await runUntil(page, async () =>
+    ((await log(page).textContent()) ?? '').includes('2.873 s Worker 1 finds order 18'),
+  );
   await expect(summary(page)).toHaveText(
-    /^Order 18 was sent twice and printed once: worker 2 crashed after printing its ticket and before its ack left, so the broker sent it again, and worker 1 found it in the done set and skipped the ticket\. Nothing was lost; 25 orders are done/,
+    /^Order 18 was sent twice and printed once: worker 2 crashed after printing its ticket and before its ack left, so the broker sent it again, and worker 1 found it in the done set and skipped the ticket\. Nothing was lost;/,
   );
   await expect(log(page)).toContainText(
     '2.873 s Worker 1 finds order 18 in the done set and does not print it again',
@@ -168,7 +216,7 @@ test('the first thing to try: worker 2 crashes at 2.4 s and order 18 prints twic
     'printed',
   );
   await expect(status(page)).toHaveText(
-    /^No order was lost and no order was printed twice over 143 events\. Whether the queue drains is checked once orders stop\.$/,
+    /^No order was lost and no order was printed twice over [\d,]+ events\. Whether the queue drains is checked once orders stop\.$/,
   );
   // The key is a setting: it stays on for the run that starts over.
   await expect(page.getByRole('radio', { name: 'On' })).toBeChecked();
@@ -192,11 +240,11 @@ test('the second: switched to acknowledging before the work, a worker crashed at
   );
   await expect(property(page, 'no-loss')).toHaveAttribute('data-held', 'false');
   await expect(property(page, 'no-loss')).toContainText('Broken: 1 order lost');
-  // Its ticket never printed: hollow, and crossed.
-  await expect(map(page).locator('.qu-ticket[data-order="26"]')).toHaveAttribute(
-    'data-state',
-    'lost',
-  );
+  // Its ticket never printed: a hollow lamp struck through once (design-system.md, Lamps), never
+  // the ⊗ the board gives a worker out of service. Its path is the ring and one stroke.
+  const lost = map(page).locator('.qu-ticket[data-order="26"]');
+  await expect(lost).toHaveAttribute('data-state', 'lost');
+  expect(((await lost.getAttribute('d')) ?? '').match(/M/g)).toHaveLength(2);
   await expect(status(page)).toHaveText(
     '1 order was lost and 1 order was printed twice. Whether the queue drains is checked once orders stop.',
   );
@@ -225,23 +273,27 @@ test('the third: a poison order, then no more orders: under requeue the queue ne
   );
 
   // The same, with dead-lettering: four tries, 200, 400 and 800 ms apart, then the siding.
+  // Start over stands at 1.5 s, so the poison order is order 14, and the opening's crash of
+  // worker 2 at 2.4 s comes while it fails: worker 2 holds it then, and the broker sends it again,
+  // which is a delivery, not a try.
   await page.getByRole('button', { name: 'Start over' }).click();
-  await expect(clock(page)).toHaveText('Virtual time 4.000 s');
+  await expect(clock(page)).toHaveText(STARTED_OVER);
   await page.getByRole('radio', { name: 'Dead-letter after four tries' }).check();
   await page.getByRole('button', { name: 'Publish a poison order' }).click();
   await page.getByRole('button', { name: 'Stop taking orders' }).click();
   await runUntil(page, async () => ((await log(page).textContent()) ?? '').includes('it drained'));
   for (const line of [
-    '6.233 s Order 39 fails on worker 3, try 1, and waits 200 ms before the next',
-    '6.766 s Order 39 fails on worker 1, try 2, and waits 400 ms before the next',
-    '7.598 s Order 39 fails on worker 3, try 3, and waits 800 ms before the next',
-    '8.737 s Order 39 fails on worker 1, try 4, and goes to the dead-letter queue',
-    '8.737 s Nothing is left in the queue or in flight: it drained in 4.7 s',
+    '1.993 s Order 14 fails on worker 1, try 1, and waits 200 ms before the next',
+    '2.400 s Worker 2 crashes holding order 14. The broker has no ack for it, so it will send it again',
+    '2.814 s Order 14 fails on worker 3, try 2, and waits 400 ms before the next',
+    '3.533 s Order 14 fails on worker 1, try 3, and waits 800 ms before the next',
+    '4.555 s Order 14 fails on worker 3, try 4, and goes to the dead-letter queue',
+    '4.555 s Nothing is left in the queue or in flight: it drained in 3.1 s',
   ])
     await expect(log(page)).toContainText(line);
   await expect(map(page).locator('.qu-order[data-state="dead"]')).toHaveAttribute(
     'data-order',
-    '39',
+    '14',
   );
   await expect(property(page, 'drains')).toHaveAttribute('data-held', 'true');
 });
@@ -325,11 +377,13 @@ test('under reduce, Run advances in still steps of half a second, and nothing an
 }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto(QUEUE);
-  const opening = await seconds(page);
+  // Run on the untouched opening goes back to REPLAY_FROM, then steps on from there.
   await page.getByRole('button', { name: 'Run' }).click();
-  await expect.poll(() => seconds(page), { timeout: 3_000 }).toBeGreaterThan(opening);
+  await expect.poll(() => seconds(page)).toBeLessThan(4);
+  await expect.poll(() => seconds(page), { timeout: 3_000 }).toBeGreaterThan(REPLAY_FROM / 1000);
   await page.getByRole('button', { name: 'Pause' }).click();
-  const moved = Math.round(((await seconds(page)) - opening) * 1000);
+  const moved = Math.round((await seconds(page)) * 1000) - REPLAY_FROM;
+  expect(moved).toBeGreaterThan(0);
   expect(moved % 500).toBe(0);
   expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
 });
@@ -351,7 +405,7 @@ test('a link to a run opens it: #seed-8 loads that seed with no other intent, St
   await page.getByRole('radio', { name: 'On' }).check();
   await page.getByRole('button', { name: 'Start over' }).click();
   await expect(page.locator('[data-qu-seed]')).toHaveText('8');
-  await expect(clock(page)).toHaveText('Virtual time 4.000 s');
+  await expect(clock(page)).toHaveText(STARTED_OVER);
   await expect(page.getByRole('radio', { name: 'On' })).toBeChecked();
 });
 
@@ -371,7 +425,7 @@ test('choices made while the app loads are each kept, however slow the load', as
   await page.getByRole('radio', { name: 'Dead-letter after four tries' }).check();
   release();
   await page.getByRole('button', { name: 'Start over' }).click();
-  await expect(clock(page)).toHaveText('Virtual time 4.000 s');
+  await expect(clock(page)).toHaveText(STARTED_OVER);
   expect(new URL(page.url()).hash).toBe('#seed-28&load=rush&key=on&handling=dead-letter');
   await expect(page.getByRole('radio', { name: 'Rush' })).toBeChecked();
 });
@@ -387,18 +441,25 @@ test('Start over writes the link to its run, the seed and each setting changed, 
   expect(new URL(page.url()).hash).toBe('');
   const entries = await page.evaluate(() => history.length);
   await page.getByRole('button', { name: 'Start over' }).click();
-  await expect(clock(page)).toHaveText('Virtual time 4.000 s');
+  await expect(clock(page)).toHaveText(STARTED_OVER);
   // The address names the run and replaces itself: no new entry in the history.
   expect(new URL(page.url()).hash).toBe('#seed-28&load=rush&key=on&handling=dead-letter');
   expect(await page.evaluate(() => history.length)).toBe(entries);
   const before = await shown(page);
-  expect(before[2]).not.toBe(OPENING_STORY);
   await page.reload();
-  // The link loads the app with no other intent, and the run it opens has the settings checked.
+  // The link loads the app with no other intent, and opens its run at the picture's moment, the
+  // settings checked: the run Start over played, not the opening.
   await expect(page.getByRole('radio', { name: 'Rush' })).toBeChecked();
   await expect(page.getByRole('radio', { name: 'On' })).toBeChecked();
   await expect(page.getByRole('radio', { name: 'Dead-letter after four tries' })).toBeChecked();
+  await expect(clock(page)).toHaveText('Virtual time 4.000 s');
+  await expect(summary(page)).not.toHaveText(OPENING_STORY);
+  // Started over again, it stands where that one stood, line for line.
+  await page.getByRole('button', { name: 'Start over' }).click();
+  await expect(clock(page)).toHaveText(STARTED_OVER);
+  expect(await page.evaluate(() => history.length)).toBe(entries);
   expect(await shown(page)).toEqual(before);
+  expect(new URL(page.url()).hash).toBe('#seed-28&load=rush&key=on&handling=dead-letter');
 });
 
 test('a link followed before the app has loaded loads it, and opens that run with its settings', async ({
@@ -481,12 +542,62 @@ test('a choice shows its focus around its whole push-button, as a button does', 
   expect(ring).toEqual({ style: 'solid', width: 2, around: true });
 });
 
+// The picture and the controls that try it fit one screen, so a press and what it does are seen
+// together: Run, Next event, Start over, the speeds, the key and each worker's Crash and Slow.
+// Nothing is pinned to the screen to get there: the picture scrolls with the page. On a laptop
+// all of it is on the first screen.
+for (const [width, height] of [
+  [390, 844],
+  [1440, 900],
+] as const) {
+  test(`at ${width} by ${height}, the picture and its controls fit one screen, with nothing pinned`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto(QUEUE);
+    await page.getByRole('button', { name: 'Run' }).hover();
+    const picture = page.locator('.qu-map').filter({ visible: true });
+    const controls = [
+      page.getByRole('button', { name: 'Run' }),
+      page.getByRole('button', { name: 'Next event' }),
+      page.getByRole('button', { name: 'Start over' }),
+      page.getByRole('radio', { name: 'Quick' }),
+      page.getByRole('radio', { name: 'On' }),
+      // Crash, or Restart for worker 2, down at the opening; then each one's Slow.
+      ...[0, 1, 2].map((k) => page.locator(`[data-qu-crash="${k}"]`)),
+      page.locator('[data-qu-slow="2"]'),
+    ];
+    const box = async (target: ReturnType<Page['locator']>) => {
+      const found = await target.boundingBox();
+      if (!found) throw new Error('not drawn');
+      return found;
+    };
+    // The radios cover their push-buttons (queue-lab.css), so their boxes are the buttons'.
+    const top = (await box(picture)).y;
+    const boxes = await Promise.all(controls.map(box));
+    const bottom = Math.max(...boxes.map((b) => b.y + b.height));
+    expect(bottom - top).toBeLessThanOrEqual(height);
+    if (width >= 1024) expect(bottom).toBeLessThanOrEqual(height);
+    // The secondary settings come after the properties.
+    const settings = await box(page.locator('.qu-settings'));
+    expect(settings.y).toBeGreaterThan(bottom);
+    const pinned = await page
+      .locator('#queue-lab')
+      .evaluate((desk) =>
+        [desk, ...desk.querySelectorAll('*')].some((node) =>
+          ['sticky', 'fixed'].includes(getComputedStyle(node).position),
+        ),
+      );
+    expect(pinned).toBe(false);
+  });
+}
+
 test('on a large screen the picture fills the desk', async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1440 });
   await page.goto(QUEUE);
   const picture = await map(page).boundingBox();
-  const figure = await page.locator('.qu-figure').boundingBox();
-  expect(Math.round(picture?.width ?? 0)).toBe(Math.round(figure?.width ?? -1));
+  const stage = await page.locator('.qu-stage').boundingBox();
+  expect(Math.round(picture?.width ?? 0)).toBe(Math.round(stage?.width ?? -1));
 });
 
 test('on a phone the narrow picture shows, and nothing scrolls sideways', async ({ page }) => {
