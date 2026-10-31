@@ -1109,7 +1109,7 @@
 
   /* A page's head (components/PageHead.astro): its one <h1> in the title face and its lead, with
      nothing above the title (ADR 0025), all on the frame's one left edge. The 404 takes the same
-     head. A long-form page adds its register beside it from 64rem (below). */
+     head. A long-form page sets its meta line and contents in its own sheet (prose.css). */
   .page {
     padding-block: 1.875rem 1.5rem;
   }

@@ -21,8 +21,8 @@ import type { Measured } from './route-lab/plan';
 /** The board's day in rounds. In each round every van steps once, one van a second, so a van with
  *  `n` stops is out for n + 1 rounds: it starts at the head of its track, then each stop, then it
  *  is back at the end of its track, where it stands until the day starts again. Twelve rounds
- *  hold a van of up to ten stops; the stylesheet's index rules (styles/board.css) count to
- *  ROUNDS - 1, and routesLine refuses a day they cannot hold. */
+ *  hold a van of up to ten stops; the board's stylesheet counted to ROUNDS - 1 until
+ *  ADR 0027, and the link previews still draw that day, so routesLine refuses a day they cannot hold. */
 export const ROUNDS = 12;
 
 /** The round the still board shows (under reduced motion, without JavaScript, and as the moving

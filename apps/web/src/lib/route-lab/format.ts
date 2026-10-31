@@ -1,5 +1,6 @@
-// How the Route Lab writes a time, in a module of its own: Home's scene (scripts/route-scene.ts)
-// counts the day in the lab's words and loads this alone, not the whole of plan.ts with it.
+// How the Route Lab writes a time, in a module of its own, so a page that only writes a time (Home's
+// card facts, lib/lab-facts.ts) loads this alone, not the whole of plan.ts with it. Until ADR 0027
+// Home's scene (scripts/route-scene.ts, removed) counted the day with it in the browser.
 // plan.ts re-exports it, so the lab's own imports read as before.
 
 /** The space between a figure and its unit: a no-break space, so the two never part. */
