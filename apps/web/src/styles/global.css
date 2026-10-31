@@ -65,8 +65,8 @@
      one line would paint over the line before it. Selected display type has no fill and turns to
      the accent, which the contrast test holds to 4.5:1 on every surface. e2e/a11y.spec.ts finds
      any text set that close whose selection has a fill. */
-  :is(h1, h2, h3, .hero-title, .footer-name)::selection,
-  :is(h1, h2, h3, .hero-title, .footer-name) *::selection {
+  :is(h1, h2, h3, .footer-name)::selection,
+  :is(h1, h2, h3, .footer-name) *::selection {
     background-color: transparent;
     color: var(--primary);
   }
@@ -505,46 +505,6 @@
     font-size: var(--text-label);
     font-weight: var(--text-label--font-weight);
     line-height: var(--text-label--line-height);
-  }
-
-  /* Row 1 of Home: the poster. The name on two lines: its box is as wide as its widest line
-     (min-content), so "Joseph Peterson" never fits on one. Two lines of the same height with
-     either face, so the hero is as tall before the font arrives as after it, and the name never
-     moves. The box starts 0.055em left of the frame, the side bearing of "P" in both faces, so the
-     stem of "P" lines up with the frame's edge. Its size stops at 20vw (tokens.css), so a word
-     fits the screen at any default text size up to three times the usual; breaking inside a word
-     is left only as the last resort past that, rather than a sideways scroll. Home's own sheet
-     sets the rest (home.css); /about/ sets the name at a title's size (below). */
-  .hero {
-    padding-block: 1.75rem 1.5rem;
-  }
-
-  .hero-name {
-    --bearing: 0.055em;
-    inline-size: min-content;
-    max-inline-size: 100%;
-    margin: 0 0 0 calc(var(--bearing) * -1);
-    font-size: var(--text-hero);
-    font-weight: 800;
-    font-family: var(--font-display);
-    line-height: var(--text-hero--line-height);
-    letter-spacing: -0.012em;
-    overflow-wrap: break-word;
-  }
-
-  .hero-title {
-    margin: 0;
-    font-size: var(--text-headline);
-    font-weight: 800;
-    font-family: var(--font-display);
-    line-height: var(--text-headline--line-height);
-    letter-spacing: -0.01em;
-  }
-
-  @media (width >= 48rem) {
-    .hero {
-      padding-block: 3rem 2.5rem;
-    }
   }
 
   /* Buttons (docs/design/overhaul.md, "Buttons"): a control is 4px round, in the label face, 44 px
@@ -1464,12 +1424,12 @@
   }
 
   /* On paper the bar is the wordmark alone, the page's own name above its title, except where the
-     page's title is the name already: Home and /about/. */
+     page's title is the name already: Home here, and /about/ in about.css. */
   .masthead {
     border-bottom: 0;
   }
 
-  :root:has(.hero-name, .nameplate) .masthead {
+  :root:has(.nameplate) .masthead {
     display: none;
   }
 
