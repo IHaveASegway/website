@@ -483,10 +483,11 @@
     padding-block: 1.75rem 0.5rem;
   }
 
-  /* The words under the figures hold the scene's live clock, so their length changes as the day
-     runs, and in a narrow column they take one line in one face and two in another (Linux's
-     fallback wraps them where Barlow does not). Two lines are kept for them, so the hero is one
-     height whichever face draws it (e2e/fold.spec.ts). */
+  /* The words under the figures are static, "of driving on a busy Saturday, planned by VROOM in
+     your browser"; the scene's live clock is in the hero's caption (Hero.astro, .scene-clock), not
+     here. At a phone's width they take one line in Barlow and two in Linux's fallback face, so two
+     lines are kept for them, and the hero is one height whichever face draws it
+     (e2e/fold.spec.ts). */
   .figure-words {
     min-block-size: 2lh;
   }
