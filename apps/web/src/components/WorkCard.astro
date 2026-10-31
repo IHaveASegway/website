@@ -6,9 +6,12 @@ interface Props {
   /** The page it opens, which must exist: a card is drawn only with a target (lib/work.ts,
    *  selectedWork). Its link says where it goes in words, with no arrow (ADR 0025). */
   link: { href: string; label: string; external: boolean };
+  /** The lab's line, on a card that opens a lab (lib/work.ts): its sweep then runs in the lab's own
+   *  colour, not the lamp's, as it does on the board and on /lab/ (ADR 0025). */
+  line?: string | undefined;
 }
 
-const { title, text, facts, link } = Astro.props;
+const { title, text, facts, link, line } = Astro.props;
 // The whole card is its link (ADR 0022): CSS stretches the link's box over the card, so a press
 // anywhere on it opens the page. Its name leads with the words it shows and adds the card's title,
 // so a list of the page's links says where each one goes, not "Try it" twice (SC 2.4.4, 2.5.3).
@@ -16,7 +19,7 @@ const { title, text, facts, link } = Astro.props;
 // project, or a featured post (ADR 0025); /about/ lists every card, the demos' included.
 ---
 
-<article class="card">
+<article class="card" data-line={line}>
   <h3 class="card-title">{title}</h3>
   <p class="card-text">{text}</p>
   {facts.length > 0 && (
