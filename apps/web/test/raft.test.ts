@@ -35,6 +35,8 @@ import {
   cutFence,
   footprint,
   linkTo,
+  logMarkup,
+  logWords,
   LOSSES,
   nextSeed,
   OPENING,
@@ -580,6 +582,22 @@ test('the opening the page draws: a leader, three committed writes, and every fo
   for (const s of sim.servers) expect(s.log).toHaveLength(3);
   // Replayed, it is the same run: the browser takes over where the picture stands.
   expect(JSON.stringify(openingRun().servers)).toBe(JSON.stringify(sim.servers));
+});
+
+test('a log says what its server knows is committed, so a crash keeps the entries and forgets the commit', () => {
+  // Figure 2: the log is persistent state, the commit index volatile. A server that is down still
+  // holds every entry a majority committed, and draws them hollow until a leader tells it again.
+  const sim = openingRun();
+  const leader = leaderOf(sim) as Server;
+  const follower = sim.servers.find((s) => s.id !== leader.id) as Server;
+  const term = follower.log.at(-1)?.term;
+  expect(logWords(follower)).toBe(`3 entries, 3 known committed, last of term ${term}`);
+  crash(sim, follower.id);
+  expect(follower.log).toHaveLength(3);
+  expect(logWords(follower)).toBe(`3 entries, none known committed, last of term ${term}`);
+  expect(logMarkup(follower)).not.toContain('data-done');
+  expect(sim.writes.map((w) => w.state)).toEqual(['committed', 'committed', 'committed']);
+  expect(logWords(leader)).toBe(`3 entries, 3 known committed, last of term ${term}`);
 });
 
 describe('the cut', () => {
