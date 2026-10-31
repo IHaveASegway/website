@@ -37,6 +37,7 @@ import {
 } from '../src/lib/queue/sim';
 import {
   history,
+  capacityWords,
   LAYOUTS,
   lifecycles,
   linkTo,
@@ -412,6 +413,24 @@ describe('a slow worker', () => {
     expect(hoarding).toBe(false);
     expect(slowest).toBeLessThan(8_000);
   });
+
+  test('prefetch lowered mid-run takes back nothing a worker holds, and the log says so', () => {
+    const sim = createSim({ seed: 1, load: 'calm', prefetch: 10 });
+    slow(sim, 0, true);
+    runUntil(sim, 10_000);
+    const held = workerOf(sim, 0).window.length;
+    expect(held).toBe(10);
+    setPrefetch(sim, 1);
+    expect(sim.lines.at(-1)?.text).toBe(
+      'Prefetch is now 1: each worker is sent orders until it holds 1. Worker 1 holds 10 already, and keeps them',
+    );
+    expect(workerOf(sim, 0).window).toHaveLength(held);
+    // With no worker holding more than the new prefetch, the line says the prefetch alone.
+    setPrefetch(sim, 10);
+    expect(sim.lines.at(-1)?.text).toBe(
+      'Prefetch is now 10: each worker is sent orders until it holds 10',
+    );
+  });
 });
 
 describe('a poison order', () => {
@@ -458,6 +477,29 @@ describe('a poison order', () => {
   test('under before it is lost at its first failure: nobody holds it to try again', () => {
     const { job } = poisoned('dead-letter', 'before');
     expect([job.place, job.failures, job.delivered.length]).toEqual(['lost', 0, 1]);
+  });
+
+  test('switched to dead-letter while it loops under requeue, its tries so far count: it goes at its next failure, as the switch says', () => {
+    const sim = createSim({ seed: 3, load: 'calm' });
+    runUntil(sim, 1_000);
+    const job = poison(sim);
+    runUntil(sim, 2_000);
+    stopProducer(sim);
+    runUntil(sim, 3_000);
+    const tries = job.failures;
+    expect(tries).toBeGreaterThan(BACKOFF.length);
+    setPoisonHandling(sim, 'dead-letter');
+    expect(sim.lines.at(-1)?.text).toBe(
+      `A failing order now waits 200, 400 and 800 ms between tries, then goes to the dead-letter queue. Order ${job.id} has failed ${tries} times already, so its next failure sends it there`,
+    );
+    runUntil(sim, 4_000);
+    expect([job.place, job.failures]).toEqual(['dead', tries + 1]);
+    // With no order past its tries, the switch says the waits alone.
+    const fresh = createSim({ seed: 3, load: 'calm' });
+    setPoisonHandling(fresh, 'dead-letter');
+    expect(fresh.lines.at(-1)?.text).toBe(
+      'A failing order now waits 200, 400 and 800 ms between tries, then goes to the dead-letter queue',
+    );
   });
 });
 
@@ -759,10 +801,10 @@ const PRODUCING = 20_000;
  * faults go on: the next 30 s test whether the queue drains through crashes and slow spells.
  *
  * Whether a queue drains depends on capacity, not on the ack or the key. Stopped with the pool it
- * had, its crashed workers left down and its slow ones slow, the queue misses the 30 s in 165 of
- * these 2,000 seeds, most of them rushes (a slow worker hoarding a full window is about 30 s of
- * work on its own). So the drain gets five workers, as an operator would scale up for it. A rush
- * on three workers leaves about 200 orders, which five drain in about 15 s, or 24 s at worst here.
+ * had, the queue misses the 30 s in 53 of these 2,000 seeds, every one a rush (a slow worker
+ * hoarding a full window is about 30 s of work on its own; counted 2026-10-31). So the drain gets
+ * five workers, as an operator would scale up for it. A rush on three workers leaves about 200
+ * orders, which five drain in about 15 s, or 24 s at worst here.
  */
 function faultyRun(seed: number, over: Partial<Config> = {}): Sim {
   const pick = seeded(seed * 7919 + 17);
@@ -911,6 +953,24 @@ describe('the property sweep', { timeout: 30_000 }, () => {
 
 // The page (components/queue-lab): what it says and draws of a run, from lib/queue/view.ts.
 describe('the page', () => {
+  test('the note under Load says how many workers are up and what they print: two at the opening, below a busy hour', () => {
+    const sim = openingRun();
+    expect(capacityWords(sim)).toBe('Two workers are up and print about 6.5.');
+    restart(sim, 1);
+    expect(capacityWords(sim)).toBe('Three workers are up and print about 9.7.');
+    // A slow worker prints a tenth as many, and the picture says which one is slow.
+    slow(sim, 0, true);
+    expect(capacityWords(sim)).toBe('Three workers are up and print about 6.8.');
+    slow(sim, 1, true);
+    slow(sim, 2, true);
+    expect(capacityWords(sim)).toBe('Three workers are up and print about 1.0.');
+    crash(sim, 0);
+    crash(sim, 1);
+    expect(capacityWords(sim)).toBe('One worker is up and prints about 0.3.');
+    crash(sim, 2);
+    expect(capacityWords(sim)).toBe('No worker is up, so no order is printed.');
+  });
+
   test('Start over replays the opening with the visitor’s settings: with the key on, order 18 is printed once', () => {
     const sim = openingRun();
     runUntil(sim, 9_000);

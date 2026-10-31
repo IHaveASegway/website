@@ -30,6 +30,7 @@ Status: Draft for review in PR 1 · 2026-10-22
 | [0023](0023-home-as-a-story-and-rail-drop-downs.md) | Home told as a story, with isometric pictures drawn at build; the rail's items drop down | Proposed |
 | [0024](0024-home-led-by-the-work.md) | Home led by the work: the Route Lab's day live behind the name, the Raft Lab's election, a bolder type | Proposed |
 | [0025](0025-signal-box-identity.md) | The site's identity is a signal box: a line per lab, lamps for state, Barlow and B612 Mono, Seattle on the water | Proposed |
+| [0026](0026-three-more-labs-simulated-in-the-browser.md) | The Queue, Cache and Backfill Labs are deterministic simulations in the browser, on one shared kernel | Proposed |
 
 0013 is reserved for protocol v1 and the recording format, written in PR 6 ([roadmap.md](../roadmap.md#pr-6-lab-platform-and-presence)).
 

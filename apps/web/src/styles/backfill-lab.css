@@ -134,6 +134,14 @@
   }
 }
 
+/* Until the board is wide enough for "Wait for the file" on one line beside "Extract", the rest
+   of it stands under "Wait", on a line of its own. */
+@media (64rem <= width < 90rem) {
+  .bf-col-rest {
+    display: block;
+  }
+}
+
 .bf-day {
   padding-right: 0.5rem;
   text-align: start;
@@ -494,7 +502,11 @@
   flex-wrap: wrap;
 }
 
+/* The radio covers its push-button, edge included, and draws nothing itself: the one focus ring
+   every focusable element has (global.css) goes around the whole button, as a button's does, as
+   in the Queue Lab's choices. The lamp after it is hollow, and lit while its radio is chosen. */
 .bf-option {
+  position: relative;
   padding-inline: 0.75rem;
 }
 
@@ -512,16 +524,27 @@
 }
 
 .bf-option input {
+  position: absolute;
+  inset-block-start: -1px;
+  inset-inline-start: -1px;
+  inline-size: calc(100% + 2px);
+  block-size: calc(100% + 2px);
+  margin: 0;
+  border: 0;
+  appearance: none;
+  background-color: transparent;
+  cursor: pointer;
+}
+
+.bf-option-lamp {
   flex: none;
   inline-size: 0.625rem;
   block-size: 0.625rem;
-  margin: 0;
   border: 1.5px solid currentColor;
   border-radius: 50%;
-  appearance: none;
 }
 
-.bf-option input:checked {
+.bf-option input:checked + .bf-option-lamp {
   border-color: var(--primary);
   background-color: var(--primary);
 }
@@ -530,6 +553,17 @@
    under the pointer. */
 .bf-run-button {
   min-inline-size: 6.5rem;
+}
+
+/* The job's switch only switches on: once the job is on it reads as a state, and pressing it only
+   says so. */
+.bf-switch[aria-disabled='true'] {
+  color: var(--muted-foreground);
+  cursor: default;
+}
+
+.bf-switch[aria-disabled='true']:hover {
+  background-color: transparent;
 }
 
 /* Read by assistive technology, hidden on screen: a lamp's word, a day's full name, what the
@@ -630,7 +664,7 @@
 @media (forced-colors: active) {
   .bf-lamp,
   .bf-strip,
-  .bf-option input:checked {
+  .bf-option input:checked + .bf-option-lamp {
     forced-color-adjust: none;
   }
 
@@ -669,7 +703,7 @@
     stroke: Highlight;
   }
 
-  .bf-option input:checked {
+  .bf-option input:checked + .bf-option-lamp {
     border-color: ButtonText;
     background-color: ButtonText;
   }

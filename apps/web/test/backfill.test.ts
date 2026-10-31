@@ -1268,6 +1268,33 @@ describe('what the page draws, and the three things to try', () => {
     expect(stripLabel(late)).toMatch(/to \d\d:\d\d on Tuesday 27 October$/);
   });
 
+  test('the strip: a day cleared after its run finished gets a track for each life, and none between the end and the clear', () => {
+    const sim = openingRun();
+    const tuesday = sim.runs[1] as Run;
+    const ended = tuesday.ended as number;
+    expect(ended).toBeLessThan(sim.now);
+    clear(sim, 1);
+    const cleared = sim.now;
+    runUntil(sim, Infinity);
+    expect(tuesday.lives).toEqual([
+      { from: WEEK_END, to: ended },
+      { from: cleared, to: tuesday.ended },
+    ]);
+    // The strip draws both, a lane a day: Tuesday's second, with a gap from its end to the clear.
+    const lanes = new Map<string, [number, number][]>();
+    for (const [, x1, x2, y] of stripMarkup(sim).matchAll(
+      /class="bf-strip-track" x1="([\d.]+)%" x2="([\d.]+)%" y1="([^"]+)"/g,
+    ))
+      lanes.set(y ?? '', [...(lanes.get(y ?? '') ?? []), [Number(x1), Number(x2)]]);
+    const tracks = [...lanes.values()];
+    expect(tracks.map((lane) => lane.length)).toEqual([1, 2, 1, 1, 1, 1, 1]);
+    const [first, second] = tracks[1] as [[number, number], [number, number]];
+    expect(first[1]).toBeLessThan(second[0]);
+    // Every other day's run lived once, from the switch to its end.
+    for (const run of sim.runs.filter((r) => r.day !== 1))
+      expect(run.lives).toEqual([{ from: WEEK_END, to: run.ended }]);
+  });
+
   test('times and days as the page writes them', () => {
     expect([shortDay(0), shortDay(6), shortDay(7)]).toEqual(['Mon 19', 'Sun 25', 'Mon 26']);
     expect(lineTime(WEEK_END + 41)).toBe('00:41');

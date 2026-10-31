@@ -6,6 +6,8 @@ import {
   live,
   LOADS,
   replay,
+  SERVICE,
+  SLOWDOWN,
   type Action,
   type Config,
   type Effect,
@@ -331,6 +333,24 @@ export function propertyWords(sim: Sim, p: PropertyState): string {
   }
 }
 
+const COUNTS = ['No', 'One', 'Two', 'Three', 'Four', 'Five'] as const;
+
+/**
+ * What the workers up can print, said beside the loads: about 3.2 orders a second each, from the
+ * service time's mean (a log-normal's is its median times e^(spread² / 2)), and a tenth of that
+ * while slow; the picture says which are. A worker leaving takes no new order, so it is not
+ * counted. The opening has worker 2 down, so two print about 6.5, below a busy hour's 9 a second:
+ * the queue grows until it is back.
+ */
+export function capacityWords(sim: Sim): string {
+  const up = sim.workers.slice(0, sim.size).filter((w) => w.state === 'up' && !w.leaving);
+  const mean = SERVICE.median * Math.exp(SERVICE.spread ** 2 / 2);
+  const rate = up.reduce((sum, w) => sum + 1_000 / (mean * (w.slow ? SLOWDOWN : 1)), 0);
+  const n = up.length;
+  if (n === 0) return 'No worker is up, so no order is printed.';
+  return `${COUNTS[n]} ${n === 1 ? 'worker is up and prints' : 'workers are up and print'} about ${rate.toFixed(1)}.`;
+}
+
 /** How many orders wait in the queue, and how long the oldest of them has waited. */
 export function waitWords(sim: Sim): string {
   const n = sim.ready.length;
@@ -501,7 +521,7 @@ export function workerWord(w: Worker): string {
 /**
  * The picture, as the markup inside its <svg>: orders come in on the left to the tank, where the
  * ready ones wait as square lamps; a track a worker leaves it, holding the orders that worker has
- * taken, up to its prefetch, the one in work lit at its head; the main line runs on to the oven
+ * taken, up to the prefetch it had when it took them, the one in work lit at its head; the main line runs on to the oven
  * tickets, one lamp an order in rows of consecutive orders, filled once printed, with a second
  * circle around it when it printed twice, and crossed when it was lost; and the dead-letter siding
  * runs under them to its buffer stops. A crashed worker's track is drawn hollow. A poison order's
