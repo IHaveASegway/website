@@ -3,7 +3,9 @@ import { expect, test, type Page } from '@playwright/test';
 // The fold (content.md, "Home page"): rows 1-3 of Home end inside the first screen at 390×844 and
 // 1440×900, with the web fonts and without them. A row that has nothing to show is not rendered
 // (row 2 left with the build readouts on 2026-10-24; row 3 waits on the career timeline and the
-// stack line), so the last rendered row counts: today the hero, row 1, alone.
+// stack line), so the last rendered row counts: today the hero, row 1, alone. On a phone the column
+// leads with the name, the role and the buttons, and the map's band follows them (ADR 0025), so the
+// fold holds those three there.
 // And the hero is the same height either way, within 1 px: the fallback faces are fitted so the
 // name does not rewrap when its font arrives (layout shift).
 
@@ -52,10 +54,10 @@ async function measure(page: Page, fonts: Fonts) {
   return page.evaluate(() => {
     const rows = [...document.querySelectorAll<HTMLElement>('[data-row]')];
     const box = (selector: string) => document.querySelector(selector)?.getBoundingClientRect();
-    // Below 64rem Home's scene leads the first screen (ADR 0024), so there the fold holds the name
-    // and the title under it, and the hero's sentence and buttons follow; from 64rem the scene
-    // stands beside the words and the fold holds the whole hero.
-    const lead = ['.hero-name', '.hero-who'].map(
+    // Below 64rem the name, the role under it and the buttons lead the column, and the map's band,
+    // the opening sentence and the figures follow (ADR 0025): the fold holds the three, the Email
+    // button among them. From 64rem the scene stands beside the words and the fold holds the hero.
+    const lead = ['.hero-name', '.hero-title', '.hero-actions .btn-email'].map(
       (selector) => document.querySelector(selector)?.getBoundingClientRect().bottom ?? Infinity,
     );
     return {

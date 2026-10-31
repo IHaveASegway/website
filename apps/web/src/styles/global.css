@@ -2006,6 +2006,8 @@
     .footer-links a,
     .post-title a,
     .card-more,
+    .band-title,
+    .chapter-link,
     .principle-text a
   )::after {
     display: inline-block;
@@ -2027,6 +2029,8 @@
       .footer-links a,
       .post-title a,
       .card-more,
+      .band-title,
+      .chapter-link,
       .principle-text a
     )[href^='/']::after {
     content: 'ihaveasegway.com' attr(href);

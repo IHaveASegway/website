@@ -194,11 +194,16 @@ export function locationLine(profile: Profile): string {
   return remote ? `Remote, ${countryCode}` : countryCode;
 }
 
+/** "Senior Software Engineer. Remote, US.": the line under Home's name, two sentences in words
+ *  rather than two fields between dots (ADR 0025). */
+export function roleLine(profile: Profile): string {
+  return `${profile.basics.label}. ${locationLine(profile)}.`;
+}
+
 /** "Joseph Peterson, Senior Software Engineer. Remote, US.": Home's description, for search
  *  results and link previews, and the summary line of /llms.txt. */
 export function homeDescription(profile: Profile): string {
-  const { name, label } = profile.basics;
-  return `${name}, ${label}. ${locationLine(profile)}.`;
+  return `${profile.basics.name}, ${roleLine(profile)}`;
 }
 
 /** Every URL a record holds, checked or not, with the network it is on: the readiness test's list

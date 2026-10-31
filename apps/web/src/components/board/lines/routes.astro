@@ -1,0 +1,171 @@
+---
+import { routesLine, routesWords, spread } from '../../../lib/lines';
+import { routeLabPicture } from '../../../lib/route-lab/picture';
+import '../../../styles/lines.css';
+
+// The Route Lab's line (ADR 0025): the bakery, a square depot at the left, and a track forking out
+// to each van, its stops as lamps placed by when the van reaches them in the build's solve of the
+// lab's default day, so van 3's short run ends early and van 2's long one runs to the end. A
+// filled lamp is an order delivered, a hollow one an order still on board; the van itself is the
+// lit lamp. The still board shows the middle of its day (lib/lines.ts, MIDDAY); styles/board.css
+// moves it, one van a stop a second, on Home. Drawn twice, for a narrow board and a wide one, each
+// without a viewBox: a track's height and a lamp's size are pixels and its place along the day a
+// share of the width, so nothing scales with the screen and a lamp stays round.
+const picture = await routeLabPicture(process.cwd());
+const line = routesLine(picture.after.measured);
+const words = routesWords(picture.day, picture.after.measured);
+
+interface Size {
+  readonly name: 'wide' | 'compact';
+  /** Its height, and the space between the vans' tracks. */
+  readonly height: number;
+  readonly gap: number;
+  /** The depot's left edge and side, and where the vans' tracks fork from the stem. */
+  readonly depot: number;
+  readonly side: number;
+  readonly fork: number;
+  /** Where the day runs along the width, in percent, and the least room between two lamps. */
+  readonly from: number;
+  readonly to: number;
+  readonly room: number;
+  /** A stop's lamp, the van's lamp and the turning loop at a track's end, by radius. */
+  readonly lamp: number;
+  readonly van: number;
+  readonly loop: number;
+  readonly labels: boolean;
+}
+
+const SIZES: readonly Size[] = [
+  {
+    name: 'wide',
+    height: 96,
+    gap: 26,
+    depot: 40,
+    side: 14,
+    fork: 62,
+    from: 16,
+    to: 86,
+    room: 2.8,
+    lamp: 6,
+    van: 9,
+    loop: 7,
+    labels: true,
+  },
+  {
+    name: 'compact',
+    height: 64,
+    gap: 15,
+    depot: 16,
+    side: 10,
+    fork: 30,
+    from: 19,
+    to: 93,
+    room: 3.9,
+    lamp: 3.75,
+    van: 6,
+    loop: 4.5,
+    labels: false,
+  },
+];
+
+const drawings = SIZES.map((size) => {
+  const middle = size.height / 2;
+  const count = line.vans.length;
+  const gap = count > 3 ? size.gap * 0.85 : size.gap;
+  const vans = line.vans.map((van, i) => {
+    const y = Math.round(middle + (i - (count - 1) / 2) * gap);
+    // The head of the track, each stop, then the turning loop where the van is back.
+    const along = spread([0, ...van.stops, van.back], size.from, size.to, size.room);
+    const head = along[0] ?? size.from;
+    const back = along.at(-1) ?? size.to;
+    return { ...van, y, head, stops: along.slice(1, -1), back, rise: Math.abs(y - middle) };
+  });
+  return { size, middle, vans };
+});
+---
+
+<div class="line line-routes" data-vans={line.vans.length}>
+  {drawings.map(({ size, middle, vans }) => (
+    <svg
+      class={`line-draw line-${size.name}`}
+      height={size.height}
+      aria-hidden="true"
+      focusable="false"
+    >
+      <line class="line-track" x1="0" y1={middle} x2={size.depot} y2={middle} />
+      {vans.map((van) => (
+        <>
+          <path
+            class="line-track"
+            d={`M${size.depot + size.side} ${middle}H${size.fork}L${size.fork + van.rise} ${van.y}`}
+          />
+          <line
+            class="line-track"
+            x1={size.fork + van.rise}
+            y1={van.y}
+            x2={`${van.back}%`}
+            y2={van.y}
+          />
+        </>
+      ))}
+      <rect
+        class="line-depot"
+        x={size.depot}
+        y={middle - size.side / 2}
+        width={size.side}
+        height={size.side}
+      />
+      {size.labels && (
+        <text class="line-label" x="0" y={middle - 13}>
+          Bakery
+        </text>
+      )}
+      {vans.map((van, row) => (
+        <g class="line-van" data-van={row}>
+          <svg x={`${van.back}%`} overflow="visible">
+            <circle class="line-loop" cx={size.loop} cy={van.y} r={size.loop} />
+            {size.labels && (
+              <text class="line-label" x={size.loop * 2 + 10} y={van.y + 4.5}>
+                {van.name}
+              </text>
+            )}
+          </svg>
+          {van.stops.map((x, k) => (
+            <>
+              <circle class="line-lamp" cx={`${x}%`} cy={van.y} r={size.lamp} />
+              <circle
+                class="line-lamp-lit"
+                cx={`${x}%`}
+                cy={van.y}
+                r={size.lamp + 1}
+                data-k={k + 1}
+                data-lit={k + 1 < van.now ? '' : undefined}
+              />
+            </>
+          ))}
+          {[van.head, ...van.stops].map((x, k) => (
+            <circle
+              class="line-van-at"
+              cx={`${x}%`}
+              cy={van.y}
+              r={size.van}
+              data-k={k}
+              data-here={k === van.now ? '' : undefined}
+            />
+          ))}
+          <svg x={`${van.back}%`} overflow="visible">
+            <circle
+              class="line-van-at line-van-back"
+              cx={size.loop}
+              cy={van.y}
+              r={size.van}
+              data-k={van.stops.length + 1}
+              data-here={van.now === van.stops.length + 1 ? '' : undefined}
+            />
+          </svg>
+        </g>
+      ))}
+    </svg>
+  ))}
+</div>
+<p class="band-words">{words}</p>

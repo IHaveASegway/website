@@ -7,7 +7,7 @@ import { checkedProfiles } from '../src/lib/profile';
 import { ABOUT_PATH } from '../src/lib/about';
 import { addressText, evidencePages, roleYears, shownSkills } from '../src/lib/resume';
 import { CONTACT_EMAIL, ORIGIN } from '../src/lib/site';
-import { featuredFirst, type WorkCard } from '../src/lib/work';
+import type { WorkCard } from '../src/lib/work';
 import { files, html, profile, read } from './support/dist';
 import { attribute, descendants, elementsOf, hasClass, type Element } from './support/html';
 
@@ -155,15 +155,20 @@ describe('/about/, the résumé', () => {
       ? []
       : byClass('post-title', descendants(within)).map((t) => links(t)[0]?.href);
 
-  // Home leads with the demos it features (ADR 0024); the order is Home's, the cards are the list's.
-  test("Selected work is Home's, card for card: one list feeds both (lib/content.ts)", () => {
-    const listed = cardsOf(section('Selected work')).map((card) => ({
-      ...card,
-      link: { href: card.href ?? '' },
-    }));
-    expect(featuredFirst(listed).map(({ title, href }) => ({ title, href }))).toEqual(
-      cardsOf(homeSection('work')),
-    );
+  /** Home's board, each band's title and link, in page order (components/board/Board.astro). */
+  const bandsOf = (within: Element | undefined) =>
+    within === undefined
+      ? []
+      : byClass('band-title', descendants(within)).map((link) => ({
+          title: textOf(link),
+          href: attribute(link, 'href'),
+        }));
+
+  // On Home a demo is a line on the board and everything else a card (ADR 0025): the board first,
+  // then the cards, in the list's own order, which the résumé shows as cards.
+  test("Selected work is Home's, item for item: one list feeds both (lib/content.ts)", () => {
+    const work = homeSection('work');
+    expect(cardsOf(section('Selected work'))).toEqual([...bandsOf(work), ...cardsOf(work)]);
   });
 
   test("Writing lists Home's latest posts, and renders exactly when Home lists one", () => {

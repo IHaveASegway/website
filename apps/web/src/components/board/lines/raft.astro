@@ -1,0 +1,110 @@
+---
+import { raftLine } from '../../../lib/lines';
+import { openingRun } from '../../../lib/raft/view';
+import '../../../styles/lines.css';
+
+// The Raft Lab's line (ADR 0025): a hub and its spokes, not a ring. The leader is the hub, a
+// filled lamp with its number; every other server sits on a spoke, a hollow lamp with its number,
+// since each one answers to the leader alone. Then the log runs out to the right as a track of
+// lamps, filled once a majority holds the entry, so it is committed. All of it from the Raft Lab's
+// opening run (lib/raft/view.ts), the run its own page draws before anyone presses anything. It
+// stands still: the board's one moving thing is the Route Lab's vans. Drawn twice, for a narrow
+// board and a wide one, without a viewBox, as the Route Lab's line is (routes.astro).
+const line = raftLine(openingRun());
+
+const SIZES = [
+  {
+    name: 'wide',
+    height: 80,
+    hub: 96,
+    reach: [44, 24],
+    leader: 13,
+    server: 10,
+    log: 190,
+    step: 30,
+    lamp: 6,
+    numbers: true,
+  },
+  {
+    name: 'compact',
+    height: 56,
+    hub: 60,
+    reach: [30, 17],
+    leader: 9,
+    server: 6.5,
+    log: 116,
+    step: 18,
+    lamp: 4,
+    numbers: false,
+  },
+] as const;
+
+// The followers' places around the hub: upper left, upper right, lower right, lower left.
+const AROUND = [
+  [-1, -1],
+  [1, -1],
+  [1, 1],
+  [-1, 1],
+] as const;
+
+const drawings = SIZES.map((size) => {
+  const middle = size.height / 2;
+  const [dx, dy] = size.reach;
+  const followers = line.followers.slice(0, AROUND.length).map((id, i) => {
+    const [sx, sy] = AROUND[i] ?? [1, 1];
+    return { id, x: size.hub + sx * dx, y: middle + sy * dy };
+  });
+  return { size, middle, followers };
+});
+---
+
+<div class="line line-raft">
+  {drawings.map(({ size, middle, followers }) => (
+    <svg
+      class={`line-draw line-${size.name}`}
+      height={size.height}
+      aria-hidden="true"
+      focusable="false"
+    >
+      <line class="line-track" x1="0" y1={middle} x2="100%" y2={middle} />
+      {followers.map((f) => (
+        <line class="line-spoke" x1={size.hub} y1={middle} x2={f.x} y2={f.y} />
+      ))}
+      {line.log.map((committed, k) => (
+        <>
+          <circle class="line-lamp" cx={size.log + k * size.step} cy={middle} r={size.lamp} />
+          {committed && (
+            <circle
+              class="line-lamp-lit"
+              cx={size.log + k * size.step}
+              cy={middle}
+              r={size.lamp + 1}
+              data-lit=""
+            />
+          )}
+        </>
+      ))}
+      {followers.map((f) => (
+        <>
+          <circle class="line-lamp" cx={f.x} cy={f.y} r={size.server} />
+          {size.numbers && (
+            <text class="line-number" x={f.x} y={f.y}>
+              {f.id}
+            </text>
+          )}
+        </>
+      ))}
+      {line.leader !== null && (
+        <>
+          <circle class="line-hub" cx={size.hub} cy={middle} r={size.leader} />
+          {size.numbers && (
+            <text class="line-number line-number-lit" x={size.hub} y={middle}>
+              {line.leader}
+            </text>
+          )}
+        </>
+      )}
+    </svg>
+  ))}
+</div>
+<p class="band-words">{line.words}</p>

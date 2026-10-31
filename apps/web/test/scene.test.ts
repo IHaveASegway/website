@@ -19,6 +19,8 @@ import {
   START,
   unpack,
   where,
+  windowOf,
+  WINDOW_HEIGHT,
 } from '../src/lib/route-lab/scene';
 import { tracks } from '../src/lib/route-lab/timeline';
 import {
@@ -85,6 +87,27 @@ describe('the camera', () => {
     const cube = extent(focus, 3600, LIFTED);
     expect(cube.height).toBeGreaterThan(flat.height);
     expect(close(cube.width, flat.width, 1e-6)).toBe(true);
+  });
+
+  // ADR 0025: the scene starts as a map is read, flat and north up, so the column of words stands
+  // on the water west of the city at every width; the lift then turns it into the cube.
+  test('known answers: START is the flat map, north up and east right, a unit a unit', () => {
+    const at = projector([0, 0, 1000, 1000], 3600, START);
+    const [ox, oy] = at(500, 500, 0);
+    const [ex, ey] = at(600, 500, 0);
+    const [sx, sy] = at(500, 600, 0);
+    expect(close(ex - ox, 100, 0.01) && close(ey - oy, 0, 0.01)).toBe(true);
+    expect(close(sx - ox, 0, 0.01) && close(sy - oy, 100, 0.01)).toBe(true);
+    expect(START.lift).toBe(0);
+  });
+
+  test('known answers: the window is the whole width from the west edge, centred on the bakery', () => {
+    expect(windowOf([0, 0, 2000, 2564], [726, 1186])).toEqual([0, 386, 2000, 1986]);
+    expect(WINDOW_HEIGHT).toBe(1600);
+    // Near the map's top or bottom it stays inside the map; a short map is framed whole.
+    expect(windowOf([0, 0, 2000, 2564], [726, 300])).toEqual([0, 0, 2000, 1600]);
+    expect(windowOf([0, 0, 2000, 2564], [726, 2500])).toEqual([0, 964, 2000, 2564]);
+    expect(windowOf([0, 0, 2000, 1000], [726, 500])).toEqual([0, 0, 2000, 1000]);
   });
 
   test('the focus is a square around the places, padded, and holds every one', () => {

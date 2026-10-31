@@ -6,7 +6,8 @@ import { NOT_FOUND_PAGE, pages } from './expected';
 // wide at 600, 767, 768 and 1024 px; at 1024 to 1100 px the title broke onto a second line in
 // columns 9 to 12; and on a phone the copyright alone stood flush right under lines that start at
 // the frame's edge. The hero checks run with the web fonts and without them, which are a little
-// wider.
+// wider. Since ADR 0025 the buttons are the address's and LinkedIn's, of two widths: each keeps its
+// own at every screen width.
 
 type Fonts = 'loaded' | 'blocked';
 const FONTS: readonly Fonts[] = ['loaded', 'blocked'];
@@ -69,20 +70,21 @@ for (const fonts of FONTS) {
     page,
   }) => {
     if (fonts === 'blocked') await page.route('**/*.woff2', (route) => route.abort());
-    const widths = new Set<number>();
+    const widths: number[][] = [];
     const titleLines: Record<number, number> = {};
     for (const width of WIDTHS) {
       await page.setViewportSize({ width, height: 900 });
       await open(page, '/');
-      for (const button of await page.evaluate(buttonWidths)) widths.add(button);
+      (await page.evaluate(buttonWidths)).forEach((button, i) => (widths[i] ??= []).push(button));
       titleLines[width] = await page.evaluate(linesOf, '.hero-title');
     }
-    // One width at every screen width, within a pixel of rounding.
-    expect(widths.size, 'Home has buttons').toBeGreaterThan(0);
-    expect(
-      Math.max(...widths) - Math.min(...widths),
-      `widths: ${[...widths].join(', ')}`,
-    ).toBeLessThanOrEqual(1);
+    // Each button one width at every screen width, within a pixel of rounding.
+    expect(widths.length, 'Home has buttons').toBeGreaterThan(0);
+    for (const [i, each] of widths.entries())
+      expect(
+        Math.max(...each) - Math.min(...each),
+        `button ${i + 1}: ${each.join(', ')}`,
+      ).toBeLessThanOrEqual(1);
     expect(titleLines, 'lines of the title at each width').toEqual(
       Object.fromEntries(WIDTHS.map((width) => [width, 1])),
     );
