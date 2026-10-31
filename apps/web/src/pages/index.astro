@@ -1,145 +1,314 @@
 ---
-import Board from '../components/board/Board.astro';
-import Hero from '../components/Hero.astro';
+import Activity from '../components/home/Activity.astro';
+import LabCards from '../components/home/LabCards.astro';
+import PostRows from '../components/home/PostRows.astro';
+import Stats from '../components/home/Stats.astro';
+import System from '../components/iso/System.astro';
 import Motion from '../components/Motion.astro';
-import PostList from '../components/PostList.astro';
-import RouteChapter from '../components/RouteChapter.astro';
-import RouteScene from '../components/RouteScene.astro';
-import SectionTitle from '../components/SectionTitle.astro';
 import WorkCard from '../components/WorkCard.astro';
 import Base from '../layouts/Base.astro';
+import { ABOUT_HEADINGS, aboutParts, LAB_NAMES, sectionOf, withLinks } from '../lib/about';
+import { SEEDS_IN_CI as BACKFILL_SEEDS, openingRun as backfillRun } from '../lib/backfill/view';
+import { replay as cacheReplay } from '../lib/cache/sim';
 import {
-  ABOUT_HEADINGS,
-  aboutParts,
-  LAB_NAMES,
-  openingSentence,
-  sectionOf,
-  withLinks,
-} from '../lib/about';
+  SEEDS_IN_CI as CACHE_SEEDS,
+  OPENING as CACHE_OPENING,
+  openingRun as cacheRun,
+} from '../lib/cache/view';
 import {
   loadAbout,
   loadLabArea,
   loadProfile,
   loadSelectedWork,
   loadWritingArea,
+  postEntry,
 } from '../lib/content';
+import { activity as activityOf, readingMinutes } from '../lib/home';
+import { countTests, readCommitDays, readDecisions } from '../lib/home-sources';
+import { system, type Counts, type Lab, type Part } from '../lib/iso/system';
 import { homeGraph, serialize } from '../lib/jsonld';
 import { labPath } from '../lib/lab';
-import { figureWords, vanLines } from '../lib/lines';
+import { backfillFact, cacheFact, figureWords, queueFact, raftFailover } from '../lib/lines';
 import { homeCard } from '../lib/og';
-import { checkedProfiles, homeDescription } from '../lib/profile';
-import { dayLine, formatDuration } from '../lib/route-lab/format';
-import { routeData, routeLabPicture } from '../lib/route-lab/picture';
+import { checkedProfiles, homeDescription, roleLine } from '../lib/profile';
+import { replay as queueReplay } from '../lib/queue/sim';
+import {
+  SEEDS_IN_CI as QUEUE_SEEDS,
+  OPENING as QUEUE_OPENING,
+  openingRun as queueRun,
+} from '../lib/queue/view';
+import { leaderOf, replay as raftReplay } from '../lib/raft/sim';
+import {
+  SEEDS_IN_CI as RAFT_SEEDS,
+  OPENING as RAFT_OPENING,
+  openingRun as raftRun,
+} from '../lib/raft/view';
+import { formatDuration } from '../lib/route-lab/format';
+import { routeLabPicture } from '../lib/route-lab/picture';
 import { CONTACT_EMAIL } from '../lib/site';
 import { writingRow } from '../lib/work';
 import '../styles/home.css';
 
-// Home (content.md, "Home page"; ADR 0023, ADR 0024, ADR 0025): who Joseph is, told top to bottom,
-// and led by the work. The first screen is the stage: the Route Lab's day driven live on the city,
-// edge to edge, its water the page itself, and Joseph's column standing on the water: his name,
-// his role, the bio's opening, what VROOM saves that day, the ways to reach him and the scene's
-// caption. Scrolling brings up the Route Lab's chapter while the day lifts into the space-time
-// cube, then the board, every live lab as a line, once the scene has left with the chapter; below
-// 64rem the scene is a picture between the figures and the chapter, and lifts as it passes up the
-// window. Then how he works, in the bio's words; then the writing; then what he is working toward
-// and how to reach him. An element renders only when its source and its link target exist; until
-// then it is left out, never a placeholder.
+// Home (docs/design/overhaul.md, "Home"; ADR 0027), after the pages Joseph named: who he is, then
+// what he builds, drawn. First the name across the top in capitals, the one thing set that way, and
+// the role under it; then the bio's blocks beside the drawing of his five labs as one system, each
+// part a link to the lab that runs it (below 64rem the drawing comes first, under the name); the
+// ways to reach him under the blocks. Then the figures his records give, the activity calendar of the
+// site's own repository, the labs as cards, the latest writing in a dated list, how he works, and
+// the address again. Every figure and count is worked out at build from its system of record,
+// none typed (lib/home.ts). A part renders only when its source exists: the fixture builds hold
+// no bio and no lab, and there Home is the name, the writing and the address.
 const profile = await loadProfile();
-const { name, label } = profile.basics;
+const { name } = profile.basics;
 const area = await loadWritingArea();
 const lab = await loadLabArea();
-// The bio (src/content/about.md) is the one owner of Joseph's words about himself; Home lays out
-// its parts and /about/ renders it whole. The fixture builds hold none, and Home has no sentence,
-// no How I work and no closing there.
+const external = checkedProfiles(profile);
+const linkedIn = external.find((p) => p.network === 'LinkedIn');
+
+// The bio (src/content/about.md) is the one owner of Joseph's words about himself: Home lays out
+// its parts as syntaqx's named blocks, and /about/ renders it whole. "Now" is its opening, "What I
+// build" its five bold leads, "Working toward" its closing section; How I work comes further down.
 const bioEntry = await loadAbout();
 const bio = bioEntry?.body === undefined ? undefined : aboutParts(bioEntry.body);
-// Each part by its heading: What I build comes before How I work and is a list of bold leads too,
-// so neither its place nor its shape picks the principles. Home shows How I work and the close.
-const principles = bio && sectionOf(bio, ABOUT_HEADINGS.how);
-// The hero says the opening's first sentence, what Joseph builds; /about/ says the whole opening.
-const lede = bio?.lede[0] === undefined ? undefined : [openingSentence(bio.lede[0])];
+const build = bio && sectionOf(bio, ABOUT_HEADINGS.build);
+const how = bio && sectionOf(bio, ABOUT_HEADINGS.how);
 const toward = bio && sectionOf(bio, ABOUT_HEADINGS.toward);
-// The demos this build writes, by slug. The bio names them, and on Home those words link to them.
+const blocks = [
+  bio?.lede.length ? { name: 'Now', paragraphs: bio.lede, items: [] } : undefined,
+  build?.principles.length
+    ? { name: 'What I build', paragraphs: [], items: build.principles.map((p) => p.lead) }
+    : undefined,
+  toward?.paragraphs.length
+    ? { name: 'Working toward', paragraphs: toward.paragraphs, items: [] }
+    : undefined,
+].filter((block) => block !== undefined);
+
+// The labs this build writes, by slug; the bio's names for them link to them in How I work.
 const demo = new Map(lab.entries.map((entry) => [entry.slug, entry]));
 const names = LAB_NAMES.flatMap(({ slug, name: words }) => {
   const entry = demo.get(slug);
   return entry ? [{ name: words, href: labPath(entry) }] : [];
 });
-// The scene, the figures under the name, the chapter and the board's Route Lab line all come from
-// the build's own solve of the lab's default day (lib/route-lab/picture.ts), as the lab's page
-// does, so no figure on Home is typed. Astro's root is the working directory (node-solver.ts).
-const routes = demo.get('routes');
-const picture = routes ? await routeLabPicture(process.cwd()) : undefined;
-const scene = picture && routes ? { picture, href: labPath(routes) } : undefined;
-// Selected work's other cards: a project whose check is recorded and whose hold is lifted, and a
-// featured post (lib/work.ts). The lab's demos are on the board; a card is what has no line.
-const list = await loadSelectedWork();
+
+// Each lab's opening run, as its own page plays it before anyone presses anything: the drawing
+// counts its parts from them, and each card's fact is worked out from them, as the Lab index's is.
+const runs = lab.visible
+  ? (() => {
+      const queue = queueRun();
+      const cache = cacheRun();
+      const raft = raftRun();
+      const backfill = backfillRun();
+      return { queue, cache, raft, backfill };
+    })()
+  : undefined;
+const picture = demo.has('routes') ? await routeLabPicture(process.cwd()) : undefined;
+const leader = runs ? leaderOf(runs.raft) : null;
+const counts: Counts = {
+  workers: runs?.queue.size ?? 3,
+  nodes: runs?.cache.nodes.length ?? 4,
+  servers: runs?.raft.servers.length ?? 5,
+  leader: leader?.id ?? 0,
+  vans: picture?.day.vans ?? 3,
+  days: runs?.backfill.report.length ?? 7,
+};
+const model = lab.visible ? system(counts) : undefined;
+const links: Partial<Record<Lab, { href: string; title: string }>> = Object.fromEntries(
+  lab.entries.map((entry) => [entry.slug, { href: labPath(entry), title: entry.title }]),
+);
+const parts = new Map<string, Part>(model?.parts.map((part) => [part.lab, part]) ?? []);
+
+const facts = new Map<string, string>();
+if (runs) {
+  if (demo.has('queue'))
+    facts.set(
+      'queue',
+      queueFact(
+        queueReplay(
+          { ...QUEUE_OPENING.config, key: true },
+          QUEUE_OPENING.actions,
+          QUEUE_OPENING.until,
+        ),
+      ),
+    );
+  if (demo.has('cache'))
+    facts.set(
+      'cache',
+      cacheFact(
+        runs.cache,
+        cacheReplay(
+          { ...CACHE_OPENING.config, coalesce: true },
+          CACHE_OPENING.actions,
+          CACHE_OPENING.until,
+        ),
+      ),
+    );
+  if (demo.has('raft') && leader)
+    facts.set(
+      'raft',
+      raftFailover(
+        runs.raft,
+        raftReplay(
+          { seed: RAFT_OPENING.seed },
+          [...RAFT_OPENING.actions, { at: RAFT_OPENING.until, kind: 'crash', node: leader.id }],
+          RAFT_OPENING.until,
+        ),
+      ),
+    );
+  if (demo.has('backfill'))
+    facts.set('backfill', backfillFact(runs.backfill, backfillRun('overwrite')));
+}
+// The Route Lab's figures say, where Home shows them, what they measure against and that the
+// bakery is made up (the visitor review of 2026-10-31), in the words the hero said them in until
+// ADR 0027 (lib/lines.ts, figureWords).
+if (picture)
+  facts.set(
+    'routes',
+    `${formatDuration(picture.after.measured.drive)} ${figureWords(picture.day)}, against ${formatDuration(picture.before.measured.drive)} as the orders came in.`,
+  );
+
+// Selected work (content.md, "Owned work"; lib/work.ts): one list feeds Home and /about/, item for
+// item. Each lab is a card with its glyph, in the lab's order; then a card for each project whose
+// check is recorded and whose hold is lifted, and each featured post this build lists.
+const work = await loadSelectedWork();
 const demoPages = new Set(lab.entries.map(labPath));
-const cards = list.filter((card) => !demoPages.has(card.link.href));
-const latest = writingRow(area.published, list);
-const linkedIn = checkedProfiles(profile).find((p) => p.network === 'LinkedIn');
-// The closing address may break after its "@", and only there unless a part alone is wider than
-// the column (home.css), as the footer's does.
+const others = work.filter((card) => !demoPages.has(card.link.href));
+
+// The figures (lib/home.ts), each from its record: the labs this build writes; the seeded runs
+// the four simulated labs' sweeps play on every pull request (each lab's SEEDS_IN_CI, the count
+// its own page states); the decision records in docs/adr/; the tests written in test/ and e2e/.
+const decisions = readDecisions();
+const SEEDS: Record<string, number> = {
+  raft: RAFT_SEEDS,
+  queue: QUEUE_SEEDS,
+  cache: CACHE_SEEDS,
+  backfill: BACKFILL_SEEDS,
+};
+const seeded = lab.entries.reduce((n, entry) => n + (SEEDS[entry.slug] ?? 0), 0);
+const stats = [
+  { value: lab.entries.length, caption: 'live labs to break' },
+  { value: seeded, caption: 'seeded runs on every pull request' },
+  { value: decisions.length, caption: 'decision records' },
+  { value: countTests(), caption: 'tests written' },
+];
+const activity = activityOf(readCommitDays(), decisions);
+
+// The latest writing, with each post's reading time from its own words.
+const latest = await Promise.all(
+  writingRow(area.published, work).map(async (post) => ({
+    post,
+    minutes: readingMinutes((await postEntry(post)).body ?? ''),
+  })),
+);
+
+// The closing address may break after its "@", and only there.
 const [mailbox, domain] = CONTACT_EMAIL.split('@');
 ---
 
 <Base
-  title={`${name} · ${label}`}
+  title={`${name} · ${profile.basics.label}`}
   description={homeDescription(profile)}
   path="/"
   og={homeCard(profile)}
   jsonLd={serialize(homeGraph(profile))}
 >
-  <div class={scene ? 'stage' : 'stage stage-plain'} data-stage>
-    {scene && <RouteScene picture={scene.picture} data={`${scene.href}scene.json`} />}
-    <Hero
-      profile={profile}
-      lede={lede}
-      figures={
-        scene && {
-          before: formatDuration(scene.picture.before.measured.drive),
-          after: formatDuration(scene.picture.after.measured.drive),
-          words: figureWords(scene.picture.day),
-        }
-      }
-      caption={
-        scene && {
-          done: dayLine(
-            scene.picture.after.measured.back,
-            scene.picture.day.orders.length,
-            scene.picture.day.orders.length,
-          ),
-          credit: routeData.copyright,
-        }
-      }
-    />
-    {(lab.entries.length > 0 || cards.length > 0) && (
-      <section class="work" id="work" aria-labelledby="work-title">
-        <h2 class="visually-hidden" id="work-title">
+  <section class={model ? 'intro' : 'intro intro-plain'} aria-labelledby="name" data-row="1">
+    <div class="intro-who">
+      <h1 id="name" class="nameplate">
+        {name}
+      </h1>
+      <p class="intro-role">{roleLine(profile)}</p>
+      <div class="intro-actions">
+        <a class="btn btn-primary btn-email" href={`mailto:${CONTACT_EMAIL}`}>
+          Email {CONTACT_EMAIL}
+        </a>
+        {external.map((p) => (
+          <a class="btn" href={p.url} rel="me">
+            {p.network}
+          </a>
+        ))}
+      </div>
+    </div>
+    {model && <System counts={counts} labs={links} />}
+    {blocks.length > 0 && (
+      <div class="bio-blocks">
+        {blocks.map((block) => (
+          <section class="bio-block">
+            <h2 class="block-label">{block.name}</h2>
+            {block.paragraphs.map((paragraph) => (
+              <p>{paragraph}</p>
+            ))}
+            {block.items.length > 0 && (
+              <ul class="bio-list" role="list">
+                {block.items.map((item) => (
+                  <li>{item}</li>
+                ))}
+              </ul>
+            )}
+          </section>
+        ))}
+      </div>
+    )}
+  </section>
+
+  <section class="band" aria-label="In figures">
+    <Stats stats={stats} />
+  </section>
+
+  {activity && (
+    <section class="section" id="activity" aria-labelledby="activity-title">
+      <Activity activity={activity} title="Activity" id="activity-title" />
+    </section>
+  )}
+
+  {(lab.entries.length > 0 || others.length > 0) && (
+    <section class="section" id="work" aria-labelledby="work-title">
+      <div class="section-head">
+        <h2 class="section-title" id="work-title">
           Selected work
         </h2>
-        {scene && routes && (
-          <RouteChapter
-            title={routes.title}
-            vans={vanLines(routeData, scene.picture.after.measured)}
-            href={scene.href}
-          />
+        {lab.visible && (
+          <a class="section-more" href="/lab/">
+            All labs
+          </a>
         )}
-        <div class="covers">
-          <Board labs={lab.entries} />
-          {cards.map((card) => (
+      </div>
+      {lab.entries.length > 0 && <LabCards labs={lab.entries} parts={parts} facts={facts} />}
+      {others.length > 0 && (
+        <div class="cards">
+          {others.map((card) => (
             <WorkCard title={card.title} text={card.text} facts={card.facts} link={card.link} />
           ))}
         </div>
-      </section>
-    )}
-  </div>
+      )}
+    </section>
+  )}
 
-  {principles && (
+  {area.visible && (
+    <section class="section" id="writing" aria-labelledby="writing-title">
+      <div class="section-head">
+        <h2 class="section-title" id="writing-title">
+          Writing
+        </h2>
+        <a class="section-more" href="/writing/">
+          All writing
+        </a>
+      </div>
+      {latest.length > 0 && <PostRows posts={latest} />}
+      <ul class="post-links">
+        <li>
+          <a href="/rss.xml">RSS feed</a>
+        </li>
+      </ul>
+    </section>
+  )}
+
+  {how && (
     <section class="section principles" id="how" aria-labelledby="how-title">
-      <SectionTitle id="how-title" title={principles.heading} />
+      <h2 class="section-title" id="how-title">
+        {how.heading}
+      </h2>
       <ul class="principles-list" role="list">
-        {principles.principles.map((principle) => (
+        {how.principles.map((principle) => (
           <li class="principle">
             <h3 class="principle-lead">{principle.lead}</h3>
             <p class="principle-text">
@@ -153,42 +322,22 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
     </section>
   )}
 
-  {area.visible && (
-    <section class="section" id="writing" aria-labelledby="writing-title">
-      <SectionTitle id="writing-title" title="Writing" />
-      {latest.length > 0 && <PostList posts={latest} level={3} />}
-      <ul class="post-links">
-        <li>
-          <a href="/writing/">All writing</a>
-        </li>
-        <li>
-          <a href="/rss.xml">RSS feed</a>
-        </li>
-      </ul>
-    </section>
-  )}
-
-  {toward && (
-    <section class="section toward" id="next" aria-labelledby="next-title">
-      <SectionTitle id="next-title" title={toward.heading} />
-      <div class="toward-body">
-        {toward.paragraphs.map((paragraph) => (
-          <p class="toward-text">{paragraph}</p>
-        ))}
+  <section class="section closing" id="contact" aria-labelledby="contact-title">
+    <h2 class="section-title" id="contact-title">
+      Contact
+    </h2>
+    {/* A phone breaks the address after its @, never inside a word (a <wbr>, unseen and unread). */}
+    <a class="closing-mail" href={`mailto:${CONTACT_EMAIL}`}>
+      {mailbox}@<wbr />
+      {domain}
+    </a>
+    {linkedIn && (
+      <div class="closing-actions">
+        <a class="btn" href={linkedIn.url}>
+          {linkedIn.network}
+        </a>
       </div>
-      {/* A phone breaks the address after its @, never inside a word (a <wbr>, unseen and unread). */}
-      <a class="toward-mail" href={`mailto:${CONTACT_EMAIL}`}>
-        {mailbox}@<wbr />
-        {domain}
-      </a>
-      {linkedIn && (
-        <div class="toward-actions">
-          <a class="btn" href={linkedIn.url}>
-            {linkedIn.network}
-          </a>
-        </div>
-      )}
-    </section>
-  )}
+    )}
+  </section>
   <Motion />
 </Base>

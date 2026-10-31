@@ -1,13 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// The fold (content.md, "Home page"): rows 1-3 of Home end inside the first screen at 390×844 and
-// 1440×900, with the web fonts and without them. A row that has nothing to show is not rendered
-// (row 2 left with the build readouts on 2026-10-24; row 3 waits on the career timeline and the
-// stack line), so the last rendered row counts: today the hero, row 1, alone. On a phone the column
-// leads with the name, the role and the buttons, then the opening and the figures, and the scene
-// follows them in the page's flow (ADR 0024, postscript 2026-10-31), so the fold holds those three
-// there.
-// And the hero is the same height either way, within 1 px: the fallback faces are fitted so the
+// The fold (content.md, "Home page"; ADR 0027): what Home's first screen holds at 390×844 and
+// 1440×900, with the web fonts and without them. Row 1 is the opening (the name, the role, the
+// buttons, the drawing and the bio's blocks), the one rendered row. On a phone the fold holds the
+// name, the role, both buttons and the whole drawing under them; from 64rem it holds those, the
+// drawing beside the blocks, and the first block. Until ADR 0027 the fold held the name, the role
+// and the Email button, and the Route Lab's scene beside them.
+// And the opening is the same height either way, within 1 px: the fallback faces are fitted so the
 // name does not rewrap when its font arrives (layout shift).
 
 const VIEWPORTS = [
@@ -61,20 +60,19 @@ async function measure(page: Page, fonts: Fonts) {
   return page.evaluate(() => {
     const rows = [...document.querySelectorAll<HTMLElement>('[data-row]')];
     const box = (selector: string) => document.querySelector(selector)?.getBoundingClientRect();
-    // Below 64rem the name, the role under it and the buttons lead the column, and the opening
-    // sentence, the figures and then the scene follow (ADR 0024, postscript 2026-10-31): the fold
-    // holds the three, the Email button among them. From 64rem the scene stands beside the words and the fold holds the hero.
-    const lead = ['.hero-name', '.hero-title', '.hero-actions .btn-email'].map(
-      (selector) => document.querySelector(selector)?.getBoundingClientRect().bottom ?? Infinity,
-    );
+    const bottoms = [
+      '.nameplate',
+      '.intro-role',
+      '.intro-actions .btn-email',
+      '.intro-actions .btn:last-child',
+      'figure.iso svg',
+      ...(innerWidth >= 1024 ? ['.bio-block:first-child'] : []),
+    ].map((selector) => box(selector)?.bottom ?? Infinity);
     return {
       rows: rows.map((row) => row.dataset['row']),
-      bottom:
-        innerWidth < 1024
-          ? Math.max(...lead)
-          : Math.max(...rows.map((row) => row.getBoundingClientRect().bottom)),
+      bottom: Math.max(...bottoms),
       hero: box('[data-row="1"]')?.height ?? 0,
-      name: box('.hero-name')?.height ?? 0,
+      name: box('.nameplate')?.height ?? 0,
     };
   });
 }
@@ -86,7 +84,7 @@ for (const viewport of VIEWPORTS) {
     const results: Partial<Record<Fonts, Awaited<ReturnType<typeof measure>>>> = {};
 
     for (const fonts of ['loaded', 'blocked'] as const) {
-      test(`rows 1-3 end inside the first screen, fonts ${fonts}`, async ({ page }) => {
+      test(`the opening's lead ends inside the first screen, fonts ${fonts}`, async ({ page }) => {
         const result = await measure(page, fonts);
         results[fonts] = result;
         console.log(
@@ -97,7 +95,7 @@ for (const viewport of VIEWPORTS) {
       });
     }
 
-    test('the hero is the same height with and without the web fonts', async ({ browser }) => {
+    test('the opening is the same height with and without the web fonts', async ({ browser }) => {
       const heights: number[] = [];
       for (const fonts of ['loaded', 'blocked'] as const) {
         const context = await browser.newContext({ viewport });

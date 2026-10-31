@@ -653,19 +653,6 @@
     line-height: var(--text-ui--line-height);
   }
 
-  /* The actions, all one width at every screen width, 8.25rem, unless a label needs more: as many
-     a row as fit, then the next row. A label never leaves its button: with a larger text size the
-     button grows with it, up to the row's width, and the buttons wrap. */
-  .hero-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-
-  .hero-actions .btn {
-    min-inline-size: min(8.25rem, 100%);
-  }
-
   @media (width >= 48rem) {
     .hero {
       padding-block: 3rem 2.5rem;
@@ -1888,7 +1875,7 @@
     border-bottom: 0;
   }
 
-  :root:has(.hero-name) .masthead {
+  :root:has(.hero-name, .nameplate) .masthead {
     display: none;
   }
 
@@ -1898,8 +1885,7 @@
     .footer-links a,
     .post-title a,
     .card-more,
-    .band-title,
-    .chapter-link,
+    .section-more,
     .principle-text a
   )::after {
     display: inline-block;
@@ -1921,8 +1907,7 @@
       .footer-links a,
       .post-title a,
       .card-more,
-      .band-title,
-      .chapter-link,
+      .section-more,
       .principle-text a
     )[href^='/']::after {
     content: 'ihaveasegway.com' attr(href);

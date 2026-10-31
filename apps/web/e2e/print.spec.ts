@@ -9,10 +9,12 @@ import { NOT_FOUND_PAGE, pages } from './expected';
 
 const ROUTES = [...pages(), NOT_FOUND_PAGE];
 
-/** Links that print no address of their own: the name in the header, a button (the hero's, the
+/** Links that print no address of their own: the name in the header, a button (Home's, the
  *  404's way home), and the résumé's notes, whose addresses the footer or the contact list prints;
- *  and the map's attribution, whose address the write-up's credits print. */
-const PRINTS_ELSEWHERE = '.wordmark, .btn, .resume-notes a, .rl-attribution a';
+ *  the map's attribution, whose address the write-up's credits print; and the parts of Home's
+ *  drawing, SVG links that cannot print text after them, whose addresses the lab cards under the
+ *  drawing print (ADR 0027). */
+const PRINTS_ELSEWHERE = '.wordmark, .btn, .resume-notes a, .rl-attribution a, .iso-node';
 
 for (const path of ROUTES) {
   test(`${path} on paper: no control, and every link prints its address`, async ({ page }) => {
@@ -111,19 +113,27 @@ test('inline code has no padding on paper or in forced colors, and keeps it on s
   expect(seen).toBeGreaterThan(0);
 });
 
-// Home on paper is the column and then the work, each as tall as its words (home.css): a page is
-// narrower than 64rem, so the phone's rows apply on paper, and the scene's row, which holds the map
-// on screen, holds nothing there. Until 2026-10-30 it kept its 18.75rem, a blank gap of 300 px
-// between the buttons and the bio's opening.
-test('Home on paper keeps no gap where the scene stands on screen', async ({ page }) => {
+// Home on paper is its opening in one column, each part as tall as it draws (home.css): a page is
+// narrower than 64rem, so the phone's rows apply on paper, the name, the role and the buttons, then
+// the drawing, then the bio's blocks, with no gap between them wider than a line. Until ADR 0027 the
+// check was that the scene's row held nothing on paper; until 2026-10-30 it kept its 18.75rem, a
+// blank gap of 300 px between the buttons and the bio's opening.
+test('Home on paper keeps no gap between the buttons, the drawing and the blocks', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 816, height: 1056 });
   await page.goto('/');
   await page.emulateMedia({ media: 'print' });
-  const gap = await page.evaluate(() => {
-    const actions = document.querySelector('.hero-actions')?.getBoundingClientRect();
-    const lede = document.querySelector('.hero-lede, .figures')?.getBoundingClientRect();
-    return actions && lede ? lede.top - actions.bottom : null;
+  const gaps = await page.evaluate(() => {
+    const box = (selector: string) => document.querySelector(selector)?.getBoundingClientRect();
+    const [actions, drawing, blocks] = ['.intro-actions', 'figure.iso', '.bio-blocks'].map(box);
+    return actions && drawing && blocks
+      ? [drawing.top - actions.bottom, blocks.top - drawing.bottom]
+      : null;
   });
-  test.skip(gap === null, 'Home has no opening or figures here');
-  expect(gap ?? Infinity).toBeLessThan(48);
+  test.skip(gaps === null, 'Home has no drawing or bio here');
+  for (const gap of gaps ?? []) {
+    expect(gap).toBeGreaterThanOrEqual(0);
+    expect(gap).toBeLessThan(48);
+  }
 });

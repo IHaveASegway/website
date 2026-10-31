@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 import { replay as replayBackfill } from '../src/lib/backfill/sim';
@@ -359,36 +357,5 @@ describe('the Backfill line', () => {
       'Loads that overwrite their day make all seven match.',
     );
     expect(() => backfillFix(backfillOpening())).toThrow(/match/);
-  });
-});
-
-// The board's stylesheet gives each lamp its place by a rule per index (styles/board.css), since
-// a stylesheet cannot read a number from an attribute in every browser yet. These hold the rules
-// to the model: every place a van can stand, every van the Route Lab can send, and the clock's
-// span and starting round.
-describe("the board's stylesheet counts what the model draws", () => {
-  const css = readFileSync(join(app, 'src/styles/board.css'), 'utf8');
-  const has = (selector: string, declaration: string) =>
-    new RegExp(`${selector.replace(/[[\]]/g, '\\$&')}\\s*\\{\\s*${declaration}`).test(css);
-
-  test('a rule for each place on a track and each van', () => {
-    for (let k = 1; k < ROUNDS; k++)
-      expect(has(`[data-k='${k}']`, `--k: ${k};`), `k ${k}`).toBe(true);
-    for (let v = 1; v < 4; v++)
-      expect(has(`[data-van='${v}']`, `--van: ${v};`), `van ${v}`).toBe(true);
-    for (let n = 1; n <= 4; n++)
-      expect(has(`[data-vans='${n}']`, `--every: ${n}s;`), `vans ${n}`).toBe(true);
-  });
-
-  test("the clock spans ROUNDS, starts at the still board's round, and stops there a day later", () => {
-    expect(css).toContain(`animation-duration: calc(var(--every) * ${ROUNDS});`);
-    expect(css).toContain(`animation-timing-function: steps(${ROUNDS});`);
-    expect(css).toContain(`--day: ${ROUNDS};`);
-    expect(css).toContain(`- var(--every) * ${MIDDAY + 1})`);
-    // One day from the middle round back to it: half a round of the clock after a whole one, held
-    // where it ends, so the day stops on the still drawing rather than looping forever.
-    expect(css).toContain(`animation-iteration-count: ${1 + MIDDAY / ROUNDS};`);
-    expect(css).toContain('animation-fill-mode: forwards;');
-    expect(css).not.toContain('infinite');
   });
 });

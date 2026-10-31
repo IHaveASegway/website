@@ -155,20 +155,10 @@ describe('/about/, the résumé', () => {
       ? []
       : byClass('post-title', descendants(within)).map((t) => links(t)[0]?.href);
 
-  /** Home's board, each band's title and link, in page order (components/board/Board.astro). */
-  const bandsOf = (within: Element | undefined) =>
-    within === undefined
-      ? []
-      : byClass('band-title', descendants(within)).map((link) => ({
-          title: textOf(link),
-          href: attribute(link, 'href'),
-        }));
-
-  // On Home a demo is a line on the board and everything else a card (ADR 0025): the board first,
-  // then the cards, in the list's own order, which the résumé shows as cards.
+  // On Home every item is a card (ADR 0027; until then a demo was a line on the board, ADR 0025):
+  // the labs' cards, then the others, in the list's own order, which the résumé shows as cards.
   test("Selected work is Home's, item for item: one list feeds both (lib/content.ts)", () => {
-    const work = homeSection('work');
-    expect(cardsOf(section('Selected work'))).toEqual([...bandsOf(work), ...cardsOf(work)]);
+    expect(cardsOf(section('Selected work'))).toEqual(cardsOf(homeSection('work')));
   });
 
   test("Writing lists Home's latest posts, and renders exactly when Home lists one", () => {

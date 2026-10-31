@@ -1,15 +1,13 @@
 /*
-  Home (ADR 0024, ADR 0025): the stage, where the Route Lab's day runs on the city edge to edge and
-  Joseph's column stands on its water; the Route Lab's chapter; the board, which slides over the
-  scene; How I work; the closing address. Only Home links this file, so no other page carries its
-  bytes (test/budgets.test.ts). The board's own sheet is styles/board.css, and the lines' is
-  styles/lines.css, which their components import. Every colour is a token from tokens.css. It is
+  Home (docs/design/overhaul.md, "Home"; ADR 0027): the name across the top, the bio's blocks beside
+  the drawing of the five labs as one system, the figures, the activity grid, the lab cards, the
+  dated writing, How I work and the address. Only Home links this file, so no other page carries
+  its bytes (test/budgets.test.ts). Every colour is a token from tokens.css, or a mix of two. It is
   not in a cascade layer, as the lab pages' own stylesheets are not, so where it restyles a
   component of global.css it wins.
 
   Rules for one width range sit inside that range's media query, never after a broader rule of the
-  same weight that they must beat: on 2026-10-30 a phone's rule that came first lost to a later one
-  for every width, and the Route Lab's title ran over the live scene.
+  same weight that they must beat.
 */
 
 .visually-hidden {
@@ -21,842 +19,1061 @@
   white-space: nowrap;
 }
 
-/* The stage: the first screens, edge to edge of main. A section's picture belongs to that section,
-   and nothing the scene draws covers a word (ADR 0024, postscript 2026-10-31). From 64rem the
-   scene stands beside the words, still at the window's top while the column, then the Route Lab's
-   chapter, scroll past it, and src/scripts/route-scene.ts lifts the day into the space-time cube
-   as the chapter comes up; it stands still only as far as the chapter's end, so the cube leaves
-   with the chapter's words and the board follows them. Below 64rem there is no room beside the
-   words, so the scene is a picture in the page's flow between the figures and the chapter, and it
-   lifts as it passes up the window. Its measures: the column's width, the water between the
-   column and the map's west edge, the shore, and the height a phone's scene takes: under a screen
-   wide and under seven tenths of a screen tall, so it is always wholly on screen for a stretch of
-   the scroll, and the whole lift is seen there (route-scene.ts, passing). Without the scene (a
-   build without the Route Lab) the stage is the column alone. */
-.stage {
-  --column: 28rem;
-  --shore: 2rem;
-  --scene-height: min(30rem, 90vw, 70svh);
-  position: relative;
+/* The opening. Below 64rem one column: the name, the role and the ways to reach him, then the
+   drawing, then the bio's blocks. From 64rem the name runs across the top, as the title on a
+   drawing's sheet does, with the role and the buttons in a row under it, and the blocks stand in
+   the left five twelfths beside the drawing in the right seven. */
+.intro {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  margin-inline: calc(var(--frame-pad) * -1);
-  padding-inline: var(--frame-pad);
+  grid-template-areas: 'who' 'drawing' 'blocks';
+  row-gap: 1.75rem;
+  padding-block: 1.75rem 3rem;
 }
 
-.stage-plain {
-  margin-inline: 0;
-  padding-inline: 0;
-}
-
-/* The cube's room inside the scene keeps the page's gutter, the frame's side, so no corner of the
-   cube comes nearer the window's edge than the words do (route-scene.ts reads it, in pixels). */
-@property --cube-inset {
-  syntax: '<length>';
-  inherits: false;
-  initial-value: 0px;
-}
-
-/* The scene's track: the stage's rows the scene takes. From 64rem those are the rows it stands still
-   through, from the top to the end of the Route Lab's chapter: a sticky box stands still only
-   inside its parent, not its grid area, so the track, as long as those rows, is where the
-   stillness ends, with the chapter. Below 64rem it is one row of its own. */
-.scene-track {
-  grid-column: 1;
-  margin-inline: calc(var(--frame-pad) * -1);
-}
-
-/* In the page's flow unless a width range says otherwise: only from 64rem, where it stands beside
-   the words, does it stand still (below). */
-.scene {
-  --cube-inset: 1.125rem;
-  position: relative;
-  z-index: 0;
-  margin: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-@media (width >= 48rem) {
-  .scene {
-    --cube-inset: var(--frame-pad);
-  }
-}
-
-/* The canvas covers the scene, and draws the map where the picture stands (route-scene.ts reads
-   the picture's own mapping to the screen), so the picture's box alone places both. */
-.scene-picture,
-.scene-live {
-  position: absolute;
-}
-
-.scene-live {
-  inset: 0;
-  display: none;
-  width: 100%;
-  height: 100%;
-}
-
-:root[data-scene-live] .scene-live {
-  display: block;
-}
-
-:root[data-scene-live] .scene-picture {
-  visibility: hidden;
-}
-
-.stage > .hero,
-.stage > .work {
-  position: relative;
-  z-index: 1;
-  grid-column: 1;
-}
-
-/* Selected work takes two of the stage's rows, the chapter's and the board's, through a subgrid,
-   so the scene's rows can end with the chapter's: the scene stands still beside the chapter's words
-   and leaves with them, and the board comes after it. Its heading is hidden, so it takes no row. */
-.stage:not(.stage-plain) > .work {
-  display: grid;
-  grid-template-rows: subgrid;
-  grid-template-columns: minmax(0, 1fr);
-}
-
-/* Below 64rem, one column: the name, the role and the buttons, then the opening sentence and the
-   figures, then the scene with its caption right under it, then the chapter and the board. The
-   stage's rows give each item of the column its own row, the hero's items take them through a
-   subgrid in the order of the markup, and the scene is a row of its own, between the figures,
-   which say what VROOM saved, and the Route Lab's chapter, which says how: the picture stands in
-   the story where it is told. It stays in the page's flow, live or still, so it covers no word and
-   no word passes under it, and it takes no pointer. Until 2026-10-31 a running scene was a band
-   held at the window's top from the buttons to the chapter's end, and every word after the
-   buttons scrolled under it, half cut at its edge: the figures, the vans' days, and then the
-   board, under the cube of a chapter that had ended. */
-@media (width < 64rem) {
-  .stage:not(.stage-plain) {
-    grid-template-rows: repeat(5, auto) var(--scene-height) repeat(3, auto);
-  }
-
-  .scene-track {
-    grid-row: 6;
-  }
-
-  .scene {
-    height: var(--scene-height);
-  }
-
-  /* The scene shows the city around the bakery, a thousand of the map's units across at 390 px:
-     the picture's box is laid out larger than the scene, so its cover fit and its west edge place
-     the bakery in the middle of it (lib/route-lab/scene.ts, windowOf: 1,600 units tall, centred on
-     the bakery). */
-  .scene-picture {
-    inset-block-start: calc(var(--scene-height) / 2 - 80vw);
-    inset-inline-start: -30vw;
-    width: 200vw;
-    height: 160vw;
-  }
-
-  /* One column, the hero's whole width: the flex column's end alignment, which seats the words at
-     the foot of the first screen from 64rem, would push a narrower grid column to the right. */
-  .stage:not(.stage-plain) > .hero {
-    grid-row: 1 / 8;
-    display: grid;
-    grid-template-rows: subgrid;
-    grid-template-columns: minmax(0, 1fr);
-    justify-content: normal;
-    padding-block: 1.5rem 0;
-  }
-
-  .stage:not(.stage-plain) > .hero > .hero-name {
-    grid-row: 1;
-  }
-
-  .stage:not(.stage-plain) > .hero > .hero-title {
-    grid-row: 2;
-  }
-
-  .stage:not(.stage-plain) > .hero > .hero-actions {
-    grid-row: 3;
-  }
-
-  .stage:not(.stage-plain) > .hero > .hero-lede {
-    grid-row: 4;
-    padding-block-start: 1.5rem;
-  }
-
-  .stage:not(.stage-plain) > .hero > .figures {
-    grid-row: 5;
-    padding-block-end: 2rem;
-  }
-
-  /* The caption names what the scene shows and credits its map, so it stands right under it. Its
-     link still follows the buttons, as in the markup. */
-  .stage:not(.stage-plain) > .hero > .hero-caption {
-    grid-row: 7;
-  }
-
-  .stage > .work {
-    grid-row: 8;
-  }
-
-  .stage:not(.stage-plain) > .work {
-    grid-row: 8 / 10;
-  }
-}
-
-/* From 64rem the scene fills the stage, edge to edge and a window tall, and the column stands at
-   the frame's edge. The picture's box runs from the shore, just past the column, to the screen's
-   edge, top to bottom: its cover fit pins the map's west edge, the sound, there, so the column
-   stands on the water at every width, and a wider or taller window gets more of the city (ADR
-   0025). Each box states its width: a replaced element given both edges keeps its own width rather
-   than stretching between them. */
-@media (width >= 64rem) {
-  .stage:not(.stage-plain) {
-    grid-template-rows: repeat(3, auto);
-  }
-
-  .scene-track {
-    grid-row: 1 / 3;
-  }
-
-  /* The scene's box starts where the column's words end, so what it draws stands beside them and
-     never under them; until 2026-10-31 the box ran under the column too, and only a fade kept the
-     cube from the words, at four tenths of its strength at their edge. It stands still at the
-     window's top, and --held says so to route-scene.ts, so the chapter beside it lifts the day. */
-  .scene {
-    --start: calc(var(--frame-pad) + var(--column) + var(--shore));
-    --held: 1;
-    position: sticky;
-    inset-block-start: 0;
-    height: 100svh;
-    margin-inline-start: calc(var(--start) - var(--shore));
-  }
-
-  .scene-picture {
-    inset-block: 0;
-    inset-inline-start: var(--shore);
-    width: calc(100% - var(--shore));
-    height: 100%;
-  }
-
-  /* Flat, the map starts at the shore. As it lifts into the cube it turns and shrinks across the
-     stage, and the canvas fades out across the water toward the words, so no line of the cube
-     ends in a hard edge at the box's. */
-  .scene-live {
-    mask-image: linear-gradient(to right, transparent, currentcolor calc(var(--shore) - 0.5rem));
-  }
-
-  .stage > .hero {
-    grid-row: 1;
-  }
-
-  .stage > .work {
-    grid-row: 2;
-  }
-
-  .stage:not(.stage-plain) > .work {
-    grid-row: 2 / 4;
-  }
-
-  .stage:not(.stage-plain) > :is(.hero, .work) {
-    max-inline-size: var(--column);
-  }
-
-  .stage:not(.stage-plain) > .work {
-    max-inline-size: none;
-  }
-}
-
-/* The column, in the markup's order (Hero.astro): the name, the role in a sentence, the bio's
-   opening, the Route Lab's figures, the buttons, the caption. */
-.stage > .hero {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-}
-
-@media (width >= 64rem) {
-  .stage:not(.stage-plain) > .hero {
-    min-height: calc(100svh - 4rem);
-    padding-block: 3rem;
-    border-top: 0;
-  }
-}
-
-.stage-plain > .hero {
-  padding-block: 1.75rem 1.5rem;
-}
-
-.hero-home .hero-name {
-  margin-block-end: 0;
-}
-
-/* The role, in the label face: the panel's engraving, under the name. */
-.hero-home .hero-title {
-  margin: 1rem 0 0;
-  font-family: var(--font-label);
-  font-size: var(--text-ui);
-  font-weight: 500;
-  line-height: var(--text-ui--line-height);
-  letter-spacing: 0;
-}
-
-/* The measure is the sentence's, not its box's. */
-.hero-lede {
-  display: grid;
-  gap: 0.75rem;
-  margin-block-start: 0.75rem;
-}
-
-.hero-lede > p {
-  max-inline-size: 34rem;
-  margin: 0;
-  font-size: var(--text-lead);
-  line-height: var(--text-lead--line-height);
-}
-
-/* The Route Lab's result, from the build's solve: the driving as the orders came in, struck and
-   muted, then VROOM's, at a title's size beside a short stretch of the lab's line, then what the
-   two figures measure, in one line. A figure keeps its words on one line until the reader's text
-   is very large: then it breaks between them rather than run off a 320 px screen (SC 1.4.10). */
-.figures {
-  display: grid;
-  justify-items: start;
-  margin: 2rem 0 0;
-}
-
-.figure-before,
-.figure-after {
-  font-family: var(--font-display);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  font-variant-numeric: tabular-nums;
-}
-
-.figure-before {
-  color: var(--muted-foreground);
-  font-size: var(--text-section);
-  line-height: 1;
-  text-decoration-line: line-through;
-  text-decoration-color: var(--muted-foreground);
-  text-decoration-thickness: 0.07em;
-}
-
-.figure-after {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.875rem;
-  margin-block-start: 0.125rem;
-  font-size: var(--text-title);
-  line-height: var(--text-title--line-height);
-}
-
-/* A stretch of the Routes line with a van on it, as the board draws one: the track in the line's
-   colour at its weight, and the van a lit lamp ringed in the line. Not a bar alone, which read as a
-   dash after the figure. */
-.figure-line {
-  flex: none;
-  inline-size: 3rem;
-  block-size: 1rem;
-  overflow: visible;
-}
-
-.figure-track {
-  stroke: var(--line-routes);
-  stroke-width: 6px;
-}
-
-.figure-van {
-  fill: var(--primary);
-  stroke: var(--line-routes);
-  stroke-width: 3px;
-}
-
-.figure-words {
-  margin-block-start: 0.625rem;
-  font-family: var(--font-label);
-  font-size: var(--text-label);
-  font-weight: var(--text-label--font-weight);
-  line-height: var(--text-label--line-height);
-  text-wrap: balance;
-}
-
-/* The struck figure and what it measures, on one line: the baseline's name in the label face,
-   muted as the figure is, on the figure's baseline (Hero.astro). A very large text size wraps the
-   name under the figure rather than run off a 320 px screen (SC 1.4.10). */
-.figure-was {
+.intro-who {
+  grid-area: who;
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  column-gap: 0.75rem;
+  align-items: center;
+  gap: 0.625rem 1.5rem;
 }
 
-.figure-baseline {
-  color: var(--muted-foreground);
-  font-family: var(--font-label);
-  font-size: var(--text-label);
-  font-weight: var(--text-label--font-weight);
-  line-height: var(--text-label--line-height);
+.intro-who > .nameplate {
+  flex: 1 0 100%;
 }
 
-/* Display type set closer than its face is tall takes the headings' selection (global.css, base):
-   no fill, which would cover the foot of the line above, and the lamp's colour. */
-:is(.figure-before, .figure-after, .toward-mail)::selection {
+/* The name, the one thing set in capitals (tells.test.ts allows .nameplate alone), on one line
+   from 390 px: its size stops at 15vw (tokens.css). */
+.nameplate {
+  margin: 0 0 0 -0.04em;
+  font: 800 var(--text-hero) / var(--text-hero--line-height) var(--font-display);
+  letter-spacing: -0.005em;
+  text-transform: uppercase;
+  overflow-wrap: break-word;
+}
+
+/* Display type set closer than its face is tall, and the drawings' words: selected, no fill that
+   would paint over the line above, the accent instead (global.css, the display type's rule). */
+:is(
+  .nameplate,
+  .stat-figure,
+  .activity-figure,
+  .closing-mail,
+  .iso text,
+  .activity-grid text
+)::selection,
+:is(.nameplate, .stat-figure, .activity-figure, .closing-mail) *::selection {
   background-color: transparent;
   color: var(--primary);
 }
 
-.hero-home .hero-actions {
-  margin-block-start: 2rem;
-}
-
-/* Each button one width at every screen width, whatever size the fluid type gives its words and
-   in either face, the web face or its fitted fallback: the address's as wide as its words at the
-   label face's largest (237 px in the fallback), the others narrower than the site's buttons
-   elsewhere, so both fit one row on a 390 px phone. */
-.hero-home .hero-actions .btn {
-  min-inline-size: min(6.5rem, 100%);
-}
-
-/* At twice the usual text size on a 320 px screen the address is wider than the screen: it breaks
-   inside its button, which grows a line, rather than run past its border (SC 1.4.10). */
-.hero-home .hero-actions .btn-email {
-  min-inline-size: min(15rem, 100%);
-  overflow-wrap: anywhere;
-  text-align: center;
-}
-
-/* The scene's caption: where the day stands, then the map's credit on the line under it, in the
-   label face. The clock's two sentences share one cell, so the caption keeps the room of the day's
-   end, its widest, while the live one counts: nothing moves (no layout shift). The day's end stays
-   for assistive technology, unseen, while the canvas runs. */
-.hero-caption {
-  margin: 1.5rem 0 0;
+.intro-role {
+  margin: 0;
   color: var(--muted-foreground);
-  font-family: var(--font-label);
-  font-size: var(--text-label);
-  font-weight: var(--text-label--font-weight);
-  line-height: var(--text-label--line-height);
-}
-
-.scene-clock {
-  display: grid;
-  justify-content: start;
-  font-variant-numeric: tabular-nums;
-}
-
-.scene-credit {
-  display: block;
-}
-
-.scene-clock > * {
-  grid-area: 1 / 1;
-}
-
-.scene-clock-live {
-  visibility: hidden;
-}
-
-:root[data-scene-live] .scene-clock-live {
-  visibility: visible;
-}
-
-:root[data-scene-live] .scene-clock-done {
-  opacity: 0;
-}
-
-/* Beside the scene, from 64rem, the column's words sit at the foot of the first screen. */
-@media (width < 64rem) {
-  .hero-home .hero-actions {
-    margin-block-start: 1.5rem;
-  }
-
-  .hero-lede {
-    margin-block-start: 0;
-  }
-
-  .figures {
-    margin-block-start: 0;
-    padding-block: 1.75rem 0.5rem;
-  }
-
-  /* The words under the figures are static, "of driving for a made-up bakery on a busy Saturday,
-     planned by VROOM in your browser" (lines.ts, figureWords); the scene's live clock is in the
-     hero's caption (Hero.astro, .scene-clock), not here. Since they name the bakery as made up they
-     take two lines at a phone's width, 320 to 390 px, on macOS and in CI's Linux image alike. Two
-     lines are kept for them, so the hero is one height whichever face draws it, and a shorter
-     sentence later cannot lift the scene (e2e/fold.spec.ts). */
-  .figure-words {
-    min-block-size: 2lh;
-  }
-
-  .hero-caption {
-    margin-block-start: 0;
-    padding-block: 0.75rem 0;
-  }
-}
-
-/* The map's layers, as the Route Lab's: the land a raised surface, the water the page, streets and
-   roads the rule's colour, translucent, places and the bakery in ink. Every van is the Route Lab's
-   line, whichever van it is, its lamp the lit lamp: here colour names the lab, and the vans are
-   told apart by where they drive (ADR 0025). The scene's script reads these from the picture's own
-   elements, so the override lives on the scene and nowhere else. */
-.scene {
-  --map-van-a: var(--line-routes);
-  --map-van-b: var(--line-routes);
-  --map-van-c: var(--line-routes);
-  --map-van-d: var(--line-routes);
-}
-
-.scene-land {
-  fill: var(--map-land);
-}
-
-.scene-water {
-  fill: var(--map-water);
-}
-
-.scene-road {
-  fill: none;
-  stroke: var(--map-street);
-  stroke-width: 0.75px;
-  vector-effect: non-scaling-stroke;
-}
-
-.scene-road-major {
-  stroke: var(--map-road-major);
-  stroke-width: 1.25px;
-}
-
-.scene-place {
-  fill: none;
-  stroke: var(--map-place);
-  stroke-width: 2px;
-  stroke-linecap: square;
-  opacity: 0.5;
-  vector-effect: non-scaling-stroke;
-}
-
-.scene-route {
-  fill: none;
-  stroke-width: 2px;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
-}
-
-.scene-stop {
-  fill: none;
-  stroke-width: 5px;
-  stroke-linecap: square;
-  vector-effect: non-scaling-stroke;
-}
-
-.scene-depot {
-  fill: none;
-  stroke: var(--map-depot);
-  stroke-width: 8px;
-  stroke-linecap: square;
-  vector-effect: non-scaling-stroke;
-}
-
-.scene-van-a {
-  stroke: var(--map-van-a);
-}
-
-.scene-van-b {
-  stroke: var(--map-van-b);
-}
-
-.scene-van-c {
-  stroke: var(--map-van-c);
-}
-
-/* The Route Lab's chapter, the stage's second row: the lab's line across the column, its title,
-   one sentence, the vans' days and the way to the lab. From 64rem it is a screen tall, and the day
-   lifts into the cube beside it (below); below 64rem it follows the scene and its caption, and the
-   cube has lifted by the time its title comes up. */
-.chapter {
-  padding-block: 4rem;
-}
-
-.chapter-words {
-  display: grid;
-  justify-items: start;
-  row-gap: 1.125rem;
-}
-
-.chapter-title {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--text-title);
-  font-weight: 600;
-  line-height: var(--text-title--line-height);
-  letter-spacing: -0.01em;
-  text-wrap: balance;
-}
-
-.chapter-title::before {
-  content: '';
-  display: block;
-  inline-size: min(var(--column), 100%);
-  block-size: 6px;
-  margin-block-end: 1.5rem;
-  background-color: var(--line);
-}
-
-.chapter-text {
-  max-inline-size: 34rem;
-  margin: 0;
-  font-size: var(--text-lead);
-  line-height: var(--text-lead--line-height);
-}
-
-.chapter-vans {
-  display: grid;
-  gap: 0.5rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-family: var(--font-label);
+  font-family: var(--font-wide);
   font-size: var(--text-ui);
   font-weight: 500;
   line-height: var(--text-ui--line-height);
-  font-variant-numeric: tabular-nums;
 }
 
-.chapter-vans > li {
+.iso {
+  grid-area: drawing;
+  margin: 0;
+}
+
+.bio-blocks {
+  grid-area: blocks;
   display: grid;
-  grid-template-columns: 3.75rem minmax(0, 1fr);
+  row-gap: 1.375rem;
+  max-inline-size: 34rem;
 }
 
-.chapter-van {
-  color: var(--muted-foreground);
+.bio-block > p,
+.bio-list {
+  margin: 0;
 }
 
-.chapter-link {
-  font-family: var(--font-label);
-  font-size: var(--text-ui);
+/* A block's name: the wide face at the label's size, in the accent, sentence case. */
+.block-label {
+  margin: 0 0 0.375rem;
+  color: var(--primary);
+  font-family: var(--font-wide);
+  font-size: var(--text-label);
   font-weight: 500;
-  line-height: 1.5rem;
+  line-height: var(--text-label--line-height);
 }
 
-@media (width < 64rem) {
-  .chapter {
-    padding-block: 3rem;
-  }
-}
-
-/* From 64rem the chapter is a screen tall, because the lift needs that much scroll: the day lifts
-   as the chapter's top comes up the window, all of it by the time the top is a tenth of the way
-   down (route-scene.ts, rising and liftFor), and the scene stands still only to the chapter's end.
-   Its words are far shorter than a screen, 453 px from the 1440 sizes up, so they come up straight
-   after the column's, a padding below the chapter's top, and then stand still in the middle of the
-   window, beside the cube, until the chapter's end takes them away with the scene. --hold is where
-   they stand: half the window less half of 28.5rem, their height at the 1440 sizes, and never
-   nearer the top than the padding. Taller or shorter words stand a little off the middle, and the
-   chapter's foot still ends their stillness, so every word stays in reach. The padding under them
-   is the same length, so their stillness ends where the scene's does. Until 2026-10-31 the words
-   sat in the middle of the chapter's own box, and a taller window put half its extra height under
-   the column's words and half again above the chapter's: at 2560 × 1440 the column had no word
-   for 811 px of the window, 56% of it, and at 1920 × 1080 for 451 px, 42% (HOM-4). Now 495 px,
-   34%, and 315 px, 29%: what is left is the room around the words at the scene's end, which a
-   screen tall chapter needs while the lift is measured in screens. */
-@media (width >= 64rem) {
-  .chapter {
-    --hold: max(4rem, 50svh - 14.25rem);
-    min-height: 100svh;
-    max-inline-size: var(--column);
-    padding-block-end: var(--hold);
-  }
-
-  .chapter-words {
-    position: sticky;
-    inset-block-start: var(--hold);
-  }
-}
-
-/* What follows the chapter: the board, then any card. The scene has left with the chapter by the
-   time the board comes up, so nothing of the cube stands over or under the panel. */
-.covers {
+/* What I build: the five leads, each marked by a tile of the drawing's ground. */
+.bio-list {
   display: grid;
-  row-gap: 1.5rem;
-}
-
-/* A screen larger than 1440 × 900 (ADR 0024, "A larger screen"). The type keeps its 1440 sizes,
-   which are as large as text may grow with the window and still double under zoom (SC 1.4.4), and
-   the room the screen adds goes to the city: the scene's box runs from beside the words to the
-   screen's right edge, and a taller window splits its extra height above and below the words, so
-   they stand level with the map. Main is the query container, so 100cqw is the window's width
-   less any scrollbar; 100vw would count a scrollbar and scroll the page sideways. Every row keeps
-   the frame (global.css, .frame), 76rem centred; the scene alone reaches out to the window's
-   edges. */
-@media (width >= 90rem) {
-  body > main {
-    --frame-start: max(2.5rem, (100cqw - 76rem) / 2);
-    --frame-end: max(2.5rem, (100cqw - 76rem) / 2);
-    container-type: inline-size;
-    max-width: none;
-    padding-inline: 0;
-  }
-
-  body > main > * {
-    margin-inline: var(--frame-start) var(--frame-end);
-  }
-
-  .stage {
-    margin-inline: 0;
-    padding-inline: var(--frame-start) var(--frame-end);
-  }
-
-  .stage-plain {
-    margin-inline: var(--frame-start) var(--frame-end);
-    padding-inline: 0;
-  }
-
-  .scene-track {
-    margin-inline: calc(var(--frame-start) * -1) calc(var(--frame-end) * -1);
-  }
-
-  .scene {
-    --start: calc(var(--frame-start) + var(--column) + var(--shore));
-  }
-
-  .stage:not(.stage-plain) > .hero {
-    padding-block-end: calc(3rem + max(0px, (100svh - 56.25rem) / 2));
-  }
-}
-
-/* How I work: the bio's principles, unnumbered, each its bold sentence as its title, in the title
-   face at a headline's size, a step under the section's own title, so the title reads as theirs
-   (design-system.md, "Type scale"), and the evidence beside it from 64rem, under it before that, in
-   the reading face and the ink. No rule between them: the space sets them apart. Until 2026-10-30
-   the leads were the section title's size, 48 px at 1440, and the title read as one more lead. */
-.principles-list {
-  display: grid;
-  row-gap: 2.75rem;
-  margin: 2.5rem 0 0;
+  row-gap: 0.25rem;
   padding: 0;
   list-style: none;
 }
 
-.principle {
+.bio-list > li {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  row-gap: 0.75rem;
+  grid-template-columns: 1.125rem minmax(0, 1fr);
+  align-items: baseline;
 }
 
-.principle-lead {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--text-headline);
-  font-weight: 600;
-  line-height: var(--text-headline--line-height);
-  letter-spacing: -0.005em;
-  text-wrap: balance;
+.bio-list > li::before {
+  content: '';
+  inline-size: 0.625rem;
+  block-size: 0.375rem;
+  background-color: var(--primary);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  translate: 0 -0.2em;
 }
 
-.principle-text {
-  max-inline-size: var(--measure);
-  margin: 0;
-  font-size: var(--text-base);
-  line-height: var(--text-base--line-height);
-  text-wrap: pretty;
-}
-
-@media (width >= 64rem) {
-  .principle {
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-    column-gap: var(--gutter);
-  }
-
-  .principle-lead {
-    grid-column: 1 / 7;
-  }
-
-  .principle-text {
-    grid-column: 7 / 13;
-    padding-top: 0.125rem;
-  }
-}
-
-/* What Joseph is working toward, in the bio's words, and the way to reach him, at a title's size:
-   the address is the last thing on the page, in words, with nothing after it. */
-.toward {
-  padding-block-end: 2rem;
-}
-
-.toward-body {
-  display: grid;
-  gap: 1rem;
-}
-
-.toward-text {
-  max-inline-size: 40rem;
-  margin: 0;
-  font-size: var(--text-lead);
-  line-height: var(--text-lead--line-height);
-  text-wrap: pretty;
-}
-
-/* The address is about 8.9 times its size wide. At a title's size it needs 375 px, more than a
-   phone's column (354 px at 390), so below 27rem it takes a section's size, 30 px, and stands on
-   one line down to 320 px; from 27rem the title's size fits the column. With a larger text size it
-   breaks after its "@" (index.astro), as the footer's does, and inside a part only as the last
-   resort. Until 2026-10-30 it broke wherever the column ended: "hello@ihaveasegway.co", then "m". */
-.toward-mail {
-  display: inline-block;
-  max-inline-size: 100%;
-  margin-block: 2.5rem 1.5rem;
-  color: var(--foreground);
-  font-family: var(--font-display);
-  font-size: var(--text-title);
-  font-weight: 600;
-  line-height: 1.05;
-  letter-spacing: -0.01em;
-  overflow-wrap: anywhere;
-  text-decoration-thickness: 0.05em;
-  text-underline-offset: 0.12em;
-}
-
-@media (width < 27rem) {
-  .toward-mail {
-    font-size: var(--text-section);
-  }
-}
-
-.toward-actions {
+.intro-actions {
   display: flex;
+  flex: 1 1 18rem;
   flex-wrap: wrap;
   gap: 0.5rem;
 }
 
-.toward-actions .btn {
-  min-inline-size: min(8.25rem, 100%);
+/* The buttons, each one width at every screen width, wider than their words at the usual text
+   size; at twice it on a 320 px screen the address breaks inside its button, which grows a line,
+   rather than run past its border (SC 1.4.10). */
+.intro-actions .btn {
+  min-inline-size: min(7.5rem, 100%);
 }
 
-/* On paper the stage is the column and then the work, each as tall as its words, with no scene,
-   and so no caption for it: the words, the board's still drawing and the links' addresses are
-   what a printed Home holds. A page is narrower than 64rem, so the phone's rows apply on paper
-   too; every row there is as tall as what it holds, the scene's included, which holds nothing.
-   Until 2026-10-30 the band's row kept its 18.75rem, an empty gap under the buttons. */
-@media print {
-  .scene-track,
-  .hero-caption {
+.intro-actions .btn-email {
+  min-inline-size: min(13.5rem, 100%);
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+@media (width >= 48rem) {
+  .intro {
+    padding-block: 2.75rem 4rem;
+  }
+}
+
+@media (width >= 64rem) {
+  .intro {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    grid-template-areas: 'who who' 'blocks drawing';
+    column-gap: calc(var(--gutter) * 1.5);
+    row-gap: 2.25rem;
+  }
+
+  .intro-plain {
+    grid-template-areas: 'who who' 'blocks blocks';
+  }
+
+  /* The drawing's top is the room its parts lift into, so it rises into the gap under the
+     buttons, short of them. */
+  .iso {
+    align-self: start;
+    margin-top: -2rem;
+  }
+}
+
+/* The drawing (components/iso/System.astro). A box of a fixed shape, from its viewBox, so nothing
+   moves while it loads or runs; at most 60% of a phone's screen tall. Solids are lit from the
+   upper left: the top lightest, the right face darkest, every edge in ink. */
+.iso-svg {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+  max-block-size: 60svh;
+}
+
+.iso-ground {
+  pointer-events: none;
+}
+
+.iso-plane {
+  fill: var(--surface-1);
+  stroke: var(--input);
+  stroke-width: 1;
+}
+
+.iso-grid {
+  fill: none;
+  stroke: var(--iso-grid);
+  stroke-width: 0.75;
+}
+
+.iso-inlet,
+.iso-wire,
+.iso-pointer,
+.iso-footprint,
+.iso-drop,
+.iso-flow,
+.iso-burst,
+.iso-pulse,
+.iso-vans,
+.iso-road {
+  fill: none;
+}
+
+.iso-inlet {
+  stroke: var(--primary);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.iso-wire {
+  stroke: var(--input);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.iso-wire-nightly {
+  stroke-dasharray: 5 4;
+}
+
+/* The requests: cobalt dots along the live wires, where they stand when nothing runs. */
+.iso-flow {
+  stroke: var(--primary);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-dasharray: 0 22;
+}
+
+.iso-road {
+  stroke: var(--iso-right);
+  stroke-width: 9;
+  stroke-linejoin: round;
+}
+
+/* The vans, dashes on the road, spaced by their count (the path's stroke-dasharray). */
+.iso-vans {
+  stroke: var(--foreground);
+  stroke-width: 5;
+}
+
+/* What only the running drawing shows: the stampede's burst, the coalesced fetch, the heartbeats
+   and the nightly run. A pulse is one dot at its path's start, moved along it by its offset. */
+.iso-burst,
+.iso-pulse {
+  stroke: var(--primary);
+  stroke-linecap: round;
+  opacity: 0;
+}
+
+.iso-burst {
+  stroke-width: 3;
+  stroke-dasharray: 0 7;
+}
+
+.iso-pulse {
+  stroke-width: 5;
+  stroke-dasharray: 0 100;
+}
+
+.iso-footprint {
+  stroke: var(--input);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.iso-drop {
+  stroke: var(--input);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+  visibility: hidden;
+}
+
+.iso-face-top {
+  fill: var(--iso-top);
+}
+
+.iso-face-left {
+  fill: var(--iso-left);
+}
+
+.iso-face-right {
+  fill: var(--iso-right);
+}
+
+.iso-solid path {
+  stroke: var(--foreground);
+  stroke-width: 1.25;
+  stroke-linejoin: round;
+}
+
+.iso-sheet path {
+  stroke-width: 0.75;
+}
+
+.iso-solid .iso-band {
+  fill: none;
+  stroke-width: 0.75;
+}
+
+/* The Raft leader: its top lit. */
+.iso-leader .iso-face-top {
+  fill: color-mix(in oklab, var(--primary) 45%, var(--iso-top));
+}
+
+.iso-pointer {
+  stroke: var(--muted-foreground);
+  stroke-width: 1;
+}
+
+.iso-label {
+  fill: var(--foreground);
+  font-family: var(--font-label);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.iso-source {
+  fill: var(--primary);
+  font-family: var(--font-label);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.iso-caption {
+  fill: var(--muted-foreground);
+  font-family: var(--font-wide);
+  font-size: 10.5px;
+  font-weight: 500;
+}
+
+/* A phone draws the drawing at about half its size: the names larger to read, the captions left
+   to the cards. */
+@media (width < 40rem) {
+  .iso-label {
+    font-size: 25px;
+  }
+
+  .iso-source {
+    font-size: 22px;
+  }
+
+  .iso-caption {
     display: none;
   }
+}
 
-  .stage {
-    margin: 0;
-    padding: 0;
+/* A part under the pointer or with focus: its solids drawn in its lab's colour, its wires lit in
+   it, the other wires faded, and its name in the accent, underlined, as a link is. A state, with
+   no movement. */
+.iso-node {
+  cursor: pointer;
+  text-decoration-line: none;
+}
+
+.iso-node:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 4px;
+}
+
+.iso-node:is(:hover, :focus-visible) .iso-solid path {
+  stroke: var(--line);
+}
+
+.iso-node:is(:hover, :focus-visible) .iso-face-top {
+  fill: color-mix(in oklab, var(--line) 35%, var(--iso-top));
+}
+
+.iso-node:is(:hover, :focus-visible) .iso-name {
+  fill: var(--primary);
+  text-decoration-line: underline;
+}
+
+.iso:has(.iso-node:is(:hover, :focus-visible)) :is(.iso-wire, .iso-flow) {
+  opacity: 0.35;
+}
+
+.iso:has(.iso-node[data-line='routes']:is(:hover, :focus-visible))
+  :is(.iso-wire, .iso-flow)[data-line='routes'],
+.iso:has(.iso-node[data-line='raft']:is(:hover, :focus-visible))
+  :is(.iso-wire, .iso-flow)[data-line='raft'],
+.iso:has(.iso-node[data-line='queue']:is(:hover, :focus-visible))
+  :is(.iso-wire, .iso-flow)[data-line='queue'],
+.iso:has(.iso-node[data-line='cache']:is(:hover, :focus-visible))
+  :is(.iso-wire, .iso-flow)[data-line='cache'],
+.iso:has(.iso-node[data-line='backfill']:is(:hover, :focus-visible))
+  :is(.iso-wire, .iso-flow)[data-line='backfill'] {
+  opacity: 1;
+  stroke: var(--line);
+  stroke-width: 2.5;
+}
+
+.iso-key {
+  margin-top: 0.5rem;
+  color: var(--muted-foreground);
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-weight: 500;
+  line-height: var(--text-label--line-height);
+}
+
+/* The drawing's lifts in the exploded view, in its own pixels: the stores lowest, the edge
+   highest. Each part's drop lines are as long (lib/iso/system.ts, LIFT; test/iso.test.ts). */
+.iso-lift-raft {
+  --lift: -22px;
+}
+
+.iso-lift-backfill {
+  --lift: -30px;
+}
+
+.iso-lift-cache,
+.iso-lift-queue {
+  --lift: -44px;
+}
+
+.iso-lift-routes {
+  --lift: -58px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Running, once the motion module has marked the page (scripts/motion.js). */
+  :root[data-motion] .iso .iso-flow {
+    animation: iso-flow 1.6s linear infinite;
   }
 
-  .stage:not(.stage-plain) {
-    grid-template-rows: none;
+  :root[data-motion] .iso .iso-vans {
+    animation: iso-drive 18s linear infinite;
   }
 
-  .stage > .hero,
-  .chapter {
-    min-height: 0;
-    padding-block: 1.5rem;
+  :root[data-motion] .iso .iso-beat {
+    animation: iso-beat 2.4s ease-in infinite;
+  }
+
+  :root[data-motion] .iso .iso-burst {
+    animation:
+      iso-burst-run 0.4s linear infinite,
+      iso-burst 8s linear infinite;
+  }
+
+  :root[data-motion] .iso .iso-cache .iso-face-top {
+    animation: iso-absorb 8s linear infinite;
+  }
+
+  :root[data-motion] .iso .iso-fetch {
+    animation: iso-fetch 8s linear infinite;
+  }
+
+  :root[data-motion] .iso .iso-night {
+    animation: iso-night 8s ease-in-out infinite;
+  }
+
+  :root[data-motion='paused']
+    .iso
+    :is(.iso-flow, .iso-vans, .iso-pulse, .iso-burst, .iso-cache .iso-face-top) {
+    animation-play-state: paused;
+  }
+
+  @keyframes iso-flow {
+    to {
+      stroke-dashoffset: -22;
+    }
+  }
+
+  @keyframes iso-drive {
+    to {
+      stroke-dashoffset: -100;
+    }
+  }
+
+  @keyframes iso-beat {
+    0% {
+      stroke-dashoffset: 0;
+      opacity: 0;
+    }
+
+    8%,
+    40% {
+      opacity: 1;
+    }
+
+    46%,
+    100% {
+      stroke-dashoffset: -100;
+      opacity: 0;
+    }
+  }
+
+  @keyframes iso-burst-run {
+    to {
+      stroke-dashoffset: -7;
+    }
+  }
+
+  @keyframes iso-burst {
+    0%,
+    58% {
+      opacity: 0;
+    }
+
+    61%,
+    74% {
+      opacity: 1;
+    }
+
+    77%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes iso-absorb {
+    0%,
+    70% {
+      fill: var(--iso-top);
+    }
+
+    74%,
+    84% {
+      fill: var(--primary);
+    }
+
+    92%,
+    100% {
+      fill: var(--iso-top);
+    }
+  }
+
+  @keyframes iso-fetch {
+    0%,
+    76% {
+      stroke-dashoffset: 0;
+      opacity: 0;
+    }
+
+    78% {
+      stroke-dashoffset: 0;
+      opacity: 1;
+    }
+
+    88% {
+      stroke-dashoffset: -100;
+      opacity: 1;
+    }
+
+    91%,
+    100% {
+      stroke-dashoffset: -100;
+      opacity: 0;
+    }
+  }
+
+  @keyframes iso-night {
+    0%,
+    6% {
+      stroke-dashoffset: 0;
+      opacity: 0;
+    }
+
+    9% {
+      stroke-dashoffset: 0;
+      opacity: 1;
+    }
+
+    46% {
+      stroke-dashoffset: -100;
+      opacity: 1;
+    }
+
+    50%,
+    100% {
+      stroke-dashoffset: -100;
+      opacity: 0;
+    }
+  }
+
+  /* The exploded view: as the page scrolls its first 24rem, each part lifts by its own amount and
+     its drop lines reach down to the footprint it left. Where the browser has no scroll timelines
+     the drawing stays assembled. */
+  @supports (animation-timeline: scroll()) {
+    .iso-lift,
+    .iso-drop {
+      animation-timing-function: linear;
+      animation-fill-mode: both;
+      animation-timeline: scroll(root);
+      animation-range: 0 24rem;
+    }
+
+    .iso-lift {
+      animation-name: iso-lift;
+    }
+
+    .iso-drop {
+      visibility: visible;
+      transform-box: fill-box;
+      transform-origin: 50% 0;
+      animation-name: iso-drop;
+    }
+
+    @keyframes iso-lift {
+      to {
+        translate: 0 var(--lift);
+      }
+    }
+
+    @keyframes iso-drop {
+      from {
+        scale: 1 0;
+      }
+
+      to {
+        scale: 1 1;
+      }
+    }
+  }
+}
+
+/* The figures, on the ground band: hairlines between the cells, drawn by the gap over the rule's
+   colour. Two a row below 48rem, four from it. */
+.band {
+  padding-top: 0.5rem;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  border: 1px solid var(--border);
+  background-color: var(--border);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: start;
+  gap: 0.5rem;
+  padding: 1.25rem min(1.375rem, 4vw) 1.375rem;
+  background-color: var(--ground);
+}
+
+.stat-figure {
+  margin: 0;
+  font: 800 var(--text-title) / var(--text-title--line-height) var(--font-display);
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-caption {
+  color: var(--muted-foreground);
+  font-family: var(--font-wide);
+  font-size: var(--text-label);
+  font-weight: 500;
+  line-height: var(--text-label--line-height);
+}
+
+@media (width >= 48rem) {
+  .stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .stat {
+    padding: 1.5rem 1.5rem 1.625rem;
+  }
+}
+
+/* A section's title with its way to the whole list at the row's far end. */
+.section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.section-head > .section-title {
+  margin: 0;
+}
+
+.section-more {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  font-family: var(--font-wide);
+  font-size: var(--text-ui);
+  font-weight: 500;
+}
+
+/* The activity grid (components/home/Activity.astro): the total and its sentence, then the
+   calendar, beside each other from 64rem. Empty days are the sheet edged by a hairline; a day with
+   commits is cobalt in four steps; a day a decision record is dated carries a ringed dot. */
+.activity {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.activity-figure {
+  margin: 0;
+  font: 800 var(--text-title) / var(--text-title--line-height) var(--font-display);
+  font-variant-numeric: tabular-nums;
+}
+
+.activity-words {
+  margin: 0.5rem 0 0;
+  max-inline-size: 24rem;
+  color: var(--muted-foreground);
+}
+
+.activity-chart {
+  min-inline-size: 0;
+}
+
+.activity-grid {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+}
+
+.activity-day {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.activity-level-0 {
+  fill: var(--surface-1);
+}
+
+.activity-level-1 {
+  fill: color-mix(in oklab, var(--primary) 28%, var(--surface-1));
+  stroke: none;
+}
+
+.activity-level-2 {
+  fill: color-mix(in oklab, var(--primary) 52%, var(--surface-1));
+  stroke: none;
+}
+
+.activity-level-3 {
+  fill: color-mix(in oklab, var(--primary) 76%, var(--surface-1));
+  stroke: none;
+}
+
+.activity-level-4 {
+  fill: var(--primary);
+  stroke: none;
+}
+
+.activity-decision {
+  fill: var(--surface-1);
+  stroke: var(--foreground);
+  stroke-width: 1.25;
+}
+
+.activity-month,
+.activity-weekday {
+  fill: var(--muted-foreground);
+  font-family: var(--font-wide);
+  font-size: 8.5px;
+  font-weight: 500;
+}
+
+.activity-key {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  margin-top: 0.875rem;
+  color: var(--muted-foreground);
+  font-family: var(--font-wide);
+  font-size: var(--text-label);
+  font-weight: 500;
+  line-height: var(--text-label--line-height);
+}
+
+.activity-swatch {
+  display: block;
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+}
+
+.activity-key-decision {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+@media (width >= 40rem) {
+  .activity-key-decision {
+    margin-inline-start: 1rem;
+  }
+}
+
+@media (width < 40rem) {
+  .activity-month,
+  .activity-weekday {
+    font-size: 11px;
+  }
+}
+
+@media (width >= 64rem) {
+  .activity {
+    grid-template-columns: minmax(0, 4fr) minmax(0, 8fr);
+    column-gap: calc(var(--gutter) * 1.5);
+    align-items: start;
+  }
+}
+
+/* The lab cards (components/home/LabCards.astro): one column, two from 48rem, three from 64rem;
+   with five, the last card two wide, so they fill their rows. A project's or a post's card
+   (WorkCard.astro) follows in a grid of its own. */
+.lab-cards {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--gutter);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lab-card {
+  grid-template-rows: auto auto 1fr auto;
+}
+
+.lab-cards + .cards {
+  margin-top: var(--gutter);
+  max-inline-size: none;
+}
+
+@media (width >= 48rem) {
+  .lab-cards + .cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.lab-card-head {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  min-block-size: 3.5rem;
+}
+
+.lab-card-name {
+  min-inline-size: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--muted-foreground);
+  font-family: var(--font-wide);
+  font-size: var(--text-label);
+  font-weight: 500;
+  line-height: var(--text-label--line-height);
+}
+
+/* The title is the card's link: in the title's face, not the label face a card's own link has.
+   Padding on its inline box grows its target to 24 px without moving a line (SC 2.5.8). */
+.lab-card .card-title > .card-more {
+  padding-block: 0.125em;
+  font: inherit;
+  line-height: inherit;
+  text-decoration-line: none;
+}
+
+.lab-card .card-title > .card-more:hover {
+  color: inherit;
+}
+
+.lab-card-fact {
+  margin: 0.375rem 0 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  color: var(--muted-foreground);
+  font-size: var(--text-ui);
+  line-height: 1.45;
+}
+
+/* A glyph cut from the drawing, in the lab's own colour: the faces three mixes of it with the
+   sheet, the edges the lab's colour itself. */
+.iso-glyph {
+  flex: none;
+  block-size: 3.5rem;
+  inline-size: auto;
+  max-inline-size: 7.5rem;
+}
+
+.iso-glyph path {
+  stroke: var(--line);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.iso-glyph .iso-face-top {
+  fill: color-mix(in oklab, var(--line) 14%, var(--surface-1));
+}
+
+.iso-glyph .iso-face-left {
+  fill: color-mix(in oklab, var(--line) 34%, var(--surface-1));
+}
+
+.iso-glyph .iso-face-right {
+  fill: color-mix(in oklab, var(--line) 56%, var(--surface-1));
+}
+
+.iso-glyph .iso-band {
+  fill: none;
+}
+
+.iso-glyph .iso-road {
+  stroke: color-mix(in oklab, var(--line) 30%, var(--surface-1));
+  stroke-width: 9;
+}
+
+.iso-glyph .iso-vans {
+  stroke: var(--line);
+  stroke-width: 5;
+}
+
+@media (width >= 48rem) {
+  .lab-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lab-card:nth-child(5):last-child {
+    grid-column: span 2;
+  }
+
+  /* The wide card: its words on the left, its glyph drawn large on the right. */
+  .lab-card:nth-child(5):last-child {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr);
+    grid-template-rows: auto auto auto 1fr;
+    column-gap: var(--gutter);
+  }
+
+  .lab-card:nth-child(5):last-child > :not(.lab-card-head) {
+    grid-column: 1;
+  }
+
+  .lab-card:nth-child(5):last-child > .lab-card-head {
+    display: contents;
+  }
+
+  .lab-card:nth-child(5):last-child .iso-glyph {
+    grid-column: 2;
+    grid-row: 1 / -1;
+    align-self: center;
+    justify-self: center;
+    inline-size: 100%;
+    max-inline-size: 22rem;
+    block-size: auto;
+  }
+}
+
+@media (width >= 64rem) {
+  .lab-cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* The dated writing list (components/home/PostRows.astro): a hairline over each row and under
+   the last; from 48rem the day, the title with its summary, and the kind with its reading time,
+   in three columns. */
+.post-rows {
+  border-bottom: 1px solid var(--border);
+}
+
+.post-rows > .post-row {
+  max-inline-size: none;
+  row-gap: 0.375rem;
+  padding-block: 1.375rem 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.post-date,
+.post-kind {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-family: var(--font-wide);
+  font-size: var(--text-label);
+  font-weight: 500;
+  line-height: var(--text-label--line-height);
+  font-variant-numeric: tabular-nums;
+}
+
+.post-body {
+  display: grid;
+  row-gap: 0.375rem;
+}
+
+.post-minutes {
+  margin-inline-start: 0.75rem;
+}
+
+@media (width >= 48rem) {
+  .post-rows > .post-row {
+    grid-template-columns: 8.5rem minmax(0, 1fr) 8rem;
+    column-gap: var(--gutter);
+    align-items: baseline;
+  }
+
+  .post-kind {
+    display: grid;
+    justify-items: end;
+    row-gap: 0.25rem;
+  }
+
+  .post-minutes {
+    margin-inline-start: 0;
+  }
+}
+
+/* How I work: the bio's principles, each its lead in the title face over its words, two columns
+   from 64rem. */
+.principles-list {
+  display: grid;
+  gap: 2rem var(--gutter);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.principle-lead {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-display);
+  font-size: var(--text-headline);
+  font-weight: 800;
+  line-height: var(--text-headline--line-height);
+}
+
+.principle-text {
+  margin: 0;
+  max-inline-size: var(--measure);
+}
+
+@media (width >= 64rem) {
+  .principles-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: calc(var(--gutter) * 2);
+  }
+}
+
+/* The closing: the address at a title's size, breaking only after its @, then LinkedIn. */
+.closing-mail {
+  display: inline-block;
+  max-inline-size: 100%;
+  font-family: var(--font-display);
+  font-size: var(--text-title);
+  font-weight: 800;
+  line-height: 1.05;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.12em;
+  overflow-wrap: anywhere;
+}
+
+.closing-actions {
+  margin-top: 1.25rem;
+}
+
+/* At a title's size the address is wider than a phone's column, so there it takes a section's
+   size, and stands on one line from 320 px. */
+@media (width < 27rem) {
+  .closing-mail {
+    font-size: var(--text-section);
+  }
+}
+
+/* On paper the drawing stays whole on its page, and only what it shows at rest prints. */
+@media print {
+  .iso {
+    break-inside: avoid;
   }
 }

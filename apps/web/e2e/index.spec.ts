@@ -207,38 +207,38 @@ test('the Lab index draws the queue, the cache and the backfill from their openi
   expect(new Set(strokes).size).toBe(strokes.length);
 });
 
-// Home's board (ADR 0025) draws a band for every live lab with a line, one drawing at a time, and
-// never wider than the page. A hollow lamp there stands on the board's own surface, not the page's:
-// it takes the band's --line-ground (styles/lines.css), where it once took the page's background.
+// Home draws a card for every live lab (ADR 0027; until then a band of the board, ADR 0025), one
+// glyph each, cut from the drawing and drawn in the lab's own colour, so no two cards' glyphs share
+// a colour, and never wider than the page.
 for (const { width, height } of [
   { width: 1440, height: 900 },
   { width: 390, height: 844 },
 ]) {
-  test(`at ${width} px Home's board draws a line for every lab, its hollow lamps on the board's surface`, async ({
+  test(`at ${width} px Home draws a card for every lab, each glyph in its own lab's colour`, async ({
     page,
   }) => {
     const demos = pages().filter((path) => /^\/lab\/[^/]+\/$/.test(path));
     test.skip(demos.length === 0, 'this build has no demo');
     await page.setViewportSize({ width, height });
     await page.goto('/');
-    const board = page.locator('[data-board]');
-    const bands = board.locator('.band');
+    const cards = page.locator('#work .lab-card');
     expect(
-      (await bands.evaluateAll((all) => all.map((band) => band.getAttribute('data-line')))).sort(),
+      (await cards.evaluateAll((all) => all.map((card) => card.getAttribute('data-line')))).sort(),
     ).toEqual(demos.map((path) => path.split('/')[2]).sort());
-    for (const band of await bands.all())
-      await expect(band.locator('svg.line-draw').filter({ visible: true })).toHaveCount(1);
-    const { surface, lamps } = await board.evaluate((element) => ({
-      surface: getComputedStyle(element).backgroundColor,
-      lamps: [
-        ...new Set(
-          [...element.querySelectorAll('.line-draw .line-lamp')].map(
-            (lamp) => getComputedStyle(lamp).fill,
-          ),
-        ),
-      ],
-    }));
-    expect(lamps).toEqual([surface]);
+    for (const card of await cards.all())
+      await expect(card.locator('svg.iso-glyph').filter({ visible: true })).toHaveCount(1);
+    const colours = await cards.evaluateAll((all) =>
+      all.map((card) => {
+        const edge = card.querySelector('.iso-glyph path');
+        return {
+          glyph: edge ? getComputedStyle(edge).stroke : '',
+          card: getComputedStyle(card).borderTopColor,
+        };
+      }),
+    );
+    expect(new Set(colours.map((c) => c.glyph)).size).toBe(colours.length);
+    // The card's own edge is the page's hairline, never the lab's colour.
+    expect(new Set(colours.map((c) => c.card)).size).toBe(1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
   });
 }

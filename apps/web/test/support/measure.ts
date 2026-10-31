@@ -88,10 +88,8 @@ const SIMULATED = Object.fromEntries(
  * So does each simulated lab (ADR 0020, ADR 0026; support/labs.ts): every chunk its module can
  * load, and the first view of its page with them. Its row in that table makes its feature here.
  *
- * So does Home's scene (ADR 0024): the chunk that drives it, which Home's motion module loads after
- * the page has painted, the day's data it fetches, and Home's first view with both. It shares the
- * Route Lab's camera and formats (lib/route-lab), whose chunks the Route Lab owns; Home's first
- * view counts them too, since its visitors fetch them.
+ * Home is not a feature since ADR 0027 (HOME, below): until then it ran the Route Lab's scene, a
+ * chunk and its day's tracks loaded after the first paint.
  */
 export const FEATURES = {
   'route-lab': {
@@ -112,17 +110,11 @@ export const FEATURES = {
   },
   // The simulated labs, a feature each, from their rows (support/labs.ts).
   ...SIMULATED,
-  // Home's scene (ADR 0024): the canvas that drives the Route Lab's day behind the hero, and the
-  // day's tracks it fetches. No library and no WebAssembly; Home keeps 150 KB with both.
-  'route-scene': {
-    page: 'index.html',
-    entry: /^_astro\/route-scene\.[\w-]+\.js$/,
-    paths: ['lab/routes/scene.json'],
-    lazyJavaScript: 6_000,
-    data: 4_000,
-    firstView: 150_000,
-  },
 } as const;
+
+/** Home (ADR 0027): its drawing is SVG the build writes and CSS animates, so Home loads no chunk
+ *  of its own on intent, and its first view is all a visitor fetches, within 150 KB. */
+export const HOME = { page: 'index.html', firstView: 150_000 } as const;
 
 /** The cube's files: its chunk, and every chunk it reaches that the app does not reach without
  *  passing through the cube. A chunk the app and the cube share is the app's. */

@@ -1,0 +1,120 @@
+---
+import { figure, type Activity } from '../../lib/home';
+import { wordDay } from '../../lib/posts';
+
+interface Props {
+  activity: Activity;
+  /** The section's title and its id, which the section is labelled by: it heads the total. */
+  title: string;
+  id: string;
+}
+
+const { activity, title, id } = Astro.props;
+// The activity calendar (docs/design/overhaul.md, "Stats row"; after syntaqx's contributions chart):
+// the site's own repository, a square for each day it was committed to, a column a week from
+// Monday, darker the more commits that day, and a dot on each day a decision record is dated, so
+// the work and the judgment behind it stand on one calendar. Worked out at build from the
+// history (lib/home-sources.ts) by lib/home.ts. Drawn as SVG at a fixed size for its weeks, so it
+// takes its room from the first paint; each square's title names its day and count, and the
+// sentence beside it says the whole in words, for every reader.
+const CELL = 14;
+const GAP = 3;
+const PITCH = CELL + GAP;
+const LEFT = 30;
+const TOP = 18;
+const width = LEFT + activity.weeks.length * PITCH - GAP;
+const height = TOP + 7 * PITCH - GAP;
+const day = (iso: string) => wordDay(new Date(`${iso}T00:00:00Z`));
+const commits = (n: number) => (n === 1 ? '1 commit' : `${figure(n)} commits`);
+const titleOf = (d: Activity['weeks'][number][number]) =>
+  [
+    `${day(d.day)}: ${d.commits === 0 ? 'no commits' : commits(d.commits)}`,
+    ...d.decisions.map((r) => `ADR ${r.number}, ${r.title}`),
+  ].join('. ');
+const decided = activity.weeks.flat().reduce((n, d) => n + d.decisions.length, 0);
+const words =
+  `commits to this site’s repository on ${figure(activity.active)} ${activity.active === 1 ? 'day' : 'days'} since ${day(activity.first)}` +
+  (decided > 0 ? `, and ${figure(decided)} decision records along the way.` : '.');
+const ROWS = [
+  { row: 0, name: 'Mon' },
+  { row: 2, name: 'Wed' },
+  { row: 4, name: 'Fri' },
+];
+---
+
+<div class="activity">
+  <div class="activity-sum">
+    <h2 class="section-title" id={id}>
+      {title}
+    </h2>
+    <p class="activity-figure">
+      <data value={activity.commits}>{figure(activity.commits)}</data>
+    </p>
+    <p class="activity-words">{words}</p>
+  </div>
+  <div class="activity-chart">
+    <svg
+      class="activity-grid"
+      viewBox={`0 0 ${width} ${height}`}
+      width={width}
+      height={height}
+      role="img"
+      aria-label={`A calendar of commits, a column a week, from ${day(activity.weeks[0]?.[0]?.day ?? activity.first)} to ${day(activity.last)}.`}
+    >
+      {activity.months.map((month) => (
+        <text class="activity-month" x={LEFT + month.column * PITCH} y="10">
+          {month.name}
+        </text>
+      ))}
+      {ROWS.map(({ row, name }) => (
+        <text class="activity-weekday" x="0" y={TOP + row * PITCH + CELL - 3}>
+          {name}
+        </text>
+      ))}
+      {activity.weeks.map((week, column) =>
+        week.map((d, row) => (
+          <g>
+            <rect
+              class={`activity-day activity-level-${d.level}`}
+              x={LEFT + column * PITCH}
+              y={TOP + row * PITCH}
+              width={CELL}
+              height={CELL}
+              rx="2"
+              data-day={d.day}
+              data-commits={d.commits}
+            >
+              <title>{titleOf(d)}</title>
+            </rect>
+            {d.decisions.length > 0 && (
+              <circle
+                class="activity-decision"
+                cx={LEFT + column * PITCH + CELL / 2}
+                cy={TOP + row * PITCH + CELL / 2}
+                r="2.5"
+              />
+            )}
+          </g>
+        )),
+      )}
+    </svg>
+    <div class="activity-key" aria-hidden="true">
+      <span>Fewer</span>
+      {[0, 1, 2, 3, 4].map((level) => (
+        <svg class="activity-swatch" viewBox="0 0 14 14" width="14" height="14">
+          <rect class={`activity-day activity-level-${level}`} width="14" height="14" rx="2" />
+        </svg>
+      ))}
+      <span>More</span>
+      {decided > 0 && (
+        <span class="activity-key-decision">
+          <svg class="activity-swatch" viewBox="0 0 14 14" width="14" height="14">
+            <rect class="activity-day activity-level-1" width="14" height="14" rx="2" />
+            <circle class="activity-decision" cx="7" cy="7" r="2.5" />
+          </svg>
+          A decision record
+        </span>
+      )}
+    </div>
+  </div>
+</div>
