@@ -173,7 +173,8 @@ export interface Attempt {
   readonly start: number;
   end: number | null;
   outcome: Outcome;
-  /** Decided as it starts: whether it fails, and after what share of its work, in percent. */
+  /** Decided as it starts: whether it fails, and after what share of its work, in percent. Only an
+   *  extract or a load fails so; a check fails as it ends, by what it finds (sim.ts, complete). */
   readonly fails: boolean;
   /** Whether it fails because failNextLoad asked for it: that request is used up as it fails. */
   readonly forced: boolean;
@@ -195,7 +196,8 @@ export interface Task {
   readonly attempts: Attempt[];
 }
 
-/** What a run's check found: the report's count for the run's day, and the source's. */
+/** What a run's check found: the report's count for the run's day, and the source's. The two
+ *  differ exactly when the check failed. */
 export interface Verdict {
   readonly at: number;
   readonly report: number;

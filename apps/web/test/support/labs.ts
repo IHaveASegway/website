@@ -23,12 +23,12 @@ export interface SimulatedLab {
  * One row per simulated lab. The Raft Lab keeps the 8,000 B of ADR 0020; the Cache and Backfill
  * Labs have 12,000 B each and the Queue Lab 12,500 B, raises for ADR 0026 to accept or refuse.
  * Measured on 2026-10-30, every chunk a lab's module can load: the Raft Lab 6,847 B in one chunk;
- * the Queue Lab 12,048 B, the Cache Lab 11,005 B and the Backfill Lab 11,296 B, each its app and
+ * the Queue Lab 12,048 B, the Cache Lab 11,005 B and the Backfill Lab 11,319 B, each its app and
  * lib/sim's chunk, 841 B, which all three load: the agenda, the seeded stream and, since the three
  * share one link to a run, the link's reader and writer, 249 B of it. That link took the Queue Lab
  * past 12,000 B. The apps alone: the Queue Lab's 11,207 B, of which the test-only faults are about
  * 118 B and resizing the pool 111 B, which no control reaches; the Cache Lab's 10,164 B, about
- * 7,700 B with every string emptied; and the Backfill Lab's 10,455 B, about 6,200 B of it the
+ * 7,700 B with every string emptied; and the Backfill Lab's 10,478 B, about 6,200 B of it the
  * simulator, its checker and the model. The Backfill Lab's map class is its board's.
  */
 export const SIMULATED_LABS = [
