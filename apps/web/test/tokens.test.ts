@@ -625,9 +625,13 @@ describe('motion lives only under prefers-reduced-motion: no-preference', () => 
         expect(found.map((m) => m.what)).toEqual(['transition:opacity .22s ease-out']);
       else if (SIMULATED_LABS.some((lab) => sheet.includes(`.${lab.map}`)))
         expect(found).toEqual([]);
-      else if (sheet.includes('.lab-card'))
+      // The Lab index's card sheet is found by its plate, which only it draws: Home's sheet styles
+      // a .lab-card of its own, whose motion is the drawing's (below).
+      else if (sheet.includes('.lab-plate'))
         expect(found.filter((m) => /lab-settle/.test(m.what))).toHaveLength(1);
-      else if (/\.(iso-glyph|lab-write|lab-head|desk)\b/.test(sheet)) expect(found).toEqual([]);
+      // The glyph's sheet is found by its mesh, which only it draws: Home's sheet names its own
+      // .iso-glyph, cut from the drawing, and moves with the drawing.
+      else if (/\.(iso-mesh|lab-write|lab-head|desk)\b/.test(sheet)) expect(found).toEqual([]);
       // The sheets a component or a page owns since ADR 0027 (post-list.css, prose.css, about.css,
       // not-found.css) ship none either: the row's sweep is the sheet every page links, and the
       // rest stands still.
