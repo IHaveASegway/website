@@ -183,3 +183,45 @@ test('on a phone, on every day, a name covers at most a third of any stop’s ma
     }
   }
 });
+
+// Van A is the Route Lab's own van (review RTE-3): its route, on the maps, in the key and in the
+// cube's pictures, is the lab's line colour in both themes, on a casing in the desk's colour, which
+// is what gives the day's dark yellow its 3:1 against the bands.
+for (const colorScheme of ['light', 'dark'] as const) {
+  test(`van A’s route is the Routes line’s colour, on its casing, ${colorScheme}`, async ({
+    page,
+  }) => {
+    await page.emulateMedia({ colorScheme });
+    await page.goto(ROUTE_LAB);
+    const colours = await page.evaluate(() => {
+      const probe = document.createElement('i');
+      document.getElementById('route-lab')?.append(probe);
+      const resolve = (token: string) => {
+        probe.style.color = `var(${token})`;
+        return getComputedStyle(probe).color;
+      };
+      const [line, desk] = [resolve('--line-routes'), resolve('--surface-1')];
+      probe.remove();
+      const strokes = (selector: string) => [
+        ...new Set(
+          [...document.querySelectorAll(`#route-lab ${selector}`)].map(
+            (e) => getComputedStyle(e).stroke,
+          ),
+        ),
+      ];
+      return {
+        line,
+        desk,
+        routes: strokes('.rl-route.van-a'),
+        casings: strokes('.rl-route-casing'),
+        count: document.querySelectorAll('#route-lab .rl-route.van-a').length,
+        cased: document.querySelectorAll('#route-lab .rl-route-casing + .rl-route.van-a').length,
+      };
+    });
+    // Two maps, two cube pictures and the key.
+    expect(colours.count).toBe(5);
+    expect(colours.cased).toBe(5);
+    expect(colours.routes).toEqual([colours.line]);
+    expect(colours.casings).toEqual([colours.desk]);
+  });
+}

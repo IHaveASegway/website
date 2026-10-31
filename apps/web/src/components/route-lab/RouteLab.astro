@@ -11,6 +11,7 @@ import {
   away,
   backLine,
   bandsSentence,
+  casedRoute,
   isRound,
   mapTitle,
   placesMarkup,
@@ -49,7 +50,11 @@ const plans = [
   { which: 'before', label: 'As the orders came in', short: 'As they came in', ...before },
   { which: 'after', label: 'Planned by VROOM', short: 'VROOM’s plan', ...after },
 ] as const;
-const vans = [0, 1, 2, 3].map((van) => ({ letter: vanClass(van), round: isRound(van) }));
+const vans = [0, 1, 2, 3].map((van) => ({
+  letter: vanClass(van),
+  round: isRound(van),
+  cased: casedRoute(van),
+}));
 // The map's names (lib/route-lab/labels.ts): drawn over the routes and the stops, so each goes
 // where it covers no place's mark at any size the map draws it, the bakery's first.
 const { bakeryLabel, labels, fits } = mapLabels(basemap, routeData.points);
@@ -259,6 +264,7 @@ const bands = bandsSentence(
       {vans.map((v) => (
         <li>
           <svg class="rl-keyline" viewBox="0 0 40 12" aria-hidden="true" focusable="false">
+            {v.cased && <path class="rl-route-casing" d="M3 6h34" />}
             <path class={`rl-route van-${v.letter}`} d="M3 6h34" />
             <path class={`rl-stop-casing${v.round ? ' rl-round' : ''}`} d="M20 6h0" />
             <path class={`rl-stop van-${v.letter}${v.round ? ' rl-round' : ''}`} d="M20 6h0" />

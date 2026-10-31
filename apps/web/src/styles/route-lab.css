@@ -17,6 +17,12 @@
    where its data stops; test/tokens.test.ts holds every mark and label to the desk too. */
 .rl {
   --map-water: var(--surface-1);
+  /* Each van's route: van A's is the lab's own line (below, .rl-route-casing), the others' their
+     van's colour. The cube's script reads these too (cube.ts). */
+  --rl-route-a: var(--line-routes);
+  --rl-route-b: var(--map-van-b);
+  --rl-route-c: var(--map-van-c);
+  --rl-route-d: var(--map-van-d);
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   row-gap: 1.5rem;
@@ -571,6 +577,26 @@
 .van-d {
   stroke: var(--map-van-d);
   background-color: var(--map-van-d);
+}
+
+/* Van A is the Route Lab's own van, so its route is the lab's line colour in both themes. By day
+   that dark yellow is too light for 3:1 on the bands (1.3:1 on the nearest band), so it runs on a
+   casing in the desk's colour, which it meets at 3.8:1, as each stop sits on its own; at night
+   the casing is the dark desk round a light line. Its stops keep the van's token, the same yellow
+   at night and its deep shade by day, since a stop's number needs 4.5:1 and on the yellow has 4:1
+   at best. Until 2026-10-31 the route was that deep shade too, which read as brown beside the
+   lab's line (review RTE-3). */
+.rl-route.van-a {
+  stroke: var(--rl-route-a);
+}
+
+.rl-route-casing {
+  fill: none;
+  stroke: var(--map-water);
+  stroke-width: 6px;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
 }
 
 .rl-route.van-b {

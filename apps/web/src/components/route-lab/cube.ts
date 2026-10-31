@@ -24,7 +24,7 @@ import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { formatDuration } from '../../lib/route-lab/plan';
-import { isRound, vanClass } from '../../lib/route-lab/render';
+import { casedRoute, isRound, vanClass } from '../../lib/route-lab/render';
 import {
   axes,
   boxFor,
@@ -407,6 +407,26 @@ export function start(root: HTMLElement): boolean {
       const geometry = new LineGeometry();
       geometry.setPositions(positions);
       const dash = VAN_DASHES[track.van] ?? null;
+      // Van A's line runs on a casing in the desk's colour, as on the maps (route-lab.css): drawn
+      // first and writing no depth, so every other line is drawn over it, as the maps paint them.
+      if (casedRoute(track.van)) {
+        const casing = new Line2(
+          geometry,
+          made(
+            stage,
+            'casing',
+            () =>
+              new LineMaterial({
+                color: rgbOf(token('--map-water')).getHex(),
+                linewidth: 6,
+                worldUnits: false,
+                depthWrite: false,
+              }),
+          ),
+        );
+        casing.renderOrder = -1;
+        group.add(casing);
+      }
       const line = new Line2(
         geometry,
         made(
@@ -414,7 +434,7 @@ export function start(root: HTMLElement): boolean {
           `line-${track.van}`,
           () =>
             new LineMaterial({
-              color: rgbOf(token(`--map-van-${vanClass(track.van)}`)).getHex(),
+              color: rgbOf(token(`--rl-route-${vanClass(track.van)}`)).getHex(),
               linewidth: 3,
               worldUnits: false,
               dashed: dash !== null,
