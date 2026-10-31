@@ -2,7 +2,7 @@
 
 How the live demos work. One Worker holds every Durable Object (DO) class behind `ihaveasegway.com/lab/api/*`. Admission and daily budgets keep the account inside the Workers Free plan. Every demo has a recorded run to fall back to. Four demos are designed far enough to estimate and build. The lab platform is Phase 4 ([roadmap.md](roadmap.md)), after the work and writing pages, and only once the spikes at the end of this page pass.
 
-The Route Lab is the exception, and the first demo to ship: since 2026-10-25 it runs VROOM in the visitor's browser from static files, with no Worker, no Durable Object and no recording ([ADR 0016](adr/0016-route-lab-in-the-browser.md); [Route Lab](#route-lab-built-2026-10-25)). It needs none of the platform below. Four more are built the same way, each a deterministic simulation in the browser: the [Raft Lab](#raft-lab-built-2026-10-27), built on 2026-10-27 and shipped on 2026-10-28 ([ADR 0020](adr/0020-raft-lab-deterministic-simulation.md)), and the [Queue](#queue-lab-built-2026-10-30), [Cache](#cache-lab-built-2026-10-30) and [Backfill](#backfill-lab-built-2026-10-30) Labs, built on 2026-10-30, which ship once Joseph has read their entries ([ADR 0026](adr/0026-three-more-labs-simulated-in-the-browser.md), Consequences).
+The Route Lab is the exception, and the first demo to ship: since 2026-10-25 it runs VROOM in the visitor's browser from static files, with no Worker, no Durable Object and no recording ([ADR 0016](adr/0016-route-lab-in-the-browser.md); [Route Lab](#route-lab-built-2026-10-25)). It needs none of the platform below. Four more are built the same way, each a deterministic simulation in the browser: the [Raft Lab](#raft-lab-built-2026-10-27), built on 2026-10-27 and shipped on 2026-10-28 ([ADR 0020](adr/0020-raft-lab-deterministic-simulation.md)), and the [Queue](#queue-lab-built-2026-10-30), [Cache](#cache-lab-built-2026-10-30) and [Backfill](#backfill-lab-built-2026-10-30) Labs, built on 2026-10-30 and shipped on 2026-10-31, in build `f193bc1`, once their entries carried Joseph's review stamp ([ADR 0026](adr/0026-three-more-labs-simulated-in-the-browser.md), Consequences).
 
 Status: Draft for review in PR 1 · 2026-10-22; the Route Lab built as a static demo · 2026-10-25; the Raft Lab · 2026-10-27; the Queue, Cache and Backfill Labs · 2026-10-30
 
@@ -460,7 +460,7 @@ CREATE TABLE audit (seq INTEGER PRIMARY KEY AUTOINCREMENT, at INTEGER NOT NULL, 
 - **Deterministic.** The opening is seed 28: worker 2 crashes at 2.4 s between order 18's ticket and its acknowledgement, so order 18 prints twice. Start over keeps the seed and the visitor's settings, and writes the link that names both (`#seed-28&key=on`).
 - **The sweep:** 2,000 seeded runs from the safe configuration in `test/queue.test.ts`; every run keeps all three properties. In the same runs, acknowledging before the work loses an order in all 2,000, no key prints one twice in 1,168, and three broken brokers or workers must each break a property (counted on 2026-10-31).
 - **No server**, as the Raft Lab: nothing is stored or sent, and the cost is $0 at any traffic.
-- **Synthetic data only:** orders from a seeded stream, with no real people, companies or addresses. It restates no résumé line by name: it names no product, tool or employer. Its entry waits for Joseph's read beside his résumé ([Rules for every demo](#rules-for-every-demo), "Cleared as a set").
+- **Synthetic data only:** orders from a seeded stream, with no real people, companies or addresses. It restates no résumé line by name: it names no product, tool or employer. Its entry carries Joseph's review stamp of 2026-10-31, and the lab shipped that day ([Rules for every demo](#rules-for-every-demo), "Cleared as a set").
 - **Without JavaScript** the page is the opening's picture, 143 events in, drawn at build by the same core.
 
 ### Cache Lab (built 2026-10-30)
@@ -472,7 +472,7 @@ CREATE TABLE audit (seq INTEGER PRIMARY KEY AUTOINCREMENT, at INTEGER NOT NULL, 
 - **Deterministic.** The opening is seed 7 at a busy hour with nothing on: the menu expires at 3.0 s, the database fetches it 23 times at once, and two readers time out. Start over keeps the seed and the settings and plays from 2.5 s, so the stampede plays live; the link names the run (`#seed-7&coalesce=on&stale=on`).
 - **The sweep:** 600 seeded runs of 15 s in `test/cache.test.ts`, with loads, switches and placements changed mid-run, flushes, lost nodes and writes. Conservation holds in every run, each switch keeps its promise while it stays on, and five broken caches must each be caught. Then 600 more with coalescing on throughout, in which no node fetches a page twice at once.
 - **No server**, as the Raft Lab: nothing is stored or sent, and the cost is $0 at any traffic.
-- **Synthetic data only:** readers and pages from a seeded stream, with no real people, companies or addresses. It restates no résumé line by name: it names no product, tool or employer. Its entry waits for Joseph's read beside his résumé ([Rules for every demo](#rules-for-every-demo), "Cleared as a set").
+- **Synthetic data only:** readers and pages from a seeded stream, with no real people, companies or addresses. It restates no résumé line by name: it names no product, tool or employer. Its entry carries Joseph's review stamp of 2026-10-31, and the lab shipped that day ([Rules for every demo](#rules-for-every-demo), "Cleared as a set").
 - **Without JavaScript** the page is the opening's picture at 5.0 s, 1,500 reads in.
 
 ### Backfill Lab (built 2026-10-30)
@@ -484,7 +484,7 @@ CREATE TABLE audit (seq INTEGER PRIMARY KEY AUTOINCREMENT, at INTEGER NOT NULL, 
 - **Deterministic.** The opening is seed 9: Wednesday's first load fails after writing 96 of its 179 rows, the retry appends all 179, and Wednesday's check finds 275 against 179 and fails, without a retry. The week ends at 02:10. Start over keeps the seed and the settings; the link names them (`#seed-9&mode=overwrite`).
 - **The sweep:** 3,000 seeded weeks in `test/backfill.test.ts`, run six ways. With overwrite and the run's own day, every property holds and every run finishes; append breaks the totals in 2,986 weeks and the clock's day in all 3,000; three broken schedulers must each be caught (counted on 2026-10-31).
 - **No server**, as the Raft Lab: nothing is stored or sent, and the cost is $0 at any traffic.
-- **Synthetic data only:** each day's orders are a seeded count, with no real people, companies or addresses. It restates no résumé line by name: it names no product, tool or employer. Its entry waits for Joseph's read beside his résumé ([Rules for every demo](#rules-for-every-demo), "Cleared as a set").
+- **Synthetic data only:** each day's orders are a seeded count, with no real people, companies or addresses. It restates no résumé line by name: it names no product, tool or employer. Its entry carries Joseph's review stamp of 2026-10-31, and the lab shipped that day ([Rules for every demo](#rules-for-every-demo), "Cleared as a set").
 - **Without JavaScript** the page is the opening's board at 02:10, 44 events after the job was switched on.
 
 ## Per-session cost and Free headroom
