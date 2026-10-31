@@ -313,36 +313,76 @@
   stroke-width: 1;
 }
 
+/* The drawing's words, in its own units (747 wide): sized so that, at the scale each screen draws
+   it, a part's name reads at 13 px or more and every other word at 11.5 px or more, the floor the
+   lab pages' pictures keep. Until 2026-10-31 a part's caption came out at 7 px on a 1024 px
+   screen and 9.6 px at 1440, and the lanes' names at 5.7 px on a phone. */
 .iso-label {
   fill: var(--foreground);
   font-family: var(--font-label);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
 }
 
 .iso-source {
   fill: var(--primary);
   font-family: var(--font-label);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
 }
 
 .iso-caption {
   fill: var(--muted-foreground);
   font-family: var(--font-wide);
-  font-size: 10.5px;
+  font-size: 13px;
   font-weight: 500;
 }
 
-/* A phone draws the drawing at about half its size: the names larger to read, the captions left
-   to the cards. */
+/* A phone draws it at about half its size, across the whole screen: the names larger to read,
+   the words kept inside the picture's box. */
 @media (width < 40rem) {
+  .iso {
+    margin-inline: calc(-1 * var(--frame-pad));
+  }
+
+  .iso-key {
+    padding-inline: var(--frame-pad);
+  }
+
   .iso-label {
-    font-size: 25px;
+    font-size: 26px;
   }
 
   .iso-source {
-    font-size: 22px;
+    font-size: 23px;
+  }
+}
+
+/* Below 48rem, and from 64rem to 80rem (below), the drawing is too small for a caption to reach
+   11.5 px, so the captions are left to the cards. */
+@media (width < 48rem) {
+  .iso-caption {
+    display: none;
+  }
+}
+
+/* From 40rem a caption's longest line runs a few units past the picture's box, into the frame's
+   padding at a tablet's width and the column gap from 64rem, never off the screen. */
+@media (width >= 40rem) {
+  .iso-svg {
+    overflow: visible;
+  }
+}
+
+/* From 64rem to 80rem the drawing's column is 520 to 640 px, so it draws at 0.7 to 0.85: the names
+   larger, the captions left to the cards. */
+@media (width >= 64rem) and (width < 80rem) {
+  .iso-label {
+    font-size: 19px;
+  }
+
+  .iso-source {
+    font-size: 17px;
   }
 
   .iso-caption {

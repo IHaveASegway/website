@@ -12,6 +12,16 @@ import { pages } from './expected';
 const drawing = (page: Page) => page.locator('figure.iso');
 const toggle = (page: Page) => page.locator('[data-motion-toggle]');
 const LABS = ['backfill', 'cache', 'queue', 'raft', 'routes'] as const;
+/** Elements that hold words. */
+const WORDS = 'h1, h2, h3, p, li, a, dd, dt, figcaption';
+/** The widths the drawing's words are read at: a phone, a tablet, and either side of 80rem. */
+const SIZES_TEXT = [
+  { width: 390, height: 844 },
+  { width: 768, height: 1024 },
+  { width: 1024, height: 768 },
+  { width: 1279, height: 800 },
+  { width: 1440, height: 900 },
+] as const;
 
 /** Each lab's page this build writes, by slug. */
 async function labsBuilt(page: Page): Promise<string[]> {
@@ -243,6 +253,53 @@ test.describe("Home's drawing", () => {
   });
 });
 
+// The drawing's own words read at every width (home.css, "The drawing's words"): a part's name at
+// 13 px or more and every other word shown at 11.5 px or more, at the scale the screen draws the
+// picture; each on the screen, and none over a word of the page's. Until 2026-10-31 a part's
+// caption came out at 7 px on a 1024 px screen and the lanes' names at 5.7 px on a phone.
+for (const viewport of SIZES_TEXT) {
+  test(`at ${viewport.width} px the drawing's words read at 13 and 11.5 px, on the screen and over no word`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.goto('/');
+    test.skip((await drawing(page).count()) === 0, 'this build has no lab to draw');
+    await page.evaluate(() => document.fonts.ready);
+    await drawing(page).scrollIntoViewIfNeeded();
+    const found = await page.evaluate((selector) => {
+      const svg = document.querySelector<SVGSVGElement>('figure.iso svg');
+      if (!svg) throw new Error('no drawing');
+      const scale = svg.getBoundingClientRect().width / svg.viewBox.baseVal.width;
+      const page = [...document.querySelectorAll<HTMLElement>(selector)]
+        .filter((el) => !el.closest('figure.iso') && el.checkVisibility())
+        .map((el) => el.getBoundingClientRect());
+      const small: string[] = [];
+      const off: string[] = [];
+      const over: string[] = [];
+      for (const word of svg.querySelectorAll<SVGTextContentElement>('text, tspan')) {
+        if (word.querySelector('tspan') || !word.checkVisibility()) continue;
+        const said = word.textContent?.trim() ?? '';
+        if (!said) continue;
+        const px = Number.parseFloat(getComputedStyle(word).fontSize) * scale;
+        const floor = word.classList.contains('iso-name') ? 13 : 11.5;
+        if (px < floor - 0.05) small.push(`${said}: ${px.toFixed(1)} px`);
+        const b = word.getBoundingClientRect();
+        if (b.left < 0 || b.right > innerWidth) off.push(said);
+        if (
+          page.some(
+            (p) =>
+              Math.min(b.right, p.right) - Math.max(b.left, p.left) > 0.5 &&
+              Math.min(b.bottom, p.bottom) - Math.max(b.top, p.top) > 0.5,
+          )
+        )
+          over.push(said);
+      }
+      return { small, off, over };
+    }, WORDS);
+    expect(found).toEqual({ small: [], off: [], over: [] });
+  });
+}
+
 // A section's picture belongs to that section: nothing the drawing draws covers a word, at any
 // width or scroll, and nothing of it stands still on the screen while the page scrolls.
 const SIZES = [
@@ -251,9 +308,6 @@ const SIZES = [
   { width: 1024, height: 768 },
   { width: 1440, height: 900 },
 ] as const;
-
-/** Elements that hold words. */
-const WORDS = 'h1, h2, h3, p, li, a, dd, dt, figcaption';
 
 for (const viewport of SIZES) {
   test(`at ${viewport.width} × ${viewport.height} the drawing covers no word at any scroll`, async ({
