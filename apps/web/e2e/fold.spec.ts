@@ -3,9 +3,10 @@ import { expect, test, type Page } from '@playwright/test';
 // The fold (content.md, "Home page"; ADR 0027): what Home's first screen holds at 390×844 and
 // 1440×900, with the web fonts and without them. Row 1 is the opening (the name, the role, the
 // buttons, the drawing and the bio's blocks), the one rendered row. On a phone the fold holds the
-// name, the role, both buttons and the whole drawing under them; from 64rem it holds those, the
-// drawing beside the blocks, and the first block. Until ADR 0027 the fold held the name, the role
-// and the Email button, and the Route Lab's scene beside them.
+// name, the role, both buttons and the whole first block ("Now"), an about-me first as the
+// references open; from 64rem it holds those and the drawing beside the blocks. Until 2026-10-31
+// the phone's fold held the drawing in the first block's place; until ADR 0027 the fold held the
+// name, the role and the Email button, and the Route Lab's scene beside them.
 // And the opening is the same height either way, within 1 px: the fallback faces are fitted so the
 // name does not rewrap when its font arrives (layout shift).
 
@@ -65,8 +66,8 @@ async function measure(page: Page, fonts: Fonts) {
       '.intro-role',
       '.intro-actions .btn-email',
       '.intro-actions .btn:last-child',
-      'figure.iso svg',
-      ...(innerWidth >= 1024 ? ['.bio-block:first-child'] : []),
+      '.bio-block:first-child',
+      ...(innerWidth >= 1024 ? ['figure.iso svg'] : []),
     ].map((selector) => box(selector)?.bottom ?? Infinity);
     return {
       rows: rows.map((row) => row.dataset['row']),

@@ -10,14 +10,16 @@
   same weight that they must beat.
 */
 
-/* The opening. Below 64rem one column: the name, the role and the ways to reach him, then the
-   drawing, then the bio's blocks. From 64rem the name runs across the top, as the title on a
+/* The opening. Below 64rem one column, an about-me first as the references open on a phone: the
+   name, the role and the ways to reach him, then the bio's blocks, then the drawing, which the
+   scroll brings up and takes apart (below). Until 2026-10-31 the drawing stood between the name
+   and the bio there, and a phone's first screen held no sentence of his. From 64rem the name runs across the top, as the title on a
    drawing's sheet does, with the role and the buttons in a row under it, and the blocks stand in
    the left five twelfths beside the drawing in the right seven. */
 .intro {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: 'who' 'drawing' 'blocks';
+  grid-template-areas: 'who' 'blocks' 'drawing';
   row-gap: 1.75rem;
   padding-block: 1.75rem 3rem;
 }
@@ -578,7 +580,7 @@
     }
   }
 
-  /* The exploded view: as the page scrolls its first 24rem, each part lifts by its own amount and
+  /* The exploded view: from 64rem, as the page scrolls its first 24rem, each part lifts by its own amount and
      its drop lines reach down to the footprint it left. Where the browser has no scroll timelines
      the drawing stays assembled. */
   @supports (animation-timeline: scroll()) {
@@ -588,6 +590,20 @@
       animation-fill-mode: both;
       animation-timeline: scroll(root);
       animation-range: 0 24rem;
+    }
+
+    /* Below 64rem the drawing stands under the bio, out of the first screen, so its own passage
+       up the window drives the lift: from when half of it is in until it is past the middle. */
+    @media (width < 64rem) {
+      .iso {
+        view-timeline: --iso block;
+      }
+
+      .iso-lift,
+      .iso-drop {
+        animation-timeline: --iso;
+        animation-range: entry 50% cover 60%;
+      }
     }
 
     .iso-lift {
