@@ -201,7 +201,7 @@
   --map-road-major: oklch(0.56 0.02 165 / 0.45);
   --map-van-a: oklch(0.38 0.075 75);
   --map-van-b: oklch(0.38 0.15 355);
-  --map-van-c: oklch(0.38 0.1 140);
+  --map-van-c: oklch(0.37 0.1 140);
   --map-van-d: oklch(0.38 0.14 290);
   --map-place: var(--foreground);
   --map-depot: var(--foreground);
@@ -252,7 +252,7 @@
     --map-road-major: oklch(0.56 0.02 165 / 0.45);
     --map-van-a: oklch(0.38 0.075 75);
     --map-van-b: oklch(0.38 0.15 355);
-    --map-van-c: oklch(0.38 0.1 140);
+    --map-van-c: oklch(0.37 0.1 140);
     --map-van-d: oklch(0.38 0.14 290);
     --map-place: var(--foreground);
     --map-depot: var(--foreground);
@@ -313,7 +313,7 @@
     --map-road-major: oklch(0.56 0.02 165 / 0.45);
     --map-van-a: oklch(0.38 0.075 75);
     --map-van-b: oklch(0.38 0.15 355);
-    --map-van-c: oklch(0.38 0.1 140);
+    --map-van-c: oklch(0.37 0.1 140);
     --map-van-d: oklch(0.38 0.14 290);
     --map-place: var(--foreground);
     --map-depot: var(--foreground);
