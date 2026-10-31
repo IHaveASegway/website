@@ -93,12 +93,36 @@ export function aboutParts(body: string): AboutParts {
   return { lede, sections };
 }
 
+/** The bio's three headings, in its order. Home finds each section it shows by its heading, not by
+ *  its place or its shape: "What I build" is a list of bold leads too, and a section moved or added
+ *  must not slide into How I work's place. test/about.test.ts holds the bio to these three. */
+export const ABOUT_HEADINGS = {
+  build: 'What I build',
+  how: 'How I work',
+  toward: "What I'm working toward",
+} as const;
+
+/** The section under a heading, or undefined when the bio has none by that name. */
+export function sectionOf(parts: AboutParts, heading: string): AboutSection | undefined {
+  return parts.sections.find((section) => section.heading === heading);
+}
+
+/** The demos the bio names, by their lab's slug: on Home the first mention of each opens its page,
+ *  once the build writes it. */
+export const LAB_NAMES = [
+  { slug: 'routes', name: 'Route Lab' },
+  { slug: 'raft', name: 'Raft Lab' },
+  { slug: 'queue', name: 'Queue Lab' },
+  { slug: 'cache', name: 'Cache Lab' },
+  { slug: 'backfill', name: 'Backfill Lab' },
+] as const;
+
 /** A run of text, or of text that links somewhere. */
 export type Run = string | { readonly text: string; readonly href: string };
 
 /** The text with each name it mentions turned into a link to its page, first mention only: the
- *  bio names the Route Lab and the Raft Lab, and on Home those words open them. A name whose page
- *  this build does not write stays text. */
+ *  bio names the labs (LAB_NAMES), and on Home those words open them. A name whose page this build
+ *  does not write stays text. */
 export function withLinks(
   text: string,
   names: readonly { readonly name: string; readonly href: string }[],

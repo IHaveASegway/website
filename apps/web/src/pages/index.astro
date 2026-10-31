@@ -8,7 +8,7 @@ import RouteScene from '../components/RouteScene.astro';
 import SectionTitle from '../components/SectionTitle.astro';
 import WorkCard from '../components/WorkCard.astro';
 import Base from '../layouts/Base.astro';
-import { aboutParts, withLinks } from '../lib/about';
+import { ABOUT_HEADINGS, aboutParts, LAB_NAMES, sectionOf, withLinks } from '../lib/about';
 import {
   loadAbout,
   loadLabArea,
@@ -45,17 +45,13 @@ const lab = await loadLabArea();
 // no How I work and no closing there.
 const bioEntry = await loadAbout();
 const bio = bioEntry?.body === undefined ? undefined : aboutParts(bioEntry.body);
-const principles = bio?.sections.find((section) => section.principles.length > 0);
-const toward = bio?.sections.find(
-  (section) => section.principles.length === 0 && section.paragraphs.length > 0,
-);
-// The demos this build writes, by slug. The bio names two of them, and on Home those words link
-// to them.
+// Each part by its heading: What I build comes before How I work and is a list of bold leads too,
+// so neither its place nor its shape picks the principles. Home shows How I work and the close.
+const principles = bio && sectionOf(bio, ABOUT_HEADINGS.how);
+const toward = bio && sectionOf(bio, ABOUT_HEADINGS.toward);
+// The demos this build writes, by slug. The bio names them, and on Home those words link to them.
 const demo = new Map(lab.entries.map((entry) => [entry.slug, entry]));
-const names = [
-  { slug: 'routes', name: 'Route Lab' },
-  { slug: 'raft', name: 'Raft Lab' },
-].flatMap(({ slug, name: words }) => {
+const names = LAB_NAMES.flatMap(({ slug, name: words }) => {
   const entry = demo.get(slug);
   return entry ? [{ name: words, href: labPath(entry) }] : [];
 });
