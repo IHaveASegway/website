@@ -77,7 +77,7 @@ const bands = bandsSentence(
 ---
 
 <div
-  class="rl"
+  class="rl desk"
   id="route-lab"
   data-rl-data={routeDataUrl}
   data-rl-worker={`${solverBase}vroom-worker.mjs`}
@@ -314,7 +314,7 @@ const bands = bandsSentence(
               />
               <span class="rl-order-place">{p.label}</span>
               <span class="rl-order-what">
-                {p.order} · {p.qty} {p.qty === 1 ? 'box' : 'boxes'} · {away(routeData, p.i)}
+                {p.order}, {p.qty} {p.qty === 1 ? 'box' : 'boxes'}, {away(routeData, p.i)}
               </span>
             </label>
           </li>

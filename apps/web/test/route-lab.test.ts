@@ -358,7 +358,8 @@ describe('the markup both the build and the browser draw', () => {
 
   test('known answers: text is escaped; the readout words agree with the plan', () => {
     expect(esc('<a href="x">&</a>')).toBe('&lt;a href=&quot;x&quot;&gt;&amp;&lt;/a&gt;');
-    expect(planLine(plan, m)).toMatch(/ · 2 vans$/);
+    // In words, with no middle dot (ADR 0025): "148.8 mi · 3 vans" until then.
+    expect(planLine(plan, m)).toMatch(/mi, 2 vans$/);
     const none = measure(data, { routes: [[], []], unassigned: [] });
     expect([planLine({ routes: [[], []], unassigned: [] }, none), backLine(none)]).toEqual([
       'No stops',
@@ -431,14 +432,14 @@ describe('the markup both the build and the browser draw', () => {
     const [stop, idle, left] = [3, 5, 40].map((i) => data.points[i]);
     expect(tipLines(data, plan, 3)).toEqual([
       stop?.label,
-      `${stop?.order} · ${stop?.qty} ${stop?.qty === 1 ? 'box' : 'boxes'}`,
-      `Van A, stop 1 · ${formatDuration(data.durations[3] ?? 0)} from the bakery`,
+      `${stop?.order}, ${stop?.qty} ${stop?.qty === 1 ? 'box' : 'boxes'}`,
+      `Van A, stop 1, ${formatDuration(data.durations[3] ?? 0)} from the bakery`,
     ]);
     expect(tipLines(data, plan, 5)).toEqual([
       idle?.label,
-      `No order today · ${formatDuration(data.durations[5] ?? 0)} from the bakery`,
+      `No order today, ${formatDuration(data.durations[5] ?? 0)} from the bakery`,
     ]);
-    expect(tipLines(data, plan, 40)[2]).toMatch(/^No van has room · /);
+    expect(tipLines(data, plan, 40)[2]).toMatch(/^No van has room, /);
     expect(left).toBeDefined();
   });
 });

@@ -188,6 +188,64 @@ test('a link to a run opens it: #seed-8 loads that seed with no other intent, an
   expect(new URL(page.url()).hash).toBe('#seed-9');
 });
 
+// The desk's lamps (ADR 0025): Run is a push-button whose lamp is hollow until the run is on and
+// lit while it runs; a server and each log entry are lamps in the lab's own line, the colour its
+// head runs across the page in, whatever the entry's term, which its number under it tells. Until
+// then each term took one of the map's van colours, the Route Lab's yellow among them.
+test('Run lights its lamp while the run is on, and every lamp on the desk is the lab’s line, whatever the term', async ({
+  page,
+}) => {
+  await page.goto(RAFT);
+  const run = page.locator('[data-rf-run]');
+  const lamp = () => run.evaluate((button) => getComputedStyle(button, '::before').backgroundColor);
+  await expect(run).toHaveAttribute('aria-pressed', 'false');
+  expect(await lamp()).toBe('rgba(0, 0, 0, 0)');
+  await run.click();
+  await expect(page.getByRole('button', { name: 'Pause' })).toHaveAttribute('aria-pressed', 'true');
+  expect(await lamp()).not.toBe('rgba(0, 0, 0, 0)');
+  await page.getByRole('button', { name: 'Pause' }).click();
+  const colours = await page.evaluate(() => {
+    // An entry of another term, as a later run writes one, beside the opening's.
+    document
+      .querySelector('[data-rf-log="0"]')
+      ?.insertAdjacentHTML(
+        'beforeend',
+        '<li class="rf-cell" data-term="2"><span class="rf-mark"></span><span class="rf-num">3</span></li>',
+      );
+    const line = getComputedStyle(document.querySelector('.page-line') as Element, '::before');
+    return {
+      line: line.backgroundColor,
+      marks: [
+        ...new Set(
+          [...document.querySelectorAll('.rf-mark')].map((m) => getComputedStyle(m).borderTopColor),
+        ),
+      ],
+      filled: [
+        ...new Set(
+          [...document.querySelectorAll('.rf-cell[data-done] .rf-mark')].map(
+            (m) => getComputedStyle(m).backgroundColor,
+          ),
+        ),
+      ],
+      servers: [
+        ...new Set(
+          [...document.querySelectorAll('[data-rf-node] .rf-body')].map(
+            (b) => getComputedStyle(b).stroke,
+          ),
+        ),
+      ],
+      round: getComputedStyle(document.querySelector('.rf-mark') as Element).borderRadius,
+    };
+  });
+  expect(colours).toEqual({
+    line: colours.line,
+    marks: [colours.line],
+    filled: [colours.line],
+    servers: [colours.line],
+    round: '50%',
+  });
+});
+
 for (const colorScheme of ['light', 'dark'] as const) {
   test(`axe finds no violation after a run, ${colorScheme}`, async ({ page }) => {
     await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });

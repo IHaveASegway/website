@@ -1,53 +1,53 @@
 ---
 import { pathData } from '../lib/route-lab/legs';
 import { basemap, leg, routeData, type Picture } from '../lib/route-lab/picture';
-import { formatDuration } from '../lib/route-lab/plan';
 import { vanClass } from '../lib/route-lab/render';
 import {
   dayPlaces,
-  EDGE,
-  extent,
   floorMatrix,
   focusOf,
+  mapBounds,
   projector,
   sceneSeconds,
   START,
+  windowOf,
 } from '../lib/route-lab/scene';
 import { simplify } from '../lib/route-lab/space-time';
 import { tracks } from '../lib/route-lab/timeline';
 
 interface Props {
   picture: Picture;
-  /** The Route Lab's page, which the caption opens. */
-  href: string;
   /** The scene's data file (pages/lab/[demo]/scene.json.ts), which the canvas fetches. */
   data: string;
 }
 
-// Home's scene (ADR 0024): the Route Lab's default day as VROOM plans it at build, on the map, seen
-// from the camera the canvas starts from (lib/route-lab/scene.ts). This picture is Home without
-// JavaScript, under a reduced-motion preference and before the canvas has drawn: the routes whole,
-// every stop marked. With motion, src/scripts/route-scene.ts takes its place in the same box at the
-// same angle and drives the day; the canvas reads the floor's paths from this picture, so the page
-// holds one copy of the map. The floor is drawn in the map's own units through one matrix, the
-// routes in screen units. No style attribute (security.md): color comes from classes. The land is
-// the map's rectangle and the water is drawn over it in the page's own color, so the sound is the
-// page (ADR 0025). The map is OpenStreetMap's, under the ODbL, so wherever it shows, its credit
-// shows with it, as on the lab.
-const { picture, href, data } = Astro.props;
+// Home's scene (ADR 0024, ADR 0025): the Route Lab's default day as VROOM plans it at build, on the
+// map, flat and north up, as the canvas starts from it (lib/route-lab/scene.ts). This picture is
+// Home without JavaScript, under a reduced-motion preference and before the canvas has drawn: the
+// routes whole, every stop marked. With motion, src/scripts/route-scene.ts takes its place in the
+// same box and drives the day; the canvas reads the floor's paths and this picture's own mapping
+// to the screen from it, so the page holds one copy of the map and the two never disagree. The
+// map's water is the page itself and nothing fades it: its box runs from beside the words to the
+// screen's edge (home.css), and the picture covers that box with the map pinned at its west edge,
+// the sound, so the words stand on the water and the city runs off the edges of the screen. The
+// floor is drawn in the map's own units through one matrix, the routes in the camera's. No style
+// attribute (security.md): colour comes from classes. The map is OpenStreetMap's, under the ODbL,
+// so its credit is in the words beside it (Hero.astro), as on the lab.
+const { picture, data } = Astro.props;
 const seconds = sceneSeconds(picture.after.measured.back);
-// The camera holds the part of the map the day happens in; the rest of the map runs on past the
-// picture's box to the stage's edges.
 const focus = focusOf(dayPlaces(routeData, picture.after.plan));
-const box = extent(focus, seconds, START);
-const pad = 0.03 * Math.max(box.width, box.height);
-const viewBox = [box.x - pad, box.y - pad, box.width + 2 * pad, box.height + 2 * pad]
-  .map(Math.round)
-  .join(' ');
+const at = projector(focus, seconds, START);
+const map = mapBounds(routeData.viewBox);
+const bakery = routeData.points[0] ?? { x: 0, y: 0 };
+// The framed part of the map, in the camera's units: what the picture's box shows when it is as
+// tall as the window, more of the city to the east wherever the box is wider.
+const [w0, h0, w1, h1] = windowOf(map, [bakery.x, bakery.y]);
+const [u0, v0] = at(w0, h0, 0);
+const [u1, v1] = at(w1, h1, 0);
+const viewBox = [u0, v0, u1 - u0, v1 - v0].map(Math.round).join(' ');
 const matrix = floorMatrix(focus, seconds, START, { scale: 1, x: 0, y: 0 })
   .map((v) => Number(v.toFixed(5)))
   .join(' ');
-const at = projector(focus, seconds, START);
 const screen = (x: number, y: number) => at(x, y, 0).map(Math.round) as [number, number];
 const routes = tracks(routeData, leg, picture.after.plan).map((track) => {
   const flat: number[] = [];
@@ -62,25 +62,16 @@ const routes = tracks(routeData, leg, picture.after.plan).map((track) => {
 const marks = (points: readonly (readonly [number, number])[]) =>
   points.map(([x, y]) => `M${x} ${y}h0`).join('');
 const places = routeData.points.slice(1).map((p) => [p.x, p.y] as const);
-// The map's rectangle, which its floor fades in from (EDGE), along x and then along y: two alpha
-// masks in the map's own units, one inside the other, so their fades multiply as the canvas's do.
 const [mx, my, mw, mh] = routeData.viewBox;
-const edges = [
-  { id: 'scene-edge-x', x2: mx + mw, y2: my },
-  { id: 'scene-edge-y', x2: mx, y2: my + mh },
-];
-const bakery = routeData.points[0] ?? { x: 0, y: 0 };
 const [bx, by] = screen(bakery.x, bakery.y);
 const { day } = picture;
-const { before, after } = picture;
-const done = `All ${day.orders.length} delivered · last van back after ${formatDuration(after.measured.back)}`;
 ---
 
 <figure class="scene" data-scene>
   <svg
     class="scene-picture"
     viewBox={viewBox}
-    preserveAspectRatio="xMidYMid meet"
+    preserveAspectRatio="xMinYMid slice"
     role="img"
     aria-labelledby="scene-name"
   >
@@ -88,50 +79,16 @@ const done = `All ${day.orders.length} delivered · last van back after ${format
       Seattle on {day.name.replace(/^A /, 'a ')}: the routes VROOM plans for {routes.length} vans from
       the bakery, {day.orders.length} orders in all.
     </title>
-    <defs>
-      {edges.map((edge) => (
-        <>
-          <linearGradient
-            id={`${edge.id}-fade`}
-            gradientUnits="userSpaceOnUse"
-            x1={mx}
-            y1={my}
-            x2={edge.x2}
-            y2={edge.y2}
-          >
-            <stop offset="0" stop-opacity="0" />
-            <stop offset={EDGE} />
-            <stop offset={1 - EDGE} />
-            <stop offset="1" stop-opacity="0" />
-          </linearGradient>
-          <mask
-            id={edge.id}
-            class="scene-edge"
-            maskUnits="userSpaceOnUse"
-            x={mx}
-            y={my}
-            width={mw}
-            height={mh}
-          >
-            <rect x={mx} y={my} width={mw} height={mh} fill={`url(#${edge.id}-fade)`} />
-          </mask>
-        </>
-      ))}
-    </defs>
     <g class="scene-floor" transform={`matrix(${matrix})`}>
-      <g mask="url(#scene-edge-x)">
-        <g mask="url(#scene-edge-y)">
-          <path class="scene-land" d={`M${mx} ${my}h${mw}v${mh}h${-mw}z`} data-floor="land" />
-          <path class="scene-water" d={basemap.water} data-floor="water" />
-          <path class="scene-road" d={basemap.roads.secondary} data-floor="minor" />
-          <path
-            class="scene-road scene-road-major"
-            d={basemap.roads.motorway + basemap.roads.primary}
-            data-floor="major"
-          />
-          <path class="scene-place" d={marks(places)} />
-        </g>
-      </g>
+      <path class="scene-land" d={`M${mx} ${my}h${mw}v${mh}h${-mw}z`} data-floor="land" />
+      <path class="scene-water" d={basemap.water} data-floor="water" />
+      <path class="scene-road" d={basemap.roads.secondary} data-floor="minor" />
+      <path
+        class="scene-road scene-road-major"
+        d={basemap.roads.motorway + basemap.roads.primary}
+        data-floor="major"
+      />
+      <path class="scene-place" d={marks(places)} />
     </g>
     {routes.map((route) => (
       <path class={`scene-route scene-van-${route.van}`} d={route.d} />
@@ -142,23 +99,4 @@ const done = `All ${day.orders.length} delivered · last van back after ${format
     <path class="scene-depot" d={`M${bx} ${by}h0`} />
   </svg>
   <canvas class="scene-live" data-scene-live={data} aria-hidden="true"></canvas>
-  <figcaption class="scene-hud">
-    <a class="scene-hud-title label" href={href}>
-      <span class="scene-dot" aria-hidden="true"></span>
-      Route Lab · {day.name}
-    </a>
-    <p class="scene-hud-row label">
-      {day.orders.length} orders · {routes.length} vans · planned by VROOM
-    </p>
-    <p class="scene-hud-row label">
-      {formatDuration(after.measured.drive)} of driving, not {formatDuration(before.measured.drive)}
-    </p>
-    <p class="scene-hud-clock label">
-      <span class="scene-hud-done">{done}</span>
-      <span class="scene-hud-live" data-scene-clock aria-hidden="true"></span>
-    </p>
-    <p class="scene-credit">
-      Map data © <a href={routeData.copyright}>OpenStreetMap contributors</a>
-    </p>
-  </figcaption>
 </figure>

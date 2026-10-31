@@ -40,29 +40,25 @@ const LINES = ['line-routes', 'line-raft', 'line-queue', 'line-cache', 'line-bac
 const LINE_SURFACES = ['background', 'surface-1', 'surface-2'];
 /** Text drawn on an accent fill, such as a button label, against each fill it sits on. */
 const ON_FILL: Record<string, string[]> = { 'primary-foreground': ['primary', 'primary-strong'] };
+/** A server's number on the Raft line's filled lamp, the leader: in the page's colour on the hub of
+ *  the board's and the Lab index's line (lines.css, --line-ground), and in the desk's on the Raft
+ *  Lab's picture (raft-lab.css). */
+const ON_LAMP: Record<string, string[]> = { background: ['line-raft'], 'surface-1': ['line-raft'] };
 /** Decoration only: no contrast claim, but still inside sRGB. The map's streets and roads are
  *  hairlines under the routes: they place the routes and carry nothing a reader needs. */
-// The faces of Home's isometric drawings (ADR 0023) are the page's own surfaces under other names:
-// a face carries no text a visitor reads, only the stack's slab numbers, which the surfaces' pairs
-// already measure.
-const DECORATIVE = [
-  'border',
-  'map-street',
-  'map-road',
-  'map-road-major',
-  'face-top',
-  'face-left',
-  'face-right',
-];
+const DECORATIVE = ['border', 'map-street', 'map-road', 'map-road-major'];
 /** Pairs a design must never draw; each is listed with its reason (none yet). */
 const FORBIDDEN: [string, string][] = [];
 
 // The maps (design-system.md, "Map colors"; ADR 0016, ADR 0025). Their fills: the water, which is
-// the page's background, the land, a raised surface, parks and the six isochrone bands. Every mark on
-// the map (each van's route and stops, a place, the bakery) meets 3:1 against every fill, since a
-// route crosses all of them, and a label meets 4.5:1. The same cross product as above.
+// the page's background, the land, a raised surface, parks and the six isochrone bands. On the Route
+// Lab the maps lie on the lab's desk, and their water is its surface, --surface-1 (route-lab.css),
+// so that is a fill too. Every mark on the map (each van's route and stops, a place, the bakery)
+// meets 3:1 against every fill, since a route crosses all of them, and a label meets 4.5:1. The
+// same cross product as above.
 const MAP_FILLS = [
   'background',
+  'surface-1',
   'map-water',
   'map-land',
   'map-park',
@@ -196,7 +192,7 @@ for (const [themeName, colors] of Object.entries(themes)) {
       expect(get('map-land')).toEqual(get('surface-2'));
     });
 
-    for (const [name, fills] of Object.entries(ON_FILL)) {
+    for (const [name, fills] of Object.entries({ ...ON_FILL, ...ON_LAMP })) {
       for (const fill of fills) {
         test(`${name} on ${fill} reaches 4.5:1`, () => {
           expect(wcagContrast(get(name), get(fill))).toBeGreaterThanOrEqual(4.5);
@@ -228,9 +224,11 @@ for (const [themeName, colors] of Object.entries(themes)) {
         const band = get(`map-band-${k}`);
         if (k < 6)
           expect(deltaOk(band, get(`map-band-${k + 1}`)), `band ${k}`).toBeGreaterThan(BAND_STEP);
-        expect(deltaOk(band, get('map-water')), `band ${k} and the water`).toBeGreaterThan(
-          BAND_STEP,
-        );
+        // The water on the page, and on the Route Lab's desk.
+        for (const water of ['map-water', 'surface-1'])
+          expect(deltaOk(band, get(water)), `band ${k} and the water, ${water}`).toBeGreaterThan(
+            BAND_STEP,
+          );
       }
     });
 
@@ -527,10 +525,16 @@ describe('motion lives only under prefers-reduced-motion: no-preference', () => 
       // The stylesheet every page links ships the card's bar and the view transition, both
       // guarded. The Route Lab's own sheet ships one, the maps' fade (ADR 0016), guarded too. A
       // simulated lab's ships none (support/labs.ts): its demo moves in JavaScript, only while the
-      // visitor runs it, and stands still under reduced motion (ADR 0020, ADR 0026).
-      if (read(file).includes('.rl-map'))
+      // visitor runs it, and stands still under reduced motion (ADR 0020, ADR 0026). Nor do the
+      // labs' lines, which Home's board and the Lab index share, or the Lab index's own sheet
+      // (ADR 0025): a line moves only on the board, whose day is the board's sheet's, and an index
+      // row's sweep is the sheet every page links.
+      const sheet = read(file);
+      if (sheet.includes('.rl-map'))
         expect(found.map((m) => m.what)).toEqual(['transition:opacity .22s ease-out']);
-      else if (SIMULATED_LABS.some((lab) => read(file).includes(`.${lab.map}`)))
+      else if (SIMULATED_LABS.some((lab) => sheet.includes(`.${lab.map}`)))
+        expect(found).toEqual([]);
+      else if (!sheet.includes('.board-lines') && /\.(line-track|lab-row)\b/.test(sheet))
         expect(found).toEqual([]);
       else expect(found.length).toBeGreaterThanOrEqual(2);
     });

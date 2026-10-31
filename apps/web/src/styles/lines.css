@@ -1,0 +1,133 @@
+/*
+  The labs' lines (ADR 0025; components/board/lines/): each lab drawn as its mechanism, in its own
+  colour, var(--line), which its slug sets (global.css, [data-line]), on Home's board and on the Lab
+  index. The line components import this sheet, so a page that draws a line carries it and no other
+  page does. Every colour is a token from tokens.css. A track is the lab's colour at a lamp's
+  weight; a lamp is round, the only round thing on the page: hollow is a ring in the line's colour
+  on the surface it stands on, filled is the line's colour, and the lit lamp, --primary, is where
+  the work is now. A lamp's fill layer and the lit lamps are separate shapes, shown or hidden by
+  opacity alone, so styles/board.css can move the Route Lab's day without moving anything.
+*/
+
+.line {
+  --line-ground: var(--background);
+  display: block;
+}
+
+/* Each line is drawn twice, for a narrow screen and a wide one (lines/routes.astro): pixels for
+   heights and sizes, shares of the width for places, so nothing scales with the screen. */
+.line-draw {
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+
+.line-wide {
+  display: none;
+}
+
+@media (width >= 48rem) {
+  .line-wide {
+    display: block;
+  }
+
+  .line-compact {
+    display: none;
+  }
+}
+
+.line-track,
+.line-spoke,
+.line-loop {
+  fill: none;
+  stroke: var(--line);
+}
+
+.line-track {
+  stroke-width: 4px;
+}
+
+.line-spoke {
+  stroke-width: 3px;
+}
+
+.line-loop {
+  stroke-width: 2.5px;
+}
+
+.line-depot,
+.line-hub,
+.line-lamp-lit {
+  fill: var(--line);
+}
+
+.line-lamp {
+  fill: var(--line-ground);
+  stroke: var(--line);
+  stroke-width: 1.75px;
+}
+
+.line-van-at {
+  fill: var(--primary);
+  stroke: var(--line);
+  stroke-width: 2px;
+}
+
+@media (width >= 48rem) {
+  .line-track {
+    stroke-width: 6px;
+  }
+
+  .line-spoke {
+    stroke-width: 4px;
+  }
+
+  .line-loop {
+    stroke-width: 3.5px;
+  }
+
+  .line-lamp {
+    stroke-width: 2.5px;
+  }
+
+  .line-van-at {
+    stroke-width: 3px;
+  }
+}
+
+/* The still drawing: an order's lamp fills once it is delivered (data-lit), and a van's lamp is lit
+   where the van is (data-here). */
+.line-lamp-lit:not([data-lit]),
+.line-van-at:not([data-here]) {
+  opacity: 0;
+}
+
+/* Labels inside a drawing are the panel's engraving: the label face at the label's size, in
+   sentence case. A server's number sits in its lamp, in the surface's colour on a filled lamp. */
+.line-label,
+.line-number {
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+}
+
+.line-label {
+  fill: var(--muted-foreground);
+}
+
+/* A station named under its lamp: the Lab index's servers and log (lines/raft.astro). */
+.line-label-middle {
+  text-anchor: middle;
+}
+
+.line-number {
+  fill: var(--foreground);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+.line-number-lit {
+  fill: var(--line-ground);
+}

@@ -91,23 +91,3 @@ export function writingRow(
   const shown = new Set(cards.map((card) => card.link.href));
   return published.filter((post) => !shown.has(postPath(post))).slice(0, count);
 }
-
-/** The demos Home features, in the order its page tells them (ADR 0024): the Route Lab's day is
- *  the scene under Joseph's name, so its chapter comes first, then the Raft Lab's cluster. */
-export const FEATURED_DEMOS: readonly string[] = ['/lab/routes/', '/lab/raft/'];
-
-/** Selected work as Home lays it out: the featured demos first, in FEATURED_DEMOS order, then
- *  every other card in the list's own order. The same cards as the list, never more or fewer;
- *  only the order is Home's (test/project-cards.test.ts). */
-export function featuredFirst<T extends { readonly link: { readonly href: string } }>(
-  cards: readonly T[],
-): T[] {
-  const rank = (card: T) => {
-    const k = FEATURED_DEMOS.indexOf(card.link.href);
-    return k < 0 ? FEATURED_DEMOS.length : k;
-  };
-  return cards
-    .map((card, i) => ({ card, i }))
-    .sort((a, b) => rank(a.card) - rank(b.card) || a.i - b.i)
-    .map(({ card }) => card);
-}

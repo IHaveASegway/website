@@ -1,11 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
 import { pages } from './expected';
 
-// The rail (ADR 0021) and Home's scene (ADR 0024). The rail stands down the left edge from 80rem
-// and the header is the row across the top below that. Home's scene drives the Route Lab's day on
-// a canvas over the build's picture: it moves, pauses on request (SC 2.2.2), lifts the day into the
-// space-time cube as the page scrolls, stays the build's picture under reduced motion and without
-// its data, never shifts the layout, and the Raft Lab's election runs and pauses with it.
+// The rail (ADR 0021) and Home's scene (ADR 0024, ADR 0025). The rail stands down the left edge from
+// 80rem and the header is the row across the top below that. Home's scene drives the Route Lab's
+// day on a canvas over the build's picture: it moves, pauses on request (SC 2.2.2), lifts the day
+// into the space-time cube as the page scrolls, stays the build's picture under reduced motion and
+// without its data, never shifts the layout, and the board's day runs and pauses with it. The map
+// lies on the water beside the words: its west edge just past the column at every width.
 
 const live = (page: Page) => page.locator('html[data-scene-live]');
 const canvas = (page: Page) => page.locator('canvas[data-scene-live]');
@@ -167,12 +168,12 @@ const scrollToY = (page: Page, y: number) =>
 /** What the readout's clock says. */
 const clock = (page: Page) => page.locator('[data-scene-clock]').textContent();
 
-/** The play state of the Raft Lab's messages, each distinct one once. */
-const election = (page: Page) =>
+/** The play state of the board's day: its vans' clocks (styles/board.css), each distinct one once. */
+const boardDay = (page: Page) =>
   page.evaluate(() => [
     ...new Set(
-      [...document.querySelectorAll('.iso-cluster .iso-packet')].flatMap((p) =>
-        p.getAnimations().map((a) => a.playState),
+      [...document.querySelectorAll('[data-board] .line-van')].flatMap((van) =>
+        van.getAnimations().map((a) => a.playState),
       ),
     ),
   ]);
@@ -189,9 +190,10 @@ test.describe("Home's scene", () => {
     await expect(canvas(page)).toHaveAttribute('aria-hidden', 'true');
     await expect(toggle(page)).toBeVisible();
     await expect(toggle(page)).toHaveAccessibleName('Pause motion');
-    // The readout's sentence stays for assistive technology; the live clock counts on screen.
-    await expect(page.locator('.scene-hud-done')).toHaveCount(1);
-    expect(await clock(page)).toMatch(/^\+\d.* of \d+ delivered$/);
+    // The caption's sentence stays for assistive technology; the live clock counts on screen, in
+    // the same words.
+    await expect(page.locator('.scene-clock-done')).toHaveCount(1);
+    expect(await clock(page)).toMatch(/^\d.* into the day: \d+ of \d+ orders delivered\.$/);
 
     const a = await frame(page);
     const before = await clock(page);
@@ -236,13 +238,21 @@ test.describe("Home's scene", () => {
     expect((await frame(page)) === flat, 'set down, the same frame again').toBe(true);
   });
 
-  test('the Raft Lab’s election runs with the scene and pauses with its button', async ({
+  // The board stands still until it is seen; then its lamps come up and its vans step, while the
+  // scene runs, and the scene's button pauses them where they stand.
+  test('the board’s day comes up once it is seen, runs with the scene and pauses with its button', async ({
     page,
   }) => {
     await home(page);
-    expect(await election(page)).toEqual(['running']);
+    const board = page.locator('[data-board]');
+    expect(await boardDay(page)).toEqual([]);
+    await expect(board).not.toHaveAttribute('data-seen');
+    await board.scrollIntoViewIfNeeded();
+    await page.clock.runFor(500);
+    await expect(board).toHaveAttribute('data-seen', '');
+    expect(await boardDay(page)).toEqual(['running']);
     await toggle(page).click();
-    expect(await election(page)).toEqual(['paused']);
+    expect(await boardDay(page)).toEqual(['paused']);
   });
 
   test('it shifts nothing, and is never the largest paint', async ({ page }) => {
@@ -284,7 +294,7 @@ test.describe("Home's scene", () => {
     await expect(drawing(page)).toBeVisible();
     await expect(canvas(page)).toBeHidden();
     await expect(page.locator('.motion-item')).toBeHidden();
-    await expect(page.locator('.scene-hud-done')).toBeVisible();
+    await expect(page.locator('.scene-clock-done')).toBeVisible();
     expect(loaded).toEqual([]);
   });
 
@@ -299,7 +309,7 @@ test.describe("Home's scene", () => {
     await expect(drawing(page)).toBeVisible();
     await expect(toggle(page)).toBeHidden();
     await expect(page.locator('.motion-item')).toHaveCSS('visibility', 'hidden');
-    expect(await election(page)).toEqual([]);
+    expect(await boardDay(page)).toEqual([]);
   });
 
   test('no other page has the canvas or the button', async ({ page }) => {
@@ -311,7 +321,8 @@ test.describe("Home's scene", () => {
   });
 });
 
-/** Where the stage's parts stand, in the window's pixels, and the name's size. */
+/** Where the stage's parts stand, in the window's pixels, and the name's size. The column's words
+ *  run from the name to the caption under the buttons. */
 const stageLayout = (page: Page) =>
   page.evaluate(() => {
     const box = (selector: string) => {
@@ -325,31 +336,75 @@ const stageLayout = (page: Page) =>
       overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
       main: box('main'),
       name: box('.hero-name'),
-      side: box('.hero-side'),
+      title: box('.hero-title'),
+      column: box('.stage > .hero'),
+      caption: box('.hero-caption'),
+      actions: box('.hero-actions'),
+      lede: box('.hero-lede'),
+      scene: box('.scene'),
       picture: box('.scene-picture'),
       chapter: box('[data-stage-chapter]'),
-      covers: box('.card-covers'),
+      covers: box('.covers'),
       how: box('#how'),
       size: getComputedStyle(document.querySelector('.hero-name') as Element).fontSize,
     };
   });
 
-// On a phone the Route Lab's chapter opens below the scene's band, on the page's own background
-// (home.css). Until 2026-10-30 a later rule with the same specificity won, the chapter centred its
-// words in a screen-tall box, and its title ran through the readout and over the live scene. Every
-// check above runs at 1440 × 900, so none of them saw it.
+// Below 64rem the column leads with the name, the role and the buttons, then the map's band, then
+// the opening sentence (ADR 0025); the Route Lab's chapter opens below the band, on the page's own
+// background (home.css). Until 2026-10-30 a later rule with the same specificity won, the chapter
+// centred its words in a screen-tall box, and its title ran over the live scene. The checks on a
+// larger screen run at 1440 × 900 and up, so none of them would see it.
 test.describe("Home's scene on a phone", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
+  test('the band stands between the buttons and the opening sentence', async ({ page }) => {
+    await page.goto('/');
+    const at = await stageLayout(page);
+    expect(at.overflow).toBe(0);
+    expect(at.scene.top).toBeGreaterThanOrEqual(at.actions.bottom - 0.5);
+    expect(at.lede.top).toBeGreaterThanOrEqual(at.scene.bottom - 0.5);
+    expect(at.scene.height).toBeGreaterThanOrEqual(280);
+    expect([at.scene.left, at.scene.width]).toEqual([0, at.window.width]);
+  });
+
   test("the Route Lab's words start below the scene's band, not over it", async ({ page }) => {
     await page.goto('/');
+    const band = (await stageLayout(page)).scene.height;
     const gap = await page.locator('[data-stage-chapter]').evaluate((chapter) => {
-      const title = chapter.querySelector('.card-title') as HTMLElement;
+      const title = chapter.querySelector('.chapter-title') as HTMLElement;
       return title.getBoundingClientRect().top - chapter.getBoundingClientRect().top;
     });
-    // Above 52svh the chapter's background is transparent, and the scene shows through it.
-    expect(gap).toBeGreaterThanOrEqual(844 * 0.52);
+    // Above the band's height the chapter's background is transparent, and the scene shows
+    // through it: its words start below, once its top reaches the band's.
+    expect(gap).toBeGreaterThanOrEqual(band);
   });
+});
+
+// From 64rem the map lies on the water beside the column (ADR 0025): the picture's box, which pins
+// the map's west edge at its own, starts the shore's width past the column's words, so the words
+// stand on the sound at every width, and no street runs under them.
+test.describe("Home's map beside the column", () => {
+  for (const [width, height] of [
+    [1024, 768],
+    [1280, 800],
+    [1440, 900],
+    [2560, 1440],
+  ] as const) {
+    test(`at ${width} × ${height} the map starts just past the words`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await page.goto('/');
+      const at = await stageLayout(page);
+      expect(at.overflow).toBe(0);
+      const shore = at.picture.left - at.column.right;
+      expect(shore, 'the water between the words and the map').toBeGreaterThanOrEqual(31.5);
+      expect(shore).toBeLessThanOrEqual(48);
+      expect(at.picture.right).toBeCloseTo(at.window.width, 0);
+      // The words' column holds every word of the column.
+      for (const part of [at.name, at.title, at.lede, at.actions, at.caption])
+        expect(part.right).toBeLessThanOrEqual(at.column.right + 0.5);
+    });
+  }
 });
 
 // A larger screen than 1440 × 900 (ADR 0024, "A larger screen"): until 2026-10-29 the stage kept
@@ -363,7 +418,7 @@ test.describe("Home's stage on a larger screen", () => {
     await page.goto('/');
     const design = await stageLayout(page);
     // Above the words, less what is below them: what the composition leaves at 1440 × 900.
-    const offset = design.name.top - (design.window.height - design.side.bottom);
+    const offset = design.name.top - (design.window.height - design.caption.bottom);
     for (const [width, height] of [
       [1920, 1080],
       [2560, 1440],
@@ -375,17 +430,17 @@ test.describe("Home's stage on a larger screen", () => {
       const where = `${width} × ${height}`;
       expect(at.overflow, where).toBe(0);
       // The scene's box runs to the window's right edge and nearly its full height, past the
-      // Route Lab chapter's words, and the cards that cover the scene reach the column's edges.
+      // Route Lab chapter's words, and what covers the scene reaches the column's edges.
       expect(at.picture.right, where).toBeCloseTo(at.window.width, 0);
       expect(at.picture.height, where).toBeGreaterThan(at.window.height * 0.85);
       expect(at.picture.left, where).toBeGreaterThanOrEqual(at.chapter.right + 32 - 0.5);
       expect([at.covers.left, at.covers.width], where).toEqual([at.main.left, at.main.width]);
       // The words start at the frame's edge, as every row below them does, at the name's size.
-      expect(at.side.left, where).toBeCloseTo(at.how.left, 0);
+      expect(at.title.left, where).toBeCloseTo(at.how.left, 0);
       expect(at.size, where).toBe(design.size);
       // A taller window divides its extra height evenly above and below the words.
       const above = at.name.top;
-      const below = at.window.height - at.side.bottom;
+      const below = at.window.height - at.caption.bottom;
       expect(Math.abs(above - below - offset), where).toBeLessThanOrEqual(2);
     }
   });

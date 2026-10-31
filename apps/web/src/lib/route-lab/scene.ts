@@ -20,14 +20,35 @@ export interface Camera {
   readonly lift: number;
 }
 
-/** Where the scene starts, and the build's picture with it: the city from the south-west, high
- *  enough that its shape reads as Seattle's. */
-export const START: Camera = { azimuth: -0.5, elevation: 0.86, lift: 0 };
-/** Where scrolling takes it: lower and further round, with time standing up. */
+/** Where the scene starts, and the build's picture with it: the map flat and north up, as a map is
+ *  read, so the column of words beside it stands on the sound west of the city (ADR 0025). Looking
+ *  straight down would leave the camera no direction to call right, so it stands a thousandth of a
+ *  radian off the vertical, which moves no point by a hundredth of a map unit. */
+export const START: Camera = { azimuth: 0, elevation: Math.PI / 2 - 0.001, lift: 0 };
+/** Where scrolling takes it: low and round to the south-west, with time standing up. */
 export const LIFTED: Camera = { azimuth: -0.86, elevation: 0.42, lift: 1 };
-/** How far the camera sways about START's azimuth, and how long one sway takes. */
+/** How far the camera sways about its azimuth once time stands up, and how long one sway takes.
+ *  The flat map stands still: a sway there would turn the city under the words beside it. */
 export const SWAY = 0.16;
 export const SWAY_S = 48;
+
+/** How much of the map's height the flat scene frames, in its units: about 0.56 px a unit on a
+ *  1440 × 900 screen, where the day's routes run from Ballard to the Duwamish. */
+export const WINDOW_HEIGHT = 1600;
+
+/**
+ * The part of the map the flat scene frames, in the map's own units: its whole width from its west
+ * edge, which is the sound, and WINDOW_HEIGHT of it centred on the bakery, kept inside the map. The
+ * build's picture covers its box with it, scaled to fill and pinned at its west edge (xMinYMid
+ * slice), so the shore stands just right of the words at every width and a taller or wider screen
+ * gets more of the city, never a map that ends inside the screen.
+ */
+export function windowOf(map: Bounds, bakery: readonly [number, number]): Bounds {
+  const [x0, y0, x1, y1] = map;
+  const height = Math.min(WINDOW_HEIGHT, y1 - y0);
+  const top = Math.min(Math.max(bakery[1] - height / 2, y0), y1 - height);
+  return [x0, Math.round(top), x1, Math.round(top + height)];
+}
 
 /** The time axis at lift 1, as a share of the map's larger side: the cube's own proportion. */
 export const HEIGHT = 0.62;
@@ -72,7 +93,7 @@ export const readScene = (text: string): SceneData =>
     LISTS.has(key) && typeof value === 'string' ? unpack(value) : value,
   ) as SceneData;
 
-/** The scene's data file: the tracks the canvas drives and the figures its readout counts. The
+/** The scene's data file: the tracks the canvas drives and the figures its caption counts. The
  *  map is not in it: the canvas reads the floor's paths from the build's picture, so Home holds one
  *  copy of the map. */
 export interface SceneData {

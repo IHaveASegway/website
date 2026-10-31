@@ -123,11 +123,6 @@
   --line-queue: oklch(0.69 0.15 258);
   --line-cache: oklch(0.72 0.17 45);
   --line-backfill: oklch(0.87 0.09 205);
-  /* The faces of Home's isometric drawings (ADR 0023), from the surfaces the page already has:
-     the roof lightest, the side toward the lower left next, the lower right darkest. */
-  --face-top: var(--surface-2);
-  --face-left: var(--surface-1);
-  --face-right: var(--background);
   /* The maps (design-system.md, "Map colors"): the Route Lab's, Home's scene and the link
      preview's. The water is the page itself, so a map has no edge where its data stops; the land a
      step up, the raised surface; parks a step greener. The six isochrone bands step from the land
@@ -183,9 +178,6 @@
   --line-queue: oklch(0.46 0.15 260);
   --line-cache: oklch(0.52 0.18 28);
   --line-backfill: oklch(0.56 0.09 205);
-  --face-top: var(--background);
-  --face-left: var(--surface-1);
-  --face-right: var(--surface-2);
 
   --map-water: var(--background);
   --map-land: var(--surface-2);
@@ -234,9 +226,6 @@
     --line-queue: oklch(0.46 0.15 260);
     --line-cache: oklch(0.52 0.18 28);
     --line-backfill: oklch(0.56 0.09 205);
-    --face-top: var(--background);
-    --face-left: var(--surface-1);
-    --face-right: var(--surface-2);
 
     --map-water: var(--background);
     --map-land: var(--surface-2);
