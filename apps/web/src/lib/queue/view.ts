@@ -1,11 +1,14 @@
 import { readLink, writeLink } from '../sim/link';
 import { properties, type PropertyState } from './check';
 import {
+  crash,
+  createSim,
   DRAIN_WITHIN,
   jobOf,
   live,
   LOADS,
-  replay,
+  nextTime,
+  runUntil,
   SERVICE,
   SLOWDOWN,
   type Action,
@@ -34,11 +37,14 @@ import {
  * Seed 7 has worker 2 still working at 2,400 ms, its ticket not yet printed, so the order would be
  * sent again and printed once: no story. Seed 28 is the first seed from 7 whose worker 2 is then
  * between a ticket and its ack (order 18's ticket printed at 2,371 ms).
+ *
+ * Its actions are crashes alone: the page plays the ones still ahead of a run it starts over
+ * (playTo), and a crash is the one action it needs for that.
  */
 export const OPENING: {
   readonly seed: number;
   readonly config: Config;
-  readonly actions: readonly Action[];
+  readonly actions: readonly Crash[];
   readonly until: number;
 } = {
   seed: 28,
@@ -47,7 +53,56 @@ export const OPENING: {
   until: 4_000,
 };
 
-export const openingRun = (): Sim => replay(OPENING.config, OPENING.actions, OPENING.until);
+/** One of the opening's actions: a worker crashing at its moment. */
+export type Crash = Action & { readonly kind: 'crash' };
+
+/**
+ * The opening on a seed and settings, played to `until`: a fresh run that takes the opening's
+ * crashes up to then, as replay would (sim.ts), and leaves the rest to come (aheadOf). The build's
+ * picture, a link's run, Start over and every frame after it all go through playTo, so the page
+ * takes over exactly where the picture stands by construction. Not replay itself: replay takes any
+ * action, resizing the pool among them, which no control reaches, and the page's bundle would
+ * carry it (test/support/labs.ts, the lab's budget).
+ */
+function opening(config: Config, until: number): Sim {
+  const sim = createSim(config);
+  playTo(sim, [...OPENING.actions], until);
+  return sim;
+}
+
+export const openingRun = (): Sim => opening(OPENING.config, OPENING.until);
+
+/**
+ * Where the page plays a run from when the visitor starts it over, or runs one that still stands
+ * untouched at the opening's moment: 1.5 s, before worker 2 has even taken order 18 (delivered at
+ * 2,265 ms). The picture at 4.0 s tells a crash that has already happened; from here the visitor
+ * watches it happen: order 18 taken, its ticket printed at 2,371 ms, the crash at 2.4 s, the
+ * broker sending it again and worker 1 printing it a second time at 2,873 ms. At the Steady speed
+ * that is most of a second of the run to settle on before the crash, where 400 ms passed in a
+ * blink. One constant for Start over and for Run, so the two never start from different moments.
+ */
+export const REPLAY_FROM = 1_500;
+
+/** The opening's actions a run replayed to `until` has still to take: the crashes after it. */
+export const aheadOf = (until: number): Crash[] => OPENING.actions.filter((a) => a.at > until);
+
+/**
+ * Runs a run on to `until` as replay does, taking each of the opening's crashes still `ahead` at
+ * its moment: every event up to that millisecond first, then the crash. A run started over at
+ * REPLAY_FROM and played this way is, event for event, the run its link names. Within `limit`
+ * events for each stretch, as a frame's budget; when the budget runs out first, the run stands
+ * where it got to and the crash waits, still ahead, for the next frame. Takes what it plays off
+ * `ahead`.
+ */
+export function playTo(sim: Sim, ahead: Crash[], until: number, limit = Infinity): void {
+  for (let next = ahead[0]; next && next.at <= until; next = ahead[0]) {
+    runUntil(sim, next.at, limit);
+    if (sim.violation || nextTime(sim) <= next.at) return;
+    ahead.shift();
+    crash(sim, next.worker);
+  }
+  runUntil(sim, until, limit);
+}
 
 /** How many seeded runs the property sweep in test/queue.test.ts makes: the page says the number. */
 export const SEEDS_IN_CI = 2_000;
@@ -294,23 +349,26 @@ export const SETTINGS = {
 /** The link to a run's start: its seed, and each setting not the opening's (#seed-28&key=on). */
 export const linkTo = (sim: Sim): string => writeLink(sim.seed, sim, SETTINGS);
 
-/** The run a link names, at the opening's moment: the opening's crash, on the link's seed and
- *  under its settings. Null when the hash links to no run. */
-export function openLink(hash: string): Sim | null {
+/**
+ * The run a link names, replayed to `until`: the opening's crash, on the link's seed and under its
+ * settings. By default to the opening's moment, where the build's picture stands; Start over
+ * replays it to REPLAY_FROM, and the crash after that is still ahead (aheadOf, playTo). Null when
+ * the hash links to no run.
+ */
+export function openLink(hash: string, until: number = OPENING.until): Sim | null {
   const link = readLink(hash, SETTINGS);
-  return (
-    link &&
-    replay({ ...OPENING.config, ...link.values, seed: link.seed }, OPENING.actions, OPENING.until)
-  );
+  return link && opening({ ...OPENING.config, ...link.values, seed: link.seed }, until);
 }
 
 /**
  * Start over: the run this one's link names, the opening again on this run's seed and with the
  * visitor's settings, so the same crash comes at the same moment and the settings are all that
  * differ. Crashes, slow spells, poison orders and a stopped producer are things the visitor did,
- * so they go with the old run.
+ * so they go with the old run. The page starts it over at REPLAY_FROM; replayed to the opening's
+ * moment, as by default, it is the run the link opens.
  */
-export const startOver = (sim: Sim): Sim => openLink(linkTo(sim)) as Sim;
+export const startOver = (sim: Sim, until: number = OPENING.until): Sim =>
+  openLink(linkTo(sim), until) as Sim;
 
 /** A property's words beside its lamp: "Holds", or "Broken" and what broke it, counted. Until the
  *  page knows whether the queue drains, the words say when it will. */
@@ -523,8 +581,8 @@ export function workerWord(w: Worker): string {
  * ready ones wait as square lamps; a track a worker leaves it, holding the orders that worker has
  * taken, up to the prefetch it had when it took them, the one in work lit at its head; the main line runs on to the oven
  * tickets, one lamp an order in rows of consecutive orders, filled once printed, with a second
- * circle around it when it printed twice, and crossed when it was lost; and the dead-letter siding
- * runs under them to its buffer stops. A crashed worker's track is drawn hollow. A poison order's
+ * circle around it when it printed twice, and hollow and struck through once when it was lost;
+ * and the dead-letter siding runs under them to its buffer stops. A crashed worker's track is drawn hollow. A poison order's
  * lamp is a diamond wherever it is.
  */
 export function mapMarkup(sim: Sim, layout: Layout): string {
@@ -695,10 +753,12 @@ export function mapMarkup(sim: Sim, layout: Layout): string {
           `<circle class="qu-again" data-order="${id}" cx="${round1(x)}" cy="${round1(y)}" r="${lamp + 2}"/>`,
         );
     } else if (job.place === 'lost') {
+      // A hollow lamp struck through once, corner to corner and a little past its ring: the
+      // site's lost order (design-system.md, Lamps). A cross in a ring, ⊗, is a worker out of
+      // service on the board, so the desk no longer draws it for an order.
       const r = lamp - 1;
-      const c = r * 0.7;
       out.push(
-        `<path class="qu-ticket" data-state="lost" data-order="${id}" d="M${round1(x - r)} ${round1(y)}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0M${round1(x - c)} ${round1(y - c)}l${round1(2 * c)} ${round1(2 * c)}M${round1(x + c)} ${round1(y - c)}l${round1(-2 * c)} ${round1(2 * c)}"/>`,
+        `<path class="qu-ticket" data-state="lost" data-order="${id}" d="M${round1(x - r)} ${round1(y)}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0M${round1(x - r)} ${round1(y + r)}l${2 * r} ${-2 * r}"/>`,
       );
     }
   }
