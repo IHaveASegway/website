@@ -18,6 +18,7 @@ import {
   type Sim,
 } from '../../lib/queue/sim';
 import {
+  capacityWords,
   LAYOUTS,
   linkTo,
   mapMarkup,
@@ -118,6 +119,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     text($('[data-qu-from]'), tenths(history.from));
     text($('[data-qu-to]'), tenths(history.to));
     text($('[data-qu-wait]'), waitWords(sim));
+    text($('[data-qu-capacity]'), capacityWords(sim));
     for (const p of properties(sim)) {
       const item = $(`[data-qu-prop="${p.id}"]`);
       attribute(item, 'data-held', String(p.held));

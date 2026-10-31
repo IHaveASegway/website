@@ -1,7 +1,8 @@
 ---
 import { properties } from '../../lib/queue/check';
-import { LOADS, MAX_WORKERS, SERVICE } from '../../lib/queue/sim';
+import { LOADS, MAX_WORKERS } from '../../lib/queue/sim';
 import {
+  capacityWords,
   LAYOUTS,
   mapMarkup,
   openingRun,
@@ -41,12 +42,6 @@ const sim = openingRun();
 const lines = sim.lines.slice(-12);
 const history = strip(sim);
 const pool = sim.workers.slice(0, sim.size);
-// Three workers' capacity, from the service time's mean: a log-normal's is its median times
-// e^(spread² / 2).
-const capacity = (
-  (pool.length * 1000) /
-  (SERVICE.median * Math.exp(SERVICE.spread ** 2 / 2))
-).toFixed(1);
 const ACKS = [
   { value: 'after', name: 'After the work' },
   { value: 'before', name: 'Before the work' },
@@ -293,8 +288,8 @@ if (pool.length > MAX_WORKERS) throw new Error('queue lab: more workers than the
           ))}
         </div>
         <p class="qu-note">
-          {LOADS.calm}, {LOADS.busy} and {LOADS.rush} orders a second. Three workers print about{' '}
-          {capacity}.
+          {LOADS.calm}, {LOADS.busy} and {LOADS.rush} orders a second.{' '}
+          <span data-qu-capacity>{capacityWords(sim)}</span>
         </p>
       </fieldset>
       <div class="qu-group" role="group" aria-labelledby="qu-new">

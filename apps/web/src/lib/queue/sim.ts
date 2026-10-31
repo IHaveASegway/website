@@ -1127,13 +1127,27 @@ export function setPoisonHandling(sim: Sim, handling: Handling): void {
   if (sim.handling === handling) return;
   record(sim, { at: sim.now, kind: 'handling', handling });
   sim.handling = handling;
+  // The tries an order has made count, as a broker's count of deliveries does: one still in play
+  // that has failed three times already, as a poison order under requeue has, goes there at its
+  // next failure, with no wait.
+  let already = '';
+  for (const job of sim.jobs)
+    if (job.ended === null && job.failures >= BACKOFF.length)
+      already += `. Order ${job.id} has failed ${job.failures} times already, so its next failure sends it there`;
   say(
     sim,
     handling === 'requeue'
       ? 'A failing order now goes straight back to the head of the queue'
-      : 'A failing order now waits 200, 400 and 800 ms between tries, then goes to the dead-letter queue',
+      : `A failing order now waits 200, 400 and 800 ms between tries, then goes to the dead-letter queue${already}`,
   );
   settle(sim);
+}
+
+/** The orders a worker holds: in its window, and on their way to it. */
+function holding(sim: Sim, w: Worker): number {
+  let n = w.window.length;
+  for (const id of sim.wire) if (jobOf(sim, id).worker === w.id) n += 1;
+  return n;
 }
 
 export function setPrefetch(sim: Sim, n: number): void {
@@ -1142,10 +1156,14 @@ export function setPrefetch(sim: Sim, n: number): void {
   if (sim.prefetch === prefetch) return;
   record(sim, { at: sim.now, kind: 'prefetch', n: prefetch });
   sim.prefetch = prefetch;
-  say(
-    sim,
-    `Prefetch is now ${prefetch}: each worker holds up to ${prefetch} ${prefetch === 1 ? 'order' : 'orders'}`,
-  );
+  // Lowered, it takes back nothing a worker was sent: the broker sends it no more until it holds
+  // fewer, as AMQP's basic.qos does.
+  let text = `Prefetch is now ${prefetch}: each worker is sent orders until it holds ${prefetch}`;
+  for (const w of sim.workers.slice(0, sim.size)) {
+    const held = w.state === 'up' ? holding(sim, w) : 0;
+    if (held > prefetch) text += `. ${WorkerName(w.id)} holds ${held} already, and keeps them`;
+  }
+  say(sim, text);
   dispatch(sim);
   settle(sim);
 }

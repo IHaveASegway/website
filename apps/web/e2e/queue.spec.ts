@@ -253,7 +253,11 @@ test('and a rush: with three workers up, 14 orders a second outrun them, and the
 }) => {
   test.setTimeout(60_000);
   await page.goto(QUEUE);
+  // The note under the loads says what the workers up print: two after the opening's crash.
+  const capacity = page.locator('[data-qu-capacity]');
+  await expect(capacity).toHaveText('Two workers are up and print about 6.5.');
   await page.getByRole('button', { name: 'Restart worker 2' }).click();
+  await expect(capacity).toHaveText('Three workers are up and print about 9.7.');
   await page.getByRole('radio', { name: 'Rush' }).check();
   const waiting = async () =>
     Number(/^(\d+) waiting/.exec((await page.locator('[data-qu-wait]').textContent()) ?? '')?.[1]);
@@ -342,6 +346,23 @@ test('Start over writes the link to its run, the seed and each setting changed, 
   expect(await shown(page)).toEqual(before);
 });
 
+test('a link followed before the app has loaded loads it, and opens that run with its settings', async ({
+  page,
+}) => {
+  const app: string[] = [];
+  page.on('request', (r) => /\/_astro\/app\./.test(r.url()) && app.push(r.url()));
+  await page.goto(QUEUE);
+  await page.waitForTimeout(300);
+  expect(app).toEqual([]);
+  // The boot script hears the link and loads the app, which opens the run the link names.
+  await page.evaluate(() => (location.hash = '#seed-9&prefetch=10&ack=before'));
+  await expect(page.locator('[data-qu-seed]')).toHaveText('9');
+  await expect(clock(page)).toHaveText('Virtual time 4.000 s');
+  await expect(page.getByRole('radio', { name: '10', exact: true })).toBeChecked();
+  await expect(page.getByRole('radio', { name: 'Before the work' })).toBeChecked();
+  expect(app).toHaveLength(1);
+});
+
 test('a link followed on the page opens its run paused at the opening’s moment, and a value the lab cannot take is left out', async ({
   page,
 }) => {
@@ -364,11 +385,16 @@ test('a link followed on the page opens its run paused at the opening’s moment
   expect(await shown(page)).toEqual(nine);
 
   // A name the lab does not have and values its settings cannot take are dropped: the run is
-  // seed 9's under the opening's settings, as the bare link gives it.
+  // seed 9's under the opening's settings, as the bare link gives it. It is followed from another
+  // seed's run under other settings, so a page that ignored it would show that run instead.
   await page.evaluate(() => (location.hash = '#seed-9'));
   await expect(page.getByRole('radio', { name: '1', exact: true })).toBeChecked();
   const bare = await shown(page);
+  await page.evaluate(() => (location.hash = '#seed-12&load=rush&prefetch=10'));
+  await expect(page.locator('[data-qu-seed]')).toHaveText('12');
+  await expect(page.getByRole('radio', { name: 'Rush' })).toBeChecked();
   await page.evaluate(() => (location.hash = '#seed-9&load=storm&prefetch=3&key=maybe&colour=red'));
+  await expect(page.locator('[data-qu-seed]')).toHaveText('9');
   await expect(page.getByRole('radio', { name: 'Busy' })).toBeChecked();
   await expect(page.getByRole('radio', { name: '1', exact: true })).toBeChecked();
   await expect(page.getByRole('radio', { name: 'Off' })).toBeChecked();
