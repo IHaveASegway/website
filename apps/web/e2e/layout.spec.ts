@@ -33,11 +33,13 @@ function buttonWidths(): number[] {
   );
 }
 
-/** The footer's items that start a line away from the frame's edge. Runs in the page. */
+/** The footer's items that start a line away from the frame's edge, its content's left edge (the
+ *  footer is the frame itself since ADR 0027). Runs in the page. */
 function linesOffTheEdge(): string[] {
   const footer = document.querySelector('.site-footer');
   if (!footer) return ['no footer'];
-  const edge = footer.getBoundingClientRect().left;
+  const edge =
+    footer.getBoundingClientRect().left + Number.parseFloat(getComputedStyle(footer).paddingLeft);
   const items = [...footer.querySelectorAll(':scope > *, :scope > ul > li')].filter(
     (item) => item.localName !== 'ul',
   );
@@ -53,21 +55,19 @@ function linesOffTheEdge(): string[] {
     .map((item) => (item.textContent ?? '').trim());
 }
 
-/** How far the copyright starts after the item before it on its line, in px, optionally with the
- *  footer's links removed first, as on a build with no page or checked profile to list; null if
- *  it stands on a line of its own. Runs in the page. */
-function copyrightAfterTheLast(withoutLinks: boolean): number | null {
-  const footer = document.querySelector('.site-footer');
-  const copyright = footer?.querySelector('.fine-print');
-  if (!footer || !copyright) return null;
+/** Where the footer's parts stand (ADR 0027): who and the address, the links, the copyright,
+ *  each part's box, optionally with the links removed first, as on a build with no page or checked
+ *  profile to list. Runs in the page. */
+function footerParts(withoutLinks: boolean) {
+  const footer = document.querySelector('.site-footer') as HTMLElement;
   if (withoutLinks) footer.querySelector('.footer-links')?.remove();
-  const own = copyright.getBoundingClientRect();
-  const before = [...footer.querySelectorAll(':scope > a, :scope > ul > li')]
-    .map((item) => item.getBoundingClientRect())
-    .filter((box) => Math.abs(box.top + box.height / 2 - (own.top + own.height / 2)) < 4)
-    .map((box) => box.right)
-    .filter((right) => right <= own.left + 0.5);
-  return before.length === 0 ? null : own.left - Math.max(...before);
+  const edge =
+    footer.getBoundingClientRect().left + Number.parseFloat(getComputedStyle(footer).paddingLeft);
+  const box = (selector: string) => {
+    const b = footer.querySelector(selector)?.getBoundingClientRect();
+    return b ? { left: b.left - edge, top: b.top, bottom: b.bottom } : null;
+  };
+  return { who: box('.footer-who'), links: box('.footer-links'), copyright: box('.fine-print') };
 }
 
 const WIDTHS = [320, 390, 600, 767, 768, 1023, 1024, 1060, 1100, 1199, 1200, 1440];
@@ -108,77 +108,34 @@ for (const width of [320, 390]) {
   });
 }
 
-// From 48rem the footer is one line, flush left and ragged right as everything is (ADR 0025): the
-// copyright follows the last link, or the address with no links, a gap's width after it. Until
-// 2026-10-30 the links took the rest of the line and the copyright stood at its far end, a second
-// right edge on every page.
+// From 48rem the footer is two columns over a line (ADR 0027): who and the address at the frame's
+// start, the links beside them in the same band, and the copyright under both, on a line of its
+// own at the frame's start. Until 2026-10-31 it was one line, the copyright after the last link.
 for (const width of [768, 1440, 2560]) {
-  test(`the copyright follows the footer's links at ${width} px, with links and without`, async ({
+  test(`the footer stands its links beside who it is, the copyright under both, at ${width} px`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 800 });
     for (const path of [...pages(), NOT_FOUND_PAGE]) {
       for (const withoutLinks of [false, true]) {
         await open(page, path);
-        const gap = await page.evaluate(copyrightAfterTheLast, withoutLinks);
+        const parts = await page.evaluate(footerParts, withoutLinks);
         const where = `${path}, ${withoutLinks ? 'no links' : 'links'}`;
-        expect(gap, where).not.toBeNull();
-        expect(gap ?? Infinity, where).toBeLessThanOrEqual(24);
+        expect(parts.who?.left, where).toBe(0);
+        expect(parts.copyright?.left, where).toBe(0);
+        expect(parts.copyright?.top ?? 0, where).toBeGreaterThanOrEqual(parts.who?.bottom ?? 0);
+        if (parts.links) {
+          expect(parts.links.left, where).toBeGreaterThan(0);
+          expect(Math.abs(parts.links.top - (parts.who?.top ?? 0)), where).toBeLessThan(1);
+          expect(parts.copyright?.top ?? 0, where).toBeGreaterThanOrEqual(parts.links.bottom);
+        }
       }
     }
   });
 }
 
-// Below 80rem the header is one bar of one height on every page, 56 px with its rule under it,
-// the name at its start on every page but Home (ADR 0025). Until 2026-10-30 the name took a line
-// of its own at 390 px, and the bar was 108 px on every page but Home's 64.
-for (const width of [390, 1024]) {
-  test(`below 80rem the bar is one line, 56 px tall, on every page, at ${width} px`, async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width, height: 844 });
-    for (const path of [...pages(), NOT_FOUND_PAGE]) {
-      await open(page, path);
-      await page.waitForFunction(() => 'palette' in document.documentElement.dataset);
-      const bar = await page.evaluate(() => {
-        const header = document.querySelector('.site-header')?.getBoundingClientRect();
-        const name = document.querySelector('.site-header .wordmark')?.getBoundingClientRect();
-        const nav = document.querySelector('.site-header .site-nav')?.getBoundingClientRect();
-        return {
-          height: header?.height ?? 0,
-          oneLine: !name || !nav || Math.abs(name.top - nav.top) < 1,
-        };
-      });
-      expect(bar, path).toEqual({ height: 56, oneLine: true });
-    }
-  });
-}
-
-// Everything stands flush left on one edge (ADR 0025): on a large screen the frame starts the
-// page's gutter past the rail, and the room the screen adds is left at its end. Until 2026-10-30
-// the frame was centred, and at 2560 px the words stood some 510 px from the rail.
-test('at 2560 px every page starts the gutter past the rail, and so does its footer', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 2560, height: 1440 });
-  for (const path of [...pages(), NOT_FOUND_PAGE]) {
-    await open(page, path);
-    const edges = await page.evaluate(() => {
-      const rail = document.querySelector('.masthead')?.getBoundingClientRect().right ?? 0;
-      const gutter = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) * 4;
-      // The page's left edge: where its headings and paragraphs start, the leftmost of them.
-      const words = [...document.querySelectorAll('main :is(h1, h2, h3, p, li)')]
-        .map((element) => element.getBoundingClientRect())
-        .filter((box) => box.width > 0)
-        .map((box) => box.left);
-      const footer = document.querySelector('.site-footer')?.getBoundingClientRect().left ?? 0;
-      return { words: Math.min(...words) - rail - gutter, footer: footer - rail - gutter };
-    });
-    // A title's own side bearing (Home's name starts 0.055em left of the edge) is under 10 px.
-    expect(Math.abs(edges.words), path).toBeLessThan(10);
-    expect(Math.abs(edges.footer), path).toBeLessThan(0.5);
-  }
-});
+// The bar's height and row, and the frame's place on a wide screen, are e2e/top-bar.spec.ts's
+// since ADR 0027 replaced the rail with one bar at every width.
 
 // Home's closing address fits its column on one line from 320 px up (home.css): at a title's size
 // it is wider than a phone's column, so below 27rem it takes a section's size. Until 2026-10-30 it
@@ -235,23 +192,29 @@ test('known answers: the layout checks count lines, read widths and find a line 
   expect(await page.evaluate(linesOffTheEdge)).toEqual(['© 2026']);
 });
 
-test('known answers: the copyright check measures its gap after the last item, links or none', async ({
+test("known answers: the footer check reads each part from the frame's content edge", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 800, height: 600 });
-  // The footer before 2026-10-30: the links grow, and push the copyright to the line's end.
-  const footer = (links: string) =>
+  // The one-line footer before 2026-10-31: the copyright after the last link, on the same line.
+  const footer = (layout: string) =>
     page.setContent(
       '<body style="margin: 0; font: 16px monospace">' +
-        '<div class="site-footer" style="display: flex; flex-wrap: wrap; gap: 0 22px; width: 600px">' +
-        '<a class="footer-email">hi@example.com</a>' +
-        `<ul class="footer-links" style="display: flex; margin: 0; padding: 0; ${links}"><li>Link</li></ul>` +
-        '<p class="fine-print" style="margin: 0">© 2026</p></div></body>',
+        `<div class="site-footer" style="padding: 0 40px; width: 600px; ${layout}">` +
+        '<div class="footer-who"><p style="margin: 0">Name</p><a>hi@example.com</a></div>' +
+        '<ul class="footer-links" style="display: flex; margin: 0; padding: 0"><li>Link</li></ul>' +
+        '<p class="fine-print" style="margin: 0; grid-column: 1 / -1">© 2026</p></div></body>',
     );
-  await footer('flex: 1 1 auto');
-  expect(await page.evaluate(copyrightAfterTheLast, false)).toBeGreaterThan(300);
-  // Ragged right: it follows the last link, and without the links the address, a gap after it.
-  await footer('');
-  expect(await page.evaluate(copyrightAfterTheLast, false)).toBe(22);
-  expect(await page.evaluate(copyrightAfterTheLast, true)).toBe(22);
+  await footer('display: flex; gap: 0 22px');
+  const line = await page.evaluate(footerParts, false);
+  expect(line.who?.left).toBe(0);
+  expect(line.copyright?.left).toBeGreaterThan(0);
+  // The system: two columns over the copyright's line.
+  await footer('display: grid; grid-template-columns: 1fr auto');
+  const grid = await page.evaluate(footerParts, false);
+  expect(grid.copyright?.left).toBe(0);
+  expect(grid.links?.left).toBeGreaterThan(0);
+  expect(grid.copyright?.top ?? 0).toBeGreaterThanOrEqual(grid.links?.bottom ?? Infinity);
+  const bare = await page.evaluate(footerParts, true);
+  expect(bare.links).toBeNull();
 });

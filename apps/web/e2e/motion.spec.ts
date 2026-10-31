@@ -1,10 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// Reduced motion (design-system.md, "Motion"): under prefers-reduced-motion: reduce nothing moves.
-// The state still changes (the card's sweep appears at once); only the movement is gone. With no
-// preference, what moves is the list below (ADR 0025): Home's scene and the board's day with it,
-// once the board is seen; the 2 px sweep along a row that leads somewhere, and on the board the
-// other lines dimming; and the followed title's handoff to the next page. Text never animates: no
+// Reduced motion (docs/design/overhaul.md, "Motion"): under prefers-reduced-motion: reduce nothing
+// moves. The state still changes (a card's edge and title change at once); only the movement is
+// gone. With no preference, what moves is the list below: Home's scene and the board's day with it,
+// once the board is seen; the 2 px sweep along a post's row, and on the board the other lines
+// dimming; and the followed title's handoff to the next page. A card does not move (ADR 0027): its
+// sign under the pointer is a state, with no transition. Text never animates: no
 // title rises, no rule draws itself, no tag decodes, no arrow nudges.
 //
 // The check reads the computed motion of every element and pseudo-element rather than waiting
@@ -35,14 +36,14 @@ function moving(page: Page) {
 
 const running = (page: Page) => page.evaluate(() => document.getAnimations().length);
 
-/** The card sweep's transform, on the card the test brought or else the page's first: scaleX(0)
- *  while hidden, the identity matrix while shown. */
-const bar = (page: Page) =>
+/** A card's sign under the pointer (ADR 0027): its edge's colour and its title's, on the card the
+ *  test brought or else the page's first. Until ADR 0027 the sign was a 2 px sweep along its top. */
+const sign = (page: Page) =>
   page.evaluate(() => {
     const card = document.querySelector('[data-test-card]') ?? document.querySelector('.card');
-    return getComputedStyle(card as Element, '::before').transform;
+    const title = card?.querySelector('.card-title');
+    return `${getComputedStyle(card as Element).borderTopColor} ${getComputedStyle(title as Element).color}`;
   });
-const SHOWN = 'matrix(1, 0, 0, 1, 0, 0)';
 
 /** Gives that card a link, as a card that leads somewhere has: the bar is its sign. */
 const linkFirstCard = (page: Page) =>
@@ -113,16 +114,19 @@ test('under reduce nothing would move, and nothing runs after a hover or any Tab
     expect(await running(page), `after Tab ${i + 1}`).toBe(0);
   }
 
-  // The state change survives without the movement: on a card with a link, the sweep is drawn at
-  // once on hover.
+  // The state change survives without the movement: on a card with a link, its edge and title
+  // change at once on hover.
   if ((await cardCount(page)) === 0) await addCard(page);
   await linkFirstCard(page);
+  await page.mouse.move(0, 0);
+  const atRest = await sign(page);
   await page.hover('.card');
   expect(await running(page)).toBe(0);
-  expect(await bar(page)).toBe(SHOWN);
+  expect(await sign(page)).not.toBe(atRest);
 });
 
-// A card has no rule of its own (ADR 0025): its one sign under the pointer is the sweep.
+// A card's sign under the pointer (ADR 0027): its edge darkens to the working rule and its title
+// turns to the accent, only on a card that leads somewhere.
 test('a card with nothing to activate does not react to the pointer; one with a link does', async ({
   page,
 }) => {
@@ -131,18 +135,18 @@ test('a card with nothing to activate does not react to the pointer; one with a 
   await addCard(page);
   const card = page.locator('[data-test-card]');
   expect(await card.locator('a, button').count()).toBe(0);
-  const atRest = await bar(page);
-  expect(atRest).not.toBe(SHOWN);
+  const atRest = await sign(page);
   await card.hover();
-  expect(await bar(page)).toBe(atRest);
+  expect(await sign(page)).toBe(atRest);
 
   await linkFirstCard(page);
   await page.mouse.move(0, 0);
+  expect(await sign(page)).toBe(atRest);
   await card.hover();
-  expect(await bar(page)).toBe(SHOWN);
+  expect(await sign(page)).not.toBe(atRest);
 });
 
-/** What Home would move with no preference (ADR 0025): each card's and post's sweep; each band of
+/** What Home would move with no preference (ADR 0025, ADR 0027): each post's sweep; each band of
  *  the board, its sweep and its line, which dims while another is pointed at; and, while Home's
  *  scene runs and once the board has been seen, the board's day: each van's clock and the lamps
  *  that come up. Until ADR 0025 the scan also found the Raft Lab's election, each section's
@@ -153,7 +157,6 @@ const expectedMotion = (page: Page) =>
     const live = 'motion' in document.documentElement.dataset;
     const seen = live && document.querySelector('[data-board][data-seen]') !== null;
     return [...document.querySelectorAll('*')].flatMap((element) => {
-      if (element.matches('.card')) return ['article.card::before'];
       if (element.matches('.post-list > li')) return ['li::before'];
       if (element.matches('.board-lines > .band')) return ['li.band::before'];
       if (element.matches('.band > .line')) return ['div.line'];

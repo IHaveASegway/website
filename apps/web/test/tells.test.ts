@@ -8,9 +8,11 @@ import { app, files, html, read } from './support/dist';
 // "Budgets as CI fitness functions"), held by the build so they cannot drift back one component at
 // a time:
 //
-//   1. Capitals and tracking. No rule sets text-transform: uppercase, no letter-spacing is above
-//      zero (the tracked, all-capital eyebrow), and a rule that sets the label face or a label's
-//      size sets no letter-spacing but 0: labels are signage, in sentence case and untracked.
+//   1. Capitals and tracking. No rule sets text-transform: uppercase but the name's own,
+//      .nameplate, where ADR 0027 sets Joseph's name in capitals in the display face; no
+//      letter-spacing is above zero (the tracked, all-capital eyebrow), and a rule that sets the
+//      label face or a label's size sets no letter-spacing but 0: labels are signage, in sentence
+//      case and untracked.
 //   2. A dot or an arrow between words. Outside .prose, the text a page shows is links, buttons,
 //      labels and page heads, and none of it holds a middle dot or an arrow: the site writes
 //      "Remote, US", "View all demos", "Up and down to move". A stylesheet's generated content is
@@ -157,8 +159,11 @@ export function trackingOf(value: string): number | undefined {
 // ---------------------------------------------------------------------------------------------
 // 1. Capitals and tracking
 
-/** A rule that sets the label face, or a label's or a control's size: Barlow Semi Condensed. */
-const LABEL = /--font-label\b|--text-(label|ui)\b/;
+/** A rule that sets the label or the wide face, or a label's or a control's size. */
+const LABEL = /--font-(label|wide)\b|--text-(label|ui)\b/;
+/** The one rule that may set capitals: the name, in the display face at the hero's size (ADR
+ *  0027). Its selector alone, never a list that includes it, so no label rides along. */
+const NAMEPLATE = '.nameplate';
 /** A token Tailwind's text-* and tracking-* utilities apply as letter-spacing. */
 const TRACKING_TOKEN = /^--(text-[\w-]+--letter-spacing|tracking-[\w-]+)$/;
 
@@ -180,7 +185,11 @@ export function capitalsAndTracking(
   );
   for (const d of all) {
     const where = `${file}:${d.line}`;
-    if (d.property === 'text-transform' && /\buppercase\b/i.test(d.value))
+    if (
+      d.property === 'text-transform' &&
+      /\buppercase\b/i.test(d.value) &&
+      selectorOf(d) !== NAMEPLATE
+    )
       problems.push(`${where}: ${selectorOf(d)} sets text-transform: ${d.value}`);
     if (TRACKING_TOKEN.test(d.property)) {
       const amount = trackingOf(resolve(d.value, vars) ?? '');
@@ -493,8 +502,13 @@ describe('labels are never capitals, never tracked', () => {
       .figure-words { font-family: var(--font-label); letter-spacing: 0; }
       button, input { letter-spacing: inherit; }
       .x::after { content: 'text-transform: uppercase'; } /* letter-spacing: 0.1em */
-      .lowercase { text-transform: lowercase; }`;
+      .lowercase { text-transform: lowercase; }
+      .nameplate { font-family: var(--font-display); text-transform: uppercase; }`;
     expect(capitalsAndTracking(system, 's.css', new Map())).toEqual([]);
+    // The name's exception is its selector alone: a label listed beside it is still caught.
+    expect(
+      capitalsAndTracking('.nameplate, .label { text-transform: uppercase; }', 'n.css', new Map()),
+    ).toEqual(['n.css:1: .nameplate, .label sets text-transform: uppercase']);
   });
 });
 

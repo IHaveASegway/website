@@ -1,47 +1,17 @@
 {
   "about": "What scripts/fonts/build.sh reads and writes. Sources are pinned by URL, sha256 and size: the shipped fonts and their licenses, and fonts measured only to fit the fallback faces. Outputs are recorded by build.sh --write, and test/fonts.test.ts fails when a committed file differs from its line here.",
   "sources": {
-    "barlow-condensed-ttf": {
-      "url": "https://raw.githubusercontent.com/google/fonts/0b58fb370093f9a9f4ff785d94405710b79de67c/ofl/barlowcondensed/BarlowCondensed-SemiBold.ttf",
-      "sha256": "7b619d14bc2327509a9ef32b0890f709626f7ecc9ff61191c2a4314c5499d2d9",
-      "bytes": 109428,
-      "provenance": "Barlow Condensed SemiBold 1.408, by Jeremy Tribby, OFL 1.1, no Reserved Font Name. A static instance: the name and every title. google/fonts at commit 0b58fb37, which publishes git blob 9df66576 for this file."
+    "archivo-ttf": {
+      "url": "https://raw.githubusercontent.com/google/fonts/0b58fb370093f9a9f4ff785d94405710b79de67c/ofl/archivo/Archivo%5Bwdth%2Cwght%5D.ttf",
+      "sha256": "0e094a7d3c7c4c25cf1310c4b30014f1dae9332220b1c2c88f4fa996f0b05053",
+      "bytes": 658596,
+      "provenance": "Archivo 2.001, by Omnibus-Type (Héctor Gatti and team), OFL 1.1, no Reserved Font Name. The variable font, widths 62 to 125 and weights 100 to 900: cut.py instances four static faces from it, ExtraCondensed ExtraBold, Expanded Medium, Regular and SemiBold (docs/design/overhaul.md, \"Type\"; ADR 0027). google/fonts at commit 0b58fb37."
     },
-    "barlow-condensed-ofl": {
-      "url": "https://raw.githubusercontent.com/google/fonts/0b58fb370093f9a9f4ff785d94405710b79de67c/ofl/barlowcondensed/OFL.txt",
-      "sha256": "186d750eb496a4c17a76385f82be6aea2ac1cf2de074a811d63786cf374ea73f",
-      "bytes": 4377,
-      "provenance": "google/fonts at commit 0b58fb37, git blob 2f22ba6c: the same file as barlow-ofl, so OFL-Barlow.txt serves both."
-    },
-    "barlow-semi-condensed-ttf": {
-      "url": "https://raw.githubusercontent.com/google/fonts/0b58fb370093f9a9f4ff785d94405710b79de67c/ofl/barlowsemicondensed/BarlowSemiCondensed-Medium.ttf",
-      "sha256": "4998b693a190b76f2b11315844345a8546c1e2e6a320905507a9eed04edf8b48",
-      "bytes": 105560,
-      "provenance": "Barlow Semi Condensed Medium 1.408, OFL 1.1, no Reserved Font Name. A static instance: labels, the navigation, buttons and captions. google/fonts at commit 0b58fb37, git blob 415429b6."
-    },
-    "barlow-semi-condensed-ofl": {
-      "url": "https://raw.githubusercontent.com/google/fonts/0b58fb370093f9a9f4ff785d94405710b79de67c/ofl/barlowsemicondensed/OFL.txt",
-      "sha256": "186d750eb496a4c17a76385f82be6aea2ac1cf2de074a811d63786cf374ea73f",
-      "bytes": 4377,
-      "provenance": "google/fonts at commit 0b58fb37, git blob 2f22ba6c: the same file as barlow-ofl, so OFL-Barlow.txt serves both."
-    },
-    "barlow-ttf": {
-      "url": "https://raw.githubusercontent.com/google/fonts/0b58fb370093f9a9f4ff785d94405710b79de67c/ofl/barlow/Barlow-Regular.ttf",
-      "sha256": "95aa02c7c43096e0dd44d787ba6216864a67157e402adab59b35572e0c1577ea",
-      "bytes": 104068,
-      "provenance": "Barlow Regular 1.408, OFL 1.1, no Reserved Font Name. A static instance: reading text. google/fonts at commit 0b58fb37, git blob bb3faec4."
-    },
-    "barlow-semibold-ttf": {
-      "url": "https://raw.githubusercontent.com/google/fonts/0b58fb370093f9a9f4ff785d94405710b79de67c/ofl/barlow/Barlow-SemiBold.ttf",
-      "sha256": "86577cb32f8abe3673db53ca0f4221e6856751a4f6730c867e00f720f8bb1fc5",
-      "bytes": 108348,
-      "provenance": "Barlow SemiBold 1.408, OFL 1.1, no Reserved Font Name. A static instance: <strong> in reading text. google/fonts at commit 0b58fb37, git blob 7c974a4a."
-    },
-    "barlow-ofl": {
-      "url": "https://raw.githubusercontent.com/google/fonts/0b58fb370093f9a9f4ff785d94405710b79de67c/ofl/barlow/OFL.txt",
-      "sha256": "186d750eb496a4c17a76385f82be6aea2ac1cf2de074a811d63786cf374ea73f",
-      "bytes": 4377,
-      "provenance": "google/fonts at commit 0b58fb37, git blob 2f22ba6c, the license the three Barlow families share."
+    "archivo-ofl": {
+      "url": "https://raw.githubusercontent.com/google/fonts/0b58fb370093f9a9f4ff785d94405710b79de67c/ofl/archivo/OFL.txt",
+      "sha256": "108b4e57c9c796d3d38d0428ca7ee39de47ad93187302718d9b2d8864b9b716b",
+      "bytes": 4388,
+      "provenance": "google/fonts at commit 0b58fb37: Archivo's license, served as OFL-Archivo.txt."
     },
     "b612-mono-ttf": {
       "url": "https://raw.githubusercontent.com/google/fonts/0b58fb370093f9a9f4ff785d94405710b79de67c/ofl/b612mono/B612Mono-Regular.ttf",
@@ -99,45 +69,49 @@
     }
   },
   "outputs": {
+    "public/fonts/OFL-Archivo.txt": {
+      "sha256": "108b4e57c9c796d3d38d0428ca7ee39de47ad93187302718d9b2d8864b9b716b",
+      "bytes": 4388
+    },
     "public/fonts/OFL-B612Mono.txt": {
       "sha256": "a815f65bc72d90494b01842d3171f7cb0f9f935e023d9cc260904d221ef1064a",
       "bytes": 4470
     },
-    "public/fonts/OFL-Barlow.txt": {
-      "sha256": "186d750eb496a4c17a76385f82be6aea2ac1cf2de074a811d63786cf374ea73f",
-      "bytes": 4377
+    "src/assets/fonts/archivo-condensed-extrabold.woff2": {
+      "sha256": "e72ba17fffc71b5d7f13a7eea6c6e1feb53d05061d7da1cfad2e21e2300a2686",
+      "bytes": 11800
+    },
+    "src/assets/fonts/archivo-condensed-semibold.woff2": {
+      "sha256": "11b4c9e1e574e943e4a487ce99e8d4e628115bf029f89914ca91c3cc462bfcfa",
+      "bytes": 11900
+    },
+    "src/assets/fonts/archivo-expanded-medium.woff2": {
+      "sha256": "95d3b27fd865da1c78499794c8bd43861ddce8d5dd9958cdd721df86fe2ee0ff",
+      "bytes": 12272
+    },
+    "src/assets/fonts/archivo-regular.woff2": {
+      "sha256": "9195b5f98a1491c01cf55f0fb6ec657e1329cdb05de793892b8cfded3bddf61c",
+      "bytes": 12272
+    },
+    "src/assets/fonts/archivo-semibold.woff2": {
+      "sha256": "702bbb6f7b398b9728699b78e1b55b579aff5079f2d6c06c3fb0a9d8762a0737",
+      "bytes": 11400
     },
     "src/assets/fonts/b612-mono-regular.woff2": {
       "sha256": "01f5bbdf9ba0d00bd7f694a271692754b515600d71144706d278926c2ca65eff",
       "bytes": 12084
     },
-    "src/assets/fonts/barlow-condensed-semibold.woff2": {
-      "sha256": "82d2f56a19129432c2d8febb6292fade7cc933b89bcee4d1f908a1c84e899f6a",
-      "bytes": 12728
+    "src/og/fonts/archivo-condensed-extrabold.ttf": {
+      "sha256": "ab77a841813275a2cbbdd92e828c4acd1e825534ed04046e3c1fba5de3483dc9",
+      "bytes": 33316
     },
-    "src/assets/fonts/barlow-regular.woff2": {
-      "sha256": "0681ec5dfe34c09622a840df0e44c8619ce40570e54cabc956c9aaf224440208",
-      "bytes": 13428
-    },
-    "src/assets/fonts/barlow-semi-condensed-medium.woff2": {
-      "sha256": "7c47b4536d9b248c5ca6c68a4ce2a1b681cbc4d2f6a17e105a4af6e8a8c59744",
-      "bytes": 13632
-    },
-    "src/assets/fonts/barlow-semibold.woff2": {
-      "sha256": "cff9b7819863c5890ab971f47c19074d4f239e79fd16c8a36accfa7830c40a05",
-      "bytes": 13560
-    },
-    "src/og/fonts/barlow-condensed-semibold.ttf": {
-      "sha256": "04bd73a1cd15cba28c936512384b2be105c9bf68ef01877f364a64e818c30c93",
-      "bytes": 31264
-    },
-    "src/og/fonts/barlow-semi-condensed-medium.ttf": {
-      "sha256": "07b05963ced4b7fe79e77e3647a75188182149976718d8d14b90f70fbbac3782",
-      "bytes": 31096
+    "src/og/fonts/archivo-expanded-medium.ttf": {
+      "sha256": "0ca83c7bd08b3086e3c5c593b836acc002905707ab097c6a5395f625f9fb8840",
+      "bytes": 33592
     },
     "src/styles/font-fallbacks.css": {
-      "sha256": "347d1e6969b8b203e32a86bd578a49f8ad49a46fe32206ac946602752a45e41d",
-      "bytes": 5593
+      "sha256": "e2df0205006e69a10933f9aaa10a10f8e44bdb4fe56d95f5a1a3abd0bfcc9d50",
+      "bytes": 6401
     }
   }
 }

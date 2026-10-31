@@ -9,7 +9,7 @@ export interface NavItem {
   readonly id: string;
   readonly label: string;
   readonly href: string;
-  /** In the header, from 48rem up. */
+  /** In the top bar (components/Header.astro), at every width. */
   readonly header?: boolean;
   /** In the footer's link row. */
   readonly footer?: boolean;
@@ -63,54 +63,4 @@ export function navAll(generated: Iterable<string> = []): NavItem[] {
 /** The manifest items for the header or the footer. */
 export function navFor(place: 'header' | 'footer', generated: Iterable<string> = []): NavItem[] {
   return navAll(generated).filter((item) => item[place]);
-}
-
-/** A page the rail lists under a header item (ADR 0022): a demo under Lab, a post under Writing.
- *  A demo names its line, the slug its colour is reached by (global.css, [data-line]), so the rail
- *  draws its lamp in that colour (ADR 0025); a post has none. */
-export interface NavLeaf {
-  readonly label: string;
-  readonly href: string;
-  readonly line?: string;
-}
-
-/** What one rail item drops down to show (ADR 0023): its leaves, newest first where they have
- *  dates, and the noun its "View all" link names, which a screen reader hears after the two words
- *  it shows. */
-export interface RailGroup {
-  readonly leaves: readonly NavLeaf[];
-  readonly noun: string;
-}
-
-/** How many posts the rail lists under Writing, newest first; Writing's index lists them all. */
-export const RAIL_POSTS = 3;
-
-/**
- * What the rail drops down to show under each header item, by the item's id: every live demo, in
- * the lab's order, and the newest posts. Every demo, because the lab is small: a demo has no date
- * to say which are newest, and the rail lists them all until it has one (ADR 0022, "Revisit if").
- * Leaves come from the same areas the pages are built from, so a leaf's page always exists. Each
- * group closes with a link to its index, the "View all" Joseph asked for (ADR 0023).
- */
-export function railLeaves(
-  lab: readonly { readonly title: string; readonly href: string; readonly line?: string }[],
-  posts: readonly { readonly title: string; readonly href: string }[],
-): Record<string, RailGroup> {
-  const leaf = ({
-    title,
-    href,
-    line,
-  }: {
-    title: string;
-    href: string;
-    line?: string;
-  }): NavLeaf => ({
-    label: title,
-    href,
-    ...(line === undefined ? {} : { line }),
-  });
-  return {
-    lab: { leaves: lab.map(leaf), noun: 'demos' },
-    writing: { leaves: posts.slice(0, RAIL_POSTS).map(leaf), noun: 'posts' },
-  };
 }

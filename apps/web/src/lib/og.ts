@@ -129,8 +129,8 @@ export function ogTree(
       { flexDirection: 'column', gap: 28 },
       node(
         {
-          fontFamily: 'Barlow Condensed',
-          fontWeight: 600,
+          fontFamily: 'Archivo Condensed',
+          fontWeight: 800,
           fontSize: titleSize(card.title),
           lineHeight: 0.95,
           letterSpacing: titleSize(card.title) * -0.012,
@@ -145,7 +145,7 @@ export function ogTree(
         node({ width: 14, height: 14, borderRadius: 7, backgroundColor: colors.accent }),
         node(
           {
-            fontFamily: 'Barlow Semi Condensed',
+            fontFamily: 'Archivo Expanded',
             fontWeight: 500,
             fontSize: 44,
             color: colors.muted,
@@ -181,7 +181,7 @@ export function drawnStrings(tree: OgNode | string): string[] {
 }
 
 // The two faces the card draws, cut by scripts/fonts/build.sh as TrueType, which satori reads:
-// Barlow Condensed for the title, Barlow Semi Condensed for the label.
+// Archivo ExtraCondensed for the title, Archivo Expanded for the label (ADR 0027).
 const fontFiles = import.meta.glob<string>('../og/fonts/*.ttf', {
   query: '?inline',
   import: 'default',
@@ -238,14 +238,14 @@ export async function renderOg(card: OgCard, art: OgArt = {}): Promise<Buffer> {
     ...OG_SIZE,
     fonts: [
       {
-        name: 'Barlow Condensed',
-        data: font('barlow-condensed-semibold.ttf'),
-        weight: 600,
+        name: 'Archivo Condensed',
+        data: font('archivo-condensed-extrabold.ttf'),
+        weight: 800,
         style: 'normal',
       },
       {
-        name: 'Barlow Semi Condensed',
-        data: font('barlow-semi-condensed-medium.ttf'),
+        name: 'Archivo Expanded',
+        data: font('archivo-expanded-medium.ttf'),
         weight: 500,
         style: 'normal',
       },

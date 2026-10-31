@@ -24,7 +24,7 @@ async function measure(page: Page, fonts: Fonts) {
   const faces = await page.evaluate(() =>
     [...document.fonts]
       .filter((face) =>
-        /^(Barlow|Barlow Condensed|Barlow Semi Condensed|B612 Mono)-[0-9a-f]+$/.test(
+        /^(Archivo|Archivo Display|Archivo Wide|Archivo Label|B612 Mono)-[0-9a-f]+$/.test(
           face.family.replace(/"/g, ''),
         ),
       )
@@ -39,19 +39,25 @@ async function measure(page: Page, fonts: Fonts) {
   // Each web face once, by family and weight: a second face of one, in another state, would
   // otherwise go unseen. Home has no code, so it declares no mono face (Base.astro).
   expect(faces.map(([face]) => face).sort(), 'each web face once').toEqual([
-    'Barlow 400',
-    'Barlow 600',
-    'Barlow Condensed 600',
-    'Barlow Semi Condensed 500',
+    'Archivo 400',
+    'Archivo 600',
+    'Archivo Display 800',
+    'Archivo Label 600',
+    'Archivo Wide 500',
   ]);
   const web = Object.fromEntries(faces);
-  // The three faces every first screen draws arrived, or every one failed: never a mix that would
-  // measure something else. Barlow's SemiBold draws <strong> only, so it loads or fails with them,
+  // The four faces every first screen draws arrived, or every one failed: never a mix that would
+  // measure something else. Archivo's SemiBold draws <strong> only, so it loads or fails with them,
   // or, on a Home that sets none, is never fetched ("unloaded").
   const status = fonts === 'loaded' ? 'loaded' : 'error';
-  for (const face of ['Barlow 400', 'Barlow Condensed 600', 'Barlow Semi Condensed 500'])
+  for (const face of [
+    'Archivo 400',
+    'Archivo Display 800',
+    'Archivo Label 600',
+    'Archivo Wide 500',
+  ])
     expect(web[face], face).toBe(status);
-  expect([status, 'unloaded']).toContain(web['Barlow 600']);
+  expect([status, 'unloaded']).toContain(web['Archivo 600']);
   return page.evaluate(() => {
     const rows = [...document.querySelectorAll<HTMLElement>('[data-row]')];
     const box = (selector: string) => document.querySelector(selector)?.getBoundingClientRect();

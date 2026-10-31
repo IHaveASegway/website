@@ -46,7 +46,19 @@ const ON_FILL: Record<string, string[]> = { 'primary-foreground': ['primary', 'p
 const ON_LAMP: Record<string, string[]> = { background: ['line-raft'], 'surface-1': ['line-raft'] };
 /** Decoration only: no contrast claim, but still inside sRGB. The map's streets and roads are
  *  hairlines under the routes: they place the routes and carry nothing a reader needs. */
-const DECORATIVE = ['border', 'map-street', 'map-road', 'map-road-major'];
+const DECORATIVE = [
+  'border',
+  'map-street',
+  'map-road',
+  'map-road-major',
+  // The isometric drawings' fills and grid (docs/design/overhaul.md, "The isometric drawing"):
+  // every solid is edged in --foreground, which carries its shape at 4.5:1, so a face's fill
+  // carries nothing a reader needs.
+  'iso-top',
+  'iso-left',
+  'iso-right',
+  'iso-grid',
+];
 /** Pairs a design must never draw; each is listed with its reason (none yet). */
 const FORBIDDEN: [string, string][] = [];
 
@@ -147,20 +159,20 @@ const blocks = themeBlocks(source);
 const themes = { dark: themeColors(source, 'dark'), light: themeColors(source, 'light') };
 
 describe('the theme blocks', () => {
-  test('light from the OS is the same block as light by choice, so the copy cannot drift', () => {
-    expect(Object.fromEntries(blocks.lightFromOs)).toEqual(Object.fromEntries(blocks.light));
+  test('dark from the OS is the same block as dark by choice, so the copy cannot drift', () => {
+    expect(Object.fromEntries(blocks.darkFromOs)).toEqual(Object.fromEntries(blocks.dark));
   });
 
-  test('light redeclares every color token dark declares, so light never inherits a dark value', () => {
-    expect([...blocks.light.keys()].sort()).toEqual([...blocks.dark.keys()].sort());
+  test('dark redeclares every color token light declares, so dark never inherits a light value', () => {
+    expect([...blocks.dark.keys()].sort()).toEqual([...blocks.light.keys()].sort());
   });
 
   test('the contrast and print blocks come last, and name [data-theme] so they outrank every theme', () => {
     const contrast = css.indexOf('@media (prefers-contrast: more)');
     const print = css.indexOf('@media print');
     for (const at of [contrast, print]) {
-      expect(at).toBeGreaterThan(css.indexOf(SELECTORS.lightMedia));
-      expect(at).toBeGreaterThan(css.indexOf(SELECTORS.light));
+      expect(at).toBeGreaterThan(css.indexOf(SELECTORS.darkMedia));
+      expect(at).toBeGreaterThan(css.indexOf(SELECTORS.dark));
     }
     for (const media of ['@media (prefers-contrast: more)', '@media print']) {
       expect(() => block(block(css, media), ':root, :root[data-theme]'), media).not.toThrow();
@@ -180,9 +192,9 @@ test('every color token has a declared role', () => {
     ...MAP_MARKS,
     ...MAP_TEXT,
   ]);
-  const unclassified = [...themes.dark.keys()].filter((name) => !roles.has(name));
+  const unclassified = [...themes.light.keys()].filter((name) => !roles.has(name));
   expect(unclassified, 'add each new token to a role in this test').toEqual([]);
-  for (const name of roles) expect(themes.dark.has(name), `--${name} is declared`).toBe(true);
+  for (const name of roles) expect(themes.light.has(name), `--${name} is declared`).toBe(true);
 });
 
 for (const [themeName, colors] of Object.entries(themes)) {

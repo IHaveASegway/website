@@ -1,25 +1,27 @@
 /*
-  Written by scripts/fonts/build.sh: do not edit. Metric-matched fallback faces for the four web
+  Written by scripts/fonts/build.sh: do not edit. Metric-matched fallback faces for the six web
   faces, one family per web face and local font, each with size-adjust fitted to the web face's
   widths, so text breaks in the same place before and after the web font arrives.
 
   - Arial: Arial (Apple, Windows), Liberation Sans and Arimo (Linux), which share its widths.
     Measured from Arimo. Roboto: Android. DejaVu Sans: Linux without Liberation.
   - Menlo and DejaVu Sans Mono share one width, and so do Courier New, Liberation Mono and Cousine.
-  - Barlow, Barlow Semi Condensed and B612 Mono are fitted to English letter frequencies. Barlow
-    Condensed is fitted to "Joseph Peterson", from profile.json: the name is Home's largest text.
+  - Archivo's wide, label and reading faces and B612 Mono are fitted to English letter
+    frequencies. Archivo ExtraCondensed is fitted to "Joseph Peterson", from profile.json, in capitals: the
+    name is Home's largest text.
   - The stacks below are the one list of fallbacks: tokens.css puts the web faces in front.
 */
 
 :root {
-  --font-display-fallbacks: 'Barlow Condensed Fallback Arial', 'Barlow Condensed Fallback Roboto', 'Barlow Condensed Fallback DejaVu', sans-serif;
-  --font-label-fallbacks: 'Barlow Semi Condensed Fallback Arial', 'Barlow Semi Condensed Fallback Roboto', 'Barlow Semi Condensed Fallback DejaVu', sans-serif;
-  --font-sans-fallbacks: 'Barlow Fallback Arial', 'Barlow Fallback Roboto', 'Barlow Fallback DejaVu', sans-serif;
+  --font-display-fallbacks: 'Archivo Display Fallback Arial', 'Archivo Display Fallback Roboto', 'Archivo Display Fallback DejaVu', sans-serif;
+  --font-wide-fallbacks: 'Archivo Wide Fallback Arial', 'Archivo Wide Fallback Roboto', 'Archivo Wide Fallback DejaVu', sans-serif;
+  --font-label-fallbacks: 'Archivo Label Fallback Arial', 'Archivo Label Fallback Roboto', 'Archivo Label Fallback DejaVu', sans-serif;
+  --font-sans-fallbacks: 'Archivo Fallback Arial', 'Archivo Fallback Roboto', 'Archivo Fallback DejaVu', sans-serif;
   --font-mono-fallbacks: 'B612 Mono Fallback Menlo', 'B612 Mono Fallback Courier', monospace;
 }
 
 @font-face {
-  font-family: 'Barlow Condensed Fallback Arial';
+  font-family: 'Archivo Display Fallback Arial';
   src:
     local('Arial Bold'),
     local('Arial-BoldMT'),
@@ -27,15 +29,15 @@
     local('LiberationSans-Bold'),
     local('Arimo Bold'),
     local('Arimo-Bold');
-  font-weight: 600;
-  size-adjust: 73.8635%;
-  ascent-override: 135.3848%;
-  descent-override: 27.077%;
-  line-gap-override: 0%;
+  font-weight: 800;
+  size-adjust: 69.1851%;
+  ascent-override: 127%;
+  descent-override: 3%;
+  line-gap-override: %;
 }
 
 @font-face {
-  font-family: 'Barlow Semi Condensed Fallback Arial';
+  font-family: 'Archivo Wide Fallback Arial';
   src:
     local('Arial'),
     local('ArialMT'),
@@ -44,30 +46,14 @@
     local('Arimo Regular'),
     local('Arimo-Regular');
   font-weight: 500;
-  size-adjust: 88.6759%;
-  ascent-override: 112.7703%;
-  descent-override: 22.5541%;
-  line-gap-override: 0%;
+  size-adjust: 128.776%;
+  ascent-override: 68%;
+  descent-override: 16%;
+  line-gap-override: %;
 }
 
 @font-face {
-  font-family: 'Barlow Fallback Arial';
-  src:
-    local('Arial'),
-    local('ArialMT'),
-    local('Liberation Sans'),
-    local('LiberationSans'),
-    local('Arimo Regular'),
-    local('Arimo-Regular');
-  font-weight: 400;
-  size-adjust: 96.9791%;
-  ascent-override: 103.1151%;
-  descent-override: 20.623%;
-  line-gap-override: 0%;
-}
-
-@font-face {
-  font-family: 'Barlow Fallback Arial';
+  font-family: 'Archivo Label Fallback Arial';
   src:
     local('Arial Bold'),
     local('Arial-BoldMT'),
@@ -76,108 +62,164 @@
     local('Arimo Bold'),
     local('Arimo-Bold');
   font-weight: 600;
-  size-adjust: 91.4686%;
-  ascent-override: 109.3271%;
-  descent-override: 21.8654%;
-  line-gap-override: 0%;
+  size-adjust: 74.9801%;
+  ascent-override: 117%;
+  descent-override: 28%;
+  line-gap-override: %;
 }
 
 @font-face {
-  font-family: 'Barlow Condensed Fallback Roboto';
+  font-family: 'Archivo Fallback Arial';
+  src:
+    local('Arial'),
+    local('ArialMT'),
+    local('Liberation Sans'),
+    local('LiberationSans'),
+    local('Arimo Regular'),
+    local('Arimo-Regular');
+  font-weight: 400;
+  size-adjust: 98.138%;
+  ascent-override: 89%;
+  descent-override: 21%;
+  line-gap-override: %;
+}
+
+@font-face {
+  font-family: 'Archivo Fallback Arial';
+  src:
+    local('Arial Bold'),
+    local('Arial-BoldMT'),
+    local('Liberation Sans Bold'),
+    local('LiberationSans-Bold'),
+    local('Arimo Bold'),
+    local('Arimo-Bold');
+  font-weight: 600;
+  size-adjust: 94.2276%;
+  ascent-override: 93%;
+  descent-override: 22%;
+  line-gap-override: %;
+}
+
+@font-face {
+  font-family: 'Archivo Display Fallback Roboto';
   src:
     local('Roboto Bold'),
     local('Roboto-Bold');
-  font-weight: 600;
-  size-adjust: 78.1541%;
-  ascent-override: 127.9523%;
-  descent-override: 25.5905%;
-  line-gap-override: 0%;
+  font-weight: 800;
+  size-adjust: 75.0613%;
+  ascent-override: 117%;
+  descent-override: 28%;
+  line-gap-override: %;
 }
 
 @font-face {
-  font-family: 'Barlow Semi Condensed Fallback Roboto';
+  font-family: 'Archivo Wide Fallback Roboto';
   src:
     local('Roboto'),
     local('Roboto Regular'),
     local('Roboto-Regular');
   font-weight: 500;
-  size-adjust: 88.4068%;
-  ascent-override: 113.1135%;
-  descent-override: 22.6227%;
-  line-gap-override: 0%;
+  size-adjust: 128.3852%;
+  ascent-override: 68%;
+  descent-override: 16%;
+  line-gap-override: %;
 }
 
 @font-face {
-  font-family: 'Barlow Fallback Roboto';
+  font-family: 'Archivo Label Fallback Roboto';
+  src:
+    local('Roboto Bold'),
+    local('Roboto-Bold');
+  font-weight: 600;
+  size-adjust: 79.7633%;
+  ascent-override: 11%;
+  descent-override: 26%;
+  line-gap-override: %;
+}
+
+@font-face {
+  font-family: 'Archivo Fallback Roboto';
   src:
     local('Roboto'),
     local('Roboto Regular'),
     local('Roboto-Regular');
   font-weight: 400;
-  size-adjust: 96.6848%;
-  ascent-override: 103.4289%;
-  descent-override: 20.6858%;
-  line-gap-override: 0%;
+  size-adjust: 97.8402%;
+  ascent-override: 9%;
+  descent-override: 21%;
+  line-gap-override: %;
 }
 
 @font-face {
-  font-family: 'Barlow Fallback Roboto';
+  font-family: 'Archivo Fallback Roboto';
   src:
     local('Roboto Bold'),
     local('Roboto-Bold');
   font-weight: 600;
-  size-adjust: 97.3037%;
-  ascent-override: 102.7711%;
-  descent-override: 20.5542%;
-  line-gap-override: 0%;
+  size-adjust: 100.2386%;
+  ascent-override: 88%;
+  descent-override: 21%;
+  line-gap-override: %;
 }
 
 @font-face {
-  font-family: 'Barlow Condensed Fallback DejaVu';
+  font-family: 'Archivo Display Fallback DejaVu';
   src:
     local('DejaVu Sans Bold'),
     local('DejaVuSans-Bold');
-  font-weight: 600;
-  size-adjust: 64.9563%;
-  ascent-override: 153.9497%;
-  descent-override: 30.7899%;
-  line-gap-override: 0%;
+  font-weight: 800;
+  size-adjust: 64.7975%;
+  ascent-override: 135%;
+  descent-override: 32%;
+  line-gap-override: %;
 }
 
 @font-face {
-  font-family: 'Barlow Semi Condensed Fallback DejaVu';
+  font-family: 'Archivo Wide Fallback DejaVu';
   src:
     local('DejaVu Sans'),
     local('DejaVuSans');
   font-weight: 500;
-  size-adjust: 77.2507%;
-  ascent-override: 129.4487%;
-  descent-override: 25.8897%;
-  line-gap-override: 0%;
+  size-adjust: 112.1842%;
+  ascent-override: 78%;
+  descent-override: 19%;
+  line-gap-override: %;
 }
 
 @font-face {
-  font-family: 'Barlow Fallback DejaVu';
-  src:
-    local('DejaVu Sans'),
-    local('DejaVuSans');
-  font-weight: 400;
-  size-adjust: 84.4841%;
-  ascent-override: 118.3655%;
-  descent-override: 23.6731%;
-  line-gap-override: 0%;
-}
-
-@font-face {
-  font-family: 'Barlow Fallback DejaVu';
+  font-family: 'Archivo Label Fallback DejaVu';
   src:
     local('DejaVu Sans Bold'),
     local('DejaVuSans-Bold');
   font-weight: 600;
-  size-adjust: 76.2997%;
-  ascent-override: 131.0621%;
-  descent-override: 26.2124%;
-  line-gap-override: 0%;
+  size-adjust: 62.5456%;
+  ascent-override: 14%;
+  descent-override: 34%;
+  line-gap-override: %;
+}
+
+@font-face {
+  font-family: 'Archivo Fallback DejaVu';
+  src:
+    local('DejaVu Sans'),
+    local('DejaVuSans');
+  font-weight: 400;
+  size-adjust: 85.4937%;
+  ascent-override: 103%;
+  descent-override: 25%;
+  line-gap-override: %;
+}
+
+@font-face {
+  font-family: 'Archivo Fallback DejaVu';
+  src:
+    local('DejaVu Sans Bold'),
+    local('DejaVuSans-Bold');
+  font-weight: 600;
+  size-adjust: 78.6012%;
+  ascent-override: 112%;
+  descent-override: 27%;
+  line-gap-override: %;
 }
 
 @font-face {
@@ -189,9 +231,9 @@
     local('DejaVuSansMono');
   font-weight: 400;
   size-adjust: 107.9643%;
-  ascent-override: 89.3814%;
-  descent-override: 23.1558%;
-  line-gap-override: 0%;
+  ascent-override: 89%;
+  descent-override: 23%;
+  line-gap-override: %;
 }
 
 @font-face {
@@ -205,7 +247,7 @@
     local('Cousine-Regular');
   font-weight: 400;
   size-adjust: 108.3157%;
-  ascent-override: 89.0914%;
-  descent-override: 23.0807%;
-  line-gap-override: 0%;
+  ascent-override: 89%;
+  descent-override: 23%;
+  line-gap-override: %;
 }

@@ -95,7 +95,7 @@ export function directivesOf(value: string): Map<string, string[]> {
  *  its family's custom property on :root (security.md). The policy hashes every inline <style>
  *  the build finds, so this is the alarm for one nothing else wrote: a post's raw HTML, an
  *  integration, a dependency. The script allowlist is test/scripts.test.ts. The family is a quoted
- *  name, or a bare identifier where the name is one word, as the API minifies "Barlow". */
+ *  name, or a bare identifier where the name is one word, as the API minifies "Archivo". */
 export const FONTS_STYLE =
   /^(?:@font-face\{[^{}]*\})+:root\{--font-[a-z0-9-]+:(?:"[^"]+"|[A-Za-z][\w-]*);\}$/;
 
