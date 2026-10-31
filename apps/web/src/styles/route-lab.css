@@ -39,7 +39,13 @@
 
 /* Controls: the day, the vans and a surprise. Without JavaScript they stay hidden (the hidden
    attribute in the markup), so no control ever does nothing. Every change plans again: there is
-   no button to press. They head the desk, over a rule from bezel to bezel. */
+   no button to press. Where one map shows at a time they come straight after it, so the map and
+   what changes it share one screen, 390 by 844 included (e2e/routes-layout.spec.ts): the readout
+   heads the desk, then the map switch, the map and the controls, over a rule from bezel to bezel.
+   Until 2026-10-31 they headed the desk there too, and a phone's first screen held seven
+   controls and no map. From 64rem, where both maps and the readout fit beside and under them, the
+   controls head the desk again. The markup puts them after the maps, so the order of Tab is the
+   order a phone shows; beside a laptop's maps no stop for Tab lies between. */
 .rl-controls {
   display: grid;
   gap: 1.25rem;
@@ -50,6 +56,7 @@
 
 @media (width >= 64rem) {
   .rl-controls {
+    order: -1;
     grid-template-columns: repeat(12, minmax(0, 1fr));
     column-gap: var(--gutter);
     align-items: start;
@@ -90,6 +97,16 @@
   .rl-days .rl-chips {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr));
+  }
+
+  /* The fifth day takes the row's whole width, so its name keeps to one line, as the others'
+     do, rather than wrapping beside an empty cell. */
+  .rl-days .rl-chip:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .rl-controls {
+    gap: 1rem;
   }
 }
 
@@ -320,6 +337,13 @@
 @media (width >= 64rem) {
   .rl-view {
     display: none;
+  }
+}
+
+/* The switch names the map under it, so it sits close above it, as a tab sits on its page. */
+@media (width < 64rem) {
+  .rl-view + .rl-maps {
+    margin-block-start: -0.75rem;
   }
 }
 

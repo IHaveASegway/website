@@ -133,39 +133,6 @@ const bands = bandsSentence(
     </defs>
   </svg>
 
-  <div class="rl-controls" data-rl-js>
-    <fieldset class="rl-days">
-      <legend class="label">Day</legend>
-      <div class="rl-chips">
-        {DAYS.map((d) => (
-          <label class="rl-chip">
-            <input type="radio" name="rl-day" value={d.id} checked={d.id === day.id} />
-            <span class="rl-chip-name">{d.name}</span>
-            <span class="rl-chip-note">
-              {d.orders.length} orders, {d.vans} {d.vans === 1 ? 'van' : 'vans'}
-            </span>
-          </label>
-        ))}
-      </div>
-    </fieldset>
-    <div class="rl-more">
-      <fieldset class="rl-vans">
-        <legend class="label">Vans</legend>
-        <div class="rl-chips">
-          {[1, 2, 3, 4].map((n) => (
-            <label class="rl-chip rl-chip-small">
-              <input type="radio" name="rl-vans" value={n} checked={n === day.vans} />
-              <span class="rl-chip-name">{n}</span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
-      <button type="button" class="btn rl-surprise" data-rl-surprise>
-        Surprise me
-      </button>
-    </div>
-  </div>
-
   <div class="rl-readout" data-rl-readout>
     <p class="rl-saved" data-rl-saved>
       {savedText(before.measured, after.measured)}
@@ -233,6 +200,39 @@ const bands = bandsSentence(
         </svg>
       </figure>
     ))}
+  </div>
+
+  <div class="rl-controls" data-rl-js>
+    <fieldset class="rl-days">
+      <legend class="label">Day</legend>
+      <div class="rl-chips">
+        {DAYS.map((d) => (
+          <label class="rl-chip">
+            <input type="radio" name="rl-day" value={d.id} checked={d.id === day.id} />
+            <span class="rl-chip-name">{d.name}</span>
+            <span class="rl-chip-note">
+              {d.orders.length} orders, {d.vans} {d.vans === 1 ? 'van' : 'vans'}
+            </span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+    <div class="rl-more">
+      <fieldset class="rl-vans">
+        <legend class="label">Vans</legend>
+        <div class="rl-chips">
+          {[1, 2, 3, 4].map((n) => (
+            <label class="rl-chip rl-chip-small">
+              <input type="radio" name="rl-vans" value={n} checked={n === day.vans} />
+              <span class="rl-chip-name">{n}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <button type="button" class="btn rl-surprise" data-rl-surprise>
+        Surprise me
+      </button>
+    </div>
   </div>
 
   <p class="rl-hint" data-rl-js>
