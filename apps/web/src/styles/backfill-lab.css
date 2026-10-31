@@ -1,6 +1,6 @@
 /*
-  The Backfill Lab (/lab/backfill/): the lab's head, then the desk, with the run board, the strip
-  of runs over time, the properties and the controls, then the event log (ADR 0026). Only that
+  The Backfill Lab (/lab/backfill/): the desk, with the run board, the strip of runs over time,
+  the event log, the properties and the controls (ADR 0026). Only that
   page links this file. Every colour is a token from tokens.css, and the lab's own is var(--line),
   which the page's data-line sets (global.css). A state the browser sets is an attribute (data-*),
   never a class, so every class here is one a built page carries (test/css-classes.test.ts). The
@@ -11,51 +11,15 @@
   failed, a clock face waiting to retry, a dash never run. Colour only says which line: the track,
   and the lamps that are the lab's own, are its colour; the marks that report a fault are ink.
 
-  bf-head and bf-desk stand in for the lab head and desk the lab pages will share (ADR 0025, "Lab
-  pages"); the shared pieces replace them whole.
+  The page's head is the lab's line (PageHead.astro), and the demo is the lab's desk (ADR 0025;
+  global.css, .desk): the controls are set apart from the board by a rule from bezel to bezel, and
+  what stands on the desk takes its surface, --surface-1, for ground.
 */
-
-/* The head: the lab's line across the top, ending in its lamp, then the title and the lead. */
-.bf-head {
-  display: grid;
-  align-content: start;
-  row-gap: 0.875rem;
-}
-
-.bf-head > * {
-  max-width: var(--measure);
-  margin: 0;
-}
-
-.bf-head > .page-title {
-  max-width: none;
-}
-
-.bf-head-line {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  max-width: none;
-  margin-bottom: 0.5rem;
-}
-
-.bf-head-track {
-  flex: 1;
-  block-size: 6px;
-  background-color: var(--line);
-}
-
-.bf-head-lamp {
-  flex: none;
-  inline-size: 1rem;
-  block-size: 1rem;
-  border-radius: 50%;
-  background-color: var(--line);
-}
 
 .bf {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  row-gap: 1.5rem;
   margin-top: 2rem;
 }
 
@@ -65,24 +29,10 @@
   }
 }
 
-/* The desk: the board's surface, recessed in a 2 px bezel. */
-.bf-desk {
-  min-width: 0;
-  background-color: var(--surface-1);
-  border: 2px solid var(--input);
-}
-
-.bf-desk-main {
+.bf-stage {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 1.75rem;
-  padding: 1rem 0.75rem 1.25rem;
-}
-
-@media (width >= 48rem) {
-  .bf-desk-main {
-    padding: 1.5rem;
-  }
 }
 
 .bf-figure {
@@ -505,19 +455,15 @@
   flex: none;
 }
 
-/* The controls: push-buttons in rows. A choice is a row of buttons whose chosen one shows its
-   lamp lit, as a pressed button's does (global.css): the radio itself is the lamp. */
+/* The controls: push-buttons in rows, under a rule from bezel to bezel. A choice is a row of
+   buttons whose chosen one shows its lamp lit and is pressed in, raised, as a pressed button is
+   (global.css): the radio itself is the lamp. */
 .bf-controls {
   display: grid;
   gap: 1.25rem;
-  padding: 1rem 0.75rem 1.25rem;
-  border-top: 2px solid var(--input);
-}
-
-@media (width >= 48rem) {
-  .bf-controls {
-    padding: 1.25rem 1.5rem 1.5rem;
-  }
+  margin-inline: calc(var(--desk-side) * -1);
+  padding: 1.25rem var(--desk-side) 0;
+  border-top: 1px solid var(--input);
 }
 
 .bf-row {
@@ -557,6 +503,10 @@
   padding-inline: 0.5rem;
 }
 
+.bf-option:has(input:checked) {
+  background-color: var(--surface-2);
+}
+
 .bf-option + .bf-option {
   margin-inline-start: -1px;
 }
@@ -576,8 +526,10 @@
   background-color: var(--primary);
 }
 
+/* Run keeps one width, its lamp and all, as its words turn to Pause, so the row never shifts
+   under the pointer. */
 .bf-run-button {
-  min-inline-size: 5.5rem;
+  min-inline-size: 6.5rem;
 }
 
 /* Read by assistive technology, hidden on screen: a lamp's word, a day's full name, what the
@@ -594,7 +546,7 @@
   white-space: nowrap;
 }
 
-/* The event log: the newest line last, in a box that scrolls. */
+/* The event log: the newest line last, in a describer's window, raised, that scrolls. */
 .bf-events {
   display: grid;
   gap: 0.75rem;
@@ -602,9 +554,9 @@
 
 .bf-lines {
   max-height: 16rem;
-  padding: 0.75rem 0;
+  padding: 0.75rem 1rem;
   overflow-y: auto;
-  border-block: 1px solid var(--input);
+  background-color: var(--surface-2);
   font-size: var(--text-label);
   line-height: var(--text-label--line-height);
 }
@@ -632,11 +584,7 @@
    properties run under both, as the lab's write-up reads them: the three properties under the
    board. A phone stacks the same parts in the same order. */
 @media (width >= 64rem) {
-  .bf {
-    margin-top: 2.5rem;
-  }
-
-  .bf-desk-main {
+  .bf-stage {
     grid-template-columns: minmax(0, 1.7fr) minmax(15rem, 1fr);
     grid-template-rows: auto minmax(0, 1fr) auto;
     grid-template-areas:

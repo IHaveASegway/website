@@ -1,5 +1,6 @@
 ---
 import { render } from 'astro:content';
+import PageHead from '../../../components/PageHead.astro';
 import CacheLab from '../../../components/cache-lab/CacheLab.astro';
 import Base from '../../../layouts/Base.astro';
 import { OPENING, openingRun, SEEDS_IN_CI } from '../../../lib/cache/view';
@@ -10,7 +11,8 @@ import { labCard } from '../../../lib/og';
 // The Cache Lab, a page of its own as the Raft Lab's is (ADR 0020), so it links none of the Route
 // Lab's styles or code ([demo].astro leaves it out, lib/lab.ts OWN_PAGE). Static: the simulation
 // runs in the browser, with no Worker and no Durable Object. A rest parameter, so the page builds
-// only while its lab entry is live, as /lab/ does.
+// only while its lab entry is live, as /lab/ does. The page is its lab's line (ADR 0025): data-line
+// gives it the lab's colour, which its head runs across the top and its picture draws in.
 export async function getStaticPaths() {
   const lab = await loadLabArea();
   const entry = lab.entries.find((e) => e.slug === 'cache');
@@ -38,8 +40,9 @@ const count = (n: number) => n.toLocaleString('en-US');
   path={labPath(entry)}
   og={labCard(entry)}
 >
-  <article class="page" aria-labelledby="page-title">
-    <CacheLab title={entry.title} lead={lead} />
+  <article class="page" data-line={entry.slug} aria-labelledby="page-title">
+    <PageHead heading={entry.title} lead={lead} line />
+    <CacheLab />
     <div class="prose">
       <Content />
       <h2>How it is built</h2>

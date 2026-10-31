@@ -7,39 +7,15 @@
   (test/css-classes.test.ts). The demo moves only while the visitor runs it, and in JavaScript, so
   this file declares no transition and no animation.
 
-  The page's head (cl-head) and the desk (cl-desk) are the lab page's (ADR 0025, "Lab pages"): the
-  line across the top ending in its lamp, then the title and the lead; the demo on the board's
-  recessed surface in a 2 px bezel. Their rules stand here until the lab pages share a head and a
-  desk, which replace them.
+  The page's head is the lab's line (PageHead.astro), and the demo is the lab's desk (ADR 0025;
+  global.css, .desk): the event log is set apart from the picture and the controls by a rule from
+  bezel to bezel, and what stands on the desk takes its surface, --surface-1, for ground.
 */
-
-/* The head: the lab's line, 6 px, ending in a filled lamp, above the title. */
-.cl-head-line {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  max-width: none;
-  margin-bottom: 0.5rem;
-}
-
-.cl-head-track {
-  flex: 1 1 auto;
-  block-size: 6px;
-  background-color: var(--line);
-}
-
-.cl-head-lamp {
-  flex: none;
-  inline-size: 1rem;
-  block-size: 1rem;
-  border-radius: 50%;
-  background-color: var(--line);
-}
 
 .cl {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  row-gap: 2rem;
+  row-gap: 1.5rem;
   margin-top: 2rem;
 }
 
@@ -49,25 +25,26 @@
   }
 }
 
-/* The desk: the board's surface in its bezel. With the controls, from 64rem, the picture and the
-   properties under it take the left, and the panel of push-buttons the right. */
-.cl-desk {
+/* The demo on the desk. With the controls, from 64rem, the picture and the properties under it
+   take the left, and the panel of push-buttons the right. */
+.cl-stage {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 1.75rem;
-  padding: 1rem;
-  border: 2px solid var(--input);
-  background-color: var(--surface-1);
 }
 
-@media (width >= 48rem) {
-  .cl-desk {
-    padding: 1.5rem;
+/* Below 64rem the panel comes under the properties, a part of the desk of its own, under a rule
+   from bezel to bezel; from 64rem it stands beside them, with no rule. */
+@media (width < 64rem) {
+  .cl-panel {
+    margin-inline: calc(var(--desk-side) * -1);
+    padding: 1.25rem var(--desk-side) 0;
+    border-block-start: 1px solid var(--input);
   }
 }
 
 @media (scripting: enabled) and (width >= 64rem) {
-  .cl-desk {
+  .cl-stage {
     grid-template-columns: minmax(0, 1.7fr) minmax(16rem, 1fr);
     grid-template-rows: auto auto 1fr;
     column-gap: 2.5rem;
@@ -630,6 +607,12 @@ legend.cl-group-name {
   gap: 0.5rem;
 }
 
+/* Run keeps one width, its lamp and all, as its words turn to Pause, so the row never shifts
+   under the pointer. */
+.cl-run {
+  min-inline-size: 6.5rem;
+}
+
 /* The choices of one radio group stand edge to edge, one push-button of several parts. */
 .cl-segments {
   gap: 0;
@@ -654,13 +637,15 @@ legend.cl-group-name {
   line-height: var(--text-ui--line-height);
 }
 
-.cl-choice:hover {
+.cl-choice:hover,
+.cl-choice:has(input:checked) {
   background-color: var(--surface-2);
 }
 
 /* The radio itself covers its push-button, unseen, so a press anywhere on it chooses, and its
    focus ring, the site's own, goes round the whole button. The lamp before the words is drawn:
-   hollow, and lit while chosen, as a pressed button's is (global.css). */
+   hollow, and lit while chosen, the button pressed in, raised, as a pressed button's is
+   (global.css). */
 .cl-choice input {
   position: absolute;
   inset: 0;
@@ -697,10 +682,14 @@ legend.cl-group-name {
   white-space: nowrap;
 }
 
-/* The event log: the newest line last, in a box that scrolls. */
+/* The event log: the newest line last, in a describer's window, raised, that scrolls; a part of
+   the desk of its own, under a rule from bezel to bezel. */
 .cl-events {
   display: grid;
   gap: 0.75rem;
+  margin-inline: calc(var(--desk-side) * -1);
+  padding: 1.5rem var(--desk-side) 0;
+  border-block-start: 1px solid var(--input);
 }
 
 .cl-heading {
@@ -712,9 +701,9 @@ legend.cl-group-name {
 
 .cl-lines {
   max-height: 16rem;
-  padding: 0.75rem 0;
+  padding: 0.75rem 1rem;
   overflow-y: auto;
-  border-block: 1px solid var(--border);
+  background-color: var(--surface-2);
   font-size: var(--text-label);
   line-height: var(--text-label--line-height);
 }
@@ -743,16 +732,12 @@ legend.cl-group-name {
    keep their shapes in the visitor's own text and highlight colours: filled, half, hollow, a dot
    in its rim, and a connection lit. */
 @media (forced-colors: active) {
-  .cl-head-track,
-  .cl-head-lamp,
   .cl-lamp,
   .cl-wait-key,
   .cl-choice::before {
     forced-color-adjust: none;
   }
 
-  .cl-head-track,
-  .cl-head-lamp,
   .cl-lamp[data-state='fresh'] {
     background-color: CanvasText;
   }

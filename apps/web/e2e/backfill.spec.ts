@@ -121,6 +121,42 @@ test('nothing loads or moves before intent; Run plays, Pause stops, with no poli
   expect(await violations()).toEqual([]);
 });
 
+// Run says what a press will do, Run or Pause, so it is no toggle (WAI-ARIA APG, Button pattern: a
+// toggle's label never changes) and carries no aria-pressed. Its state is its lamp, data-lamp,
+// drawn as a pressed button's (global.css): hollow while off, lit while the run is on, the button
+// raised; no colour fills it.
+test('Run turns to Pause and back, its lamp lit while the run is on, and it is no toggle', async ({
+  page,
+}) => {
+  const run = page.locator('[data-bf-run]');
+  const looks = () =>
+    run.evaluate((button) => ({
+      lamp: getComputedStyle(button, '::before').backgroundColor,
+      fill: getComputedStyle(button).backgroundColor,
+    }));
+  const off = async () => {
+    await expect(run).toHaveText('Run');
+    await expect(run).toHaveAttribute('data-lamp', 'off');
+    await expect(run).not.toHaveAttribute('aria-pressed');
+    await page.mouse.move(0, 0);
+    expect(await looks()).toEqual({ lamp: 'rgba(0, 0, 0, 0)', fill: 'rgba(0, 0, 0, 0)' });
+  };
+  await page.goto(BACKFILL);
+  // The opening's week has finished, so Run would only say so: go back to before the job is on.
+  await rewind(page);
+  await off();
+  await run.click();
+  await expect(run).toHaveText('Pause');
+  await expect(run).toHaveAttribute('data-lamp', 'on');
+  await expect(run).not.toHaveAttribute('aria-pressed');
+  await page.mouse.move(0, 0);
+  const on = await looks();
+  expect(on.lamp).not.toBe('rgba(0, 0, 0, 0)');
+  expect(on.fill).not.toBe(on.lamp);
+  await run.click();
+  await off();
+});
+
 test('a hidden tab pauses the run, and the clock stays where it stopped', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto(BACKFILL);
