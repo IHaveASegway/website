@@ -28,9 +28,11 @@ import {
 
 // The Raft Lab in the browser (ADR 0020): the simulation, run in virtual time and drawn on every
 // frame while it runs. It opens paused, on the same opening the build drew, and moves only when
-// the visitor presses Run, which Pause stops (SC 2.2.2); a hidden tab pauses it too. With reduced
+// the visitor presses Run, which Pause stops (SC 2.2.2); a hidden tab pauses it too. Run says what
+// it does next, Run or Pause, and has no pressed state, as the other labs' Run does. With reduced
 // motion, messages do not glide: each one stands half way along its path, and Run advances in
-// steps of 50 virtual milliseconds twice a second.
+// steps of 50 virtual milliseconds twice a second. A link to a seed (#seed-8) opens that seed's
+// opening, paused, on load or when followed on the page.
 
 const FRAME_CAP = 100; // real ms: a frame after a long pause does not leap ahead
 const EVENTS_PER_FRAME = 4_000;
@@ -41,6 +43,18 @@ const seedFromHash = (): number | null => {
   const match = /^#seed-(\d{1,6})$/.exec(location.hash);
   return match ? Number(match[1]) : null;
 };
+
+/**
+ * A seed's opening, as the build draws seed 7's, with `loss` of the messages lost from the
+ * opening's moment on: the share the slider is set to. The loss is an action like any other,
+ * recorded at that moment, so the run's actions replay it; with none lost, nothing is recorded,
+ * and the run is the build's for its seed.
+ */
+export function fresh(seed: number, loss: number): Sim {
+  const sim = replay({ seed }, OPENING.actions, OPENING.until);
+  if (loss > 0) setLoss(sim, loss);
+  return sim;
+}
 
 export function start(root: HTMLElement, queued: readonly Element[]): void {
   const $ = <T extends Element>(selector: string) => root.querySelector<T>(selector);
@@ -59,19 +73,19 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     if (element && element.textContent !== value) element.textContent = value;
   };
 
-  let sim: Sim = fresh(seedFromHash() ?? OPENING.seed);
+  /** The share of messages lost that the slider is set to. */
+  const lost = () => Number(loss?.value ?? 0) / 100;
+
+  let sim: Sim = fresh(seedFromHash() ?? OPENING.seed, lost());
   let playing = false;
   let last = 0;
   let frame = 0;
   let timer = 0;
   let shownLines: Line | undefined;
   const shownLogs: string[] = [];
-
-  function fresh(seed: number): Sim {
-    const next = replay({ seed }, OPENING.actions, OPENING.until);
-    next.loss = Number(loss?.value ?? 0) / 100;
-    return next;
-  }
+  // The build wrote the opening's last lines; the run writes its own from the first draw, so none
+  // is written twice, and a link's run shows its own.
+  lines?.replaceChildren();
 
   /** Everything the page shows of the run, changed only where it changed. */
   function draw(): void {
@@ -148,8 +162,18 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     cancelAnimationFrame(frame);
     clearInterval(timer);
     if (run) run.textContent = 'Run';
-    run?.setAttribute('aria-pressed', 'false');
     draw();
+  }
+
+  /** Shows another run from its opening, paused, and says what it shows: Start over's, or a
+   *  link's. */
+  function open(next: Sim): void {
+    pause();
+    sim = next;
+    shownLines = undefined;
+    lines?.replaceChildren();
+    draw();
+    say(summary(sim));
   }
 
   function tick(now: number): void {
@@ -170,7 +194,6 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     if (sim.violation) return;
     playing = true;
     if (run) run.textContent = 'Pause';
-    run?.setAttribute('aria-pressed', 'true');
     if (still.matches) {
       timer = window.setInterval(() => {
         runUntil(sim, sim.now + STILL_STEP, EVENTS_PER_FRAME);
@@ -218,16 +241,15 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
       heal(sim);
     } else if (control.matches('[data-rf-reset]')) {
       const wasPlaying = playing;
-      pause();
-      sim = fresh(sim.seed + 1);
-      shownLines = undefined;
-      lines?.replaceChildren();
+      open(fresh(sim.seed + 1, lost()));
       history.replaceState(null, '', `#seed-${sim.seed}`);
       if (wasPlaying) play();
-    } else if (control.matches('[data-rf-loss]') && loss) {
-      setLoss(sim, Number(loss.value) / 100);
-      if (lossOut) lossOut.textContent = `${loss.value}%`;
       return;
+    } else if (control.matches('[data-rf-loss]') && loss) {
+      // Before it changes the loss, the run finishes the events due in this millisecond, as any
+      // action does (lib/raft/sim.ts, catchUp), so the page draws what they did.
+      setLoss(sim, lost());
+      if (lossOut) lossOut.textContent = `${loss.value}%`;
     } else if (control.matches('[data-rf-speed]')) {
       return;
     } else return;
@@ -247,6 +269,11 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && playing) pause();
   });
+  // A link to a seed followed on this page opens that seed's opening, paused, as loading it would.
+  addEventListener('hashchange', () => {
+    const seed = seedFromHash();
+    if (seed !== null) open(fresh(seed, lost()));
+  });
   still.addEventListener('change', () => {
     if (playing) {
       pause();
@@ -254,6 +281,6 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     }
   });
 
-  if (seedFromHash() !== null) draw();
+  draw();
   for (const control of queued) press(control);
 }

@@ -14,6 +14,7 @@ const HELD = /^All five safety properties held over [\d,]+ events\.$/;
 const clock = (page: Page) => page.locator('[data-rf-clock]');
 const summary = (page: Page) => page.locator('[data-rf-summary]');
 const status = (page: Page) => page.locator('[data-rf-status]');
+const log = (page: Page) => page.locator('[data-rf-lines] li');
 
 /** Collects policy violations the page reports. */
 async function watch(page: Page): Promise<() => Promise<string[]>> {
@@ -176,6 +177,85 @@ test('under reduce, Run advances in steps of 50 virtual ms, and nothing animates
   const moved = Math.round(((await seconds(page)) - opening) * 1000);
   expect(moved % 50).toBe(0);
   expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
+});
+
+test('the app writes the event log once: the build’s lines go on as the run’s, and a link’s run shows only its own', async ({
+  page,
+}) => {
+  await page.goto(RAFT);
+  const built = await log(page).allTextContents();
+  expect(built).toHaveLength(12);
+  // Intent alone loads the app, which writes the run's log from its first line: 13 lines, each
+  // once, the last 12 of them the build's.
+  await page.locator('[data-rf-map]').hover();
+  await expect(log(page)).toHaveCount(13);
+  const lines = await log(page).allTextContents();
+  expect(new Set(lines).size).toBe(lines.length);
+  expect(lines.slice(-12)).toEqual(built);
+
+  // A link's run writes its own log alone, the same as when the link is followed on the page.
+  await page.goto(`${RAFT}#seed-8`);
+  await expect(page.locator('[data-rf-seed]')).toHaveText('8');
+  const linked = await log(page).allTextContents();
+  await page.evaluate(() => (location.hash = '#seed-9'));
+  await expect(page.locator('[data-rf-seed]')).toHaveText('9');
+  await page.evaluate(() => (location.hash = '#seed-8'));
+  await expect(page.locator('[data-rf-seed]')).toHaveText('8');
+  expect(await log(page).allTextContents()).toEqual(linked);
+  expect(linked).not.toEqual(lines);
+});
+
+test('Run says what it does next, Run or Pause, and has no pressed state', async ({ page }) => {
+  await page.goto(RAFT);
+  const run = page.locator('[data-rf-run]');
+  await run.click();
+  await expect(run).toHaveText('Pause');
+  await expect(run).not.toHaveAttribute('aria-pressed');
+  await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+  await run.click();
+  await expect(run).toHaveText('Run');
+  await expect(run).not.toHaveAttribute('aria-pressed');
+});
+
+test('moving the loss slider after Next event draws the events it lets finish in that millisecond', async ({
+  page,
+}) => {
+  await page.goto(RAFT);
+  // Four events on from the opening, the run stands at 1.426 s with another event due then.
+  for (let i = 0; i < 4; i++) await page.getByRole('button', { name: 'Next event' }).click();
+  await expect(clock(page)).toHaveText('Virtual time 1.426 s');
+  await expect(status(page)).toHaveText('All five safety properties held over 253 events.');
+  // The slider is an action: the run first finishes that millisecond, and the page shows it.
+  await page.locator('[data-rf-loss]').fill('10');
+  await expect(page.locator('[data-rf-loss-out]')).toHaveText('10%');
+  await expect(status(page)).toHaveText('All five safety properties held over 254 events.');
+  await expect(clock(page)).toHaveText('Virtual time 1.426 s');
+});
+
+test('a link followed on the page opens that seed paused at the opening’s moment, before or after the app has loaded', async ({
+  page,
+}) => {
+  await page.goto(RAFT);
+  // Followed before any intent: the link loads the app, which opens it.
+  await page.evaluate(() => (location.hash = '#seed-12'));
+  await expect(page.locator('[data-rf-seed]')).toHaveText('12');
+  await expect(clock(page)).toHaveText('Virtual time 1.400 s');
+  // Followed while a run plays: that seed's opening, paused.
+  await page.selectOption('[data-rf-speed]', '0.1');
+  await page.getByRole('button', { name: 'Run' }).click();
+  await expect.poll(() => seconds(page)).toBeGreaterThan(1.45);
+  await page.evaluate(() => (location.hash = '#seed-3'));
+  await expect(page.locator('[data-rf-seed]')).toHaveText('3');
+  await expect(clock(page)).toHaveText('Virtual time 1.400 s');
+  await expect(page.getByRole('button', { name: 'Run', exact: true })).toBeVisible();
+  await page.waitForTimeout(300);
+  await expect(clock(page)).toHaveText('Virtual time 1.400 s');
+  // A hash that links to no run, as the skip link's, leaves the run alone.
+  const lines = await log(page).allTextContents();
+  await page.evaluate(() => (location.hash = '#main'));
+  await page.waitForTimeout(200);
+  await expect(page.locator('[data-rf-seed]')).toHaveText('3');
+  expect(await log(page).allTextContents()).toEqual(lines);
 });
 
 test('a link to a run opens it: #seed-8 loads that seed with no other intent, and Start over moves on', async ({

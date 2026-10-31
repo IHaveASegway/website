@@ -22,7 +22,7 @@ export interface SimulatedLab {
 /**
  * One row per simulated lab. The Raft Lab keeps the 8,000 B of ADR 0020; the Cache and Backfill
  * Labs have 12,000 B each and the Queue Lab 12,500 B, raises for ADR 0026 to accept or refuse.
- * Measured on 2026-10-30, every chunk a lab's module can load: the Raft Lab 6,847 B in one chunk;
+ * Measured on 2026-10-30, every chunk a lab's module can load: the Raft Lab 6,861 B in one chunk;
  * the Queue Lab 12,048 B, the Cache Lab 11,005 B and the Backfill Lab 11,319 B, each its app and
  * lib/sim's chunk, 841 B, which all three load: the agenda, the seeded stream and, since the three
  * share one link to a run, the link's reader and writer, 249 B of it. That link took the Queue Lab
