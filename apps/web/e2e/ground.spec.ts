@@ -139,9 +139,73 @@ test('/about/ draws no wheels on a phone, and keeps them inside the gutter on a 
 test('/about/, which holds the résumé, draws its wheels on screen and nothing on paper', async ({
   page,
 }) => {
+  // 1440, where the wheels clear the words and are drawn (below).
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/about/');
   const ground = page.locator('svg.ground');
   await expect(ground).toHaveCount(1);
   await page.emulateMedia({ media: 'print' });
   expect(await ground.evaluate((g) => getComputedStyle(g).display)).toBe('none');
+});
+
+// The wheels are display and the bio is content, and display never stands under content
+// (2026-10-31): at 768 to 1199 and 1280 to 1439 px the left wheel stood behind the bio's lines. Where
+// the wheels are drawn, every line of text in the drawing's height ends a gutter (28 px) short of
+// them (the bar's controls, above the drawing, are not beside it); elsewhere they are not drawn. The widths are each side of every breakpoint (global.css,
+// .ground), and the review's 1024 and 1280.
+const GUTTER = 28;
+
+/** Where the drawn wheels start, and every line of text beside them that reaches within a gutter. */
+const wheelsAgainstText = (page: Page, gutter: number) =>
+  page.evaluate((gap) => {
+    const svg = document.querySelector('svg.ground');
+    if (!svg || !svg.checkVisibility()) return { drawn: false, left: 0, crowded: [] as string[] };
+    const shapes = [...svg.querySelectorAll('path')].map((p) => p.getBoundingClientRect());
+    const left = Math.min(...shapes.map((r) => r.left));
+    const top = Math.min(...shapes.map((r) => r.top));
+    const bottom = Math.max(...shapes.map((r) => r.bottom));
+    const crowded: string[] = [];
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      if (!node.textContent?.trim() || !node.parentElement?.checkVisibility()) continue;
+      if (node.parentElement.closest('.visually-hidden')) continue;
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      for (const box of range.getClientRects())
+        if (box.width > 0 && box.top < bottom && box.bottom > top && box.right + gap > left)
+          crowded.push(
+            `"${node.textContent.trim().slice(0, 30)}" ends at ${Math.round(box.right)}`,
+          );
+    }
+    return { drawn: true, left: Math.round(left), crowded };
+  }, gutter);
+
+for (const width of [768, 1024, 1199, 1200, 1279, 1280, 1366, 1439, 1440, 1920, 2560]) {
+  test(`at ${width} px /about/'s wheels stand clear of every word, or are not drawn`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/about/');
+    await page.evaluate(() => document.fonts.ready);
+    const at = await wheelsAgainstText(page, GUTTER);
+    expect(at.crowded, `wheels from ${at.left} px`).toEqual([]);
+    // The room the drawing needs: beside the words from 1200 without the rail and from 1440 with it.
+    expect(at.drawn).toBe((width >= 1200 && width < 1280) || width >= 1440);
+  });
+}
+
+// The known answer: at 1024 the wheels are not drawn, and drawn anyway they stand behind the bio,
+// as on the live site before this check, so the check would have caught it.
+test('known answer: drawn at 1024 px, the wheels stand behind the bio and the check says so', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1024, height: 900 });
+  await page.goto('/about/');
+  await page.evaluate(() => document.fonts.ready);
+  await page.locator('svg.ground').evaluate((svg) => {
+    (svg as SVGSVGElement).style.display = 'block';
+  });
+  const at = await wheelsAgainstText(page, GUTTER);
+  expect(at.drawn).toBe(true);
+  expect(at.crowded.length).toBeGreaterThan(0);
 });
