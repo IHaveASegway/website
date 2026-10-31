@@ -20,11 +20,15 @@ import { html, read } from './support/dist';
 // The Raft Lab, /lab/raft/, loads its own module the same way, on its page only (ADR 0020): the
 // bundle of components/raft-lab/RaftLab.astro's script (boot.ts), which loads the rest on intent.
 //
+// The Cache Lab, /lab/cache/, loads its own module the same way, on its page only: the bundle of
+// components/cache-lab/CacheLab.astro's script (boot.ts), which loads the rest on intent.
+//
 // And Home and the indexes have a fifth, once (design-system.md, "Motion"): the module of
 // components/Motion.astro (src/scripts/motion.js), which decodes a card's tag and hands a followed
 // title to the next page. A post, a demo, /about/ and the 404 carry none.
 
-type Verdict = 'theme' | 'json-ld' | 'route-lab' | 'raft-lab' | 'palette' | 'motion' | string;
+type Verdict =
+  'theme' | 'json-ld' | 'route-lab' | 'raft-lab' | 'cache-lab' | 'palette' | 'motion' | string;
 
 /** The one page allowed a module of its own, and the name Astro gives that module's bundle. */
 export const ROUTE_LAB = {
@@ -36,6 +40,12 @@ export const ROUTE_LAB = {
 export const RAFT_LAB = {
   page: 'lab/raft/index.html',
   src: /^\/_astro\/RaftLab\.astro_astro_type_script_index_0_lang\.[\w-]+\.js$/,
+} as const;
+
+/** The Cache Lab's page and the name Astro gives its module's bundle. */
+export const CACHE_LAB = {
+  page: 'lab/cache/index.html',
+  src: /^\/_astro\/CacheLab\.astro_astro_type_script_index_0_lang\.[\w-]+\.js$/,
 } as const;
 
 /** The name Astro gives the command menu's bundle, which every page loads. */
@@ -74,6 +84,14 @@ export function classify(
   )
     return 'raft-lab';
   if (
+    page === CACHE_LAB.page &&
+    names === 'src type' &&
+    script.attributes['type'] === 'module' &&
+    CACHE_LAB.src.test(script.attributes['src'] ?? '') &&
+    script.body === ''
+  )
+    return 'cache-lab';
+  if (
     names === 'src type' &&
     script.attributes['type'] === 'module' &&
     PALETTE.test(script.attributes['src'] ?? '') &&
@@ -97,8 +115,11 @@ for (const file of html) {
     const verdicts = tags(page, 'script').map((script) => classify(script, file));
 
     test("every script is the theme script, JSON-LD or the command menu's module, once, on the Route Lab its own module, and on Home and the indexes the motion module", () => {
-      const known = ['theme', 'json-ld', 'route-lab', 'raft-lab', 'palette', 'motion'];
+      const known = ['theme', 'json-ld', 'route-lab', 'raft-lab', 'cache-lab', 'palette', 'motion'];
       expect(verdicts.filter((v) => v === 'raft-lab')).toHaveLength(file === RAFT_LAB.page ? 1 : 0);
+      expect(verdicts.filter((v) => v === 'cache-lab')).toHaveLength(
+        file === CACHE_LAB.page ? 1 : 0,
+      );
       expect(verdicts.filter((v) => v === 'motion').length).toBeLessThanOrEqual(1);
       expect(verdicts.filter((v) => !known.includes(v))).toEqual([]);
       expect(verdicts.filter((v) => v === 'route-lab')).toHaveLength(
@@ -274,6 +295,38 @@ test('known answers: the Raft Lab module is allowed on its page only, from /_ast
     classify({ attributes: { type: 'module' }, body: 'import "./boot"' }, RAFT_LAB.page),
   ).toMatch(/^not allowed/);
   expect(classify({ attributes: { src: boot.attributes.src }, body: '' }, RAFT_LAB.page)).toMatch(
+    /^not allowed/,
+  );
+});
+
+test('known answers: the Cache Lab module is allowed on its page only, from /_astro/, never inline', () => {
+  const boot = {
+    attributes: {
+      type: 'module',
+      src: '/_astro/CacheLab.astro_astro_type_script_index_0_lang.De3hIgTc.js',
+    },
+    body: '',
+  };
+  expect(classify(boot, CACHE_LAB.page)).toBe('cache-lab');
+  for (const page of [ROUTE_LAB.page, RAFT_LAB.page, 'index.html', 'lab/index.html', ''])
+    expect(classify(boot, page), page).toMatch(/^not allowed/);
+  // The Raft Lab's module is not allowed on the Cache Lab's page, nor an inline or classic one.
+  expect(
+    classify(
+      {
+        attributes: {
+          type: 'module',
+          src: '/_astro/RaftLab.astro_astro_type_script_index_0_lang.D5gT1Uuz.js',
+        },
+        body: '',
+      },
+      CACHE_LAB.page,
+    ),
+  ).toMatch(/^not allowed/);
+  expect(
+    classify({ attributes: { type: 'module' }, body: 'import "./boot"' }, CACHE_LAB.page),
+  ).toMatch(/^not allowed/);
+  expect(classify({ attributes: { src: boot.attributes.src }, body: '' }, CACHE_LAB.page)).toMatch(
     /^not allowed/,
   );
 });

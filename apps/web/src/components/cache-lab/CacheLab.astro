@@ -1,0 +1,336 @@
+---
+import { DATABASE, NODES, seconds } from '../../lib/cache/core';
+import type { Toggle } from '../../lib/cache/sim';
+import {
+  clockWords,
+  nodeWords,
+  OPENING,
+  openingRun,
+  outcomeStrip,
+  propertyLines,
+  readersWords,
+  stripWords,
+  summary,
+  waiting,
+} from '../../lib/cache/view';
+import '../../styles/cache-lab.css';
+import {
+  fanPath,
+  LANES,
+  linkPath,
+  pageLamps,
+  STRIP,
+  STRIP_BASES,
+  stripEnds,
+  stripPaths,
+} from './picture';
+
+interface Props {
+  /** The page's one <h1>: the lab's title. */
+  title: string;
+  /** The sentence under it. */
+  lead: string;
+}
+
+// The Cache Lab: readers, four cache nodes and the database behind them, drawn at build from the
+// opening run (lib/cache/view.ts), so the page is complete without JavaScript. The controls show
+// only where script runs (cache-lab.css), and boot.ts loads the simulation on the visitor's first
+// intent; it replays the same opening, so it takes over exactly where this stands.
+//
+// The page's head and the desk are the lab page's own (ADR 0025, "Lab pages"): the lab's line
+// across the top ending in its lamp, the title, the lead, then the demo on the board's surface in
+// its bezel. They stand here, as cl-head and cl-desk, until the lab pages share one head and one
+// desk, which take their place.
+const { title, lead } = Astro.props;
+const sim = openingRun();
+const buckets = outcomeStrip(sim);
+const bars = stripPaths(buckets);
+const [stripFrom, stripTo] = stripEnds(buckets, sim.now);
+const lines = sim.lines.slice(-12);
+const nodes = Array.from({ length: NODES }, (_, id) => id);
+// A choice among a few is a native radio in a push-button: how fast virtual time runs (virtual
+// seconds a second), how many readers ask, and how pages are placed on the nodes.
+const choices = [
+  {
+    legend: 'Speed',
+    name: 'cl-speed',
+    value: '0.5',
+    options: [
+      { value: '0.1', name: 'Slow' },
+      { value: '0.5', name: 'Steady' },
+      { value: '2', name: 'Quick' },
+    ],
+  },
+  {
+    legend: 'Load',
+    name: 'cl-load',
+    value: sim.load,
+    options: [
+      { value: 'calm', name: 'Calm' },
+      { value: 'busy', name: 'Busy' },
+      { value: 'morning', name: 'Morning' },
+    ],
+  },
+  {
+    legend: 'Placement',
+    name: 'cl-placement',
+    value: sim.placement,
+    options: [
+      { value: 'circle', name: 'Hash circle' },
+      { value: 'modulo', name: 'Modulo' },
+    ],
+  },
+];
+// The key to a page's lamp, in the order a page goes through them.
+const legend = [
+  { state: 'fresh', name: 'fresh' },
+  { state: 'stale', name: 'expired' },
+  { state: 'missing', name: 'missing' },
+  { state: 'fetching', name: 'being fetched' },
+];
+const mitigations: { toggle: Toggle; name: string }[] = [
+  { toggle: 'coalesce', name: 'Coalesce misses' },
+  { toggle: 'stale', name: 'Serve stale while refreshing' },
+  { toggle: 'early', name: 'Refresh early' },
+  { toggle: 'jitter', name: 'Jitter expiry times' },
+];
+---
+
+<header class="page-head cl-head" data-line="cache">
+  <div class="cl-head-line" aria-hidden="true">
+    <span class="cl-head-track"></span>
+    <span class="cl-head-lamp"></span>
+  </div>
+  <h1 id="page-title" class="page-title">
+    {title}
+  </h1>
+  <p class="page-lead">{lead}</p>
+</header>
+
+<div class="cl" id="cache-lab" data-line="cache" data-cl-opening={JSON.stringify(OPENING)}>
+  <div class="cl-desk">
+    <figure class="cl-figure">
+      <div class="cl-map" role="img" aria-labelledby="cl-summary">
+        <p class="cl-readers" data-cl-readers>
+          {readersWords(sim)}
+        </p>
+        <svg class="cl-fan" viewBox="0 0 100 400" preserveAspectRatio="none">
+          {nodes.map((id) => (
+            <g data-cl-fan={id} data-up={String(sim.nodes[id]?.up)}>
+              <path class="cl-track" d={fanPath(id)} />
+              <path class="cl-gap" d={fanPath(id)} />
+            </g>
+          ))}
+        </svg>
+        <ol class="cl-nodes" role="list">
+          {nodes.map((id) => (
+            <li class="cl-node" data-cl-node={id} data-up={String(sim.nodes[id]?.up)}>
+              <div class="cl-box">
+                <p class="cl-node-head">
+                  <span class="cl-node-name">Node {id + 1}</span>
+                  <span class="cl-node-words" data-cl-node-words>
+                    {nodeWords(sim, id)}
+                  </span>
+                </p>
+                <p class="cl-pages" data-cl-pages={id} set:html={pageLamps(sim, id)} />
+              </div>
+            </li>
+          ))}
+        </ol>
+        <svg class="cl-links" viewBox="0 0 100 400" preserveAspectRatio="none">
+          {nodes.map((id) => (
+            <g data-cl-link={id} data-up={String(sim.nodes[id]?.up)}>
+              <path class="cl-track" d={linkPath(id)} />
+              <path class="cl-gap" d={linkPath(id)} />
+            </g>
+          ))}
+        </svg>
+        <div class="cl-db">
+          <p class="cl-db-name">Database</p>
+          <p class="cl-conns" data-cl-conns>
+            {Array.from({ length: DATABASE.pool }, (_, i) => (
+              <span class="cl-lamp cl-conn" data-state={i < sim.running ? 'busy' : 'idle'} />
+            ))}
+          </p>
+          <p class="cl-waiting">
+            <span class="cl-count" data-cl-waiting>
+              {waiting(sim).toLocaleString('en-US')}
+            </span>
+            <span>waiting</span>
+          </p>
+        </div>
+        <p class="cl-legend">
+          <span class="cl-legend-name">A node’s lamps are its pages:</span>
+          {legend.map((item) => (
+            <span class="cl-legend-item">
+              <span class="cl-lamp" data-state={item.state} />
+              {item.name}
+            </span>
+          ))}
+        </p>
+      </div>
+
+      <div class="cl-strip" role="img" aria-label={stripWords(sim)} data-cl-strip>
+        <ul class="cl-lanes" role="list">
+          {LANES.map((lane) => (
+            <li>{lane.name}</li>
+          ))}
+        </ul>
+        <svg
+          class="cl-bars"
+          viewBox={`0 0 ${STRIP.width} ${STRIP.lane * LANES.length}`}
+          preserveAspectRatio="none"
+        >
+          <path class="cl-base" d={STRIP_BASES} />
+          {LANES.map(({ outcome }) => (
+            <path class="cl-bar" data-cl-lane={outcome} d={bars[outcome]} />
+          ))}
+          <path class="cl-wait" data-cl-lane="pending" d={bars['pending']} />
+        </svg>
+        <p class="cl-axis">
+          <span data-cl-from>{stripFrom}</span>
+          <span data-cl-to>{stripTo}</span>
+        </p>
+      </div>
+
+      <figcaption class="cl-summary" id="cl-summary" data-cl-summary>
+        {summary(sim)}
+      </figcaption>
+    </figure>
+
+    <ul class="cl-props" role="list" data-cl-props>
+      {propertyLines(sim).map((p) => (
+        <li class="cl-prop" data-cl-prop={p.id} data-held={String(p.held)}>
+          <svg class="cl-prop-lamp" viewBox="0 0 16 16" aria-hidden="true">
+            <circle class="cl-prop-disc" cx="8" cy="8" r="6.25" />
+            <path class="cl-prop-cross" d="M4.5 4.5l7 7M11.5 4.5l-7 7" />
+          </svg>
+          <span class="cl-prop-name">{p.name}</span>
+          <span class="cl-prop-words" data-cl-prop-words>
+            {p.words}
+          </span>
+        </li>
+      ))}
+    </ul>
+
+    <div class="cl-panel" data-cl-js>
+      <p class="cl-clock" data-cl-clock>
+        {clockWords(sim)}
+      </p>
+
+      <div class="cl-group" role="group" aria-labelledby="cl-time">
+        <p class="cl-group-name" id="cl-time">
+          Time
+        </p>
+        <div class="cl-row">
+          <button type="button" class="btn btn-primary cl-run" data-cl-run>
+            Run
+          </button>
+          <button type="button" class="btn" data-cl-step>
+            Next event
+          </button>
+          <button type="button" class="btn" data-cl-reset>
+            Start over
+          </button>
+        </div>
+      </div>
+
+      {choices.map((group) => (
+        <fieldset class="cl-group">
+          <legend class="cl-group-name">{group.legend}</legend>
+          <div class="cl-row cl-segments">
+            {group.options.map((option) => (
+              <label class="cl-choice">
+                <input
+                  type="radio"
+                  name={group.name}
+                  value={option.value}
+                  checked={option.value === group.value}
+                />
+                {option.name}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      ))}
+
+      <div class="cl-group" role="group" aria-labelledby="cl-mitigations">
+        <p class="cl-group-name" id="cl-mitigations">
+          Against a stampede
+        </p>
+        <div class="cl-row">
+          {mitigations.map((m) => (
+            <button
+              type="button"
+              class="btn"
+              data-cl-toggle={m.toggle}
+              aria-pressed={sim[m.toggle] ? 'true' : 'false'}
+            >
+              {m.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div class="cl-group" role="group" aria-labelledby="cl-writes">
+        <p class="cl-group-name" id="cl-writes">
+          Writes
+        </p>
+        <div class="cl-row">
+          <button
+            type="button"
+            class="btn"
+            data-cl-toggle="invalidate"
+            aria-pressed={sim.invalidate ? 'true' : 'false'}
+          >
+            Invalidate on write
+          </button>
+          <button type="button" class="btn" data-cl-write>
+            Write to the menu
+          </button>
+        </div>
+      </div>
+
+      <div class="cl-group" role="group" aria-labelledby="cl-nodes">
+        <p class="cl-group-name" id="cl-nodes">
+          Nodes
+        </p>
+        <div class="cl-row">
+          {nodes.map((id) => (
+            <button
+              type="button"
+              class="btn"
+              data-cl-lose={id}
+              aria-label={`Lose node ${id + 1}, now up, ${nodeWords(sim, id)}`}
+            >
+              Lose node {id + 1}
+            </button>
+          ))}
+          <button type="button" class="btn" data-cl-flush>
+            Flush every node
+          </button>
+        </div>
+      </div>
+      <p class="cl-sr" role="status" data-cl-said></p>
+    </div>
+  </div>
+
+  <div class="cl-events">
+    <h2 class="cl-heading" id="cl-events">
+      What happened
+    </h2>
+    <div class="cl-lines" role="log" aria-live="off" aria-labelledby="cl-events" tabindex="0">
+      <ol class="cl-list" data-cl-lines>
+        {lines.map((line) => (
+          <li>
+            <span class="cl-at">{seconds(line.at)}</span> {line.text}
+          </li>
+        ))}
+      </ol>
+    </div>
+  </div>
+</div>
+
+<script>
+  import './boot';
+</script>

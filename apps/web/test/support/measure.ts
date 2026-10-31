@@ -59,7 +59,8 @@ export function measure(page: string) {
  * meaning: a solver that grew would still fail them. Its own ceiling, the first view with the app,
  * the route data and the cube, is what a visitor who turns the cube has fetched.
  *
- * The Raft Lab (ADR 0020) has one too: its app chunk, and the first view of its page.
+ * The Raft Lab (ADR 0020) has one too: its app chunk, and the first view of its page. So does the
+ * Cache Lab, the same way.
  *
  * So does Home's scene (ADR 0024): the chunk that drives it, which Home's motion module loads after
  * the page has painted, the day's data it fetches, and Home's first view with both. It shares the
@@ -90,6 +91,17 @@ export const FEATURES = {
     entry: /^_astro\/RaftLab\.astro_astro_type_script_index_0_lang\.[\w-]+\.js$/,
     paths: [],
     lazyJavaScript: 8_000,
+    firstView: 150_000,
+  },
+  // The Cache Lab: its app, the cache, the database and the readers, the checker and what it draws,
+  // in one chunk loaded on intent. No data file and no WebAssembly; its page keeps 150 KB. Its
+  // simulation alone is about 7.9 KB, gzip, so the chunk was 10,178 B when it shipped (2026-10-30),
+  // over the 8,000 B a lab's app has: its own budget is that, to the next thousand.
+  'cache-lab': {
+    page: 'lab/cache/index.html',
+    entry: /^_astro\/CacheLab\.astro_astro_type_script_index_0_lang\.[\w-]+\.js$/,
+    paths: [],
+    lazyJavaScript: 11_000,
     firstView: 150_000,
   },
   // Home's scene (ADR 0024): the canvas that drives the Route Lab's day behind the hero, and the
