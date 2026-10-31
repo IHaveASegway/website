@@ -223,9 +223,10 @@
   margin: 0;
 }
 
-/* A lamp: filled while fresh, half filled once expired, hollow when missing, and lit, the warm
-   white of where the work is now, inside its rim while it is fetched. A database connection is lit
-   while a fetch runs on it, and hollow while it is free. */
+/* A lamp: filled while fresh, half filled once expired, hollow when missing, and a dot inside its
+   rim while it is fetched, the dot lit the warm white of where the work is now. Four shapes, so a
+   page's state never rests on its colour alone, in either theme or in forced colours. A database
+   connection is lit, filled, while a fetch runs on it, and hollow while it is free. */
 .cl-lamp {
   display: inline-block;
   flex: none;
@@ -243,7 +244,12 @@
   background-image: linear-gradient(to right, var(--line) 50%, transparent 50%);
 }
 
-.cl-lamp:is([data-state='fetching'], [data-state='busy']) {
+.cl-lamp[data-state='fetching'] {
+  border-width: 1px;
+  background-image: radial-gradient(circle closest-side, var(--primary) 52%, transparent 62%);
+}
+
+.cl-lamp[data-state='busy'] {
   border-width: 2px;
   background-color: var(--primary);
 }
@@ -260,14 +266,11 @@
   font-variant-numeric: tabular-nums;
 }
 
-.cl-menu-lamp {
+.cl-menu-lamp,
+.cl-menu-lamp[data-state='fetching'] {
   inline-size: 0.875rem;
   block-size: 0.875rem;
   border-width: 2px;
-}
-
-.cl-menu-lamp:is([data-state='fetching']) {
-  border-width: 3px;
 }
 
 /* The key to a node's lamps, under the nodes. */
@@ -347,21 +350,15 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* On a phone the database stands narrower, its count under its lamps, so the nodes keep room. */
+/* On a phone the database stands narrower, its lamps two by four with the count still beside them,
+   so the nodes keep room. */
 @media (width < 48rem) {
   .cl-db {
-    grid-template-columns: auto;
     padding-inline: 0.5rem;
   }
 
-  .cl-waiting {
-    display: flex;
-    align-items: baseline;
-    gap: 0.375rem;
-  }
-
-  .cl-count {
-    min-inline-size: 0;
+  .cl-conns {
+    grid-template-columns: repeat(2, auto);
   }
 }
 
@@ -388,6 +385,11 @@
     margin-top: 0.5rem;
   }
 
+  /* With the width to itself, its lamps stand four by two again. */
+  .cl-conns {
+    grid-template-columns: repeat(4, auto);
+  }
+
   .cl-legend {
     grid-column: 1 / -1;
     grid-row: 4;
@@ -404,7 +406,7 @@
 .cl-strip {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  grid-template-rows: repeat(4, 1.25rem) auto;
+  grid-template-rows: repeat(4, 1.25rem) auto auto;
   column-gap: 0.75rem;
   user-select: none;
 }
@@ -463,6 +465,30 @@
   font-weight: var(--text-label--font-weight);
   line-height: var(--text-label--line-height);
   font-variant-numeric: tabular-nums;
+}
+
+/* The key to the strip's hollow bars: reads still waiting, drawn in the fresh fetch's lane until
+   they end, as a bar's frame open to its lane's base. */
+.cl-strip-key {
+  grid-column: 2;
+  grid-row: 6;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.25rem 0 0;
+  color: var(--muted-foreground);
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  line-height: var(--text-label--line-height);
+}
+
+.cl-wait-key {
+  flex: none;
+  inline-size: 0.5rem;
+  block-size: 0.875rem;
+  border: 1.25px solid var(--line);
+  border-block-end-color: var(--border);
 }
 
 .cl-summary {
@@ -693,9 +719,14 @@ legend.cl-group-name {
   list-style: none;
 }
 
+/* A line of the log: its time, then its words in a column of their own, so a line that wraps
+   runs on under its words and the times stay one column. */
+.cl-list > li {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+}
+
 .cl-at {
-  display: inline-block;
-  min-width: 5.5rem;
   color: var(--muted-foreground);
   font-family: var(--font-label);
   font-size: var(--text-label);
@@ -703,11 +734,13 @@ legend.cl-group-name {
 }
 
 /* Forced colours (a Windows contrast theme) replace fills with the visitor's background. The lamps
-   keep their shapes in the visitor's own text and highlight colours: filled, half, hollow, lit. */
+   keep their shapes in the visitor's own text and highlight colours: filled, half, hollow, a dot
+   in its rim, and a connection lit. */
 @media (forced-colors: active) {
   .cl-head-track,
   .cl-head-lamp,
   .cl-lamp,
+  .cl-wait-key,
   .cl-choice::before {
     forced-color-adjust: none;
   }
@@ -718,7 +751,8 @@ legend.cl-group-name {
     background-color: CanvasText;
   }
 
-  .cl-lamp {
+  .cl-lamp,
+  .cl-wait-key {
     border-color: CanvasText;
   }
 
@@ -726,7 +760,11 @@ legend.cl-group-name {
     background-image: linear-gradient(to right, CanvasText 50%, transparent 50%);
   }
 
-  .cl-lamp:is([data-state='fetching'], [data-state='busy']) {
+  .cl-lamp[data-state='fetching'] {
+    background-image: radial-gradient(circle closest-side, Highlight 52%, transparent 62%);
+  }
+
+  .cl-lamp[data-state='busy'] {
     background-color: Highlight;
   }
 

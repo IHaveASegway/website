@@ -49,8 +49,9 @@ if (root) {
     queued.push(event.target);
     start();
   });
-  // A link to a run (#seed-8) is intent enough: it opens that run at once.
-  if (/^#seed-\d{1,6}$/.test(location.hash)) start();
+  // A link to a run (#seed-8, with any settings after it: link.ts) is intent enough: it opens that
+  // run at once.
+  if (/^#seed-\d{1,6}(&|$)/.test(location.hash)) start();
 }
 
 // A module, not a script: its names are its own, beside the other labs' boot scripts.

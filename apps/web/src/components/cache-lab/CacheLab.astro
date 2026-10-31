@@ -3,6 +3,7 @@ import { DATABASE, NODES, seconds } from '../../lib/cache/core';
 import type { Toggle } from '../../lib/cache/sim';
 import {
   clockWords,
+  mapWords,
   nodeWords,
   OPENING,
   openingRun,
@@ -110,7 +111,7 @@ const mitigations: { toggle: Toggle; name: string }[] = [
 <div class="cl" id="cache-lab" data-line="cache" data-cl-opening={JSON.stringify(OPENING)}>
   <div class="cl-desk">
     <figure class="cl-figure">
-      <div class="cl-map" role="img" aria-labelledby="cl-summary">
+      <div class="cl-map" role="img" aria-label={mapWords(sim)} data-cl-map>
         <p class="cl-readers" data-cl-readers>
           {readersWords(sim)}
         </p>
@@ -191,9 +192,13 @@ const mitigations: { toggle: Toggle; name: string }[] = [
           <span data-cl-from>{stripFrom}</span>
           <span data-cl-to>{stripTo}</span>
         </p>
+        <p class="cl-strip-key">
+          <span class="cl-wait-key"></span>
+          Reads still waiting
+        </p>
       </div>
 
-      <figcaption class="cl-summary" id="cl-summary" data-cl-summary>
+      <figcaption class="cl-summary" data-cl-summary>
         {summary(sim)}
       </figcaption>
     </figure>

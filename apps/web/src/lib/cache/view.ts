@@ -1,5 +1,5 @@
 import { properties, type PropertyId } from './check';
-import { firstUp, LOADS, millis, pageName, seconds } from './core';
+import { DATABASE, firstUp, LOADS, millis, pageName, PAGES, seconds } from './core';
 import { replay, type Action, type Config, type Outcome, type Sample, type Sim } from './sim';
 
 // What the Cache Lab says about a run, as text and numbers, never markup: the page stage draws
@@ -20,6 +20,11 @@ export const OPENING = {
 } as const;
 
 export const openingRun = (): Sim => replay(OPENING.config, OPENING.actions, OPENING.until);
+
+/** Where the browser plays a run from when the visitor starts it over, or runs one that still
+ *  stands at the opening's moment: half a second before the menu expires, so the stampede the
+ *  caption tells plays live, its lamps lighting and its line growing. */
+export const REPLAY_FROM = (OPENING.config.menuExpires ?? 0) - 500;
 
 /** How many seeded runs the property sweep in test/cache.test.ts makes: the page says the number. */
 export const SEEDS_IN_CI = 600;
@@ -213,6 +218,17 @@ export const waiting = (sim: Sim): number => sim.line.length - sim.lineHead;
 
 /** The readers, as the picture labels them: how many pages they ask for a second. */
 export const readersWords = (sim: Sim): string => `Readers, ${count(LOADS[sim.load])} a second`;
+
+/** The picture's own name, for assistive technology: what its parts show now, the nodes' lamps
+ *  counted by state and the database's connections and line. The caption under it tells the run,
+ *  so the name does not repeat it. */
+export function mapWords(sim: Sim): string {
+  const lamps: Record<PageState, number> = { fresh: 0, stale: 0, missing: 0, fetching: 0 };
+  for (let key = 0; key < PAGES; key++) lamps[pageState(sim, key)] += 1;
+  const down = sim.nodes.filter((node) => !node.up).map((node) => `node ${node.id + 1}`);
+  const line = waiting(sim);
+  return `${readersWords(sim)}, four cache nodes${down.length > 0 ? `, ${and(down)} down,` : ''} and the database. The nodes’ pages: ${count(lamps.fresh)} fresh, ${count(lamps.stale)} expired, ${count(lamps.missing)} missing and ${count(lamps.fetching)} being fetched. ${menuWords(sim)}. The database: ${sim.running} of ${DATABASE.pool} connections busy and ${count(line)} ${line === 1 ? 'fetch' : 'fetches'} waiting.`;
+}
 
 /** The outcome strip in one sentence, for assistive technology: what the last 2 s of reads got. */
 export function stripWords(sim: Sim): string {

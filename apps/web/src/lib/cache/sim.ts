@@ -751,8 +751,17 @@ function store(sim: Sim, key: number, version: number, delta: number): void {
   const expiresAt = sim.now + lifetime(jitter, jitter ? sim.random() : 0);
   const before = node.entries.get(key);
   node.entries.set(key, { version, writtenAt: sim.now, expiresAt, delta });
-  if (key === 0 && (!before || before.expiresAt <= sim.now))
-    say(sim, `The menu is cached again as version ${version}, until ${seconds(expiresAt)}`);
+  if (key !== 0 || (before && before.expiresAt > sim.now)) return;
+  // The menu is cached again after it expired or was lost. While more fetches of it are in flight,
+  // a herd's, each stores it again as it comes back, for a TTL from then, so this expiry is not the
+  // last: the line says so, rather than name an expiry the picture soon contradicts.
+  const more = (sim.flying[0] as Fetch[]).length;
+  say(
+    sim,
+    more > 0
+      ? `The menu is cached again as version ${version}; ${more} more ${more === 1 ? 'fetch' : 'fetches'} of it ${more === 1 ? 'is' : 'are'} in flight, and each that comes back stores it again`
+      : `The menu is cached again as version ${version}, until ${seconds(expiresAt)}`,
+  );
 }
 
 /** A reader's 1,000 ms are up. A fetch it waited on that has started runs on: the database cannot

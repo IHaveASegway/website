@@ -16,6 +16,7 @@ import {
 } from '../../lib/cache/sim';
 import {
   clockWords,
+  mapWords,
   menuWords,
   nodeWords,
   OPENING,
@@ -24,19 +25,24 @@ import {
   pageState,
   propertyLines,
   readersWords,
+  REPLAY_FROM,
   stripWords,
   summary,
   waiting,
 } from '../../lib/cache/view';
+import { fromLink, settingsOf, toLink, type Settings } from './link';
 import { pageLamps, stripEnds, stripPaths } from './picture';
 
 // The Cache Lab in the browser: the simulation, run in virtual time and drawn on every frame while
 // it runs. It opens paused, on the same opening the build drew, and moves only when the visitor
-// presses Run, which Pause stops (SC 2.2.2); a hidden tab pauses it too. With reduced motion, Run
-// advances in steps of 100 virtual milliseconds twice a second, so the picture changes in still
-// steps. Every action lands between two moments of the run, never inside one: the frames and Next
-// event move the clock with runUntil, which stops only there (lib/cache/sim.ts), so an action is
-// the one a replay of the same run would take.
+// presses Run, which Pause stops (SC 2.2.2); a hidden tab pauses it too. The opening's picture
+// tells a stampede that has already happened, so Run on a run still standing untouched at that
+// moment plays it again from half a second before the menu expires, as Start over does: the
+// visitor watches it happen. With reduced motion, Run advances in steps of 100 virtual
+// milliseconds twice a second, so the picture changes in still steps. Every action lands between
+// two moments of the run, never inside one: the frames and Next event move the clock with
+// runUntil, which stops only there (lib/cache/sim.ts), so an action is the one a replay of the
+// same run would take.
 
 const FRAME_CAP = 100; // real ms: a frame after a long pause does not leap ahead
 const EVENTS_PER_FRAME = 4_000;
@@ -50,27 +56,15 @@ const TOGGLES: readonly Toggle[] = ['coalesce', 'stale', 'early', 'jitter', 'inv
 const broken = (sim: Sim): string =>
   sim.violation ? `Broken at ${seconds(sim.violation.at)}: ${sim.violation.detail}.` : '';
 
-const seedFromHash = (): number | null => {
-  const match = /^#seed-(\d{1,6})$/.exec(location.hash);
-  return match ? Number(match[1]) : null;
-};
-
-/** The opening for a seed, with the switches, the load and the placement of the run before it, so
- *  Start over plays the same readers again with only what the visitor changed. */
-function fresh(seed: number, from?: Sim): Sim {
-  const settings = from
-    ? {
-        load: from.load,
-        placement: from.placement,
-        coalesce: from.coalesce,
-        stale: from.stale,
-        early: from.early,
-        jitter: from.jitter,
-        invalidate: from.invalidate,
-      }
-    : {};
-  return replay({ ...OPENING.config, ...settings, seed }, OPENING.actions, OPENING.until);
-}
+/**
+ * A seed's opening with some settings, replayed to `until`: by default the opening's moment, where
+ * the build's picture stands. Start over keeps the seed and the settings, so it plays the same
+ * seed again with what the visitor changed. Not the same readers: every draw comes from one
+ * seeded stream, so a switch that changes how many draws the run makes, as coalescing does by
+ * making fewer fetches, moves every arrival after it. Two runs compare by their counts.
+ */
+const fresh = (seed: number, settings: Settings = {}, until: number = OPENING.until): Sim =>
+  replay({ ...OPENING.config, ...settings, seed }, OPENING.actions, until);
 
 export function start(root: HTMLElement, queued: readonly Element[]): void {
   const $ = <T extends Element>(selector: string) => root.querySelector<T>(selector);
@@ -88,15 +82,16 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
   const speed = () =>
     Number($<HTMLInputElement>('input[name="cl-speed"]:checked')?.value ?? 0.5) || 0.5;
 
-  const opening = seedFromHash() === null;
-  let sim: Sim = fresh(seedFromHash() ?? OPENING.seed);
+  // A link to a run opens it; anything else opens the opening the build drew.
+  const link = fromLink(location.hash);
+  let sim: Sim = fresh(link?.seed ?? OPENING.seed, link?.settings);
   let playing = false;
   let last = 0;
   let frame = 0;
   let timer = 0;
   // What the page shows: the last line of the event log, which node held each page when its lamps
   // were last laid out, and each page's lamp and state since.
-  let shownLines: Line | undefined = opening ? sim.lines.at(-1) : undefined;
+  let shownLines: Line | undefined = link ? undefined : sim.lines.at(-1);
   let shownOwners: readonly number[] = [];
   let lamps: (Element | undefined)[] = [];
   const shownState: string[] = [];
@@ -144,6 +139,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     });
     text($('[data-cl-waiting]'), waiting(sim).toLocaleString('en-US'));
     text($('[data-cl-readers]'), readersWords(sim));
+    attribute($('[data-cl-map]'), 'aria-label', mapWords(sim));
 
     const buckets = outcomeStrip(sim);
     for (const [lane, d] of Object.entries(stripPaths(buckets)))
@@ -241,11 +237,26 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     }
   }
 
+  /** The run again from REPLAY_FROM, with its seed and settings, drawn, and said where it stands:
+   *  the clock, and the menu that is about to expire. */
+  function begin(): void {
+    sim = fresh(sim.seed, settingsOf(sim), REPLAY_FROM);
+    shownLines = undefined;
+    lines?.replaceChildren();
+    draw();
+    say(`${clockWords(sim)}. ${menuWords(sim)}.`);
+  }
+
   function press(control: Element): void {
     const value = control instanceof HTMLInputElement ? control.value : '';
     if (control.matches('[data-cl-run]')) {
       if (playing) pause();
-      else play();
+      else {
+        // Still the moment the picture tells, untouched: play the stampede it told, as it happens.
+        if (sim.now === OPENING.until && sim.actions.length === 0) begin();
+        play();
+      }
+      return;
     } else if (control.matches('[data-cl-step]')) {
       // Every event at the next moment, never one alone: an action after it then lands where a
       // replay puts it.
@@ -253,14 +264,10 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     } else if (control.matches('[data-cl-reset]')) {
       const wasPlaying = playing;
       pause();
-      sim = fresh(sim.seed, sim);
-      shownLines = undefined;
-      lines?.replaceChildren();
-      history.replaceState(null, '', `#seed-${sim.seed}`);
+      begin();
+      // The address names this run, switches and all, so it opens it again.
+      history.replaceState(null, '', toLink(sim));
       if (wasPlaying) play();
-      // A new run: what it did, rather than the last of its lines.
-      draw();
-      say(summary(sim));
       return;
     } else if (control.matches('[data-cl-toggle]')) {
       const toggle = control.getAttribute('data-cl-toggle') as Toggle;
@@ -301,7 +308,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     }
   });
 
-  if (!opening) lines?.replaceChildren();
+  if (link) lines?.replaceChildren();
   draw();
   for (const control of queued) press(control);
 }

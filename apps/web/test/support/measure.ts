@@ -94,9 +94,11 @@ export const FEATURES = {
     firstView: 150_000,
   },
   // The Cache Lab: its app, the cache, the database and the readers, the checker and what it draws,
-  // in one chunk loaded on intent. No data file and no WebAssembly; its page keeps 150 KB. Its
-  // simulation alone is about 7.9 KB, gzip, so the chunk was 10,178 B when it shipped (2026-10-30),
-  // over the 8,000 B a lab's app has: its own budget is that, to the next thousand.
+  // in one chunk loaded on intent. No data file and no WebAssembly; its page keeps 150 KB. It cannot
+  // keep the 8,000 B a lab's app has: with every string emptied the chunk is still 7,718 B, gzip,
+  // and its words (the event log's, the checker's, the picture's) bring it to 10,689 B
+  // (2026-10-30). So 11,000 B is proposed here, not decided: ADR 0026 is to decide it, with these
+  // figures, and until then this line is an open question, not a settled limit.
   'cache-lab': {
     page: 'lab/cache/index.html',
     entry: /^_astro\/CacheLab\.astro_astro_type_script_index_0_lang\.[\w-]+\.js$/,

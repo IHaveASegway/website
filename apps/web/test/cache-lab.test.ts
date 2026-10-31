@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import { fromLink, settingsOf, toLink } from '../src/components/cache-lab/link';
 import {
   fanPath,
   LANES,
@@ -12,6 +13,7 @@ import { NODES, PAGES } from '../src/lib/cache/core';
 import { flush, loseNode, replay, setToggle, write } from '../src/lib/cache/sim';
 import {
   clockWords,
+  mapWords,
   menuWords,
   nodeWords,
   OPENING,
@@ -22,7 +24,9 @@ import {
   PROPERTY_NAMES,
   propertyLines,
   readersWords,
+  REPLAY_FROM,
   stripWords,
+  summary,
   waiting,
   type Bucket,
 } from '../src/lib/cache/view';
@@ -181,4 +185,95 @@ test('the labels say the load and the clock', () => {
   const sim = openingRun();
   expect(readersWords(sim)).toBe('Readers, 300 a second');
   expect(clockWords(sim)).toBe('Virtual time 5.000 s, seed 7');
+});
+
+test('the picture is named by what its parts show, not by the caption’s account of the run', () => {
+  const sim = openingRun();
+  expect(mapWords(sim)).toBe(
+    'Readers, 300 a second, four cache nodes and the database. The nodes’ pages: 96 fresh, 23 expired, 0 missing and 1 being fetched. Menu, fresh until 12.5 s. The database: 1 of 8 connections busy and 0 fetches waiting.',
+  );
+  expect(mapWords(sim)).not.toContain(summary(sim));
+  // A node lost, and the herd at its height: the name follows the picture.
+  const herd = at(3_300);
+  loseNode(herd, 1);
+  expect(mapWords(herd)).toMatch(
+    /^Readers, 300 a second, four cache nodes, node 2 down, and the database\. The nodes’ pages: \d+ fresh, \d+ expired, \d+ missing and \d+ being fetched\. Menu, 19 fetches at once\. The database: 8 of 8 connections busy and 13 fetches waiting\.$/,
+  );
+});
+
+test('the log names no expiry for the menu that its herd’s later fetches move on', () => {
+  // Each fetch of the herd stores the menu again as it comes back, the last at 4.483 s: the first
+  // one back says so, rather than an expiry the picture then contradicts.
+  const lines = openingRun().lines.map((line) => line.text);
+  expect(lines).toContain(
+    'The menu is cached again as version 1; 22 more fetches of it are in flight, and each that comes back stores it again',
+  );
+  expect(lines.filter((line) => /cached again.* until /.test(line))).toEqual([]);
+  // A fetch with no other in flight says when the entry it stored expires.
+  const tamed = replay({ ...OPENING.config, coalesce: true, stale: true }, [], OPENING.until);
+  expect(tamed.lines.map((line) => line.text)).toContain(
+    'The menu is cached again as version 1, until 11.489 s',
+  );
+});
+
+test('Start over, and the first Run, play from half a second before the menu expires', () => {
+  expect(REPLAY_FROM).toBe(2_500);
+  const before = at(REPLAY_FROM);
+  expect(menuWords(before)).toBe('Menu, fresh until 3.0 s');
+  expect(clockWords(before)).toBe('Virtual time 2.500 s, seed 7');
+  // Played on, the same run reaches the opening's moment: the same events, the same caption.
+  expect(summary(replay(OPENING.config, [], OPENING.until))).toBe(summary(openingRun()));
+});
+
+describe('a link to a run', () => {
+  test('names the seed, then each setting that differs from the opening’s, and opens the same run', () => {
+    expect(toLink(openingRun())).toBe('#seed-7');
+    const tamed = replay({ ...OPENING.config, coalesce: true, stale: true }, [], OPENING.until);
+    expect(toLink(tamed)).toBe('#seed-7&coalesce=on&stale=on');
+    const odd = replay(
+      {
+        ...OPENING.config,
+        seed: 12,
+        load: 'morning',
+        placement: 'modulo',
+        early: true,
+        jitter: true,
+        invalidate: false,
+      },
+      [],
+      1_000,
+    );
+    expect(toLink(odd)).toBe(
+      '#seed-12&load=morning&placement=modulo&early=on&jitter=on&invalidate=off',
+    );
+    // Opened, a link gives the run it was made from, event for event.
+    for (const sim of [openingRun(), tamed, odd]) {
+      const link = fromLink(toLink(sim));
+      expect(link?.seed).toBe(sim.seed);
+      const again = replay(
+        { ...OPENING.config, ...link?.settings, seed: link?.seed ?? -1 },
+        [],
+        1_000,
+      );
+      const first = replay({ ...OPENING.config, ...settingsOf(sim), seed: sim.seed }, [], 1_000);
+      expect(again.events).toBe(first.events);
+      expect(summary(again)).toBe(summary(first));
+      expect(settingsOf(again)).toEqual(settingsOf(first));
+    }
+  });
+
+  test('leaves out a setting the lab does not have or a value it cannot take, and names no run when malformed', () => {
+    expect(fromLink('#seed-7&load=rush&placement=line&coalesce=yes&colour=red')).toEqual({
+      seed: 7,
+      settings: {},
+    });
+    // Only the loads the lab has, never a name every object inherits.
+    expect(fromLink('#seed-7&load=constructor')?.settings).toEqual({});
+    expect(fromLink('#seed-12&load=calm&invalidate=off')).toEqual({
+      seed: 12,
+      settings: { load: 'calm', invalidate: false },
+    });
+    for (const hash of ['', '#main', '#seed-', '#seed-1234567', '#seed-7&coalesce', '#seed-7&'])
+      expect(fromLink(hash), hash).toBeNull();
+  });
 });

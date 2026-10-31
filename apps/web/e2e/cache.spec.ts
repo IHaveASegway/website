@@ -5,10 +5,11 @@ import { expect, test, type Page } from '@playwright/test';
 // no control; with it, nothing moves or loads until the visitor shows intent, the simulation takes
 // over at the picture's exact moment and runs only between Run and Pause. Each of the entry's
 // "Three things to try" plays here as it is written, with its seeds, times and numbers: the menu's
-// stampede and the two switches that tame it, the flush at the morning rush and the two that
-// spread its expiries, a lost node on the hash circle and by modulo, and a write with invalidation
-// off. Under reduced motion it advances in still steps, a link opens a seed, and the page meets axe
-// after script redrew it.
+// stampede, played live from just before it, and the two switches that tame it, the flush at the
+// morning rush and the two that spread its expiries, a lost node on the hash circle and by modulo,
+// and a write with invalidation off. Under reduced motion it advances in still steps, a link opens
+// a run with its switches, a page's lamps differ in shape, and the page meets axe after script
+// redrew it.
 
 const CACHE = '/lab/cache/';
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
@@ -16,12 +17,16 @@ const OPENING =
   '1,500 reads in 5.0 s, 94.3% from the cache. When the menu expired at 3.0 s, the database fetched it 23 times at once and 2 reads timed out.';
 const TAMED =
   '1,515 reads in 5.0 s, 99.9% from the cache. No page was fetched twice at once and no reader timed out.';
+/** The picture's own name at the opening: what its parts show, not the caption's account. */
+const MAP =
+  'Readers, 300 a second, four cache nodes and the database. The nodes’ pages: 96 fresh, 23 expired, 0 missing and 1 being fetched. Menu, fresh until 12.5 s. The database: 1 of 8 connections busy and 0 fetches waiting.';
 
 const summary = (page: Page) => page.locator('[data-cl-summary]');
 const words = (page: Page, id: string) =>
   page.locator(`[data-cl-prop="${id}"] [data-cl-prop-words]`);
 const said = (page: Page) => page.locator('[data-cl-said]');
 const waiting = (page: Page) => page.locator('[data-cl-waiting]');
+const clock = (page: Page) => page.locator('[data-cl-clock]');
 const press = (page: Page, name: string) => page.getByRole('button', { name, exact: true }).click();
 const choose = (page: Page, name: string) => page.getByRole('radio', { name, exact: true }).check();
 
@@ -74,6 +79,11 @@ test('without JavaScript, the page is the opening run: the menu’s stampede tol
   await expect(words(page, 'no-timeouts')).toHaveText('Broken: 2 reads timed out');
   await expect(words(page, 'fresh')).toHaveText('Held');
   await expect(page.locator('[data-cl-prop][data-held="false"]')).toHaveCount(2);
+  // The picture is named by what it shows, and the caption tells the run: neither repeats the
+  // other. The strip's hollow bars have their key.
+  await expect(page.getByRole('img', { name: MAP, exact: true })).toBeVisible();
+  await expect(page.locator('[data-cl-map]')).not.toHaveAttribute('aria-labelledby', /./);
+  await expect(page.locator('.cl-strip-key')).toHaveText('Reads still waiting');
   await expect(page.locator('.cl-panel')).toBeHidden();
   const controls = await page.evaluate(
     () =>
@@ -98,10 +108,12 @@ test('nothing loads or moves before intent; Run plays, Pause stops, with no poli
   expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
 
   expect(await seconds(page)).toBe(5);
+  // The picture tells a stampede that has happened, so Run plays it from half a second before.
   await press(page, 'Run');
   await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
   expect(app).toHaveLength(1);
-  await expect.poll(() => seconds(page), { timeout: 5_000 }).toBeGreaterThan(5.02);
+  await expect.poll(() => seconds(page), { timeout: 5_000 }).toBeGreaterThan(2.52);
+  expect(await seconds(page)).toBeLessThan(5);
   await press(page, 'Pause');
   const paused = await seconds(page);
   await page.waitForTimeout(400);
@@ -110,20 +122,55 @@ test('nothing loads or moves before intent; Run plays, Pause stops, with no poli
   expect(await violations()).toEqual([]);
 });
 
-test('let the menu expire: 23 fetches at once and two timeouts, then coalescing and serving stale tame it on the same seed', async ({
+test('let the menu expire: the first run plays it, 23 fetches at once and two timeouts, then coalescing and serving stale tame it on the same seed', async ({
   page,
 }) => {
+  test.setTimeout(60_000);
   await page.goto(CACHE);
   await expect(summary(page)).toHaveText(OPENING);
   const log = page.locator('[data-cl-lines]');
   await expect(log).toContainText('The menu now has 20 fetches in flight at once');
   await expect(log).toContainText('A reader of the menu gave up after waiting 1,000 ms');
+  // The log names no expiry the picture contradicts: the herd's later fetches store it again.
+  await expect(log).toContainText(
+    'The menu is cached again as version 1; 22 more fetches of it are in flight, and each that comes back stores it again',
+  );
 
+  // The first run plays the stampede live, from half a second before the menu expires: every
+  // connection lit, the menu fetched many times at once, and a line waiting beside the lamps.
+  await runUntil(
+    page,
+    () =>
+      document.querySelectorAll('.cl-conn[data-state="busy"]').length === 8 &&
+      Number(document.querySelector('[data-cl-waiting]')?.textContent) >= 5,
+  );
+  const herd = await seconds(page);
+  expect(herd).toBeGreaterThan(3);
+  expect(herd).toBeLessThan(4.5);
+  await expect(page.locator('[data-cl-menu]')).toHaveText(/^Menu, \d+ fetches at once$/);
+  await runUntil(page, () =>
+    /Virtual time ([5-9]|\d\d)\./.test(
+      document.querySelector('[data-cl-clock]')?.textContent ?? '',
+    ),
+  );
+  await expect(summary(page)).toHaveText(
+    /When the menu expired at 3\.0 s, the database fetched it 23 times at once and 2 reads timed out\.$/,
+  );
+
+  // Turn on coalescing and serving stale, and start over: the same seed, from the same moment.
   await press(page, 'Coalesce misses');
   await press(page, 'Serve stale while refreshing');
   await press(page, 'Start over');
-  await expect(summary(page)).toHaveText(TAMED);
-  await expect(said(page)).toHaveText(TAMED);
+  await expect(clock(page)).toHaveText('Virtual time 2.500 s, seed 7');
+  await expect(said(page)).toHaveText('Virtual time 2.500 s, seed 7. Menu, fresh until 3.0 s.');
+  await runUntil(page, () =>
+    /Virtual time ([5-9]|\d\d)\./.test(
+      document.querySelector('[data-cl-clock]')?.textContent ?? '',
+    ),
+  );
+  await expect(summary(page)).toHaveText(
+    /from the cache\. No page was fetched twice at once and no reader timed out\.$/,
+  );
   for (const id of ['one-fetch', 'no-timeouts', 'fresh'])
     await expect(words(page, id)).toHaveText('Held');
   // One fetch refreshes the menu; its readers take the old copy meanwhile, and none waits a second.
@@ -132,8 +179,13 @@ test('let the menu expire: 23 fetches at once and two timeouts, then coalescing 
   );
   await expect(log).not.toContainText('fetched twice at once');
   await expect(log).not.toContainText('gave up');
-  // Start over plays the same readers again, with the switches as the visitor left them.
-  expect(new URL(page.url()).hash).toBe('#seed-7');
+
+  // The address names the run, switches and all, so a reload, or the link shared, opens it again
+  // at the picture's moment: the tamed run, not the opening.
+  expect(new URL(page.url()).hash).toBe('#seed-7&coalesce=on&stale=on');
+  await page.reload();
+  await expect(clock(page)).toHaveText('Virtual time 5.000 s, seed 7');
+  await expect(summary(page)).toHaveText(TAMED);
   for (const name of ['Coalesce misses', 'Serve stale while refreshing'])
     await expect(page.getByRole('button', { name, exact: true })).toHaveAttribute(
       'aria-pressed',
@@ -265,24 +317,123 @@ test('under reduce, Run advances in steps of 100 virtual ms, and nothing animate
 }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto(CACHE);
+  // Run plays the stampede from 2.5 s, in still steps.
   await press(page, 'Run');
-  await expect.poll(() => seconds(page), { timeout: 3_000 }).toBeGreaterThan(5);
+  await expect(clock(page)).toHaveText('Virtual time 2.500 s, seed 7');
+  await expect.poll(() => seconds(page), { timeout: 3_000 }).toBeGreaterThan(2.5);
   await press(page, 'Pause');
-  const moved = Math.round(((await seconds(page)) - 5) * 1000);
+  const moved = Math.round(((await seconds(page)) - 2.5) * 1000);
   expect(moved % 100).toBe(0);
   expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
 });
 
-test('a link to a run opens it: #seed-8 loads that seed with no other intent, and Start over keeps it', async ({
+test('a link to a run opens it: #seed-8 loads that seed with no other intent, and Start over plays it from 2.5 s', async ({
   page,
 }) => {
   await page.goto(`${CACHE}#seed-8`);
-  await expect(page.locator('[data-cl-clock]')).toHaveText('Virtual time 5.000 s, seed 8');
   await expect(summary(page)).not.toHaveText(OPENING);
   await expect(summary(page)).toHaveText(/When the menu expired at 3\.0 s/);
+  await expect(clock(page)).toHaveText('Virtual time 5.000 s, seed 8');
   await press(page, 'Start over');
-  await expect(page.locator('[data-cl-clock]')).toHaveText('Virtual time 5.000 s, seed 8');
+  await expect(clock(page)).toHaveText('Virtual time 2.500 s, seed 8');
   expect(new URL(page.url()).hash).toBe('#seed-8');
+});
+
+test('a link names a run’s switches, load and placement, and one the lab cannot take is left out', async ({
+  page,
+}) => {
+  // A fresh page for each link: a link that changes only the address's hash opens no page.
+  const open = async (hash: string) => {
+    await page.goto('about:blank');
+    await page.goto(`${CACHE}${hash}`);
+  };
+  await open('#seed-7&coalesce=on&stale=on');
+  await expect(summary(page)).toHaveText(TAMED);
+  await open('#seed-9&load=morning&placement=modulo&invalidate=off');
+  await expect(clock(page)).toHaveText('Virtual time 5.000 s, seed 9');
+  await expect(page.getByRole('radio', { name: 'Morning', exact: true })).toBeChecked();
+  await expect(page.getByRole('radio', { name: 'Modulo', exact: true })).toBeChecked();
+  await expect(page.getByRole('button', { name: 'Invalidate on write' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+  // A load the lab does not have is left out: the run keeps the opening's.
+  await open('#seed-9&load=rush&coalesce=yes');
+  await expect(page.locator('[data-cl-readers]')).toHaveText('Readers, 300 a second');
+  await expect(page.locator('[data-cl-clock]')).toHaveText('Virtual time 5.000 s, seed 9');
+  await expect(page.getByRole('button', { name: 'Coalesce misses' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+});
+
+test('a page’s four lamps differ in shape, not only colour: in both themes and in forced colours', async ({
+  page,
+}) => {
+  // Each lamp's shape as its fill and the drawing over it: filled, half, hollow, a dot in its rim.
+  const shapes = (selector: string) =>
+    page.locator(selector).evaluateAll((lamps) =>
+      lamps.map((lamp) => {
+        const style = getComputedStyle(lamp);
+        const fill = /^rgba\(.*, 0\)$|^transparent$/.test(style.backgroundColor)
+          ? 'hollow'
+          : 'filled';
+        return `${fill} ${style.backgroundImage.replace(/\(.*$/s, '')}`;
+      }),
+    );
+  for (const media of [
+    { colorScheme: 'light' },
+    { colorScheme: 'dark' },
+    { forcedColors: 'active' },
+  ] as const) {
+    await page.emulateMedia(media);
+    await page.goto(CACHE);
+    expect(await shapes('.cl-legend .cl-lamp')).toEqual([
+      'filled none',
+      'hollow linear-gradient',
+      'hollow none',
+      'hollow radial-gradient',
+    ]);
+    // A connection is filled while a fetch runs on it, hollow while it is free.
+    expect(new Set(await shapes('.cl-conn[data-state="busy"]'))).toEqual(new Set(['filled none']));
+    expect(new Set(await shapes('.cl-conn[data-state="idle"]'))).toEqual(new Set(['hollow none']));
+  }
+});
+
+test('on a phone, the line waiting stands beside the database’s lamps, and a log line that wraps keeps to its column', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(CACHE);
+  const lamps = await page.locator('[data-cl-conns]').boundingBox();
+  const count = await page.locator('[data-cl-waiting]').boundingBox();
+  expect(lamps && count).toBeTruthy();
+  if (!lamps || !count) return;
+  expect(count.x).toBeGreaterThanOrEqual(lamps.x + lamps.width);
+  expect(count.y).toBeLessThan(lamps.y + lamps.height);
+  // Every line's words, wrapped or not, start right of its time.
+  const under = await page.locator('[data-cl-lines] li').evaluateAll((items) =>
+    items.flatMap((item) => {
+      const at = item.querySelector('.cl-at')?.getBoundingClientRect();
+      const words = [...item.childNodes].find(
+        (node) => node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').trim() !== '',
+      );
+      if (!at || !words) return [`no time or words: ${item.textContent}`];
+      const range = document.createRange();
+      range.selectNodeContents(words);
+      return [...range.getClientRects()]
+        .filter((rect) => rect.left < at.right)
+        .map(() => item.textContent ?? '');
+    }),
+  );
+  expect(under).toEqual([]);
+  // And at least one of them wraps at this width, so the check has a line to hold.
+  const wraps = await page
+    .locator('[data-cl-lines] li')
+    .evaluateAll(
+      (items) => items.filter((item) => (item.getClientRects()[0]?.height ?? 0) > 30).length,
+    );
+  expect(wraps).toBeGreaterThan(0);
 });
 
 for (const colorScheme of ['light', 'dark'] as const) {
