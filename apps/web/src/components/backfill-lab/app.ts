@@ -3,9 +3,7 @@ import {
   clear,
   failNextLoad,
   finished,
-  lateFile,
   nextTime,
-  replay,
   runUntil,
   setMaxActiveRuns,
   setMode,
@@ -17,15 +15,17 @@ import {
 import {
   boardView,
   eventsText,
-  LATE_BY,
+  holdFile,
   lineTime,
+  moment,
   OPENING,
+  openingWeek,
   propertyViews,
+  startOver,
   statusText,
   stripLabel,
   stripMarkup,
   summary,
-  weekOff,
 } from '../../lib/backfill/view';
 
 // The Backfill Lab in the browser (ADR 0026, as ADR 0020 for the Raft Lab): the simulation, run in
@@ -35,6 +35,11 @@ import {
 // minutes, the core's unit: each frame owes the clock its share of the speed, and the clock is
 // paid in whole minutes, through runUntil, never a bare step between actions, so every press lands
 // where replay would put it. With reduced motion it moves in still steps, twice a second.
+//
+// Start over, like a link to a seed, shows the opening's week under the chosen settings, as the
+// build draws it (view.ts, openingWeek). The job is off only once a late file has sent the week
+// back to before the switch (holdFile); then Run, or Next event, switches it on first, so the
+// clock never moves with the job off and the week starts at 00:00, as the lab entry's does.
 
 const FRAME_CAP = 100; // real ms: a frame after a long pause does not leap ahead
 const EVENTS_PER_FRAME = 2_000;
@@ -69,11 +74,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
   };
 
   const hashed = seedFromHash();
-  let sim: Sim = replay(
-    { ...OPENING.config, seed: hashed ?? OPENING.seed },
-    OPENING.actions,
-    OPENING.until,
-  );
+  let sim: Sim = openingWeek({ ...OPENING.config, seed: hashed ?? OPENING.seed });
   let playing = false;
   let last = 0;
   let owed = 0; // virtual minutes the clock is owed, under one
@@ -104,6 +105,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
       });
       set($('[data-bf-report]', row), d.report);
       set($('[data-bf-diff]', row), d.difference);
+      set($('[data-bf-source]', row), d.source);
     });
     if (stray) {
       stray.hidden = view.stray === null;
@@ -113,6 +115,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     }
     set($('[data-bf-week-report]'), view.week.report);
     set($('[data-bf-week-diff]'), view.week.difference);
+    set($('[data-bf-week-source]'), view.week.source);
     set($('[data-bf-summary]'), summary(sim));
     for (const check of propertyViews(sim)) {
       const item = $(`[data-bf-check="${check.id}"]`);
@@ -162,8 +165,14 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     if (sim.violation) return statusText(sim);
     if (Number.isFinite(nextTime(sim))) return null;
     return finished(sim)
-      ? 'Every run has finished, so the clock stops here. Clear a day to rerun it, or start over.'
-      : 'Nothing more happens until the job is switched on, so the clock stops here.';
+      ? "Every run has finished, so the clock stops here. Clear a day to rerun it, or make a day's file late to run the week again from before the switch."
+      : 'Nothing more is due, so the clock stops here.';
+  }
+
+  /** What happened after a line, in the log's words: its lines, up to the last four of them. */
+  function since(line: Line | undefined): string {
+    const added = sim.lines.slice(line ? sim.lines.indexOf(line) + 1 : 0).slice(-4);
+    return added.map((each) => `${each.text}.`).join(' ');
   }
 
   function pause(): void {
@@ -229,12 +238,17 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
   /** A word more when a press can change nothing yet, so the visitor knows what would. */
   function hint(control: Element): string {
     const run = sim.runs[day];
-    const name = weekday(day);
-    if (control.matches('[data-bf-late]') && run?.tasks[0]?.state === 'success')
-      return ` ${name}'s sensor has found its file already, so nothing waits for it: start over to try it from the top.`;
     if (control.matches('[data-bf-fail]') && run?.tasks[TASKS.indexOf('load')]?.state === 'success')
-      return ` ${name} has loaded already, so this fails only a load after a clear.`;
+      return ` ${weekday(day)} has loaded already, so this fails only a load after a clear.`;
     return '';
+  }
+
+  /** A week that replaces the one shown: Start over's, or one a late file sent back. */
+  function show(next: Sim): void {
+    pause();
+    sim = next;
+    shownLine = undefined;
+    lines?.replaceChildren();
   }
 
   function press(control: Element): void {
@@ -244,7 +258,16 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     let words = '';
     if (control.matches('[data-bf-run]')) {
       if (playing) pause();
-      else play();
+      else {
+        // With the job off nothing but a file landing could happen, and the week would start
+        // late, so Run switches it on first, at the minute the week ends.
+        if (!sim.on) {
+          switchOn(sim);
+          draw();
+          say(since(before));
+        }
+        play();
+      }
       return;
     } else if (name === 'bf-speed') {
       speed = Number(value);
@@ -258,28 +281,28 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
       return;
     } else if (control.matches('[data-bf-step]')) {
       const at = nextTime(sim);
-      if (Number.isFinite(at) && !sim.violation) runUntil(sim, at, EVENTS_PER_FRAME);
+      // With the job off, the switch is the week's next step, as Run takes it.
+      if (!sim.on) switchOn(sim);
+      else if (Number.isFinite(at) && !sim.violation) runUntil(sim, at, EVENTS_PER_FRAME);
       else words = stuck() ?? '';
     } else if (control.matches('[data-bf-reset]')) {
-      pause();
-      sim = weekOff({
-        seed: sim.seed,
-        mode: sim.mode,
-        partition: sim.partition,
-        maxActiveRuns: sim.maxActiveRuns,
-      });
-      shownLine = undefined;
-      lines?.replaceChildren();
-      words = `The week starts over at ${when(sim.now)}, with the job off. ${sim.lines.at(-1)?.text ?? ''}.`;
+      show(startOver(sim));
+      words = `The week starts over under these settings, and stands at ${moment(sim.now)}. ${summary(sim)}`;
     } else if (control.matches('[data-bf-on]')) {
-      if (sim.on) words = 'The job is on already. Start over to switch it off.';
+      const on = sim.actions.find((a) => a.kind === 'start');
+      if (on) words = `The job is on already: it was switched on at ${moment(on.at)}.`;
       else switchOn(sim);
     } else if (name === 'bf-mode') setMode(sim, value as Mode);
     else if (name === 'bf-partition') setPartition(sim, value as PartitionKey);
     else if (name === 'bf-runs') setMaxActiveRuns(sim, Number(value));
     else if (control.matches('[data-bf-fail]')) failNextLoad(sim, day);
-    else if (control.matches('[data-bf-late]')) lateFile(sim, day, LATE_BY);
-    else if (control.matches('[data-bf-clear]')) {
+    else if (control.matches('[data-bf-late]')) {
+      const week = holdFile(sim, day);
+      if (week !== sim) {
+        show(week);
+        words = `${weekday(day)}'s sensor has found its file already, so the week goes back to before the job is switched on. ${sim.lines.at(-1)?.text ?? ''}. Press Run to backfill the week.`;
+      }
+    } else if (control.matches('[data-bf-clear]')) {
       clear(sim, day);
       if (sim.lines.at(-1) === before)
         words = sim.runs[day]
@@ -287,9 +310,8 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
           : `${weekday(day)} has no run to clear while the job is off.`;
     } else return;
     draw();
-    // What the press set off, in the log's words: its lines, up to the last four of them.
-    const added = sim.lines.slice(before ? sim.lines.indexOf(before) + 1 : 0).slice(-4);
-    const told = added.map((line) => `${line.text}.`).join(' ');
+    // What the press set off, in the log's words.
+    const told = since(before);
     say(words || (told ? `${told}${hint(control)}` : summary(sim)));
   }
 

@@ -18,7 +18,7 @@ import {
   type TaskName,
   type TaskState,
 } from './core';
-import { replay, type Action, type Config, type Sim } from './sim';
+import { lateFile, nextTime, replay, runUntil, type Action, type Config, type Sim } from './sim';
 
 // What the Backfill Lab shows, as data and text, from a run's state. The page uses it twice, as the
 // Raft Lab's does: at build, to draw the opening run so the demo is complete without JavaScript,
@@ -48,9 +48,29 @@ export const OPENING = {
   until: WEEK_END + 130,
 } as const;
 
+/**
+ * Runs a week to a minute as the page plays it: the clock stands at `until`, or, once nothing is
+ * left to happen before then, at the last thing that did, where a played week stops.
+ */
+function playTo(sim: Sim, until: number): void {
+  for (let at = nextTime(sim); at <= until && !sim.violation; at = nextTime(sim)) runUntil(sim, at);
+  if (Number.isFinite(nextTime(sim))) runUntil(sim, until);
+}
+
+/**
+ * The opening's week under any settings and seed: its actions, played to the minute the picture
+ * stands at, 02:10, or to the week's last event if it ends sooner. The build draws it, and the
+ * browser shows it for a link to a seed and for Start over, so each is the week a visitor would
+ * get by switching the job on at 00:00 and playing it to the end.
+ */
+export function openingWeek(config: Config): Sim {
+  const sim = replay(config, OPENING.actions, WEEK_END);
+  playTo(sim, OPENING.until);
+  return sim;
+}
+
 /** The opening run, or the same week with another load mode: with `overwrite`, every day matches. */
-export const openingRun = (mode: Mode = 'append'): Sim =>
-  replay({ ...OPENING.config, mode }, OPENING.actions, OPENING.until);
+export const openingRun = (mode: Mode = 'append'): Sim => openingWeek({ ...OPENING.config, mode });
 
 /** How many seeded runs the property sweep in test/backfill.test.ts makes: the page says the
  *  number. It is the Raft Lab's count, run six times (overwrite, append, the clock's day, and each
@@ -177,26 +197,33 @@ function cause(sim: Sim, day: number): string | null {
   return null;
 }
 
+/** Whether a day's run has been checked since it last started: a clear takes its verdict away,
+ *  and its total is judged again only once its rerun's check has run. */
+const judged = (sim: Sim, day: number): boolean => Boolean(sim.runs[day]?.verdict);
+
 /** One or two sentences for the picture's caption: how far the backfill has got, and whether
- *  the days it has checked add up. */
+ *  the days it has checked add up. A run whose check found its total wrong is not called a
+ *  success, since the run board draws that check failed. */
 export function summary(sim: Sim): string {
   if (!sim.on)
     return `The job graph is off. Switched on, it creates a run for each day from ${dayText(0)} to ${dayText(DAYS - 1)} at once, and lets ${sim.maxActiveRuns} run at a time.`;
+  const checked: number[] = [];
+  for (let day = 0; day < DAYS; day++) if (judged(sim, day)) checked.push(day);
+  const wrong = checked.flatMap((day) =>
+    (sim.report[day] ?? 0) !== (sim.source[day] ?? 0) ? [day] : [],
+  );
   const failed = sim.runs.flatMap((r) => (r.state === 'failed' ? [weekday(r.day)] : []));
   const done = countOf(sim.runs, (r) => r.state === 'success' || r.state === 'failed');
   const running = countOf(sim.runs, (r) => r.state === 'running');
   const progress =
     done === DAYS
-      ? failed.length === 0
-        ? `Every run has finished, and all ${DAYS} succeeded.`
-        : `Every run has finished, and ${joinAnd(failed)}'s failed.`
+      ? failed.length > 0
+        ? `Every run has finished, and ${joinAnd(failed)}'s failed.`
+        : wrong.length > 0
+          ? 'Every run has finished.'
+          : `Every run has finished, and all ${DAYS} succeeded.`
       : `${done} of ${DAYS} runs ${done === 1 ? 'has' : 'have'} finished; ${running} running and ${DAYS - done - running} waiting for a run slot.`;
 
-  const checked: number[] = [];
-  for (let day = 0; day < DAYS; day++) if (sim.checker.checked[day]) checked.push(day);
-  const wrong = checked.flatMap((day) =>
-    (sim.report[day] ?? 0) !== (sim.source[day] ?? 0) ? [day] : [],
-  );
   if (checked.length === 0) return progress;
   if (wrong.length === 0) {
     const total = checked.reduce((sum, day) => sum + (sim.source[day] ?? 0), 0);
@@ -258,21 +285,48 @@ export function statusText(sim: Sim): string {
 // The page (components/backfill-lab): the run board, the properties and the strip, as the build
 // draws them and the browser redraws them, from the same functions, so the two never disagree.
 
+/** A week's settings, which carry into the week it starts over as: the seed, how a load writes,
+ *  which day it writes and the limit of runs, and the test-only failure rate and faults. */
+const settingsOf = (sim: Sim): Config => ({
+  seed: sim.seed,
+  mode: sim.mode,
+  partition: sim.partition,
+  maxActiveRuns: sim.maxActiveRuns,
+  failRate: sim.failRate,
+  faults: sim.faults,
+});
+
+/** Start over: the opening's week again, on the same seed, under the visitor's settings, so the
+ *  lab entry's "start over" shows the week each setting gives at once. */
+export const startOver = (sim: Sim): Sim => openingWeek(settingsOf(sim));
+
 /**
- * Start over: the same week and the opening's preset, Wednesday's next load set to fail, under the
- * visitor's settings, at the minute the week ends, with the graph still off. The visitor switches
- * it on, so a late file or a limit of one run can be set before any run starts, and the opening's
- * story plays again under whatever load mode they chose.
+ * The week as it stood before the job was switched on: the minute the week ends, the job off,
+ * under the visitor's settings, with every failed load and late file set before the switch,
+ * Wednesday's failed load from the opening among them.
  */
-export const weekOff = (config: Config): Sim =>
-  replay(
-    config,
-    OPENING.actions.filter((a) => a.kind !== 'start'),
-    WEEK_END,
-  );
+export function beforeSwitch(sim: Sim): Sim {
+  const switched = sim.actions.findIndex((a) => a.kind === 'start');
+  const setUp = sim.actions
+    .slice(0, switched < 0 ? sim.actions.length : switched)
+    .filter((a) => a.kind === 'fail-next-load' || a.kind === 'late-file');
+  return replay(settingsOf(sim), setUp, WEEK_END);
+}
 
 /** How much later "make its file late" makes a day's export file land: 5 hours, in minutes. */
 export const LATE_BY = 300;
+
+/**
+ * Makes a day's export file 5 hours late, and gives back the week the page then shows. A sensor
+ * that has not found its file yet waits the longer, in the same week. Once it has found it,
+ * nothing would wait for the file, so the week goes back to before the job was switched on, and
+ * the file is late there: switched on again, the week waits for it.
+ */
+export function holdFile(sim: Sim, day: number): Sim {
+  const week = sim.runs[day]?.tasks[0]?.state === 'success' ? beforeSwitch(sim) : sim;
+  lateFile(week, day, LATE_BY);
+  return week;
+}
 
 /** A time as the page writes it: the clock alone on the day the week ends, where every week but a
  *  very slow one stays, and the clock and its day after that. */
@@ -311,7 +365,8 @@ export interface DayView {
   readonly steps: readonly StepView[];
   /** The report's count, once a load has written rows for the day or its check has run. */
   readonly report: string;
-  /** The report less the source, signed, once the day's check has run and the two differ. */
+  /** The report less the source, signed, once the day's run has been checked since it last
+   *  started and the two differ. */
   readonly difference: string;
   readonly source: string;
 }
@@ -320,7 +375,7 @@ export interface BoardView {
   readonly days: readonly DayView[];
   /** Rows filed under a day after the week, the clock's day: what `today` does to a backfill. */
   readonly stray: { readonly short: string; readonly long: string; readonly rows: string } | null;
-  /** The week's totals, and their difference once every day's check has run. */
+  /** The week's totals, and their difference once every day's run has been checked. */
   readonly week: { readonly report: string; readonly difference: string; readonly source: string };
 }
 
@@ -372,7 +427,9 @@ export function boardView(sim: Sim): BoardView {
     const run = sim.runs[day];
     const report = sim.report[day] ?? 0;
     const source = sim.source[day] ?? 0;
-    const checked = sim.checker.checked[day] === true;
+    // Its current run's check: a cleared day's difference waits for its rerun's check, as the
+    // first run's waits for the first check, so a load half written never reads as the answer.
+    const checked = judged(sim, day);
     held += report;
     truth += source;
     any ||= checked || report > 0;

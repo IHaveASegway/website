@@ -194,14 +194,17 @@ const KEY = [
                     {board.week.difference}
                   </span>
                 </td>
-                <td class="bf-num">{board.week.source}</td>
+                <td class="bf-num" data-bf-week-source>
+                  {board.week.source}
+                </td>
               </tr>
             </tfoot>
           </table>
         </div>
         <p class="bf-strip-title">
           Over time, each day's steps: a hollow bar is a sensor waiting for its file, a filled one a
-          step at work, and a cross an attempt that failed.
+          step at work, and a cross an attempt that failed. A dotted track with nothing on it is a
+          run waiting for a slot or a retry, and the upright line is now.
         </p>
         <div class="bf-strip-box">
           <ol class="bf-strip-days" aria-hidden="true">
