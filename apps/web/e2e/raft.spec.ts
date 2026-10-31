@@ -444,6 +444,90 @@ test('Run lights its lamp while the run is on, and every lamp on the desk is the
   });
 });
 
+// A server's lamp is the site's mark for its state (design-system.md, "Lamps: one meaning per
+// mark"): hollow while it follows, lit while it stands for election, filled while it leads, and
+// hollow down its middle while it is down, its ring at a track's weight with the desk's surface
+// over it, as the Queue Lab's down worker is. No server is ever dashed or dotted: a dashed ring is
+// the Queue Lab's order taken and not yet acknowledged. The timer's dial is a gauge, in --input on
+// every server that is up, the leader's too, and never the lit lamp's colour; a down server has
+// none. Read in both themes, since the lit lamp is warm white at night and ink by day.
+for (const colorScheme of ['light', 'dark'] as const) {
+  test(`each server is the table's lamp for its state, and none is a dashed ring, ${colorScheme}`, async ({
+    page,
+  }) => {
+    await page.emulateMedia({ colorScheme });
+    await page.goto(RAFT);
+    const servers = () =>
+      page.evaluate(() => {
+        const map = document.querySelector('[data-rf-map]') as SVGSVGElement;
+        // A token as the picture resolves it, read from a probe inside it, by name.
+        const token = (property: string) => {
+          const probe = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          map.append(probe);
+          probe.style.setProperty('fill', `var(${property})`);
+          const colour = getComputedStyle(probe).fill;
+          probe.remove();
+          return colour;
+        };
+        const tokens = ['--line', '--surface-1', '--primary', '--input'].map(
+          (property) => [property, token(property)] as const,
+        );
+        const name = (colour: string) => tokens.find(([, v]) => v === colour)?.[0] ?? colour;
+        return [...map.querySelectorAll('[data-rf-node]')].map((node) => {
+          const part = (selector: string) => getComputedStyle(node.querySelector(selector)!);
+          const body = part('.rf-body');
+          return {
+            state:
+              node.getAttribute('data-up') === 'false' ? 'down' : node.getAttribute('data-role'),
+            fill: name(body.fill),
+            stroke: name(body.stroke),
+            weight: body.strokeWidth,
+            dashes: body.strokeDasharray,
+            gap: name(part('.rf-gap').stroke),
+            dial: name(part('.rf-dial').stroke),
+            track: part('.rf-track').stroke === 'none' ? 'none' : 'drawn',
+          };
+        });
+      });
+    const up = { stroke: '--line', weight: '2.5px', dashes: 'none', gap: 'none', track: 'drawn' };
+    const lamp = {
+      follower: { ...up, fill: '--surface-1', dial: '--input' },
+      candidate: { ...up, fill: '--primary', dial: '--input' },
+      leader: { ...up, fill: '--line', dial: '--input' },
+      down: {
+        fill: '--surface-1',
+        stroke: '--line',
+        weight: '6px',
+        dashes: 'none',
+        gap: '--surface-1',
+        dial: 'none',
+        track: 'none',
+      },
+    } as Record<string, object>;
+    const seen = new Set<string>();
+    const check = async () => {
+      for (const { state, ...drawn } of await servers()) {
+        seen.add(String(state));
+        expect(drawn, `a ${state}`).toEqual(lamp[String(state)]);
+      }
+    };
+    // The opening: a leader and four followers.
+    await check();
+    // Crash the leader, then step until another server stands for election. The seed is fixed,
+    // so the same steps reach it every time.
+    const leader = await page
+      .locator('[data-rf-node][data-role="leader"]')
+      .getAttribute('data-rf-node');
+    await page.locator(`[data-rf-toggle="${leader}"]`).click();
+    await expect(page.locator(`[data-rf-node="${leader}"]`)).toHaveAttribute('data-up', 'false');
+    const candidate = page.locator('[data-rf-node][data-role="candidate"]');
+    for (let i = 0; i < 100 && (await candidate.count()) === 0; i++)
+      await page.getByRole('button', { name: 'Next event' }).click();
+    await check();
+    expect([...seen].sort()).toEqual(['candidate', 'down', 'follower', 'leader']);
+  });
+}
+
 // The speed is a radio group (WAI-ARIA APG, "Radio Group Pattern"): named Speed, a radio a speed,
 // Steady chosen; Tab stops once, on the chosen radio; the arrow keys choose the next, wrapping; the
 // chosen one's lamp is lit and the others' are not; and a run goes at the speed chosen.
