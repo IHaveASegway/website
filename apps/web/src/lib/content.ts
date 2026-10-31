@@ -28,8 +28,8 @@ export async function loadProfile(): Promise<Profile> {
 async function readPosts(): Promise<Post[]> {
   const [essays, notes] = await Promise.all([getCollection('writing'), getCollection('notes')]);
   return [
-    ...essays.map((entry) => fromEssay(entry.id, entry.data)),
-    ...notes.map((entry) => fromNote(entry.id, entry.data)),
+    ...essays.map((entry) => fromEssay(entry.id, entry.data, entry.body ?? '')),
+    ...notes.map((entry) => fromNote(entry.id, entry.data, entry.body ?? '')),
   ];
 }
 

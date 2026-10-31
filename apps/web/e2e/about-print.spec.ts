@@ -61,7 +61,7 @@ test('on paper the site chrome is gone, the name is at a print size, and links s
     ];
     return {
       chrome: shown('.site-header, .skip-link, body > footer, .theme-toggle, .skills dd'),
-      name: parseFloat(getComputedStyle(document.querySelector('.hero-name') as Element).fontSize),
+      name: parseFloat(getComputedStyle(document.querySelector('.about-name') as Element).fontSize),
       addresses: linked.map((a) => [a.getAttribute('href'), after(a)]),
       contact: [...document.querySelectorAll('.resume-contact a, .resume-notes a')].map(after),
     };
@@ -151,7 +151,7 @@ for (const size of [16, 20, 24, 32]) {
     await page.emulateMedia({ media: 'print' });
     await page.evaluate(() => document.fonts.ready);
     const head = await page.evaluate(() => {
-      const name = document.querySelector('.hero-name') as Element;
+      const name = document.querySelector('.about-name') as Element;
       const text = [...name.childNodes].find((n) => n.nodeType === Node.TEXT_NODE) as Text;
       const broken = [...(text.textContent ?? '').matchAll(/\S+/g)].filter((word) => {
         const range = document.createRange();
@@ -163,7 +163,7 @@ for (const size of [16, 20, 24, 32]) {
         (document.querySelector(selector) as Element).getBoundingClientRect();
       return {
         broken: broken.map(([word]) => word),
-        beside: box('.resume-contact').left >= box('.hero-name').right,
+        beside: box('.resume-contact').left >= box('.about-name').right,
       };
     });
     expect(head.broken).toEqual([]);
@@ -237,17 +237,27 @@ test('on screen the header links About, marked as the current page there, and no
 // The bio prints its first paragraph, the summary a printed résumé opens with, and nothing else of
 // it: the page stays one sheet whatever the profile holds (global.css, "The résumé on paper"). The
 // fixture builds hold no bio, so there the check has nothing to read.
-test('on paper the bio keeps its first paragraph only, and the Print button is gone', async ({
+test('on paper the bio keeps its opening only, and the Print button and the way round are gone', async ({
   page,
 }) => {
   await page.goto(RESUME);
   await page.emulateMedia({ media: 'print' });
   const paper = await page.evaluate(() => ({
-    bio: [...document.querySelectorAll('.bio .prose > *')].map((e) => e.checkVisibility()),
+    // Each of the bio's paragraphs and items, in page order (about/index.astro's blocks).
+    bio: [...document.querySelectorAll('.bio :is(p, li, h2)')].map((e) => e.checkVisibility()),
+    opening: document.querySelector('.bio-lede')?.checkVisibility() ?? null,
     button: [...document.querySelectorAll('[data-print]')].map((e) => e.checkVisibility()),
+    hidden: ['.about-toc', '#timeline'].map(
+      (s) => document.querySelector(s)?.checkVisibility() ?? false,
+    ),
   }));
-  if (paper.bio.length > 0) expect(paper.bio).toEqual(paper.bio.map((_, i) => i === 0));
+  if (paper.bio.length > 0) {
+    // The "Now" label is gone too: the opening alone, as a printed résumé opens.
+    expect(paper.opening).toBe(true);
+    expect(paper.bio.filter(Boolean)).toHaveLength(1);
+  }
   expect(paper.button).toEqual([false]);
+  expect(paper.hidden).toEqual([false, false]);
 });
 
 // The Print button opens the browser's own print, whose dialog saves a PDF (content.md, "Résumé"):

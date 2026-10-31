@@ -632,6 +632,11 @@ describe('motion lives only under prefers-reduced-motion: no-preference', () => 
       else if (sheet.includes('.lab-card'))
         expect(found.filter((m) => /lab-settle/.test(m.what))).toHaveLength(1);
       else if (/\.(iso-glyph|lab-write|lab-head|desk)\b/.test(sheet)) expect(found).toEqual([]);
+      // The sheets a component or a page owns since ADR 0027 (post-list.css, prose.css, about.css,
+      // not-found.css) ship none either: the row's sweep is the sheet every page links, and the
+      // rest stands still.
+      else if (/\.(post-row|long-form-body|about-head|missing-piece)\b/.test(sheet))
+        expect(found).toEqual([]);
       else expect(found.length).toBeGreaterThanOrEqual(2);
     });
   }

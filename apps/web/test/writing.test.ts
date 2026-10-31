@@ -16,6 +16,8 @@ import {
   noteSchema,
   postLabel,
   postsBase,
+  readingMinutes,
+  shortDay,
   TAGS,
   tagWords,
   typeset,
@@ -50,6 +52,7 @@ function post(slug: string, over: Partial<Post> = {}): Post {
     tags: [],
     kind: 'essay',
     source: null,
+    minutes: 1,
     ...over,
   };
 }
@@ -871,5 +874,48 @@ describe('typeset: front matter gets the quotes the Markdown body gets', () => {
     expect(typeset('Already \u201ccurly\u201d and \u2019')).toBe(
       'Already \u201ccurly\u201d and \u2019',
     );
+  });
+});
+
+// The dated list's day and a post's reading time (ADR 0027, "Writing list"; lib/posts.ts).
+describe("shortDay and readingMinutes: the list's day and a post's minutes", () => {
+  test('known answers: the day with its month cut to three letters, from the UTC date', () => {
+    expect(shortDay(day('2026-10-31'))).toBe('31 Oct 2026');
+    expect(shortDay(day('2027-01-05'))).toBe('5 Jan 2027');
+    expect(shortDay(day('2026-09-09'))).toBe('9 Sep 2026');
+  });
+
+  test('known answers: words over 220 a minute, rounded up, one at least', () => {
+    const words = (n: number) => Array.from({ length: n }, () => 'word').join(' ');
+    expect(readingMinutes('')).toBe(1);
+    expect(readingMinutes(words(220))).toBe(1);
+    expect(readingMinutes(words(221))).toBe(2);
+    expect(readingMinutes(words(2200))).toBe(10);
+  });
+
+  test("known answers: a link's address, a comment and Markdown's marks are not words; code counts half", () => {
+    const words = (n: number) => Array.from({ length: n }, () => 'word').join(' ');
+    const text = words(200);
+    // An address with many parts adds no words.
+    expect(
+      readingMinutes(`${text} [twenty](https://a.example/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p)`),
+    ).toBe(1);
+    expect(readingMinutes(`${text}\n\n<!-- ${words(100)} -->`)).toBe(1);
+    expect(readingMinutes(`## ${words(10)}\n\n**${words(10)}**`)).toBe(1);
+    // 200 words of prose and 80 of code: 240 words read, two minutes; 80 of prose would be 280.
+    expect(readingMinutes(`${text}\n\n\`\`\`\n${words(80)}\n\`\`\`\n`)).toBe(2);
+    expect(readingMinutes(`${text}\n\n\`\`\`\n${words(30)}\n\`\`\`\n`)).toBe(1);
+  });
+
+  test('the real posts take their minutes from their own bodies', () => {
+    for (const file of readdirSync(join(app, 'src/content/writing')).filter((f) =>
+      f.endsWith('.md'),
+    )) {
+      const text = readFileSync(join(app, 'src/content/writing', file), 'utf8');
+      const body = text.slice(text.indexOf('\n---\n', 4) + 5);
+      const minutes = readingMinutes(body);
+      expect(minutes, file).toBeGreaterThan(1);
+      expect(minutes, file).toBeLessThan(60);
+    }
   });
 });

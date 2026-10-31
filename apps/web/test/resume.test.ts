@@ -43,7 +43,9 @@ const section = (title: string) =>
   elements.find(
     (e) =>
       e.tagName === 'section' &&
-      descendants(e).some((d) => hasClass(d, 'section-title') && textOf(d) === title),
+      descendants(e).some(
+        (d) => (hasClass(d, 'section-title') || hasClass(d, 'block-label')) && textOf(d) === title,
+      ),
   );
 const links = (within: Element | undefined) =>
   within === undefined
@@ -67,7 +69,7 @@ describe('/about/, the résumé', () => {
     expect(html).not.toContain('resume/index.html');
     expect(page).toContain(`<link rel="canonical" href="${ORIGIN}${ABOUT_PATH}">`);
     expect(elements.filter((e) => e.tagName === 'h1').map(textOf)).toEqual([profile.basics.name]);
-    expect(textOf(byClass('hero-title')[0])).toBe(profile.basics.label);
+    expect(textOf(byClass('about-role')[0])).toBe(profile.basics.label);
   });
 
   test('its contact list is the address, the site, and the checked profiles, each as its address', () => {
@@ -167,11 +169,14 @@ describe('/about/, the résumé', () => {
     expect(section('Writing') !== undefined).toBe(latest.length > 0);
   });
 
-  test("the printed links' domain is site.ts's ORIGIN: the stylesheet names it once", () => {
-    const sheet = elements.find(
+  // The page links a stylesheet a component or the page owns as well as the site's (post-list.css,
+  // about.css), so every sheet it links is read, and the domain is named once among them all.
+  test("the printed links' domain is site.ts's ORIGIN: the stylesheets name it once", () => {
+    const sheets = elements.filter(
       (e) => e.tagName === 'link' && attribute(e, 'rel') === 'stylesheet',
     );
-    const css = read((attribute(sheet as Element, 'href') ?? '').slice(1));
+    expect(sheets.length).toBeGreaterThan(0);
+    const css = sheets.map((sheet) => read((attribute(sheet, 'href') ?? '').slice(1))).join('\n');
     const domains = [...css.matchAll(/content:"([^"]*)" attr\(href\)/g)].map(([, d]) => d);
     expect(domains).toEqual([new URL(ORIGIN).host]);
   });
@@ -196,6 +201,7 @@ const post = (slug: string, title: string): Post => ({
   tags: [],
   kind: 'essay',
   source: null,
+  minutes: 1,
 });
 const card = (href: string, title: string): WorkCard => ({
   title,

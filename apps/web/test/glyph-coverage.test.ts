@@ -10,7 +10,7 @@ import { app, html, read } from './support/dist';
 // Archivo draws. e2e's glyph check sees a character outside them only on a published page, as a
 // font a browser fell back to. This reads every post page in the build, a draft's included, splits
 // its text by the face that draws it (titles and headings in Archivo ExtraCondensed, the register,
-// the post's kind, day and tags, in Archivo Condensed SemiBold, bold in Archivo SemiBold, code in
+// the post's day, kind, reading time and tags, in Archivo Expanded since ADR 0027, bold in Archivo SemiBold, code in
 // B612 Mono, the rest in Archivo) and names each missing character, with the way out, so a post
 // fails with a sentence instead of a font name.
 
@@ -26,10 +26,10 @@ const FACES = {
     where: 'a title or heading',
     file: 'archivo-condensed-extrabold.woff2',
   },
-  label: {
-    name: 'Archivo Condensed SemiBold',
-    where: 'a label',
-    file: 'archivo-condensed-semibold.woff2',
+  wide: {
+    name: 'Archivo Expanded',
+    where: 'the register',
+    file: 'archivo-expanded-medium.woff2',
   },
   text: { name: 'Archivo', where: 'the text', file: 'archivo-regular.woff2' },
   bold: { name: 'Archivo SemiBold', where: 'bold text', file: 'archivo-semibold.woff2' },
@@ -57,9 +57,12 @@ function split(markup: string, tags: string): { inner: string[]; rest: string } 
 export function textByFace(page: string): Record<Face, string> {
   const head = /<header class="page-head">([\s\S]*?)<\/header>/.exec(page)?.[1];
   const register = /<ul class="register"[^>]*>([\s\S]*?)<\/ul>/.exec(page)?.[1];
-  const body = /<div class="prose">([\s\S]*?)<\/div>(?=<ul class="post-links">|<\/article>)/.exec(
-    page,
-  )?.[1];
+  // The body closes its own column (layouts/Prose.astro, .long-form-body), then the page goes on to
+  // a note's source, More writing, or the article's end.
+  const body =
+    /<div class="prose">([\s\S]*?)<\/div><\/div>(?=<ul class="post-links">|<section class="section more-writing"|<\/article>)/.exec(
+      page,
+    )?.[1];
   const lost = [
     head === undefined && 'header.page-head',
     register === undefined && 'ul.register',
@@ -76,7 +79,7 @@ export function textByFace(page: string): Record<Face, string> {
   const title = split(head, 'h1');
   return {
     display: text([...title.inner, ...headings.inner].join(' ')),
-    label: text(register),
+    wide: text(register),
     text: `${text(title.rest)} ${text(bold.rest)}`,
     bold: text(bold.inner.join(' ')),
     mono: text(code.inner.join(' ')),
@@ -120,7 +123,7 @@ test('known answers: a missing character is named with its code point and its fa
   const page = (body: string, title = 'A title', label = 'Essay') =>
     `<header class="page-head"><h1 class="page-title">${title}</h1></header>` +
     `<ul class="register" role="list"><li class="register-kind">${label}</li><li>25 October 2026</li></ul>` +
-    `<div class="prose">${body}</div></article>`;
+    `<div class="long-form-body"><div class="prose">${body}</div></div></article>`;
   expect(glyphProblems(page('<p>Café, “quoted” – and <strong>façade</strong> back</p>'))).toEqual(
     [],
   );
@@ -131,7 +134,7 @@ test('known answers: a missing character is named with its code point and its fa
   // writes words instead; "↓" is drawn.
   expect(glyphProblems(page('<p>See below ↓, next →</p>', 'Up ↗', 'Next →'))).toEqual([
     '"↗" (U+2197) in a title or heading: not in Archivo ExtraCondensed',
-    '"→" (U+2192) in a label: not in Archivo Condensed SemiBold',
+    '"→" (U+2192) in the register: not in Archivo Expanded',
     '"→" (U+2192) in the text: not in Archivo',
   ]);
   expect(glyphProblems(page('<h2>Then ← back</h2><p><b>Bold ←</b></p>'))).toEqual([
