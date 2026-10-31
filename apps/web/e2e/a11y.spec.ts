@@ -147,7 +147,9 @@ function largeTextFaults(): Fault[] {
       faults.push({ where: region.localName, what: `"${text.data.trim()}" past the frame` });
   }
 
-  for (const heading of document.querySelectorAll('.hero-name, .wordmark')) {
+  for (const heading of document.querySelectorAll(
+    '.hero-name, .nameplate, .about-name, .wordmark',
+  )) {
     for (const text of texts(heading)) {
       for (const word of text.data.matchAll(/\S+/g)) {
         const range = document.createRange();

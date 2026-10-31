@@ -1,155 +1,89 @@
 ---
-import { navFor, type RailGroup } from '../lib/nav';
+import { navFor } from '../lib/nav';
 import Keys from './Keys.astro';
 import ThemeToggle from './ThemeToggle.astro';
 
 interface Props {
   /** The name the header links home with. */
   name: string;
-  /** The title under the name, in the rail only. */
-  role: string;
   /** URLs content adds to this build (lib/posts.ts, areaRoutes). */
   generated: readonly string[];
-  /** What the rail drops down to show under a header item, by its id: every demo under Lab, the
-   *  newest posts under Writing, each with a link to its index (lib/nav.ts, railLeaves). */
-  leaves: Readonly<Record<string, RailGroup>>;
 }
 
-const { name, role, generated, leaves } = Astro.props;
-// The name, linking home, with the title under it in the rail; then the manifest's header items
-// whose page exists (Writing, from the first post), the command menu's button, on Home the button
-// that pauses its moving drawing (SC 2.2.2), and the theme toggle. From 80rem the header is the
-// rail down the left edge (ADR 0021), and an index of the site (ADR 0022): a search field opens the
-// command menu, and each item lists what it holds, every demo under Lab, each with a lamp in its
-// line's colour (ADR 0025), and the newest posts under Writing. Since ADR 0023 an item that holds
-// pages is a disclosure, closed until pressed: it drops down to its pages and "View all", its
-// index. It stands open on a page it lists, so the visitor sees where they are; the rail's items
-// share one name, so opening one closes another. A <details> does this with no script, and its
-// <summary> is announced as a button that says whether it is expanded. Below 80rem it is the top
-// bar, each item a link. On Home neither the rail nor the bar carries the name: Home's <h1> is the
-// name (ADR 0025), so the rail starts at the search field there.
+const { name, generated } = Astro.props;
+// The top bar (docs/design/overhaul.md, "Top nav"; ADR 0027), the same on every page and at every
+// width: it replaces the rail of ADR 0021. The wordmark links home, on Home too, where it is the
+// page itself; then the manifest's header items whose page exists (Lab, Writing, About); then the
+// tools: Search, which opens the command menu (components/Palette.astro), Home's motion button
+// while its scene runs (SC 2.2.2), and the theme toggle. One row, 56 px, at every width: on a phone
+// the wordmark is its tile and Search its glass, each still named in words for assistive
+// technology, so the three items stay in sight and nothing hides behind a menu button. The current
+// item is marked by a 2 px rule in the accent under it, and aria-current names it: the page
+// itself, or a page inside the section (/lab/routes/ marks Lab, a post marks Writing).
 const headerNav = navFor('header', generated);
 const here = Astro.url.pathname;
 const home = here === '/';
 ---
 
 <header class="site-header">
-  {!home && (
-    <div class="rail-head">
-      <a href="/" class="wordmark">
-        {name}
-      </a>
-      <p class="rail-role">{role}</p>
-    </div>
+  <a href="/" class="wordmark" aria-current={home ? 'page' : undefined}>
+    <svg class="wordmark-tile" viewBox="0 0 20 12" aria-hidden="true" focusable="false">
+      <path d="M10 .75 19 6l-9 5.25L1 6z" />
+    </svg>
+    <span class="wordmark-name">{name}</span>
+  </a>
+  {headerNav.length > 0 && (
+    <nav class="site-nav" aria-label="Primary">
+      <ul>
+        {headerNav.map((item) => (
+          <li>
+            <a
+              href={item.href}
+              aria-current={
+                here === item.href ? 'page' : here.startsWith(item.href) ? 'true' : undefined
+              }
+            >
+              {item.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
   )}
-  <div class="header-end">
-    <button
-      type="button"
-      class="rail-search rail-only"
-      data-palette-open
-      aria-haspopup="dialog"
-      aria-keyshortcuts="Meta+K Control+K"
-    >
-      Search <Keys />
-    </button>
-    {headerNav.length > 0 && (
-      <nav class="site-nav" aria-label="Primary">
-        <ul>
-          {headerNav.map((item) => {
-            const group = leaves[item.id];
-            const current =
-              here === item.href ? 'page' : here.startsWith(item.href) ? 'true' : undefined;
-            if (group === undefined || group.leaves.length === 0)
-              return (
-                <li>
-                  <a href={item.href} aria-current={current}>
-                    {item.label}
-                  </a>
-                </li>
-              );
-            return (
-              <li>
-                <a class="bar-only" href={item.href} aria-current={current}>
-                  {item.label}
-                </a>
-                <details
-                  class="nav-fold rail-only"
-                  name="rail"
-                  open={group.leaves.some((leaf) => leaf.href === here)}
-                  data-current={current === undefined ? undefined : ''}
-                >
-                  <summary>
-                    {item.label}
-                    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                      <path d="m6 3.5 4.5 4.5L6 12.5" />
-                    </svg>
-                  </summary>
-                  <ul class="nav-leaves" role="list">
-                    {group.leaves.map((leaf) => (
-                      <li>
-                        <a
-                          href={leaf.href}
-                          data-line={leaf.line}
-                          aria-current={here === leaf.href ? 'page' : undefined}
-                        >
-                          {leaf.line !== undefined && (
-                            <svg
-                              class="nav-lamp"
-                              viewBox="0 0 10 10"
-                              aria-hidden="true"
-                              focusable="false"
-                            >
-                              <circle cx="5" cy="5" r="4" />
-                            </svg>
-                          )}
-                          {leaf.label}
-                        </a>
-                      </li>
-                    ))}
-                    <li class="nav-all">
-                      <a href={item.href} aria-current={here === item.href ? 'page' : undefined}>
-                        View all {group.noun}
-                      </a>
-                    </li>
-                  </ul>
-                </details>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-    )}
-    <ul class="header-tools">
-      <li class="palette-item">
+  <ul class="header-tools">
+    <li class="palette-item">
+      <button
+        type="button"
+        class="search-open"
+        data-palette-open
+        aria-haspopup="dialog"
+        aria-keyshortcuts="Meta+K Control+K"
+      >
+        <svg class="search-glass" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <circle cx="7" cy="7" r="4.75" />
+          <path d="m10.5 10.5 3.75 3.75" />
+        </svg>
+        <span class="search-word">Search</span> <Keys />
+      </button>
+    </li>
+    {home && (
+      <li class="motion-item">
         <button
           type="button"
-          class="palette-open"
-          data-palette-open
-          aria-haspopup="dialog"
-          aria-keyshortcuts="Meta+K Control+K"
+          class="motion-toggle"
+          data-motion-toggle
+          aria-label="Pause motion"
+          title="Pause motion"
         >
-          <span class="palette-name">Command menu</span> <Keys />
+          <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <path class="motion-pause" d="M4.5 3h2.25v10H4.5zM9.25 3h2.25v10H9.25z" />
+            <path class="motion-play" d="M5 2.75v10.5L13.25 8z" />
+          </svg>
         </button>
       </li>
-      {home && (
-        <li class="motion-item">
-          <button
-            type="button"
-            class="motion-toggle"
-            data-motion-toggle
-            aria-label="Pause motion"
-            title="Pause motion"
-          >
-            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-              <path class="motion-pause" d="M4.5 3h2.25v10H4.5zM9.25 3h2.25v10H9.25z" />
-              <path class="motion-play" d="M5 2.75v10.5L13.25 8z" />
-            </svg>
-          </button>
-        </li>
-      )}
-      <li>
-        <ThemeToggle />
-      </li>
-    </ul>
-  </div>
+    )}
+    <li>
+      <ThemeToggle />
+    </li>
+  </ul>
 </header>

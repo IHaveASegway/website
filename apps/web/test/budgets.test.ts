@@ -8,6 +8,7 @@ import {
   eagerFiles,
   entryScripts,
   FEATURES,
+  HOME,
   featureOf,
   gz,
   importsOf,
@@ -138,7 +139,7 @@ describe('the Route Lab', () => {
 // every chunk its module can load, which is what a visitor downloads when they use it, so a chunk
 // two labs share (lib/sim's, which three of them import) counts in each, and in full. Nothing it
 // loads is loaded eagerly by any page, nor by anything but a simulated lab's module, so these
-// budgets and the Route Lab's and Home's scene's never count the same chunk. Its page's first view
+// budgets and the Route Lab's never count the same chunk. Its page's first view
 // with all of it stays within the 150 KB every page but the Route Lab's keeps.
 const simulatedEntries = SIMULATED_LABS.flatMap((lab) =>
   files.filter((file) => labEntry(lab).test(file)),
@@ -194,43 +195,28 @@ test("known answers: the other entries' chunks, the Route Lab's app among them, 
   expect(simulatedEntries).toHaveLength(SIMULATED_LABS.length);
 });
 
-// Home's scene (ADR 0024): one chunk, which Home's motion module loads through import() after the
-// page has painted, and the day's tracks it fetches; Home's first view with both, and with the
-// Route Lab chunks the scene shares, within the 150 KB every page keeps.
-describe("Home's scene", () => {
-  const feature = FEATURES['route-scene'];
-  const entry = files.filter((file) => feature.entry.test(file));
-  const data = files.filter((file) => feature.paths.some((path) => file.startsWith(path)));
+// Home's drawing (ADR 0027): SVG the build writes and CSS animates, with no script of its own. So
+// Home reaches nothing through import() beyond what it loads at once, nothing on Home fetches a
+// chunk or data after the first paint, and its first view is all its visitors fetch, within the
+// 150 KB every page keeps. Until ADR 0027 Home loaded the Route Lab's scene, a chunk and the day's
+// tracks, once it had painted.
+describe("Home's drawing", () => {
+  const feature = HOME;
+  const page = read(feature.page);
 
-  test('is one lazy chunk, which no page loads eagerly', () => {
-    expect(entry).toHaveLength(1);
-    for (const file of entry) expect(eager.has(file), file).toBe(false);
+  test('is SVG in the page, with a link to each lab this build writes', () => {
+    const svg = /<figure class="iso"[^>]*>([\s\S]*?)<\/figure>/.exec(page)?.[1] ?? '';
+    const labs = files.filter((file) => /^lab\/[a-z0-9-]+\/index\.html$/.test(file));
+    expect(svg.length > 0).toBe(labs.length > 0);
+    for (const file of labs) expect(svg, file).toContain(`href="/${file.slice(0, -10)}"`);
   });
 
-  // What a visitor fetches for it: the chunk and every chunk it imports statically.
-  const fetched = staticClosure(entry);
-  const lazyBytes = fetched.reduce((sum, file) => sum + gz(file), 0);
-  test(`lazy JavaScript: ${lazyBytes} B of ${feature.lazyJavaScript}`, () => {
-    expect(lazyBytes).toBeLessThanOrEqual(feature.lazyJavaScript);
+  test('Home reaches no chunk on intent: what it can load, it loads at once', () => {
+    expect([...reachable(feature.page)].filter((file) => !eager.has(file))).toEqual([]);
   });
 
-  const dataBytes = data.reduce((sum, file) => sum + gz(file), 0);
-  test(`its data: ${dataBytes} B of ${feature.data}, where the Route Lab builds`, () => {
-    expect(data.length).toBe(files.includes('lab/routes/index.html') ? 1 : 0);
-    expect(dataBytes).toBeLessThanOrEqual(feature.data);
-  });
-
-  // The indexes load the same motion module, so they could reach the chunk too; they never do,
-  // because the module loads it only where the canvas is, and only Home has one.
-  test('Home reaches it through import(), and only Home has the canvas it draws on', () => {
-    if (!html.some((file) => read(file).includes('data-scene-live'))) return;
-    expect(reachable(feature.page)).toEqual(expect.arrayContaining(entry));
-    expect(html.filter((file) => read(file).includes('data-scene-live'))).toEqual([feature.page]);
-  });
-
-  test(`Home's first view, with it, stays within ${feature.firstView} B`, () => {
-    const { firstView } = measure(read(feature.page));
-    expect(firstView + lazyBytes + dataBytes).toBeLessThanOrEqual(feature.firstView);
+  test(`Home's first view stays within ${feature.firstView} B`, () => {
+    expect(measure(page).firstView).toBeLessThanOrEqual(feature.firstView);
   });
 });
 

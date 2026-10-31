@@ -205,15 +205,14 @@ for (const file of html) {
       expect(inside.filter((e) => attribute(e, 'role') === 'status')).toHaveLength(1);
     });
 
-    // Two buttons, one shown at a time (ADR 0022): the rail's search field, then the header row's.
-    // A button's name is its words and the keys it shows, since in the bar the keys are all a
-    // sighted visitor sees of it, and a name holds the visible label (SC 2.5.3). The command key is
-    // a drawing (Barlow has no ⌘), hidden from assistive technology; aria-keyshortcuts tells the
-    // keys too. From 2026-10-30 until the review that day the keys were hidden as well, and the
-    // bar's button was "Command menu" alone, with "Ctrl K" on screen.
-    test("the header's buttons open it, name themselves with the keys they show", () => {
+    // One button, the top bar's Search (ADR 0027), at every width; until then the rail's search
+    // field and the bar's "Command menu" were two, one shown at a time (ADR 0022). Its name is its
+    // word and the keys it shows, since a name holds the visible label (SC 2.5.3). The command key
+    // is a drawing (no face draws ⌘), hidden from assistive technology; aria-keyshortcuts tells
+    // the keys too.
+    test("the header's button opens it, and names itself with the keys it shows", () => {
       const buttons = elementsOf(page).filter((e) => attribute(e, 'data-palette-open') === '');
-      expect(buttons.map((b) => nameOf(b))).toEqual(['Search Ctrl K', 'Command menu Ctrl K']);
+      expect(buttons.map((b) => nameOf(b))).toEqual(['Search Ctrl K']);
       for (const button of buttons) {
         expect(button.tagName).toBe('button');
         expect(attribute(button, 'aria-haspopup')).toBe('dialog');
@@ -230,7 +229,7 @@ for (const file of html) {
       }
     });
 
-    // The rail lists every demo and only the newest posts; the menu finds every one of either.
+    // The menu finds every demo and every post.
     test('Lab and Writing list every demo and every published post, each a page this build writes', () => {
       const demos = [...built].filter((p) => /^\/lab\/[^/]+\/$/.test(p)).sort();
       const posts = [...built].filter((p) => /^\/(writing|notes)\/[^/]+\/$/.test(p)).sort();

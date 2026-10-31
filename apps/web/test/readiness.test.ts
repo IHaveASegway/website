@@ -22,7 +22,7 @@ const HANDLE_ANY_CASE = new RegExp(HANDLE, 'i');
 // copyright lines, which name the projects' own repositories. These exact URLs, in these files only,
 // are the one exception: they reach no account of Joseph's.
 const LICENSE_NOTICES = [
-  { file: 'fonts/OFL-Barlow.txt', url: 'https://github.com/jpt/barlow' },
+  { file: 'fonts/OFL-Archivo.txt', url: 'https://github.com/Omnibus-Type/Archivo' },
   { file: 'fonts/OFL-B612Mono.txt', url: 'https://github.com/polarsys/b612' },
 ];
 

@@ -1,0 +1,717 @@
+/*
+  /about/ (pages/about/index.astro; docs/design/overhaul.md, "/about/"; ADR 0027). On screen, after
+  brittanychiang.com: one column on a phone, and from 64rem two, the left held in view (the name,
+  the role, the way round the page, the addresses, Print) and the right scrolling (the bio's named
+  blocks, the timeline, the résumé). Section names are the blocks' labels, in the wide face at the
+  label's size in the accent, sentence case, as Home's bio blocks are: the page's one title is the
+  name. On paper (below) it is the résumé, one US Letter page. Only this page loads this file;
+  every colour is a token from tokens.css.
+*/
+
+.resume {
+  padding-block: 1.875rem 1.5rem;
+}
+
+/* The head: the name at a title's size, not the hero's, and in its own case (only Home's nameplate
+   is set in capitals); the role in the wide face, the signage face; where, muted under it. */
+.about-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  justify-items: start;
+}
+
+.about-who {
+  display: grid;
+  row-gap: 0.375rem;
+}
+
+.about-who > * {
+  margin: 0;
+}
+
+.about-name {
+  font-family: var(--font-display);
+  font-size: var(--text-title);
+  font-weight: 800;
+  line-height: var(--text-title--line-height);
+  letter-spacing: -0.005em;
+  text-wrap: balance;
+}
+
+.about-role {
+  margin-top: 0.5rem;
+  font-family: var(--font-wide);
+  font-size: var(--text-ui);
+  font-weight: 500;
+  line-height: var(--text-ui--line-height);
+}
+
+.about-where {
+  color: var(--muted-foreground);
+  font-family: var(--font-wide);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  line-height: var(--text-label--line-height);
+}
+
+/* The way round the page: a rule and a name a section, after brittanychiang's. Under the pointer
+   or with focus the rule doubles and the name darkens, at once. Only where the left column is held
+   in view; on a phone the page is one column a thumb scrolls. */
+.about-toc {
+  display: none;
+}
+
+.about-toc ul {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.about-toc a {
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
+  min-block-size: 2.25rem;
+  color: var(--muted-foreground);
+  font-family: var(--font-wide);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  text-decoration-line: none;
+}
+
+.about-toc a::before {
+  content: '';
+  inline-size: 2rem;
+  block-size: 1px;
+  background-color: var(--input);
+}
+
+.about-toc a:is(:hover, :focus-visible) {
+  color: var(--foreground);
+}
+
+.about-toc a:is(:hover, :focus-visible)::before {
+  inline-size: 4rem;
+  background-color: var(--foreground);
+}
+
+.resume-contact {
+  margin-top: 1.75rem;
+}
+
+.resume-contact a,
+.skills a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+}
+
+.resume-contact dd {
+  overflow-wrap: anywhere;
+}
+
+/* Each address stands beside its label while the list is wide enough for the longest one, about
+   25.2em; narrower, on a phone or with a larger text size, the label goes above its address,
+   which then has the list's whole width. Beside a label there, LinkedIn's address took two lines
+   at the default size, and at 32 px every address broke inside a word. */
+.about-head {
+  container: contact / inline-size;
+}
+
+@container contact (width < 25.5em) {
+  .resume-contact {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 0;
+  }
+
+  .resume-contact dd + dt {
+    margin-top: 0.75rem;
+  }
+}
+
+/* The Print button, under the addresses. It shows once the command menu's script has bound it
+   (src/scripts/palette.js), on a phone too, where printing saves or shares a PDF: until then it
+   holds its place unseen, and without the script it is not there. */
+.print-item {
+  display: none;
+  margin-top: 1.5rem;
+}
+
+@media (scripting: enabled) {
+  .print-item {
+    display: inline-flex;
+    visibility: hidden;
+  }
+
+  :root[data-palette] .print-item {
+    visibility: visible;
+  }
+}
+
+/* The right column: the bio's blocks, then each section, a label over each. */
+.about-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  margin-top: 3rem;
+  overflow-wrap: break-word;
+}
+
+.block-label {
+  margin: 0 0 0.875rem;
+  color: var(--primary);
+  font-family: var(--font-wide);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  line-height: var(--text-label--line-height);
+}
+
+.bio {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 3rem;
+}
+
+.bio-block > p {
+  margin: 0;
+  max-inline-size: var(--measure);
+  text-wrap: pretty;
+}
+
+.bio-block > p + p {
+  margin-top: 1rem;
+}
+
+.bio-lede {
+  font-size: var(--text-lead);
+  line-height: var(--text-lead--line-height);
+}
+
+.bio-items {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 1.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bio-items > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 0.375rem;
+  max-inline-size: var(--measure);
+}
+
+.bio-item-lead {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-headline);
+  font-weight: 800;
+  line-height: var(--text-headline--line-height);
+  letter-spacing: -0.005em;
+  text-wrap: balance;
+}
+
+.bio-item-text {
+  margin: 0;
+  color: var(--muted-foreground);
+  text-wrap: pretty;
+}
+
+.about-section {
+  padding-top: 4rem;
+}
+
+.about-note {
+  margin: 1rem 0 0;
+  color: var(--muted-foreground);
+  font-family: var(--font-wide);
+  font-size: var(--text-label);
+  line-height: var(--text-label--line-height);
+}
+
+/* The timeline: a day a row, newest first, the day in the wide face, what shipped on it beside it
+   from 48rem. A rule runs down the items' edge, and each day is a tile of the drawing's ground on
+   it, the wordmark's rhombus in the working rule's colour: a sequence, so it is drawn as one. */
+.timeline {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.timeline-day {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 0.375rem;
+}
+
+.timeline-date {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-family: var(--font-wide);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  line-height: 1.75rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.timeline-items {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 0.25rem;
+  margin: 0;
+  padding: 0 0 1.75rem 1.5rem;
+  border-inline-start: 1px solid var(--border);
+  list-style: none;
+}
+
+.timeline-items::before {
+  content: '';
+  position: absolute;
+  inset-block-start: 0.625rem;
+  inset-inline-start: -0.4375rem;
+  inline-size: 0.875rem;
+  block-size: 0.5rem;
+  background-color: var(--input);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.timeline-day:first-child .timeline-items::before {
+  background-color: var(--primary);
+}
+
+.timeline-day:last-child .timeline-items {
+  padding-block-end: 0;
+}
+
+/* The kind and the title share a line while both fit; with a larger text size on a phone the
+   title moves under its kind rather than past the window. */
+.timeline-items > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.75rem;
+}
+
+.timeline-kind {
+  flex: 0 0 6.5rem;
+  color: var(--muted-foreground);
+  font-family: var(--font-wide);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+}
+
+.timeline-items a {
+  flex: 1 1 12rem;
+  min-inline-size: 0;
+  padding-block: 0.125rem;
+  text-wrap: pretty;
+}
+
+@media (width >= 48rem) {
+  .timeline-day {
+    grid-template-columns: 7.5rem minmax(0, 1fr);
+    column-gap: 1rem;
+  }
+}
+
+/* The roles and the skills. A role puts its years beside its title from 48rem, as a key beside its
+   value; a skill puts the pages that show it beside its name, a hairline over each row. */
+.roles {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.roles > li {
+  display: grid;
+  row-gap: 0.25rem;
+}
+
+.role-years {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-family: var(--font-wide);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  line-height: var(--text-label--line-height);
+  font-variant-numeric: tabular-nums;
+}
+
+.role-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-headline);
+  font-weight: 800;
+  line-height: var(--text-headline--line-height);
+  letter-spacing: -0.005em;
+  text-wrap: balance;
+}
+
+.resume-notes {
+  display: grid;
+  row-gap: 0.25rem;
+  max-width: var(--measure);
+}
+
+.resume-notes > p {
+  margin: 0;
+}
+
+.roles + .resume-notes {
+  margin-top: 1.25rem;
+}
+
+/* The address in the notes, with its full stop, is one box: it moves whole to the next line when
+   it does not fit after the words before it, and breaks after its "@" only when it alone is wider
+   than the line, and inside a part only as a last resort, as the footer's. */
+.resume-email {
+  display: inline-block;
+  overflow-wrap: anywhere;
+}
+
+.skills {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0;
+  border-block-end: 1px solid var(--border);
+}
+
+.skills > div {
+  display: grid;
+  row-gap: 0.25rem;
+  padding-block: 0.75rem;
+  border-block-start: 1px solid var(--border);
+}
+
+.skills dt {
+  font-family: var(--font-label);
+  font-size: var(--text-ui);
+  font-weight: 600;
+  line-height: var(--text-ui--line-height);
+}
+
+.skills dd {
+  margin: 0;
+  color: var(--muted-foreground);
+}
+
+@media (width >= 48rem) {
+  .roles > li {
+    grid-template-columns: 9rem minmax(0, 1fr);
+    column-gap: var(--gutter);
+    align-items: baseline;
+  }
+
+  .skills > div {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: var(--gutter);
+    align-items: baseline;
+  }
+
+  .about-body .cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-inline-size: none;
+  }
+}
+
+/* A section's list starts under its label, with no space of its own above it. */
+.about-section .post-list {
+  margin-top: 0;
+}
+
+/* In the right column a post's row keeps its phone shape at every width, the day and the kind over
+   the title: three columns would leave the title a third of the column. */
+.about-body .post-list > .post-row {
+  grid-template-areas:
+    'date kind'
+    'main main';
+  grid-template-columns: auto minmax(0, 1fr);
+  padding-block: 1.25rem 1.5rem;
+}
+
+.about-body .post-kind {
+  display: flex;
+}
+
+@media (width >= 48rem) {
+  .resume {
+    padding-block: 3.5rem 2.5rem;
+  }
+
+  .about-section {
+    padding-top: 5rem;
+  }
+}
+
+/* Two columns from 64rem, on screen only: paper lays the résumé out on its own (below). The left
+   is held in view while there is height for all of it, and otherwise scrolls with the page. */
+@media screen and (width >= 64rem) {
+  .resume {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    column-gap: 4rem;
+    align-items: start;
+  }
+
+  .about-toc {
+    display: block;
+    margin-top: 2.5rem;
+  }
+
+  .about-body {
+    margin-top: 0;
+    padding-top: 0.5rem;
+  }
+}
+
+@media screen and (width >= 64rem) and (height >= 46rem) {
+  .about-head {
+    position: sticky;
+    inset-block-start: 2.5rem;
+  }
+}
+
+/* The résumé on paper (content.md, "Résumé"): one US Letter page at the default text size. Only
+   this page names the page size, so every other page prints as before. The header, the skip link,
+   the footer and the way round the page are not printed: the résumé's own head carries the name and
+   every address. The type steps down to a printed résumé's sizes. */
+@page resume {
+  size: letter;
+  margin: 0.5in;
+}
+
+@media print {
+  /* The whole document takes the named page, not .resume alone: a box before it on the default
+     page, even an empty one, would start a page of its own. */
+  :root:has(.resume) body {
+    page: resume;
+  }
+
+  :root:has(.resume) :is(.masthead, .site-header, .skip-link, body > footer) {
+    display: none;
+  }
+
+  :root:has(.resume) :is(body, main) {
+    display: block;
+    min-height: 0;
+    padding-inline: 0;
+  }
+
+  .resume {
+    padding: 0;
+  }
+
+  .about-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 1.5rem;
+    align-items: end;
+    padding-block: 0 0.75rem;
+  }
+
+  .about-who {
+    grid-column: 1;
+    row-gap: 0;
+  }
+
+  .about-name {
+    font-size: 2.5rem;
+    line-height: 1;
+  }
+
+  .about-role {
+    margin-top: 0.375rem;
+    font-size: 1rem;
+  }
+
+  .about-where {
+    font-size: 0.8125rem;
+  }
+
+  .resume-contact {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: end;
+    gap: 0 0.75rem;
+    margin: 0;
+  }
+
+  .resume-contact a {
+    min-height: 0;
+  }
+
+  /* The addresses stand beside the name while the two fit across the page, as they do at the
+     default text size: together they need about 40.5em. From a larger text size they go under it,
+     where beside it the name would break inside a word. */
+  .resume {
+    container: resume / inline-size;
+  }
+
+  @container resume (width < 41em) {
+    .about-head {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .resume-contact {
+      grid-column: 1;
+      grid-row: auto;
+      margin-top: 0.75rem;
+    }
+  }
+
+  .about-body {
+    margin: 0;
+  }
+
+  /* Sections closer on paper than on screen: Linux sets the skills and the writing a line longer
+     each than macOS does, and the sheet must hold either (e2e/about-print.spec.ts). */
+  .resume :is(.bio, .about-section) {
+    padding-top: 0.5rem;
+    break-inside: avoid;
+  }
+
+  /* Paper gets no Print button and no way round the page, and of the bio only its opening, the
+     summary a printed résumé opens with, without its label: what Joseph builds and how he works
+     are the web edition's, so the page stays one sheet whatever the profile holds
+     (e2e/about-print.spec.ts). Nor does it get what only the screen may say: the offer of the full
+     résumé, which on paper would ask its reader for the sheet in their hand, or the timeline. */
+  .resume :is(.print-item, .about-toc, .screen-only, .about-note),
+  .bio-block:not(.bio-now),
+  .bio-now .block-label {
+    display: none;
+  }
+
+  /* Paper's small text is set at 1.3, a print résumé's usual leading, not the screen's 1.4: Linux
+     sets these lines a little wider than macOS and wraps more of them, and at 1.4 the sheet that
+     held on macOS with 34 px to spare ran 10 to 20 px onto a second page on Linux, the Writing
+     section with it (e2e/about-print.spec.ts, in CI's Linux image). */
+  .bio-now > p {
+    max-width: none;
+    font-size: 0.875rem;
+    line-height: 1.3;
+  }
+
+  .resume .block-label {
+    margin-bottom: 0.25rem;
+    color: var(--foreground);
+    font-family: var(--font-display);
+    font-size: 0.9375rem;
+    font-weight: 800;
+  }
+
+  .resume .roles {
+    row-gap: 0;
+  }
+
+  /* Selected work on paper: two cards a row, past the years' gutter, so each title stands where the
+     roles' and the posts' titles stand. */
+  .resume .cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 1.5rem;
+    max-inline-size: none;
+    padding-inline-start: 8rem;
+  }
+
+  .resume .card {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 0;
+    padding-block: 0.1875rem 0.25rem;
+    break-inside: avoid;
+  }
+
+  .resume .card-text {
+    max-inline-size: none;
+  }
+
+  .resume .roles > li,
+  .resume .post-list > .post-row {
+    grid-template-areas: none;
+    grid-template-columns: 7rem minmax(0, 1fr);
+    column-gap: 1rem;
+    row-gap: 0;
+    max-inline-size: none;
+    padding-block: 0.1875rem 0.25rem;
+    break-inside: avoid;
+  }
+
+  .resume :is(.role-years, .post-date) {
+    grid-area: auto;
+    grid-column: 1;
+    grid-row: 1 / span 3;
+    padding-top: 0.125rem;
+    font-size: 0.6875rem;
+  }
+
+  .resume :is(.role-title, .post-main) {
+    grid-area: auto;
+    grid-column: 2;
+  }
+
+  .resume .post-kind {
+    display: none;
+  }
+
+  .resume .post-main {
+    row-gap: 0;
+  }
+
+  .resume :is(.role-title, .card-title, .post-title) {
+    font-size: 0.9375rem;
+    line-height: 1.25;
+    letter-spacing: 0;
+  }
+
+  /* On paper the skills are one line of names, a comma after each but the last: the pages that show
+     each are the web edition's. */
+  .resume .skills {
+    display: flex;
+    flex-wrap: wrap;
+    border: 0;
+  }
+
+  .resume .skills > div {
+    display: flex;
+    padding: 0;
+    border: 0;
+  }
+
+  .resume .skills > div:not(:last-child)::after {
+    padding-inline-end: 0.375rem;
+    content: ',';
+  }
+
+  .resume .card .kv {
+    row-gap: 0;
+  }
+
+  .resume .skills dd {
+    display: none;
+  }
+
+  .resume :is(.skills dt, .card-text, .card-more, .post-summary, .resume-notes, .kv dd) {
+    font-size: 0.8125rem;
+    line-height: 1.3;
+  }
+
+  .resume .roles + .resume-notes {
+    margin-top: 0.375rem;
+  }
+
+  .resume .post-links {
+    margin-top: 0.25rem;
+  }
+
+  .resume .post-links a {
+    min-height: 0;
+  }
+}

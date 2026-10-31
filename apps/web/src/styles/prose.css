@@ -1,0 +1,137 @@
+/*
+  A long-form page (layouts/Prose.astro; docs/design/overhaul.md, "A post"): the title, the lead,
+  the register on one line under a hairline, then the body in the reading measure on the frame's
+  left edge, and from 64rem its contents in a column of their own at the frame's right edge, held
+  in view while the body scrolls past (sticky: a place, not a motion). The body's type is the
+  shared .prose (global.css), which the labs' write-ups use too. Every colour is a token from
+  tokens.css; only long-form pages load this.
+*/
+
+.long-form .page-head {
+  row-gap: 1rem;
+}
+
+.long-form .page-title {
+  max-inline-size: 22ch;
+}
+
+/* The register: the post's day, kind, reading time and tags, in the wide face at the label's size,
+   muted, spaced apart, under a hairline that closes the head. No separators: the space is one. */
+.register {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem 1.75rem;
+  margin: 1.75rem 0 0;
+  padding: 0.875rem 0 0;
+  border-block-start: 1px solid var(--border);
+  list-style: none;
+  color: var(--muted-foreground);
+  font-family: var(--font-wide);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  line-height: var(--text-label--line-height);
+  font-variant-numeric: tabular-nums;
+}
+
+.long-form-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.long-form-body > .prose {
+  margin-top: 2.5rem;
+}
+
+/* A section's heading clears the window's edge when its contents link jumps to it. */
+.long-form .prose :is(h2, h3) {
+  scroll-margin-block-start: 1.5rem;
+}
+
+.contents {
+  display: none;
+}
+
+@media (width >= 64rem) {
+  .long-form-body.has-contents {
+    grid-template-columns: minmax(0, var(--measure)) minmax(11rem, 15rem);
+    justify-content: space-between;
+    column-gap: 4rem;
+  }
+
+  .long-form-body > .prose {
+    grid-row: 1;
+    grid-column: 1;
+  }
+
+  .contents {
+    position: sticky;
+    inset-block-start: 1.5rem;
+    grid-row: 1;
+    grid-column: 2;
+    align-self: start;
+    display: grid;
+    row-gap: 0.75rem;
+    margin-top: 2.5rem;
+    padding-top: 0.375rem;
+  }
+}
+
+.contents-label {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-family: var(--font-wide);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  line-height: var(--text-label--line-height);
+}
+
+.contents-list {
+  display: grid;
+  row-gap: 0.125rem;
+  margin: 0;
+  padding: 0 0 0 0.875rem;
+  border-inline-start: 1px solid var(--border);
+  list-style: none;
+}
+
+/* Each entry a 24 px target at least (SC 2.5.8), in the reading face at the controls' size. */
+.contents-list a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 1.75rem;
+  color: var(--muted-foreground);
+  font-size: var(--text-ui);
+  line-height: var(--text-ui--line-height);
+  text-decoration-line: none;
+  text-wrap: pretty;
+}
+
+.contents-list a:hover {
+  color: var(--foreground);
+  text-decoration-line: underline;
+}
+
+/* After the body: a note's source, then More writing. */
+.long-form-body + .post-links {
+  max-inline-size: var(--measure);
+  margin-top: 2.5rem;
+}
+
+.more-writing .post-links {
+  margin-top: 1rem;
+}
+
+@media print {
+  .contents {
+    display: none;
+  }
+
+  .register {
+    border: 0;
+    padding-top: 0;
+  }
+
+  .more-writing {
+    display: none;
+  }
+}

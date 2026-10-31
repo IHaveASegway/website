@@ -1,13 +1,5 @@
 import { expect, test } from 'vitest';
-import {
-  labelOf,
-  MANIFEST,
-  navFor,
-  present,
-  RAIL_POSTS,
-  railLeaves,
-  routesFrom,
-} from '../src/lib/nav';
+import { labelOf, MANIFEST, navFor, present, routesFrom } from '../src/lib/nav';
 import { files, html, read } from './support/dist';
 
 // The nav manifest (design-system.md, "One nav manifest"): a link renders only when its page
@@ -67,33 +59,29 @@ test('Lab joins the header, first, only with the routes the lab generates', () =
   expect(navFor('footer', ['/lab/']).map((i) => i.id)).toEqual([]);
 });
 
-// The rail as an index (ADR 0022): every demo under Lab, in the lab's order, and the newest posts
-// under Writing, in the order they come (newest first, lib/posts.ts), no more than RAIL_POSTS; each
-// group names what its "View all" link opens (ADR 0023).
-test('the rail lists every demo, and the newest posts up to RAIL_POSTS', () => {
-  const page = (n: number) => ({ title: `Page ${n}`, href: `/p/${n}/` });
-  const demos = [1, 2, 3, 4, 5, 6, 7, 8, 9].map(page);
-  const posts = [10, 11, 12, 13, 14].map(page);
-  expect(RAIL_POSTS).toBe(3);
-  const groups = railLeaves(demos, posts);
-  expect(groups['lab']).toEqual({
-    leaves: demos.map(({ title, href }) => ({ label: title, href })),
-    noun: 'demos',
-  });
-  expect(groups['writing']).toEqual({
-    leaves: posts.slice(0, 3).map(({ title, href }) => ({ label: title, href })),
-    noun: 'posts',
-  });
-  expect(railLeaves([], [])).toEqual({
-    lab: { leaves: [], noun: 'demos' },
-    writing: { leaves: [], noun: 'posts' },
-  });
-  // A demo names its line, which the rail's lamp is drawn in (ADR 0025); a post names none.
-  expect(railLeaves([{ title: 'Routes', href: '/lab/routes/', line: 'routes' }], posts)).toEqual({
-    lab: { leaves: [{ label: 'Routes', href: '/lab/routes/', line: 'routes' }], noun: 'demos' },
-    writing: groups['writing'],
-  });
-  expect(Object.keys(groups['lab']?.leaves[0] ?? {})).toEqual(['label', 'href']);
+// The top bar (ADR 0027, replacing the rail of ADRs 0021 to 0023): on every page the same header
+// items, in the manifest's order, each a plain link, with no drop-down, and the item whose section
+// the page is in marked with aria-current: the page itself, or a page inside it.
+test("every page's top bar lists the header items in order, and marks its own section", () => {
+  const built = files
+    .filter((f) => f.endsWith('index.html'))
+    .map((f) => `/${f.replace(/index\.html$/, '')}`);
+  const items = navFor('header', built);
+  expect(items.length).toBeGreaterThan(0);
+  for (const file of html) {
+    const page = read(file);
+    const bar = /<nav class="site-nav"[\s\S]*?<\/nav>/.exec(page)?.[0] ?? '';
+    const links = [...bar.matchAll(/<a href="([^"]+)"(?: aria-current="(page|true)")?>/g)];
+    expect(
+      links.map(([, href]) => href),
+      file,
+    ).toEqual(items.map((item) => item.href));
+    expect(bar, `${file}: no drop-down in the bar`).not.toMatch(/<details/);
+    const path = `/${file.replace(/index\.html$/, '')}`;
+    const marked = links.filter(([, , current]) => current !== undefined).map(([, href]) => href);
+    const expected = items.filter((item) => path.startsWith(item.href)).map((item) => item.href);
+    expect(marked, file).toEqual(expected);
+  }
 });
 
 // /about/ took /resume/'s place on 2026-10-28; /resume/ answers with a 301 (public/_redirects).

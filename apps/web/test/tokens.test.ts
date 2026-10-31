@@ -41,12 +41,24 @@ const LINE_SURFACES = ['background', 'surface-1', 'surface-2'];
 /** Text drawn on an accent fill, such as a button label, against each fill it sits on. */
 const ON_FILL: Record<string, string[]> = { 'primary-foreground': ['primary', 'primary-strong'] };
 /** A server's number on the Raft line's filled lamp, the leader: in the page's colour on the hub of
- *  the board's and the Lab index's line (lines.css, --line-ground), and in the desk's on the Raft
+ *  the link previews' Raft line (lib/og-lines.ts), and in the desk's on the Raft
  *  Lab's picture (raft-lab.css). */
 const ON_LAMP: Record<string, string[]> = { background: ['line-raft'], 'surface-1': ['line-raft'] };
 /** Decoration only: no contrast claim, but still inside sRGB. The map's streets and roads are
  *  hairlines under the routes: they place the routes and carry nothing a reader needs. */
-const DECORATIVE = ['border', 'map-street', 'map-road', 'map-road-major'];
+const DECORATIVE = [
+  'border',
+  'map-street',
+  'map-road',
+  'map-road-major',
+  // The isometric drawings' fills and grid (docs/design/overhaul.md, "The isometric drawing"):
+  // every solid is edged in --foreground, which carries its shape at 4.5:1, so a face's fill
+  // carries nothing a reader needs.
+  'iso-top',
+  'iso-left',
+  'iso-right',
+  'iso-grid',
+];
 /** Pairs a design must never draw; each is listed with its reason (none yet). */
 const FORBIDDEN: [string, string][] = [];
 
@@ -147,20 +159,20 @@ const blocks = themeBlocks(source);
 const themes = { dark: themeColors(source, 'dark'), light: themeColors(source, 'light') };
 
 describe('the theme blocks', () => {
-  test('light from the OS is the same block as light by choice, so the copy cannot drift', () => {
-    expect(Object.fromEntries(blocks.lightFromOs)).toEqual(Object.fromEntries(blocks.light));
+  test('dark from the OS is the same block as dark by choice, so the copy cannot drift', () => {
+    expect(Object.fromEntries(blocks.darkFromOs)).toEqual(Object.fromEntries(blocks.dark));
   });
 
-  test('light redeclares every color token dark declares, so light never inherits a dark value', () => {
-    expect([...blocks.light.keys()].sort()).toEqual([...blocks.dark.keys()].sort());
+  test('dark redeclares every color token light declares, so dark never inherits a light value', () => {
+    expect([...blocks.dark.keys()].sort()).toEqual([...blocks.light.keys()].sort());
   });
 
   test('the contrast and print blocks come last, and name [data-theme] so they outrank every theme', () => {
     const contrast = css.indexOf('@media (prefers-contrast: more)');
     const print = css.indexOf('@media print');
     for (const at of [contrast, print]) {
-      expect(at).toBeGreaterThan(css.indexOf(SELECTORS.lightMedia));
-      expect(at).toBeGreaterThan(css.indexOf(SELECTORS.light));
+      expect(at).toBeGreaterThan(css.indexOf(SELECTORS.darkMedia));
+      expect(at).toBeGreaterThan(css.indexOf(SELECTORS.dark));
     }
     for (const media of ['@media (prefers-contrast: more)', '@media print']) {
       expect(() => block(block(css, media), ':root, :root[data-theme]'), media).not.toThrow();
@@ -180,9 +192,9 @@ test('every color token has a declared role', () => {
     ...MAP_MARKS,
     ...MAP_TEXT,
   ]);
-  const unclassified = [...themes.dark.keys()].filter((name) => !roles.has(name));
+  const unclassified = [...themes.light.keys()].filter((name) => !roles.has(name));
   expect(unclassified, 'add each new token to a role in this test').toEqual([]);
-  for (const name of roles) expect(themes.dark.has(name), `--${name} is declared`).toBe(true);
+  for (const name of roles) expect(themes.light.has(name), `--${name} is declared`).toBe(true);
 });
 
 for (const [themeName, colors] of Object.entries(themes)) {
@@ -604,16 +616,26 @@ describe('motion lives only under prefers-reduced-motion: no-preference', () => 
       // The stylesheet every page links ships the card's bar and the view transition, both
       // guarded. The Route Lab's own sheet ships one, the maps' fade (ADR 0016), guarded too. A
       // simulated lab's ships none (support/labs.ts): its demo moves in JavaScript, only while the
-      // visitor runs it, and stands still under reduced motion (ADR 0020, ADR 0026). Nor do the
-      // labs' lines, which Home's board and the Lab index share, or the Lab index's own sheet
-      // (ADR 0025): a line moves only on the board, whose day is the board's sheet's, and an index
-      // row's sweep is the sheet every page links.
+      // visitor runs it, and stands still under reduced motion (ADR 0020, ADR 0026). Since
+      // ADR 0027 the labs' lines are gone from the pages, and the labs' chrome, a lab's head,
+      // its desk, its write-up and the glyph, moves nothing either; a lab's card moves only its
+      // glyph's solids down onto their tile, tied to the scroll (styles/lab-cards.css).
       const sheet = read(file);
       if (sheet.includes('.rl-map'))
         expect(found.map((m) => m.what)).toEqual(['transition:opacity .22s ease-out']);
       else if (SIMULATED_LABS.some((lab) => sheet.includes(`.${lab.map}`)))
         expect(found).toEqual([]);
-      else if (!sheet.includes('.board-lines') && /\.(line-track|lab-row)\b/.test(sheet))
+      // The Lab index's card sheet is found by its plate, which only it draws: Home's sheet styles
+      // a .lab-card of its own, whose motion is the drawing's (below).
+      else if (sheet.includes('.lab-plate'))
+        expect(found.filter((m) => /lab-settle/.test(m.what))).toHaveLength(1);
+      // The glyph's sheet is found by its mesh, which only it draws: Home's sheet names its own
+      // .iso-glyph, cut from the drawing, and moves with the drawing.
+      else if (/\.(iso-mesh|lab-write|lab-head|desk)\b/.test(sheet)) expect(found).toEqual([]);
+      // The sheets a component or a page owns since ADR 0027 (post-list.css, prose.css, about.css,
+      // not-found.css) ship none either: the row's sweep is the sheet every page links, and the
+      // rest stands still.
+      else if (/\.(post-row|long-form-body|about-head|missing-piece)\b/.test(sheet))
         expect(found).toEqual([]);
       else expect(found.length).toBeGreaterThanOrEqual(2);
     });

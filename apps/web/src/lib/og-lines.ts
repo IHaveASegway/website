@@ -26,8 +26,8 @@ import { hex, themeColors } from './tokens';
 // The labs' lines on their link previews (ADR 0025): a lab's card carries its own line across the
 // top, in its own colour, and Home's and the Lab index's cards stack every line, as the board
 // does. Each line is the board's wide drawing scaled to the card: the same shape (lib/line-shapes.ts)
-// from the same opening run as its component in components/board/lines/. This is the shape's second
-// renderer, SVG for a PNG drawn outside Astro; the components are the first. It holds no geometry
+// from the same opening run as its component in components/board/lines/ was, until ADR 0027 took
+// the board off the pages. This is now the shape's only renderer, SVG for a PNG drawn outside Astro. It holds no geometry
 // of its own, only how a board pixel and a share of the width land on the card, and which mark
 // each station's lamp is. It draws no word: no label, no server's number, so the card's only text
 // is still its title and its label (lib/og.ts). The colours are the dark theme's tokens, as the
@@ -45,7 +45,7 @@ export const OG_BOARD = { width: OG_SIZE.width, height: 332 } as const;
 export const LINE_SCALE = 2.1;
 export const BOARD_SCALE = 0.55;
 
-/** The board's wide stroke widths, from styles/lines.css at 48rem and up. */
+/** The board's wide stroke widths, as styles/lines.css drew them at 48rem and up until ADR 0027. */
 const STROKE = { track: 6, spoke: 4, loop: 3.5, lamp: 2.5, now: 3, cross: 3, gap: 2.25 } as const;
 
 interface Ink {
@@ -93,12 +93,12 @@ const disc = (pen: Pen, x: number, y: number, r: number) =>
   `<circle cx="${n(x)}" cy="${n(y)}" r="${n(r)}" fill="${pen.ink.line}"/>`;
 
 /** A station that is down: no lamp, its track hollow, the ground running down its middle, as
- *  lines.css draws .line-gap (design-system.md, "Lamps: one meaning per mark"). */
+ *  the board drew .line-gap (design-system.md, "Lamps: one meaning per mark"). */
 const gap = (pen: Pen, x1: number, y: number, x2: number) =>
   `<line x1="${n(x1)}" y1="${n(y)}" x2="${n(x2)}" y2="${n(y)}" fill="none" stroke="${pen.ink.ground}" stroke-width="${n(STROKE.gap * pen.u)}"/>`;
 
 /** A station's lamp by its state (lib/lines.ts, Lamp): `r` in board pixels, as the components
- *  give it. A filled lamp's fill is one pixel wider than its rim, as lines.css draws it. */
+ *  give it. A filled lamp's fill is one pixel wider than its rim, as the board drew it. */
 function lamp(pen: Pen, x: number, y: number, r: number, state: Lamp): string {
   const { u, ink } = pen;
   if (state === 'lit')

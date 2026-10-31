@@ -1,0 +1,103 @@
+/*
+  The dated writing list (components/PostList.astro; docs/design/overhaul.md, "Writing list"): on
+  /writing/, /notes/, Home and /about/. A hairline over each row and under the last; from 48rem
+  three columns, the day, the title with its summary, and the kind with its reading time at the
+  row's end, all on the title's first baseline. On a phone the day and the kind share a line over
+  the title. The row is its title's link (global.css, the row link) and its one motion is the 2 px
+  sweep along its top (global.css). Under the pointer its title turns to the accent, at once, as a
+  card's does. Every colour is a token from tokens.css; only the pages that list posts load this.
+*/
+
+.post-list:has(> .post-row) {
+  border-block-end: 1px solid var(--border);
+}
+
+.post-list > .post-row {
+  display: grid;
+  grid-template-areas:
+    'date kind'
+    'main main';
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0.625rem var(--gutter);
+  max-inline-size: none;
+  padding-block: 1.25rem 1.5rem;
+  border-block-start: 1px solid var(--border);
+}
+
+/* The sweep lies on the row's own hairline, not a pixel under it. */
+.post-list > .post-row::before {
+  top: -1px;
+}
+
+.post-date,
+.post-kind {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-family: var(--font-wide);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  line-height: var(--text-label--line-height);
+  font-variant-numeric: tabular-nums;
+}
+
+.post-date {
+  grid-area: date;
+  white-space: nowrap;
+}
+
+.post-kind {
+  grid-area: kind;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  column-gap: 1rem;
+  text-align: end;
+}
+
+.post-main {
+  grid-area: main;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 0.5rem;
+}
+
+.post-row .post-summary {
+  color: var(--muted-foreground);
+}
+
+.post-row:hover .post-title > a {
+  color: var(--primary);
+}
+
+@media (width >= 48rem) {
+  .post-list > .post-row {
+    grid-template-areas: 'date main kind';
+    grid-template-columns: 8.5rem minmax(0, 1fr) 8.5rem;
+    column-gap: var(--gutter);
+    padding-block: 1.75rem 2rem;
+  }
+
+  /* The day and the kind stand on the title's first line: the label is smaller than the title, so
+     its line is moved down to share the title's baseline (grid baseline alignment does the rest). */
+  .post-kind {
+    display: grid;
+    row-gap: 0.25rem;
+    justify-items: end;
+  }
+
+  .post-row .post-summary {
+    max-inline-size: 40rem;
+  }
+}
+
+/* On paper the row is its words: no hairlines to space it, no sweep. */
+@media print {
+  .post-list > .post-row {
+    border: 0;
+  }
+
+  .post-list:has(> .post-row) {
+    border: 0;
+  }
+}

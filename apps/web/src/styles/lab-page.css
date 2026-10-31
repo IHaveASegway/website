@@ -1,0 +1,150 @@
+/*
+  A lab's page chrome (docs/design/overhaul.md, "A lab's page chrome"), which every lab's page
+  links through its head (components/lab/LabHead.astro): the head, the desk the demo stands on,
+  and the write-up with its sections listed beside it. Each lab's own sheet styles what stands on
+  its desk. Every colour is a token from tokens.css; the lab's own colour is inside its drawings.
+*/
+
+/* The head: the title and the lead on the frame's left edge; from 48rem the lab's glyph beside
+   them, centred on their height. On a phone the glyph is left out, so the demo comes up the
+   first screen. */
+.lab-head > .lab-head-glyph {
+  display: none;
+}
+
+@media (width >= 48rem) {
+  .lab-head {
+    grid-template-columns: minmax(0, 1fr) clamp(13rem, 24vw, 20rem);
+    column-gap: calc(var(--gutter) * 2);
+  }
+
+  .lab-head > :not(.lab-head-glyph) {
+    grid-column: 1;
+  }
+
+  .lab-head > .lab-head-glyph {
+    display: block;
+    grid-row: 1 / span 2;
+    grid-column: 2;
+    align-self: center;
+    justify-self: end;
+    inline-size: 100%;
+    max-inline-size: none;
+    block-size: auto;
+    max-block-size: 10.5rem;
+  }
+}
+
+/* The desk (docs/design/overhaul.md, "A lab's page chrome"): the demo on a sheet, white on the
+   paper by day, edged by a hairline and 8 px round, with no shadow. Its own parts are set apart by
+   hairlines too, from edge to edge through --desk-side, its inline padding; what stands on it
+   takes its surface, --surface-1, for ground. */
+.desk {
+  --desk-side: 1rem;
+  padding: 1.25rem var(--desk-side) 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background-color: var(--surface-1);
+}
+
+@media (width >= 48rem) {
+  .desk {
+    --desk-side: 1.75rem;
+    padding-block: 1.5rem 2rem;
+  }
+}
+
+/* The write-up: the prose in its measure on the frame's left edge, and from 64rem the list of its
+   sections in a column of its own on the right, which stays in view while the write-up passes. */
+.lab-write {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  margin-block-start: 3.5rem;
+}
+
+@media (width >= 48rem) {
+  .lab-write {
+    margin-block-start: 5rem;
+  }
+}
+
+.lab-write > .prose {
+  margin-block-start: 0;
+}
+
+/* The write-up starts level with its list of sections: its first heading takes no room above. */
+.lab-write > .prose > :first-child {
+  margin-block-start: 0;
+}
+
+.lab-contents {
+  margin-block-end: 2.5rem;
+  padding-block-end: 1.75rem;
+  border-block-end: 1px solid var(--border);
+}
+
+.lab-contents-title {
+  margin: 0 0 0.25rem;
+  color: var(--muted-foreground);
+  font-family: var(--font-wide);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  line-height: var(--text-label--line-height);
+}
+
+.lab-contents ol {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Each 44 px tall, as every link in a nav is (e2e/a11y.spec.ts, the house rule); the link says
+   where it goes, so it needs no underline until the pointer is on it. */
+.lab-contents a {
+  display: flex;
+  align-items: center;
+  min-block-size: 2.75rem;
+  color: var(--foreground);
+  font-family: var(--font-label);
+  font-size: var(--text-ui);
+  font-weight: 600;
+  line-height: var(--text-ui--line-height);
+  text-decoration-line: none;
+}
+
+.lab-contents a:hover {
+  color: var(--primary);
+  text-decoration-line: underline;
+}
+
+@media (width >= 64rem) {
+  .lab-write {
+    grid-template-columns: minmax(0, var(--measure)) 15rem;
+    column-gap: clamp(3rem, 7vw, 7rem);
+    justify-content: start;
+    align-items: start;
+  }
+
+  .lab-write > .prose {
+    grid-row: 1;
+    grid-column: 1;
+  }
+
+  .lab-contents {
+    position: sticky;
+    inset-block-start: 1.5rem;
+    grid-row: 1;
+    grid-column: 2;
+    margin: 0;
+    padding: 0 0 0 1.25rem;
+    border-block-end: 0;
+    border-inline-start: 1px solid var(--border);
+  }
+}
+
+@media print {
+  .lab-contents {
+    display: none;
+  }
+}

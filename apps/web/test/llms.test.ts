@@ -93,6 +93,7 @@ describe('known answers: lib/llms.ts', () => {
     tags: [],
     kind: section === 'notes' ? 'note' : 'essay',
     source: null,
+    minutes: 1,
     ...extra,
   });
   const write = (posts: Post[], drafts = false) =>

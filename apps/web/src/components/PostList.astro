@@ -1,5 +1,6 @@
 ---
-import { isoDay, KIND_LABELS, postPath, wordDay, type Post } from '../lib/posts';
+import { isoDay, KIND_LABELS, minutesWords, postPath, shortDay, type Post } from '../lib/posts';
+import '../styles/post-list.css';
 
 interface Props {
   posts: readonly Post[];
@@ -9,22 +10,28 @@ interface Props {
 
 const { posts, level } = Astro.props;
 const Title = level === 2 ? 'h2' : 'h3';
-// The whole row is the title's link (ADR 0022): the link's box is stretched over the row by CSS, so
-// a press anywhere on it opens the post, with the title alone as the link's name. Under the title,
-// its summary, then its day in words and its kind after it (ADR 0025): "25 October 2026,
-// postmortem", never a label over the title.
+// The dated list (docs/design/overhaul.md, "Writing list"; ADR 0027): a row a post, a hairline over
+// each, three columns from 48rem: its day in the wide face, its title in the display face with its
+// summary under it, and its kind and reading time at the row's end. The whole row is the title's
+// link (ADR 0022): the link's box is stretched over the row by CSS, so a press anywhere on it opens
+// the post, with the title alone as the link's name. Read aloud, a row is its day, its title, its
+// summary, then its kind: the order it is drawn in, left to right.
 ---
 
 <ol class="post-list" role="list">
   {posts.map((post) => (
-    <li>
-      <Title class="post-title">
-        <a href={postPath(post)}>{post.title}</a>
-      </Title>
-      <p class="post-summary">{post.summary}</p>
-      <p class="post-meta">
-        <time datetime={isoDay(post.published)}>{wordDay(post.published)}</time>,{' '}
-        {KIND_LABELS[post.kind].toLowerCase()}
+    <li class="post-row">
+      <p class="post-date">
+        <time datetime={isoDay(post.published)}>{shortDay(post.published)}</time>
+      </p>
+      <div class="post-main">
+        <Title class="post-title">
+          <a href={postPath(post)}>{post.title}</a>
+        </Title>
+        <p class="post-summary">{post.summary}</p>
+      </div>
+      <p class="post-kind">
+        <span>{KIND_LABELS[post.kind]}</span> <span>{minutesWords(post.minutes)}</span>
       </p>
     </li>
   ))}

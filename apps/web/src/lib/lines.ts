@@ -15,14 +15,14 @@ import type { Measured } from './route-lab/plan';
 // colour, on Home's board and on the Lab index. This module is the lines' model and their
 // words, worked out from what the labs themselves compute at build: the Route Lab's solve of its
 // default day, and the opening run of each simulated lab, through its own simulation. Plain
-// TypeScript with no DOM, so the components (components/board/) and the unit tests read the same
-// numbers, and none of them is typed.
+// TypeScript with no DOM, so the link previews (lib/og-lines.ts), the lab cards' facts
+// (lib/lab-facts.ts), Home's drawing and the unit tests read the same numbers, and none of them is typed.
 
 /** The board's day in rounds. In each round every van steps once, one van a second, so a van with
  *  `n` stops is out for n + 1 rounds: it starts at the head of its track, then each stop, then it
  *  is back at the end of its track, where it stands until the day starts again. Twelve rounds
- *  hold a van of up to ten stops; the stylesheet's index rules (styles/board.css) count to
- *  ROUNDS - 1, and routesLine refuses a day they cannot hold. */
+ *  hold a van of up to ten stops; the board's stylesheet counted to ROUNDS - 1 until
+ *  ADR 0027, and the link previews still draw that day, so routesLine refuses a day they cannot hold. */
 export const ROUNDS = 12;
 
 /** The round the still board shows (under reduced motion, without JavaScript, and as the moving

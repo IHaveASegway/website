@@ -22,8 +22,8 @@ import Choice from './Choice.astro';
 // loads the simulation on the visitor's first intent; it replays the same opening, so it takes over
 // exactly where this stands.
 //
-// It all sits on the lab's desk (ADR 0025; global.css, .desk), in two parts: the picture (the
-// board, the lamps' key, the caption, the strip and the checks) and the panel (the controls, then
+// It all sits on the lab's desk (ADR 0027; styles/lab-page.css, .desk), in two parts: the
+// picture (the board, the lamps' key, the caption, the strip and the checks) and the panel (the controls, then
 // the log). The controls that play the week, and the choice that fixes it, come first, so on a
 // phone they stand right under the board, and a visitor sees the lamps change as they press;
 // on a wide desk the panel is the column beside the picture (backfill-lab.css). Run is a
@@ -67,8 +67,8 @@ const PICKS = days.map((day) => ({
   words: weekday(day).slice(0, 3),
   long: weekday(day),
 }));
-/** A failed step's mark, a cross inside its lamp's ring, as the board's lines draw a failed
- *  station (lines.css, .line-cross), so a cross in a ring means failed wherever it stands. */
+/** A failed step's mark, a cross inside its lamp's ring, as the link previews' lines draw a
+ *  failed station (lib/og-lines.ts), so a cross in a ring means failed wherever it stands. */
 const CROSS = 'M-3.5-3.5l7 7m0-7-7 7';
 const KEY = [
   { lamp: 'hollow', word: 'Not started' },

@@ -1,7 +1,8 @@
 ---
 import { render } from 'astro:content';
 import BackfillLab from '../../../components/backfill-lab/BackfillLab.astro';
-import PageHead from '../../../components/PageHead.astro';
+import LabHead from '../../../components/lab/LabHead.astro';
+import LabWriteUp from '../../../components/lab/LabWriteUp.astro';
 import Base from '../../../layouts/Base.astro';
 import {
   ATTEMPTS,
@@ -20,7 +21,7 @@ import { labCard } from '../../../lib/og';
 // of another demo's styles or code ([demo].astro leaves it out, lib/lab.ts OWN_PAGE). Static: the
 // simulation runs in the browser, with no Worker and no Durable Object. A rest parameter, so the
 // page builds only while its lab entry is live, as /lab/ does. The page is its lab's line (ADR
-// 0025): data-line gives it the lab's colour, which its head runs across the top and its board
+// 0025): data-line gives it the lab's colour, which its glyph and its board
 // draws in.
 export async function getStaticPaths() {
   const lab = await loadLabArea();
@@ -35,7 +36,7 @@ interface Props {
 const { entry } = Astro.props;
 
 const { name } = (await loadProfile()).basics;
-const { Content } = await render(await labEntry(entry));
+const { Content, headings } = await render(await labEntry(entry));
 const lead =
   'A nightly job counts the bakery’s orders, one run per day. Backfill the week, fail a load, rerun a day, and check every total against the source.';
 // How it is built, in the model's own figures, so none is typed here. Each paragraph is one string:
@@ -54,14 +55,16 @@ const built = [
   og={labCard(entry)}
 >
   <article class="page bf-page" data-line={entry.slug} aria-labelledby="page-title">
-    <PageHead heading={entry.title} lead={lead} line />
+    <LabHead slug={entry.slug} heading={entry.title} lead={lead} />
     <BackfillLab />
-    <div class="prose">
+    <LabWriteUp
+      headings={[...headings, { depth: 2, slug: 'how-it-is-built', text: 'How it is built' }]}
+    >
       <Content />
-      <h2>How it is built</h2>
+      <h2 id="how-it-is-built">How it is built</h2>
       {built.map((paragraph) => (
         <p>{paragraph}</p>
       ))}
-    </div>
+    </LabWriteUp>
   </article>
 </Base>

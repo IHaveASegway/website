@@ -28,8 +28,8 @@ test('known answer: a glyph outside the subsets is reported, with the system fon
 }) => {
   await page.goto('/');
   await page.evaluate(() => {
-    const title = document.querySelector('.hero-title');
-    if (!title) throw new Error('Home has no title line');
+    const title = document.querySelector('.intro-role');
+    if (!title) throw new Error('Home has no role line');
     title.textContent = 'Łódź';
   });
   const { fallbacks } = await fallbacksOn(page);
@@ -37,7 +37,7 @@ test('known answer: a glyph outside the subsets is reported, with the system fon
 });
 
 // A page fetches a face's file only if it draws text in that face (design-system.md, "The faces").
-// The three Barlow faces draw every page's first screen and are preloaded; Barlow's SemiBold draws
+// Four Archivo faces draw every page's first screen and are preloaded; Archivo's SemiBold draws
 // <strong>, and B612 Mono code, so each is fetched where a page uses it. On 2026-10-24's build every
 // page preloaded the mono face, and the 404, which set nothing in it, fetched its 8,156 B anyway.
 
@@ -57,7 +57,7 @@ async function unusedFonts(
   const { drawn } = await fallbacksOn(page);
   // Each file's family as the font names itself, read from the file: Chromium reports a web face
   // by the family in its own name table (CSS.getPlatformFontsForNode), and a static instance's
-  // carries its weight ("Barlow Condensed SemiBold", "Barlow SemiBold"), not the @font-face rule's
+  // carries its weight ("Archivo Condensed SemiBold", "Archivo SemiBold"), not the @font-face rule's
   // name. So the match is per face: a SemiBold fetched beside a Regular that draws is still caught.
   const families: Record<string, string> = {};
   for (const file of new Set(fetched)) {

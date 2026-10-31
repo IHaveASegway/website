@@ -1,8 +1,10 @@
 // The motion an index carries (design-system.md, "Motion"), on Home and the indexes only
 // (components/Motion.astro). Two things, both only with no reduced-motion preference:
 //
-// - Home's scene (ADR 0024), whose module loads only where its canvas is, and the board's day,
-//   which runs and pauses with it.
+// - Home's drawing (components/iso/System.astro; ADR 0027): the requests, the vans, the heartbeats
+//   and the stampede run once this marks the page (data-motion, home.css), after it has painted,
+//   and never under Save-Data. The top bar's button pauses and plays them (SC 2.2.2), and the
+//   choice lasts for the tab (sessionStorage key "motion"), as the theme's does.
 // - The title a visitor follows becomes the next page's title, a cross-document view transition.
 //   Each page's <h1> carries the name in the stylesheet; as the page is left, the followed title
 //   takes the name and the page's own <h1> gives it up, since a document may hold a name once.
@@ -29,16 +31,51 @@ function whenSettled(work) {
   else addEventListener('load', idle, { once: true });
 }
 
-function boot() {
-  // Home's scene (ADR 0024): its module loads only where its canvas is, after the page has
-  // painted, and never under a reduced-motion preference or Save-Data. Where it cannot run, the
-  // picture the build drew stays.
-  const scene = document.querySelector('[data-scene-live]');
-  if (scene && !reduced() && !navigator.connection?.saveData) {
-    whenSettled(() =>
-      import('./route-scene.ts').then((module) => module.boot(scene)).catch(() => {}),
-    );
+const KEY = 'motion';
+
+/** Whether the visitor paused the drawing earlier in this tab. */
+function storedPause() {
+  try {
+    return sessionStorage.getItem(KEY) === 'paused';
+  } catch {
+    return false;
   }
+}
+
+/** @param {boolean} paused */
+function storePause(paused) {
+  try {
+    if (paused) sessionStorage.setItem(KEY, 'paused');
+    else sessionStorage.removeItem(KEY);
+  } catch {
+    // Storage refused: the choice lasts until the page is left.
+  }
+}
+
+/** Runs Home's drawing, with the top bar's button to pause and play it. */
+function runDrawing() {
+  const root = document.documentElement;
+  const toggle = document.querySelector('[data-motion-toggle]');
+  let paused = storedPause();
+  const show = () => {
+    root.dataset['motion'] = paused ? 'paused' : 'on';
+    if (!toggle) return;
+    const name = paused ? 'Play motion' : 'Pause motion';
+    toggle.setAttribute('aria-label', name);
+    toggle.setAttribute('title', name);
+    toggle.dataset['state'] = paused ? 'paused' : 'on';
+  };
+  toggle?.addEventListener('click', () => {
+    paused = !paused;
+    storePause(paused);
+    show();
+  });
+  show();
+}
+
+function boot() {
+  if (document.querySelector('[data-iso]') && !reduced() && !navigator.connection?.saveData)
+    whenSettled(runDrawing);
 
   // The link a press or a key followed, so the title beside it is the one that flies.
   let followed = null;
@@ -46,13 +83,10 @@ function boot() {
     followed = event.target instanceof Element ? event.target.closest('a[href]') : null;
   });
 
-  // Each row that leads to a page, its link and its title: a card's, a post's, a band of the
-  // board's, whose title is its link, and the Route Lab's chapter on Home.
+  // Each row that leads to a page, its link and its title: a card's and a post's.
   const ROWS = [
     { row: '.card', link: '.card-more', title: '.card-title' },
     { row: '.post-title', link: 'a[href]', title: null },
-    { row: '.band', link: '.band-title', title: '.band-title' },
-    { row: '.chapter', link: '.chapter-link', title: '.chapter-title' },
   ];
 
   addEventListener('pageswap', (event) => {

@@ -10,20 +10,21 @@
 /* A value in the link previews' layout (lib/og.ts), not a class: no page has used the utility since
    <body> lost it to the rail's layout (ADR 0021). */
 @source not inline('flex');
-/* A lamp's shape, not a class: a hollow lamp is a ring (lines.css), and the labs' comments say so
+/* A lamp's shape, not a class: a hollow lamp is a ring (lib/og-lines.ts), and the labs' comments say so
    (backfill-lab/BackfillLab.astro, lib/queue/view.ts). Focus is drawn with an outline in --ring,
    never the box-shadow utility the word would ship to every page. */
 @source not inline('ring');
 @import './tokens.css';
 @import './font-fallbacks.css';
 
-/* The signal box (ADR 0025). The page is a panel's enamel and all text its engraving. Type is
-   signage: titles in Barlow Condensed, the panel's labels and controls in Barlow Semi Condensed,
-   reading in Barlow, code alone in B612 Mono. Labels are never capitals, never tracked, never mono.
-   Everything stands flush left on one edge, ragged right; corners are square and lamps are the only
-   round things; there are no shadows. A rule is functional (1 px of --input: a field's edge, the
-   rail's edge, a button's) or a lab's line, never a divider between rows. Colour means which line;
-   state is a lamp's shape and a word. */
+/* The drawing (ADR 0027; docs/design/overhaul.md). By day a technical drawing on drafting paper,
+   in Prussian ink, with one accent, cobalt, for what a visitor can act on; by night the same
+   drawing as a blueprint. Type is one family, Archivo, in three widths: ExtraCondensed ExtraBold
+   for the name, titles and figures; Expanded Medium for signage, the navigation, a block's name
+   and dates; SemiBold for buttons and controls; Regular for reading; code alone in B612 Mono. Labels are sentence case, untracked, never mono.
+   Everything stands on one left edge, ragged right. Corners follow hierarchy: the bar and bands
+   square, a control 4px, a card 8px; no shadows but the open command menu's. A hairline carries
+   structure (a row of a list, a stat's cell, the bar's edge), never decoration. */
 
 @layer base {
   html {
@@ -31,6 +32,8 @@
     text-size-adjust: 100%;
   }
 
+  /* No face is drawn bolder than it was cut: the display, wide and label faces have one weight
+     each, so a rule that asks for another gets the cut weight, never a smeared copy. */
   body {
     min-height: 100dvh;
     background-color: var(--background);
@@ -38,41 +41,38 @@
     font-family: var(--font-sans);
     font-size: var(--text-base);
     line-height: var(--text-base--line-height);
+    font-synthesis-weight: none;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
   }
 
-  /* One focus style for everything focusable: 2px of the lit lamp, never removed (SC 2.4.7,
-     1.4.11). */
+  /* One focus style for everything focusable: 2px of the accent, offset so it never touches the
+     thing it marks, never removed (SC 2.4.7, 1.4.11). */
   :focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 3px;
   }
 
-  /* Selected text is the label on the lamp's fill, a pair the contrast test measures (4.5:1 in
+  /* Selected text is the label on the accent's fill, a pair the contrast test measures (4.5:1 in
      both themes), whatever color the text had. */
   ::selection {
     background-color: var(--primary);
     color: var(--primary-foreground);
   }
 
-  /* Headings and the title under the name are display type, and most of it sets its lines closer
-     together than the face is tall, ascent to descent: the name at 0.88, titles at 0.95 to 1.1. A
-     browser paints each line's fill over the line before it, so with a fill the name's second line
-     hid the foot of "Joseph", which read as "Iosenh". So selected display type, every heading, has
-     no fill and turns to the lamp's color on the surface it sits on, a color the contrast test
-     holds to 4.5:1 on every surface. e2e/a11y.spec.ts finds any text set that close whose
-     selection has a fill. */
-  :is(h1, h2, h3, .hero-title)::selection,
-  :is(h1, h2, h3, .hero-title) *::selection {
+  /* Display type sets its lines closer together than the face is tall, so a selection's fill on
+     one line would paint over the line before it. Selected display type has no fill and turns to
+     the accent, which the contrast test holds to 4.5:1 on every surface. e2e/a11y.spec.ts finds
+     any text set that close whose selection has a fill. */
+  :is(h1, h2, h3, .footer-name)::selection,
+  :is(h1, h2, h3, .footer-name) *::selection {
     background-color: transparent;
     color: var(--primary);
   }
 
-  /* Links read as text with a 3:1 underline in the rule's color, which turns to the text's own
-     under the pointer. The underline, not the color, is what marks a link (SC 1.4.1); muted text
-     that links comes up to the ink. */
+  /* Links read as text with an underline at 3:1, which turns to the accent under the pointer. The
+     underline, not the color, is what marks a link (SC 1.4.1). */
   a {
     color: inherit;
     text-decoration-line: underline;
@@ -82,7 +82,7 @@
   }
 
   a:hover {
-    color: var(--foreground);
+    color: var(--primary);
     text-decoration-color: currentColor;
   }
 
@@ -92,7 +92,7 @@
   }
 
   /* Titles share their words evenly across their lines, and a paragraph leaves no word alone on
-     its last (design-system.md, "Type scale"). */
+     its last. */
   :is(h1, h2, h3, h4) {
     text-wrap: balance;
   }
@@ -102,8 +102,7 @@
   }
 
   /* A lab's line (ADR 0025): whatever belongs to a lab names it with data-line, and draws in
-     var(--line), the lab's own colour (tokens.css). Colour means which line, and nothing else, so a
-     new lab's drawing needs its slug here and its token there, and no other rule. */
+     var(--line), the lab's own colour (tokens.css), inside the lab's own picture only. */
   [data-line='routes'] {
     --line: var(--line-routes);
   }
@@ -125,12 +124,11 @@
   }
 }
 
-/* Motion is authored inside no-preference only (design-system.md, "Motion"): a visitor who asks
-   for reduced motion gets every state change without the movement. test/tokens.test.ts fails if a
-   transition, an animation, smooth scrolling or a view transition appears anywhere else. What moves
-   (ADR 0025): Home's scene, the title a visitor follows becoming the next page's title, and the
-   2 px sweep along a row that leads somewhere. Text never animates: no title rises, no rule draws
-   itself, no label decodes, no arrow nudges. */
+/* Motion is authored inside no-preference only (docs/design/overhaul.md, "Motion"): a visitor who
+   asks for reduced motion gets every state change without the movement, and a still picture.
+   test/tokens.test.ts fails if a transition, an animation, smooth scrolling or a view transition
+   appears anywhere else. Nothing moves after the first paint unless the visitor scrolls or opens
+   something: no entrance on load, no loop. */
 @media (prefers-reduced-motion: no-preference) {
   @view-transition {
     navigation: auto;
@@ -138,7 +136,7 @@
 
   /* A page's one title carries the name, so the title a visitor followed on an index flies to it:
      src/scripts/motion.js gives the followed title the same name as the index is left, and takes it
-     from the index's own title. With nothing followed, the titles crossfade as before. */
+     from the index's own title. With nothing followed, the titles crossfade. */
   .page-title {
     view-transition-name: page-title;
   }
@@ -146,9 +144,9 @@
 
 @layer components {
   /* Hidden until focused, then the first thing on the page (SC 2.4.1). Focused, it covers the
-     masthead, the top bar in its frame or the whole rail, however tall the bar grows with the
-     text, and its words start at the frame's edge, where the name starts on every page but Home:
-     nothing shows around it in part. Its outline sits inside it, since its edges are the bar's. */
+     masthead, the top bar's band, however tall the bar grows with the text, and its words start at
+     the frame's edge, where the wordmark starts. Its outline sits inside it, since its edges are
+     the bar's. */
   .masthead {
     position: relative;
   }
@@ -159,10 +157,10 @@
     z-index: 10;
     display: flex;
     align-items: center;
-    padding-inline: inherit;
+    padding-inline: 1.125rem;
     background-color: var(--surface-2);
     color: var(--foreground);
-    font-family: var(--font-label);
+    font-family: var(--font-wide);
     font-size: var(--text-ui);
     font-weight: 500;
     line-height: var(--text-ui--line-height);
@@ -177,140 +175,37 @@
     outline-offset: -0.375rem;
   }
 
-  /* The frame: 1312px of content inside 64px margins, inside the 1,200 to 1,320 px most sites
-     hold their content to; a wider screen gets a wider margin, not longer lines. It stands at the
-     start of its column, the page's gutter past the rail's edge, and the room a wider screen adds
-     is left at its end: everything flush left on one edge, ragged right (ADR 0025). Until
-     2026-10-30 it was centred, and at 2560 px the words floated some 510 px from the rail.
-     Tailwind's preflight makes every box border-box, so the padding counts inside max-width here:
-     90rem is 1312px of content plus 2 × 4rem. --gutter is the space between the columns a row may
-     use. */
+  @media (width >= 48rem) {
+    .skip-link {
+      padding-inline: 2.5rem;
+    }
+  }
+
+  /* The frame: 76rem (1216px) of content inside its margins, centred, inside the 1,200 to 1,320 px
+     most sites hold their content to; a wider screen gets wider margins, not longer lines. Tailwind's
+     preflight makes every box border-box, so the padding counts inside max-width. --gutter is the
+     space between the columns a row may use; --frame-pad is the frame's side, which a box that
+     reaches the window's edge (Home's stage, the Lab index's lines) takes back. */
   .frame {
     --gutter: 1rem;
+    --frame-pad: 1.125rem;
     width: 100%;
-    max-width: 90rem;
-    margin-inline: 0 auto;
-    padding-inline: 1.125rem;
+    max-width: 81rem;
+    margin-inline: auto;
+    padding-inline: var(--frame-pad);
   }
 
   @media (width >= 48rem) {
     .frame {
-      padding-inline: 4rem;
+      --gutter: 1.5rem;
+      --frame-pad: 2.5rem;
     }
   }
 
   @media (width >= 64rem) {
     .frame {
-      --gutter: 1.75rem;
+      --gutter: 2rem;
     }
-  }
-
-  /* The top bar, below 80rem (ADR 0025): one bar of one height on every page, 56 px, the name
-     linking home on every page but Home, then the nav, and the tools at its end, all on one line
-     from 390 px up. Its edge is a functional rule across the whole window. When the three do not
-     fit one line, as at 320 px or with a larger text size, the nav and the tools move to a line of
-     their own and the bar grows, rather than squeezing the name onto two lines or scrolling
-     sideways (SC 1.4.10). The name asks for its whole width first, so it wraps only when it alone
-     is wider than its line, and then between its words, never inside one. Until 2026-10-30 the
-     gaps were 1.25rem and the command menu's button 3.5rem wide, so at 390 px the name took a line
-     of its own and the bar was 108 px tall on every page but Home. */
-  .masthead {
-    border-bottom: 1px solid var(--input);
-  }
-
-  .site-header {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0 1rem;
-    min-height: 3.5rem;
-    padding-block: 0.375rem;
-  }
-
-  /* The name, in the title face at the size of the words around it: the bar's nameplate, not a
-     poster. */
-  .wordmark {
-    display: inline-flex;
-    align-items: center;
-    min-height: 2.75rem;
-    font-family: var(--font-display);
-    font-size: var(--text-ui);
-    font-weight: 600;
-    line-height: var(--text-ui--line-height);
-    text-decoration-line: none;
-  }
-
-  .header-end {
-    display: flex;
-    flex: 1 1 auto;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0 1rem;
-  }
-
-  .site-nav ul {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0 1rem;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    font-family: var(--font-label);
-    font-size: var(--text-ui);
-    font-weight: 500;
-    line-height: var(--text-ui--line-height);
-  }
-
-  /* 44 px tall, and at least 24 px wide, a target's least (SC 2.5.8): "Lab" is 22 px of words. */
-  .site-nav a {
-    display: inline-flex;
-    align-items: center;
-    min-inline-size: 1.5rem;
-    min-height: 2.75rem;
-    text-decoration-line: none;
-  }
-
-  .site-nav a:hover {
-    text-decoration-line: underline;
-  }
-
-  /* The page itself, or a page inside the section: /lab/routes/ marks Lab, a post marks Writing. */
-  .site-nav a[aria-current] {
-    text-decoration-line: underline;
-    text-decoration-color: currentColor;
-    text-decoration-thickness: 2px;
-    text-underline-offset: 0.375em;
-  }
-
-  /* The command menu's button, Home's motion button and the theme toggle, at the bar's end. In the
-     bar each item is a flex box, so a button in it sits on no line of text: as a list item the
-     toggle stood on its line's baseline, 7 px taller than itself, and the bar grew with it. With
-     no weight, so an item's own rule that hides it still wins. */
-  .header-tools {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0 0.75rem;
-    margin: 0 0 0 auto;
-    padding: 0;
-    list-style: none;
-  }
-
-  @media (width < 80rem) {
-    :where(.header-tools > li) {
-      display: flex;
-      align-items: center;
-    }
-  }
-
-  .rail-role {
-    display: none;
-  }
-
-  /* What only the rail shows (ADR 0022): the search field and each item's drop-down of pages
-     (ADR 0023), where the bar has the item's plain link instead. */
-  .rail-only {
-    display: none;
   }
 
   /* The page's column: the masthead, then main, which takes the room the footer leaves, then the
@@ -324,218 +219,236 @@
     flex: 1 0 auto;
   }
 
-  /* The rail (ADR 0021). From 80rem the header stands down the left edge, as tall as the window
-     and still while the page scrolls, and main and the footer share the column beside it, each in
-     the frame it always had, so the content keeps the standard frame's measure and never grows past
-     it. Not from 64rem: every rule from 64rem up was set for at least 56rem of content, which a
-     14rem rail leaves only from 80rem, so 64rem to 80rem keeps the bar. The rail is the desk in
-     front of the board (ADR 0025): at its head the name and the title, but not on Home, whose <h1>
-     is the name; then the search field; then the nav, an index of the site (ADR 0022); and at its
-     foot the controls, named in words. Its edge is the functional rule. The page's mark is a 2 px
-     bar beside its item. From 90rem Home's main spans the whole column and keeps the frame row by
-     row, so its stage can reach the column's edges (home.css, "A screen larger than 1440 × 900"). */
-  @media (width >= 80rem) {
-    body {
-      display: grid;
-      grid-template-columns: 14rem minmax(0, 1fr);
-      grid-template-rows: 1fr auto;
-    }
-
-    .masthead {
-      position: sticky;
-      inset-block-start: 0;
-      grid-row: 1 / 3;
-      grid-column: 1;
-      align-self: start;
-      max-width: none;
-      height: 100dvh;
-      padding-inline: 1.5rem;
-      border-bottom: 0;
-      border-inline-end: 1px solid var(--input);
-    }
-
-    body > main,
-    body > footer {
-      grid-column: 2;
-    }
-
-    body > footer {
-      grid-row: 2;
-    }
-
-    /* Main starts 5.25rem down, where Home's stage pulls itself back up to the window's top
-       (home.css); a page's own head then starts at once, so its title stands near the top. */
-    body > main {
-      padding-block-start: 5.25rem;
-    }
-
-    .skip-link {
-      align-items: flex-start;
-      padding-block-start: 2rem;
-    }
-
-    .site-header {
-      display: flex;
-      flex-direction: column;
-      flex-wrap: nowrap;
-      align-items: stretch;
-      gap: 1.75rem;
-      height: 100%;
-      min-height: 0;
-      padding-block: 2rem 1.5rem;
-    }
-
-    .rail-head {
-      display: grid;
-      flex: none;
-      row-gap: 0.25rem;
-    }
-
-    /* 24 px tall, a target's least (SC 2.5.8), as every other link on the rail is. */
-    .wordmark {
-      min-height: 1.5rem;
-    }
-
-    .rail-role {
-      display: block;
-      margin: 0;
-      color: var(--muted-foreground);
-      font-family: var(--font-label);
-      font-size: var(--text-label);
-      font-weight: var(--text-label--font-weight);
-      line-height: var(--text-label--line-height);
-    }
-
-    .header-end {
-      flex: 1 1 auto;
-      flex-direction: column;
-      flex-wrap: nowrap;
-      align-items: stretch;
-      gap: 1.25rem;
-      min-height: 0;
-    }
-
-    .site-nav ul {
-      flex-direction: column;
-    }
-
-    .site-nav a {
-      position: relative;
-    }
-
-    .site-nav a[aria-current] {
-      text-decoration-line: none;
-    }
-
-    .site-nav a[aria-current]:hover {
-      text-decoration-line: underline;
-      text-decoration-thickness: 1px;
-    }
-
-    .site-nav a[aria-current]::before {
-      content: '';
-      position: absolute;
-      inset-block: 0.625rem;
-      inset-inline-start: -0.875rem;
-      width: 2px;
-      background-color: var(--primary);
-    }
-
-    .header-tools {
-      flex-direction: column;
-      align-items: stretch;
-      gap: 0.25rem;
-      margin: auto 0 0;
-    }
+  /* The top bar (docs/design/overhaul.md, "Top nav"; ADR 0027): a white band across the window on
+     the paper, edged by a hairline, the same on every page and at every width, never fixed to the
+     window, so it never covers what has focus (SC 2.4.11) and nothing moves as the page scrolls.
+     One row, 56 px: the wordmark, the nav after it, the tools at the far end. Below 40rem the
+     wordmark is its tile and Search its glass, their words kept for assistive technology. When the
+     row does not fit, as at 320 px or with a larger text size, the nav takes a row of its own and
+     the bar grows, rather than scrolling sideways (SC 1.4.10). */
+  .masthead {
+    border-bottom: 1px solid var(--border);
+    background-color: var(--surface-1);
   }
 
-  /* Page geometry (design-system.md, "Page geometry"): a page's background symbol, About's wheels
-     (lib/ground.ts), behind its top right corner at its natural size, and only where it clears the
-     words (below). It fades toward the text column and toward the fold, and every shape is
-     --ground, which every text token reads on at 4.5:1. Nothing moves. The masks are alpha only,
-     so any opaque color would do; currentcolor keeps literals out of the stylesheet. The drawing
-     is never taller than the page: on a page shorter than it, its foot reached past the body's and
-     the window scrolled on into nothing, beyond the rail and the footer (ADR 0022). */
-  body {
-    position: relative;
-    isolation: isolate;
-  }
-
-  .ground {
-    position: absolute;
-    inset-block-start: 0;
-    inset-inline-end: 0;
-    z-index: -1;
-    width: min(100%, 75rem);
-    height: min(56.25rem, 100%);
-    pointer-events: none;
-    mask-image:
-      linear-gradient(to left, currentcolor 25%, transparent 90%),
-      linear-gradient(currentcolor 50%, transparent);
-    mask-composite: intersect;
-  }
-
-  /* The drawing is display, the words beside it content, and display never stands under content
-     (2026-10-31). It sits at its natural size against the window's right edge, so its left wheel
-     starts 560 px in from that edge, and it is drawn only where that clears the text column, the
-     reading measure from the column's start, by at least a gutter. Without the rail the measure
-     ends near 606 px, which the wheels clear from 75rem (34 px at 1200); from 80rem the rail moves
-     the column 224 px right, to end near 846 px, which they clear from 90rem (34 px at 1440).
-     Between, at 768 to 1199 and 1280 to 1439 px, the wheels stood behind the bio, so they are not
-     drawn. The breakpoints are in rem and the wheels in px, so a larger default text size, which
-     widens the measure, only moves the breakpoints further out (e2e/ground.spec.ts). */
-  @media (width < 75rem), (80rem <= width < 90rem) {
-    .ground {
-      display: none;
-    }
-  }
-
-  .ground-line,
-  .ground-index {
-    fill: none;
-    stroke: var(--ground);
-    stroke-width: 1px;
-    vector-effect: non-scaling-stroke;
-  }
-
-  .ground-index {
-    stroke-width: 2px;
-  }
-
-  .ground-mark {
-    fill: var(--primary);
-  }
-
-  /* The 404's end of the line, under the way home, a section's space below it: a track in the
-     functional rule's colour across the column, ending at its right edge in a buffer stop, its
-     lamp lit (lib/ground.ts, END_OF_LINE). The stop is drawn from the drawing's right edge. */
-  .line-end {
-    display: block;
-    inline-size: 100%;
-    margin-block-start: 3rem;
-    overflow: visible;
-    pointer-events: none;
+  .site-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    min-height: 3.5rem;
   }
 
   @media (width >= 48rem) {
-    .line-end {
-      margin-block-start: 4.5rem;
+    .site-header {
+      column-gap: 1.5rem;
     }
   }
 
-  .line-end-track {
-    stroke: var(--input);
-    stroke-width: 4px;
+  @media (width >= 64rem) {
+    .site-header {
+      column-gap: 2.5rem;
+    }
   }
 
-  .line-end-stop {
-    fill: var(--input);
+  /* The wordmark: a tile of the drawing's ground in the accent, then the name in the wide face.
+     44 px square at least, a comfortable target (SC 2.5.8). */
+  .wordmark {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    min-inline-size: 2.75rem;
+    min-height: 2.75rem;
+    font-family: var(--font-wide);
+    font-size: var(--text-ui);
+    font-weight: 500;
+    line-height: var(--text-ui--line-height);
+    text-decoration-line: none;
   }
 
-  @media print {
-    .ground,
-    .line-end {
-      display: none;
+  .wordmark:hover {
+    color: var(--foreground);
+  }
+
+  .wordmark-tile {
+    flex: none;
+    width: 1.25rem;
+    height: 0.75rem;
+    fill: var(--primary);
+  }
+
+  .site-nav {
+    flex: 1 1 auto;
+    align-self: stretch;
+  }
+
+  .site-nav ul {
+    display: flex;
+    flex-wrap: wrap;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-family: var(--font-wide);
+    font-size: var(--text-ui);
+    font-weight: 500;
+    line-height: var(--text-ui--line-height);
+  }
+
+  /* 44 px tall at least, a comfortable target (SC 2.5.8). The current item is marked by a 2 px
+     rule in the accent along the bar's lower edge, a shape and not a colour alone, and by
+     aria-current. */
+  .site-nav a {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 100%;
+    min-height: 2.75rem;
+    padding-inline: 0.4375rem;
+    color: var(--muted-foreground);
+    text-decoration-line: none;
+  }
+
+  .site-nav a:hover {
+    color: var(--foreground);
+  }
+
+  .site-nav a[aria-current] {
+    color: var(--foreground);
+  }
+
+  .site-nav a[aria-current]::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0.4375rem;
+    inset-block-end: -1px;
+    height: 2px;
+    background-color: var(--primary);
+  }
+
+  /* The tools, at the bar's end: Search, Home's motion button while its scene runs, and the theme
+     toggle. Each item is a flex box, so a button in it sits on no line of text. */
+  .header-tools {
+    display: flex;
+    align-items: center;
+    margin: 0 0 0 auto;
+    padding: 0;
+    list-style: none;
+  }
+
+  @media (width >= 48rem) {
+    .header-tools {
+      gap: 0.5rem;
+    }
+  }
+
+  :where(.header-tools > li) {
+    display: flex;
+    align-items: center;
+  }
+
+  /* Search opens the command menu (Palette.astro), which finds every page, demo and post. It is a
+     field-like button from 48rem, its keys beside its word where a keyboard is likely; below, its
+     glass and its word. It shows once the menu's script has bound it, holding its place unseen
+     until then, so nothing moves; without the script it is not there, and the nav and the footer
+     hold everything the menu offers. */
+  .palette-item {
+    display: none;
+  }
+
+  @media (scripting: enabled) {
+    .palette-item {
+      display: flex;
+      visibility: hidden;
+    }
+
+    :root[data-palette] .palette-item {
+      visibility: visible;
+    }
+  }
+
+  .search-open {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+    padding-inline: 0.625rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    background-color: transparent;
+    color: var(--muted-foreground);
+    font-family: var(--font-wide);
+    font-size: var(--text-ui);
+    font-weight: 500;
+    line-height: var(--text-ui--line-height);
+    cursor: pointer;
+  }
+
+  .search-open:hover {
+    color: var(--foreground);
+    background-color: var(--surface-2);
+  }
+
+  .search-glass {
+    flex: none;
+    width: 1rem;
+    height: 1rem;
+    fill: none;
+    stroke: currentcolor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+  }
+
+  .search-open .keys {
+    display: none;
+  }
+
+  /* On a phone the wordmark is its tile and Search its glass: their words are hidden on screen and
+     read by assistive technology, Tailwind's sr-only rule. */
+  @media (width < 40rem) {
+    .wordmark-name,
+    .search-word {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
+    .search-open {
+      justify-content: center;
+      min-inline-size: 2.75rem;
+      padding-inline: 0;
+    }
+  }
+
+  @media (width >= 64rem) {
+    .search-open {
+      min-inline-size: 12rem;
+    }
+  }
+
+  @media (width >= 48rem) {
+    .search-open {
+      min-height: 2.5rem;
+      border-color: var(--input);
+      background-color: var(--background);
+    }
+
+    .search-open .keys {
+      margin-inline-start: auto;
+      padding: 0.125rem 0.375rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--muted-foreground);
+    }
+  }
+
+  @media (width >= 48rem) and (hover: hover) and (pointer: fine) {
+    .search-open .keys {
+      display: inline-flex;
     }
   }
 
@@ -594,92 +507,15 @@
     line-height: var(--text-label--line-height);
   }
 
-  /* Row 1 of Home: the poster. The name on two lines: its box is as wide as its widest line
-     (min-content), so "Joseph Peterson" never fits on one. Two lines of the same height with
-     either face, so the hero is as tall before the font arrives as after it, and the name never
-     moves. The box starts 0.055em left of the frame, the side bearing of "P" in both faces, so the
-     stem of "P" lines up with the frame's edge. Its size stops at 20vw (tokens.css), so a word
-     fits the screen at any default text size up to three times the usual; breaking inside a word
-     is left only as the last resort past that, rather than a sideways scroll. Home's own sheet
-     sets the rest (home.css); /about/ sets the name at a title's size (below). */
-  .hero {
-    padding-block: 1.75rem 1.5rem;
-  }
-
-  .hero-name {
-    --bearing: 0.055em;
-    inline-size: min-content;
-    max-inline-size: 100%;
-    margin: 0 0 0 calc(var(--bearing) * -1);
-    font-size: var(--text-hero);
-    font-weight: 600;
-    font-family: var(--font-display);
-    line-height: var(--text-hero--line-height);
-    letter-spacing: -0.012em;
-    overflow-wrap: break-word;
-  }
-
-  .hero-side {
-    display: grid;
-    gap: 1.125rem;
-    margin-top: 1.5rem;
-  }
-
-  .hero-who {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-  }
-
-  .hero-title {
-    margin: 0;
-    font-size: var(--text-headline);
-    font-weight: 600;
-    font-family: var(--font-display);
-    line-height: var(--text-headline--line-height);
-    letter-spacing: -0.01em;
-  }
-
-  .where {
-    margin: 0;
-    color: var(--muted-foreground);
-    font-family: var(--font-label);
-    font-size: var(--text-ui);
-    font-weight: 500;
-    line-height: var(--text-ui--line-height);
-  }
-
-  /* The actions, all one width at every screen width, 8.25rem, unless a label needs more: as many
-     a row as fit, then the next row. A label never leaves its button: with a larger text size the
-     button grows with it, up to the row's width, and the buttons wrap. */
-  .hero-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-
-  .hero-actions .btn {
-    min-inline-size: min(8.25rem, 100%);
-  }
-
-  @media (width >= 48rem) {
-    .hero {
-      padding-block: 3rem 2.5rem;
-    }
-
-    .hero-side {
-      margin-top: 2rem;
-    }
-  }
-
-  /* Buttons are the panel's push-buttons (ADR 0025): square, in the label face, edged by the
-     functional rule, raised under the pointer. A button that holds a state, aria-pressed, shows a
-     lamp before its words: hollow while off, lit while on, and pressed in, raised as under the
+  /* Buttons (docs/design/overhaul.md, "Buttons"): a control is 4px round, in the label face, 44 px
+     tall. The primary button is the accent's fill, one a screen, the action the screen exists for;
+     a secondary button is an outline in the working rule's colour that fills with the raised
+     surface under the pointer. A button that holds a state, aria-pressed, shows a lamp before its
+     words: hollow while off, filled with the accent while on, and pressed in, raised as under the
      pointer, so its state is a shape and a word, never a fill's colour. A lab's choices do the
-     same with their radios (route-lab.css). A button whose words change with its state, a lab's
-     Run that turns to Pause, is no toggle (WAI-ARIA APG, Button pattern), so it carries no
-     aria-pressed: its lamp is data-lamp, the same drawing, lit while it is 'on'. The primary
-     button is the lit lamp itself: its fill is the lamp's. */
+     same with their radios. A button whose words change with its state, a lab's Run that turns to
+     Pause, is no toggle (WAI-ARIA APG, Button pattern), so it carries no aria-pressed: its lamp is
+     data-lamp, the same drawing, lit while it is 'on'. */
   .btn {
     display: inline-flex;
     align-items: center;
@@ -737,14 +573,14 @@
     color: var(--primary-foreground);
   }
 
-  /* Selected, the label on the lamp's fill would look unselected in the page's own selection
+  /* Selected, the label on the accent's fill would look unselected in the page's own selection
      colors, so it takes the page's background color on its text color instead. */
   .btn-primary::selection {
     background-color: var(--foreground);
     color: var(--background);
   }
 
-  /* Forced colors (Windows contrast themes) replace the lamp's fill with the user's background,
+  /* Forced colors (Windows contrast themes) replace the accent's fill with the user's background,
      but not the label's own color. System color keywords, the one kind of color allowed outside
      tokens.css, give the button the user's palette for both, and keep a lit lamp lit. */
   @media (forced-colors: active) {
@@ -763,9 +599,8 @@
     }
   }
 
-  /* On paper the fill may not print (browsers drop backgrounds by default), and the label's screen
-     color is near-white on light and near-black on dark. So the primary button prints as an
-     outline with ink text, which reads the same with or without background graphics. */
+  /* On paper the fill may not print (browsers drop backgrounds by default), so the primary button
+     prints as an outline with ink text, which reads the same with or without background graphics. */
   @media print {
     .btn-primary,
     .btn-primary:hover {
@@ -777,77 +612,66 @@
 
   /* Sections below a page's head: each opens with its title, with room above it and no rule. */
   .section {
-    padding-top: 3rem;
+    padding-top: 3.5rem;
   }
 
   @media (width >= 48rem) {
     .section {
-      padding-top: 4.5rem;
+      padding-top: 6rem;
     }
   }
 
   .section-title {
-    margin: 0 0 1.25rem;
-    font-size: var(--text-section);
-    font-weight: 600;
+    margin: 0 0 1.5rem;
     font-family: var(--font-display);
+    font-size: var(--text-section);
+    font-weight: 800;
     line-height: var(--text-section--line-height);
-    letter-spacing: -0.005em;
   }
 
-  /* Selected work, as an index: one card a row, as wide as a row of a list. */
+  /* Cards (docs/design/overhaul.md, "Cards"): white on the paper, edged by a hairline, 8px round,
+     with no shadow. A card's title is its link's subject; a card that leads somewhere is its link
+     (the row link, below), and under the pointer or with focus inside it its edge darkens to the
+     working rule and its title turns to the accent, at once, with no transition. A card with
+     nothing to activate stays still. */
   .cards {
     display: grid;
+    gap: var(--gutter);
     max-inline-size: 44rem;
   }
 
-  /* A card's hover: the 2 px sweep runs along its top edge, in its lab's line where it has one and
-     in the lamp's color otherwise, the sign that the card leads somewhere. So only a card that holds
-     a link reacts to the pointer; a card with nothing to activate stays still. The state change is
-     here; the movement is in the no-preference block below, so reduced motion shows the sweep at
-     once. :focus-within mirrors hover for the keyboard, and only a card with a link can hold
-     focus. The two selectors are separate rules, so a browser without :has() still keeps the
-     keyboard state. */
+  /* The card's sides stop at 5vw, so a larger text size on a narrow phone gives its words the room,
+     not its padding (SC 1.4.10). */
   .card {
     position: relative;
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     row-gap: 0.625rem;
-    align-items: start;
-    padding-block: 1.25rem 1.5rem;
+    align-content: start;
+    padding: 1.25rem min(1.375rem, 5vw) 1.375rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background-color: var(--surface-1);
   }
 
-  .card::before {
-    content: '';
-    position: absolute;
-    inset-inline: 0;
-    top: 0;
-    height: 2px;
-    background-color: var(--line, var(--primary));
-    transform: scaleX(0);
-    transform-origin: left;
+  .card:focus-within {
+    border-color: var(--input);
   }
 
-  .card:focus-within::before {
-    transform: scaleX(1);
+  .card:has(.card-more):hover {
+    border-color: var(--input);
   }
 
-  .card:has(.card-more):hover::before {
-    transform: scaleX(1);
-  }
-
-  @media (prefers-reduced-motion: no-preference) {
-    .card::before {
-      transition: transform 0.22s ease-out;
-    }
+  .card:has(.card-more):hover .card-title {
+    color: var(--primary);
   }
 
   .card-title {
     margin: 0;
-    font-size: var(--text-headline);
-    font-weight: 600;
     font-family: var(--font-display);
+    font-size: var(--text-headline);
+    font-weight: 800;
     line-height: var(--text-headline--line-height);
-    letter-spacing: -0.005em;
   }
 
   .card-text {
@@ -891,17 +715,27 @@
     margin: 0;
   }
 
-  /* The footer, one line in the label face: the address, the links whose pages exist, the
-     copyright. A hairline sets it off the page above. */
-  .site-footer {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0 1.375rem;
-    margin-top: 3rem;
-    padding-block: 0.5rem 1.5rem;
+  /* The footer (docs/design/overhaul.md, "Footer"): a band of the raised paper under a hairline,
+     who this is and the address on the left, the links beside it from 48rem, the copyright under
+     both. All of it in the label face but the name, which is the display face's. */
+  .site-foot {
+    margin-top: 4rem;
     border-top: 1px solid var(--border);
-    font-family: var(--font-label);
+    background-color: var(--surface-1);
+  }
+
+  @media (width >= 48rem) {
+    .site-foot {
+      margin-top: 7.5rem;
+    }
+  }
+
+  .site-footer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem var(--gutter);
+    padding-block: 2.5rem 2rem;
+    font-family: var(--font-wide);
     font-size: var(--text-ui);
     font-weight: 500;
     line-height: var(--text-ui--line-height);
@@ -909,25 +743,41 @@
 
   @media (width >= 48rem) {
     .site-footer {
-      margin-top: 4.5rem;
+      grid-template-columns: minmax(0, 1fr) auto;
+      padding-block: 3.5rem 2.5rem;
     }
   }
 
-  /* The address, the links and the copyright follow each other along the line, flush left and
-     ragged right, as everything on the page is (ADR 0025): every line starts at the frame's edge
-     and no item stands at its far end. Until 2026-10-30 the links took the rest of their line and
-     the copyright stood at its end, a second right edge on every page. */
+  .footer-who {
+    display: grid;
+    justify-items: start;
+    row-gap: 0.25rem;
+  }
+
+  .footer-name {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--text-headline);
+    font-weight: 800;
+    line-height: var(--text-headline--line-height);
+  }
+
+  .footer-role {
+    margin: 0 0 0.5rem;
+    color: var(--muted-foreground);
+  }
+
   .footer-links {
     display: flex;
     flex-wrap: wrap;
-    gap: 0 1.375rem;
+    align-content: start;
+    gap: 0 1.75rem;
     margin: 0;
     padding: 0;
     list-style: none;
   }
 
-  /* 44 px tall, like the nav and the buttons (design-system.md, "Accessibility rules"), and at
-     least 24 px wide: "RSS" is 23 px of words. */
+  /* 44 px tall, like the nav and the buttons, and at least 24 px wide: "RSS" is short. */
   .footer-email,
   .footer-links a {
     display: inline-flex;
@@ -943,14 +793,18 @@
   }
 
   .fine-print {
+    grid-column: 1 / -1;
     margin: 0;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
     color: var(--muted-foreground);
+    font-size: var(--text-label);
+    line-height: var(--text-label--line-height);
   }
 
   /* The theme toggle: it cycles System, then the theme the OS is not showing, then the one it is,
      and back to System (src/scripts/theme.js). In the bar it is an icon, a half-filled circle, a sun
-     or a moon, with its name read by assistive technology and shown as a title; in the rail it says
-     its name in words, "Theme: Night", "Theme: Day" or "Theme: System" (ADR 0025). CSS displays
+     or a moon, with its name read by assistive technology and shown as a title. CSS displays
      the one state for the data-theme the script sets on <html>. Without the script nothing sets
      data-theme, and the toggle stays hidden: there is never a control that does nothing. */
   .theme-toggle {
@@ -960,7 +814,7 @@
     justify-content: center;
     width: 2.75rem;
     height: 2.75rem;
-    margin-inline-end: -0.75rem;
+    margin-inline-end: -0.625rem;
     padding: 0;
     border: 0;
     border-radius: var(--radius-md);
@@ -1020,44 +874,6 @@
     }
   }
 
-  /* The command menu's button in the bar (Header.astro). It shows where a pointer can hover, so a
-     keyboard is likely at hand, and only once the menu's script has bound it: until then it holds
-     its place unseen, so nothing moves, and without the script it is not there. On a touch screen
-     the nav, the toggle and the footer hold everything the menu offers. Its name is its words; its
-     keys are shown beside them, the command key drawn (components/Keys.astro). */
-  .palette-item {
-    display: none;
-  }
-
-  @media (scripting: enabled) and (hover: hover) and (pointer: fine) {
-    .palette-item {
-      display: flex;
-      visibility: hidden;
-    }
-
-    :root[data-palette] .palette-item {
-      visibility: visible;
-    }
-  }
-
-  .palette-open {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-inline-size: 2.75rem;
-    min-height: 2.75rem;
-    padding: 0;
-    border: 0;
-    background-color: transparent;
-    color: var(--muted-foreground);
-    font: inherit;
-    cursor: pointer;
-  }
-
-  .palette-open:hover {
-    color: var(--foreground);
-  }
-
   /* The keys, in the label face: "Ctrl K", or the drawn command key and "K" on an Apple keyboard,
      where src/scripts/palette.js marks them data-mac. */
   .keys {
@@ -1081,206 +897,6 @@
 
   .keys[data-mac] .key-command {
     display: block;
-  }
-
-  /* The rail as an index of the site (ADR 0022). Under the name, a search field opens the command
-     menu, which finds every page, demo and post; each nav item lists its leaves, every demo under
-     Lab with a lamp in its line's colour and the newest posts under Writing; and the foot names its
-     controls in words, not glyphs alone. The nav scrolls inside the rail when the window is too
-     short for it, so the foot stays in reach. The search field shows once the menu's script has
-     bound it, as the bar's button does, and on a touch screen too, which the rail's widths
-     include; its keys show only where a keyboard is likely. */
-  @media (width >= 80rem) {
-    .header-tools > .palette-item {
-      display: none;
-    }
-
-    .rail-search {
-      display: flex;
-      flex: none;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.5rem;
-      min-height: 2.75rem;
-      padding: 0 0.75rem;
-      border: 1px solid var(--input);
-      border-radius: var(--radius-md);
-      background-color: transparent;
-      color: var(--foreground);
-      font-family: var(--font-label);
-      font-size: var(--text-ui);
-      font-weight: 500;
-      line-height: var(--text-ui--line-height);
-      cursor: pointer;
-      visibility: hidden;
-    }
-
-    :root[data-palette] .rail-search {
-      visibility: visible;
-    }
-
-    .rail-search:hover {
-      background-color: var(--surface-2);
-    }
-
-    .rail-search .keys {
-      color: var(--muted-foreground);
-    }
-
-    .site-nav {
-      min-height: 0;
-      margin-inline-start: -1rem;
-      padding-inline-start: 1rem;
-      overflow-y: auto;
-      overscroll-behavior: contain;
-    }
-
-    /* An item that holds pages drops down to them when pressed (ADR 0023), closed until then, and
-       open on a page it lists. Its row looks like the plain links around it, with a chevron that
-       turns to point down when open, and the page's bar while the visitor is inside its section,
-       until a leaf shows the bar itself. It opens at once, as keyboard-driven UI does here
-       (design-system.md, "Motion"), and its chevron turns at once with it. */
-    .site-nav .bar-only {
-      display: none;
-    }
-
-    .nav-fold {
-      display: block;
-    }
-
-    .nav-fold > summary {
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      min-height: 2.75rem;
-      list-style: none;
-      cursor: pointer;
-    }
-
-    .nav-fold > summary::-webkit-details-marker {
-      display: none;
-    }
-
-    .nav-fold > summary:hover {
-      text-decoration-line: underline;
-    }
-
-    .nav-fold > summary svg {
-      width: 0.875rem;
-      height: 0.875rem;
-      fill: none;
-      stroke: currentcolor;
-      stroke-width: 1.5;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      color: var(--muted-foreground);
-    }
-
-    .nav-fold[open] > summary svg {
-      transform: rotate(90deg);
-    }
-
-    .nav-fold[data-current] > summary::before {
-      content: '';
-      position: absolute;
-      inset-block: 0.625rem;
-      inset-inline-start: -0.875rem;
-      width: 2px;
-      background-color: var(--primary);
-    }
-
-    .nav-fold[open]:has(.nav-leaves [aria-current]) > summary::before {
-      display: none;
-    }
-
-    /* Each leaf indented under its item, in the label face and size, muted until it is pointed at
-       or is the page. A demo's leaf leads with its lamp, lit in its line's colour: every demo the
-       rail lists is live. */
-    .site-nav .nav-leaves {
-      display: grid;
-      margin: 0 0 0.5rem;
-      padding: 0 0 0 0.875rem;
-      list-style: none;
-      font-size: var(--text-label);
-      line-height: var(--text-label--line-height);
-    }
-
-    .site-nav .nav-leaves a {
-      display: flex;
-      align-items: flex-start;
-      gap: 0.625rem;
-      min-height: 0;
-      padding-block: 0.3125rem;
-      color: var(--muted-foreground);
-      text-wrap: pretty;
-    }
-
-    .site-nav .nav-leaves a:hover,
-    .site-nav .nav-leaves a[aria-current] {
-      color: var(--foreground);
-    }
-
-    .nav-lamp {
-      flex: none;
-      width: 0.625rem;
-      height: 0.625rem;
-      margin-block-start: calc((1lh - 0.625rem) / 2);
-      fill: var(--line);
-    }
-
-    /* The page's bar stands beside a leaf; its item keeps no bar of its own. */
-    .site-nav .nav-leaves a[aria-current]::before {
-      inset-block: 0.3125rem;
-      inset-inline-start: -0.875rem;
-    }
-
-    /* The foot: Home's motion button and the theme toggle, each an icon and its words, at the
-       nav's size. */
-    .header-tools :is(.motion-toggle, .theme-toggle) {
-      justify-content: flex-start;
-      gap: 0.625rem;
-      width: 100%;
-      min-height: 2.5rem;
-      height: auto;
-      margin: 0;
-      color: var(--foreground);
-      font-family: var(--font-label);
-      font-size: var(--text-ui);
-      font-weight: 500;
-      line-height: var(--text-ui--line-height);
-    }
-
-    .header-tools :is(.motion-toggle, .theme-toggle):hover {
-      background-color: transparent;
-      text-decoration-line: underline;
-    }
-
-    /* Each control says what it does: the motion button its own name, which its script keeps, and
-       the toggle the name of the theme it shows, unclipped, in the state that still covers the
-       whole button, so its title shows anywhere over it. */
-    .header-tools .motion-toggle::after {
-      content: attr(aria-label);
-    }
-
-    :root[data-theme] .header-tools .theme-state[data-for] {
-      justify-content: flex-start;
-      gap: 0.625rem;
-    }
-
-    .header-tools .theme-name {
-      position: static;
-      width: auto;
-      height: auto;
-      overflow: visible;
-      clip-path: none;
-    }
-  }
-
-  @media (width >= 80rem) and (not ((hover: hover) and (pointer: fine))) {
-    .rail-search .keys {
-      display: none;
-    }
   }
 
   /* A row of an index is its link (ADR 0022): a card, a post in a list, a demo on /lab/. The link's
@@ -1326,7 +942,6 @@
     }
   }
 
-  .palette-name,
   .palette-say {
     position: absolute;
     width: 1px;
@@ -1494,44 +1109,35 @@
 
   /* A page's head (components/PageHead.astro): its one <h1> in the title face and its lead, with
      nothing above the title (ADR 0025), all on the frame's one left edge. The 404 takes the same
-     head. A long-form page adds its register beside it from 64rem (below). */
-  .page,
-  .notice {
+     head. A long-form page sets its meta line and contents in its own sheet (prose.css). */
+  .page {
     padding-block: 1.875rem 1.5rem;
   }
 
   @media (width >= 48rem) {
-    .page,
-    .notice {
+    .page {
       padding-block: 3.5rem 2.5rem;
     }
   }
 
-  @media (width >= 80rem) {
-    .page,
-    .notice {
-      padding-block-start: 0;
-    }
-  }
-
-  .page-head,
-  .notice {
+  /* One column no wider than the frame, so a long word in the title or the lead wraps the lines
+     around it instead of widening the column past the frame (SC 1.4.10). */
+  .page-head {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     align-content: start;
     row-gap: 0.875rem;
   }
 
-  .page-head > *,
-  .notice > * {
+  .page-head > * {
     max-width: var(--measure);
     margin: 0;
   }
 
-  .page-title,
-  .notice-title {
+  .page-title {
     max-width: none;
     font-size: var(--text-title);
-    font-weight: 600;
+    font-weight: 800;
     font-family: var(--font-display);
     line-height: var(--text-title--line-height);
     letter-spacing: -0.005em;
@@ -1539,98 +1145,10 @@
     overflow-wrap: break-word;
   }
 
-  .page-lead,
-  .notice-text {
+  .page-lead {
     font-size: var(--text-lead);
     line-height: var(--text-lead--line-height);
     text-wrap: pretty;
-  }
-
-  /* A lab's page heads its title with the lab's line (ADR 0025): 6 px of its colour across the
-     column, run into its lamp, filled: the lab's terminus, in service. A drawing, which assistive
-     technology skips; on paper and in forced colors it goes with the other backgrounds. */
-  .page-head > .page-line {
-    display: flex;
-    align-items: center;
-    max-width: none;
-    block-size: 1.125rem;
-    margin-block-end: 0.625rem;
-  }
-
-  .page-line::before,
-  .page-line::after {
-    content: '';
-    background-color: var(--line, var(--primary));
-  }
-
-  .page-line::before {
-    flex: 1 1 auto;
-    block-size: 6px;
-  }
-
-  .page-line::after {
-    flex: none;
-    inline-size: 1.125rem;
-    block-size: 1.125rem;
-    border-radius: 50%;
-  }
-
-  /* A lab's desk (ADR 0025): the demo on the board's recessed surface in a 2 px bezel of the
-     functional rule, as Home's board is. Its own rules, between the demo's parts, run from bezel to
-     bezel through --desk-side, its inline padding. What stands on it takes its surface for ground. */
-  .desk {
-    --desk-side: 1rem;
-    padding: 1.25rem var(--desk-side) 1.5rem;
-    border: 2px solid var(--input);
-    background-color: var(--surface-1);
-  }
-
-  @media (width >= 48rem) {
-    .desk {
-      --desk-side: 1.75rem;
-      padding-block: 1.5rem 2rem;
-    }
-  }
-
-  /* A long-form page (layouts/Prose.astro): its head, its register, its body. The register is what
-     the page says about itself, a post's kind, its day and its tags, in the label face and muted,
-     the kind too (ADR 0025): until 2026-10-30 the kind was in the ink, a heading over the rest. On
-     a phone it is a line under the lead; from 64rem it is a column of its own, beside the title
-     and the body, which start on the page's second edge. */
-  .register {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem 1.5rem;
-    margin: 1.25rem 0 0;
-    padding: 0;
-    list-style: none;
-    color: var(--muted-foreground);
-    font-family: var(--font-label);
-    font-size: var(--text-label);
-    font-weight: var(--text-label--font-weight);
-    line-height: var(--text-label--line-height);
-  }
-
-  @media (width >= 64rem) {
-    .long-form {
-      display: grid;
-      grid-template-columns: 11rem minmax(0, 1fr);
-      column-gap: 3rem;
-      align-items: start;
-    }
-
-    .long-form > * {
-      grid-column: 2;
-    }
-
-    .long-form > .register {
-      grid-row: 1 / span 3;
-      grid-column: 1;
-      flex-direction: column;
-      gap: 1rem;
-      margin: 0;
-      padding-top: 0.875rem;
-    }
   }
 
   /* A post's body, as Markdown renders it. Tailwind's preflight removes every margin, list marker
@@ -1650,7 +1168,7 @@
   .prose h2 {
     margin-top: 2.75rem;
     font-size: var(--text-headline);
-    font-weight: 600;
+    font-weight: 800;
     font-family: var(--font-display);
     line-height: var(--text-headline--line-height);
     letter-spacing: -0.005em;
@@ -1666,16 +1184,6 @@
     font-size: var(--text-base);
     font-weight: 600;
     line-height: var(--text-base--line-height);
-  }
-
-  /* The bio's h3s are its own sections (What I build, How I work), under the page's section title,
-     "About me": the headline, one step under a section's title, as How I work's leads take it on
-     Home. */
-  .bio .prose h3 {
-    font-size: var(--text-headline);
-    font-family: var(--font-display);
-    line-height: var(--text-headline--line-height);
-    letter-spacing: -0.005em;
   }
 
   .prose h2 + *,
@@ -1836,27 +1344,21 @@
     padding-block: 1.25rem 1.5rem;
   }
 
-  .post-meta {
-    margin: 0;
-    color: var(--muted-foreground);
-    font-family: var(--font-label);
-    font-size: var(--text-label);
-    font-weight: var(--text-label--font-weight);
-    line-height: var(--text-label--line-height);
-    font-variant-numeric: tabular-nums;
-  }
-
   .post-title {
     margin: 0;
     font-size: var(--text-headline);
-    font-weight: 600;
+    font-weight: 800;
     font-family: var(--font-display);
     line-height: var(--text-headline--line-height);
     letter-spacing: -0.005em;
     text-wrap: balance;
   }
 
+  /* The link's own box is the face's height, which in the condensed face is 1.05 of its size, 22
+     px on a phone: padding on an inline box grows its target to 24 px and more (SC 2.5.8) without
+     moving a line. */
   .post-title > a {
+    padding-block: 0.125em;
     text-decoration-line: none;
   }
 
@@ -1900,188 +1402,6 @@
     align-items: center;
     min-height: 2.75rem;
   }
-
-  /* The 404 page: its heading and a line, then the way home. Its drawing, under them, is a line
-     that ends in a buffer stop (lib/ground.ts, END_OF_LINE). */
-  .notice > .notice-actions {
-    margin-top: 1.25rem;
-  }
-
-  /* /about/ (pages/about/index.astro): the name at a title's size, not the hero's (ADR 0025), the
-     title and location under it and the ways to reach Joseph as a definition list, all in the
-     label face, and the Print button; then the bio, the experience, the selected work and the
-     writing, each a section on the same left edge. */
-  .resume .hero {
-    padding-block: 1.875rem 0.5rem;
-  }
-
-  /* At a title's size the name keeps the page's one left edge, as every page's title does: the
-     poster's side bearing is the hero's. */
-  .resume .hero-name {
-    inline-size: auto;
-    margin-inline-start: 0;
-    font-size: var(--text-title);
-    line-height: var(--text-title--line-height);
-    letter-spacing: -0.005em;
-  }
-
-  .resume .hero-side {
-    gap: 1.25rem;
-    margin-top: 1rem;
-  }
-
-  .resume .hero-who {
-    gap: 0.125rem;
-  }
-
-  .resume .hero-title {
-    font-family: var(--font-label);
-    font-size: var(--text-ui);
-    font-weight: 500;
-    line-height: var(--text-ui--line-height);
-    letter-spacing: 0;
-  }
-
-  @media (width >= 48rem) {
-    .resume .hero {
-      padding-block: 3.5rem 0.5rem;
-    }
-  }
-
-  @media (width >= 80rem) {
-    .resume .hero {
-      padding-block-start: 0;
-    }
-  }
-
-  .resume-contact a,
-  .skills a {
-    display: inline-flex;
-    align-items: center;
-    min-height: 1.5rem;
-  }
-
-  .resume-contact dd {
-    overflow-wrap: anywhere;
-  }
-
-  /* Each address stands beside its label while the list is wide enough for the longest one, about
-     25.2em; narrower, on a phone or with a larger text size, the label goes above its address,
-     which then has the list's whole width. Beside a label there, LinkedIn's address took two lines
-     at the default size, and at 32 px every address broke inside a word, "ihaveasegw / ay.com"
-     among them. */
-  .resume .hero-side {
-    container: contact / inline-size;
-  }
-
-  @container contact (width < 25.5em) {
-    .resume-contact {
-      grid-template-columns: minmax(0, 1fr);
-      row-gap: 0;
-    }
-
-    .resume-contact dd + dt {
-      margin-top: 0.75rem;
-    }
-  }
-
-  /* The address in the notes, with its full stop, is one box: it moves whole to the next line when
-     it does not fit after the words before it, and breaks after its "@" (about/index.astro) only
-     when it alone is wider than the line, and inside a part only as a last resort, as the footer's. */
-  .resume-email {
-    display: inline-block;
-    overflow-wrap: anywhere;
-  }
-
-  /* The Print button, under the addresses (about/index.astro). It shows once the command menu's
-     script has bound it (src/scripts/palette.js), on a phone too, where printing saves or shares a
-     PDF: until then it holds its place unseen, and without the script it is not there. */
-  .print-item {
-    display: none;
-    justify-self: start;
-  }
-
-  @media (scripting: enabled) {
-    .print-item {
-      display: inline-flex;
-      visibility: hidden;
-    }
-
-    :root[data-palette] .print-item {
-      visibility: visible;
-    }
-  }
-
-  /* The roles and the skills: a row each, with no rule between rows. A role puts its years beside
-     its title from 48rem, as a key beside its value. */
-  .roles,
-  .skills {
-    display: grid;
-    row-gap: 1rem;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .roles > li,
-  .skills > div {
-    display: grid;
-    row-gap: 0.25rem;
-  }
-
-  .role-years {
-    margin: 0;
-    color: var(--muted-foreground);
-    font-family: var(--font-label);
-    font-size: var(--text-label);
-    font-weight: var(--text-label--font-weight);
-    line-height: var(--text-label--line-height);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .role-title {
-    margin: 0;
-    font-size: var(--text-headline);
-    font-weight: 600;
-    font-family: var(--font-display);
-    line-height: var(--text-headline--line-height);
-    letter-spacing: -0.005em;
-    text-wrap: balance;
-  }
-
-  .skills dt {
-    font-family: var(--font-label);
-    font-size: var(--text-ui);
-    font-weight: 500;
-    line-height: var(--text-ui--line-height);
-  }
-
-  .skills dd {
-    margin: 0;
-    color: var(--muted-foreground);
-  }
-
-  .resume-notes {
-    display: grid;
-    row-gap: 0.25rem;
-    max-width: var(--measure);
-  }
-
-  .resume-notes > p {
-    margin: 0;
-  }
-
-  .roles + .resume-notes {
-    margin-top: 1.25rem;
-  }
-
-  @media (width >= 48rem) {
-    .roles > li {
-      grid-template-columns: 9rem minmax(0, 1fr);
-      column-gap: var(--gutter);
-      align-items: baseline;
-    }
-  }
 }
 
 /* Every page on paper, in ink on white (tokens.css, the print block). Paper gets no control: the
@@ -2099,13 +1419,18 @@
   .palette-item,
   .motion-item,
   .palette,
-  .palette::backdrop,
-  .site-header:not(:has(.wordmark)) {
+  .palette::backdrop {
     display: none;
   }
 
+  /* On paper the bar is the wordmark alone, the page's own name above its title, except where the
+     page's title is the name already: Home here, and /about/ in about.css. */
   .masthead {
     border-bottom: 0;
+  }
+
+  :root:has(.nameplate) .masthead {
+    display: none;
   }
 
   :is(
@@ -2114,8 +1439,7 @@
     .footer-links a,
     .post-title a,
     .card-more,
-    .band-title,
-    .chapter-link,
+    .section-more,
     .principle-text a
   )::after {
     display: inline-block;
@@ -2137,8 +1461,7 @@
       .footer-links a,
       .post-title a,
       .card-more,
-      .band-title,
-      .chapter-link,
+      .section-more,
       .principle-text a
     )[href^='/']::after {
     content: 'ihaveasegway.com' attr(href);
@@ -2162,227 +1485,5 @@
 @media (forced-colors: active) {
   .prose :not(pre) > code {
     padding: 0;
-  }
-}
-
-/* The résumé on paper (content.md, "Résumé"): one US Letter page at the default text size. Only
-   the résumé names this page, so every other page prints as before. The header, the skip link and
-   the footer are not printed: the résumé's own head carries the name and every address. The type
-   steps down to a printed résumé's sizes. */
-@page resume {
-  size: letter;
-  margin: 0.5in;
-}
-
-@media print {
-  /* The whole document takes the named page, not .resume alone: a box before it on the default
-     page, even an empty one, would start a page of its own. */
-  :root:has(.resume) body {
-    page: resume;
-  }
-
-  :root:has(.resume) :is(.site-header, .skip-link, body > footer) {
-    display: none;
-  }
-
-  :root:has(.resume) :is(body, main) {
-    display: block;
-    min-height: 0;
-    padding-inline: 0;
-  }
-
-  .resume .hero {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    column-gap: 1.5rem;
-    align-items: end;
-    padding-block: 0 0.75rem;
-  }
-
-  .resume .hero-name {
-    inline-size: auto;
-    font-size: 2.5rem;
-    line-height: 1;
-  }
-
-  .resume .hero-side {
-    display: contents;
-  }
-
-  .resume .hero-who {
-    grid-column: 1;
-    gap: 0;
-    margin-top: 0.375rem;
-  }
-
-  .resume .hero-title {
-    font-size: 1rem;
-  }
-
-  .resume .where {
-    font-size: 0.8125rem;
-  }
-
-  .resume-contact {
-    grid-column: 2;
-    grid-row: 1 / span 2;
-    align-self: end;
-    gap: 0 0.75rem;
-  }
-
-  .resume-contact a {
-    min-height: 0;
-  }
-
-  /* The addresses stand beside the name while the two fit across the page, as they do at the
-     default text size: together they need about 40.5em. From a larger text size they go under it,
-     where beside it the name would break inside a word. */
-  .resume {
-    container: resume / inline-size;
-  }
-
-  @container resume (width < 41em) {
-    .resume .hero {
-      grid-template-columns: minmax(0, 1fr);
-    }
-
-    .resume-contact {
-      grid-column: 1;
-      grid-row: auto;
-      margin-top: 0.75rem;
-    }
-  }
-
-  /* Sections closer on paper than on screen: Linux sets the skills and the writing a line longer
-     each than macOS does, and the sheet must hold either (e2e/about-print.spec.ts). */
-  .resume .section {
-    padding-top: 0.5rem;
-    break-inside: avoid;
-  }
-
-  /* Paper gets no Print button, and of the bio only its first paragraph, the summary a printed
-     résumé opens with: how I work is the web edition's, so the page stays one sheet whatever the
-     profile holds (e2e/about-print.spec.ts). Nor does it get what only the screen may say: the
-     offer of the full résumé, which on paper would ask its reader for the sheet in their hand
-     (about/index.astro). */
-  .resume .print-item,
-  .resume .screen-only,
-  .bio .prose > :not(:first-child) {
-    display: none;
-  }
-
-  .bio .prose {
-    max-width: none;
-    margin: 0;
-    font-size: 0.875rem;
-    line-height: 1.4;
-  }
-
-  .resume .section-title {
-    margin-bottom: 0.375rem;
-    font-size: 0.9375rem;
-  }
-
-  .resume .roles {
-    row-gap: 0;
-  }
-
-  /* Selected work on paper: two cards a row, past the years' gutter, so each title stands where the
-     roles' and the posts' titles stand. One a row, five lab cards took most of the sheet while
-     their text ran in half its width beside an empty gutter. */
-  .resume .cards {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: 1.5rem;
-    max-inline-size: none;
-    padding-inline-start: 8rem;
-  }
-
-  .resume .card {
-    grid-template-columns: minmax(0, 1fr);
-    row-gap: 0;
-    padding-block: 0.1875rem 0.25rem;
-    break-inside: avoid;
-  }
-
-  .resume .card-text {
-    max-inline-size: none;
-  }
-
-  .resume :is(.roles > li, .post-list > li) {
-    grid-template-columns: 7rem minmax(0, 1fr);
-    column-gap: 1rem;
-    row-gap: 0;
-    max-inline-size: none;
-    padding-block: 0.1875rem 0.25rem;
-    break-inside: avoid;
-  }
-
-  .resume :is(.role-years, .post-meta) {
-    grid-column: 1;
-  }
-
-  .resume .role-title {
-    grid-column: 2;
-  }
-
-  .resume :is(.post-title, .post-summary) {
-    grid-column: 2;
-  }
-
-  .resume :is(.role-title, .card-title, .post-title) {
-    font-size: 0.9375rem;
-    line-height: 1.25;
-    letter-spacing: 0;
-  }
-
-  /* On paper the skills are one line of names, a comma after each but the last: the pages that
-     show each are the web edition's. */
-  /* The names' lines stand as close as a paragraph's: the screen's 1rem between skills, each with
-     its pages under it, would open a blank line between two lines of names. */
-  .resume .skills {
-    display: flex;
-    flex-wrap: wrap;
-    row-gap: 0;
-  }
-
-  .resume .skills > div {
-    display: flex;
-    padding: 0;
-  }
-
-  .resume .skills > div:not(:last-child)::after {
-    padding-inline-end: 0.375rem;
-    content: ',';
-  }
-
-  .resume .card .kv {
-    row-gap: 0;
-  }
-
-  .resume .skills dd {
-    display: none;
-  }
-
-  .resume :is(.role-years, .post-meta) {
-    grid-row: 1 / span 3;
-    padding-top: 0.125rem;
-    font-size: 0.6875rem;
-  }
-
-  .resume :is(.skills dt, .card-text, .card-more, .post-summary, .resume-notes, .kv dd) {
-    font-size: 0.8125rem;
-    line-height: 1.4;
-  }
-
-  .resume .roles + .resume-notes {
-    margin-top: 0.375rem;
-  }
-
-  .resume .post-links {
-    margin-top: 0.25rem;
-  }
-
-  .resume .post-links a {
-    min-height: 0;
   }
 }

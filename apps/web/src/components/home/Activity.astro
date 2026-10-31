@@ -1,0 +1,139 @@
+---
+import { figure, type Activity } from '../../lib/home';
+import { wordDay } from '../../lib/posts';
+
+interface Props {
+  activity: Activity;
+  /** The section's title and its id, which the section is labelled by: it heads the total. */
+  title: string;
+  id: string;
+}
+
+const { activity, title, id } = Astro.props;
+// The activity calendar (docs/design/overhaul.md, "Stats row"; after syntaqx's contributions chart):
+// the site's own repository as a wall calendar, a row a week from Monday, a square for each day
+// with its date in it, darker the more commits that day, and a dot in the corner of each day a
+// decision record is dated, so the work and the judgment behind it stand on one calendar. It runs
+// from the week of the first commit, at most the last six weeks (lib/home.ts), worked out at build
+// from the history (lib/home-sources.ts). Until 2026-10-31 it was a column a week across 26 weeks,
+// so a repository ten days old drew 24 empty weeks before its first commit, as if nothing had been
+// done in them, and on a phone each square was 5 px. Drawn as SVG at a fixed shape, so it takes
+// its room from the first paint; each square's title names its day and count, and the sentence
+// beside it says the whole in words, for every reader.
+const CELL_W = 56;
+const CELL_H = 44;
+const GAP = 6;
+const PITCH_X = CELL_W + GAP;
+const PITCH_Y = CELL_H + GAP;
+const LEFT = 44;
+const TOP = 24;
+const width = LEFT + 7 * PITCH_X - GAP;
+const height = TOP + activity.weeks.length * PITCH_Y - GAP;
+const day = (iso: string) => wordDay(new Date(`${iso}T00:00:00Z`));
+const date = (iso: string) => Number(iso.slice(8, 10));
+const commits = (n: number) => (n === 1 ? '1 commit' : `${figure(n)} commits`);
+const titleOf = (d: Activity['weeks'][number][number]) =>
+  [
+    `${day(d.day)}: ${d.commits === 0 ? 'no commits' : commits(d.commits)}`,
+    ...d.decisions.map((r) => `ADR ${r.number}, ${r.title}`),
+  ].join('. ');
+const decided = activity.weeks.flat().reduce((n, d) => n + d.decisions.length, 0);
+const words =
+  `commits to this site’s repository on ${figure(activity.active)} ${activity.active === 1 ? 'day' : 'days'} since ${day(activity.first)}` +
+  (decided > 0 ? `, and ${figure(decided)} decision records along the way.` : '.');
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+// A month is named at the head of the row that holds its first day, and the first row names its own.
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const monthOf = (week: Activity['weeks'][number], row: number) => {
+  const opening = row === 0 ? week[0] : week.find((d) => date(d.day) === 1);
+  return opening ? MONTHS[Number(opening.day.slice(5, 7)) - 1] : undefined;
+};
+---
+
+<div class="activity">
+  <div class="activity-sum">
+    <h2 class="section-title" id={id}>
+      {title}
+    </h2>
+    <p class="activity-figure">
+      <data value={activity.commits}>{figure(activity.commits)}</data>
+    </p>
+    <p class="activity-words">{words}</p>
+  </div>
+  <div class="activity-chart">
+    <svg
+      class="activity-grid"
+      viewBox={`0 0 ${width} ${height}`}
+      width={width}
+      height={height}
+      role="img"
+      aria-label={`A calendar of commits, a row a week from Monday, from ${day(activity.weeks[0]?.[0]?.day ?? activity.first)} to ${day(activity.last)}.`}
+    >
+      {WEEKDAYS.map((name, column) => (
+        <text class="activity-weekday" x={LEFT + column * PITCH_X} y="14">
+          {name}
+        </text>
+      ))}
+      {activity.weeks.map((week, row) => {
+        const month = monthOf(week, row);
+        return month ? (
+          <text class="activity-month" x="0" y={TOP + row * PITCH_Y + 18}>
+            {month}
+          </text>
+        ) : null;
+      })}
+      {activity.weeks.map((week, row) =>
+        week.map((d, column) => (
+          <g>
+            <rect
+              class={`activity-day activity-level-${d.level}`}
+              x={LEFT + column * PITCH_X}
+              y={TOP + row * PITCH_Y}
+              width={CELL_W}
+              height={CELL_H}
+              rx="3"
+              data-day={d.day}
+              data-commits={d.commits}
+            >
+              <title>{titleOf(d)}</title>
+            </rect>
+            <text
+              class="activity-date"
+              x={LEFT + column * PITCH_X + 7}
+              y={TOP + row * PITCH_Y + 18}
+              aria-hidden="true"
+            >
+              {date(d.day)}
+            </text>
+            {d.decisions.length > 0 && (
+              <circle
+                class="activity-decision"
+                cx={LEFT + column * PITCH_X + CELL_W - 9}
+                cy={TOP + row * PITCH_Y + 9}
+                r="3.5"
+              />
+            )}
+          </g>
+        )),
+      )}
+    </svg>
+    <div class="activity-key" aria-hidden="true">
+      <span>Fewer</span>
+      {[0, 1, 2, 3, 4].map((level) => (
+        <svg class="activity-swatch" viewBox="0 0 14 14" width="14" height="14">
+          <rect class={`activity-day activity-level-${level}`} width="14" height="14" rx="2" />
+        </svg>
+      ))}
+      <span>More</span>
+      {decided > 0 && (
+        <span class="activity-key-decision">
+          <svg class="activity-swatch" viewBox="0 0 14 14" width="14" height="14">
+            <rect class="activity-day activity-level-1" width="14" height="14" rx="2" />
+            <circle class="activity-decision" cx="7" cy="7" r="3" />
+          </svg>
+          A decision record
+        </span>
+      )}
+    </div>
+  </div>
+</div>

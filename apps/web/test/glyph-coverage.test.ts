@@ -5,13 +5,14 @@ import { expect, test } from 'vitest';
 import { decodeReferences } from '../src/lib/held-names';
 import { app, html, read } from './support/dist';
 
-// The characters a post may use (design-system.md, "The faces"). Every face is a subset of Google's
-// latin range: Latin-1 and common punctuation, and no arrow, which Barlow does not draw. e2e's glyph
-// check sees a character outside them only on a published page, as a font a browser fell back to.
-// This reads every post page in the build, a draft's included, splits its text by the face that
-// draws it (titles and headings in Barlow Condensed, the register, the post's kind, day and tags, in
-// Barlow Semi Condensed, bold in Barlow SemiBold, code in B612 Mono, the rest in Barlow) and names
-// each missing character, with the way out, so a post fails with a sentence instead of a font name.
+// The characters a post may use (docs/design/overhaul.md, "Type"). Every face is a subset of
+// Google's latin range: Latin-1, common punctuation, and of the arrows only up and down, which
+// Archivo draws. e2e's glyph check sees a character outside them only on a published page, as a
+// font a browser fell back to. This reads every post page in the build, a draft's included, splits
+// its text by the face that draws it (titles and headings in Archivo ExtraCondensed, the register,
+// the post's day, kind, reading time and tags, in Archivo Expanded since ADR 0027, bold in Archivo SemiBold, code in
+// B612 Mono, the rest in Archivo) and names each missing character, with the way out, so a post
+// fails with a sentence instead of a font name.
 
 /** The characters a self-hosted face carries, read from its own cmap (the files fonts.test.ts locks). */
 function face(file: string): Set<number> {
@@ -21,17 +22,17 @@ function face(file: string): Set<number> {
 }
 const FACES = {
   display: {
-    name: 'Barlow Condensed',
+    name: 'Archivo ExtraCondensed',
     where: 'a title or heading',
-    file: 'barlow-condensed-semibold.woff2',
+    file: 'archivo-condensed-extrabold.woff2',
   },
-  label: {
-    name: 'Barlow Semi Condensed',
-    where: 'a label',
-    file: 'barlow-semi-condensed-medium.woff2',
+  wide: {
+    name: 'Archivo Expanded',
+    where: 'the register',
+    file: 'archivo-expanded-medium.woff2',
   },
-  text: { name: 'Barlow', where: 'the text', file: 'barlow-regular.woff2' },
-  bold: { name: 'Barlow SemiBold', where: 'bold text', file: 'barlow-semibold.woff2' },
+  text: { name: 'Archivo', where: 'the text', file: 'archivo-regular.woff2' },
+  bold: { name: 'Archivo SemiBold', where: 'bold text', file: 'archivo-semibold.woff2' },
   mono: { name: 'B612 Mono', where: 'code', file: 'b612-mono-regular.woff2' },
 } as const;
 type Face = keyof typeof FACES;
@@ -56,9 +57,12 @@ function split(markup: string, tags: string): { inner: string[]; rest: string } 
 export function textByFace(page: string): Record<Face, string> {
   const head = /<header class="page-head">([\s\S]*?)<\/header>/.exec(page)?.[1];
   const register = /<ul class="register"[^>]*>([\s\S]*?)<\/ul>/.exec(page)?.[1];
-  const body = /<div class="prose">([\s\S]*?)<\/div>(?=<ul class="post-links">|<\/article>)/.exec(
-    page,
-  )?.[1];
+  // The body closes its own column (layouts/Prose.astro, .long-form-body), then the page goes on to
+  // a note's source, More writing, or the article's end.
+  const body =
+    /<div class="prose">([\s\S]*?)<\/div><\/div>(?=<ul class="post-links">|<section class="section more-writing"|<\/article>)/.exec(
+      page,
+    )?.[1];
   const lost = [
     head === undefined && 'header.page-head',
     register === undefined && 'ul.register',
@@ -75,7 +79,7 @@ export function textByFace(page: string): Record<Face, string> {
   const title = split(head, 'h1');
   return {
     display: text([...title.inner, ...headings.inner].join(' ')),
-    label: text(register),
+    wide: text(register),
     text: `${text(title.rest)} ${text(bold.rest)}`,
     bold: text(bold.inner.join(' ')),
     mono: text(code.inner.join(' ')),
@@ -119,22 +123,23 @@ test('known answers: a missing character is named with its code point and its fa
   const page = (body: string, title = 'A title', label = 'Essay') =>
     `<header class="page-head"><h1 class="page-title">${title}</h1></header>` +
     `<ul class="register" role="list"><li class="register-kind">${label}</li><li>25 October 2026</li></ul>` +
-    `<div class="prose">${body}</div></article>`;
+    `<div class="long-form-body"><div class="prose">${body}</div></div></article>`;
   expect(glyphProblems(page('<p>Café, “quoted” – and <strong>façade</strong> back</p>'))).toEqual(
     [],
   );
   expect(glyphProblems(page('<p>p99 ≤ 2 s</p>'))).toEqual([
-    '"≤" (U+2264) in the text: not in Barlow',
+    '"≤" (U+2264) in the text: not in Archivo',
   ]);
-  // Barlow draws no arrow, in any of its widths: the design writes words instead.
-  expect(glyphProblems(page('<p>See below ↓</p>', 'Up ↗', 'Next →'))).toEqual([
-    '"↗" (U+2197) in a title or heading: not in Barlow Condensed',
-    '"→" (U+2192) in a label: not in Barlow Semi Condensed',
-    '"↓" (U+2193) in the text: not in Barlow',
+  // The cut keeps only the up and down arrows: no sideways arrow in any width, so the design
+  // writes words instead; "↓" is drawn.
+  expect(glyphProblems(page('<p>See below ↓, next →</p>', 'Up ↗', 'Next →'))).toEqual([
+    '"↗" (U+2197) in a title or heading: not in Archivo ExtraCondensed',
+    '"→" (U+2192) in the register: not in Archivo Expanded',
+    '"→" (U+2192) in the text: not in Archivo',
   ]);
   expect(glyphProblems(page('<h2>Then ← back</h2><p><b>Bold ←</b></p>'))).toEqual([
-    '"←" (U+2190) in a title or heading: not in Barlow Condensed',
-    '"←" (U+2190) in bold text: not in Barlow SemiBold',
+    '"←" (U+2190) in a title or heading: not in Archivo ExtraCondensed',
+    '"←" (U+2190) in bold text: not in Archivo SemiBold',
   ]);
   expect(glyphProblems(page('<pre><code>├── src</code></pre>'))).toEqual([
     '"├" (U+251C) in code: not in B612 Mono',

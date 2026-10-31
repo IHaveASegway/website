@@ -1,0 +1,141 @@
+/*
+  The 404 (pages/404.astro; docs/design/overhaul.md, "404"): the page's head on the left, and from
+  48rem the drawing beside it (lib/missing-piece.ts), never taller than half the window on a phone,
+  under the words. The drawing's faces are the drawing's own fills (tokens.css, --iso-*), its edges
+  the ink, its wires the working rule, and the request's way in and the missing solid the accent,
+  the one place the eye should land. Nothing moves. Only the 404 loads this; every colour is a token.
+*/
+
+.not-found {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  row-gap: 2.5rem;
+  padding-block: 1.875rem 1.5rem;
+}
+
+.not-found .notice {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 0.875rem;
+  padding: 0;
+}
+
+.notice > * {
+  max-width: var(--measure);
+  margin: 0;
+}
+
+.notice-title {
+  max-width: none;
+  font-family: var(--font-display);
+  font-size: var(--text-title);
+  font-weight: 800;
+  line-height: var(--text-title--line-height);
+  letter-spacing: -0.005em;
+  text-wrap: balance;
+}
+
+.notice-text {
+  font-size: var(--text-lead);
+  line-height: var(--text-lead--line-height);
+}
+
+.notice > .notice-actions {
+  margin-top: 1rem;
+}
+
+.missing-piece {
+  display: block;
+  inline-size: 100%;
+  max-block-size: 50svh;
+  overflow: visible;
+  pointer-events: none;
+}
+
+@media (width >= 48rem) {
+  .not-found {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    column-gap: 3rem;
+    min-block-size: min(36rem, 70svh);
+    padding-block: 3.5rem 2.5rem;
+  }
+
+  .missing-piece {
+    max-block-size: none;
+  }
+}
+
+.mp-plane {
+  fill: var(--surface-1);
+  stroke: var(--input);
+  stroke-width: 1;
+}
+
+.mp-lattice {
+  fill: none;
+  stroke: var(--iso-grid);
+  stroke-width: 1;
+}
+
+.mp-wire,
+.mp-lit {
+  fill: none;
+  stroke: var(--input);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.mp-lit {
+  stroke: var(--primary);
+  stroke-width: 2;
+}
+
+.mp-top,
+.mp-left,
+.mp-right {
+  stroke: var(--foreground);
+  stroke-width: 1.25;
+  stroke-linejoin: round;
+}
+
+.mp-top {
+  fill: var(--iso-top);
+}
+
+.mp-left {
+  fill: var(--iso-left);
+}
+
+.mp-right {
+  fill: var(--iso-right);
+}
+
+.mp-missing {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+  stroke-linejoin: round;
+}
+
+.mp-label {
+  fill: var(--muted-foreground);
+  font-family: var(--font-label);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* On a phone the drawing is about half its size and its labels would be smaller than any text on
+   the page, so it is drawn without them. */
+@media (width < 40rem) {
+  .mp-label {
+    display: none;
+  }
+}
+
+@media print {
+  .missing-piece {
+    display: none;
+  }
+}

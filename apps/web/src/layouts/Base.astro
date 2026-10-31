@@ -1,13 +1,10 @@
 ---
 import { Font } from 'astro:assets';
 import Footer from '../components/Footer.astro';
-import Ground from '../components/Ground.astro';
 import Header from '../components/Header.astro';
 import Palette from '../components/Palette.astro';
 import { loadLabArea, loadProfile, loadWritingArea } from '../lib/content';
-import { groundKindFor } from '../lib/ground';
 import { labPath, labRoutes } from '../lib/lab';
-import { railLeaves } from '../lib/nav';
 import { NOINDEX } from '../lib/noindex.mjs';
 import { ogAlt, ogTitle, OG_SIZE, type OgCard } from '../lib/og';
 import { areaRoutes, postPath } from '../lib/posts';
@@ -62,9 +59,8 @@ const profile = await loadProfile();
 const area = await loadWritingArea();
 const lab = await loadLabArea();
 const generated = [...areaRoutes(area), ...labRoutes(lab)];
-// The demos and the published posts, each a page these areas build: the rail lists every demo, each
-// with a lamp in its line's colour (its slug is its line, ADR 0025), and the newest posts
-// (lib/nav.ts, railLeaves), and the command menu finds any of them by its words.
+// The demos and the published posts, each a page these areas build: the command menu finds any of
+// them by its words.
 const demos = lab.entries.map((entry) => ({
   title: entry.title,
   summary: entry.summary,
@@ -76,9 +72,6 @@ const posts = area.published.map((post) => ({
   summary: post.summary,
   href: postPath(post),
 }));
-const leaves = railLeaves(demos, posts);
-// The page's drawing, from its section (lib/ground.ts); none prints (global.css).
-const ground = groundKindFor(path);
 
 // The theme script (src/scripts/theme.js) runs in <head>, before <body> exists, so no frame can
 // paint before a stored choice applies. In <body> it left a gap: when the HTML arrived in pieces,
@@ -90,17 +83,20 @@ const ground = groundKindFor(path);
 // ("Theme before first paint"). It applies a choice the visitor made in this tab, again when the
 // browser restores the page from its back-forward cache, and handles the toggle.
 
-// The faces (design-system.md, "The faces"): every page's first screen sets its name or title in
-// Barlow Condensed, its navigation and labels in Barlow Semi Condensed and its sentences in Barlow,
-// so those three are preloaded. Barlow's SemiBold draws <strong> only, so a page fetches it when it
-// sets some, in the fitted fallback until then. B612 Mono draws code and nothing else, so only a
+// The faces (docs/design/overhaul.md, "Type"; ADR 0027): every page's first screen sets its name or
+// title in Archivo ExtraCondensed ExtraBold, its navigation in Archivo Expanded, its buttons and
+// controls in Archivo Condensed SemiBold and its sentences in Archivo, so those four are preloaded.
+// Archivo's SemiBold draws <strong> only, so a page fetches it when it sets some, in the fitted
+// fallback until then. B612 Mono draws code and nothing else, so only a
 // page with code declares it (the code prop): the Route Lab's first view carries no face it never
 // draws.
 
-// The skip link sits in the masthead, the header's frame, which it covers when focused (global.css).
+// The skip link sits in the masthead, the top bar's full-width band, which it covers when focused
+// (global.css); the bar's own row stands in the frame, so its edges line up with the page's.
 
-// The command menu (components/Palette.astro) follows the footer, whose button opens it: a closed
-// <dialog> the page does not draw, and the one module every page loads (src/scripts/palette.js).
+// The command menu (components/Palette.astro) follows the footer: a closed <dialog> the page does
+// not draw, opened by the top bar's Search, and the one module every page loads
+// (src/scripts/palette.js).
 
 // The browser chrome takes the page's background: one theme-color meta per OS scheme, resolved
 // from tokens.css at build (lib/tokens.ts). They come before the theme script, which points both
@@ -151,23 +147,20 @@ const chrome = (['dark', 'light'] as const).map((scheme) => ({
         href="/rss.xml"
       />
     )}
-    <Font cssVariable="--font-barlow-condensed" preload />
-    <Font cssVariable="--font-barlow-semi-condensed" preload />
-    <Font cssVariable="--font-barlow" preload={[{ weight: 400 }]} />
+    <Font cssVariable="--font-archivo-display" preload />
+    <Font cssVariable="--font-archivo-wide" preload />
+    <Font cssVariable="--font-archivo-label" preload />
+    <Font cssVariable="--font-archivo" preload={[{ weight: 400 }]} />
     {code && <Font cssVariable="--font-b612-mono" />}
   </head>
   <body>
-    {ground && <Ground kind={ground} />}
-    <div class="frame masthead">
+    <div class="masthead">
       <a class="skip-link" href="#main">
         Skip to content
       </a>
-      <Header
-        name={profile.basics.name}
-        role={profile.basics.label}
-        generated={generated}
-        leaves={leaves}
-      />
+      <div class="frame">
+        <Header name={profile.basics.name} generated={generated} />
+      </div>
     </div>
     <main id="main" class="frame">
       <slot />

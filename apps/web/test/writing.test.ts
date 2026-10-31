@@ -16,6 +16,8 @@ import {
   noteSchema,
   postLabel,
   postsBase,
+  readingMinutes,
+  shortDay,
   TAGS,
   tagWords,
   typeset,
@@ -50,6 +52,7 @@ function post(slug: string, over: Partial<Post> = {}): Post {
     tags: [],
     kind: 'essay',
     source: null,
+    minutes: 1,
     ...over,
   };
 }
@@ -333,22 +336,16 @@ function fixtureBuild(name: string) {
  *  page file. */
 const ALWAYS = ['/', '/about/'];
 
-/** The header nav's items on a page, without the pages the rail drops down to under them (ADR 0022,
- *  ADR 0023): each item's own link stays, the one the row across the top shows. */
+/** The top bar's nav on a page, and the links in it (ADR 0027): one link an item, no drop-down. */
+const headerNav = (page: string) => /<nav class="site-nav"[\s\S]*?<\/nav>/.exec(page)?.[0] ?? '';
 const headerLinks = (page: string) =>
+  [...headerNav(page).matchAll(/href="([^"]+)"/g)].map(([, href = '']) => href);
+/** The posts the command menu lists under Writing on a page, in its order. */
+const menuPosts = (page: string) =>
   [
-    ...(/<nav class="site-nav"[\s\S]*?<\/nav>/.exec(page)?.[0] ?? '')
-      .replace(/<ul class="nav-leaves[\s\S]*?<\/ul>/g, '')
-      .matchAll(/href="([^"]+)"/g),
-  ].map(([, href = '']) => href);
-/** The posts the rail drops down to under Writing on a page (ADR 0023), without its "View all". */
-const writingLeaves = (page: string) =>
-  [
-    ...(
-      /<details class="nav-fold[^"]*"[^>]*>\s*<summary>\s*Writing[\s\S]*?<\/details>/.exec(
-        page,
-      )?.[0] ?? ''
-    ).matchAll(/<li><a href="([^"]+)"/g),
+    ...(/<dialog[^>]*data-palette[\s\S]*?<\/dialog>/.exec(page)?.[0] ?? '').matchAll(
+      /data-href="(\/(?:writing|notes)\/[^"]+\/)"/g,
+    ),
   ].map(([, href = '']) => href);
 /** The post titles a list links to, in order. */
 const listed = (page: string, level: 2 | 3) =>
@@ -567,13 +564,18 @@ describe('fixture-many: five published posts and a draft, built for production',
     }
   });
 
-  // The rail lists the newest three under Writing, as Home's row does, on every page.
-  test('the rail lists the three latest posts under Writing, newest first, on every page', () => {
+  // The top bar links Writing and holds no post (ADR 0027, replacing the rail's drop-down of ADR
+  // 0023): every post is on /writing/ and in the command menu, which Search opens on every page.
+  test('the top bar holds no post; the command menu lists every post, newest first, on every page', () => {
     for (const file of build.html.filter((f) => f !== '404.html')) {
-      expect(writingLeaves(build.text(file)), file).toEqual([
+      const page = build.text(file);
+      expect(headerNav(page), file).not.toMatch(/<details|\/(writing|notes)\/[^"]+\/"/);
+      expect(menuPosts(page), file).toEqual([
         '/notes/fixture-trailing-slashes/',
         '/writing/fixture-measure-first/',
         '/writing/fixture-retries-and-back-off/',
+        '/writing/fixture-markdown-tour/',
+        '/notes/fixture-small-note/',
       ]);
     }
   });
@@ -872,5 +874,48 @@ describe('typeset: front matter gets the quotes the Markdown body gets', () => {
     expect(typeset('Already \u201ccurly\u201d and \u2019')).toBe(
       'Already \u201ccurly\u201d and \u2019',
     );
+  });
+});
+
+// The dated list's day and a post's reading time (ADR 0027, "Writing list"; lib/posts.ts).
+describe("shortDay and readingMinutes: the list's day and a post's minutes", () => {
+  test('known answers: the day with its month cut to three letters, from the UTC date', () => {
+    expect(shortDay(day('2026-10-31'))).toBe('31 Oct 2026');
+    expect(shortDay(day('2027-01-05'))).toBe('5 Jan 2027');
+    expect(shortDay(day('2026-09-09'))).toBe('9 Sep 2026');
+  });
+
+  test('known answers: words over 220 a minute, rounded up, one at least', () => {
+    const words = (n: number) => Array.from({ length: n }, () => 'word').join(' ');
+    expect(readingMinutes('')).toBe(1);
+    expect(readingMinutes(words(220))).toBe(1);
+    expect(readingMinutes(words(221))).toBe(2);
+    expect(readingMinutes(words(2200))).toBe(10);
+  });
+
+  test("known answers: a link's address, a comment and Markdown's marks are not words; code counts half", () => {
+    const words = (n: number) => Array.from({ length: n }, () => 'word').join(' ');
+    const text = words(200);
+    // An address with many parts adds no words.
+    expect(
+      readingMinutes(`${text} [twenty](https://a.example/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p)`),
+    ).toBe(1);
+    expect(readingMinutes(`${text}\n\n<!-- ${words(100)} -->`)).toBe(1);
+    expect(readingMinutes(`## ${words(10)}\n\n**${words(10)}**`)).toBe(1);
+    // 200 words of prose and 80 of code: 240 words read, two minutes; 80 of prose would be 280.
+    expect(readingMinutes(`${text}\n\n\`\`\`\n${words(80)}\n\`\`\`\n`)).toBe(2);
+    expect(readingMinutes(`${text}\n\n\`\`\`\n${words(30)}\n\`\`\`\n`)).toBe(1);
+  });
+
+  test('the real posts take their minutes from their own bodies', () => {
+    for (const file of readdirSync(join(app, 'src/content/writing')).filter((f) =>
+      f.endsWith('.md'),
+    )) {
+      const text = readFileSync(join(app, 'src/content/writing', file), 'utf8');
+      const body = text.slice(text.indexOf('\n---\n', 4) + 5);
+      const minutes = readingMinutes(body);
+      expect(minutes, file).toBeGreaterThan(1);
+      expect(minutes, file).toBeLessThan(60);
+    }
   });
 });

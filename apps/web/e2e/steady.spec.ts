@@ -211,7 +211,7 @@ test.describe('web fonts arriving late move nothing', () => {
       await steady(page);
       // The faces every page preloads a second late, as on a slow first visit. They are optional
       // (astro.config.mjs): not here in the browser's first moment, they are not swapped in, and
-      // the page stays in its fitted fallback. Barlow's SemiBold and B612 Mono swap by design, as
+      // the page stays in its fitted fallback. Archivo's SemiBold and B612 Mono swap by design, as
       // a page fetches them only once it sets <strong> or code (design-system.md, "The faces"), so
       // they come on time here. All of the page is watched, not only the screen: a reader may have
       // scrolled before the fonts came.
@@ -219,7 +219,8 @@ test.describe('web fonts arriving late move nothing', () => {
       const preloaded = [...html.matchAll(/<link rel="preload" href="([^"]+\.woff2)"/g)].map(
         ([, href]) => href ?? '',
       );
-      expect(preloaded).toHaveLength(3);
+      // Four since ADR 0027: Archivo's display, wide, label and reading faces.
+      expect(preloaded).toHaveLength(4);
       let asked = 0;
       let served = 0;
       await page.route(/\.woff2$/, async (route) => {
