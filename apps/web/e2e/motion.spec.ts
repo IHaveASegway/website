@@ -1,7 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
 // Reduced motion (design-system.md, "Motion"): under prefers-reduced-motion: reduce nothing moves.
-// The state still changes (the card's bar appears at once); only the movement is gone.
+// The state still changes (the card's sweep appears at once); only the movement is gone. With no
+// preference, what moves is the list below (ADR 0025): Home's scene and the Raft Lab's election
+// with it, the 2 px sweep along a row that leads somewhere, and the followed title's handoff to the
+// next page. Text never animates: no title rises, no rule draws itself, no tag decodes, no arrow
+// nudges.
 //
 // The check reads the computed motion of every element and pseudo-element rather than waiting
 // for a transition to run: whether a busy machine gets a 220 ms transition started in time is a
@@ -31,7 +35,7 @@ function moving(page: Page) {
 
 const running = (page: Page) => page.evaluate(() => document.getAnimations().length);
 
-/** The card bar's transform, on the card the test brought or else the page's first: scaleX(0)
+/** The card sweep's transform, on the card the test brought or else the page's first: scaleX(0)
  *  while hidden, the identity matrix while shown. */
 const bar = (page: Page) =>
   page.evaluate(() => {
@@ -60,7 +64,7 @@ const addCard = (page: Page) =>
       .querySelector('main')
       ?.insertAdjacentHTML(
         'beforeend',
-        '<article class="card" data-test-card><p class="card-tag label">Tag</p><h3 class="card-title">A card</h3><p class="card-text">Text.</p></article>',
+        '<article class="card" data-test-card><h3 class="card-title">A card</h3><p class="card-text">Text.</p></article>',
       ),
   );
 
@@ -86,7 +90,7 @@ test('under reduce nothing would move, and nothing runs after a hover or any Tab
     expect(await running(page), `after Tab ${i + 1}`).toBe(0);
   }
 
-  // The state change survives without the movement: on a card with a link, the bar is drawn at
+  // The state change survives without the movement: on a card with a link, the sweep is drawn at
   // once on hover.
   if ((await cardCount(page)) === 0) await addCard(page);
   await linkFirstCard(page);
@@ -95,6 +99,7 @@ test('under reduce nothing would move, and nothing runs after a hover or any Tab
   expect(await bar(page)).toBe(SHOWN);
 });
 
+// A card has no rule of its own (ADR 0025): its one sign under the pointer is the sweep.
 test('a card with nothing to activate does not react to the pointer; one with a link does', async ({
   page,
 }) => {
@@ -102,35 +107,28 @@ test('a card with nothing to activate does not react to the pointer; one with a 
   await page.goto('/');
   await addCard(page);
   const card = page.locator('[data-test-card]');
-  const border = () => card.evaluate((element) => getComputedStyle(element).borderTopColor);
   expect(await card.locator('a, button').count()).toBe(0);
-  const atRest = { bar: await bar(page), border: await border() };
+  const atRest = await bar(page);
+  expect(atRest).not.toBe(SHOWN);
   await card.hover();
-  expect({ bar: await bar(page), border: await border() }).toEqual(atRest);
+  expect(await bar(page)).toBe(atRest);
 
   await linkFirstCard(page);
   await page.mouse.move(0, 0);
   await card.hover();
   expect(await bar(page)).toBe(SHOWN);
-  expect(await border()).not.toBe(atRest.border);
 });
 
-/** What Home would move with no preference: each section's rule, which draws itself in, each
- *  card's and post's bar, each card's title and each post's title's words, which rise as they
- *  scroll into view (design-system.md, "Motion"), and the arrow of a card's link, which steps
- *  toward its target under the pointer (ADR 0022); each principle's title, which rises too (ADR
- *  0023); and since ADR 0024 the Raft Lab's election while Home's scene runs, every part of the
- *  cluster that acts in it, and the arrow of the closing address. In document order. */
+/** What Home would move with no preference (ADR 0025): each card's and post's sweep, and, while
+ *  Home's scene runs, the Raft Lab's election, every part of the cluster that acts in it (ADR
+ *  0024). Until then the scan also found each section's self-drawing rule, the rising titles, a
+ *  card link's nudging arrow and the closing address's arrow. In document order. */
 const expectedMotion = (page: Page) =>
   page.evaluate(() => {
     const live = 'motion' in document.documentElement.dataset;
     return [...document.querySelectorAll('*')].flatMap((element) => {
-      if (element.matches('.section-title')) return ['h2.section-title::before'];
       if (element.matches('.card')) return ['article.card::before'];
-      if (element.matches('.card-title')) return ['h3.card-title'];
-      if (element.matches('.card-more > span')) return ['span'];
-      if (element.matches('.post-list > li')) return ['li::before', 'span.title-words'];
-      if (element.matches('.principle-lead')) return ['span.title-words'];
+      if (element.matches('.post-list > li')) return ['li::before'];
       if (
         live &&
         element.matches(
@@ -138,12 +136,11 @@ const expectedMotion = (page: Page) =>
         )
       )
         return [`${element.tagName.toLowerCase()}.${element.getAttribute('class')?.split(' ')[0]}`];
-      if (element.matches('.toward-mail-arrow')) return ['span.toward-mail-arrow'];
       return [];
     });
   });
 
-test('known answer: with no preference, the same scan finds the card bar and the rising titles, and nothing else', async ({
+test('known answer: with no preference, the same scan finds the sweeps and the election, and nothing else', async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
@@ -161,79 +158,23 @@ test('known answer: with no preference, the same scan finds the card bar and the
   expect(await moving(page)).toEqual(await expectedMotion(page));
 });
 
-test('with no preference, a title rises on a scroll timeline, and one on screen at load stands still', async ({
-  page,
-}) => {
-  await page.emulateMedia({ reducedMotion: 'no-preference' });
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('/');
-  if ((await cardCount(page)) === 0) await addCard(page);
-  // A declaration the browser refused would leave no animation at all: the build's minifier once
-  // folded the longhands into a shorthand Chromium refuses, and every check above still passed.
-  // Since ADR 0024 no title rises on the first screen, the stage's, so the test brings the first
-  // one on screen and lets the page settle there, as a visitor's arrival at it would.
-  await page.evaluate(() =>
-    document.querySelector(':is(.card-title, .title-words)')?.scrollIntoView({ block: 'center' }),
-  );
-  await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => done(null))));
-  const title = await page.evaluate(() => {
-    const element = document.querySelector(':is(.card-title, .title-words)') as HTMLElement;
-    const [animation] = element.getAnimations();
-    return {
-      scroll: animation?.timeline instanceof ViewTimeline,
-      onScreen: element.getBoundingClientRect().bottom < innerHeight,
-      transform: getComputedStyle(element).transform,
-      progress: animation?.effect?.getComputedTiming().progress,
-    };
-  });
-  expect(title.scroll).toBe(true);
-  // In the middle of the window the title is past its range, so it stands in place.
-  expect(title.onScreen).toBe(true);
-  expect(title.progress).toBe(1);
-  expect(title.transform).toBe(SHOWN);
-});
-
-/** A card's tag as drawn, and as assistive technology reads it. */
-const tag = (page: Page) =>
-  page.evaluate(() => {
-    const element = document.querySelector('.card:has(.card-more) .card-tag') as HTMLElement;
-    const shown = element.querySelector('[aria-hidden="true"]');
-    return {
-      drawn: (shown ?? element).textContent?.trim() ?? '',
-      read: element.querySelector('[data-word]')?.textContent ?? element.textContent?.trim() ?? '',
-      width: element.getBoundingClientRect().width,
-    };
-  });
-
-test('with no preference, a hovered card decodes its tag and settles on the word, at one width', async ({
+// Text never animates (ADR 0025): a card's words are the same under the pointer and the keyboard
+// as at rest, with motion allowed. Until then a hovered card's tag cycled through letters.
+test('with no preference, a hovered or focused card keeps its words as they are', async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto('/');
   test.skip((await page.locator('.card:has(.card-more)').count()) === 0, 'Home renders no card');
-  const before = await tag(page);
   const card = page.locator('.card:has(.card-more)').first();
+  const words = () => card.evaluate((element) => element.textContent);
+  const before = await words();
   await card.hover();
   await page.waitForTimeout(90);
-  const during = await tag(page);
-  expect(during.read).toBe(before.drawn);
-  expect(during.drawn).toHaveLength(before.drawn.length);
-  expect(during.width).toBe(before.width);
-  // Within the decode's 360 ms and a frame or two, the word is back.
-  await expect.poll(async () => (await tag(page)).drawn, { timeout: 1_000 }).toBe(before.drawn);
-  expect((await tag(page)).width).toBe(before.width);
-});
-
-test('under reduce, a hovered or focused card keeps its tag as it is', async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/');
-  test.skip((await page.locator('.card:has(.card-more)').count()) === 0, 'Home renders no card');
-  const html = () => page.locator('.card:has(.card-more) .card-tag').first().innerHTML();
-  const before = await html();
-  await page.locator('.card:has(.card-more)').first().hover();
-  await page.locator('.card:has(.card-more) .card-more').first().focus();
+  expect(await words()).toBe(before);
+  await card.locator('.card-more').focus();
   await page.waitForTimeout(120);
-  expect(await html()).toBe(before);
+  expect(await words()).toBe(before);
 });
 
 test('with no preference, the followed title takes the page title’s name as Home is left, and the next page’s title has it', async ({

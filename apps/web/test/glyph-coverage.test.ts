@@ -9,9 +9,9 @@ import { app, html, read } from './support/dist';
 // latin range: Latin-1 and common punctuation, and no arrow, which Barlow does not draw. e2e's glyph
 // check sees a character outside them only on a published page, as a font a browser fell back to.
 // This reads every post page in the build, a draft's included, splits its text by the face that
-// draws it (titles and headings in Barlow Condensed, the label and the meta line in Barlow Semi
-// Condensed, bold in Barlow SemiBold, code in B612 Mono, the rest in Barlow) and names each missing
-// character, with the way out, so a post fails with a sentence instead of a font name.
+// draws it (titles and headings in Barlow Condensed, the register, the post's kind, day and tags, in
+// Barlow Semi Condensed, bold in Barlow SemiBold, code in B612 Mono, the rest in Barlow) and names
+// each missing character, with the way out, so a post fails with a sentence instead of a font name.
 
 /** The characters a self-hosted face carries, read from its own cmap (the files fonts.test.ts locks). */
 function face(file: string): Set<number> {
@@ -51,26 +51,31 @@ function split(markup: string, tags: string): { inner: string[]; rest: string } 
 }
 
 /** A post page's text, split by the face that draws it (global.css). Code is taken out first, so a
- *  code span in a heading is code; then headings, then bold. A page whose header or body the check
- *  cannot find throws: a check that reads nothing passes nothing. */
+ *  code span in a heading is code; then headings, then bold. A page whose header, register or body
+ *  the check cannot find throws: a check that reads nothing passes nothing. */
 export function textByFace(page: string): Record<Face, string> {
   const head = /<header class="page-head">([\s\S]*?)<\/header>/.exec(page)?.[1];
+  const register = /<ul class="register"[^>]*>([\s\S]*?)<\/ul>/.exec(page)?.[1];
   const body = /<div class="prose">([\s\S]*?)<\/div>(?=<ul class="post-links">|<\/article>)/.exec(
     page,
   )?.[1];
-  if (head === undefined || body === undefined) {
+  const lost = [
+    head === undefined && 'header.page-head',
+    register === undefined && 'ul.register',
+    body === undefined && 'div.prose',
+  ].filter(Boolean);
+  if (head === undefined || register === undefined || body === undefined) {
     throw new Error(
-      `no ${head === undefined ? 'header.page-head' : 'div.prose'} on this post page: the layout changed, so change this check with it`,
+      `no ${lost.join(' or ')} on this post page: the layout changed, so change this check with it`,
     );
   }
-  const labels = /<p class="(?:label|post-meta)">[\s\S]*?<\/p>/g;
   const code = split(body, 'code');
   const headings = split(code.rest, 'h[1-6]');
   const bold = split(headings.rest, 'strong|b');
-  const title = split(head.replace(labels, ' '), 'h1');
+  const title = split(head, 'h1');
   return {
     display: text([...title.inner, ...headings.inner].join(' ')),
-    label: text((head.match(labels) ?? []).join(' ')),
+    label: text(register),
     text: `${text(title.rest)} ${text(bold.rest)}`,
     bold: text(bold.inner.join(' ')),
     mono: text(code.inner.join(' ')),
@@ -112,8 +117,9 @@ for (const file of posts) {
 
 test('known answers: a missing character is named with its code point and its face', () => {
   const page = (body: string, title = 'A title', label = 'Essay') =>
-    `<header class="page-head"><p class="label">${label}</p><h1 class="page-title">${title}</h1>` +
-    `<p class="post-meta">25 October 2026</p></header><div class="prose">${body}</div></article>`;
+    `<header class="page-head"><h1 class="page-title">${title}</h1></header>` +
+    `<ul class="register" role="list"><li class="register-kind">${label}</li><li>25 October 2026</li></ul>` +
+    `<div class="prose">${body}</div></article>`;
   expect(glyphProblems(page('<p>Café, “quoted” – and <strong>façade</strong> back</p>'))).toEqual(
     [],
   );
@@ -146,6 +152,9 @@ test('known answers: a missing character is named with its code point and its fa
   expect(() =>
     glyphProblems(page('<p>a</p>').replace('class="page-head"', 'class="head"')),
   ).toThrow(/header\.page-head/);
+  expect(() => glyphProblems(page('<p>a</p>').replace('class="register"', 'class="meta"'))).toThrow(
+    /ul\.register/,
+  );
 });
 
 test('every post page in this build is read: its body is found, so no page passes unread', () => {

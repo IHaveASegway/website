@@ -15,8 +15,8 @@ const { profile, work, bio } = Astro.props;
 // External profiles render only from a record whose readiness check is recorded (profile.ts).
 const external = checkedProfiles(profile);
 // Row 1 (design-system.md, "Home, row by row"): the name on two lines, then the title, the
-// location, what Joseph does in his own words and the ways to reach him. The name's markup is its
-// words alone. The sentence is the bio's opening, which Joseph cleared with the bio on 2026-10-29
+// location, what Joseph does in his own words and the ways to reach him, each button in words alone
+// (ADR 0025: no arrows). The name's markup is its words alone. The sentence is the bio's opening, which Joseph cleared with the bio on 2026-10-29
 // (content.md, row 1), so Home and /about/ say it from one file (ADR 0023).
 ---
 
@@ -38,26 +38,17 @@ const external = checkedProfiles(profile);
       </a>
       {bio && (
         <a class="btn" href={bio.href}>
-          About me{' '}
-          <span class="hint" aria-hidden="true">
-            →
-          </span>
+          About me
         </a>
       )}
       {work && (
         <a class="btn" href={work}>
-          Work{' '}
-          <span class="hint" aria-hidden="true">
-            ↓
-          </span>
+          Work
         </a>
       )}
       {external.map((p) => (
         <a class="btn" href={p.url} rel="me">
-          {p.network}{' '}
-          <span class="hint" aria-hidden="true">
-            ↗
-          </span>
+          {p.network}
         </a>
       ))}
     </div>

@@ -181,7 +181,8 @@ for (const file of posts) {
     const page = read(file);
     const [posting, ...rest] = blocks(page);
     const node = posting ?? {};
-    const updated = page.includes(' · updated <time');
+    // The register says "Updated" before the day of a post's update (ADR 0025).
+    const updated = page.includes('<li>Updated <time');
 
     test('exactly its allowed keys, dateModified only when the post was updated', () => {
       expect(rest).toEqual([]);
@@ -209,7 +210,7 @@ for (const file of posts) {
       expect(node['image']).toBe(first(page, /<meta property="og:image" content="([^"]*)">/));
       expect(node['datePublished']).toBe(first(page, /<time datetime="([^"]*)"/));
       if (updated)
-        expect(node['dateModified']).toBe(first(page, / · updated <time datetime="([^"]*)"/));
+        expect(node['dateModified']).toBe(first(page, /<li>Updated <time datetime="([^"]*)"/));
     });
   });
 }

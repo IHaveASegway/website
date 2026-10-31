@@ -102,6 +102,19 @@ function menuOf(page: string): { dialog: Element | undefined; groups: Map<string
   return { dialog, groups };
 }
 
+/** An element's name as assistive technology reads it from its text: what is not aria-hidden. */
+function nameOf(element: Element): string {
+  const parts: string[] = [];
+  const walk = (node: Element) => {
+    for (const child of node.childNodes) {
+      if ('value' in child && typeof child.value === 'string') parts.push(child.value);
+      else if ('tagName' in child && attribute(child, 'aria-hidden') !== 'true') walk(child);
+    }
+  };
+  walk(element);
+  return parts.join('').replace(/\s+/g, ' ').trim();
+}
+
 /** An element's text; with `first`, a row's label only, before any value or state beside it. */
 function textOf(element: Element, first = false): string {
   const parts: string[] = [];
@@ -193,13 +206,21 @@ for (const file of html) {
     });
 
     // Two buttons, one shown at a time (ADR 0022): the rail's search field, then the header row's.
-    test("the header's buttons open it, and name themselves and its keys", () => {
+    // A button's name is its words; its keys are shown beside them and hidden from assistive
+    // technology, which aria-keyshortcuts tells instead (ADR 0025): the command key is a drawing,
+    // since Barlow has no ⌘. Until then the name was "Search Ctrl K", the keys read as words.
+    test("the header's buttons open it, name themselves in words, and show its keys", () => {
       const buttons = elementsOf(page).filter((e) => attribute(e, 'data-palette-open') === '');
-      expect(buttons.map((b) => textOf(b))).toEqual(['Search Ctrl K', 'Command menu Ctrl K']);
+      expect(buttons.map((b) => nameOf(b))).toEqual(['Search', 'Command menu']);
       for (const button of buttons) {
         expect(button.tagName).toBe('button');
         expect(attribute(button, 'aria-haspopup')).toBe('dialog');
         expect(attribute(button, 'aria-keyshortcuts')).toBe('Meta+K Control+K');
+        const keys = descendants(button).filter((e) => e.tagName === 'kbd');
+        expect(keys).toHaveLength(1);
+        expect(attribute(keys[0] as Element, 'aria-hidden')).toBe('true');
+        expect(textOf(keys[0] as Element)).toBe('Ctrl K');
+        expect(descendants(keys[0] as Element).some((e) => e.tagName === 'svg')).toBe(true);
       }
     });
 

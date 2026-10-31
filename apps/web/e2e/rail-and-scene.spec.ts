@@ -19,11 +19,14 @@ const frame = (page: Page) =>
   canvas(page).evaluate((c) => (c as HTMLCanvasElement).toDataURL('image/png'));
 
 test.describe('the rail', () => {
+  // On Home the rail carries no name, since Home's <h1> is the name (ADR 0025): the search field
+  // heads it there, and the nav starts higher. On every other page the nav starts at one height.
   test('from 80rem the header is a rail down the left edge, as tall as the window, beside main', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     const tops: number[] = [];
+    const searchTops: number[] = [];
     for (const path of ['/', '/about/', '/lab/']) {
       await page.goto(path);
       const header = await page.locator('.masthead').boundingBox();
@@ -32,15 +35,20 @@ test.describe('the rail', () => {
       expect(header?.x, path).toBe(0);
       expect(header?.height, path).toBe(900);
       expect(main?.x ?? 0, path).toBeGreaterThanOrEqual((header?.width ?? 0) - 0.5);
-      // The nav starts at the same height on every page, Home included.
+      expect(await page.locator('.site-header .wordmark').count(), path).toBe(path === '/' ? 0 : 1);
       tops.push((await page.locator('.site-nav').boundingBox())?.y ?? -1);
+      searchTops.push((await page.locator('.rail-search').boundingBox())?.y ?? -1);
     }
-    expect(new Set(tops).size, `${tops}`).toBe(1);
+    const [homeNav = 0, ...others] = tops;
+    expect(new Set(others).size, `${tops}`).toBe(1);
+    expect(homeNav).toBeLessThan(others[0] ?? 0);
+    // The search field heads Home's rail, at the rail's own top padding.
+    expect(searchTops[0]).toBeLessThan(searchTops[1] ?? 0);
     // It stays while the page scrolls.
     await page.goto('/about/');
     await page.mouse.wheel(0, 1200);
     await page.waitForFunction(() => scrollY > 600);
-    expect((await page.locator('.site-nav').boundingBox())?.y).toBe(tops[0]);
+    expect((await page.locator('.site-nav').boundingBox())?.y).toBe(others[0]);
   });
 
   test('below 80rem the header is the row across the top, above main', async ({ page }) => {
@@ -96,8 +104,12 @@ test.describe('the rail', () => {
         await page.evaluate(() => {
           const at = document.activeElement;
           if (!at || at.closest('main')) return { name: 'main', href: null, y: 0 };
+          // Its name as assistive technology reads it: what aria-hidden leaves, such as the keys
+          // shown beside the search field's words.
+          const read = at.cloneNode(true) as Element;
+          for (const hidden of read.querySelectorAll('[aria-hidden="true"]')) hidden.remove();
           return {
-            name: (at.getAttribute('aria-label') ?? at.textContent ?? '')
+            name: (at.getAttribute('aria-label') ?? read.textContent ?? '')
               .replace(/\s+/g, ' ')
               .trim(),
             href: at.getAttribute('href'),
@@ -108,8 +120,7 @@ test.describe('the rail', () => {
       if (stops.at(-1)?.name === 'main') break;
     }
     const names = stops.map((stop) => stop.name);
-    expect(names.slice(0, 2)).toEqual(['Skip to content', 'Joseph Peterson']);
-    expect(names[2]).toMatch(/^Search (Ctrl K|⌘K)$/);
+    expect(names.slice(0, 3)).toEqual(['Skip to content', 'Joseph Peterson', 'Search']);
     expect(names.at(-1)).toBe('main');
     const items = ['Lab', 'Writing', 'About'].filter(
       (step) => step !== 'Writing' || pages().includes('/writing/'),

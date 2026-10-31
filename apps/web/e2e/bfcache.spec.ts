@@ -75,6 +75,7 @@ async function backFromTheCache(page: Page) {
   });
 }
 
+// Its name is the theme it shows, in the panel's words (ADR 0025): Theme: System, Day or Night.
 const toggle = (page: Page) => page.getByRole('button', { name: /^Theme: / });
 
 test('a page restored from the back-forward cache shows the choice made after leaving it', async ({
@@ -83,15 +84,15 @@ test('a page restored from the back-forward cache shows the choice made after le
   await page.emulateMedia({ colorScheme: 'dark' });
   await recordShows(page);
   await page.goto('/');
-  await expect(toggle(page)).toHaveAccessibleName('Theme: system');
+  await expect(toggle(page)).toHaveAccessibleName('Theme: System');
   expect(await looks(page)).toEqual({ scheme: 'dark', chromeIsBackground: true });
 
   await leaveHome(page, async () => {
     await toggle(page).click();
-    await expect(toggle(page)).toHaveAccessibleName('Theme: light');
+    await expect(toggle(page)).toHaveAccessibleName('Theme: Day');
   });
   await backFromTheCache(page);
-  await expect(toggle(page)).toHaveAccessibleName('Theme: light');
+  await expect(toggle(page)).toHaveAccessibleName('Theme: Day');
   expect(await looks(page)).toEqual({ scheme: 'light', chromeIsBackground: true });
 });
 
@@ -113,11 +114,11 @@ test('a page restored from the back-forward cache keeps a choice storage refused
   await recordShows(page);
   await page.goto('/');
   await toggle(page).click();
-  await expect(toggle(page)).toHaveAccessibleName('Theme: light');
+  await expect(toggle(page)).toHaveAccessibleName('Theme: Day');
 
   // The 404 is a new page, and nothing reached storage: it follows the OS.
-  await leaveHome(page, () => expect(toggle(page)).toHaveAccessibleName('Theme: system'));
+  await leaveHome(page, () => expect(toggle(page)).toHaveAccessibleName('Theme: System'));
   await backFromTheCache(page);
-  await expect(toggle(page)).toHaveAccessibleName('Theme: light');
+  await expect(toggle(page)).toHaveAccessibleName('Theme: Day');
   expect(await looks(page)).toEqual({ scheme: 'light', chromeIsBackground: true });
 });

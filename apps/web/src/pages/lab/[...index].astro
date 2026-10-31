@@ -9,7 +9,8 @@ import { labIndexCard } from '../../lib/og';
 // /lab/, the lab's index: one row per live demo, like a list of posts, without a date (a demo has
 // no publish date on its page). A rest parameter, so the page builds only while a demo is live,
 // as Writing's indexes build only from the first post (lib/lab.ts); the demos' own pages are
-// [demo].astro. Each row is its title's link, as a post's is (components/PostList.astro).
+// [demo].astro. Each row is its title's link, as a post's is (components/PostList.astro), and names
+// its line, so its sweep runs in the lab's colour (ADR 0025).
 export async function getStaticPaths() {
   const lab = await loadLabArea();
   return lab.visible ? [{ params: { index: undefined } }] : [];
@@ -27,19 +28,12 @@ const lab = await loadLabArea();
   og={labIndexCard(profile)}
 >
   <section class="page" aria-labelledby="page-title">
-    <PageHead
-      label={`${lab.entries.length} ${lab.entries.length === 1 ? 'demo' : 'demos'}`}
-      heading="Lab"
-      lead="Demos that run in your browser."
-    />
+    <PageHead heading="Lab" lead="Demos that run in your browser." />
     <ol class="post-list" role="list">
       {lab.entries.map((demo) => (
-        <li>
-          <p class="post-meta">Demo</p>
+        <li data-line={demo.slug}>
           <h2 class="post-title">
-            <a href={labPath(demo)}>
-              <span class="title-words">{demo.title}</span>
-            </a>
+            <a href={labPath(demo)}>{demo.title}</a>
           </h2>
           <p class="post-summary">{demo.summary}</p>
         </li>

@@ -45,11 +45,7 @@ const other = section === 'writing' && area.sections.includes('notes') ? 'notes'
   og={sectionCard(section, profile)}
 >
   <section class="page" aria-labelledby="page-title">
-    <PageHead
-      label={`${posts.length} ${posts.length === 1 ? 'post' : 'posts'}`}
-      heading={heading}
-      lead={WORDS[section].lead}
-    />
+    <PageHead heading={heading} lead={WORDS[section].lead} />
     <PostList posts={posts} level={2} />
     <ul class="post-links">
       {other !== section && (

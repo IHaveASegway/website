@@ -59,7 +59,8 @@ const byNetwork = (p: Loose, network: string) =>
 test('profile.json is valid, and its location line is the country, remote', () => {
   expect(profileSchema.safeParse(profile).success).toBe(true);
   expect(profileSchema.safeParse(valid).success).toBe(true);
-  expect(locationLine(profile)).toBe('US · remote');
+  // In words, with no middle dot (ADR 0025): "US · remote" until then.
+  expect(locationLine(profile)).toBe('Remote, US');
 });
 
 test('there is no slot for a region, a city, an address, an email or a phone number', () => {

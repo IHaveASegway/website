@@ -1,9 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// Page geometry (design-system.md, "Page geometry"): a page's drawing never sits under a word in
-// the accent, never takes the pointer, and never prints. Its lines are --ground, which
-// test/tokens.test.ts holds every text token to 4.5:1 on, so only the one accent mark can cost a
-// word its contrast: it must touch no text, at a phone's width, a tablet's and a laptop's.
+// Page geometry (design-system.md, "Page geometry"): a page's drawing, About's wheels or the 404's
+// buffer stop (ADR 0025), never sits under a word in the accent, never takes the pointer, and never
+// prints. Its shapes are --ground, which test/tokens.test.ts holds every text token to 4.5:1 on, so
+// only the one accent mark, the buffer stop's lamp, can cost a word its contrast: it must touch no
+// text, at a phone's width, a tablet's and a laptop's.
 
 const PAGES = ['/', '/writing/', '/lab/', '/lab/routes/', '/does-not-exist/'];
 const WIDTHS = [
@@ -79,7 +80,7 @@ test('known answer: the overlap check finds a mark moved onto the title', async 
 test('the drawing takes no pointer, is hidden from assistive technology, and does not print', async ({
   page,
 }) => {
-  await page.goto('/writing/');
+  await page.goto('/does-not-exist/');
   const ground = page.locator('svg.ground');
   await expect(ground).toHaveCount(1);
   expect(await ground.evaluate((g) => getComputedStyle(g).pointerEvents)).toBe('none');

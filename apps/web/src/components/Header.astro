@@ -1,5 +1,6 @@
 ---
 import { navFor, type RailGroup } from '../lib/nav';
+import Keys from './Keys.astro';
 import ThemeToggle from './ThemeToggle.astro';
 
 interface Props {
@@ -18,27 +19,29 @@ const { name, role, generated, leaves } = Astro.props;
 // The name, linking home, with the title under it in the rail; then the manifest's header items
 // whose page exists (Writing, from the first post), the command menu's button, on Home the button
 // that pauses its moving drawing (SC 2.2.2), and the theme toggle. From 80rem the header is the
-// rail down the left edge (ADR 0021), and an index of the site (ADR 0022): the name heads it on
-// every page, Home included, a search field opens the command menu, and each item lists what it
-// holds, every demo under Lab and the newest posts under Writing. Since ADR 0023 an item that holds
+// rail down the left edge (ADR 0021), and an index of the site (ADR 0022): a search field opens the
+// command menu, and each item lists what it holds, every demo under Lab, each with a lamp in its
+// line's colour (ADR 0025), and the newest posts under Writing. Since ADR 0023 an item that holds
 // pages is a disclosure, closed until pressed: it drops down to its pages and "View all", its
 // index. It stands open on a page it lists, so the visitor sees where they are; the rail's items
 // share one name, so opening one closes another. A <details> does this with no script, and its
-// <summary> is announced as a button that says whether it is expanded. Below 80rem it is the row
-// across the top it always was, each item a link, and on Home without the name, which Home's <h1>
-// is.
+// <summary> is announced as a button that says whether it is expanded. Below 80rem it is the top
+// bar, each item a link. On Home neither the rail nor the bar carries the name: Home's <h1> is the
+// name (ADR 0025), so the rail starts at the search field there.
 const headerNav = navFor('header', generated);
 const here = Astro.url.pathname;
 const home = here === '/';
 ---
 
 <header class="site-header">
-  <div class={home ? 'rail-head rail-only' : 'rail-head'}>
-    <a href="/" class={home ? 'home-mark' : 'wordmark'} aria-current={home ? 'page' : undefined}>
-      {name}
-    </a>
-    <p class="rail-role">{role}</p>
-  </div>
+  {!home && (
+    <div class="rail-head">
+      <a href="/" class="wordmark">
+        {name}
+      </a>
+      <p class="rail-role">{role}</p>
+    </div>
+  )}
   <div class="header-end">
     <button
       type="button"
@@ -47,12 +50,8 @@ const home = here === '/';
       aria-haspopup="dialog"
       aria-keyshortcuts="Meta+K Control+K"
     >
-      <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-        <circle cx="7" cy="7" r="4.75" />
-        <path d="m10.5 10.5 3.75 3.75" />
-      </svg>
-      <span>{'Search '}</span>
-      <kbd>Ctrl K</kbd>
+      Search
+      <Keys />
     </button>
     {headerNav.length > 0 && (
       <nav class="site-nav" aria-label="Primary">
@@ -89,14 +88,28 @@ const home = here === '/';
                   <ul class="nav-leaves" role="list">
                     {group.leaves.map((leaf) => (
                       <li>
-                        <a href={leaf.href} aria-current={here === leaf.href ? 'page' : undefined}>
+                        <a
+                          href={leaf.href}
+                          data-line={leaf.line}
+                          aria-current={here === leaf.href ? 'page' : undefined}
+                        >
+                          {leaf.line !== undefined && (
+                            <svg
+                              class="nav-lamp"
+                              viewBox="0 0 10 10"
+                              aria-hidden="true"
+                              focusable="false"
+                            >
+                              <circle cx="5" cy="5" r="4" />
+                            </svg>
+                          )}
                           {leaf.label}
                         </a>
                       </li>
                     ))}
                     <li class="nav-all">
                       <a href={item.href} aria-current={here === item.href ? 'page' : undefined}>
-                        View all {group.noun} <span aria-hidden="true">→</span>
+                        View all {group.noun}
                       </a>
                     </li>
                   </ul>
@@ -116,8 +129,8 @@ const home = here === '/';
           aria-haspopup="dialog"
           aria-keyshortcuts="Meta+K Control+K"
         >
-          <span class="palette-name">{'Command menu '}</span>
-          <kbd>Ctrl K</kbd>
+          <span class="palette-name">Command menu</span>
+          <Keys />
         </button>
       </li>
       {home && (

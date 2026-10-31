@@ -499,7 +499,11 @@
 }
 
 @media (width >= 64rem) {
+  /* The frame's twelve columns, which a card with a picture splits between the picture and its
+     words; global.css sets every other card as one column since ADR 0025. */
   .card-feature {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: var(--gutter);
     padding-block: 6rem;
   }
 
@@ -507,17 +511,17 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .card-feature > :is(.card-tag, .card-title, .card-figures, .card-text, .kv, .card-more) {
+  .card-feature > :is(.card-title, .card-figures, .card-text, .kv, .card-more) {
     grid-column: 1 / -1;
     grid-row: auto;
   }
 
   .card-feature:has(> .card-picture)
-    > :is(.card-tag, .card-title, .card-figures, .card-text, .kv, .card-more) {
+    > :is(.card-title, .card-figures, .card-text, .kv, .card-more) {
     grid-column: 8 / 13;
   }
 
-  .card-feature:has(> .card-picture) > .card-tag {
+  .card-feature:has(> .card-picture) > .card-title {
     align-self: end;
   }
 
@@ -1335,15 +1339,6 @@
       transform: scale(1.9);
       opacity: 0;
     }
-  }
-
-  /* The address answers the pointer: its arrow steps toward where it leads. */
-  .toward-mail-arrow {
-    transition: transform 0.2s ease-out;
-  }
-
-  .toward-mail:hover .toward-mail-arrow {
-    transform: translateX(0.15em);
   }
 }
 

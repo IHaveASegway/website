@@ -17,7 +17,9 @@ import {
   postLabel,
   postsBase,
   TAGS,
+  tagWords,
   typeset,
+  wordDay,
   writingArea,
   type Post,
   type PostPage,
@@ -115,12 +117,31 @@ describe(`the ${MIN_POSTS}-post rule (content.md, "Sitemap and phases")`, () => 
     expect(at.visible).toBe(true);
   });
 
+  // In plain words, with no middle dot between them (ADR 0025): "Draft · Pattern" until then.
   test('a page says what it is: the kind, with Draft first on a draft', () => {
     expect(postLabel({ post: post('a'), exposure: 'listed' })).toBe('Essay');
     expect(postLabel({ post: note('a'), exposure: 'listed' })).toBe('Field note');
     expect(postLabel({ post: post('a', { kind: 'pattern' }), exposure: 'draft' })).toBe(
-      'Draft · Pattern',
+      'Draft pattern',
     );
+    expect(postLabel({ post: note('a'), exposure: 'draft' })).toBe('Draft field note');
+  });
+
+  // A day in words in a page's register and a list's line (ADR 0025), from the UTC date, whatever
+  // the build machine's zone; the datetime beside it stays ISO.
+  test('a day reads as words: "25 October 2026", and a single-digit day has no leading zero', () => {
+    expect(wordDay(day('2026-10-25'))).toBe('25 October 2026');
+    expect(wordDay(day('2026-01-05'))).toBe('5 January 2026');
+    expect(wordDay(day('2027-12-31'))).toBe('31 December 2027');
+  });
+
+  test("a post's tags read as words: the first capitalized, proper nouns kept", () => {
+    expect(tagWords(['security', 'testing'])).toBe('Security, testing');
+    expect(tagWords(['go', 'durable-objects'])).toBe('Go, Durable Objects');
+    expect(tagWords(['testing', 'cloudflare'])).toBe('Testing, Cloudflare');
+    expect(tagWords([])).toBe('');
+    // Every tag has its words, so a new tag cannot render as its slug.
+    for (const tag of TAGS) expect(tagWords([tag]), tag).not.toContain('-');
   });
 
   test("newest first, and a day's posts by slug, so the order never depends on the disk", () => {
@@ -450,10 +471,10 @@ describe('fixture-none-preview: the same drafts, with drafts included', () => {
     );
     expect(build.indexable).toEqual(ALWAYS);
     expect(build.text('writing/fixture-draft-essay/index.html')).toContain(
-      '<p class="label">Draft · Essay</p>',
+      '<li class="register-kind">Draft essay</li>',
     );
     expect(build.text('notes/fixture-unfinished-thought/index.html')).toContain(
-      '<p class="label">Draft · Field note</p>',
+      '<li class="register-kind">Draft field note</li>',
     );
   });
 
@@ -507,7 +528,7 @@ describe('fixture-one-preview: the same posts, with drafts included', () => {
     ]);
     expect(build.indexable).toEqual([...ALWAYS, '/writing/', '/writing/fixture-measure-first/']);
     expect(build.text('writing/fixture-measure-first/index.html')).toContain(
-      '<p class="label">Essay</p>',
+      '<li class="register-kind">Essay</li>',
     );
   });
 
@@ -647,7 +668,7 @@ describe('fixture-many-preview: the same posts, with drafts included as a previe
   test('the draft page is noindex, says Draft, and carries no preview card or structured data', () => {
     const page = build.text(draft);
     expect(page).toContain(NOINDEX);
-    expect(page).toContain('<p class="label">Draft · Field note</p>');
+    expect(page).toContain('<li class="register-kind">Draft field note</li>');
     expect(page).not.toContain('property="og:');
     expect(page).not.toContain('application/ld+json');
     expect(build.files).not.toContain('notes/fixture-unfinished-thought/og.png');

@@ -4,9 +4,13 @@ import type { OgCard } from '../lib/og';
 import Base from './Base.astro';
 
 // The long-form layout: posts now, the colophon and its decision records next (roadmap.md, PR 3b).
-// A label line, the page's one <h1>, a lead, then the body in .prose: the base size at 16/26,
-// at most 68 characters a line (design-system.md, "Type scale"). It knows nothing about posts:
-// a page passes its words in, puts its body in the slot, and anything after the body in "after".
+// The page's one <h1> and its lead, then the page's register, then the body in .prose: the base
+// size, at most about 68 characters a line (design-system.md, "Type scale"). The register is what
+// the page says about itself, a post's kind, its day and its tags in plain words (ADR 0025): from
+// 64rem a column of its own beside the title and the body, on a phone a line under the lead, and
+// never a label over the title. It knows nothing about posts: a page passes its words in, its
+// register in the "register" slot, its body in the default slot, and anything after the body in
+// "after".
 
 interface Props {
   /** The document title, as tabs and search results show it. */
@@ -15,8 +19,6 @@ interface Props {
   description: string;
   /** The canonical path, such as "/writing/". */
   path: string;
-  /** The mono line above the heading, such as "Essay · 2026-10-23". */
-  label: string;
   /** The page's one <h1>. */
   heading: string;
   /** A sentence under the heading. */
@@ -32,7 +34,6 @@ const {
   title,
   description,
   path,
-  label,
   heading,
   lead,
   noindex = false,
@@ -56,10 +57,9 @@ const code = /<(code|pre)\b/i.test(body);
   {...(og ? { og } : {})}
   {...(jsonLd ? { jsonLd } : {})}
 >
-  <article class="page" aria-labelledby="page-title">
-    <PageHead label={label} heading={heading} lead={lead}>
-      <slot name="meta" />
-    </PageHead>
+  <article class="page long-form" aria-labelledby="page-title">
+    <PageHead heading={heading} lead={lead} />
+    <slot name="register" />
     <div class="prose">
       <Fragment set:html={body} />
     </div>

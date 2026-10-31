@@ -188,13 +188,13 @@ export function checkedProfiles(profile: Profile): ExternalProfile[] {
   return profile.basics.profiles.filter(isChecked);
 }
 
-/** "US · remote": the location line, country only. */
+/** "Remote, US": the location line, country only, in words with no middle dot (ADR 0025). */
 export function locationLine(profile: Profile): string {
   const { countryCode, remote } = profile.basics.location;
-  return remote ? `${countryCode} · remote` : countryCode;
+  return remote ? `Remote, ${countryCode}` : countryCode;
 }
 
-/** "Joseph Peterson, Senior Software Engineer. US · remote.": Home's description, for search
+/** "Joseph Peterson, Senior Software Engineer. Remote, US.": Home's description, for search
  *  results and link previews, and the summary line of /llms.txt. */
 export function homeDescription(profile: Profile): string {
   const { name, label } = profile.basics;

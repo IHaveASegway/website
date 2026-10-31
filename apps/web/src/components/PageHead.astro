@@ -1,18 +1,18 @@
 ---
 interface Props {
-  /** The mono line above the heading. */
-  label: string;
   /** The page's one <h1>. */
   heading: string;
   /** A sentence under the heading. */
   lead?: string | undefined;
 }
 
-const { label, heading, lead } = Astro.props;
+// A page's head: its title and its lead, and nothing above the title (ADR 0025: no eyebrows). What
+// a page says about itself, a post's kind and day, stands in its own register beside it
+// (layouts/Prose.astro), never over the title.
+const { heading, lead } = Astro.props;
 ---
 
 <header class="page-head">
-  <p class="label">{label}</p>
   <h1 id="page-title" class="page-title">
     {heading}
   </h1>

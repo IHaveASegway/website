@@ -65,10 +65,13 @@ export function navFor(place: 'header' | 'footer', generated: Iterable<string> =
   return navAll(generated).filter((item) => item[place]);
 }
 
-/** A page the rail lists under a header item (ADR 0022): a demo under Lab, a post under Writing. */
+/** A page the rail lists under a header item (ADR 0022): a demo under Lab, a post under Writing.
+ *  A demo names its line, the slug its colour is reached by (global.css, [data-line]), so the rail
+ *  draws its lamp in that colour (ADR 0025); a post has none. */
 export interface NavLeaf {
   readonly label: string;
   readonly href: string;
+  readonly line?: string;
 }
 
 /** What one rail item drops down to show (ADR 0023): its leaves, newest first where they have
@@ -90,12 +93,21 @@ export const RAIL_POSTS = 3;
  * group closes with a link to its index, the "View all" Joseph asked for (ADR 0023).
  */
 export function railLeaves(
-  lab: readonly { readonly title: string; readonly href: string }[],
+  lab: readonly { readonly title: string; readonly href: string; readonly line?: string }[],
   posts: readonly { readonly title: string; readonly href: string }[],
 ): Record<string, RailGroup> {
-  const leaf = ({ title, href }: { title: string; href: string }): NavLeaf => ({
+  const leaf = ({
+    title,
+    href,
+    line,
+  }: {
+    title: string;
+    href: string;
+    line?: string;
+  }): NavLeaf => ({
     label: title,
     href,
+    ...(line === undefined ? {} : { line }),
   });
   return {
     lab: { leaves: lab.map(leaf), noun: 'demos' },

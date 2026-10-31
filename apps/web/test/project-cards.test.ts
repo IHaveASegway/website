@@ -92,14 +92,16 @@ test("every card's link opens a page that exists: a listed page here, or a check
   }
 });
 
-test('a project card links only to its own repository, and draws the external arrow', () => {
+// A link says where it goes in words, with no arrow (ADR 0025): Barlow draws none, and until then
+// the card drew ↗ in a system face.
+test('a project card links only to its own repository, says so in words, and draws no arrow', () => {
   for (const card of projects) {
     const link = new RegExp(
       `<a\\b[^>]*href="${card.link.href.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^>]*>([\\s\\S]*?)</a>`,
     ).exec(home);
     expect(link, card.link.href).not.toBeNull();
     expect(link?.[1]).toContain('Source on GitHub');
-    expect(link?.[1]).toContain('↗');
+    expect(link?.[1]).not.toMatch(/[←↑→↓↗]/);
   }
 });
 

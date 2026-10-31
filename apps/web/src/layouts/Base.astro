@@ -62,12 +62,14 @@ const profile = await loadProfile();
 const area = await loadWritingArea();
 const lab = await loadLabArea();
 const generated = [...areaRoutes(area), ...labRoutes(lab)];
-// The demos and the published posts, each a page these areas build: the rail lists every demo and
-// the newest posts (lib/nav.ts, railLeaves), and the command menu finds any of them by its words.
+// The demos and the published posts, each a page these areas build: the rail lists every demo, each
+// with a lamp in its line's colour (its slug is its line, ADR 0025), and the newest posts
+// (lib/nav.ts, railLeaves), and the command menu finds any of them by its words.
 const demos = lab.entries.map((entry) => ({
   title: entry.title,
   summary: entry.summary,
   href: labPath(entry),
+  line: entry.slug,
 }));
 const posts = area.published.map((post) => ({
   title: post.title,
@@ -155,7 +157,7 @@ const chrome = (['dark', 'light'] as const).map((scheme) => ({
     {code && <Font cssVariable="--font-b612-mono" />}
   </head>
   <body>
-    {ground && <Ground kind={ground} seed={path ?? '/404/'} />}
+    {ground && <Ground kind={ground} />}
     <div class="frame masthead">
       <a class="skip-link" href="#main">
         Skip to content

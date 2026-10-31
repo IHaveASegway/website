@@ -1,61 +1,55 @@
 import { gzipSync } from 'node:zlib';
 import { describe, expect, test } from 'vitest';
-import { closed, groundFor, groundKindFor, seeded, type GroundKind } from '../src/lib/ground';
+import { GROUND_BOX, groundFor, groundKindFor, type GroundKind } from '../src/lib/ground';
 import { html, read } from './support/dist';
 
-// Page geometry (design-system.md, "Page geometry"; lib/ground.ts): each section's drawing, fixed
-// by its seed, small, and on every page but the résumé. e2e/ground.spec.ts keeps its one mark
-// clear of text and checks it is hidden in print.
+// Page geometry (design-system.md, "Page geometry"; lib/ground.ts): the two background symbols,
+// About's wheels and the 404's buffer stop (ADR 0025), each fixed and small. e2e/ground.spec.ts
+// keeps the one mark clear of text and checks the drawing is hidden in print.
 
-const KINDS: GroundKind[] = ['writing', 'lab', 'about', 'lost'];
-const markup = (kind: GroundKind, seed: string) => {
-  const g = groundFor(kind, seed);
-  return [...g.paths, ...(g.clipped ?? [])].map((p) => p.d).join('') + (g.clip ?? '');
-};
+const KINDS: GroundKind[] = ['about', 'lost'];
+const markup = (kind: GroundKind) =>
+  groundFor(kind)
+    .paths.map((p) => p.d)
+    .join('');
 
-test('known answers: which drawing a path carries, and none on Home or the résumé', () => {
-  expect(groundKindFor('/')).toBeNull();
-  expect(groundKindFor('/writing/')).toBe('writing');
-  expect(groundKindFor('/writing/a-post/')).toBe('writing');
-  expect(groundKindFor('/notes/')).toBe('writing');
-  expect(groundKindFor('/lab/')).toBe('lab');
-  expect(groundKindFor('/lab/routes/')).toBe('lab');
+// Writing's ruled sheet and the Lab's street plans went with ADR 0025: a rule is functional or a
+// lab's line. On main at f65dcc1 those pages carried them.
+test('known answers: which drawing a path carries: the wheels on /about/, the stop on the 404', () => {
   expect(groundKindFor('/about/')).toBe('about');
   expect(groundKindFor(undefined)).toBe('lost');
+  for (const path of ['/', '/writing/', '/writing/a-post/', '/notes/', '/lab/', '/lab/routes/'])
+    expect(groundKindFor(path), path).toBeNull();
   expect(groundKindFor('/colophon/')).toBeNull();
 });
 
-test('known answers: the seeded generator and the path writer', () => {
-  const a = seeded('x');
-  const b = seeded('x');
-  const first = [a(), a(), a()];
-  expect([b(), b(), b()]).toEqual(first);
-  expect(first.every((n) => n >= 0 && n < 1)).toBe(true);
-  expect(seeded('y')()).not.toBe(first[0]);
-  expect(
-    closed([
-      [0, 0],
-      [10, 0],
-      [10, 5.4],
-    ]),
-  ).toBe('M0 0l10 0l0 5z');
-  expect(closed([])).toBe('');
+// The 404's drawing (ADR 0025): one track that ends in a buffer stop, the track, the beam and the
+// stop's body filled in the ground color, and its lamp the one mark. The field of stops it replaced
+// had no track to end.
+test('known answer: the 404 draws a line that ends in a buffer stop, with its lamp lit', () => {
+  const { paths } = groundFor('lost');
+  expect(paths.map((p) => p.kind)).toEqual(['block', 'mark']);
+  const [stop, lamp] = paths;
+  // The track from the box's left edge to the beam, then the beam across its end.
+  const [, y, end] = /^M0 (\d+)H(\d+)v4H0z/.exec(stop?.d ?? '') ?? [];
+  expect(Number(end)).toBeGreaterThan(GROUND_BOX.width / 2);
+  expect(stop?.d).toContain(`M${end} ${Number(y) - 30}h6v64h-6z`);
+  // The lamp stands over the beam, above the track.
+  expect(lamp?.d).toMatch(new RegExp(`^M${Number(end) - 5} (\\d+)a8 8 `));
 });
 
 describe.each(KINDS)('%s', (kind) => {
-  test('the same seed draws the same picture, byte for byte', () => {
-    expect(markup(kind, '/a/')).toBe(markup(kind, '/a/'));
+  test('the same kind draws the same picture, byte for byte', () => {
+    expect(markup(kind)).toBe(markup(kind));
   });
 
   test('it weighs at most 2.5 KB gzip, and has at most one accent mark', () => {
-    expect(gzipSync(markup(kind, '/a/'), { level: 9 }).length).toBeLessThanOrEqual(2_500);
-    expect(
-      groundFor(kind, '/a/').paths.filter((p) => p.kind === 'mark').length,
-    ).toBeLessThanOrEqual(1);
+    expect(gzipSync(markup(kind), { level: 9 }).length).toBeLessThanOrEqual(2_500);
+    expect(groundFor(kind).paths.filter((p) => p.kind === 'mark').length).toBeLessThanOrEqual(1);
   });
 
   test('every coordinate is a whole number, so the markup stays small', () => {
-    expect(markup(kind, '/a/')).not.toMatch(/\d\.\d/);
+    expect(markup(kind)).not.toMatch(/\d\.\d/);
   });
 });
 

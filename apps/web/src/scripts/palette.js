@@ -223,9 +223,13 @@ function boot() {
   }
 
   // The buttons name the keys this keyboard has, then show: until here they hold their place unseen.
+  // On an Apple keyboard the command key is the drawn one beside the letter (components/Keys.astro).
   const mac = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
-  for (const keys of openers.map((opener) => opener.querySelector('kbd'))) {
-    if (keys) keys.textContent = mac ? '⌘K' : 'Ctrl K';
+  for (const keys of openers.map((opener) => opener.querySelector('[data-keys]'))) {
+    if (!keys) continue;
+    keys.toggleAttribute('data-mac', mac);
+    const text = keys.querySelector('[data-keys-text]');
+    if (text) text.textContent = mac ? 'K' : 'Ctrl K';
   }
   document.documentElement.dataset.palette = '';
 }

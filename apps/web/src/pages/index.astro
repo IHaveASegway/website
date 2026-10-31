@@ -98,7 +98,6 @@ const linkedIn = checkedProfiles(profile).find((p) => p.network === 'LinkedIn');
         <SectionTitle id="work-title" title="Selected work" />
         {cards.map((card) => (
           <WorkCard
-            tag={card.tag}
             title={card.title}
             text={card.text}
             facts={card.facts}
@@ -174,17 +173,11 @@ const linkedIn = checkedProfiles(profile).find((p) => p.network === 'LinkedIn');
       </div>
       <a class="toward-mail" href={`mailto:${CONTACT_EMAIL}`}>
         <span class="toward-mail-words">{CONTACT_EMAIL}</span>
-        <span class="toward-mail-arrow" aria-hidden="true">
-          →
-        </span>
       </a>
       {linkedIn && (
         <div class="toward-actions">
           <a class="btn" href={linkedIn.url}>
-            {linkedIn.network}{' '}
-            <span class="hint" aria-hidden="true">
-              ↗
-            </span>
+            {linkedIn.network}
           </a>
         </div>
       )}
