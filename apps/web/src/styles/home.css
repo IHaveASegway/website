@@ -132,8 +132,11 @@
   min-inline-size: min(7.5rem, 100%);
 }
 
+/* The address's button is wider than its words at the largest UI size on any renderer: its label
+   is 224 px at 15 px in Linux's Chromium, past the 13.5rem (216 px) floor it had, so there it grew
+   with the fluid text size (e2e/layout.spec.ts under e2e:linux); macOS sets it narrower. */
 .intro-actions .btn-email {
-  min-inline-size: min(13.5rem, 100%);
+  min-inline-size: min(15rem, 100%);
   overflow-wrap: anywhere;
   text-align: center;
 }
