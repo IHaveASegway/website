@@ -51,7 +51,9 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
   const run = $<HTMLButtonElement>('[data-rf-run]');
   const loss = $<HTMLInputElement>('[data-rf-loss]');
   const lossOut = $<HTMLOutputElement>('[data-rf-loss-out]');
-  const speed = $<HTMLSelectElement>('[data-rf-speed]');
+  // The speed is the chosen radio's, read on every frame, so a choice made before the app loaded
+  // counts too.
+  const speed = () => Number($<HTMLInputElement>('[data-rf-speed]:checked')?.value ?? 0.05);
   const lines = $<HTMLOListElement>('[data-rf-lines]');
   const said = $('[data-rf-said]');
   const text = (selector: string, value: string) => {
@@ -148,7 +150,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     cancelAnimationFrame(frame);
     clearInterval(timer);
     if (run) run.textContent = 'Run';
-    run?.setAttribute('aria-pressed', 'false');
+    run?.setAttribute('data-lamp', 'off');
     draw();
   }
 
@@ -156,7 +158,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     if (!playing) return;
     const elapsed = Math.min(FRAME_CAP, now - last);
     last = now;
-    runUntil(sim, sim.now + elapsed * Number(speed?.value ?? 0.05), EVENTS_PER_FRAME);
+    runUntil(sim, sim.now + elapsed * speed(), EVENTS_PER_FRAME);
     draw();
     if (sim.violation) {
       say(statusText(sim));
@@ -170,7 +172,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     if (sim.violation) return;
     playing = true;
     if (run) run.textContent = 'Pause';
-    run?.setAttribute('aria-pressed', 'true');
+    run?.setAttribute('data-lamp', 'on');
     if (still.matches) {
       timer = window.setInterval(() => {
         runUntil(sim, sim.now + STILL_STEP, EVENTS_PER_FRAME);

@@ -26,11 +26,20 @@ import '../../styles/raft-lab.css';
 // controls show only where script runs (raft-lab.css), and boot.ts loads the simulation on the
 // visitor's first intent; it replays the same opening, so it takes over exactly where this stands.
 // It all sits on the lab's desk (ADR 0025): servers and log entries are lamps in the lab's line, and
-// Run is a push-button whose lamp is lit while the run is on (app.ts sets aria-pressed).
+// Run is a push-button whose lamp is lit while the run is on (app.ts sets data-lamp). Its words say
+// what a press does, Run or Pause, so it is a plain button, never a toggle: a toggle keeps its name
+// and says its state through aria-pressed (WAI-ARIA APG, "Button Pattern").
 const sim = openingRun();
 const cut = cutFence(sim.groups);
 const lines = sim.lines.slice(-12);
 const dial = DIAL_RADIUS;
+
+// Virtual seconds a real second runs, by name; Steady is the speed the page opens at.
+const SPEEDS = [
+  { value: '0.025', words: 'Slow' },
+  { value: '0.05', words: 'Steady' },
+  { value: '0.1', words: 'Quick' },
+] as const;
 ---
 
 <div class="rf desk" id="raft-lab" data-rf-opening={JSON.stringify(OPENING)}>
@@ -110,22 +119,29 @@ const dial = DIAL_RADIUS;
 
   <div class="rf-controls" data-rf-js>
     <div class="rf-row" role="group" aria-label="Time">
-      <button type="button" class="btn rf-run" aria-pressed="false" data-rf-run>
+      <button type="button" class="btn rf-run" data-lamp="off" data-rf-run>
         Run
       </button>
       <button type="button" class="btn" data-rf-step>
         Next event
       </button>
-      <label class="rf-field">
-        <span>Speed</span>
-        <select data-rf-speed>
-          <option value="0.025">Slow</option>
-          <option value="0.05" selected>
-            Steady
-          </option>
-          <option value="0.1">Quick</option>
-        </select>
-      </label>
+      <fieldset class="rf-speed">
+        <legend class="rf-speed-name">Speed</legend>
+        {SPEEDS.map((speed) => (
+          <label class="btn rf-option">
+            <input
+              type="radio"
+              name="rf-speed"
+              value={speed.value}
+              checked={speed.words === 'Steady'}
+              autocomplete="off"
+              data-rf-speed
+            />
+            <span class="rf-lamp" />
+            {speed.words}
+          </label>
+        ))}
+      </fieldset>
       <button type="button" class="btn" data-rf-reset>
         Start over
       </button>

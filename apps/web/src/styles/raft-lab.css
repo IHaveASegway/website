@@ -340,7 +340,8 @@
   border-top: 1px solid var(--input);
 }
 
-/* Run keeps one width as its words turn to Pause, so the row never shifts under the pointer. */
+/* Run keeps one width as its words turn to Pause, so the row never shifts under the pointer. Its
+   lamp, lit while the run is on, is global.css's [data-lamp], the one Run every lab shares. */
 .rf-run {
   min-inline-size: 6.5rem;
 }
@@ -368,21 +369,70 @@
   width: min(8rem, 100%);
 }
 
-/* The speed is a push-button too: square, the functional rule, the label face at its size. */
-.rf-field select {
-  min-height: 2.75rem;
-  padding: 0.375rem 0.625rem;
-  border: 1px solid var(--input);
-  border-radius: 0;
+/* The speed is a row of push-buttons, each a native radio, so the arrow keys move between them
+   and Tab enters and leaves the row at the chosen one (WAI-ARIA APG, "Radio Group Pattern"). Its
+   name stands before it in the label face, as the loss slider's does; a floated legend is laid out
+   with the buttons instead of over the border. The buttons share their edges. */
+.rf-speed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.rf-speed-name {
+  float: left;
+  margin-inline-end: 0.5rem;
+  padding: 0;
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+}
+
+.rf-option {
+  position: relative;
+  padding-inline: 0.75rem;
+}
+
+.rf-option + .rf-option {
+  margin-inline-start: -1px;
+}
+
+/* The chosen speed's button is pressed in, as a pressed push-button is (global.css). */
+.rf-option:has(:checked) {
+  background-color: var(--surface-2);
+}
+
+/* The radio covers its button, edge included, and draws nothing itself, so the one focus ring
+   (global.css) goes around the whole button, as a button's does. The lamp after it is hollow, and
+   lit while its radio is chosen. */
+.rf-option input {
+  position: absolute;
+  inset-block-start: -1px;
+  inset-inline-start: -1px;
+  inline-size: calc(100% + 2px);
+  block-size: calc(100% + 2px);
+  margin: 0;
+  border: 0;
+  appearance: none;
   background-color: transparent;
-  color: var(--foreground);
-  font: inherit;
-  font-size: var(--text-ui);
   cursor: pointer;
 }
 
-.rf-field select:hover {
-  background-color: var(--surface-2);
+.rf-lamp {
+  flex: none;
+  inline-size: 0.625rem;
+  block-size: 0.625rem;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+}
+
+.rf-option input:checked + .rf-lamp {
+  border-color: var(--primary);
+  background-color: var(--primary);
 }
 
 .rf-field output {
@@ -410,7 +460,9 @@
 }
 
 /* The event log: the newest line last, in a describer's window, raised, that scrolls; a part of
-   the desk of its own, under a rule from bezel to bezel. */
+   the desk of its own, under a rule from bezel to bezel. On a phone a line is one column, its time
+   leading its words; from 48rem the time has a column of its own, so the words wrap under
+   themselves, never under the time. */
 .rf-events {
   display: grid;
   gap: 0.75rem;
@@ -436,9 +488,15 @@
   list-style: none;
 }
 
+@media (width >= 48rem) {
+  .rf-list li {
+    display: grid;
+    grid-template-columns: 5.5rem minmax(0, 1fr);
+  }
+}
+
 .rf-at {
-  display: inline-block;
-  min-width: 5.5rem;
+  margin-inline-end: 0.5rem;
   color: var(--muted-foreground);
   font-family: var(--font-label);
   font-size: var(--text-label);
@@ -448,6 +506,12 @@
 @media (forced-colors: active) {
   .rf-cell[data-done] .rf-mark {
     background-color: CanvasText;
+  }
+
+  .rf-option input:checked + .rf-lamp {
+    forced-color-adjust: none;
+    border-color: ButtonText;
+    background-color: ButtonText;
   }
 
   .rf-mark {
