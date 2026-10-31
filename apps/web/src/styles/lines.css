@@ -1,12 +1,12 @@
 /*
   The labs' lines (ADR 0025; components/board/lines/): each lab drawn as its mechanism, in its own
-  colour, var(--line), which its slug sets (global.css, [data-line]). The line components import
-  this sheet, so any page that draws a line carries it and no other page does. Every colour is a
-  token from tokens.css. A track is the lab's colour at a lamp's weight; a lamp is round, the only
-  round thing on the page: hollow is a ring in the line's colour on the surface it stands on, filled
-  is the line's colour, and the lit lamp, --primary, is where the work is now. A lamp's fill layer
-  and the lit lamps are separate shapes, shown or hidden by opacity alone, so styles/board.css can
-  move the Route Lab's day without moving anything.
+  colour, var(--line), which its slug sets (global.css, [data-line]), on Home's board and on the Lab
+  index. The line components import this sheet, so a page that draws a line carries it and no other
+  page does. Every colour is a token from tokens.css. A track is the lab's colour at a lamp's
+  weight; a lamp is round, the only round thing on the page: hollow is a ring in the line's colour
+  on the surface it stands on, filled is the line's colour, and the lit lamp, --primary, is where
+  the work is now. A lamp's fill layer and the lit lamps are separate shapes, shown or hidden by
+  opacity alone, so styles/board.css can move the Route Lab's day without moving anything.
 */
 
 .line {
@@ -14,7 +14,7 @@
   display: block;
 }
 
-/* Each line is drawn twice, for a narrow board and a wide one (lines/routes.astro): pixels for
+/* Each line is drawn twice, for a narrow screen and a wide one (lines/routes.astro): pixels for
    heights and sizes, shares of the width for places, so nothing scales with the screen. */
 .line-draw {
   display: block;
@@ -113,6 +113,11 @@
 
 .line-label {
   fill: var(--muted-foreground);
+}
+
+/* A station named under its lamp: the Lab index's servers and log (lines/raft.astro). */
+.line-label-middle {
+  text-anchor: middle;
 }
 
 .line-number {

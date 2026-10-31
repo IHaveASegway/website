@@ -6,7 +6,7 @@ import { formatDuration } from './route-lab/format';
 import type { Measured } from './route-lab/plan';
 
 // Each lab drawn as its line (ADR 0025): the real shape of the system it runs, in the lab's own
-// colour, on Home's board and later on the Lab index. This module is the lines' model and their
+// colour, on Home's board and on the Lab index. This module is the lines' model and their
 // words, worked out from what the labs themselves compute at build: the Route Lab's solve of its
 // default day, and the Raft Lab's opening run. Plain TypeScript with no DOM, so the components
 // (components/board/) and the unit tests read the same numbers, and none of them is typed.
@@ -93,6 +93,11 @@ export function routesWords(day: Day, measured: Measured): string {
   const vans = measured.vans.filter((van) => van.stops.length > 0).length;
   return `${day.orders.length} orders on ${vans} ${vans === 1 ? 'van' : 'vans'}: ${formatDuration(measured.drive)} of driving, the last van back after ${formatDuration(measured.back)}.`;
 }
+
+/** The Routes line's one fact on the Lab index: what VROOM saves on the lab's own day, from the
+ *  build's solve of both plans: "A busy Saturday: 3 h 12 min of driving instead of 5 h 34 min." */
+export const routesFact = (day: Day, before: Measured, after: Measured): string =>
+  `${day.name}: ${formatDuration(after.drive)} of driving instead of ${formatDuration(before.drive)}.`;
 
 /** The figure pair's caption on Home: "of driving on a busy Saturday, planned by VROOM in your
  *  browser", the day's own name in it. */

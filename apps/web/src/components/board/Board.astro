@@ -1,7 +1,7 @@
 ---
-import type { AstroComponentFactory } from 'astro/runtime/server/index.js';
 import type { LabEntry } from '../../lib/lab';
 import { labPath } from '../../lib/lab';
+import { lineOf } from './line-of';
 import '../../styles/board.css';
 
 interface Props {
@@ -12,14 +12,10 @@ interface Props {
 // Home's board (ADR 0025): every live lab as a line on one panel, recessed in the page in a bezel.
 // A band per lab, in the lab's order, each the lab's title, its line drawn as its mechanism and a
 // describer in plain words, and each a link to the lab: its title's link stretches over the band,
-// as a row of an index does (ADR 0022). A lab's line is the component in ./lines/ named by its
-// slug, so a new lab joins the board by adding its line there and nothing else; a lab without one
-// is not drawn, and a board with no line is not drawn at all. The board is the page's only place
-// for the labs' lines on Home; the Lab index draws the same components.
-const LINES = import.meta.glob<{ default: AstroComponentFactory }>('./lines/*.astro', {
-  eager: true,
-});
-const lineOf = (slug: string) => LINES[`./lines/${slug}.astro`]?.default;
+// as a row of an index does (ADR 0022). A lab's line is its component in ./lines/ (line-of.ts), so
+// a new lab joins the board by adding its line there and nothing else; a lab without one is not
+// drawn, and a board with no line is not drawn at all. The Lab index draws the same components,
+// larger, beside each lab's words.
 const { labs } = Astro.props;
 const bands = labs.flatMap((lab) => {
   const Line = lineOf(lab.slug);
@@ -39,7 +35,7 @@ const bands = labs.flatMap((lab) => {
           <a class="band-title" href={labPath(lab)}>
             {lab.title}
           </a>
-          <Line />
+          <Line at="board" />
         </li>
       ))}
     </ul>

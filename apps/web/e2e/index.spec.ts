@@ -104,3 +104,86 @@ for (const { width, height } of [
     }
   });
 }
+
+// The Lab index (ADR 0025): each live lab is a row of its line, drawn large, and its words, its
+// title, its summary and one fact from its build. From 64rem the line takes the left of the row
+// and the words the right; below, the line heads the row, small and with no names. Either way it
+// comes in from the page's edge, the rail's or the window's, where main clips it, and the page
+// never scrolls sideways.
+for (const { width, height, beside } of [
+  { width: 1440, height: 900, beside: true },
+  { width: 390, height: 844, beside: false },
+]) {
+  test(`at ${width} px the Lab index draws each lab's line ${beside ? 'beside' : 'above'} its words, in from the page's edge`, async ({
+    page,
+  }) => {
+    test.skip(!pages().includes('/lab/'), 'this build has no lab');
+    await page.setViewportSize({ width, height });
+    await page.goto('/lab/');
+    await page.evaluate(() => document.fonts.ready);
+    const rows = await page.locator('main .lab-row').all();
+    expect(rows.length).toBeGreaterThan(0);
+    const main = await page.locator('main').evaluate((element) => ({
+      left: element.getBoundingClientRect().left,
+      clip: getComputedStyle(element).overflowX,
+    }));
+    expect(main.clip).toBe('clip');
+    for (const row of rows) {
+      const slug = await row.getAttribute('data-line');
+      const drawing = row.locator('svg.line-draw').filter({ visible: true });
+      await expect(drawing, `${slug}: one drawing at a time`).toHaveCount(1);
+      const box = await drawing.boundingBox();
+      const title = await row.locator('.post-title').boundingBox();
+      if (!box || !title) throw new Error(`${slug}: the row is not drawn`);
+      // Its track starts past the page's edge: the drawing's own left is the text's edge.
+      const track = await drawing.locator('.line-track').first().boundingBox();
+      expect(track?.x ?? Infinity, `${slug}: in from the edge`).toBeLessThanOrEqual(main.left);
+      if (beside) expect(title.x, `${slug}: words beside`).toBeGreaterThan(box.x + box.width);
+      else expect(title.y, `${slug}: words under`).toBeGreaterThan(box.y + box.height);
+      // Stations are named on the large drawing only.
+      expect((await drawing.locator('.line-label').count()) > 0, `${slug}: names`).toBe(beside);
+      await expect(row.locator('.lab-fact'), `${slug}: its fact`).toHaveText(/\S.*\.$/);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+  });
+}
+
+// A lab's page heads its title with the lab's line (ADR 0025), in the colour the rail's lamp for
+// that lab is lit in, and it ends in a lamp; a page that is not a lab's has no line.
+test("each lab's page heads its title with its line, in its own colour, ending in a lamp", async ({
+  page,
+}) => {
+  const demos = pages().filter((path) => /^\/lab\/[^/]+\/$/.test(path));
+  test.skip(demos.length === 0, 'this build has no demo');
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const seen = new Set<string>();
+  for (const demo of demos) {
+    await page.goto(demo);
+    const head = await page.locator('.page-head > .page-line').evaluate((line) => {
+      const before = getComputedStyle(line, '::before');
+      const after = getComputedStyle(line, '::after');
+      const lamp = document.querySelector('.nav-leaves a[aria-current] .nav-lamp');
+      return {
+        hidden: line.getAttribute('aria-hidden'),
+        line: before.backgroundColor,
+        height: before.height,
+        lamp: after.backgroundColor,
+        round: after.borderRadius,
+        rail: lamp ? getComputedStyle(lamp).fill : null,
+      };
+    });
+    expect(head, demo).toEqual({
+      hidden: 'true',
+      line: head.rail,
+      height: '6px',
+      lamp: head.rail,
+      round: '50%',
+      rail: expect.any(String),
+    });
+    seen.add(head.line);
+  }
+  // A colour per lab.
+  expect(seen.size).toBe(demos.length);
+  await page.goto('/lab/');
+  await expect(page.locator('.page-line')).toHaveCount(0);
+});

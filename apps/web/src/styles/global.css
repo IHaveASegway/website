@@ -638,8 +638,10 @@
 
   /* Buttons are the panel's push-buttons (ADR 0025): square, in the label face, edged by the
      functional rule, raised under the pointer. A button that holds a state, aria-pressed, shows a
-     lamp before its words: hollow while off, lit while on, so its state is a shape and a word,
-     never a fill's color. The primary button is the lit lamp itself: its fill is the lamp's. */
+     lamp before its words: hollow while off, lit while on, and pressed in, raised as under the
+     pointer, so its state is a shape and a word, never a fill's colour. A lab's choices do the
+     same with their radios (route-lab.css). The primary button is the lit lamp itself: its fill
+     is the lamp's. */
   .btn {
     display: inline-flex;
     align-items: center;
@@ -671,6 +673,10 @@
     block-size: 0.625rem;
     border: 1.5px solid currentColor;
     border-radius: 50%;
+  }
+
+  .btn:not(.btn-primary)[aria-pressed='true'] {
+    background-color: var(--surface-2);
   }
 
   .btn:not(.btn-primary)[aria-pressed='true']::before {
@@ -1498,6 +1504,52 @@
     font-size: var(--text-lead);
     line-height: var(--text-lead--line-height);
     text-wrap: pretty;
+  }
+
+  /* A lab's page heads its title with the lab's line (ADR 0025): 6 px of its colour across the
+     column, run into its lamp, filled: the lab's terminus, in service. A drawing, which assistive
+     technology skips; on paper and in forced colors it goes with the other backgrounds. */
+  .page-head > .page-line {
+    display: flex;
+    align-items: center;
+    max-width: none;
+    block-size: 1.125rem;
+    margin-block-end: 0.625rem;
+  }
+
+  .page-line::before,
+  .page-line::after {
+    content: '';
+    background-color: var(--line, var(--primary));
+  }
+
+  .page-line::before {
+    flex: 1 1 auto;
+    block-size: 6px;
+  }
+
+  .page-line::after {
+    flex: none;
+    inline-size: 1.125rem;
+    block-size: 1.125rem;
+    border-radius: 50%;
+  }
+
+  /* A lab's desk (ADR 0025): the demo on the board's recessed surface in a 2 px bezel of the
+     functional rule, as Home's board is. Its own rules, between the demo's parts, run from bezel to
+     bezel through --desk-side, its inline padding. What stands on it takes its surface for ground. */
+  .desk {
+    --desk-side: 1rem;
+    padding: 1.25rem var(--desk-side) 1.5rem;
+    border: 2px solid var(--input);
+    background-color: var(--surface-1);
+  }
+
+  @media (width >= 48rem) {
+    .desk {
+      --desk-side: 1.75rem;
+      padding-block: 1.5rem 2rem;
+    }
   }
 
   /* A long-form page (layouts/Prose.astro): its head, its register, its body. The register is what

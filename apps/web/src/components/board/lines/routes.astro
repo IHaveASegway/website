@@ -1,19 +1,31 @@
 ---
-import { routesLine, routesWords, spread } from '../../../lib/lines';
+import { routesFact, routesLine, routesWords, spread } from '../../../lib/lines';
 import { routeLabPicture } from '../../../lib/route-lab/picture';
+import type { LineAt } from '../line-of';
 import '../../../styles/lines.css';
+
+interface Props {
+  /** Home's board, the default, or the Lab index (line-of.ts). */
+  at?: LineAt;
+}
 
 // The Route Lab's line (ADR 0025): the bakery, a square depot at the left, and a track forking out
 // to each van, its stops as lamps placed by when the van reaches them in the build's solve of the
 // lab's default day, so van 3's short run ends early and van 2's long one runs to the end. A
 // filled lamp is an order delivered, a hollow one an order still on board; the van itself is the
-// lit lamp. The still board shows the middle of its day (lib/lines.ts, MIDDAY); styles/board.css
-// moves it, one van a stop a second, on Home. Drawn twice, for a narrow board and a wide one, each
-// without a viewBox: a track's height and a lamp's size are pixels and its place along the day a
-// share of the width, so nothing scales with the screen and a lamp stays round.
+// lit lamp. The still drawing shows the middle of its day (lib/lines.ts, MIDDAY); styles/board.css
+// moves it, one van a stop a second, on Home. Drawn twice, for a narrow screen and a wide one,
+// each without a viewBox: a track's height and a lamp's size are pixels and its place along the day
+// a share of the width, so nothing scales with the screen and a lamp stays round. On the board the
+// line starts at the panel's edge and its describer gives the day's numbers; on the Lab index it is
+// larger, comes in from the page's edge to the bakery on the text's edge, and names what it saves.
+const { at = 'board' } = Astro.props;
 const picture = await routeLabPicture(process.cwd());
 const line = routesLine(picture.after.measured);
-const words = routesWords(picture.day, picture.after.measured);
+const words =
+  at === 'board'
+    ? routesWords(picture.day, picture.after.measured)
+    : routesFact(picture.day, picture.before.measured, picture.after.measured);
 
 interface Size {
   readonly name: 'wide' | 'compact';
@@ -35,40 +47,79 @@ interface Size {
   readonly labels: boolean;
 }
 
-const SIZES: readonly Size[] = [
-  {
-    name: 'wide',
-    height: 96,
-    gap: 26,
-    depot: 40,
-    side: 14,
-    fork: 62,
-    from: 16,
-    to: 86,
-    room: 2.8,
-    lamp: 6,
-    van: 9,
-    loop: 7,
-    labels: true,
-  },
-  {
-    name: 'compact',
-    height: 64,
-    gap: 15,
-    depot: 16,
-    side: 10,
-    fork: 30,
-    from: 19,
-    to: 93,
-    room: 3.9,
-    lamp: 3.75,
-    van: 6,
-    loop: 4.5,
-    labels: false,
-  },
-];
+const SIZES: Record<LineAt, readonly Size[]> = {
+  board: [
+    {
+      name: 'wide',
+      height: 96,
+      gap: 26,
+      depot: 40,
+      side: 14,
+      fork: 62,
+      from: 16,
+      to: 86,
+      room: 2.8,
+      lamp: 6,
+      van: 9,
+      loop: 7,
+      labels: true,
+    },
+    {
+      name: 'compact',
+      height: 64,
+      gap: 15,
+      depot: 16,
+      side: 10,
+      fork: 30,
+      from: 19,
+      to: 93,
+      room: 3.9,
+      lamp: 3.75,
+      van: 6,
+      loop: 4.5,
+      labels: false,
+    },
+  ],
+  // Made for a column of 30rem at the least, beside the words from 64rem, and the whole column of
+  // a phone below 48rem.
+  index: [
+    {
+      name: 'wide',
+      height: 128,
+      gap: 32,
+      depot: 0,
+      side: 16,
+      fork: 44,
+      from: 17,
+      to: 84,
+      room: 3.4,
+      lamp: 7,
+      van: 10.5,
+      loop: 8,
+      labels: true,
+    },
+    {
+      name: 'compact',
+      height: 64,
+      gap: 15,
+      depot: 0,
+      side: 10,
+      fork: 16,
+      from: 15,
+      to: 92,
+      room: 3.9,
+      lamp: 3.75,
+      van: 6,
+      loop: 4.5,
+      labels: false,
+    },
+  ],
+};
 
-const drawings = SIZES.map((size) => {
+// On the index the stem comes in from past the drawing's left edge: from the rail's edge, or the
+// window's, to the bakery (styles/lab-index.css clips it there).
+const enters = at === 'index' ? '-100%' : '0';
+const drawings = SIZES[at].map((size) => {
   const middle = size.height / 2;
   const count = line.vans.length;
   const gap = count > 3 ? size.gap * 0.85 : size.gap;
@@ -92,7 +143,7 @@ const drawings = SIZES.map((size) => {
       aria-hidden="true"
       focusable="false"
     >
-      <line class="line-track" x1="0" y1={middle} x2={size.depot} y2={middle} />
+      <line class="line-track" x1={enters} y1={middle} x2={size.depot} y2={middle} />
       {vans.map((van) => (
         <>
           <path
@@ -168,4 +219,4 @@ const drawings = SIZES.map((size) => {
     </svg>
   ))}
 </div>
-<p class="band-words">{words}</p>
+<p class={at === 'board' ? 'band-words' : 'lab-fact'}>{words}</p>

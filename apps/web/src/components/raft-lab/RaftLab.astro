@@ -25,13 +25,15 @@ import '../../styles/raft-lab.css';
 // build from the opening run (lib/raft/view.ts), so the page is complete without JavaScript. The
 // controls show only where script runs (raft-lab.css), and boot.ts loads the simulation on the
 // visitor's first intent; it replays the same opening, so it takes over exactly where this stands.
+// It all sits on the lab's desk (ADR 0025): servers and log entries are lamps in the lab's line, and
+// Run is a push-button whose lamp is lit while the run is on (app.ts sets aria-pressed).
 const sim = openingRun();
 const cut = cutFence(sim.groups);
 const lines = sim.lines.slice(-12);
 const dial = DIAL_RADIUS;
 ---
 
-<div class="rf" id="raft-lab" data-rf-opening={JSON.stringify(OPENING)}>
+<div class="rf desk" id="raft-lab" data-rf-opening={JSON.stringify(OPENING)}>
   <div class="rf-stage">
     <figure class="rf-figure">
       <svg
@@ -93,14 +95,14 @@ const dial = DIAL_RADIUS;
         ))}
       </ol>
       <p class="rf-legend">
-        A cell is one entry, with its term under it. Each term has its own color. A filled cell is
-        committed: a majority holds it, and it can never be lost. An outlined cell is not, yet.
+        Each lamp is one entry, with its term under it. A filled lamp is committed: a majority holds
+        it, and it can never be lost. A hollow lamp is not committed yet.
       </p>
       <p class="rf-status" data-rf-status>
         {statusText(sim)}
       </p>
       <p class="rf-clock" data-rf-js>
-        <span data-rf-clock>Virtual time {seconds(sim.now)}</span> · seed{' '}
+        <span data-rf-clock>Virtual time {seconds(sim.now)}</span>, seed{' '}
         <span data-rf-seed>{sim.seed}</span>
       </p>
     </div>
@@ -108,7 +110,7 @@ const dial = DIAL_RADIUS;
 
   <div class="rf-controls" data-rf-js>
     <div class="rf-row" role="group" aria-label="Time">
-      <button type="button" class="btn btn-primary rf-run" data-rf-run>
+      <button type="button" class="btn rf-run" aria-pressed="false" data-rf-run>
         Run
       </button>
       <button type="button" class="btn" data-rf-step>

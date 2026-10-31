@@ -8,21 +8,23 @@ import {
   MIDDAY,
   raftLine,
   ROUNDS,
+  routesFact,
   routesLine,
   routesWords,
   spread,
   vanLines,
 } from '../src/lib/lines';
-import { openingRun } from '../src/lib/raft/view';
+import { openingRun, statusText } from '../src/lib/raft/view';
 import type { RouteData } from '../src/lib/route-lab/data';
 import type { Day } from '../src/lib/route-lab/days';
 import { dayLine, NBSP } from '../src/lib/route-lab/format';
 import { routeData, routeLabPicture } from '../src/lib/route-lab/picture';
 import type { Measured } from '../src/lib/route-lab/plan';
 
-// The labs' lines on Home's board and their words (lib/lines.ts; ADR 0025): known answers first,
-// then the real day's and the real run's, which the page prints, so a change to the solve or the
-// run shows here as a change of words. Every figure on the board comes from them, none is typed.
+// The labs' lines on Home's board and the Lab index, and their words (lib/lines.ts; ADR 0025):
+// known answers first, then the real day's and the real run's, which the pages print, so a change
+// to the solve or the run shows here as a change of words. Every figure on the board and the
+// index comes from them, none is typed.
 
 const app = fileURLToPath(new URL('..', import.meta.url));
 
@@ -103,6 +105,12 @@ describe('the Routes line', () => {
     expect(figureWords(day)).toBe(
       'of driving on a busy Saturday, planned by VROOM in your browser',
     );
+    // The index's one fact: the day's driving with VROOM, against the orders as they came in.
+    const before = measured([{ arrives: [600], back: 7200 }]);
+    const after = measured([{ arrives: [600], back: 5400 }]);
+    expect(routesFact(day, before, after)).toBe(
+      `A busy Saturday: 1${NBSP}h 30${NBSP}min of driving instead of 2${NBSP}h 0${NBSP}min.`,
+    );
     expect(inWords(5)).toBe('five');
     expect(inWords(12)).toBe('12');
   });
@@ -125,6 +133,9 @@ describe('the Routes line', () => {
     expect(routesWords(picture.day, after)).toBe(
       `20 orders on 3 vans: 3${NBSP}h 12${NBSP}min of driving, the last van back after 2${NBSP}h 20${NBSP}min.`,
     );
+    expect(routesFact(picture.day, picture.before.measured, after)).toBe(
+      `A busy Saturday: 3${NBSP}h 12${NBSP}min of driving instead of 5${NBSP}h 34${NBSP}min.`,
+    );
     const line = routesLine(after);
     expect(line.vans.map((van) => van.stops.length)).toEqual([9, 9, 2]);
     // Van 2 is the last back, so its loop ends the day; van 3's short run ends early.
@@ -142,6 +153,10 @@ describe('the Raft line', () => {
     expect(line.followers).toEqual([2, 3, 4, 5]);
     expect(line.log).toEqual([true, true, true]);
     expect(line.words).toBe('Server 1 leads term 1. All five safety properties hold.');
+  });
+
+  test("the index's fact: the five properties held over every event of the opening run", () => {
+    expect(statusText(openingRun())).toBe('All five safety properties held over 249 events.');
   });
 });
 

@@ -4,15 +4,19 @@ interface Props {
   heading: string;
   /** A sentence under the heading. */
   lead?: string | undefined;
+  /** A lab's page: its line runs across the top in its colour, var(--line), which the page's
+   *  [data-line] sets, and ends in a lit lamp, the lab's terminus. A drawing, not words. */
+  line?: boolean | undefined;
 }
 
-// A page's head: its title and its lead, and nothing above the title (ADR 0025: no eyebrows). What
-// a page says about itself, a post's kind and day, stands in its own register beside it
-// (layouts/Prose.astro), never over the title.
-const { heading, lead } = Astro.props;
+// A page's head: its title and its lead, and no words above the title (ADR 0025: no eyebrows).
+// What a page says about itself, a post's kind and day, stands in its own register beside it
+// (layouts/Prose.astro), never over the title. A lab's page heads its title with the lab's line.
+const { heading, lead, line = false } = Astro.props;
 ---
 
 <header class="page-head">
+  {line && <span class="page-line" aria-hidden="true" />}
   <h1 id="page-title" class="page-title">
     {heading}
   </h1>
