@@ -152,8 +152,8 @@
 }
 
 /* An oven ticket: filled once printed, with a second ring when it printed twice; a lost order's
-   ticket is hollow and struck through once, never printed, in the line's colour as the lamp table
-   draws every mark. */
+   ticket is hollow and struck through once, never printed. Every one is in the line's colour, as
+   the lamp table draws every mark: the second ring was in the ink until 2026-10-31. */
 .qu-ticket {
   fill: var(--line);
   stroke: none;
@@ -167,7 +167,7 @@
 
 .qu-again {
   fill: none;
-  stroke: var(--foreground);
+  stroke: var(--line);
   stroke-width: 1.75;
 }
 

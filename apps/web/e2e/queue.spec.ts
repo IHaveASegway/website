@@ -79,11 +79,14 @@ test('without JavaScript, the page is the opening run: order 18 printed twice, w
   await expect(map(page).locator('.qu-gap')).toHaveCount(1);
   await expect(map(page).locator('.qu-state')).toHaveText(['Down']);
   await expect(map(page).locator('.qu-slot[data-state="working"]')).toHaveCount(2);
-  // Orders 1 to 25 printed, order 18 with a second ring; 11 orders wait in the tank, each a
-  // hollow round lamp as on the board, never a square.
+  // Orders 1 to 25 printed, order 18 with a second ring, in the line's colour, not the ink; 11
+  // orders wait in the tank, each a hollow round lamp as on the board, never a square.
   await expect(map(page).locator('.qu-ticket[data-state="printed"]')).toHaveCount(25);
   await expect(map(page).locator('.qu-again')).toHaveCount(1);
   await expect(map(page).locator('.qu-again')).toHaveAttribute('data-order', '18');
+  const again = await strokes(page, '[data-qu-map="wide"] .qu-again');
+  expect(again.mark).toBe(again.line);
+  expect(again.mark).not.toBe(again.ink);
   await expect(map(page).locator('circle.qu-order[data-state="ready"]')).toHaveCount(11);
   await expect(map(page).locator('rect.qu-order')).toHaveCount(0);
   // Hollow: filled with the tank's own ground, the desk's surface.
