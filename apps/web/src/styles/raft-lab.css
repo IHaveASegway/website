@@ -26,13 +26,13 @@
   }
 }
 
-.rf-stage {
-  display: grid;
-  gap: 1.5rem;
-}
-
+/* Below 64rem the desk is one column in the page's order: the picture, the controls that work
+   it, the logs, then what happened. The controls come right after the picture so that on a phone
+   both fit one screen; nothing pins, the visitor scrolls the desk as a page. From 64rem the logs
+   stand beside the picture and the controls run under both, as they always have; the logs hold no
+   control, so the tab order is the same either way. */
 @media (width >= 64rem) {
-  .rf-stage {
+  .rf {
     grid-template-columns: repeat(12, minmax(0, 1fr));
     column-gap: var(--gutter);
     align-items: start;
@@ -40,10 +40,17 @@
 
   .rf-figure {
     grid-column: 1 / 7;
+    grid-row: 1;
   }
 
   .rf-side {
     grid-column: 7 / 13;
+    grid-row: 1;
+  }
+
+  .rf-controls,
+  .rf-events {
+    grid-column: 1 / -1;
   }
 }
 
@@ -146,6 +153,35 @@
   fill: var(--primary);
 }
 
+/* A node's role and term are set in the picture's own units, so on a phone they shrink with it:
+   at 390 px wide the picture is about 350 px across, and 12 and 10.5 units drew 11.7 and 10.2 px.
+   Under 30rem they grow to draw 13 px at the least down to 24rem, and under 24rem again, to keep
+   13 px at 320. The term moves down as it grows, so the two lines never touch; both stay inside
+   the box the cut's fence keeps clear of a node's words (lib/raft/view.ts, cutFence), which runs
+   from 11 units over the role's baseline to 5 under the term's. The halo below covers the rest. */
+@media (width < 30rem) {
+  .rf-role {
+    font-size: 14px;
+  }
+
+  .rf-term {
+    font-size: 14px;
+    transform: translateY(3px);
+  }
+}
+
+@media (width < 24rem) {
+  .rf-role {
+    font-size: 17px;
+    transform: translateY(1px);
+  }
+
+  .rf-term {
+    font-size: 17px;
+    transform: translateY(5px);
+  }
+}
+
 /* A label stays legible where the cut crosses it: a halo of the desk's surface. */
 .rf-role,
 .rf-term {
@@ -227,12 +263,29 @@
   stroke: none;
 }
 
-/* The logs: a row a server, a lamp an entry, its term under it. */
+/* The logs: a row a server, a lamp an entry, its term under it. Below 64rem they come under the
+   controls, a part of the desk of their own under a rule from bezel to bezel, as the event log is. */
 .rf-side {
   display: grid;
   gap: 1rem;
   align-content: start;
   min-width: 0;
+}
+
+@media (width < 64rem) {
+  .rf-side {
+    margin-inline: calc(var(--desk-side) * -1);
+    padding: 1.5rem var(--desk-side) 0;
+    border-top: 1px solid var(--input);
+  }
+}
+
+/* Without script there are no controls between the picture and the logs, so no rule either. */
+@media (scripting: none) and (width < 64rem) {
+  .rf-side {
+    padding-top: 0;
+    border-top: 0;
+  }
 }
 
 .rf-heading {
@@ -364,9 +417,28 @@
   font-weight: var(--text-label--font-weight);
 }
 
+/* The slider is a 44 px target, the height of the buttons beside it (SC 2.5.5): its box is the
+   target, and the browser draws its track and thumb in the middle. On a phone the box grows to
+   take what is left of the line, so a thumb is as easy to catch as a button. */
 .rf-field input[type='range'] {
   accent-color: var(--primary);
   width: min(8rem, 100%);
+  block-size: 2.75rem;
+  margin: 0;
+}
+
+@media (width < 48rem) {
+  .rf-field {
+    flex: 1 1 100%;
+  }
+
+  /* It may shrink below its 8rem basis on a line of its own: at 320 px and 32 px text, 8rem is
+     wider than the desk (SC 1.4.10). */
+  .rf-field input[type='range'] {
+    flex: 1 1 8rem;
+    width: auto;
+    min-inline-size: 0;
+  }
 }
 
 /* The speed is a row of push-buttons, each a native radio, so the arrow keys move between them
