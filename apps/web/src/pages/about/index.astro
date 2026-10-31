@@ -5,8 +5,15 @@ import SectionTitle from '../../components/SectionTitle.astro';
 import WorkCard from '../../components/WorkCard.astro';
 import Base from '../../layouts/Base.astro';
 import { ABOUT_PATH } from '../../lib/about';
-import { loadAbout, loadProfile, loadSelectedWork, loadWritingArea } from '../../lib/content';
+import {
+  loadAbout,
+  loadLabArea,
+  loadProfile,
+  loadSelectedWork,
+  loadWritingArea,
+} from '../../lib/content';
 import { profilePageGraph, serialize } from '../../lib/jsonld';
+import { labPath } from '../../lib/lab';
 import { labelOf, navAll } from '../../lib/nav';
 import { aboutCard } from '../../lib/og';
 import { areaRoutes, SECTION_LABELS } from '../../lib/posts';
@@ -33,6 +40,9 @@ const Bio = bio ? (await render(bio)).Content : null;
 const area = await loadWritingArea();
 const cards = await loadSelectedWork();
 const latest = writingRow(area.published, cards);
+// A card that opens a lab draws in that lab's line (ADR 0025), as its band on the board and its row
+// on /lab/ do: found by the page it opens, so the colour cannot drift from the page's own.
+const lines = new Map((await loadLabArea()).entries.map((entry) => [labPath(entry), entry.slug]));
 const profiles = checkedProfiles(profile);
 const linkedIn = profiles.find((p) => p.network === 'LinkedIn');
 // The pages a skill may name: Selected work's, the listed posts, and the other pages this build
@@ -104,7 +114,15 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
       </section>
     )}
 
-    <section class="section" aria-labelledby="experience-title">
+    {/* The offer of the full résumé is the screen's: on paper the page is the résumé, and a sheet
+        that tells its reader to ask for the résumé sends them round in a circle. So the offer never
+        prints, and on paper the section holds the roles and where the history is, and is left off
+        the sheet when it has neither. Whether the screen keeps the offer once roles are listed is
+        the content's question (content.md, Q8), not the sheet's. */}
+    <section
+      class:list={['section', { 'screen-only': profile.work.length === 0 && !linkedIn }]}
+      aria-labelledby="experience-title"
+    >
       <SectionTitle id="experience-title" title="Experience" />
       {profile.work.length > 0 && (
         <ol class="roles" role="list">
@@ -122,7 +140,7 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
             Full history on <a href={linkedIn.url}>LinkedIn</a>.
           </p>
         )}
-        <p>
+        <p class="screen-only">
           Full résumé on request:{' '}
           <span class="resume-email">
             <a href={`mailto:${CONTACT_EMAIL}`}>
@@ -161,7 +179,13 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
         <SectionTitle id="work-title" title="Selected work" />
         <div class="cards">
           {cards.map((card) => (
-            <WorkCard title={card.title} text={card.text} facts={card.facts} link={card.link} />
+            <WorkCard
+              title={card.title}
+              text={card.text}
+              facts={card.facts}
+              link={card.link}
+              line={lines.get(card.link.href)}
+            />
           ))}
         </div>
       </section>

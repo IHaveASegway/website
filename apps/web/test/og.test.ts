@@ -6,9 +6,13 @@ import {
   OG_SIZE,
   renderOg,
   titleSize,
+  type OgArt,
   type OgCard,
 } from '../src/lib/og';
+import { boardArt, demoArt, OG_BOARD, OG_LINE } from '../src/lib/og-lines';
 import { demoPicture } from '../src/lib/route-lab/og-map';
+import tokensCss from '../src/styles/tokens.css?raw';
+import { hex, themeColors } from '../src/lib/tokens';
 import { app, bytes, fileFor, files, html, profile, read } from './support/dist';
 
 // Link previews (content.md, "Structured data and link previews"). Pixels cannot be scanned for
@@ -18,6 +22,20 @@ import { app, bytes, fileFor, files, html, profile, read } from './support/dist'
 
 function meta(page: string, key: string): string | undefined {
   return new RegExp(`<meta (?:property|name)="${key}" content="([^"]*)">`).exec(page)?.[1];
+}
+
+/** The labs this build holds, in the board's order (lib/lab.ts sorts them by slug). */
+const labs = files
+  .map((file) => /^lab\/([a-z0-9-]+)\/index\.html$/.exec(file)?.[1])
+  .filter((slug) => slug !== undefined)
+  .sort((a, b) => a.localeCompare(b));
+
+/** What a page's card carries besides its strings, as its og.png endpoint draws it: Home and the
+ *  Lab index carry the board, a demo its own picture and colour, any other page nothing. */
+async function artFor(file: string): Promise<OgArt> {
+  if (file === 'index.html' || file === 'lab/index.html') return boardArt(labs, app);
+  const demo = /^lab\/([a-z0-9-]+)\/index\.html$/.exec(file)?.[1];
+  return demo ? demoArt(demo, app) : {};
 }
 
 const decode = (text: string) =>
@@ -68,7 +86,7 @@ describe("Home's link preview", () => {
   });
 
   test('dist/og.png is the card drawn from those strings, byte for byte', async () => {
-    expect((await renderOg(card)).equals(bytes('og.png'))).toBe(true);
+    expect((await renderOg(card, await artFor('index.html'))).equals(bytes('og.png'))).toBe(true);
   });
 });
 
@@ -101,10 +119,9 @@ for (const file of previewed) {
       card,
       'og:title and og:image:alt must be "title · label" and "title, label"',
     ).not.toBeNull();
-    // A demo's card also carries its picture, which draws no word (lib/route-lab/og-map.ts).
-    const demo = /^lab\/([a-z0-9-]+)\/index\.html$/.exec(file)?.[1];
-    const picture = demo ? await demoPicture(demo, app) : undefined;
-    expect((await renderOg(card as OgCard, picture)).equals(bytes(png))).toBe(true);
+    // A demo's card, Home's and the Lab index's also carry a picture, which draws no word
+    // (lib/route-lab/og-map.ts, lib/og-lines.ts).
+    expect((await renderOg(card as OgCard, await artFor(file))).equals(bytes(png))).toBe(true);
     expect(meta(page, 'og:type')).toBe(
       /^(writing|notes)\/[a-z0-9-]+\//.test(file) ? 'article' : 'website',
     );
@@ -119,6 +136,44 @@ test("the Route Lab's card carries its map, which draws no string, at the card's
   const tree = ogTree({ title: 'A', label: 'B' }, colors, { src: 'x', width: 491, height: 630 });
   expect(drawnStrings(tree)).toEqual(['A', 'B']);
   expect(demoPicture('another', app)).toBeUndefined();
+});
+
+test("each lab's card carries its line in its own colour, and Home's every line", async () => {
+  const night = themeColors(tokensCss, 'dark');
+  for (const slug of labs) {
+    const art = await demoArt(slug, app);
+    // Every lab has its colour (tokens.css, --line-<slug>), and its lamp takes it.
+    expect(art.line, slug).toBe(slug);
+    expect(night.get(`line-${slug}`), slug).toBeDefined();
+    const picture = art.picture;
+    if (!picture) throw new Error(`${slug}'s card has no picture`);
+    // The Route Lab's map stands at the right; every other lab's line spans the card's top.
+    const width = picture.readUInt32BE(16);
+    if (slug !== 'routes') expect(width, slug).toBe(OG_LINE.width);
+  }
+  const board = (await boardArt(labs, app)).picture;
+  if (labs.length === 0) expect(board).toBeUndefined();
+  else
+    expect([board?.readUInt32BE(16), board?.readUInt32BE(20)]).toEqual([
+      OG_BOARD.width,
+      OG_BOARD.height,
+    ]);
+  // A lab's colour differs from --primary, so the lamp is not the plain one by chance.
+  for (const slug of labs)
+    expect(hex(night.get(`line-${slug}`)!)).not.toBe(hex(night.get('primary')!));
+});
+
+test('a picture across the top leaves the words their room, and draws no string', () => {
+  const colors = { background: '', foreground: '', muted: '', accent: '' };
+  for (const box of [OG_LINE, OG_BOARD]) {
+    const tree = ogTree({ title: 'A', label: 'B' }, colors, { src: 'x', ...box });
+    expect(drawnStrings(tree)).toEqual(['A', 'B']);
+  }
+  // Under a line, the longest title a card draws: three lines at 80 px, the label at 44 px, the
+  // gap between them and the bottom padding (lib/og.ts).
+  expect(OG_LINE.height + 3 * 80 * 0.95 + 28 + 44 * 1.2 + 72).toBeLessThanOrEqual(OG_SIZE.height);
+  // Under the board, Home's name and the Lab index's title, one line at 150 px.
+  expect(OG_BOARD.height + 150 * 0.95 + 28 + 44 * 1.2 + 72).toBeLessThanOrEqual(OG_SIZE.height);
 });
 
 test('known answers: a card is read back from its two strings, whatever they hold', () => {
