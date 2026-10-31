@@ -1,3 +1,9 @@
+import { boardView, type Lamp as StepLamp } from './backfill/view';
+import { count, weekday } from './backfill/core';
+import type { Sim as BackfillSim } from './backfill/sim';
+import { DATABASE, firstUp, pageName } from './cache/core';
+import type { Sim as CacheSim } from './cache/sim';
+import type { Sim as QueueSim } from './queue/sim';
 import { PROPERTIES } from './raft/check';
 import { leaderOf, type Sim } from './raft/sim';
 import type { RouteData } from './route-lab/data';
@@ -8,8 +14,9 @@ import type { Measured } from './route-lab/plan';
 // Each lab drawn as its line (ADR 0025): the real shape of the system it runs, in the lab's own
 // colour, on Home's board and on the Lab index. This module is the lines' model and their
 // words, worked out from what the labs themselves compute at build: the Route Lab's solve of its
-// default day, and the Raft Lab's opening run. Plain TypeScript with no DOM, so the components
-// (components/board/) and the unit tests read the same numbers, and none of them is typed.
+// default day, and the opening run of each simulated lab, through its own simulation. Plain
+// TypeScript with no DOM, so the components (components/board/) and the unit tests read the same
+// numbers, and none of them is typed.
 
 /** The board's day in rounds. In each round every van steps once, one van a second, so a van with
  *  `n` stops is out for n + 1 rounds: it starts at the head of its track, then each stop, then it
@@ -136,4 +143,189 @@ export function raftLine(sim: Sim): RaftLine {
     log: (leader?.log ?? []).map((_, i) => i < (leader?.commitIndex ?? 0)),
     words: `${lead} ${held}`,
   };
+}
+
+/** A station's lamp (ADR 0025: state is a shape): not started or idle, where the work is now (the
+ *  lit lamp, --primary), done, or failed (a cross over a hollow lamp). */
+export type Lamp = 'hollow' | 'lit' | 'filled' | 'cross';
+
+const times = (n: number): string => (n === 1 ? 'once' : n === 2 ? 'twice' : `${count(n)} times`);
+const orders = (n: number): string => `${count(n)} ${n === 1 ? 'order' : 'orders'}`;
+
+/** The orders the Queue line's tank draws, a lamp each: the opening's queue, with room to spare.
+ *  queueLine refuses a run with more waiting, as routesLine does a day the board cannot hold. */
+export const TANK = 12;
+
+/** The dead letters the Queue line's siding draws, a lamp each, back from its buffer stop. */
+export const SIDING = 4;
+
+/** The Queue line: the publisher, the broker's queue, a track to each worker, and the siding of
+ *  dead letters. */
+export interface QueueLine {
+  /** Orders in the broker's queue, a lamp each in the tank. */
+  readonly waiting: number;
+  /** Each worker in the pool, in order: working on an order (lit), idle (hollow), or down after a
+   *  crash (cross). */
+  readonly workers: readonly { readonly name: string; readonly lamp: Lamp }[];
+  /** Orders in the dead-letter queue. */
+  readonly dead: number;
+  /** The describer: who is down, what was printed twice, and what was lost. */
+  readonly words: string;
+}
+
+/** The Queue line for a run: the Queue Lab's opening on Home's board (lib/queue/view.ts). */
+export function queueLine(sim: QueueSim): QueueLine {
+  const waiting = sim.ready.length;
+  const dead = sim.dead.length;
+  if (waiting > TANK)
+    throw new Error(`lines: ${waiting} orders waiting overfill a tank of ${TANK}`);
+  if (dead > SIDING) throw new Error(`lines: ${dead} dead letters overfill a siding of ${SIDING}`);
+  const pool = sim.workers.slice(0, sim.size);
+  const workers = pool.map((w) => ({
+    name: `Worker ${w.id + 1}`,
+    lamp: (w.state !== 'up' ? 'cross' : w.busy === null ? 'hollow' : 'lit') as Lamp,
+  }));
+  const down = pool.filter((w) => w.state !== 'up').map((w) => String(w.id + 1));
+  const head =
+    down.length === 0
+      ? ''
+      : down.length === 1
+        ? `Worker ${down[0]} is down. `
+        : `Workers ${down.slice(0, -1).join(', ')} and ${down.at(-1)} are down. `;
+  const once = sim.tallies.once;
+  const twice =
+    once.count === 0
+      ? 'No order was printed twice'
+      : once.count === 1 && once.first
+        ? `Order ${once.first.job} was printed twice`
+        : `${orders(once.count)} were printed twice`;
+  const lost = sim.lostCount === 0 ? 'no order was lost' : `${orders(sim.lostCount)} lost`;
+  return { waiting, workers, dead, words: `${head}${twice}, and ${lost}.` };
+}
+
+/**
+ * The Queue line's one fact on the Lab index: the opening's crash again, with the idempotency key
+ * the lab entry tells the visitor to turn on: the order sent twice is printed once, and nothing is
+ * lost. Refused for a run that lost or doubled an order, since the sentence says neither happened.
+ */
+export function queueFact(keyed: QueueSim): string {
+  const kept = keyed.jobs.find((job) => job.effects.length === 1 && job.delivered.length > 1);
+  if (!kept || keyed.lostCount > 0 || keyed.tallies.once.count > 0)
+    throw new Error('lines: the opening with the key lost or doubled an order, or sent none twice');
+  const crashed = (kept.effects[0]?.worker ?? 0) + 1;
+  const seconds = Math.round(keyed.now / 1000);
+  return `With an idempotency key, worker ${crashed}’s crash prints order ${kept.id} once: ${orders(keyed.doneCount)} done in ${seconds} s, none lost or printed twice.`;
+}
+
+/** The Cache line: the readers fanning in to the cache nodes, and the database's connections. */
+export interface CacheLine {
+  /** Each cache node, in order: up (filled) or down (cross). */
+  readonly nodes: readonly Lamp[];
+  /** The database's pool, a lamp per connection: true while a fetch runs on it. */
+  readonly connections: readonly boolean[];
+  /** The describer: the worst herd and the readers who gave up. */
+  readonly words: string;
+}
+
+/** The Cache line for a run: the Cache Lab's opening on Home's board (lib/cache/view.ts). */
+export function cacheLine(sim: CacheSim): CacheLine {
+  const herd = sim.tally.herd;
+  const timeouts = sim.counts.timeout;
+  const fetched =
+    herd && herd.size >= 2
+      ? herd.expired === null
+        ? `The database fetched ${pageName(herd.key)} ${times(herd.size)} at once`
+        : `When ${pageName(herd.key)} expired at ${(herd.expired / 1000).toFixed(1)} s, the database fetched it ${times(herd.size)} at once`
+      : 'No page was fetched twice at once';
+  const gave =
+    timeouts === 0
+      ? 'no reader timed out'
+      : `${count(timeouts)} ${timeouts === 1 ? 'read' : 'reads'} timed out`;
+  return {
+    nodes: sim.nodes.map((node) => (node.up ? 'filled' : 'cross')),
+    connections: Array.from({ length: DATABASE.pool }, (_, k) => k < sim.running),
+    words: `${fetched}, and ${gave}.`,
+  };
+}
+
+/**
+ * The Cache line's one fact on the Lab index: the opening's expiry again, with coalescing, which
+ * the lab entry turns on first: the database's fetches of the expired page, with it and without.
+ * Refused for an opening with no expiry's herd to compare.
+ */
+export function cacheFact(opening: CacheSim, coalesced: CacheSim): string {
+  const herd = opening.tally.herd;
+  if (!herd || herd.expired === null || herd.size < 2)
+    throw new Error('lines: the cache opening has no herd at an expiry');
+  const page = pageName(herd.key);
+  const at = (herd.expired / 1000).toFixed(1);
+  const once = coalesced.fetchesOf[herd.key] ?? 0;
+  const without = opening.fetchesOf[herd.key] ?? 0;
+  return `${firstUp(`when ${page} expires at ${at} s`)}, coalescing has the database fetch it ${times(once)} instead of ${times(without)}.`;
+}
+
+/** A day's lamp from its steps on the Backfill Lab's run board: failed if any step failed or its
+ *  check found the totals apart, lit while a step runs or waits to retry, filled once every step
+ *  succeeded, hollow before. */
+function dayLamp(steps: readonly { readonly lamp: StepLamp }[]): Lamp {
+  const lamps = steps.map((step) => step.lamp);
+  if (lamps.some((lamp) => lamp === 'cross' || lamp === 'dash')) return 'cross';
+  if (lamps.some((lamp) => lamp === 'lit' || lamp === 'clock')) return 'lit';
+  return lamps.every((lamp) => lamp === 'filled') ? 'filled' : 'hollow';
+}
+
+/** The Backfill line: the week's daily runs, each writing its day into the report. */
+export interface BackfillLine {
+  /** Each day of the week, "Mon", and its run's lamp. */
+  readonly days: readonly { readonly name: string; readonly lamp: Lamp }[];
+  /** The describer: the days whose report is wrong, against the source. */
+  readonly words: string;
+}
+
+/** The Backfill line for a run: the Backfill Lab's opening on Home's board (lib/backfill/view.ts),
+ *  each day's lamp read from the lab's own run board. */
+export function backfillLine(sim: BackfillSim): BackfillLine {
+  const view = boardView(sim);
+  const days = view.days.map((day) => ({
+    name: weekday(day.day).slice(0, 3),
+    lamp: dayLamp(day.steps),
+  }));
+  const wrong = view.days.filter((day) => day.difference !== '');
+  const checked = view.days.filter((day) => sim.runs[day.day]?.verdict).length;
+  const total = sim.source.reduce((sum, n) => sum + n, 0);
+  let words: string;
+  if (wrong.length === 0)
+    words =
+      checked === view.days.length
+        ? `Every day matches the source: ${orders(total)} in the week.`
+        : checked === 0
+          ? 'No day has been checked yet.'
+          : `${firstUp(inWords(checked))} of ${inWords(view.days.length)} days checked, each matching the source.`;
+  else {
+    const named = wrong.map(
+      (day) =>
+        `${weekday(day.day)}’s report counts ${day.report} orders against the source’s ${day.source}`,
+    );
+    const others = checked - wrong.length;
+    const rest =
+      others > 0
+        ? `; the other ${inWords(others)} ${others === 1 ? 'day matches' : 'days match'}`
+        : '';
+    words = `${named.join('; ')}${rest}.`;
+  }
+  return { days, words };
+}
+
+/**
+ * The Backfill line's one fact on the Lab index: the opening's week again with loads that
+ * overwrite their day, as the lab entry tells the visitor to switch it, against the appends the
+ * opening runs: the week's report, every day written once. Refused unless every overwritten day
+ * matches its source, since the sentence says the report and the source agree.
+ */
+export function backfillFact(appended: BackfillSim, overwritten: BackfillSim): string {
+  const sum = (numbers: readonly number[]) => numbers.reduce((total, n) => total + n, 0);
+  const week = boardView(overwritten);
+  if (week.days.some((day) => day.difference !== '' || !overwritten.runs[day.day]?.verdict))
+    throw new Error('lines: the overwritten week does not match its source');
+  return `Loads that overwrite their day: the week’s report counts ${orders(sum(overwritten.report))}, as the source does, instead of ${count(sum(appended.report))}.`;
 }

@@ -1,0 +1,197 @@
+---
+import { openingRun } from '../../../lib/backfill/view';
+import { backfillFact, backfillLine } from '../../../lib/lines';
+import type { LineAt } from '../line-of';
+import '../../../styles/lines.css';
+
+interface Props {
+  /** Home's board, the default, or the Lab index (line-of.ts). */
+  at?: LineAt;
+}
+
+// The Backfill Lab's line (ADR 0025): the week runs along the top, a station for each day's run,
+// and from each one a drop to the report's track below, which ends in the report, a square: every
+// run writes its own day into the one table. A day's lamp is its run on the lab's own run board,
+// filled once every step succeeded, crossed once a step failed or its check found the totals
+// apart, lit while a step runs, hollow before. All of it from the Backfill Lab's opening run
+// (lib/backfill/view.ts), the week its own page draws before anyone presses anything, where
+// Wednesday is counted twice. It stands still: the board's one moving thing is the Route Lab's
+// vans. Drawn twice, for a narrow screen and a wide one, without a viewBox, as the Route Lab's
+// line is (routes.astro): heights in pixels, the days and the report in shares of the width. On
+// the board its describer names the day that is wrong; on the Lab index it is larger, names its
+// stations, comes in from the page's edge, and says what loads that overwrite their day give.
+const { at = 'board' } = Astro.props;
+const appended = openingRun();
+const line = backfillLine(appended);
+const words = at === 'board' ? line.words : backfillFact(appended, openingRun('overwrite'));
+
+interface Size {
+  readonly name: 'wide' | 'compact';
+  readonly height: number;
+  /** The week's track and the report's, from the top. */
+  readonly week: number;
+  readonly report: number;
+  /** Where the first day and the last stand, and the report, in percent. */
+  readonly from: number;
+  readonly to: number;
+  readonly table: number;
+  /** The report's side, and a day's lamp by radius. */
+  readonly side: number;
+  readonly lamp: number;
+  readonly labels: boolean;
+}
+
+const SIZES: Record<LineAt, readonly Size[]> = {
+  board: [
+    {
+      name: 'wide',
+      height: 80,
+      week: 22,
+      report: 60,
+      from: 14,
+      to: 62,
+      table: 72,
+      side: 14,
+      lamp: 7,
+      labels: false,
+    },
+    {
+      name: 'compact',
+      height: 56,
+      week: 15,
+      report: 42,
+      from: 12,
+      to: 72,
+      table: 84,
+      side: 10,
+      lamp: 4.5,
+      labels: false,
+    },
+  ],
+  // Made, as the Route Lab's is, for a column of 30rem at the least beside the words from 64rem,
+  // and the whole column of a phone below 48rem.
+  index: [
+    {
+      name: 'wide',
+      height: 128,
+      week: 44,
+      report: 96,
+      from: 10,
+      to: 64,
+      table: 76,
+      side: 16,
+      lamp: 9,
+      labels: true,
+    },
+    {
+      name: 'compact',
+      height: 56,
+      week: 15,
+      report: 42,
+      from: 10,
+      to: 72,
+      table: 84,
+      side: 10,
+      lamp: 4.5,
+      labels: false,
+    },
+  ],
+};
+
+// On the index the week comes in from past the drawing's left edge, as the Route Lab's track does.
+const enters = at === 'index' ? '-100%' : '0';
+const drawings = SIZES[at].map((size) => {
+  const span = line.days.length - 1;
+  const days = line.days.map((day, i) => ({
+    ...day,
+    x: Math.round((size.from + (span > 0 ? (i / span) * (size.to - size.from) : 0)) * 100) / 100,
+  }));
+  return { size, days };
+});
+---
+
+<div class="line line-backfill">
+  {drawings.map(({ size, days }) => (
+    <svg
+      class={`line-draw line-${size.name}`}
+      height={size.height}
+      aria-hidden="true"
+      focusable="false"
+    >
+      <line
+        class="line-track"
+        x1={enters}
+        y1={size.week}
+        x2={`${days.at(-1)?.x ?? size.to}%`}
+        y2={size.week}
+      />
+      {days.map((day) => (
+        <line
+          class="line-spoke"
+          x1={`${day.x}%`}
+          y1={size.week}
+          x2={`${day.x}%`}
+          y2={size.report}
+        />
+      ))}
+      <line
+        class="line-track"
+        x1={`${days[0]?.x ?? size.from}%`}
+        y1={size.report}
+        x2={`${size.table}%`}
+        y2={size.report}
+      />
+      <rect
+        class="line-depot"
+        x={`${size.table}%`}
+        y={size.report - size.side / 2}
+        width={size.side}
+        height={size.side}
+      />
+      {days.map((day) => (
+        <>
+          <circle
+            class={day.lamp === 'lit' ? 'line-now' : 'line-lamp'}
+            cx={`${day.x}%`}
+            cy={size.week}
+            r={size.lamp}
+          />
+          {day.lamp === 'filled' && (
+            <circle
+              class="line-lamp-lit"
+              cx={`${day.x}%`}
+              cy={size.week}
+              r={size.lamp + 1}
+              data-lit=""
+            />
+          )}
+          {day.lamp === 'cross' && (
+            <svg x={`${day.x}%`} overflow="visible">
+              <path
+                class="line-cross"
+                d={`M${-size.lamp * 0.6} ${size.week - size.lamp * 0.6}l${size.lamp * 1.2} ${size.lamp * 1.2}m0 ${-size.lamp * 1.2}l${-size.lamp * 1.2} ${size.lamp * 1.2}`}
+              />
+            </svg>
+          )}
+          {size.labels && (
+            <text
+              class="line-label line-label-middle"
+              x={`${day.x}%`}
+              y={size.week - size.lamp - 10}
+            >
+              {day.name}
+            </text>
+          )}
+        </>
+      ))}
+      {size.labels && (
+        <svg x={`${size.table}%`} overflow="visible">
+          <text class="line-label" x={size.side + 10} y={size.report + 4.5}>
+            Report
+          </text>
+        </svg>
+      )}
+    </svg>
+  ))}
+</div>
+<p class={at === 'board' ? 'band-words' : 'lab-fact'}>{words}</p>
