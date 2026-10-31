@@ -502,11 +502,12 @@
     padding-block: 1.75rem 0.5rem;
   }
 
-  /* The words under the figures are static, "of driving on a busy Saturday, planned by VROOM in
-     your browser"; the scene's live clock is in the hero's caption (Hero.astro, .scene-clock), not
-     here. At a phone's width they take one line in Barlow and two in Linux's fallback face, so two
-     lines are kept for them, and the hero is one height whichever face draws it
-     (e2e/fold.spec.ts). */
+  /* The words under the figures are static, "of driving for a made-up bakery on a busy Saturday,
+     planned by VROOM in your browser" (lines.ts, figureWords); the scene's live clock is in the
+     hero's caption (Hero.astro, .scene-clock), not here. Since they name the bakery as made up they
+     take two lines at a phone's width, 320 to 390 px, on macOS and in CI's Linux image alike. Two
+     lines are kept for them, so the hero is one height whichever face draws it, and a shorter
+     sentence later cannot lift the scene (e2e/fold.spec.ts). */
   .figure-words {
     min-block-size: 2lh;
   }
