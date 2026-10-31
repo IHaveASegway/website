@@ -45,7 +45,9 @@ export interface SimulatedLab {
  * event log's lines and the retries beside the readers, added about 760 B to the app, 682 B net:
  * first, as ADR 0026 asks before any budget is raised, the test-only fault branches left the
  * shipped chunk (sim.ts, TESTING), about 80 B. The rest carries the lesson, and 12,000 B is the
- * measure rounded up to the next 500 B.
+ * measure rounded up to the next 500 B. The review's fixes the same day, the event log telling a
+ * reader who asked again from one who gave up and the retries said as a rate, took it to 11,963 B,
+ * 37 B under: the next change to the Cache Lab's app meets its budget first.
  */
 export const SIMULATED_LABS = [
   { slug: 'raft', bundle: 'RaftLab', map: 'rf-map', lazyJavaScript: 8_000 },
