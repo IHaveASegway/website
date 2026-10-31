@@ -1149,7 +1149,10 @@ describe('the page', () => {
       expect(markup.match(/class="qu-again" data-order="\d+"/g)).toEqual([
         'class="qu-again" data-order="18"',
       ]);
-      expect(count(/class="qu-order" data-state="ready"/g)).toBe(11);
+      // Each a hollow round lamp, as on the board: no order is a square (design-system.md, "Lamps:
+      // one meaning per mark").
+      expect(count(/<circle class="qu-order" data-state="ready"/g)).toBe(11);
+      expect(markup).not.toContain('<rect class="qu-order"');
       expect(markup.match(/data-state="working" data-worker="\d" data-order="\d+"/g)).toEqual([
         'data-state="working" data-worker="0" data-order="26"',
         'data-state="working" data-worker="2" data-order="27"',
@@ -1196,6 +1199,12 @@ describe('the page', () => {
     runUntil(sim, 6_000);
     crash(sim, 0);
     runs.push(sim); // lost orders, crossed
+    sim = openingRun();
+    setPrefetch(sim, 5);
+    setLoad(sim, 'rush');
+    runUntil(sim, 6_000);
+    crash(sim, 0);
+    runs.push(sim); // orders taken, not yet acknowledged, dropped by a crash
     const classes = (markup: string) =>
       new Set(
         [...markup.matchAll(/class="([^"]+)"/g)].flatMap(([, names = '']) => names.split(' ')),
@@ -1234,8 +1243,24 @@ describe('the page', () => {
       'ready',
       'retry',
       'room',
+      'taken',
       'waiting',
       'working',
     ]);
+  });
+
+  test('an order waiting out a backoff is the clock lamp: its lamp and its hands, one path', () => {
+    const sim = openingRun();
+    setPoisonHandling(sim, 'dead-letter');
+    poison(sim);
+    stopProducer(sim);
+    runUntil(sim, 6_300);
+    for (const layout of Object.values(LAYOUTS)) {
+      const retry = /<path class="qu-order" data-state="retry"[^>]* d="([^"]+)"/.exec(
+        mapMarkup(sim, layout),
+      );
+      // The poison order's diamond, closed, then the hands: up to twelve and across to three.
+      expect(retry?.[1], layout.name).toMatch(/ZM[\d.]+ [\d.]+V[\d.]+h[\d.]+$/);
+    }
   });
 });

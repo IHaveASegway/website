@@ -477,8 +477,8 @@ export interface Layout {
   readonly height: number;
   /** How high the main line runs; the middle track keeps to it. */
   readonly line: number;
-  /** The tank: its left edge, the square lamps it holds across and down, from one square to the
-   *  next, and from the outer squares to its walls. */
+  /** The tank: its left edge, the lamps it holds across and down, from one lamp's place to the
+   *  next, and from the outer places to its walls. */
   readonly tank: {
     readonly x: number;
     readonly cols: number;
@@ -564,6 +564,15 @@ const text = (x: number, y: number, words: string, cls = 'qu-label', anchor = 's
 const diamond = (x: number, y: number, r: number) =>
   `M${round1(x)} ${round1(y - r)}L${round1(x + r)} ${round1(y)}L${round1(x)} ${round1(y + r)}L${round1(x - r)} ${round1(y)}Z`;
 
+/** A ring around (x, y) as a path, so a mark inside it can be part of the same path. */
+const ring = (x: number, y: number, r: number) =>
+  `M${round1(x - r)} ${round1(y)}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0`;
+/** Clock hands from the middle of a lamp of radius r, at three o'clock, as the Backfill Lab's
+ *  waiting step draws them: the site's lamp for waiting to retry (design-system.md, "Lamps: one
+ *  meaning per mark"). */
+const hands = (x: number, y: number, r: number) =>
+  `M${round1(x)} ${round1(y - 0.6 * r)}V${round1(y)}h${round1(0.5 * r)}`;
+
 /** The workers the picture draws a track for: the pool, and any worker still leaving it. */
 function tracked(sim: Sim): Worker[] {
   return sim.workers.filter((w) => w.id < sim.size || w.state !== 'off');
@@ -578,7 +587,8 @@ export function workerWord(w: Worker): string {
 
 /**
  * The picture, as the markup inside its <svg>: orders come in on the left to the tank, where the
- * ready ones wait as square lamps; a track a worker leaves it, holding the orders that worker has
+ * ready ones wait as hollow lamps, as on the board, and one waiting out a backoff has clock hands
+ * in its lamp; a track a worker leaves it, holding the orders that worker has
  * taken, up to the prefetch it had when it took them, the one in work lit at its head; the main line runs on to the oven
  * tickets, one lamp an order in rows of consecutive orders, filled once printed, with a second
  * circle around it when it printed twice, and hollow and struck through once when it was lost;
@@ -663,23 +673,32 @@ export function mapMarkup(sim: Sim, layout: Layout): string {
   );
 
   // The tank: the head of the queue at the exit, the rest filling back from it, column by column;
-  // orders waiting out a backoff after them, hollow.
+  // orders waiting out a backoff after them, with clock hands. Until 2026-10-31 they were squares,
+  // filled, and hollow for a backoff, but on the site's lines a square is a place or a message,
+  // filled is done, and an order in the queue is not yet: a hollow lamp, as the board draws it.
   const waiting = [
     ...sim.ready.map((id) => ({ id, state: 'ready' })),
     ...[...sim.retrying].map((id) => ({ id, state: 'retry' })),
   ];
   const room = tank.cols * tank.rows;
-  const side = tank.pitch - 5;
+  const radius = (tank.pitch - 5) / 2;
   waiting.slice(0, room).forEach(({ id, state }, k) => {
     const col = tank.cols - 1 - Math.floor(k / tank.rows);
     const row = k % tank.rows;
     const cx = tank.x + tank.pad + (col + 0.5) * tank.pitch;
     const cy = tankTop + tank.pad + (row + 0.5) * tank.pitch;
-    out.push(
-      jobOf(sim, id).poison
-        ? `<path class="qu-order" data-state="${state}" data-poison="" data-order="${id}" d="${diamond(cx, cy, side / 2 + 1)}"/>`
-        : `<rect class="qu-order" data-state="${state}" data-order="${id}" x="${round1(cx - side / 2)}" y="${round1(cy - side / 2)}" width="${side}" height="${side}"/>`,
-    );
+    const poisoned = jobOf(sim, id).poison;
+    const attrs = `class="qu-order" data-state="${state}"${poisoned ? ' data-poison=""' : ''} data-order="${id}"`;
+    if (state === 'retry') {
+      // One path, its lamp and its hands, so the clock lamp needs no class the opening lacks.
+      const shape = poisoned ? diamond(cx, cy, radius + 1) : ring(cx, cy, radius);
+      out.push(`<path ${attrs} d="${shape}${hands(cx, cy, radius)}"/>`);
+    } else
+      out.push(
+        poisoned
+          ? `<path ${attrs} d="${diamond(cx, cy, radius + 1)}"/>`
+          : `<circle ${attrs} cx="${round1(cx)}" cy="${round1(cy)}" r="${radius}"/>`,
+      );
   });
   out.push(text(tank.x, tankTop + tankH + 18, 'Queue'));
   // More than the tank shows: how many, under its name.
@@ -697,18 +716,20 @@ export function mapMarkup(sim: Sim, layout: Layout): string {
     out.push(
       `<text class="qu-label" x="${round1(nameX)}" y="${round1(y - lamp - 7)}">${name}${word ? `<tspan class="qu-state" dx="6">${word}</tspan>` : ''}</text>`,
     );
+    // An order sent and not yet acknowledged is one state, taken, whether it is still on its way
+    // or was dropped in a crash: the broker holds it either way until it takes it back.
     const held =
       w.state === 'up'
         ? [
             ...w.window.map((id) => ({ id, state: id === w.busy ? 'working' : 'waiting' })),
             ...[...sim.wire]
               .filter((id) => jobOf(sim, id).worker === w.id)
-              .map((id) => ({ id, state: 'coming' })),
+              .map((id) => ({ id, state: 'taken' })),
           ]
         : // What it dropped, and what is still on its way to it, until the broker sees the close.
           [...sim.orphans, ...sim.wire]
             .filter((id) => jobOf(sim, id).worker === w.id)
-            .map((id) => ({ id, state: 'dropped' }));
+            .map((id) => ({ id, state: 'taken' }));
     held.forEach(({ id, state }, k) => {
       const x = tracks.head - k * tracks.pitch;
       out.push(
@@ -758,7 +779,7 @@ export function mapMarkup(sim: Sim, layout: Layout): string {
       // is a station that failed, so the desk no longer draws it for an order.
       const r = lamp - 1;
       out.push(
-        `<path class="qu-ticket" data-state="lost" data-order="${id}" d="M${round1(x - r)} ${round1(y)}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0M${round1(x - r)} ${round1(y + r)}l${2 * r} ${-2 * r}"/>`,
+        `<path class="qu-ticket" data-state="lost" data-order="${id}" d="${ring(x, y, r)}M${round1(x - r)} ${round1(y + r)}l${2 * r} ${-2 * r}"/>`,
       );
     }
   }
