@@ -12,7 +12,7 @@ import { pages } from './expected';
 // What Home's lab cards say beside what they draw (the visitor review of 2026-10-31; ADR 0027):
 // each card's fact is worked out from its lab's own runs, the same sentence the lab's page and the
 // Lab index work out; the Route Lab's card names what its figure is measured against and says that
-// the bakery is made up; and the Raft line on the Lab index ends in a buffer stop. Until ADR 0027
+// the bakery is made up; and each card's glyph stands inside its card. Until ADR 0027
 // Home's board said each lab's failure and fix beside its line, and the hero the Route Lab's
 // figures, and these checks held them.
 
@@ -68,35 +68,44 @@ for (const size of SIZES)
     await expect(page.getByText('for a made-up bakery')).toHaveCount(1);
   });
 
-// The Raft line's log ends in a buffer stop a step past its last entry, short of the words on the
-// Lab index, as every other line ends at a station of its own. Until 2026-10-31 its track ran on to
-// the drawing's right edge; until ADR 0027 Home's board drew the same line, held to the same.
+// Each glyph on Home's cards ends inside its card, short of the card's edge: the successor to the
+// Raft line's buffer stop, which held a lab's drawing back from the edge of the panel it stood in
+// (until 2026-10-31 its track ran on into the panel's edge). ADR 0027 took the lines off Home's board
+// and off the Lab index, so the check now holds the glyphs that replaced them; the Lab index's own
+// cards are held to the same in e2e/index.spec.ts.
 for (const size of SIZES)
-  for (const path of ['/lab/'])
-    test(`at ${size.width} px the Raft line on ${path} ends in a buffer stop, short of the edge`, async ({
-      page,
-    }) => {
-      test.skip(!pages().includes('/lab/raft/'), 'this build has no Raft lab');
-      await page.setViewportSize(size);
-      await page.goto(path);
-      const row = page.locator('main .lab-row[data-line="raft"]');
-      const drawing = row.locator('svg.line-draw').filter({ visible: true });
-      await expect(drawing).toHaveCount(1);
-      const { svg, track, stop, lamps } = await drawing.evaluate((element) => {
-        const box = (el: Element | null | undefined) => el?.getBoundingClientRect().toJSON();
+  test(`at ${size.width} px each glyph on Home's lab cards stands inside its card, short of the edge`, async ({
+    page,
+  }) => {
+    test.skip(!hasLabs(), 'this build has no demo');
+    await page.setViewportSize(size);
+    await page.goto('/');
+    const cards = await page.locator('#work .lab-card').all();
+    expect(cards.length).toBeGreaterThan(0);
+    for (const card of cards) {
+      const slug = (await card.getAttribute('data-line')) ?? '';
+      const { box, inner, glyph } = await card.evaluate((element) => {
+        const style = getComputedStyle(element);
+        const box = element.getBoundingClientRect();
+        const svg = element.querySelector('svg.iso-glyph')?.getBoundingClientRect();
         return {
-          svg: box(element),
-          track: box(element.querySelector('.line-track')),
-          stop: box(element.querySelector('rect.line-depot')),
-          lamps: [...element.querySelectorAll('.line-lamp')].map(
-            (lamp) => lamp.getBoundingClientRect().right,
-          ),
+          box: box.toJSON() as DOMRect,
+          inner: {
+            left: box.left + parseFloat(style.borderLeftWidth) + parseFloat(style.paddingLeft),
+            right: box.right - parseFloat(style.borderRightWidth) - parseFloat(style.paddingRight),
+          },
+          glyph: svg?.toJSON() as DOMRect | undefined,
         };
       });
-      if (!svg || !track || !stop) throw new Error('the Raft line has no track or no buffer stop');
-      // The track runs into the stop and no further, and the stop stands past the last entry.
-      expect(track.right).toBeLessThanOrEqual(stop.left + 1);
-      expect(stop.left).toBeGreaterThan(Math.max(...lamps));
-      // Well inside the drawing: at least a fifth of its width is left after the stop.
-      expect(svg.right - stop.right).toBeGreaterThan(svg.width / 5);
-    });
+      if (!glyph) throw new Error(`${slug}: the card draws no glyph`);
+      expect(glyph.width, `${slug}: a glyph is drawn`).toBeGreaterThan(0);
+      expect(glyph.left, `${slug}: inside the card's left padding`).toBeGreaterThanOrEqual(
+        inner.left - 0.5,
+      );
+      expect(glyph.right, `${slug}: short of the card's right edge`).toBeLessThanOrEqual(
+        inner.right + 0.5,
+      );
+      expect(glyph.top, slug).toBeGreaterThanOrEqual(box.top);
+      expect(glyph.bottom, slug).toBeLessThanOrEqual(box.bottom);
+    }
+  });
