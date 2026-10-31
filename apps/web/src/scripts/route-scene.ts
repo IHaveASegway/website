@@ -18,9 +18,11 @@ import {
 // Home's scene, live (ADR 0024, ADR 0025): the Route Lab's default day driven on the city beside
 // Joseph's column, the map flat and north up, edge to edge, its water the page. Each van runs
 // VROOM's route with a trail behind it and each stop lights as its order is handed over. Scrolling
-// to the Route Lab's chapter lifts the day off the map into the space-time cube (ADR 0019): time
-// stands up, so a van that drives traces a slope and one that waits at a stop climbs straight up,
-// and the camera sways slowly about the cube. Canvas 2D through the cube's own camera
+// lifts the day off the map into the space-time cube (ADR 0019): time stands up, so a van that
+// drives traces a slope and one that waits at a stop climbs straight up, and the camera sways
+// slowly about the cube. From 64rem the scene stands still beside the words and the Route Lab's
+// chapter coming up the window lifts it; below 64rem it is a picture in the page's flow, and its own
+// passage up the window lifts it. Canvas 2D through the cube's own camera
 // (lib/route-lab/scene.ts): lines and dots need no 3D library, and the chunk stays a few kilobytes.
 //
 // src/scripts/motion.js loads this once Home has painted, without a reduced-motion preference and
@@ -60,6 +62,22 @@ export function progress(top: number, height: number, view: number): number {
  *  below, 1 once its top reaches the window's top. */
 export function rising(top: number, view: number): number {
   return view <= 0 ? 0 : Math.min(1, Math.max(0, 1 - top / view));
+}
+
+/**
+ * How far a box in the page's flow has passed up the window while wholly in view, 0 to 1, from its
+ * top, its height and the window's height: 0 while its foot is at the window's foot or below, 1
+ * once its top reaches the window's top. Between those two it is wholly on screen, so the lift,
+ * which liftFor plays from a fifth of the way to nine tenths, starts once the box has risen a fifth
+ * of that stretch clear of the window's foot and ends while a tenth of it is still left above it:
+ * the whole lift is seen with the whole box on screen, and none of it happens half out of view. At
+ * 390 × 844 the scene is 351 px tall, so the stretch is 493 px of scroll and the lift plays from
+ * its top at 394 px to its top at 49 px. A box at least as tall as the window is never wholly on
+ * screen; it lifts as its top comes up the window instead (home.css keeps the scene under seven
+ * tenths of the window, so this is a guard, not a layout).
+ */
+export function passing(top: number, height: number, view: number): number {
+  return rising(top, height < view ? view - height : view);
 }
 
 /** The lift for a progress: none through the first fifth, so the hero stands still while it is
@@ -190,10 +208,11 @@ export async function boot(canvas: HTMLCanvasElement): Promise<boolean> {
   if (!data?.tracks?.length) return false;
   const vans = data.tracks;
   // What the stylesheet says of the scene's box (home.css): the gutter the cube keeps inside it, in
-  // pixels, and whether it stands over the column's words, as the phone's band does while it runs.
+  // pixels, and whether it stands still at the window's top, beside the words from 64rem, or is in
+  // the page's flow, as below 64rem.
   const looks = getComputedStyle(figure);
   const inset = () => Number.parseFloat(looks.getPropertyValue('--cube-inset')) || 0;
-  const over = () => looks.getPropertyValue('--over-words').trim() === '1';
+  const pinned = () => looks.getPropertyValue('--held').trim() === '1';
   // The floor's paths come from the picture: one copy of the map on the page.
   const floor = (name: string) =>
     new Path2D(picture.querySelector(`[data-floor="${name}"]`)?.getAttribute('d') ?? '');
@@ -243,8 +262,8 @@ export async function boot(canvas: HTMLCanvasElement): Promise<boolean> {
   };
 
   /** Where the lifted cube stands: the part of the picture's box the canvas shows, beside the
-   *  words from 64rem and the band below that, kept the page's gutter inside the canvas's edges,
-   *  in device pixels. */
+   *  words from 64rem and the scene's own box below that, kept the page's gutter inside the
+   *  canvas's edges, in device pixels. */
   const room = () => {
     const c = canvas.getBoundingClientRect();
     const p = picture.getBoundingClientRect();
@@ -600,12 +619,16 @@ export async function boot(canvas: HTMLCanvasElement): Promise<boolean> {
   });
 
   const scrolled = () => {
-    const b = (chapter ?? stage).getBoundingClientRect();
-    // The chapter rises through the part of the window the words scroll in: below the band while
-    // the band stands over them (a phone), and the whole window beside the scene from 64rem.
-    const from = over() ? Math.max(0, figure.getBoundingClientRect().bottom) : 0;
+    // A scene that stands still cannot measure its own passage, so the chapter beside it, coming up
+    // the window, lifts it; a scene in the page's flow lifts as it passes up the window itself, so
+    // the lift is seen while the scene is (passing).
+    const b = (pinned() ? (chapter ?? stage) : figure).getBoundingClientRect();
     state.toLift = liftFor(
-      chapter ? rising(b.top - from, innerHeight - from) : progress(b.top, b.height, innerHeight),
+      !pinned()
+        ? passing(b.top, b.height, innerHeight)
+        : chapter
+          ? rising(b.top, innerHeight)
+          : progress(b.top, b.height, innerHeight),
     );
     const covered = (end?.getBoundingClientRect().top ?? Infinity) <= 0;
     if (covered !== state.covered) {
@@ -658,9 +681,8 @@ export async function boot(canvas: HTMLCanvasElement): Promise<boolean> {
     if (!state.frame) draw();
   }).observe(canvas);
 
-  // Live first, so the canvas has its box and the stylesheet's rules for a running scene hold (a
-  // phone's band over the words) before the lift is read and the first frame drawn; nothing paints
-  // until this returns.
+  // Live first, so the canvas has its box and the stylesheet's rules for a running scene hold before
+  // the lift is read and the first frame drawn; nothing paints until this returns.
   function start() {
     if (reduce.matches) return;
     state.off = false;
