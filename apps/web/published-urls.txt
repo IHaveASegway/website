@@ -15,3 +15,4 @@
 /writing/trading-bot-teardown/
 /lab/raft/
 /about/
+/writing/the-road-closed/
