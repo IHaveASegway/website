@@ -108,8 +108,6 @@ jobs:
             --index-files index.html 'apps/web/dist-preview/**/*.html'
           output: ${{ runner.temp }}/lychee-preview.md
           token: ''
-      - name: Firewall self-test, with throwaway rules only
-        run: scripts/firewall/test.sh
       - name: Keep the build (every later job uses these bytes, never a rebuild)
         uses: actions/upload-artifact@v7
         with:
@@ -149,6 +147,47 @@ jobs:
           DIST_DIR: apps/web/dist
         run: scripts/firewall/check.sh
 
+  firewall-selftest:
+    # The firewall self-test: check.sh against 105 fixture repositories with throwaway rules only,
+    # proving exits 0, 1 and 2 without a real term (security.md). A job of its own beside verify,
+    # not a step inside it: it takes 4 to 6 minutes, 158 runs of check.sh one after another that
+    # start gitleaks about 900 times, and inside verify every later job waited for it.
+    # deploy needs it, so nothing ships unless it passed on the change (ADR 0006, postscript of
+    # 2026-10-31). A pull request always runs it, and a pull request that changes the scanner
+    # publishes no preview, since this job has not proved that scanner yet (preview, below). A push
+    # to main runs it only when the push changes the scanner (scripts/firewall/scanner-changed.sh):
+    # otherwise main's scanner is the one its pull request's run proved. The check is a step, not
+    # a paths filter, so the job always reports a result and deploy always has one to need. The
+    # weekly rebuild always runs it: a new git on the runner image is the drift that run is for.
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15 # rule 9; ADR 0017 once measured 10 min on 4 CPUs
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false # rule 7
+          fetch-depth: 0 # a push compares the scanner with the commit before it
+      - name: Does this run need the self-test?
+        id: scope
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          run=true
+          if [ "$EVENT" = push ]; then
+            run="$(scripts/firewall/scanner-changed.sh "$BEFORE" HEAD)"
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+          if [ "$run" != true ]; then
+            echo "::notice::No self-test: this push does not change the scanner, which its pull request's run proved."
+            echo "No self-test: this push does not change the scanner, which its pull request's run proved." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Firewall self-test, with throwaway rules only
+        if: steps.scope.outputs.run == 'true'
+        run: scripts/firewall/test.sh
+
   preview:
     needs: firewall # a preview is public the moment it exists, so the firewall comes first
     if: >-
@@ -166,6 +205,20 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+          fetch-depth: 2 # the merge commit and its base, to see whether the scanner changed
+      # The firewall's clean result clears a public page only from a scanner the self-test proved.
+      # The self-test now runs beside this job, not before it, so a pull request that changes the
+      # scanner publishes nothing, and e2e and lighthouse run on wrangler dev serving the same
+      # dist/, as for Dependabot (ADR 0006, postscript of 2026-10-31).
+      - name: No preview when the pull request changes the scanner, which its self-test has not yet proved
+        id: scanner
+        run: |
+          changed="$(scripts/firewall/scanner-changed.sh HEAD^1 HEAD)"
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+          if [ "$changed" = true ]; then
+            echo "::notice::No preview: this pull request changes the scanner, and its self-test runs beside this job. e2e runs on wrangler dev, serving the same dist/."
+            echo "No preview: this pull request changes the scanner, so e2e ran on wrangler dev." >> "$GITHUB_STEP_SUMMARY"
+          fi
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
@@ -178,6 +231,7 @@ jobs:
           path: apps/web/dist
       - name: Publish the Worker Preview, once production exists
         id: publish
+        if: steps.scanner.outputs.changed != 'true'
         working-directory: apps/web
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -390,7 +444,7 @@ jobs:
           retention-days: 14
 
   deploy:
-    needs: [verify, firewall] # the gate: nothing ships without both (ADR 0006)
+    needs: [verify, firewall, firewall-selftest] # the gate: nothing ships without all three (ADR 0006)
     if: (github.event_name == 'push' || github.event_name == 'schedule') && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15

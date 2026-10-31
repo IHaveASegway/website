@@ -94,3 +94,13 @@ The decision stands. The Revisit if condition on minutes, more than 1,500 a mont
 Lighthouse CI shipped as a job of its own, `lighthouse`, beside `e2e` rather than inside it, where [delivery.md](../delivery.md) had planned it: run one after the other, its 3 runs on every page would have added about 4 minutes to every pull request. Inside `e2e`, decision 3's required checks would have covered it; beside it, they would not, so `lighthouse` joins them. The ruleset was not yet in place, so nothing else changes.
 
 With the job, the minutes model is 1,153 in a typical month and 1,762 in a busy one ([delivery.md](../delivery.md#actions-minutes-budget)), so a busy month would now cross the Revisit if line of 1,500 on a private repository. The repository has been public since 2026-10-25, and public repositories pay nothing for standard runners, so the condition does not apply unless it goes private again. The decision stands.
+
+## Postscript 2026-10-31
+
+Decision 2's gate held the firewall self-test inside `verify`: `scripts/firewall/test.sh` was one of its steps, so `preview` and `deploy`, which need `verify`, waited for it. On 2026-10-31 it took 227 to 345 seconds of `verify`'s 5.5 to 8 minutes, and every later job waited too. It now runs in a job of its own, `firewall-selftest`, beside `verify` ([delivery.md](../delivery.md#pipeline)), and what the gate means does not change:
+
+- `deploy` `needs:` `verify`, `firewall` and `firewall-selftest`, so nothing ships unless the self-test passed on the change. A push to `main` that leaves the scanner alone (`scripts/firewall/` and `ci.yml`, read by `scripts/firewall/scanner-changed.sh`) skips the test's step, never the job: its scanner is the one its pull request's run proved.
+- `preview` no longer waits for it, so a pull request that changes the scanner publishes no preview, and `e2e` runs on `wrangler dev`. The firewall's clean result clears a public page only when the self-test has proved the scanner that gave it, so the rule in Context still holds: the firewall passes before anything is published, previews included.
+- Inside `verify`, decision 3's required checks covered the self-test; beside it, they would not, so `firewall-selftest` joins them, as `lighthouse` did.
+
+The trade: a pull request's run takes about 10 minutes instead of 14 to 15, and a merge to `main` about 4.5 instead of 8 to 10. Two jobs round up twice, so a pull request push bills about 2 more Actions minutes and a merge 2 fewer: 1,219 a month typical and 1,868 busy, which matter only if the repository goes private again. The ruleset was not yet in place, so nothing else changes. The decision stands.
