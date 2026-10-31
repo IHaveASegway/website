@@ -1,6 +1,6 @@
 ---
 import { openingRun } from '../../../lib/backfill/view';
-import { backfillFact, backfillLine } from '../../../lib/lines';
+import { backfillFact, backfillFix, backfillLine } from '../../../lib/lines';
 import type { LineAt } from '../line-of';
 import '../../../styles/lines.css';
 
@@ -13,17 +13,23 @@ interface Props {
 // and from each one a drop to the report's track below, which ends in the report, a square: every
 // run writes its own day into the one table. A day's lamp is its run on the lab's own run board,
 // filled once every step succeeded, crossed once a step failed or its check found the totals
-// apart, lit while a step runs, hollow before. All of it from the Backfill Lab's opening run
+// apart, and the describer says "failed" beside it (design-system.md, "Lamps: one meaning per
+// mark"), lit while a step runs, hollow before. All of it from the Backfill Lab's opening run
 // (lib/backfill/view.ts), the week its own page draws before anyone presses anything, where
 // Wednesday is counted twice. It stands still: the board's one moving thing is the Route Lab's
 // vans. Drawn twice, for a narrow screen and a wide one, without a viewBox, as the Route Lab's
 // line is (routes.astro): heights in pixels, the days and the report in shares of the width. On
-// the board its describer names the day that is wrong; on the Lab index it is larger, names its
-// stations, comes in from the page's edge, and says what loads that overwrite their day give.
+// the board its describer names the day that failed and what loads that overwrite their day do
+// about it; on the Lab index it is larger, names its stations, comes in from the page's edge, and
+// says what those loads give, in figures.
 const { at = 'board' } = Astro.props;
 const appended = openingRun();
+const overwritten = openingRun('overwrite');
 const line = backfillLine(appended);
-const words = at === 'board' ? line.words : backfillFact(appended, openingRun('overwrite'));
+const words =
+  at === 'board'
+    ? `${line.words} ${backfillFix(overwritten)}`
+    : backfillFact(appended, overwritten);
 
 interface Size {
   readonly name: 'wide' | 'compact';

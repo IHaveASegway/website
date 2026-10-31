@@ -5,7 +5,7 @@ import { DATABASE, firstUp, pageName } from './cache/core';
 import type { Sim as CacheSim } from './cache/sim';
 import type { Sim as QueueSim } from './queue/sim';
 import { PROPERTIES } from './raft/check';
-import { leaderOf, type Sim } from './raft/sim';
+import { leaderOf, step, type Sim } from './raft/sim';
 import type { RouteData } from './route-lab/data';
 import type { Day } from './route-lab/days';
 import { formatDuration } from './route-lab/format';
@@ -92,10 +92,13 @@ export function vanLines(data: RouteData, measured: Measured): string[] {
   });
 }
 
-/** The Routes line's describer on the board: the day's numbers, from the solve. */
-export function routesWords(day: Day, measured: Measured): string {
-  const vans = measured.vans.filter((van) => van.stops.length > 0).length;
-  return `${day.orders.length} orders on ${vans} ${vans === 1 ? 'van' : 'vans'}: ${formatDuration(measured.drive)} of driving, the last van back after ${formatDuration(measured.back)}.`;
+/** The Routes line's describer on the board: the day's driving as the orders came in, then as
+ *  VROOM plans it, from the build's solve of both plans, so the board shows the fix as well as
+ *  what it fixes: "20 orders on 3 vans: 5 h 34 min of driving as the orders came in, 3 h 12 min
+ *  planned by VROOM, the last van back after 2 h 20 min." */
+export function routesWords(day: Day, before: Measured, after: Measured): string {
+  const vans = after.vans.filter((van) => van.stops.length > 0).length;
+  return `${day.orders.length} orders on ${vans} ${vans === 1 ? 'van' : 'vans'}: ${formatDuration(before.drive)} of driving as the orders came in, ${formatDuration(after.drive)} planned by VROOM, the last van back after ${formatDuration(after.back)}.`;
 }
 
 /** The Routes line's one fact on the Lab index: what VROOM saves on the lab's own day, from the
@@ -140,9 +143,47 @@ export function raftLine(sim: Sim): RaftLine {
   };
 }
 
-/** A station's lamp (ADR 0025: state is a shape): not started or idle, where the work is now (the
- *  lit lamp, --primary), done, or failed (a cross over a hollow lamp). */
-export type Lamp = 'hollow' | 'lit' | 'filled' | 'cross';
+/** How long, in virtual milliseconds, the Raft line's failover may take: many election timeouts
+ *  (150 to 300 ms, lib/raft/core.ts), so only a run that cannot elect is refused. */
+export const RAFT_RECOVERY = 5_000;
+
+/**
+ * The Raft line's fix on the board: the opening's leader crashed where the run stands, and Raft
+ * electing another, so the board shows what the protocol does about the failure it is built for:
+ * "Crash server 1, and server 5 leads term 2 after 221 ms, with all three committed entries kept."
+ * `crashed` is the opening replayed with that crash as its last action; this plays it on, event by
+ * event, until another server leads. Refused when none leads within RAFT_RECOVERY, when a property
+ * broke, or when the new leader's log lost a committed entry, since the sentence says none did.
+ */
+export function raftFailover(opening: Sim, crashed: Sim): string {
+  const old = leaderOf(opening);
+  if (!old) throw new Error('lines: the Raft opening has no leader to crash');
+  if (crashed.servers[old.id]?.up) throw new Error('lines: the Raft run did not crash its leader');
+  const from = crashed.now;
+  let next = leaderOf(crashed);
+  while ((!next || next.id === old.id) && crashed.now - from < RAFT_RECOVERY && step(crashed))
+    next = leaderOf(crashed);
+  if (!next || next.id === old.id)
+    throw new Error(`lines: no server led within ${RAFT_RECOVERY} ms of the leader's crash`);
+  const committed = old.commitIndex;
+  if (crashed.violation || next.hashes[committed] !== old.hashes[committed])
+    throw new Error('lines: the Raft failover lost a committed entry or broke a property');
+  const kept =
+    committed === 0
+      ? 'nothing committed lost'
+      : committed === 1
+        ? 'its committed entry kept'
+        : `all ${inWords(committed)} committed entries kept`;
+  return `Crash server ${old.id + 1}, and server ${next.id + 1} leads term ${next.term} after ${Math.round(crashed.now - from)} ms, with ${kept}.`;
+}
+
+/**
+ * A station's state on a line (design-system.md, "Lamps: one meaning per mark"; ADR 0025: state is
+ * a shape and a word): not started or idle (a hollow lamp), where the work is now (the lit lamp,
+ * --primary), done or in service (filled), failed (a cross over a hollow lamp), or down: out of
+ * service, drawn as its track hollow, with no lamp, as the labs' desks draw it.
+ */
+export type Lamp = 'hollow' | 'lit' | 'filled' | 'cross' | 'down';
 
 const times = (n: number): string => (n === 1 ? 'once' : n === 2 ? 'twice' : `${count(n)} times`);
 const orders = (n: number): string => `${count(n)} ${n === 1 ? 'order' : 'orders'}`;
@@ -160,7 +201,7 @@ export interface QueueLine {
   /** Orders in the broker's queue, a lamp each in the tank. */
   readonly waiting: number;
   /** Each worker in the pool, in order: working on an order (lit), idle (hollow), or down after a
-   *  crash (cross). */
+   *  crash (down: its track hollow). */
   readonly workers: readonly { readonly name: string; readonly lamp: Lamp }[];
   /** Orders in the dead-letter queue. */
   readonly dead: number;
@@ -178,7 +219,7 @@ export function queueLine(sim: QueueSim): QueueLine {
   const pool = sim.workers.slice(0, sim.size);
   const workers = pool.map((w) => ({
     name: `Worker ${w.id + 1}`,
-    lamp: (w.state !== 'up' ? 'cross' : w.busy === null ? 'hollow' : 'lit') as Lamp,
+    lamp: (w.state !== 'up' ? 'down' : w.busy === null ? 'hollow' : 'lit') as Lamp,
   }));
   const down = pool.filter((w) => w.state !== 'up').map((w) => String(w.id + 1));
   const head =
@@ -204,17 +245,30 @@ export function queueLine(sim: QueueSim): QueueLine {
  * lost. Refused for a run that lost or doubled an order, since the sentence says neither happened.
  */
 export function queueFact(keyed: QueueSim): string {
-  const kept = keyed.jobs.find((job) => job.effects.length === 1 && job.delivered.length > 1);
-  if (!kept || keyed.lostCount > 0 || keyed.tallies.once.count > 0)
-    throw new Error('lines: the opening with the key lost or doubled an order, or sent none twice');
+  const kept = keptOnce(keyed);
   const crashed = (kept.effects[0]?.worker ?? 0) + 1;
   const seconds = Math.round(keyed.now / 1000);
   return `With an idempotency key, worker ${crashed}’s crash prints order ${kept.id} once: ${orders(keyed.doneCount)} done in ${seconds} s, none lost or printed twice.`;
 }
 
+/** The Queue line's fix on the board, after the crash its describer tells: "With an idempotency
+ *  key, order 18 prints once." From the same run as the index's fact, refused as it is. */
+export function queueFix(keyed: QueueSim): string {
+  return `With an idempotency key, order ${keptOnce(keyed).id} prints once.`;
+}
+
+/** The order the keyed run was sent twice and printed once; refused for a run that lost or
+ *  doubled an order, or sent none twice, since the sentences built on it say none did. */
+function keptOnce(keyed: QueueSim): QueueSim['jobs'][number] {
+  const kept = keyed.jobs.find((job) => job.effects.length === 1 && job.delivered.length > 1);
+  if (!kept || keyed.lostCount > 0 || keyed.tallies.once.count > 0)
+    throw new Error('lines: the opening with the key lost or doubled an order, or sent none twice');
+  return kept;
+}
+
 /** The Cache line: the readers fanning in to the cache nodes, and the database's connections. */
 export interface CacheLine {
-  /** Each cache node, in order: up (filled) or down (cross). */
+  /** Each cache node, in order: up (filled) or down (its track hollow). */
   readonly nodes: readonly Lamp[];
   /** The database's pool, a lamp per connection: true while a fetch runs on it. */
   readonly connections: readonly boolean[];
@@ -237,7 +291,7 @@ export function cacheLine(sim: CacheSim): CacheLine {
       ? 'no reader timed out'
       : `${count(timeouts)} ${timeouts === 1 ? 'read' : 'reads'} timed out`;
   return {
-    nodes: sim.nodes.map((node) => (node.up ? 'filled' : 'cross')),
+    nodes: sim.nodes.map((node) => (node.up ? 'filled' : 'down')),
     connections: Array.from({ length: DATABASE.pool }, (_, k) => k < sim.running),
     words: `${fetched}, and ${gave}.`,
   };
@@ -249,14 +303,35 @@ export function cacheLine(sim: CacheSim): CacheLine {
  * Refused for an opening with no expiry's herd to compare.
  */
 export function cacheFact(opening: CacheSim, coalesced: CacheSim): string {
-  const herd = opening.tally.herd;
-  if (!herd || herd.expired === null || herd.size < 2)
-    throw new Error('lines: the cache opening has no herd at an expiry');
+  const herd = herdAtExpiry(opening);
   const page = pageName(herd.key);
   const at = (herd.expired / 1000).toFixed(1);
   const once = coalesced.fetchesOf[herd.key] ?? 0;
   const without = opening.fetchesOf[herd.key] ?? 0;
   return `${firstUp(`when ${page} expires at ${at} s`)}, coalescing has the database fetch it ${times(once)} instead of ${times(without)}.`;
+}
+
+/** The Cache line's fix on the board, after the stampede its describer tells: "With coalescing,
+ *  the database fetches it once, and no read times out." From the same runs as the index's fact. */
+export function cacheFix(opening: CacheSim, coalesced: CacheSim): string {
+  const once = coalesced.fetchesOf[herdAtExpiry(opening).key] ?? 0;
+  const timeouts = coalesced.counts.timeout;
+  const gave =
+    timeouts === 0
+      ? 'no read times out'
+      : `${count(timeouts)} ${timeouts === 1 ? 'read times' : 'reads time'} out`;
+  return `With coalescing, the database fetches it ${times(once)}, and ${gave}.`;
+}
+
+/** The opening's herd at an expiry, which the cache's fact and fix compare; refused when there is
+ *  none, since then there is nothing to compare. */
+function herdAtExpiry(opening: CacheSim): NonNullable<CacheSim['tally']['herd']> & {
+  readonly expired: number;
+} {
+  const herd = opening.tally.herd;
+  if (!herd || herd.expired === null || herd.size < 2)
+    throw new Error('lines: the cache opening has no herd at an expiry');
+  return { ...herd, expired: herd.expired };
 }
 
 /** A day's lamp from its steps on the Backfill Lab's run board: failed if any step failed or its
@@ -285,11 +360,13 @@ export function backfillLine(sim: BackfillSim): BackfillLine {
     name: weekday(day.day).slice(0, 3),
     lamp: dayLamp(day.steps),
   }));
-  const wrong = view.days.filter((day) => day.difference !== '');
+  // A day crossed on the line says "failed" in the words (design-system.md, "Lamps: one meaning
+  // per mark"): its check, when the totals it found differ, or else its run.
+  const failed = view.days.filter((_, i) => days[i]?.lamp === 'cross');
   const checked = view.days.filter((day) => sim.runs[day.day]?.verdict).length;
   const total = sim.source.reduce((sum, n) => sum + n, 0);
   let words: string;
-  if (wrong.length === 0)
+  if (failed.length === 0)
     words =
       checked === view.days.length
         ? `Every day matches the source: ${orders(total)} in the week.`
@@ -297,11 +374,14 @@ export function backfillLine(sim: BackfillSim): BackfillLine {
           ? 'No day has been checked yet.'
           : `${firstUp(inWords(checked))} of ${inWords(view.days.length)} days checked, each matching the source.`;
   else {
-    const named = wrong.map(
-      (day) =>
-        `${weekday(day.day)}’s report counts ${day.report} orders against the source’s ${day.source}`,
+    const named = failed.map((day) =>
+      day.difference === ''
+        ? `${weekday(day.day)}’s run failed`
+        : `${weekday(day.day)}’s check failed: its report counts ${day.report} orders against the source’s ${day.source}`,
     );
-    const others = checked - wrong.length;
+    const others = view.days.filter(
+      (day) => day.difference === '' && sim.runs[day.day]?.verdict && !failed.includes(day),
+    ).length;
     const rest =
       others > 0
         ? `; the other ${inWords(others)} ${others === 1 ? 'day matches' : 'days match'}`
@@ -319,8 +399,21 @@ export function backfillLine(sim: BackfillSim): BackfillLine {
  */
 export function backfillFact(appended: BackfillSim, overwritten: BackfillSim): string {
   const sum = (numbers: readonly number[]) => numbers.reduce((total, n) => total + n, 0);
+  matchedWeek(overwritten);
+  return `Loads that overwrite their day: the week’s report counts ${orders(sum(overwritten.report))}, as the source does, instead of ${count(sum(appended.report))}.`;
+}
+
+/** The Backfill line's fix on the board, after the failed check its describer tells: "Loads that
+ *  overwrite their day make all seven match." From the same run as the index's fact. */
+export function backfillFix(overwritten: BackfillSim): string {
+  return `Loads that overwrite their day make all ${inWords(matchedWeek(overwritten))} match.`;
+}
+
+/** The days of a week whose every check ran and matched its source; refused otherwise, since the
+ *  sentences built on it say the report and the source agree. */
+function matchedWeek(overwritten: BackfillSim): number {
   const week = boardView(overwritten);
   if (week.days.some((day) => day.difference !== '' || !overwritten.runs[day.day]?.verdict))
     throw new Error('lines: the overwritten week does not match its source');
-  return `Loads that overwrite their day: the week’s report counts ${orders(sum(overwritten.report))}, as the source does, instead of ${count(sum(appended.report))}.`;
+  return week.days.length;
 }

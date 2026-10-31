@@ -3,20 +3,26 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 import { replay as replayBackfill } from '../src/lib/backfill/sim';
+import { WEEK_END } from '../src/lib/backfill/core';
 import { openingRun as backfillOpening } from '../src/lib/backfill/view';
 import { replay as replayCache } from '../src/lib/cache/sim';
 import { OPENING as CACHE, openingRun as cacheOpening } from '../src/lib/cache/view';
 import {
   backfillFact,
+  backfillFix,
   backfillLine,
   cacheFact,
+  cacheFix,
   cacheLine,
   figureWords,
   inWords,
   MIDDAY,
   queueFact,
+  queueFix,
   queueLine,
+  raftFailover,
   raftLine,
+  RAFT_RECOVERY,
   ROUNDS,
   routesFact,
   routesLine,
@@ -28,7 +34,8 @@ import {
 } from '../src/lib/lines';
 import { replay as replayQueue } from '../src/lib/queue/sim';
 import { OPENING as QUEUE, openingRun as queueOpening } from '../src/lib/queue/view';
-import { openingRun, statusText } from '../src/lib/raft/view';
+import { replay as replayRaft } from '../src/lib/raft/sim';
+import { OPENING as RAFT, openingRun, statusText } from '../src/lib/raft/view';
 import type { RouteData } from '../src/lib/route-lab/data';
 import type { Day } from '../src/lib/route-lab/days';
 import { dayLine, NBSP } from '../src/lib/route-lab/format';
@@ -112,8 +119,10 @@ describe('the Routes line', () => {
       'Van 3 stays at the bakery',
     ]);
     const day = { id: 'busy', name: 'A busy Saturday', vans: 3, orders: [1, 2, 3] } as Day;
-    expect(routesWords(day, plan)).toBe(
-      `3 orders on 2 vans: 1${NBSP}h 15${NBSP}min of driving, the last van back after 45${NBSP}min.`,
+    // The board's describer: the driving as the orders came in, then VROOM's, and when it ends.
+    const dealt = measured([{ arrives: [600, 1200, 900], back: 7200 }]);
+    expect(routesWords(day, dealt, plan)).toBe(
+      `3 orders on 2 vans: 2${NBSP}h 0${NBSP}min of driving as the orders came in, 1${NBSP}h 15${NBSP}min planned by VROOM, the last van back after 45${NBSP}min.`,
     );
     expect(figureWords(day)).toBe(
       'of driving on a busy Saturday, planned by VROOM in your browser',
@@ -143,8 +152,8 @@ describe('the Routes line', () => {
       `Van 2: 9 stops, Pioneer Square to Alki Beach, back after 2${NBSP}h 20${NBSP}min`,
       `Van 3: 2 stops, Volunteer Park to Cal Anderson Park, back after 22${NBSP}min`,
     ]);
-    expect(routesWords(picture.day, after)).toBe(
-      `20 orders on 3 vans: 3${NBSP}h 12${NBSP}min of driving, the last van back after 2${NBSP}h 20${NBSP}min.`,
+    expect(routesWords(picture.day, picture.before.measured, after)).toBe(
+      `20 orders on 3 vans: 5${NBSP}h 34${NBSP}min of driving as the orders came in, 3${NBSP}h 12${NBSP}min planned by VROOM, the last van back after 2${NBSP}h 20${NBSP}min.`,
     );
     expect(routesFact(picture.day, picture.before.measured, after)).toBe(
       `A busy Saturday: 3${NBSP}h 12${NBSP}min of driving instead of 5${NBSP}h 34${NBSP}min.`,
@@ -170,6 +179,38 @@ describe('the Raft line', () => {
   test("the index's fact: the five properties held over every event of the opening run", () => {
     expect(statusText(openingRun())).toBe('All five safety properties held over 249 events.');
   });
+
+  // The board's fix: the opening with its leader crashed where it stands, played on until another
+  // server leads. Raft's own answer to the failure it is built for, from the run, not typed.
+  const crashedAt = (until: number, node: number) =>
+    replayRaft({ seed: RAFT.seed }, [...RAFT.actions, { at: until, kind: 'crash', node }], until);
+
+  test("the board's fix: crash the leader, and another leads the next term with every entry kept", () => {
+    expect(raftFailover(openingRun(), crashedAt(RAFT.until, 0))).toBe(
+      'Crash server 1, and server 5 leads term 2 after 221 ms, with all three committed entries kept.',
+    );
+  });
+
+  test('a failover that is not one is refused: the leader still up, or no leader within the bound', () => {
+    // The opening itself: its leader never crashed.
+    expect(() => raftFailover(openingRun(), openingRun())).toThrow(/did not crash/);
+    // A follower crashed instead: the leader is still up, so it is not the failover the words tell.
+    expect(() => raftFailover(openingRun(), crashedAt(RAFT.until, 3))).toThrow(/did not crash/);
+    // Three of five down after the leader: no majority, so no server can lead again.
+    const minority = replayRaft(
+      { seed: RAFT.seed },
+      [
+        ...RAFT.actions,
+        { at: RAFT.until, kind: 'crash', node: 1 },
+        { at: RAFT.until, kind: 'crash', node: 2 },
+        { at: RAFT.until, kind: 'crash', node: 0 },
+      ],
+      RAFT.until,
+    );
+    expect(() => raftFailover(openingRun(), minority)).toThrow(
+      new RegExp(`within ${RAFT_RECOVERY} ms`),
+    );
+  });
 });
 
 // The three simulated labs' lines, each from its own lab's opening run, through its simulation, as
@@ -181,7 +222,7 @@ describe('the Queue line', () => {
     const line = queueLine(queueOpening());
     expect(line.workers).toEqual([
       { name: 'Worker 1', lamp: 'lit' },
-      { name: 'Worker 2', lamp: 'cross' },
+      { name: 'Worker 2', lamp: 'down' },
       { name: 'Worker 3', lamp: 'lit' },
     ]);
     expect(line.waiting).toBe(11);
@@ -197,6 +238,12 @@ describe('the Queue line', () => {
     );
     // The opening itself printed order 18 twice, so it cannot be the fact.
     expect(() => queueFact(queueOpening())).toThrow(/doubled/);
+  });
+
+  test("the board's fix: the same crash with the key prints order 18 once", () => {
+    const keyed = replayQueue({ ...QUEUE.config, key: true }, QUEUE.actions, QUEUE.until);
+    expect(queueFix(keyed)).toBe('With an idempotency key, order 18 prints once.');
+    expect(() => queueFix(queueOpening())).toThrow(/doubled/);
   });
 
   test('a queue the tank cannot hold, or dead letters the siding cannot, are refused', () => {
@@ -227,6 +274,18 @@ describe('the Cache line', () => {
     // With no herd at an expiry there is nothing to compare.
     expect(() => cacheFact(coalesced, coalesced)).toThrow(/herd/);
   });
+
+  test("the board's fix: coalescing fetches the menu once, and no read times out", () => {
+    const coalesced = replayCache({ ...CACHE.config, coalesce: true }, CACHE.actions, CACHE.until);
+    expect(cacheFix(cacheOpening(), coalesced)).toBe(
+      'With coalescing, the database fetches it once, and no read times out.',
+    );
+    // Without coalescing the same words would be false: 23 fetches, and two reads timed out.
+    expect(cacheFix(cacheOpening(), cacheOpening())).toBe(
+      'With coalescing, the database fetches it 23 times, and 2 reads time out.',
+    );
+    expect(() => cacheFix(coalesced, coalesced)).toThrow(/herd/);
+  });
 });
 
 describe('the Backfill line', () => {
@@ -250,12 +309,33 @@ describe('the Backfill line', () => {
       'filled',
       'filled',
     ]);
+    // The crossed day's words say "failed", as its lamp does (design-system.md, "Lamps").
     expect(line.words).toBe(
-      'Wednesday’s report counts 275 orders against the source’s 179; the other six days match.',
+      'Wednesday’s check failed: its report counts 275 orders against the source’s 179; the other six days match.',
     );
     expect(backfillLine(backfillOpening('overwrite')).words).toBe(
       'Every day matches the source: 2,012 orders in the week.',
     );
+  });
+
+  test('known answer: a day whose load fails all three attempts is crossed, and its run named failed', () => {
+    const fail = { at: WEEK_END, steps: 0, kind: 'fail-next-load', day: 2 } as const;
+    const week = replayBackfill(
+      { seed: 9, mode: 'overwrite', partition: 'run-day', maxActiveRuns: 3 },
+      [fail, fail, fail, { at: WEEK_END, steps: 0, kind: 'start' }],
+      WEEK_END + 200,
+    );
+    const line = backfillLine(week);
+    expect(line.days.map((day) => day.lamp)).toEqual([
+      'filled',
+      'filled',
+      'cross',
+      'filled',
+      'filled',
+      'filled',
+      'filled',
+    ]);
+    expect(line.words).toBe('Wednesday’s run failed; the other six days match.');
   });
 
   test('a week that has not started is hollow, and one under way says how far its checks got', () => {
@@ -271,6 +351,13 @@ describe('the Backfill line', () => {
     );
     // The appended week does not match its source, so it cannot be the fact.
     expect(() => backfillFact(appended, appended)).toThrow(/match/);
+  });
+
+  test("the board's fix: loads that overwrite their day make all seven match", () => {
+    expect(backfillFix(backfillOpening('overwrite'))).toBe(
+      'Loads that overwrite their day make all seven match.',
+    );
+    expect(() => backfillFix(backfillOpening())).toThrow(/match/);
   });
 });
 
