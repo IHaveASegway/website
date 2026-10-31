@@ -1,4 +1,5 @@
 ---
+import { QUEUE_SIZES, queueShape } from '../../../lib/line-shapes';
 import { queueFact, queueFix, queueLine, TANK } from '../../../lib/lines';
 import { replay } from '../../../lib/queue/sim';
 import { OPENING, openingRun } from '../../../lib/queue/view';
@@ -21,125 +22,20 @@ interface Props {
 // is (routes.astro): everything up to the fork in pixels, the tracks after it in shares of the
 // width. On the board its describer says what the crash did and what the idempotency key does about
 // it; on the Lab index it is larger, names its stations, comes in from the page's edge, and says
-// what the key changes, in figures.
+// what the key changes, in figures. Where everything stands, at each size, is lib/line-shapes.ts,
+// which the link previews draw too.
 const { at = 'board' } = Astro.props;
 const line = queueLine(openingRun());
 const keyed = replay({ ...OPENING.config, key: true }, OPENING.actions, OPENING.until);
 const words = at === 'board' ? `${line.words} ${queueFix(keyed)}` : queueFact(keyed);
 
-interface Size {
-  readonly name: 'wide' | 'compact';
-  /** Its height, and the space between the tracks after the fork. */
-  readonly height: number;
-  readonly gap: number;
-  /** The publisher's left edge and side, the tank's first lamp and the space between its lamps. */
-  readonly depot: number;
-  readonly side: number;
-  readonly tank: number;
-  readonly step: number;
-  /** Where a worker's lamp stands and its track ends, in percent; the siding's buffer stop. */
-  readonly worker: number;
-  readonly end: number;
-  readonly stop: number;
-  /** A waiting order's lamp and a worker's, by radius. */
-  readonly lamp: number;
-  readonly station: number;
-  readonly labels: boolean;
-}
-
-const SIZES: Record<LineAt, readonly Size[]> = {
-  board: [
-    {
-      name: 'wide',
-      height: 96,
-      gap: 21,
-      depot: 40,
-      side: 14,
-      tank: 70,
-      step: 16,
-      worker: 62,
-      end: 82,
-      stop: 74,
-      lamp: 5,
-      station: 8,
-      labels: true,
-    },
-    {
-      name: 'compact',
-      height: 64,
-      gap: 13,
-      depot: 16,
-      side: 10,
-      tank: 34,
-      step: 9,
-      worker: 72,
-      end: 94,
-      stop: 86,
-      lamp: 3,
-      station: 5,
-      labels: false,
-    },
-  ],
-  // Made, as the Route Lab's is, for a column of 30rem at the least beside the words from 64rem,
-  // and the whole column of a phone below 48rem.
-  index: [
-    {
-      name: 'wide',
-      height: 128,
-      gap: 26,
-      depot: 0,
-      side: 16,
-      tank: 34,
-      step: 18,
-      worker: 58,
-      end: 72,
-      stop: 66,
-      lamp: 6,
-      station: 10,
-      labels: true,
-    },
-    {
-      name: 'compact',
-      height: 64,
-      gap: 13,
-      depot: 0,
-      side: 10,
-      tank: 18,
-      step: 9,
-      worker: 70,
-      end: 94,
-      stop: 86,
-      lamp: 3,
-      station: 5,
-      labels: false,
-    },
-  ],
-};
-
 // On the index the stem comes in from past the drawing's left edge, as the Route Lab's does.
 const enters = at === 'index' ? '-100%' : '0';
-// A downed worker's hollow starts this far past the fork's bend, so it never cuts the tracks that
-// leave the fork beside it.
-const GAP_FROM_FORK = 6;
-const rows = [
-  ...line.workers.map((w) => ({ ...w, dead: false })),
-  { name: 'Dead letters', lamp: 'hollow', dead: true },
-];
-const drawings = SIZES[at].map((size) => {
-  const middle = size.height / 2;
-  // The fork stands past the tank's last place, so a fuller queue never reaches it.
-  const fork = size.tank + (TANK - 1) * size.step + size.lamp + 12;
-  const tracks = rows.map((row, i) => {
-    const y = Math.round(middle + (i - (rows.length - 1) / 2) * size.gap);
-    return { ...row, y, rise: Math.abs(y - middle) };
-  });
-  const waiting = Array.from({ length: line.waiting }, (_, k) => size.tank + k * size.step);
-  return { size, middle, fork, tracks, waiting };
-});
+const drawings = QUEUE_SIZES[at].map((size) => queueShape(line, size));
 ---
 
 <div class="line line-queue">
-  {drawings.map(({ size, middle, fork, tracks, waiting }) => (
+  {drawings.map(({ size, middle, fork, tracks, waiting, letters }) => (
     <svg
       class={`line-draw line-${size.name}`}
       height={size.height}
@@ -180,14 +76,8 @@ const drawings = SIZES[at].map((size) => {
               width={size.side / 3}
               height={size.station * 2}
             />
-            {Array.from({ length: line.dead }, (_, k) => (
-              <circle
-                class="line-lamp-lit"
-                cx={-(k + 1) * size.step}
-                cy={track.y}
-                r={size.lamp + 1}
-                data-lit=""
-              />
+            {letters.map((x) => (
+              <circle class="line-lamp-lit" cx={x} cy={track.y} r={size.lamp + 1} data-lit="" />
             ))}
             {size.labels && (
               <text class="line-label" x={size.side / 3 + 10} y={track.y + 4.5}>
@@ -200,7 +90,7 @@ const drawings = SIZES[at].map((size) => {
             {track.lamp === 'down' ? (
               <line
                 class="line-gap"
-                x1={fork + track.rise + GAP_FROM_FORK}
+                x1={track.hollow}
                 y1={track.y}
                 x2={`${size.end}%`}
                 y2={track.y}
