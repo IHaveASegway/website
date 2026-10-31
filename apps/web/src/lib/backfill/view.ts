@@ -329,9 +329,9 @@ export function openLink(hash: string): Sim | null {
   return openingWeek({ ...OPENING.config, seed: link.seed, mode, partition, maxActiveRuns: runs });
 }
 
-/** Start over: the week this one's link names, the opening's week again on the same seed under
- *  the visitor's settings, so the lab entry's "start over" shows the week each setting gives at
- *  once. */
+/** The week this one's link names: the opening's week again on the same seed under the
+ *  visitor's settings, standing where a played week stops, as a reload of the link opens it.
+ *  Start over takes it back to its switch (fromTheSwitch). */
 export const startOver = (sim: Sim): Sim => openLink(linkTo(sim)) as Sim;
 
 /**
@@ -345,6 +345,22 @@ export function beforeSwitch(sim: Sim): Sim {
     .slice(0, switched < 0 ? sim.actions.length : switched)
     .filter((a) => a.kind === 'fail-next-load' || a.kind === 'late-file');
   return replay(settingsOf(sim), setUp, WEEK_END);
+}
+
+/**
+ * What Start over shows: the week this one's link names (startOver), taken back to its switch, the
+ * job off at 00:00 with Wednesday's failed load set, as Run takes a finished week back. Both go
+ * back through beforeSwitch, so the week replays from one point, never one each: Run then plays
+ * the failed load at 00:24 and the day counted twice at 00:39, four and seven seconds in at
+ * Steady, rather than landing past them, as Start over did until 2026-10-31.
+ */
+export const fromTheSwitch = (sim: Sim): Sim => beforeSwitch(startOver(sim));
+
+/** The job's switch only switches on, so its words say the job's state once it has: on, and from
+ *  when, which a press on it then can only repeat. */
+export function switchWords(sim: Sim): string {
+  const on = sim.actions.find((a) => a.kind === 'start');
+  return sim.on && on ? `Job on since ${moment(on.at)}` : 'Switch the job on';
 }
 
 /** How much later "make its file late" makes a day's export file land: 5 hours, in minutes. */
