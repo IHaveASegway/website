@@ -98,6 +98,30 @@ export interface Post {
   readonly kind: EssayData['kind'] | 'note';
   /** A note's source link, if it has one. */
   readonly source: string | null;
+  /** Minutes a reader takes over its body (readingMinutes), shown beside its day in a list. */
+  readonly minutes: number;
+}
+
+/** Words a reader reads in a minute here. Brysbaert's meta-analysis (2019) puts silent reading of
+ *  English non-fiction at 238 a minute; a post here carries numbers and code a reader slows down
+ *  for, so it counts a little under that. */
+export const WORDS_PER_MINUTE = 220;
+
+/**
+ * Minutes to read a post's Markdown body, rounded up and never below one. The words are the ones
+ * a reader sees: a link's address, an HTML comment and the Markdown's own marks are not words. A
+ * code block counts at half its words, since a reader scans it rather than reads it.
+ */
+export function readingMinutes(markdown: string): number {
+  const count = (text: string) => text.match(/[\p{L}\p{N}][\p{L}\p{N}'’.,-]*/gu)?.length ?? 0;
+  const fences = /^(```|~~~)[^\n]*\n[\s\S]*?^\1[^\n]*$/gm;
+  const code = [...markdown.matchAll(fences)].reduce((sum, [block]) => sum + count(block), 0);
+  const prose = markdown
+    .replace(fences, ' ')
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/\]\([^)]*\)/g, ']')
+    .replace(/^\[[^\]]+\]:\s*\S+.*$/gm, ' ');
+  return Math.max(1, Math.ceil((count(prose) + code / 2) / WORDS_PER_MINUTE));
 }
 
 /**
@@ -114,7 +138,7 @@ export function typeset(text: string): string {
     .replace(/'/g, '\u2019');
 }
 
-export const fromEssay = (slug: string, data: EssayData): Post => ({
+export const fromEssay = (slug: string, data: EssayData, body = ''): Post => ({
   section: 'writing',
   slug,
   title: typeset(data.title),
@@ -125,9 +149,10 @@ export const fromEssay = (slug: string, data: EssayData): Post => ({
   tags: data.tags,
   kind: data.kind,
   source: null,
+  minutes: readingMinutes(body),
 });
 
-export const fromNote = (slug: string, data: NoteData): Post => ({
+export const fromNote = (slug: string, data: NoteData, body = ''): Post => ({
   section: 'notes',
   slug,
   title: typeset(data.title),
@@ -138,6 +163,7 @@ export const fromNote = (slug: string, data: NoteData): Post => ({
   tags: data.tags,
   kind: 'note',
   source: data.source ?? null,
+  minutes: readingMinutes(body),
 });
 
 /** A slug is the file name: lowercase ASCII words joined by hyphens (content.md, "URL scheme"). */
@@ -275,6 +301,14 @@ const MONTHS = [
  *  machine's locale. */
 export const wordDay = (date: Date): string =>
   `${date.getUTCDate()} ${MONTHS[date.getUTCMonth()] ?? ''} ${date.getUTCFullYear()}`;
+
+/** A day in a list's date column: "25 Oct 2026", the month cut to its first three letters, which
+ *  every English month name is still known by, so the column stays one width a row. */
+export const shortDay = (date: Date): string =>
+  `${date.getUTCDate()} ${(MONTHS[date.getUTCMonth()] ?? '').slice(0, 3)} ${date.getUTCFullYear()}`;
+
+/** A post's reading time in words: "12 min read". */
+export const minutesWords = (minutes: number): string => `${minutes} min read`;
 
 /** Each tag's words, with the capitals a proper noun keeps: a tag is a slug, and a reader sees
  *  "Go" and "Durable Objects", not "go" and "durable-objects". */

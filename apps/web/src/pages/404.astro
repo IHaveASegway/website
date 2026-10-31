@@ -1,31 +1,55 @@
 ---
 import Base from '../layouts/Base.astro';
 import { loadProfile } from '../lib/content';
-import { END_OF_LINE } from '../lib/ground';
+import { missingPiece } from '../lib/missing-piece';
+import '../styles/not-found.css';
 
 const { name } = (await loadProfile()).basics;
-// Under the way home, the end of the line (lib/ground.ts): a track across the column that ends in
-// a buffer stop at its right edge, its lamp lit. A picture with nothing to say to assistive
-// technology, and it takes no pointer.
+// The 404 (docs/design/overhaul.md, "404"; ADR 0027): its words and the way home on the left, and
+// from 48rem beside them the drawing of the system with one solid missing, its place dashed in the
+// accent, the request's lit way in stopping there (lib/missing-piece.ts). A picture with nothing to
+// say to assistive technology, which the words already say, so it is hidden from it, takes no
+// pointer, and does not print.
+const drawing = missingPiece();
+const classOf = {
+  plane: 'mp-plane',
+  lattice: 'mp-lattice',
+  wire: 'mp-wire',
+  lit: 'mp-lit',
+  top: 'mp-top',
+  left: 'mp-left',
+  right: 'mp-right',
+  missing: 'mp-missing',
+} as const;
 ---
 
 <Base title={`Page not found · ${name}`} description="There is no page at this address." noindex>
-  <section class="notice" aria-labelledby="title">
-    <h1 id="title" class="notice-title">
-      Page not found
-    </h1>
-    <p class="notice-text">There is no page at this address.</p>
-    <p class="notice-actions">
-      <a class="btn" href="/">
-        Go to the home page
-      </a>
-    </p>
-  </section>
-  <svg class="line-end" height={END_OF_LINE.height} aria-hidden="true" focusable="false">
-    <line class="line-end-track" x1="0" y1={END_OF_LINE.track} x2="100%" y2={END_OF_LINE.track} />
-    <svg x="100%" overflow="visible">
-      <path class="line-end-stop" d={END_OF_LINE.stop} />
-      <path class="ground-mark" d={END_OF_LINE.lamp} />
+  <div class="not-found">
+    <section class="notice" aria-labelledby="title">
+      <h1 id="title" class="notice-title">
+        Page not found
+      </h1>
+      <p class="notice-text">There is no page at this address.</p>
+      <p class="notice-actions">
+        <a class="btn btn-primary" href="/">
+          Go to the home page
+        </a>
+      </p>
+    </section>
+    <svg
+      class="missing-piece"
+      viewBox={`${drawing.box.x} ${drawing.box.y} ${drawing.box.width} ${drawing.box.height}`}
+      aria-hidden="true"
+      focusable="false"
+    >
+      {drawing.paths.map((path) => (
+        <path class={classOf[path.role]} d={path.d} />
+      ))}
+      {drawing.labels.map((label) => (
+        <text class="mp-label" x={label.x} y={label.y} text-anchor={label.anchor}>
+          {label.text}
+        </text>
+      ))}
     </svg>
-  </svg>
+  </div>
 </Base>

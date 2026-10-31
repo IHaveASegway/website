@@ -30,6 +30,7 @@ function post(slug: string, over: Partial<Post> = {}): Post {
     tags: [],
     kind: 'essay',
     source: null,
+    minutes: 1,
     ...over,
   };
 }

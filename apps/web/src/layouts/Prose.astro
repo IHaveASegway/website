@@ -2,15 +2,23 @@
 import PageHead from '../components/PageHead.astro';
 import type { OgCard } from '../lib/og';
 import Base from './Base.astro';
+import '../styles/prose.css';
 
-// The long-form layout: posts now, the colophon and its decision records next (roadmap.md, PR 3b).
-// The page's one <h1> and its lead, then the page's register, then the body in .prose: the base
-// size, at most about 68 characters a line (design-system.md, "Type scale"). The register is what
-// the page says about itself, a post's kind, its day and its tags in plain words (ADR 0025): from
-// 64rem a column of its own beside the title and the body, on a phone a line under the lead, and
-// never a label over the title. It knows nothing about posts: a page passes its words in, its
-// register in the "register" slot, its body in the default slot, and anything after the body in
-// "after".
+// The long-form layout (docs/design/overhaul.md, "A post"; ADR 0027): a post now, the colophon and
+// its decision records next. The page's one <h1> and its lead, then its register, what the page
+// says about itself (a post's day, kind, reading time and tags, in plain words, ADR 0025) on one
+// line under the lead, never a label over the title. Then the body in .prose, at the base size and
+// at most about 68 characters a line, and from 64rem its contents beside it: the body's own
+// sections, each a link to its heading, so a reader of a long essay can see its shape and jump.
+// After the body, whatever the page passes in "after". It knows nothing about posts: a page passes
+// its words in, its register in the "register" slot, its body in the default slot.
+
+/** One of the body's sections, as Astro's render() lists its headings. */
+interface Heading {
+  readonly depth: number;
+  readonly slug: string;
+  readonly text: string;
+}
 
 interface Props {
   /** The document title, as tabs and search results show it. */
@@ -23,6 +31,8 @@ interface Props {
   heading: string;
   /** A sentence under the heading. */
   lead?: string;
+  /** The body's headings; its h2s become the contents beside it, from two of them up. */
+  headings?: readonly Heading[];
   /** Keeps the page out of search results and the sitemap: a draft in a preview. */
   noindex?: boolean;
   og?: OgCard;
@@ -36,6 +46,7 @@ const {
   path,
   heading,
   lead,
+  headings = [],
   noindex = false,
   og,
   ogType = 'website',
@@ -45,6 +56,9 @@ const {
 // declare B612 Mono, the face code is set in, and a body without one leaves it out (Base.astro).
 const body = await Astro.slots.render('default');
 const code = /<(code|pre)\b/i.test(body);
+// One section is no shape to show: contents start at two.
+const contents = headings.filter((h) => h.depth === 2);
+const shown = contents.length >= 2;
 ---
 
 <Base
@@ -60,8 +74,24 @@ const code = /<(code|pre)\b/i.test(body);
   <article class="page long-form" aria-labelledby="page-title">
     <PageHead heading={heading} lead={lead} />
     <slot name="register" />
-    <div class="prose">
-      <Fragment set:html={body} />
+    <div class:list={['long-form-body', { 'has-contents': shown }]}>
+      {shown && (
+        <nav class="contents" aria-label="Contents">
+          <p class="contents-label" aria-hidden="true">
+            Contents
+          </p>
+          <ol class="contents-list" role="list">
+            {contents.map((h) => (
+              <li>
+                <a href={`#${h.slug}`}>{h.text}</a>
+              </li>
+            ))}
+          </ol>
+        </nav>
+      )}
+      <div class="prose">
+        <Fragment set:html={body} />
+      </div>
     </div>
     <slot name="after" />
   </article>

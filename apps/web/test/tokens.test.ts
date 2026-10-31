@@ -627,6 +627,11 @@ describe('motion lives only under prefers-reduced-motion: no-preference', () => 
         expect(found).toEqual([]);
       else if (!sheet.includes('.board-lines') && /\.(line-track|lab-row)\b/.test(sheet))
         expect(found).toEqual([]);
+      // The sheets a component or a page owns since ADR 0027 (post-list.css, prose.css, about.css,
+      // not-found.css) ship none either: the row's sweep is the sheet every page links, and the
+      // rest stands still.
+      else if (/\.(post-row|long-form-body|about-head|missing-piece)\b/.test(sheet))
+        expect(found).toEqual([]);
       else expect(found.length).toBeGreaterThanOrEqual(2);
     });
   }

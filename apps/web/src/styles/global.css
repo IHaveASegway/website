@@ -452,97 +452,6 @@
     }
   }
 
-  /* Page geometry (design-system.md, "Page geometry"): a page's background symbol, About's wheels
-     (lib/ground.ts), behind its top right corner at its natural size, and only where it clears the
-     words (below). It fades toward the text column and toward the fold, and every shape is
-     --ground, which every text token reads on at 4.5:1. Nothing moves. The masks are alpha only,
-     so any opaque color would do; currentcolor keeps literals out of the stylesheet. The drawing
-     is never taller than the page: on a page shorter than it, its foot reached past the body's and
-     the window scrolled on into nothing, beyond the rail and the footer (ADR 0022). */
-  body {
-    position: relative;
-    isolation: isolate;
-  }
-
-  .ground {
-    position: absolute;
-    inset-block-start: 0;
-    inset-inline-end: 0;
-    z-index: -1;
-    width: min(100%, 75rem);
-    height: min(56.25rem, 100%);
-    pointer-events: none;
-    mask-image:
-      linear-gradient(to left, currentcolor 25%, transparent 90%),
-      linear-gradient(currentcolor 50%, transparent);
-    mask-composite: intersect;
-  }
-
-  /* The drawing is display, the words beside it content, and display never stands under content
-     (2026-10-31). It sits at its natural size against the window's right edge, so its left wheel
-     starts 560 px in from that edge, and it is drawn only where that clears the text column, the
-     reading measure from the column's start, by at least a gutter. The measure ends near 600 px
-     at 1200 and moves right with the centred frame's margin as the window widens, half as fast as
-     the window's edge, so the wheels clear it from 75rem up (ADR 0027 removed the rail, which took
-     224 px from 80rem).
-     Below 1200 px the wheels would stand behind the bio, so they are not
-     drawn. The breakpoints are in rem and the wheels in px, so a larger default text size, which
-     widens the measure, only moves the breakpoints further out (e2e/ground.spec.ts). */
-  @media (width < 75rem) {
-    .ground {
-      display: none;
-    }
-  }
-
-  .ground-line,
-  .ground-index {
-    fill: none;
-    stroke: var(--ground);
-    stroke-width: 1px;
-    vector-effect: non-scaling-stroke;
-  }
-
-  .ground-index {
-    stroke-width: 2px;
-  }
-
-  .ground-mark {
-    fill: var(--primary);
-  }
-
-  /* The 404's end of the line, under the way home, a section's space below it: a track in the
-     functional rule's colour across the column, ending at its right edge in a buffer stop, its
-     lamp lit (lib/ground.ts, END_OF_LINE). The stop is drawn from the drawing's right edge. */
-  .line-end {
-    display: block;
-    inline-size: 100%;
-    margin-block-start: 3rem;
-    overflow: visible;
-    pointer-events: none;
-  }
-
-  @media (width >= 48rem) {
-    .line-end {
-      margin-block-start: 4.5rem;
-    }
-  }
-
-  .line-end-track {
-    stroke: var(--input);
-    stroke-width: 4px;
-  }
-
-  .line-end-stop {
-    fill: var(--input);
-  }
-
-  @media print {
-    .ground,
-    .line-end {
-      display: none;
-    }
-  }
-
   /* Home's motion button: a pause and a play icon, one at a time, named by the script. It shows only
      once Home's scene runs (ADR 0024), and holds its place unseen until then, so the header never
      moves (as the command menu's button does). It is there only where the script may run it. */
@@ -623,18 +532,6 @@
     overflow-wrap: break-word;
   }
 
-  .hero-side {
-    display: grid;
-    gap: 1.125rem;
-    margin-top: 1.5rem;
-  }
-
-  .hero-who {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-  }
-
   .hero-title {
     margin: 0;
     font-size: var(--text-headline);
@@ -642,15 +539,6 @@
     font-family: var(--font-display);
     line-height: var(--text-headline--line-height);
     letter-spacing: -0.01em;
-  }
-
-  .where {
-    margin: 0;
-    color: var(--muted-foreground);
-    font-family: var(--font-label);
-    font-size: var(--text-ui);
-    font-weight: 500;
-    line-height: var(--text-ui--line-height);
   }
 
   /* The actions, all one width at every screen width, 8.25rem, unless a label needs more: as many
@@ -669,10 +557,6 @@
   @media (width >= 48rem) {
     .hero {
       padding-block: 3rem 2.5rem;
-    }
-
-    .hero-side {
-      margin-top: 2rem;
     }
   }
 
@@ -1279,36 +1163,31 @@
   /* A page's head (components/PageHead.astro): its one <h1> in the title face and its lead, with
      nothing above the title (ADR 0025), all on the frame's one left edge. The 404 takes the same
      head. A long-form page adds its register beside it from 64rem (below). */
-  .page,
-  .notice {
+  .page {
     padding-block: 1.875rem 1.5rem;
   }
 
   @media (width >= 48rem) {
-    .page,
-    .notice {
+    .page {
       padding-block: 3.5rem 2.5rem;
     }
   }
 
   /* One column no wider than the frame, so a long word in the title or the lead wraps the lines
      around it instead of widening the column past the frame (SC 1.4.10). */
-  .page-head,
-  .notice {
+  .page-head {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     align-content: start;
     row-gap: 0.875rem;
   }
 
-  .page-head > *,
-  .notice > * {
+  .page-head > * {
     max-width: var(--measure);
     margin: 0;
   }
 
-  .page-title,
-  .notice-title {
+  .page-title {
     max-width: none;
     font-size: var(--text-title);
     font-weight: 800;
@@ -1319,8 +1198,7 @@
     overflow-wrap: break-word;
   }
 
-  .page-lead,
-  .notice-text {
+  .page-lead {
     font-size: var(--text-lead);
     line-height: var(--text-lead--line-height);
     text-wrap: pretty;
@@ -1372,47 +1250,6 @@
     }
   }
 
-  /* A long-form page (layouts/Prose.astro): its head, its register, its body. The register is what
-     the page says about itself, a post's kind, its day and its tags, in the label face and muted,
-     the kind too (ADR 0025): until 2026-10-30 the kind was in the ink, a heading over the rest. On
-     a phone it is a line under the lead; from 64rem it is a column of its own, beside the title
-     and the body, which start on the page's second edge. */
-  .register {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem 1.5rem;
-    margin: 1.25rem 0 0;
-    padding: 0;
-    list-style: none;
-    color: var(--muted-foreground);
-    font-family: var(--font-label);
-    font-size: var(--text-label);
-    font-weight: var(--text-label--font-weight);
-    line-height: var(--text-label--line-height);
-  }
-
-  @media (width >= 64rem) {
-    .long-form {
-      display: grid;
-      grid-template-columns: 11rem minmax(0, 1fr);
-      column-gap: 3rem;
-      align-items: start;
-    }
-
-    .long-form > * {
-      grid-column: 2;
-    }
-
-    .long-form > .register {
-      grid-row: 1 / span 3;
-      grid-column: 1;
-      flex-direction: column;
-      gap: 1rem;
-      margin: 0;
-      padding-top: 0.875rem;
-    }
-  }
-
   /* A post's body, as Markdown renders it. Tailwind's preflight removes every margin, list marker
      and heading size, so the rhythm is set here once, for whatever a post holds: the base size,
      h2 at the headline's, code in B612 Mono on the board's surface, links underlined in the rule's
@@ -1446,17 +1283,6 @@
     font-size: var(--text-base);
     font-weight: 600;
     line-height: var(--text-base--line-height);
-  }
-
-  /* The bio's h3s are its own sections (What I build, How I work), under the page's section title,
-     "About me": the headline, one step under a section's title, as How I work's leads take it on
-     Home. */
-  .bio .prose h3 {
-    font-size: var(--text-headline);
-    font-family: var(--font-display);
-    font-weight: 800;
-    line-height: var(--text-headline--line-height);
-    letter-spacing: -0.005em;
   }
 
   .prose h2 + *,
@@ -1617,16 +1443,6 @@
     padding-block: 1.25rem 1.5rem;
   }
 
-  .post-meta {
-    margin: 0;
-    color: var(--muted-foreground);
-    font-family: var(--font-label);
-    font-size: var(--text-label);
-    font-weight: var(--text-label--font-weight);
-    line-height: var(--text-label--line-height);
-    font-variant-numeric: tabular-nums;
-  }
-
   .post-title {
     margin: 0;
     font-size: var(--text-headline);
@@ -1684,182 +1500,6 @@
     display: inline-flex;
     align-items: center;
     min-height: 2.75rem;
-  }
-
-  /* The 404 page: its heading and a line, then the way home. Its drawing, under them, is a line
-     that ends in a buffer stop (lib/ground.ts, END_OF_LINE). */
-  .notice > .notice-actions {
-    margin-top: 1.25rem;
-  }
-
-  /* /about/ (pages/about/index.astro): the name at a title's size, not the hero's (ADR 0025), the
-     title and location under it and the ways to reach Joseph as a definition list, all in the
-     label face, and the Print button; then the bio, the experience, the selected work and the
-     writing, each a section on the same left edge. */
-  .resume .hero {
-    padding-block: 1.875rem 0.5rem;
-  }
-
-  /* At a title's size the name keeps the page's one left edge, as every page's title does: the
-     poster's side bearing is the hero's. */
-  .resume .hero-name {
-    inline-size: auto;
-    margin-inline-start: 0;
-    font-size: var(--text-title);
-    line-height: var(--text-title--line-height);
-    letter-spacing: -0.005em;
-  }
-
-  .resume .hero-side {
-    gap: 1.25rem;
-    margin-top: 1rem;
-  }
-
-  .resume .hero-who {
-    gap: 0.125rem;
-  }
-
-  .resume .hero-title {
-    font-family: var(--font-label);
-    font-size: var(--text-ui);
-    font-weight: 500;
-    line-height: var(--text-ui--line-height);
-    letter-spacing: 0;
-  }
-
-  @media (width >= 48rem) {
-    .resume .hero {
-      padding-block: 3.5rem 0.5rem;
-    }
-  }
-
-  .resume-contact a,
-  .skills a {
-    display: inline-flex;
-    align-items: center;
-    min-height: 1.5rem;
-  }
-
-  .resume-contact dd {
-    overflow-wrap: anywhere;
-  }
-
-  /* Each address stands beside its label while the list is wide enough for the longest one, about
-     25.2em; narrower, on a phone or with a larger text size, the label goes above its address,
-     which then has the list's whole width. Beside a label there, LinkedIn's address took two lines
-     at the default size, and at 32 px every address broke inside a word, "ihaveasegw / ay.com"
-     among them. */
-  .resume .hero-side {
-    container: contact / inline-size;
-  }
-
-  @container contact (width < 25.5em) {
-    .resume-contact {
-      grid-template-columns: minmax(0, 1fr);
-      row-gap: 0;
-    }
-
-    .resume-contact dd + dt {
-      margin-top: 0.75rem;
-    }
-  }
-
-  /* The address in the notes, with its full stop, is one box: it moves whole to the next line when
-     it does not fit after the words before it, and breaks after its "@" (about/index.astro) only
-     when it alone is wider than the line, and inside a part only as a last resort, as the footer's. */
-  .resume-email {
-    display: inline-block;
-    overflow-wrap: anywhere;
-  }
-
-  /* The Print button, under the addresses (about/index.astro). It shows once the command menu's
-     script has bound it (src/scripts/palette.js), on a phone too, where printing saves or shares a
-     PDF: until then it holds its place unseen, and without the script it is not there. */
-  .print-item {
-    display: none;
-    justify-self: start;
-  }
-
-  @media (scripting: enabled) {
-    .print-item {
-      display: inline-flex;
-      visibility: hidden;
-    }
-
-    :root[data-palette] .print-item {
-      visibility: visible;
-    }
-  }
-
-  /* The roles and the skills: a row each, with no rule between rows. A role puts its years beside
-     its title from 48rem, as a key beside its value. */
-  .roles,
-  .skills {
-    display: grid;
-    row-gap: 1rem;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .roles > li,
-  .skills > div {
-    display: grid;
-    row-gap: 0.25rem;
-  }
-
-  .role-years {
-    margin: 0;
-    color: var(--muted-foreground);
-    font-family: var(--font-label);
-    font-size: var(--text-label);
-    font-weight: var(--text-label--font-weight);
-    line-height: var(--text-label--line-height);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .role-title {
-    margin: 0;
-    font-size: var(--text-headline);
-    font-weight: 800;
-    font-family: var(--font-display);
-    line-height: var(--text-headline--line-height);
-    letter-spacing: -0.005em;
-    text-wrap: balance;
-  }
-
-  .skills dt {
-    font-family: var(--font-label);
-    font-size: var(--text-ui);
-    font-weight: 500;
-    line-height: var(--text-ui--line-height);
-  }
-
-  .skills dd {
-    margin: 0;
-    color: var(--muted-foreground);
-  }
-
-  .resume-notes {
-    display: grid;
-    row-gap: 0.25rem;
-    max-width: var(--measure);
-  }
-
-  .resume-notes > p {
-    margin: 0;
-  }
-
-  .roles + .resume-notes {
-    margin-top: 1.25rem;
-  }
-
-  @media (width >= 48rem) {
-    .roles > li {
-      grid-template-columns: 9rem minmax(0, 1fr);
-      column-gap: var(--gutter);
-      align-items: baseline;
-    }
   }
 }
 
@@ -1946,227 +1586,5 @@
 @media (forced-colors: active) {
   .prose :not(pre) > code {
     padding: 0;
-  }
-}
-
-/* The résumé on paper (content.md, "Résumé"): one US Letter page at the default text size. Only
-   the résumé names this page, so every other page prints as before. The header, the skip link and
-   the footer are not printed: the résumé's own head carries the name and every address. The type
-   steps down to a printed résumé's sizes. */
-@page resume {
-  size: letter;
-  margin: 0.5in;
-}
-
-@media print {
-  /* The whole document takes the named page, not .resume alone: a box before it on the default
-     page, even an empty one, would start a page of its own. */
-  :root:has(.resume) body {
-    page: resume;
-  }
-
-  :root:has(.resume) :is(.site-header, .skip-link, body > footer) {
-    display: none;
-  }
-
-  :root:has(.resume) :is(body, main) {
-    display: block;
-    min-height: 0;
-    padding-inline: 0;
-  }
-
-  .resume .hero {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    column-gap: 1.5rem;
-    align-items: end;
-    padding-block: 0 0.75rem;
-  }
-
-  .resume .hero-name {
-    inline-size: auto;
-    font-size: 2.5rem;
-    line-height: 1;
-  }
-
-  .resume .hero-side {
-    display: contents;
-  }
-
-  .resume .hero-who {
-    grid-column: 1;
-    gap: 0;
-    margin-top: 0.375rem;
-  }
-
-  .resume .hero-title {
-    font-size: 1rem;
-  }
-
-  .resume .where {
-    font-size: 0.8125rem;
-  }
-
-  .resume-contact {
-    grid-column: 2;
-    grid-row: 1 / span 2;
-    align-self: end;
-    gap: 0 0.75rem;
-  }
-
-  .resume-contact a {
-    min-height: 0;
-  }
-
-  /* The addresses stand beside the name while the two fit across the page, as they do at the
-     default text size: together they need about 40.5em. From a larger text size they go under it,
-     where beside it the name would break inside a word. */
-  .resume {
-    container: resume / inline-size;
-  }
-
-  @container resume (width < 41em) {
-    .resume .hero {
-      grid-template-columns: minmax(0, 1fr);
-    }
-
-    .resume-contact {
-      grid-column: 1;
-      grid-row: auto;
-      margin-top: 0.75rem;
-    }
-  }
-
-  /* Sections closer on paper than on screen: Linux sets the skills and the writing a line longer
-     each than macOS does, and the sheet must hold either (e2e/about-print.spec.ts). */
-  .resume .section {
-    padding-top: 0.5rem;
-    break-inside: avoid;
-  }
-
-  /* Paper gets no Print button, and of the bio only its first paragraph, the summary a printed
-     résumé opens with: how I work is the web edition's, so the page stays one sheet whatever the
-     profile holds (e2e/about-print.spec.ts). Nor does it get what only the screen may say: the
-     offer of the full résumé, which on paper would ask its reader for the sheet in their hand
-     (about/index.astro). */
-  .resume .print-item,
-  .resume .screen-only,
-  .bio .prose > :not(:first-child) {
-    display: none;
-  }
-
-  .bio .prose {
-    max-width: none;
-    margin: 0;
-    font-size: 0.875rem;
-    line-height: 1.4;
-  }
-
-  .resume .section-title {
-    margin-bottom: 0.375rem;
-    font-size: 0.9375rem;
-  }
-
-  .resume .roles {
-    row-gap: 0;
-  }
-
-  /* Selected work on paper: two cards a row, past the years' gutter, so each title stands where the
-     roles' and the posts' titles stand. One a row, five lab cards took most of the sheet while
-     their text ran in half its width beside an empty gutter. */
-  .resume .cards {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: 1.5rem;
-    max-inline-size: none;
-    padding-inline-start: 8rem;
-  }
-
-  .resume .card {
-    grid-template-columns: minmax(0, 1fr);
-    row-gap: 0;
-    padding-block: 0.1875rem 0.25rem;
-    break-inside: avoid;
-  }
-
-  .resume .card-text {
-    max-inline-size: none;
-  }
-
-  .resume :is(.roles > li, .post-list > li) {
-    grid-template-columns: 7rem minmax(0, 1fr);
-    column-gap: 1rem;
-    row-gap: 0;
-    max-inline-size: none;
-    padding-block: 0.1875rem 0.25rem;
-    break-inside: avoid;
-  }
-
-  .resume :is(.role-years, .post-meta) {
-    grid-column: 1;
-  }
-
-  .resume .role-title {
-    grid-column: 2;
-  }
-
-  .resume :is(.post-title, .post-summary) {
-    grid-column: 2;
-  }
-
-  .resume :is(.role-title, .card-title, .post-title) {
-    font-size: 0.9375rem;
-    line-height: 1.25;
-    letter-spacing: 0;
-  }
-
-  /* On paper the skills are one line of names, a comma after each but the last: the pages that
-     show each are the web edition's. */
-  /* The names' lines stand as close as a paragraph's: the screen's 1rem between skills, each with
-     its pages under it, would open a blank line between two lines of names. */
-  .resume .skills {
-    display: flex;
-    flex-wrap: wrap;
-    row-gap: 0;
-  }
-
-  .resume .skills > div {
-    display: flex;
-    padding: 0;
-  }
-
-  .resume .skills > div:not(:last-child)::after {
-    padding-inline-end: 0.375rem;
-    content: ',';
-  }
-
-  .resume .card .kv {
-    row-gap: 0;
-  }
-
-  .resume .skills dd {
-    display: none;
-  }
-
-  .resume :is(.role-years, .post-meta) {
-    grid-row: 1 / span 3;
-    padding-top: 0.125rem;
-    font-size: 0.6875rem;
-  }
-
-  .resume :is(.skills dt, .card-text, .card-more, .post-summary, .resume-notes, .kv dd) {
-    font-size: 0.8125rem;
-    line-height: 1.4;
-  }
-
-  .resume .roles + .resume-notes {
-    margin-top: 0.375rem;
-  }
-
-  .resume .post-links {
-    margin-top: 0.25rem;
-  }
-
-  .resume .post-links a {
-    min-height: 0;
   }
 }

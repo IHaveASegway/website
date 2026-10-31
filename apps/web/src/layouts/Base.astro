@@ -1,11 +1,9 @@
 ---
 import { Font } from 'astro:assets';
 import Footer from '../components/Footer.astro';
-import Ground from '../components/Ground.astro';
 import Header from '../components/Header.astro';
 import Palette from '../components/Palette.astro';
 import { loadLabArea, loadProfile, loadWritingArea } from '../lib/content';
-import { groundKindFor } from '../lib/ground';
 import { labPath, labRoutes } from '../lib/lab';
 import { NOINDEX } from '../lib/noindex.mjs';
 import { ogAlt, ogTitle, OG_SIZE, type OgCard } from '../lib/og';
@@ -74,8 +72,6 @@ const posts = area.published.map((post) => ({
   summary: post.summary,
   href: postPath(post),
 }));
-// The page's drawing, from its section (lib/ground.ts); none prints (global.css).
-const ground = groundKindFor(path);
 
 // The theme script (src/scripts/theme.js) runs in <head>, before <body> exists, so no frame can
 // paint before a stored choice applies. In <body> it left a gap: when the HTML arrived in pieces,
@@ -158,7 +154,6 @@ const chrome = (['dark', 'light'] as const).map((scheme) => ({
     {code && <Font cssVariable="--font-b612-mono" />}
   </head>
   <body>
-    {ground && <Ground kind={ground} />}
     <div class="masthead">
       <a class="skip-link" href="#main">
         Skip to content

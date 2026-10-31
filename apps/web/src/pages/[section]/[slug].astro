@@ -1,10 +1,19 @@
 ---
 import { render } from 'astro:content';
+import PostList from '../../components/PostList.astro';
 import Prose from '../../layouts/Prose.astro';
 import { loadProfile, loadWritingArea, postEntry } from '../../lib/content';
 import { postingGraph, serialize } from '../../lib/jsonld';
 import { postCard } from '../../lib/og';
-import { isoDay, postLabel, postPath, tagWords, wordDay, type PostPage } from '../../lib/posts';
+import {
+  isoDay,
+  minutesWords,
+  postLabel,
+  postPath,
+  tagWords,
+  wordDay,
+  type PostPage,
+} from '../../lib/posts';
 
 // One post: /writing/<slug>/ for an essay, /notes/<slug>/ for a field note. A listed page is a
 // published post, and Writing renders from the first one. Where drafts are included (pull request
@@ -26,16 +35,19 @@ const { page } = Astro.props;
 const { post } = page;
 const listed = page.exposure === 'listed';
 const profile = await loadProfile();
-const { Content } = await render(await postEntry(post));
+const { Content, headings } = await render(await postEntry(post));
 const path = postPath(post);
 const card = postCard(post);
 const image = new URL('og.png', new URL(path, profile.basics.url)).href;
 const source = post.source ? new URL(post.source) : null;
-// The register beside the title (layouts/Prose.astro, ADR 0025): the post's kind, Draft first on a
-// draft, its day and any update in words, and its tags as plain words. After the body: the note's
-// source, and the way back to the index while one exists, each a link in words with no arrow.
+// The register under the lead (layouts/Prose.astro, ADR 0025): the post's day, its kind (Draft
+// first on a draft), its reading time and any update in words, and its tags as plain words. After
+// the body, a note's source, then More writing: up to three other posts, newest first, as the
+// index lists them, and the way back to the index, a link in words with no arrow. A draft lists
+// nothing, since nothing lists a draft either way.
+const area = await loadWritingArea();
+const others = listed ? area.published.filter((p) => postPath(p) !== path).slice(0, 3) : [];
 const links = [
-  ...(source ? [{ href: source.href, text: `Source: ${source.hostname}` }] : []),
   ...(listed
     ? [
         {
@@ -53,15 +65,17 @@ const links = [
   path={path}
   heading={post.title}
   lead={post.summary}
+  headings={headings}
   noindex={!listed}
   ogType="article"
   {...(listed ? { og: card, jsonLd: serialize(postingGraph(post, profile, image)) } : {})}
 >
   <ul slot="register" class="register" role="list">
-    <li class="register-kind">{postLabel(page)}</li>
     <li>
       <time datetime={isoDay(post.published)}>{wordDay(post.published)}</time>
     </li>
+    <li class="register-kind">{postLabel(page)}</li>
+    <li>{minutesWords(post.minutes)}</li>
     {post.updated && (
       <li>
         Updated <time datetime={isoDay(post.updated)}>{wordDay(post.updated)}</time>
@@ -71,14 +85,29 @@ const links = [
   </ul>
   <Content />
   <Fragment slot="after">
-    {links.length > 0 && (
+    {source && (
       <ul class="post-links">
-        {links.map((link) => (
-          <li>
-            <a href={link.href}>{link.text}</a>
-          </li>
-        ))}
+        <li>
+          <a href={source.href}>Source: {source.hostname}</a>
+        </li>
       </ul>
+    )}
+    {(others.length > 0 || links.length > 0) && (
+      <section class="section more-writing" aria-labelledby="more-title">
+        <h2 id="more-title" class="section-title">
+          More writing
+        </h2>
+        {others.length > 0 && <PostList posts={others} level={3} />}
+        {links.length > 0 && (
+          <ul class="post-links">
+            {links.map((link) => (
+              <li>
+                <a href={link.href}>{link.text}</a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     )}
   </Fragment>
 </Prose>

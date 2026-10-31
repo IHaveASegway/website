@@ -157,7 +157,9 @@ const expectedMotion = (page: Page) =>
     const live = 'motion' in document.documentElement.dataset;
     const seen = live && document.querySelector('[data-board][data-seen]') !== null;
     return [...document.querySelectorAll('*')].flatMap((element) => {
-      if (element.matches('.post-list > li')) return ['li::before'];
+      // A post's row names its class since the dated list (ADR 0027): li.post-row.
+      if (element.matches('.post-list > li'))
+        return [element.className ? `li.${element.className.split(' ')[0]}::before` : 'li::before'];
       if (element.matches('.board-lines > .band')) return ['li.band::before'];
       if (element.matches('.band > .line')) return ['div.line'];
       if (

@@ -30,19 +30,50 @@ test('the entry carries the review stamp and no other field', () => {
   expect(keys).toEqual(['firewall_reviewed']);
 });
 
-test('the bio renders exactly where its entry is, under its own heading, before Experience', () => {
-  const bio = /<section class="section bio"[\s\S]*?<\/section>/.exec(page)?.[0];
+// /about/ lays the bio out as named blocks (ADR 0027, after syntaqx's Currently and Previously): its
+// opening under "Now", then each of its sections under its own heading, the words as about.md has
+// them. Until 2026-10-31 it rendered the Markdown whole, under "About me".
+const decode = (text: string) =>
+  text
+    .replace(/<[^>]+>/g, '')
+    .replace(/&#39;|&#x27;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/'/g, '’')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+test('the bio renders exactly where its entry is, as named blocks in its own words, before Experience', () => {
+  const bio = /<section class="bio"[\s\S]*?<\/section>/.exec(page)?.[0];
   if (fixtureBuild) {
     expect(bio).toBeUndefined();
     return;
   }
   expect(bio).toBeDefined();
-  expect(bio).toMatch(/<h2[^>]*>[\s\S]*?About me[\s\S]*?<\/h2>/);
-  // Its first paragraph, the one that prints, as the entry opens.
-  const first = body.trim().split('\n\n')[0]?.replace(/'/g, '’') ?? '';
-  const shown = /<div class="prose">\s*<p>([\s\S]*?)<\/p>/.exec(bio ?? '')?.[1] ?? '';
-  expect(shown.replace(/&#39;|&#x27;/g, "'").replace(/'/g, '’')).toBe(first);
-  expect(page.indexOf('class="section bio"')).toBeLessThan(page.indexOf('id="experience-title"'));
+  expect(bio).toContain('aria-label="About me"');
+  const parts = aboutParts(body);
+  // A block a part, each under its label: "Now" over the opening, then the bio's own headings.
+  const labels = [...(bio ?? '').matchAll(/<h2 class="block-label">([\s\S]*?)<\/h2>/g)].map(
+    ([, text = '']) => decode(text),
+  );
+  expect(labels).toEqual(['Now', ...parts.sections.map((section) => decode(section.heading))]);
+  // The opening, the paragraph that prints, as the entry has it.
+  const first = /<p class="bio-lede">([\s\S]*?)<\/p>/.exec(bio ?? '')?.[1] ?? '';
+  expect(decode(first)).toBe(decode(parts.lede[0] ?? ''));
+  // Every lead and every sentence after it, word for word, the lab names linked inside them.
+  const leads = [...(bio ?? '').matchAll(/<h3 class="bio-item-lead">([\s\S]*?)<\/h3>/g)].map(
+    ([, text = '']) => decode(text),
+  );
+  const texts = [...(bio ?? '').matchAll(/<p class="bio-item-text">([\s\S]*?)<\/p>/g)].map(
+    ([, text = '']) => decode(text),
+  );
+  const principles = parts.sections.flatMap((section) => section.principles);
+  expect(leads).toEqual(principles.map((p) => decode(p.lead)));
+  expect(texts).toEqual(principles.map((p) => decode(p.text)));
+  const paragraphs = [...(bio ?? '').matchAll(/<p class="bio-text">([\s\S]*?)<\/p>/g)].map(
+    ([, text = '']) => decode(text),
+  );
+  expect(paragraphs).toEqual(parts.sections.flatMap((s) => s.paragraphs).map(decode));
+  expect(page.indexOf('class="bio"')).toBeLessThan(page.indexOf('id="experience-title"'));
 });
 
 test('the page has one Print button, and no PDF is written for it', () => {
