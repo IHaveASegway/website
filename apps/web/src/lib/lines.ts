@@ -15,8 +15,8 @@ import type { Measured } from './route-lab/plan';
 // colour, on Home's board and on the Lab index. This module is the lines' model and their
 // words, worked out from what the labs themselves compute at build: the Route Lab's solve of its
 // default day, and the opening run of each simulated lab, through its own simulation. Plain
-// TypeScript with no DOM, so the components (components/board/) and the unit tests read the same
-// numbers, and none of them is typed.
+// TypeScript with no DOM, so the link previews (lib/og-lines.ts), the lab cards (lib/lab-facts.ts), Home and the
+// unit tests read the same numbers, and none of them is typed.
 
 /** The board's day in rounds. In each round every van steps once, one van a second, so a van with
  *  `n` stops is out for n + 1 rounds: it starts at the head of its track, then each stop, then it

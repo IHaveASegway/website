@@ -67,8 +67,8 @@ const PICKS = days.map((day) => ({
   words: weekday(day).slice(0, 3),
   long: weekday(day),
 }));
-/** A failed step's mark, a cross inside its lamp's ring, as the board's lines draw a failed
- *  station (lines.css, .line-cross), so a cross in a ring means failed wherever it stands. */
+/** A failed step's mark, a cross inside its lamp's ring, as the link previews' lines draw a
+ *  failed station (lib/og-lines.ts), so a cross in a ring means failed wherever it stands. */
 const CROSS = 'M-3.5-3.5l7 7m0-7-7 7';
 const KEY = [
   { lamp: 'hollow', word: 'Not started' },

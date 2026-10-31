@@ -10,9 +10,9 @@ import {
 } from './lines';
 
 // Where each lab's line puts its stations, tracks and lamps (ADR 0025), at every size it is drawn:
-// Home's board, wide and compact. One model, two renderers: the line
-// components (components/board/lines/) draw it as SVG on the pages, and lib/og-lines.ts draws the
-// board's wide size, scaled, on the link previews. Until 2026-10-31 the previews kept a copy of
+// Home's board, wide and compact. One model: until ADR 0027 the line
+// components (components/board/lines/, removed with the board) drew it as SVG on the pages; now
+// lib/og-lines.ts alone draws the board's wide size, scaled, on the link previews. Until 2026-10-31 the previews kept a copy of
 // the components' sizes and arithmetic by hand, and a change to a line's shape had to be made in
 // both: that day a merge changed the board's lines and had to patch the copy after it (5108b71).
 // Now a shape changes here, once, and test/line-shapes.test.ts fails if the two drawings still
@@ -28,7 +28,7 @@ import {
  *  Lab index drew each line large too, with its stations named). */
 export type LineAt = 'board';
 
-/** Each place draws its line twice, for a narrow screen and a wide one; lines.css shows one. */
+/** Each place draws its line twice, for a narrow screen and a wide one, and shows one. */
 export type Drawn = 'wide' | 'compact';
 
 /** The size a place draws at from 48rem up: the one the previews scale to the card. */

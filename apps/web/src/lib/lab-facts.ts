@@ -10,7 +10,8 @@ import { routeLabPicture } from './route-lab/picture';
 // Each lab's one fact on its card (docs/design/overhaul.md, "Lab cards"): a sentence its own
 // simulation writes at build from the run its page opens on, with the change its write-up tells
 // the visitor to make first (lib/lines.ts), so no figure on a card is typed. Until ADR 0027 each
-// lab's line on the Lab index wrote it (components/board/lines/); the sentences are the same.
+// lab's line on the Lab index wrote it (components/board/lines/, now removed); the sentences are
+// the same.
 // Build-time only.
 
 const FACTS: Record<string, () => string | Promise<string>> = {

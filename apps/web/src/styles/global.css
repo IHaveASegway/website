@@ -10,7 +10,7 @@
 /* A value in the link previews' layout (lib/og.ts), not a class: no page has used the utility since
    <body> lost it to the rail's layout (ADR 0021). */
 @source not inline('flex');
-/* A lamp's shape, not a class: a hollow lamp is a ring (lines.css), and the labs' comments say so
+/* A lamp's shape, not a class: a hollow lamp is a ring (lib/og-lines.ts), and the labs' comments say so
    (backfill-lab/BackfillLab.astro, lib/queue/view.ts). Focus is drawn with an outline in --ring,
    never the box-shadow utility the word would ship to every page. */
 @source not inline('ring');

@@ -41,7 +41,7 @@ const LINE_SURFACES = ['background', 'surface-1', 'surface-2'];
 /** Text drawn on an accent fill, such as a button label, against each fill it sits on. */
 const ON_FILL: Record<string, string[]> = { 'primary-foreground': ['primary', 'primary-strong'] };
 /** A server's number on the Raft line's filled lamp, the leader: in the page's colour on the hub of
- *  the board's and the Lab index's line (lines.css, --line-ground), and in the desk's on the Raft
+ *  the link previews' Raft line (lib/og-lines.ts), and in the desk's on the Raft
  *  Lab's picture (raft-lab.css). */
 const ON_LAMP: Record<string, string[]> = { background: ['line-raft'], 'surface-1': ['line-raft'] };
 /** Decoration only: no contrast claim, but still inside sRGB. The map's streets and roads are
@@ -616,18 +616,14 @@ describe('motion lives only under prefers-reduced-motion: no-preference', () => 
       // The stylesheet every page links ships the card's bar and the view transition, both
       // guarded. The Route Lab's own sheet ships one, the maps' fade (ADR 0016), guarded too. A
       // simulated lab's ships none (support/labs.ts): its demo moves in JavaScript, only while the
-      // visitor runs it, and stands still under reduced motion (ADR 0020, ADR 0026). Nor do the
-      // labs' lines, which Home's board and the Lab index share, or the Lab index's own sheet
-      // (ADR 0025): a line moves only on the board, whose day is the board's sheet's, and an index
-      // row's sweep is the sheet every page links. Since ADR 0027 the labs' chrome, a lab's head,
+      // visitor runs it, and stands still under reduced motion (ADR 0020, ADR 0026). Since
+      // ADR 0027 the labs' lines are gone from the pages, and the labs' chrome, a lab's head,
       // its desk, its write-up and the glyph, moves nothing either; a lab's card moves only its
       // glyph's solids down onto their tile, tied to the scroll (styles/lab-cards.css).
       const sheet = read(file);
       if (sheet.includes('.rl-map'))
         expect(found.map((m) => m.what)).toEqual(['transition:opacity .22s ease-out']);
       else if (SIMULATED_LABS.some((lab) => sheet.includes(`.${lab.map}`)))
-        expect(found).toEqual([]);
-      else if (!sheet.includes('.board-lines') && /\.(line-track|lab-row)\b/.test(sheet))
         expect(found).toEqual([]);
       else if (sheet.includes('.lab-card'))
         expect(found.filter((m) => /lab-settle/.test(m.what))).toHaveLength(1);
