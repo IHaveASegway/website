@@ -78,7 +78,7 @@ test('cut off the leader: a new term elects another leader, and every safety pro
   const before = (await summary(page).textContent()) ?? '';
   const [, oldLeader, oldTerm] = /^Node (\d) leads term (\d+)/.exec(before) ?? [];
   await page.getByRole('button', { name: 'Cut off the leader' }).click();
-  await page.selectOption('[data-rf-speed]', '0.1');
+  await page.getByRole('radio', { name: 'Quick' }).check();
   await page.getByRole('button', { name: 'Run' }).click();
   // The old leader still leads its own term on its side; the majority elects a newer one.
   await expect
@@ -188,8 +188,9 @@ test('a link to a run opens it: #seed-8 loads that seed with no other intent, an
   expect(new URL(page.url()).hash).toBe('#seed-9');
 });
 
-// The desk's lamps (ADR 0025): Run is a push-button whose lamp is hollow until the run is on and
-// lit while it runs; a server and each log entry are lamps in the lab's own line, the colour its
+// The desk's lamps (ADR 0025): Run is a push-button whose lamp is off until the run is on and lit
+// while it runs, said by data-lamp, since its words already change (Run, Pause) and a button whose
+// words change is no toggle, so it carries no aria-pressed; a server and each log entry are lamps in the lab's own line, the colour its
 // head runs across the page in, whatever the entry's term, which its number under it tells. Until
 // then each term took one of the map's van colours, the Route Lab's yellow among them.
 test('Run lights its lamp while the run is on, and every lamp on the desk is the lab’s line, whatever the term', async ({
@@ -198,10 +199,11 @@ test('Run lights its lamp while the run is on, and every lamp on the desk is the
   await page.goto(RAFT);
   const run = page.locator('[data-rf-run]');
   const lamp = () => run.evaluate((button) => getComputedStyle(button, '::before').backgroundColor);
-  await expect(run).toHaveAttribute('aria-pressed', 'false');
+  await expect(run).toHaveAttribute('data-lamp', 'off');
+  await expect(run).not.toHaveAttribute('aria-pressed');
   expect(await lamp()).toBe('rgba(0, 0, 0, 0)');
   await run.click();
-  await expect(page.getByRole('button', { name: 'Pause' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Pause' })).toHaveAttribute('data-lamp', 'on');
   expect(await lamp()).not.toBe('rgba(0, 0, 0, 0)');
   await page.getByRole('button', { name: 'Pause' }).click();
   const colours = await page.evaluate(() => {
@@ -244,6 +246,55 @@ test('Run lights its lamp while the run is on, and every lamp on the desk is the
     servers: [colours.line],
     round: '50%',
   });
+});
+
+// The speed is a radio group (WAI-ARIA APG, "Radio Group Pattern"): named Speed, a radio a speed,
+// Steady chosen; Tab stops once, on the chosen radio; the arrow keys choose the next, wrapping; the
+// chosen one's lamp is lit and the others' are not; and a run goes at the speed chosen.
+test('the speed is a radio group of lamps that the arrow keys move through, and the run goes at it', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto(RAFT);
+  const group = page.getByRole('group', { name: 'Speed' });
+  const radios = group.getByRole('radio');
+  await expect(radios).toHaveCount(3);
+  const steady = group.getByRole('radio', { name: 'Steady' });
+  const quick = group.getByRole('radio', { name: 'Quick' });
+  const slow = group.getByRole('radio', { name: 'Slow' });
+  await expect(steady).toBeChecked();
+
+  await page.getByRole('button', { name: 'Next event' }).focus();
+  await page.keyboard.press('Tab');
+  await expect(steady).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect(quick).toBeFocused();
+  await expect(quick).toBeChecked();
+  await page.keyboard.press('ArrowRight');
+  await expect(slow).toBeChecked();
+  await page.keyboard.press('ArrowLeft');
+  await expect(quick).toBeChecked();
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('button', { name: 'Start over' })).toBeFocused();
+
+  const lit = await page.evaluate(() =>
+    [...document.querySelectorAll('.rf-option')].map(
+      (option) =>
+        getComputedStyle(option.querySelector('.rf-lamp') as Element).backgroundColor !==
+        'rgba(0, 0, 0, 0)',
+    ),
+  );
+  expect(lit).toEqual([false, false, true]);
+
+  // Quick runs 0.1 virtual seconds a real one, twice Steady: a real second from Pause showing (the
+  // app loaded and running) moves the clock past anything Steady could reach in it.
+  await page.getByRole('button', { name: 'Run' }).click();
+  const pause = page.getByRole('button', { name: 'Pause' });
+  await expect(pause).toBeVisible();
+  const from = await seconds(page);
+  await page.waitForTimeout(1_000);
+  await pause.click();
+  expect((await seconds(page)) - from).toBeGreaterThan(0.07);
 });
 
 for (const colorScheme of ['light', 'dark'] as const) {
