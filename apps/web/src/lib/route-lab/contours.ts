@@ -192,12 +192,15 @@ export function bakeryLabelAt(
   );
 }
 
+/** `fits`, where given, is the test a label's spot must pass instead of clearOfPlaces: the page
+ *  knows each size it draws the label at, and the names already on the map (labels.ts). */
 export function contours(
   iso: Isochrones,
   base: Basemap,
   taken: readonly { readonly x: number; readonly y: number }[],
   minutes: readonly number[],
   places: readonly { readonly x: number; readonly y: number }[] = [],
+  fits?: (x: number, y: number) => boolean,
 ): Contour[] {
   const [, , width, height] = base.viewBox;
   const water = rings(base.water);
@@ -225,7 +228,9 @@ export function contours(
             );
             // "20 min" in the mono face, centred: it may not cover a place's marker either, or
             // a stop's number reads as part of the time.
-            const clear = clearOfPlaces(labelBox(x, y, 6, 'middle', 41), places);
+            const clear = fits
+              ? fits(x, y)
+              : clearOfPlaces(labelBox(x, y, 6, 'middle', 41), places);
             if (!wet && clear && room > 70 && (!best || room > best.room))
               best = { x, y, degrees, room };
             break;

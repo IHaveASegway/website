@@ -3,7 +3,8 @@ import routeDataUrl from '../../../../../tools/route-data/out/route-data.json?ur
 import { days } from '../../lib/route-lab/days';
 import { networkPath } from '../../lib/route-lab/legs';
 import lock from '../../lib/route-lab/solver.lock.json';
-import { bakeryLabelAt, contours, labelBox, overlaps } from '../../lib/route-lab/contours';
+import { contours } from '../../lib/route-lab/contours';
+import { mapLabels } from '../../lib/route-lab/labels';
 import { basemap, isochrones, leg, routeData, type Picture } from '../../lib/route-lab/picture';
 import { formatDuration } from '../../lib/route-lab/plan';
 import {
@@ -49,27 +50,20 @@ const plans = [
   { which: 'after', label: 'Planned by VROOM', short: 'VROOM’s plan', ...after },
 ] as const;
 const vans = [0, 1, 2, 3].map((van) => ({ letter: vanClass(van), round: isRound(van) }));
-// Labels the map leaves out at its size: South Lake Union sits under the bakery, which has its own
-// label, and Interbay and Wallingford overlap Queen Anne and the University District. A label near
-// the left edge starts at the edge instead of centering, so it is never cut off. Union Bay and
-// Portage Bay are minor: a phone's map leaves them out, with the neighbourhoods, as they would
-// overlap Lake Union there.
-const UNDRAWN = new Set(['South Lake Union', 'Interbay', 'Wallingford']);
-const MINOR = new Set(['Union Bay', 'Portage Bay']);
-const bakery = routeData.points[0] ?? { x: 0, y: 0 };
-// The bakery's label goes where it covers no place (International Fountain is under its left
-// side), and a map label it would cover is left out, as South Lake Union is: the bakery's wins.
-const bakeryLabel = bakeryLabelAt(bakery, routeData.points);
-const bakeryBox = labelBox(bakeryLabel.x, bakeryLabel.y, 10, bakeryLabel.anchor, 37);
-const labels = basemap.labels
-  .filter((l) => !UNDRAWN.has(l.text))
-  .filter((l) => !overlaps(labelBox(l.x, l.y, l.text.length, 'middle', 37), bakeryBox))
-  .map((l) => ({ ...l, edge: l.x < 240, minor: MINOR.has(l.text) }));
+// The map's names (lib/route-lab/labels.ts): drawn over the routes and the stops, so each goes
+// where it covers no place's mark at any size the map draws it, the bakery's first.
+const { bakeryLabel, labels, fits } = mapLabels(basemap, routeData.points);
 // A line along every other band's edge on land, labelled, so the bands read at a glance
 // (lib/route-lab/contours.ts): 10 and 20 minutes, where most of the map's land lies. They are part
-// of the basemap. Every label but the bakery's sits under the routes: a route or a stop that
-// crosses a label wins.
-const lines = contours(isochrones, basemap, [...labels, bakeryLabel], [10, 20], routeData.points);
+// of the basemap.
+const lines = contours(
+  isochrones,
+  basemap,
+  [...labels, bakeryLabel],
+  [10, 20],
+  routeData.points,
+  fits,
+);
 const bands = bandsSentence(
   isochrones.minutes,
   lines.map((l) => l.minutes),
@@ -106,8 +100,8 @@ const bands = bandsSentence(
       <g id="rl-labels">
         {labels.map((l) => (
           <text
-            class={`rl-label rl-label-${l.kind}${l.edge ? ' rl-label-edge' : ''}${l.minor ? ' rl-label-minor' : ''}`}
-            x={l.edge ? 24 : l.x}
+            class={`rl-label rl-label-${l.kind}${l.anchor === 'start' ? ' rl-label-edge' : ''}${l.minor ? ' rl-label-minor' : ''}`}
+            x={l.x}
             y={l.y}
           >
             {l.text}
@@ -187,9 +181,11 @@ const bands = bandsSentence(
             {mapTitle(plan.which, orders, day.vans, bands)}
           </title>
           <use href="#rl-base" />
-          <use href="#rl-labels" />
           <g data-rl-routes set:html={routesMarkup(leg, plan.plan)} />
           <g data-rl-places set:html={placesMarkup(routeData, plan.plan)} />
+          {/* The names over the routes and stops: words are never under a picture. Each keeps
+              clear of every stop (lib/route-lab/labels.ts); its halo parts a route under it. */}
+          <use href="#rl-labels" />
           <use href="#rl-top" />
           <g class="rl-tip" data-rl-tip>
             <rect class="rl-tip-box"></rect>
