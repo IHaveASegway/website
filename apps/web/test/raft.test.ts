@@ -17,13 +17,17 @@ import {
   createSim,
   heal,
   leaderOf,
+  nextTime,
   replay,
   restart,
   runUntil,
   seeded,
   setLoss,
   split,
+  step,
   write,
+  type Action,
+  type Flight,
   type Sim,
 } from '../src/lib/raft/sim';
 import { cutFence, footprint, openingRun, SEEDS_IN_CI, SIZE } from '../src/lib/raft/view';
@@ -386,6 +390,138 @@ test('determinism: the same seed and actions give the same run, event for event'
     JSON.stringify([s.events, s.servers.map((x) => [x.term, x.role, x.log]), s.lines]);
   expect(shape(b)).toBe(shape(a));
   expect(shape(again)).toBe(shape(a));
+});
+
+/** A run's whole state, part by part: two runs are one run when no part differs. */
+const parts = (s: Sim) => ({
+  clock: s.now,
+  events: s.events,
+  servers: s.servers.map((x) => ({ ...x, votes: [...x.votes] })),
+  wire: [s.flights, s.nextFlight],
+  network: [s.groups, s.loss],
+  writes: [s.writes, s.target],
+  checker: [
+    [...s.checker.leaders],
+    s.checker.committed,
+    [...s.checker.leaderLogs],
+    s.checker.checkedApplied,
+  ],
+  lines: s.lines,
+  actions: s.actions,
+  violation: s.violation,
+});
+
+/** The parts in which two runs differ: none, when one is the other's replay. */
+function differences(a: Sim, b: Sim): string[] {
+  const [x, y] = [parts(a), parts(b)];
+  return (Object.keys(x) as (keyof typeof x)[]).filter(
+    (part) => JSON.stringify(x[part]) !== JSON.stringify(y[part]),
+  );
+}
+
+/** Steps a run until `reached` holds; fails the test if it never does within 60 virtual s. */
+function stepUntil(sim: Sim, reached: (sim: Sim) => boolean): void {
+  while (!reached(sim)) {
+    if (sim.now > 60_000 || !step(sim)) throw new Error('the state the test waits for never came');
+  }
+}
+
+/** A vote request or AppendEntries due at the millisecond the run stands at, to a node that is up
+ *  and on the sender's side of the network: the node will answer it. */
+const dueNow = (s: Sim): Flight | undefined =>
+  s.flights.find(
+    (f) =>
+      f.arrives === s.now &&
+      (f.message.kind === 'vote' || f.message.kind === 'append') &&
+      s.servers[f.message.to]?.up === true &&
+      s.groups[f.message.from] === s.groups[f.message.to],
+  );
+
+test('determinism: an action taken between two events of one millisecond lands at its end, where replay puts it', () => {
+  // Driven event by event, as the Next event button drives a run. An action records only its
+  // time, and replay runs every event up to that time before it acts, so no action may land before
+  // another event of its millisecond: here, a message still on its way to a node. The run is
+  // compared with its replay as the action lands and again 2 s on: some early differences, such
+  // as two timers drawn in the other order, are gone by then, yet they made a different run.
+  const takes: Record<Action['kind'], (sim: Sim, due: Flight) => void> = {
+    crash: (sim, due) => crash(sim, due.message.to),
+    restart: (sim) => restart(sim, 4),
+    split: (sim, due) =>
+      split(
+        sim,
+        sim.servers.map((s) => (s.id === due.message.to ? 1 : 0)),
+      ),
+    heal: (sim) => heal(sim),
+    write: (sim) => write(sim),
+    loss: (sim) => setLoss(sim, 0.2),
+  };
+  const broken: string[] = [];
+  for (const [kind, take] of Object.entries(takes)) {
+    for (let seed = 1; seed <= 5; seed++) {
+      const sim = createSim({ seed });
+      runUntil(sim, 1_000);
+      // Node 5 down and node 4 cut off, so there is a node to restart and a cut to heal.
+      crash(sim, 4);
+      split(sim, [0, 0, 0, 1, 0]);
+      stepUntil(sim, (s) => dueNow(s) !== undefined);
+      take(sim, dueNow(sim) as Flight);
+      const landed = differences(replay({ seed }, sim.actions, sim.now), sim);
+      if (landed.length > 0)
+        broken.push(
+          `${kind}, seed ${seed}: as it lands, its replay differs in ${landed.join(', ')}`,
+        );
+      const until = sim.now + 2_000;
+      runUntil(sim, until);
+      const later = differences(replay({ seed }, sim.actions, until), sim);
+      if (later.length > 0)
+        broken.push(`${kind}, seed ${seed}: 2 s on, its replay differs in ${later.join(', ')}`);
+    }
+  }
+  expect(broken).toEqual([]);
+});
+
+describe('running in frames', () => {
+  // The page runs the simulation a frame at a time: up to a virtual time, with a limit on the
+  // events of one frame (EVENTS_PER_FRAME in app.ts), so a frame never takes too long to compute.
+
+  test('a limit stops a frame between two moments, never inside one, and the clock stands at the last event it ran', () => {
+    const sim = createSim({ seed: 7 });
+    runUntil(sim, 1_000);
+    // Up to a moment at which two messages arrive.
+    stepUntil(sim, (s) => {
+      const next = nextTime(s);
+      return next > s.now && s.flights.filter((f) => f.arrives === next).length > 1;
+    });
+    const moment = nextTime(sim);
+    runUntil(sim, moment + 1_000, 1);
+    // Both messages arrived, though the limit is one event, and the limit stopped the frame there:
+    // the clock stands at that moment, with the events due before the frame's end still ahead.
+    expect(sim.now).toBe(moment);
+    expect(nextTime(sim)).toBeGreaterThan(moment);
+    expect(nextTime(sim)).toBeLessThanOrEqual(moment + 1_000);
+  });
+
+  test('a limit only slows the clock: a run in frames, and the actions taken in it, replay exactly', () => {
+    const broken: string[] = [];
+    let short = 0;
+    for (let seed = 1; seed <= 10; seed++) {
+      const sim = createSim({ seed });
+      // The page's loop, with a limit low enough to bind: 16 virtual ms a frame, a limit of 2.
+      for (let frame = 1; frame <= 10_000 && sim.now < 3_000 && !sim.violation; frame++) {
+        const end = Math.min(3_000, sim.now + 16);
+        runUntil(sim, end, 2);
+        if (sim.now < end) short += 1;
+        if (frame === 50) crash(sim, leaderOf(sim)?.id ?? 0);
+        if (frame === 100) write(sim);
+      }
+      const differ = differences(replay({ seed }, sim.actions, 3_000), sim);
+      if (differ.length > 0)
+        broken.push(`seed ${seed}: its replay differs in ${differ.join(', ')}`);
+    }
+    expect(broken).toEqual([]);
+    // The limit did bind: in many frames the clock stood short of the frame's end.
+    expect(short).toBeGreaterThan(100);
+  });
 });
 
 test('the opening the page draws: a leader, three committed writes, and every follower caught up', () => {
