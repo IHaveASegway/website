@@ -180,6 +180,8 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     cancelAnimationFrame(frame);
     clearInterval(timer);
     set(run, 'Run');
+    // Run's lamp, never aria-pressed: its words change with its state, so it is no toggle.
+    mark(run, 'data-lamp', 'off');
     draw();
   }
 
@@ -220,6 +222,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     playing = true;
     owed = 0;
     set(run, 'Pause');
+    mark(run, 'data-lamp', 'on');
     if (still.matches) {
       // Half a second's worth of the chosen speed at a time: 1, 3 or 15 minutes.
       timer = window.setInterval(() => advance(Math.max(1, Math.round(speed / 2))), STILL_EVERY);

@@ -640,8 +640,10 @@
      functional rule, raised under the pointer. A button that holds a state, aria-pressed, shows a
      lamp before its words: hollow while off, lit while on, and pressed in, raised as under the
      pointer, so its state is a shape and a word, never a fill's colour. A lab's choices do the
-     same with their radios (route-lab.css). The primary button is the lit lamp itself: its fill
-     is the lamp's. */
+     same with their radios (route-lab.css). A button whose words change with its state, a lab's
+     Run that turns to Pause, is no toggle (WAI-ARIA APG, Button pattern), so it carries no
+     aria-pressed: its lamp is data-lamp, the same drawing, lit while it is 'on'. The primary
+     button is the lit lamp itself: its fill is the lamp's. */
   .btn {
     display: inline-flex;
     align-items: center;
@@ -666,7 +668,8 @@
     color: var(--foreground);
   }
 
-  .btn:not(.btn-primary)[aria-pressed]::before {
+  .btn:not(.btn-primary)[aria-pressed]::before,
+  .btn:not(.btn-primary)[data-lamp]::before {
     content: '';
     flex: none;
     inline-size: 0.625rem;
@@ -675,11 +678,13 @@
     border-radius: 50%;
   }
 
-  .btn:not(.btn-primary)[aria-pressed='true'] {
+  .btn:not(.btn-primary)[aria-pressed='true'],
+  .btn:not(.btn-primary)[data-lamp='on'] {
     background-color: var(--surface-2);
   }
 
-  .btn:not(.btn-primary)[aria-pressed='true']::before {
+  .btn:not(.btn-primary)[aria-pressed='true']::before,
+  .btn:not(.btn-primary)[data-lamp='on']::before {
     border-color: var(--primary);
     background-color: var(--primary);
   }
@@ -714,7 +719,8 @@
       color: ButtonText;
     }
 
-    .btn:not(.btn-primary)[aria-pressed='true']::before {
+    .btn:not(.btn-primary)[aria-pressed='true']::before,
+    .btn:not(.btn-primary)[data-lamp='on']::before {
       forced-color-adjust: none;
       border-color: ButtonText;
       background-color: ButtonText;

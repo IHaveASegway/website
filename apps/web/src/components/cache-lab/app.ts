@@ -201,6 +201,8 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     cancelAnimationFrame(frame);
     clearInterval(timer);
     text(run, 'Run');
+    // Run's lamp, never aria-pressed: its words change with its state, so it is no toggle.
+    attribute(run, 'data-lamp', 'off');
     draw();
   }
 
@@ -222,6 +224,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     if (sim.violation) return;
     playing = true;
     text(run, 'Pause');
+    attribute(run, 'data-lamp', 'on');
     if (still.matches) {
       timer = window.setInterval(() => {
         runUntil(sim, sim.now + STILL_STEP, EVENTS_PER_FRAME);
