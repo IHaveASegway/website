@@ -9,12 +9,13 @@ interface Props {
 }
 
 const { title, vans, href } = Astro.props;
-// The Route Lab's chapter on Home (ADR 0024, ADR 0025): the stage's second row, over the scene,
+// The Route Lab's chapter on Home (ADR 0024, ADR 0025): the stage's second row, beside the scene,
 // which lifts the day into the space-time cube while this chapter comes up the window
 // (scripts/route-scene.ts). The lab's line heads it, as it heads the lab's own page. Under its
 // title, one sentence, then the vans' days, each written from the build's solve, never typed, and
-// the way to the lab in words. Each van's line is split at its colon, so the name can stand in a
-// column of its own while the sentence reads whole.
+// the way to the lab in words, in one box, which stands still in the middle of the window from 64rem
+// while the day lifts beside it (home.css, .chapter-words). Each van's line is split at its colon,
+// so the name can stand in a column of its own while the sentence reads whole.
 const days = vans.map((line) => {
   const at = line.indexOf(': ');
   return at < 0
@@ -24,21 +25,23 @@ const days = vans.map((line) => {
 ---
 
 <article class="chapter" data-line="routes" data-stage-chapter aria-labelledby="chapter-title">
-  <h3 class="chapter-title" id="chapter-title">
-    {title}
-  </h3>
-  <p class="chapter-text">
-    VROOM, an open-source route planner compiled to WebAssembly, plans the bakery’s day in your
-    browser, on OpenStreetMap roads.
-  </p>
-  <ul class="chapter-vans" role="list">
-    {days.map(({ name, rest }) => (
-      <li>
-        {name && <span class="chapter-van">{name}</span>} {rest}
-      </li>
-    ))}
-  </ul>
-  <a class="chapter-link" href={href}>
-    Plan the deliveries yourself
-  </a>
+  <div class="chapter-words">
+    <h3 class="chapter-title" id="chapter-title">
+      {title}
+    </h3>
+    <p class="chapter-text">
+      VROOM, an open-source route planner compiled to WebAssembly, plans the bakery’s day in your
+      browser, on OpenStreetMap roads.
+    </p>
+    <ul class="chapter-vans" role="list">
+      {days.map(({ name, rest }) => (
+        <li>
+          {name && <span class="chapter-van">{name}</span>} {rest}
+        </li>
+      ))}
+    </ul>
+    <a class="chapter-link" href={href}>
+      Plan the deliveries yourself
+    </a>
+  </div>
 </article>

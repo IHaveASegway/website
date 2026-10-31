@@ -25,6 +25,10 @@ import {
 /** A van's class suffix: a, b, c, d, read by tokens.css's --map-van-a to --map-van-d. */
 export const vanClass = (van: number): string => vanName(van).toLowerCase();
 
+/** Van A is the Route Lab's own van: its route is drawn in the lab's line colour, on a casing
+ *  (route-lab.css, .rl-route-casing), in both themes. */
+export const casedRoute = (van: number): boolean => van === 0;
+
 /** Vans B and C mark their stops with circles, A and D with squares, so the pairs that share a
  *  shape are the ones whose colors stay apart under every color-vision deficiency
  *  (test/tokens.test.ts). Routes also differ by dash pattern. */
@@ -47,14 +51,16 @@ export const NUMBERED = 30;
 const dots = (points: readonly Pick<Point, 'x' | 'y'>[]): string =>
   points.map((p) => `M${p.x} ${p.y}h0`).join('');
 
-/** Each van's route on the roads, from the bakery and back. A van with no stops draws nothing. */
+/** Each van's route on the roads, from the bakery and back, van A's on its casing. A van with no
+ *  stops draws nothing. */
 export function routesMarkup(leg: (i: number, j: number) => Line, plan: Plan): string {
   return plan.routes
-    .map((route, van) =>
-      route.length === 0
-        ? ''
-        : `<path class="rl-route van-${vanClass(van)}" d="${pathData(routeLine(leg, [BAKERY, ...route, BAKERY]))}"/>`,
-    )
+    .map((route, van) => {
+      if (route.length === 0) return '';
+      const d = pathData(routeLine(leg, [BAKERY, ...route, BAKERY]));
+      const casing = casedRoute(van) ? `<path class="rl-route-casing" d="${d}"/>` : '';
+      return `${casing}<path class="rl-route van-${vanClass(van)}" d="${d}"/>`;
+    })
     .join('');
 }
 

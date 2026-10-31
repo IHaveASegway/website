@@ -1,7 +1,7 @@
 ---
 import { formatDuration } from '../../lib/route-lab/plan';
 import { leg, routeData, type Picture } from '../../lib/route-lab/picture';
-import { vanClass, isRound } from '../../lib/route-lab/render';
+import { casedRoute, vanClass, isRound } from '../../lib/route-lab/render';
 import {
   boxFor,
   DEFAULT_VIEW,
@@ -81,6 +81,7 @@ const plans = [
   tracks: tracks(routeData, leg, plan.plan).map((t) => ({
     van: vanClass(t.van),
     round: isRound(t.van),
+    cased: casedRoute(t.van),
     d: screenPath(screenLine(DEFAULT_VIEW, box, t, 3)),
     stops: t.stops.map((s) => at(s.x, s.arrives, s.y)),
   })),
@@ -132,7 +133,10 @@ const name = (label: string, back: number) =>
               </>
             ))}
             {plan.tracks.map((t) => (
-              <path class={`rl-route van-${t.van}`} d={t.d} />
+              <>
+                {t.cased && <path class="rl-route-casing" d={t.d} />}
+                <path class={`rl-route van-${t.van}`} d={t.d} />
+              </>
             ))}
             {plan.tracks.flatMap((t) =>
               t.stops.map(([u, v]) => (

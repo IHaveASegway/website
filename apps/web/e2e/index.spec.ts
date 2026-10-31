@@ -186,15 +186,17 @@ test('the Lab index draws the queue, the cache and the backfill from their openi
       'Queue',
     ]);
     // A lamp in the tank for each order waiting, then a worker's lamp each: lit while it works,
-    // crossed while it is down.
+    // hollow while idle; one that is down has no lamp, its track hollow, and no cross: a cross is
+    // failed (design-system.md, "Lamps: one meaning per mark").
     await expect(wide('queue').locator('.line-now')).toHaveCount(
       count(line.workers, (w) => w.lamp === 'lit'),
     );
-    await expect(wide('queue').locator('.line-cross')).toHaveCount(
-      count(line.workers, (w) => w.lamp === 'cross'),
+    await expect(wide('queue').locator('.line-gap')).toHaveCount(
+      count(line.workers, (w) => w.lamp === 'down'),
     );
+    await expect(wide('queue').locator('.line-cross')).toHaveCount(0);
     await expect(wide('queue').locator('.line-lamp')).toHaveCount(
-      line.waiting + count(line.workers, (w) => w.lamp !== 'lit'),
+      line.waiting + count(line.workers, (w) => w.lamp === 'hollow'),
     );
   }
 
@@ -217,7 +219,10 @@ test('the Lab index draws the queue, the cache and the backfill from their openi
       count(line.connections, (busy) => busy),
     );
     await expect(wide('cache').locator('.line-lamp')).toHaveCount(
-      line.nodes.length + count(line.connections, (busy) => !busy),
+      count(line.nodes, (lamp) => lamp !== 'down') + count(line.connections, (busy) => !busy),
+    );
+    await expect(wide('cache').locator('.line-gap')).toHaveCount(
+      count(line.nodes, (lamp) => lamp === 'down'),
     );
   }
 

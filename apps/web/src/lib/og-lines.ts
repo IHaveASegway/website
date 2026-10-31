@@ -42,7 +42,11 @@ const LINE_SCALE = 2.1;
 const BOARD_SCALE = 0.55;
 
 /** The board's wide stroke widths, from styles/lines.css at 48rem and up. */
-const STROKE = { track: 6, spoke: 4, loop: 3.5, lamp: 2.5, now: 3, cross: 3 } as const;
+const STROKE = { track: 6, spoke: 4, loop: 3.5, lamp: 2.5, now: 3, cross: 3, gap: 2.25 } as const;
+
+/** How far past the fork's bend a downed station's hollow starts, as lines/queue.astro and
+ *  cache.astro give it (GAP_FROM_FORK), so it never cuts the tracks that leave the fork beside it. */
+const GAP_FROM_FORK = 6;
 
 interface Ink {
   readonly line: string;
@@ -87,6 +91,11 @@ const square = (pen: Pen, x: number, y: number, w: number, h = w) =>
 
 const disc = (pen: Pen, x: number, y: number, r: number) =>
   `<circle cx="${n(x)}" cy="${n(y)}" r="${n(r)}" fill="${pen.ink.line}"/>`;
+
+/** A station that is down: no lamp, its track hollow, the ground running down its middle, as
+ *  lines.css draws .line-gap (design-system.md, "Lamps: one meaning per mark"). */
+const gap = (pen: Pen, x1: number, y: number, x2: number) =>
+  `<line x1="${n(x1)}" y1="${n(y)}" x2="${n(x2)}" y2="${n(y)}" fill="none" stroke="${pen.ink.ground}" stroke-width="${n(STROKE.gap * pen.u)}"/>`;
 
 /** A station's lamp by its state (lib/lines.ts, Lamp): `r` in board pixels, as the components
  *  give it. A filled lamp's fill is one pixel wider than its rim, as lines.css draws it. */
@@ -153,9 +162,9 @@ const routes: Drawer = async (pen, app) => {
 };
 
 /** The Raft Lab's line (lines/raft.astro): the leader at the hub, every other server on a spoke,
- *  and the leader's log, filled once committed. */
+ *  and the leader's log, filled once committed, ending in a buffer stop. */
 const raft: Drawer = async (pen) => {
-  const { u, at } = pen;
+  const { u } = pen;
   const line = raftLine(raftOpening());
   const size = {
     height: 80,
@@ -166,6 +175,7 @@ const raft: Drawer = async (pen) => {
     log: 190,
     step: 30,
     lamp: 6,
+    stop: [5, 20],
   };
   const middle = (size.height / 2) * u;
   const [dx = 0, dy = 0] = size.reach;
@@ -180,7 +190,13 @@ const raft: Drawer = async (pen) => {
     const [sx, sy] = around[i] ?? [1, 1];
     return { x: hub + sx * dx * u, y: middle + sy * dy * u };
   });
-  const shapes = [track(pen, 0, middle, at(100), middle)];
+  // The log ends a step past its last entry in a buffer stop, as raft.astro draws it.
+  const end = (size.log + line.log.length * size.step) * u;
+  const [stopWidth = 0, stopHeight = 0] = size.stop;
+  const shapes = [
+    track(pen, 0, middle, end, middle),
+    square(pen, end, middle - (stopHeight / 2) * u, stopWidth * u, stopHeight * u),
+  ];
   for (const f of followers) shapes.push(track(pen, hub, middle, f.x, f.y, STROKE.spoke));
   line.log.forEach((committed, k) =>
     shapes.push(
@@ -240,7 +256,9 @@ const queue: Drawer = async (pen) => {
       );
       for (let k = 0; k < line.dead; k++)
         shapes.push(disc(pen, stop - (k + 1) * size.step * u, t.y, (size.lamp + 1) * u));
-    } else shapes.push(lamp(pen, at(size.worker), t.y, size.station, t.lamp));
+    } else if (t.lamp === 'down')
+      shapes.push(gap(pen, fork + t.rise + GAP_FROM_FORK * u, t.y, at(size.end)));
+    else shapes.push(lamp(pen, at(size.worker), t.y, size.station, t.lamp));
   }
   return { height: size.height * u, shapes };
 };
@@ -288,7 +306,12 @@ const cache: Drawer = async (pen) => {
   pool.forEach((x, k) =>
     shapes.push(lamp(pen, x, middle, size.lamp, line.connections[k] ? 'lit' : 'hollow')),
   );
-  for (const node of nodes) shapes.push(lamp(pen, at(size.node), node.y, size.station, node.state));
+  for (const node of nodes)
+    shapes.push(
+      node.state === 'down'
+        ? gap(pen, fork + node.rise + GAP_FROM_FORK * u, node.y, join)
+        : lamp(pen, at(size.node), node.y, size.station, node.state),
+    );
   return { height: size.height * u, shapes };
 };
 

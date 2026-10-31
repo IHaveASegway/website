@@ -17,14 +17,15 @@ interface Props {
 // moves it, one van a stop a second, on Home. Drawn twice, for a narrow screen and a wide one,
 // each without a viewBox: a track's height and a lamp's size are pixels and its place along the day
 // a share of the width, so nothing scales with the screen and a lamp stays round. On the board the
-// line starts at the panel's edge and its describer gives the day's numbers; on the Lab index it is
+// line starts at the panel's edge and its describer gives the day's driving as the orders came in
+// and as VROOM plans it, the failure and its fix; on the Lab index it is
 // larger, comes in from the page's edge to the bakery on the text's edge, and names what it saves.
 const { at = 'board' } = Astro.props;
 const picture = await routeLabPicture(process.cwd());
 const line = routesLine(picture.after.measured);
 const words =
   at === 'board'
-    ? routesWords(picture.day, picture.after.measured)
+    ? routesWords(picture.day, picture.before.measured, picture.after.measured)
     : routesFact(picture.day, picture.before.measured, picture.after.measured);
 
 interface Size {

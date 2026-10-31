@@ -327,7 +327,7 @@ The feel comes from the work, drawn as lines. Each motif is CSS, SVG drawn at bu
 
 - **The name.** Two lines in Barlow Condensed, at the hero's size on Home ([Type scale](#type-scale)).
 - **The lines.** Each live lab drawn as the real shape of its system, in its line's colour: the Route Lab as the bakery's depot with a track per van, each stop a lamp placed by when the van reaches it; the Raft Lab as a hub and its spokes, the leader to each follower, then its log as a track of lamps. Home's board draws them on one panel, the Lab index draws them large beside each lab's words, and each lab's page runs its line across its head into a filled lamp. `lib/lines.ts` works every line out of the lab's own run at build, and a new lab adds its line as one component in `components/board/lines/`.
-- **Lamps.** The only round things. Filled is done or in service, hollow is not yet, lit warm white is where the work is now; a pressed or chosen button shows a lit 10 px lamp before its words instead of a colour fill, and the command menu's selected row a lit one. A word always says the same as the lamp.
+- **Lamps.** The only round things. Filled is done or in service, hollow is not yet, lit warm white is where the work is now, and failed, down, lost and twice have a mark each ([Lamps: one meaning per mark](#lamps-one-meaning-per-mark)); a pressed or chosen button shows a lit 10 px lamp before its words instead of a colour fill, and the command menu's selected row a lit one. A word always says the same as the lamp.
 - **The board and the desk.** The recessed surface (`--surface-1`) in a 2 px bezel of `--input`: Home's board holds the lines, a lab's desk holds its demo, and the command menu sits in one too.
 - **The sweep.** The 2 px bar that runs along a row's top when the row leads somewhere, in its lab's line, or in the lamp's colour where it has none ([Chosen direction](#chosen-direction)).
 - **Timestamps.** Dates in words, "25 October 2026", with the ISO 8601 day in each `<time>`'s `datetime`, and no time of day and no zone: midnight UTC carries neither, and anything else would tell a reader when or where the build ran. A post's dates are the only dates a page shows. `test/readouts.test.ts` scans every served file for a time of day or an offset in every common form. No ticking clock: a clock is auto-updating content under SC 2.2.2, and it says nothing about the work.
@@ -336,6 +336,37 @@ The feel comes from the work, drawn as lines. Each motif is CSS, SVG drawn at bu
 - **Removed on 2026-10-30** ([ADR 0025](adr/0025-signal-box-identity.md)): the eyebrows over titles, capitals and tracking on labels, mono for values, the middle dots and the arrows, How I work's numbers, the isometric pictures, Writing's ruled sheet and the Lab's street plans behind their pages, and rules between rows.
 - **Removed on 2026-10-24:** the ruler, the step and its field, section numbers, the location mark and How I work's field ([The poster setting](#the-poster-setting)).
 - **Removed with Quiet Console:** the hairline grid, corner brackets, status LEDs, scanlines and the hero's terminal panel ([Lineage](#lineage)).
+
+### Lamps: one meaning per mark
+
+Set on 2026-10-31, after the visitor review found the crossed lamp, ⊗, meaning "worker down" on Home's board and "lost order" on the Queue Lab's desk, a broken property on the Cache Lab's desk, and the Backfill Lab's desk failing a step with a bare × instead (SYS-1). A visitor learns a mark once, from whichever key they meet first, and reads it the same everywhere after: on the board, on the Lab index, on every desk. So each mark below means one thing, and a meaning has one mark wherever it can. The table binds every line (`components/board/lines/`), every desk and every lab to come. A mark is never alone: the word beside it, in a label, a caption or a key, says the same.
+
+A **station** does work: a worker, a cache node, a server, a day's run, a step, a check, a property. An **item** is the work: an order, a log entry, a stop. Colour still says only which line ([Chosen direction](#chosen-direction)); every mark below is drawn in the line's colour (`var(--line)`) on the surface it stands on, except the lit lamp's fill.
+
+| Mark | Means | Of | Never means |
+|---|---|---|---|
+| Hollow lamp: a ring in the line's colour | **Not yet.** Waiting, idle or not started: an order in the queue, an entry not yet committed, a stop not yet reached, an idle worker, a step not started, a Raft follower (followers are passive until the leader sends; Raft paper, §5.1) | both | done, down |
+| Filled lamp | **Done, or in service.** An order delivered or printed, an entry committed, a step that succeeded, a cache node up, a property that holds | both | |
+| Lit lamp: `--primary`, ringed in the line | **Where the work is now.** A van, a busy worker, a running step, a connection fetching | both | |
+| ⊗: a hollow lamp crossed | **Failed.** An attempt that ended in failure: a step, a day's check whose totals differ, a property that broke | station | down, lost |
+| Hollow track: the surface runs down its middle, and no lamp | **Down.** A station out of service, crashed or stopped, which can come back. A station drawn without a track of its own, such as a server on the Raft desk, is drawn hollow the same way: its ring with the surface down its middle | station | failed, lost |
+| Hollow lamp with one slash, as ∅ | **Lost.** An item that will never be done: an order never printed | item | failed, a broken property |
+| Filled lamp with a second ring around it | **Twice.** An item done twice: an order printed twice | item | |
+| Dashed ring | **Taken, not yet acknowledged.** An order sent to a worker, on its way or dropped in a crash, until the broker takes it back | item | down |
+| Hollow lamp with clock hands | **Waiting to retry**, at the time beside it: it failed once and will try again | both | |
+| Hollow lamp with a bar | **Not run**, because a step before it failed | station | |
+
+Shapes that are not lamps keep their own meaning and are not states: a square is a place that holds or sends (the bakery, the publisher, the database, the report) or a message on the wire (Raft); a buffer stop is the end of a line; the Queue Lab's diamond is an order's kind, poison, wherever it is.
+
+Why down is not ⊗. The desks already drew a station that is down as a hollow track (the Queue Lab's worker, the Cache Lab's node), and the board drew it as ⊗, which the desks used for failed and for lost. Taking the desks' mark onto the board gives down one mark everywhere and leaves ⊗ one meaning. The weaker table, "⊗ is failed or out of service", would have kept the board as it was, but a visitor would still meet two marks for down, a ⊗ on the board and a hollow track on the desk.
+
+What each surface changes to meet it (2026-10-31):
+
+- **Home's board and the Lab index** (`lib/lines.ts`, `components/board/lines/`): a worker or a cache node that is down is a hollow track with no lamp, not ⊗; ⊗ stays for the Backfill day whose check failed, and the board's caption says "failed" beside it. `e2e/board-words.spec.ts` holds the board's ⊗ to the word "failed" and its hollow tracks to "down".
+- **The Queue Lab's desk:** a lost order's ticket is the slashed lamp, not ⊗; a broken property is ⊗, not the slashed lamp; an order waiting in the tank is a hollow round lamp, as on the board, and one waiting out a backoff the clock lamp, not a hollow square; "On its way, or dropped in a crash" is one state, "Taken, not yet acknowledged", in the key.
+- **The Backfill Lab's desk:** a failed step and a failed check are ⊗ in the line's colour, not a bare × in the text's.
+- **The Cache Lab's desk:** a broken property's ⊗ is drawn in the line's colour, as the Queue Lab's is, not in the text's.
+- **The Raft Lab's desk:** a server that is down is drawn hollow, its ring with the surface down its middle, not dashed: a dashed ring is the Queue Lab's order in flight.
 
 ## Page geometry
 

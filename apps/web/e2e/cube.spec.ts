@@ -5,8 +5,8 @@ import { ROUTE_LAB } from './expected';
 // The space-time cube on the Route Lab (ADR 0019), in a real WebGL context (SwiftShader in headless
 // Chromium): without JavaScript it is two pictures drawn at build; three.js loads only on intent
 // at the cube, never on a scroll, a finger's included; the canvas takes the picture's place with
-// the first plans, its marks where the picture drew them and nothing below moving; a drag or a key
-// turns both cubes; the slider moves through the day and is named for what it sets; Play runs,
+// the first plans, its marks where the picture drew them and nothing below moving; Tab reaches
+// each cube from the first paint, in order, with the focus ring on it; a drag or a key turns both; the slider moves through the day and is named for what it sets; Play runs,
 // pauses, stops at the end, and steps under reduced motion; a plan change compiles no new GPU
 // program; a lost context brings the pictures back for good; without WebGL nothing changes.
 
@@ -14,6 +14,8 @@ const NBSP = ' ';
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 const cube = (page: Page) => page.locator('[data-rl-cube]');
 const canvases = (page: Page) => cube(page).locator('canvas');
+/** Each cube's frame: the picture, then the canvas, inside it; the stop for Tab and the keys. */
+const frames = (page: Page) => cube(page).locator('[data-rl-cube-stage]');
 const slider = (page: Page) => page.locator('[data-rl-cube-time]');
 const play = (page: Page) => page.locator('[data-rl-cube-play]');
 const value = async (page: Page) => Number(await slider(page).inputValue());
@@ -51,6 +53,8 @@ test('without JavaScript the cube is two pictures with names, and no control sho
     new RegExp(`Planned by VROOM, .* back after 2${NBSP}h 20${NBSP}min\\.$`),
   );
   await expect(page.locator('[data-rl-cube-controls]').first()).toBeHidden();
+  // Nothing turns a picture: it is no stop for Tab.
+  for (const frame of await frames(page).all()) await expect(frame).not.toHaveAttribute('tabindex');
   await context.close();
 });
 
@@ -74,10 +78,49 @@ test('a scroll loads no three.js; a mouse over the cube does, and nothing below 
   expect(asked.filter(isCube)).toHaveLength(1);
   await expect(page.locator('svg[data-rl-cube-picture]').first()).toBeHidden();
   expect(await below()).toBe(before);
-  await expect(canvases(page).first()).toHaveAttribute('role', 'img');
-  await expect(canvases(page).first()).toHaveAccessibleName(/^As the orders came in, in time/);
-  await expect(canvases(page).first()).toHaveAccessibleDescription(/arrow keys/);
+  await expect(frames(page).first()).toHaveAttribute('role', 'img');
+  await expect(frames(page).first()).toHaveAccessibleName(/^As the orders came in, in time/);
+  await expect(frames(page).first()).toHaveAccessibleDescription(/arrow keys/);
+  await expect(canvases(page).first()).not.toHaveAttribute('tabindex');
 });
+
+for (const [width, height, cubes] of [
+  [1280, 900, ['As the orders came in', 'Planned by VROOM']],
+  [390, 844, ['Planned by VROOM']],
+] as const) {
+  test(`at ${width} px Tab reaches each cube shown, in order, before the slider, with its ring, and its keys turn it`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto(ROUTE_LAB);
+    // From the last link before the cube, as a keyboard user arrives: before three.js is here.
+    await page
+      .locator('#route-lab')
+      .getByRole('link', { name: 'OpenStreetMap contributors' })
+      .focus();
+    for (const name of cubes) {
+      await page.keyboard.press('Tab');
+      const focused = page.locator(':focus');
+      await expect(focused).toHaveAttribute('data-rl-cube-stage', '');
+      await expect(focused).toHaveAccessibleName(new RegExp(`^${name}, in time`));
+      expect(
+        await focused.evaluate((e) => {
+          const style = getComputedStyle(e);
+          return [e.matches(':focus-visible'), style.outlineStyle, style.outlineWidth];
+        }),
+      ).toEqual([true, 'solid', '2px']);
+      // The focus loaded the scene; the keys turn the cube on show.
+      await expect(focused.locator('canvas')).toBeVisible();
+      await expect(cube(page).locator('[data-rl-cube-marks] li').first()).toBeAttached();
+      const before = await focused.locator('canvas').screenshot();
+      await page.keyboard.press('ArrowLeft');
+      await expect.poll(() => focused.locator('canvas').screenshot()).not.toEqual(before);
+      await expect(focused).toBeFocused();
+    }
+    await page.keyboard.press('Tab');
+    await expect(slider(page)).toBeFocused();
+  });
+}
 
 test('a finger that scrolls the page from on the cube loads nothing; a tap loads the scene', async ({
   browser,
@@ -161,7 +204,7 @@ test('a drag turns both cubes, the arrow keys turn them, and Home or the button 
 
   await page.locator('[data-rl-cube-reset]').click();
   expect(await shot(page)).toEqual(first);
-  await canvases(page).first().focus();
+  await frames(page).first().focus();
   await page.keyboard.press('ArrowLeft');
   expect(await shot(page)).not.toEqual(first);
   await page.keyboard.press('Home');
@@ -332,6 +375,11 @@ test('a lost WebGL context brings the pictures back, and a later change leaves t
   const pictures = page.locator('svg[data-rl-cube-picture]');
   await expect(pictures.first()).toBeVisible();
   await expect(page.locator('[data-rl-cube-controls]').first()).toBeHidden();
+  // Nothing turns the pictures now: neither is a stop for Tab, and each is named by its picture.
+  for (const frame of await frames(page).all()) {
+    await expect(frame).not.toHaveAttribute('tabindex');
+    await expect(frame).not.toHaveAttribute('role');
+  }
   // The captions say the build's day again, the day the pictures show.
   const backs = cube(page).locator('[data-rl-cube-back]');
   await expect(backs.first()).toHaveText(`Last van back after 2${NBSP}h 53${NBSP}min`);
@@ -360,6 +408,25 @@ test('without WebGL the pictures stay, the cube’s controls hide, and focus is 
   await expect(canvases(page)).toHaveCount(0);
   await expect(page.locator('svg[data-rl-cube-picture]').first()).toBeVisible();
   await expect(cube(page)).toBeFocused();
+});
+
+test('without WebGL a focused cube leaves the tab order, and focus moves to its section', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const original = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, kind: string) {
+      if (/webgl/.test(kind)) return null;
+      return (original as (k: string) => RenderingContext | null).call(this, kind);
+    } as typeof original;
+  });
+  await page.goto(ROUTE_LAB);
+  await frames(page).first().focus();
+  await expect(cube(page)).toBeFocused();
+  for (const frame of await frames(page).all()) await expect(frame).not.toHaveAttribute('tabindex');
+  await expect(page.locator('svg[data-rl-cube-picture]').first()).toHaveAccessibleName(
+    /^As the orders came in, in time/,
+  );
 });
 
 for (const colorScheme of ['dark', 'light'] as const) {

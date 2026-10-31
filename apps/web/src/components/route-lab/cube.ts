@@ -24,7 +24,7 @@ import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { formatDuration } from '../../lib/route-lab/plan';
-import { isRound, vanClass } from '../../lib/route-lab/render';
+import { casedRoute, isRound, vanClass } from '../../lib/route-lab/render';
 import {
   axes,
   boxFor,
@@ -79,6 +79,9 @@ interface Stage {
   readonly which: Which;
   readonly label: string;
   readonly host: HTMLElement;
+  /** The element that holds the picture, then the canvas: the one stop for Tab, from the first
+   *  paint (boot.ts), named for what it shows, and the one the arrow keys turn. */
+  readonly frame: HTMLElement;
   readonly picture: SVGSVGElement;
   readonly canvas: HTMLCanvasElement;
   readonly marks: HTMLUListElement;
@@ -114,7 +117,6 @@ export function start(root: HTMLElement): boolean {
   const clock = $<HTMLElement>('[data-rl-cube-clock]');
   const play = $<HTMLButtonElement>('[data-rl-cube-play]');
   const reset = $<HTMLButtonElement>('[data-rl-cube-reset]');
-  const hint = $<HTMLElement>('[data-rl-cube-hint]');
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   // Every listener and observer this module adds, so a lost context can take them all away.
   const life = new AbortController();
@@ -141,7 +143,8 @@ export function start(root: HTMLElement): boolean {
     const which = host.dataset['rlCubePlan'] as Which;
     const picture = host.querySelector<SVGSVGElement>('[data-rl-cube-picture]');
     const marks = host.querySelector<HTMLUListElement>('[data-rl-cube-marks]');
-    if (!picture || !marks) continue;
+    const frame = host.querySelector<HTMLElement>('[data-rl-cube-stage]');
+    if (!picture || !marks || !frame) continue;
     const canvas = document.createElement('canvas');
     let renderer: WebGLRenderer;
     try {
@@ -156,13 +159,11 @@ export function start(root: HTMLElement): boolean {
     // tall as the picture it replaces at any width: at the rail's widths (ADR 0021) the rounded one
     // moved everything below by a pixel. A CSSOM property, which the page policy allows.
     canvas.style.aspectRatio = `${w} / ${h}`;
-    canvas.tabIndex = 0;
-    canvas.setAttribute('role', 'img');
-    if (hint?.id) canvas.setAttribute('aria-describedby', hint.id);
     stages.push({
       which,
       label: LABELS[which],
       host,
+      frame,
       picture,
       canvas,
       marks,
@@ -406,6 +407,26 @@ export function start(root: HTMLElement): boolean {
       const geometry = new LineGeometry();
       geometry.setPositions(positions);
       const dash = VAN_DASHES[track.van] ?? null;
+      // Van A's line runs on a casing in the desk's colour, as on the maps (route-lab.css): drawn
+      // first and writing no depth, so every other line is drawn over it, as the maps paint them.
+      if (casedRoute(track.van)) {
+        const casing = new Line2(
+          geometry,
+          made(
+            stage,
+            'casing',
+            () =>
+              new LineMaterial({
+                color: rgbOf(token('--map-water')).getHex(),
+                linewidth: 6,
+                worldUnits: false,
+                depthWrite: false,
+              }),
+          ),
+        );
+        casing.renderOrder = -1;
+        group.add(casing);
+      }
       const line = new Line2(
         geometry,
         made(
@@ -413,7 +434,7 @@ export function start(root: HTMLElement): boolean {
           `line-${track.van}`,
           () =>
             new LineMaterial({
-              color: rgbOf(token(`--map-van-${vanClass(track.van)}`)).getHex(),
+              color: rgbOf(token(`--rl-route-${vanClass(track.van)}`)).getHex(),
               linewidth: 3,
               worldUnits: false,
               dashed: dash !== null,
@@ -483,7 +504,7 @@ export function start(root: HTMLElement): boolean {
     const back = Math.max(0, ...planned.map((t) => t.back));
     const stale = stage.which === 'after' && !detail.fresh ? ', for the previous orders' : '';
     if (stage.back) stage.back.textContent = `Last van back after ${formatDuration(back)}${stale}`;
-    stage.canvas.setAttribute(
+    stage.frame.setAttribute(
       'aria-label',
       `${stage.label}${stale}, in time: the map lies flat, time rises from it, and each van’s line climbs as its day goes on. The last van is back after ${formatDuration(back)}.`,
     );
@@ -570,12 +591,15 @@ export function start(root: HTMLElement): boolean {
   );
 
   /** The canvas takes the picture's place, with the first plans: the picture leaves the page's
-   *  tree, the canvas carries its name, and both have one aspect, so nothing below moves. */
+   *  tree, the frame round both carries the name, and both have one aspect, so nothing below
+   *  moves. */
   function swap() {
     swapped = true;
     for (const stage of stages) {
       stage.picture.after(stage.canvas);
       stage.picture.setAttribute('hidden', '');
+      // The frame's name was the picture's; from here it is the plan's on show (build, above).
+      stage.frame.removeAttribute('aria-labelledby');
       stage.marks.hidden = false;
       const observer = new ResizeObserver(() => {
         const width = stage.canvas.parentElement?.clientWidth ?? 0;
@@ -602,6 +626,7 @@ export function start(root: HTMLElement): boolean {
       stage.canvas.remove();
       stage.marks.hidden = true;
       stage.picture.removeAttribute('hidden');
+      stage.frame.removeAttribute('aria-label');
       if (stage.back) stage.back.textContent = captions[k] ?? '';
       stage.renderer.dispose();
     });
@@ -646,7 +671,7 @@ export function start(root: HTMLElement): boolean {
     };
     canvas.addEventListener('pointerup', end, { signal });
     canvas.addEventListener('pointercancel', end, { signal });
-    canvas.addEventListener(
+    stage.frame.addEventListener(
       'keydown',
       (event) => {
         const moves: Record<string, View> = {
@@ -751,10 +776,16 @@ export function start(root: HTMLElement): boolean {
   return true;
 }
 
-/** Hides the cube's controls, moving focus to the cube's section first if it was in them, so a
- *  keyboard user is not left on the page's body. */
+/** Hides the cube's controls and takes the cubes out of the tab order, where nothing turns them
+ *  any more: each is its picture again, named by it. Focus moves to the cube's section first if it
+ *  was on one of them, so a keyboard user is not left on the page's body. */
 export function hideControls(section: HTMLElement): void {
   const parts = section.querySelectorAll<HTMLElement>('[data-rl-cube-controls]');
-  if ([...parts].some((part) => part.contains(document.activeElement))) section.focus();
+  const frames = section.querySelectorAll<HTMLElement>('[data-rl-cube-stage]');
+  if ([...parts, ...frames].some((part) => part.contains(document.activeElement))) section.focus();
   for (const part of parts) part.hidden = true;
+  for (const frame of frames) {
+    for (const name of ['tabindex', 'role', 'aria-labelledby', 'aria-describedby', 'aria-label'])
+      frame.removeAttribute(name);
+  }
 }

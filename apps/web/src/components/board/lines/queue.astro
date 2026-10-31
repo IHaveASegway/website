@@ -1,5 +1,5 @@
 ---
-import { queueFact, queueLine, TANK } from '../../../lib/lines';
+import { queueFact, queueFix, queueLine, TANK } from '../../../lib/lines';
 import { replay } from '../../../lib/queue/sim';
 import { OPENING, openingRun } from '../../../lib/queue/view';
 import type { LineAt } from '../line-of';
@@ -12,20 +12,20 @@ interface Props {
 
 // The Queue Lab's line (ADR 0025): the publisher, a square at the left; the broker's queue, a tank
 // of lamps on the stem, one for each order waiting; then a fork to each worker's track, its lamp
-// lit while it works on an order, hollow while idle, crossed while it is down; and below them the
-// siding of dead letters, which ends in a buffer stop. All of it from the Queue Lab's opening run
-// (lib/queue/view.ts), the run its own page draws before anyone presses anything: worker 2 down
-// after its crash. It stands still: the board's one moving thing is the Route Lab's vans. Drawn
-// twice, for a narrow screen and a wide one, without a viewBox, as the Route Lab's line is
-// (routes.astro): everything up to the fork in pixels, the tracks after it in shares of the width.
-// On the board its describer says what the crash did; on the Lab index it is larger, names its
-// stations, comes in from the page's edge, and says what the idempotency key changes.
+// lit while it works on an order, hollow while idle, and while it is down no lamp at all, its track
+// hollow, as the lab's desk draws it (design-system.md, "Lamps: one meaning per mark"); and below
+// them the siding of dead letters, which ends in a buffer stop. All of it from the Queue Lab's
+// opening run (lib/queue/view.ts), the run its own page draws before anyone presses anything:
+// worker 2 down after its crash. It stands still: the board's one moving thing is the Route Lab's
+// vans. Drawn twice, for a narrow screen and a wide one, without a viewBox, as the Route Lab's line
+// is (routes.astro): everything up to the fork in pixels, the tracks after it in shares of the
+// width. On the board its describer says what the crash did and what the idempotency key does about
+// it; on the Lab index it is larger, names its stations, comes in from the page's edge, and says
+// what the key changes, in figures.
 const { at = 'board' } = Astro.props;
 const line = queueLine(openingRun());
-const words =
-  at === 'board'
-    ? line.words
-    : queueFact(replay({ ...OPENING.config, key: true }, OPENING.actions, OPENING.until));
+const keyed = replay({ ...OPENING.config, key: true }, OPENING.actions, OPENING.until);
+const words = at === 'board' ? `${line.words} ${queueFix(keyed)}` : queueFact(keyed);
 
 interface Size {
   readonly name: 'wide' | 'compact';
@@ -118,6 +118,9 @@ const SIZES: Record<LineAt, readonly Size[]> = {
 
 // On the index the stem comes in from past the drawing's left edge, as the Route Lab's does.
 const enters = at === 'index' ? '-100%' : '0';
+// A downed worker's hollow starts this far past the fork's bend, so it never cuts the tracks that
+// leave the fork beside it.
+const GAP_FROM_FORK = 6;
 const rows = [
   ...line.workers.map((w) => ({ ...w, dead: false })),
   { name: 'Dead letters', lamp: 'hollow', dead: true },
@@ -194,19 +197,21 @@ const drawings = SIZES[at].map((size) => {
           </svg>
         ) : (
           <>
-            <circle
-              class={track.lamp === 'lit' ? 'line-now' : 'line-lamp'}
-              cx={`${size.worker}%`}
-              cy={track.y}
-              r={size.station}
-            />
-            {track.lamp === 'cross' && (
-              <svg x={`${size.worker}%`} overflow="visible">
-                <path
-                  class="line-cross"
-                  d={`M${-size.station * 0.6} ${track.y - size.station * 0.6}l${size.station * 1.2} ${size.station * 1.2}m0 ${-size.station * 1.2}l${-size.station * 1.2} ${size.station * 1.2}`}
-                />
-              </svg>
+            {track.lamp === 'down' ? (
+              <line
+                class="line-gap"
+                x1={fork + track.rise + GAP_FROM_FORK}
+                y1={track.y}
+                x2={`${size.end}%`}
+                y2={track.y}
+              />
+            ) : (
+              <circle
+                class={track.lamp === 'lit' ? 'line-now' : 'line-lamp'}
+                cx={`${size.worker}%`}
+                cy={track.y}
+                r={size.station}
+              />
             )}
             {size.labels && (
               <svg x={`${size.end}%`} overflow="visible">

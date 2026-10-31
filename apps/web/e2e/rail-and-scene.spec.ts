@@ -505,3 +505,114 @@ test.describe("Home's stage on a larger screen", () => {
     }
   });
 });
+
+// The column always has words in view (HOM-4). From 64rem the Route Lab's chapter is a screen tall,
+// because the lift needs that much scroll, and its words are far shorter than a screen, so they
+// come up straight after the column's and then stand still in the middle of the window, beside the
+// cube, until the chapter's end takes them away with the scene (home.css, .chapter-words). Until
+// 2026-10-31 they sat in the middle of the chapter's own box, and a taller window put half its extra
+// height under the column's words and half again above the chapter's: the column had no word for
+// 42% of the window at 1920 × 1080 and 56% at 2560 × 1440, against 30% at 1440 × 900. Scrolling from
+// the top until the board is in view, in steps of a tenth of the window, no stretch of the window
+// without a word in the column may be more than three eighths of it; the words left over at the
+// widest, a screen tall chapter's, are 453 px, which leaves 34% above and below them at 2560 × 1440.
+// Below 64rem nothing stands still (scene-covers-nothing.spec.ts): the words scroll with the page.
+/** Scrolls the window to `y` and waits two frames for sticky boxes to stand where the scroll puts
+ *  them. Not scrollToY, which waits for a scroll event that a scroll to where the window already
+ *  stands never sends. */
+const settle = (page: Page, y: number) =>
+  page.evaluate(
+    (to) =>
+      new Promise((done) => {
+        scrollTo(0, to);
+        requestAnimationFrame(() => requestAnimationFrame(() => done(null)));
+      }),
+    y,
+  );
+
+test.describe('Home’s column on a tall screen', () => {
+  for (const [width, height] of [
+    [1440, 900],
+    [1920, 1080],
+    [2560, 1440],
+    [3440, 1440],
+  ] as const) {
+    test(`at ${width} × ${height} the column is never without words for most of the window`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height });
+      await page.goto('/');
+      const end = await page.evaluate(
+        () => (document.querySelector('.covers') as Element).getBoundingClientRect().top + scrollY,
+      );
+      const step = Math.round(height / 10);
+      let worst = { blank: 0, at: 0 };
+      for (let y = 0; y <= end; y += step) {
+        await settle(page, y);
+        // The longest stretch of the window's height that no word of main crosses; the board
+        // counts as one block of content once it is in view.
+        const blank = await page.evaluate(() => {
+          const view = innerHeight;
+          const boxes = [
+            ...document.querySelectorAll<HTMLElement>(
+              'main :is(h1, h2, h3, p, li, a, .figure-before, .figure-after, .figure-words)',
+            ),
+          ]
+            .filter((e) => !e.closest('.visually-hidden, .covers') && e.getClientRects().length > 0)
+            .concat(document.querySelector<HTMLElement>('.covers') ?? [])
+            .map((e) => e.getBoundingClientRect())
+            .map((b) => [Math.max(b.top, 0), Math.min(b.bottom, view)] as const)
+            .filter(([top, bottom]) => bottom > top)
+            .sort((a, b) => a[0] - b[0]);
+          let edge = 0;
+          let gap = 0;
+          for (const [top, bottom] of boxes) {
+            gap = Math.max(gap, top - edge);
+            edge = Math.max(edge, bottom);
+          }
+          return Math.max(gap, view - edge);
+        });
+        if (blank > worst.blank) worst = { blank, at: y };
+      }
+      expect(
+        worst.blank / height,
+        `${Math.round(worst.blank)} px at scroll ${worst.at}`,
+      ).toBeLessThanOrEqual(3 / 8);
+
+      // Where the scene lets go, at the chapter's end, the chapter's words stand wholly in the
+      // window, about its middle: they leave with the scene.
+      const chapterEnd = await page.evaluate(() => {
+        const c = (
+          document.querySelector('[data-stage-chapter]') as Element
+        ).getBoundingClientRect();
+        return Math.round(c.bottom + scrollY - innerHeight);
+      });
+      await settle(page, chapterEnd);
+      const words = await page.evaluate(() => {
+        const top = (document.querySelector('.chapter-title') as Element).getBoundingClientRect()
+          .top;
+        const bottom = (document.querySelector('.chapter-link') as Element).getBoundingClientRect()
+          .bottom;
+        return { top, bottom };
+      });
+      expect(words.top).toBeGreaterThanOrEqual(0);
+      expect(words.bottom).toBeLessThanOrEqual(height);
+      expect(Math.abs((words.top + words.bottom) / 2 - height / 2)).toBeLessThanOrEqual(
+        height / 10,
+      );
+    });
+  }
+
+  test('below 64rem the chapter’s words scroll with the page', async ({ page }) => {
+    for (const width of [390, 768, 1000]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto('/');
+      expect(
+        await page.evaluate(
+          () => getComputedStyle(document.querySelector('.chapter-words') as Element).position,
+        ),
+        `${width} px`,
+      ).toBe('static');
+    }
+  });
+});

@@ -22,12 +22,14 @@ const { profile, lede = [], figures, caption } = Astro.props;
 const external = checkedProfiles(profile);
 // The column over the water (ADR 0025), one order for the markup and the keyboard: the name on two
 // lines, the role in a sentence, the bio's opening, the Route Lab's result, the ways to reach him,
-// and the scene's caption. Beside VROOM's figure stands a stretch of the Route Lab's line with a van
-// on it, a lit lamp, as the board and the map draw them: the key to the routes on the water. Below
-// 64rem the scene stands between the figures and the caption, in the page's flow (home.css places
-// each item; the order stays this one). Each button is its words
-// alone: no arrows. The sentence is the bio's opening sentence, which Joseph cleared with the bio
-// (content.md, row 1), so Home and /about/ say it from one file (ADR 0023).
+// and the scene's caption. The struck figure is named beside it with the Route Lab's own name for
+// that plan, "As the orders came in" (RouteLab.astro), so a visitor sees what VROOM's figure is
+// measured against; until 2026-10-31 only a screen reader heard it. Beside VROOM's figure stands a
+// stretch of the Route Lab's line with a van on it, a lit lamp, as the board and the map draw them:
+// the key to the routes on the water. Below 64rem the scene stands between the figures and the
+// caption, in the page's flow (home.css places each item; the order stays this one). Each button is
+// its words alone: no arrows. The sentence is the bio's opening sentence, which Joseph cleared with
+// the bio (content.md, row 1), so Home and /about/ say it from one file (ADR 0023).
 ---
 
 <section class="hero hero-home" aria-labelledby="name" data-row="1">
@@ -44,8 +46,11 @@ const external = checkedProfiles(profile);
   )}
   {figures && (
     <p class="figures">
-      <s class="figure-before">{figures.before}</s>
-      <span class="visually-hidden"> of driving as the orders came in, now </span>
+      <span class="figure-was">
+        <s class="figure-before">{figures.before}</s>
+        <span class="figure-baseline">as the orders came in</span>
+      </span>
+      <span class="visually-hidden">, now </span>
       <span class="figure-after">
         {figures.after}
         <svg class="figure-line" viewBox="0 0 48 16" aria-hidden="true" focusable="false">

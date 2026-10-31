@@ -1,7 +1,7 @@
 ---
 import { replay } from '../../../lib/cache/sim';
 import { OPENING, openingRun } from '../../../lib/cache/view';
-import { cacheFact, cacheLine } from '../../../lib/lines';
+import { cacheFact, cacheFix, cacheLine } from '../../../lib/lines';
 import type { LineAt } from '../line-of';
 import '../../../styles/lines.css';
 
@@ -11,25 +11,23 @@ interface Props {
 }
 
 // The Cache Lab's line (ADR 0025): the readers come in from the left and fan out to the four cache
-// nodes, each a filled lamp while it is up, crossed while it is down; the nodes' tracks fan in to
-// the database, a square, and its pool runs on from it as a track of lamps, one per connection,
+// nodes, each a filled lamp while it is up, and while it is down no lamp, its track hollow, as the
+// lab's desk draws it (design-system.md, "Lamps: one meaning per mark"); the nodes' tracks fan in
+// to the database, a square, and its pool runs on from it as a track of lamps, one per connection,
 // lit while a fetch runs on it. All of it from the Cache Lab's opening run (lib/cache/view.ts), the
 // run its own page draws before anyone presses anything, as it stands once the menu's stampede has
 // passed. It stands still: the board's one moving thing is the Route Lab's vans. Drawn twice, for a
 // narrow screen and a wide one, without a viewBox, as the Route Lab's line is (routes.astro): the
 // fork in pixels, the nodes and the join in shares of the width, the database and its pool in
-// pixels from the join. On the board its describer tells the stampede; on the Lab index it is
-// larger, names its stations, comes in from the page's edge, and says what coalescing saves.
+// pixels from the join. On the board its describer tells the stampede and what coalescing does
+// about it; on the Lab index it is larger, names its stations, comes in from the page's edge, and
+// says what coalescing saves.
 const { at = 'board' } = Astro.props;
 const opening = openingRun();
 const line = cacheLine(opening);
+const coalesced = replay({ ...OPENING.config, coalesce: true }, OPENING.actions, OPENING.until);
 const words =
-  at === 'board'
-    ? line.words
-    : cacheFact(
-        opening,
-        replay({ ...OPENING.config, coalesce: true }, OPENING.actions, OPENING.until),
-      );
+  at === 'board' ? `${line.words} ${cacheFix(opening, coalesced)}` : cacheFact(opening, coalesced);
 
 interface Size {
   readonly name: 'wide' | 'compact';
@@ -113,6 +111,9 @@ const SIZES: Record<LineAt, readonly Size[]> = {
 
 // On the index the stem comes in from past the drawing's left edge, as the Route Lab's does.
 const enters = at === 'index' ? '-100%' : '0';
+// A downed node's hollow starts this far past the fork's bend, so it never cuts the tracks that
+// leave the fork beside it.
+const GAP_FROM_FORK = 6;
 const drawings = SIZES[at].map((size) => {
   const middle = size.height / 2;
   const nodes = line.nodes.map((lamp, i) => {
@@ -183,7 +184,17 @@ const drawings = SIZES[at].map((size) => {
       </svg>
       {nodes.map((node) => (
         <>
-          <circle class="line-lamp" cx={`${size.node}%`} cy={node.y} r={size.station} />
+          {node.lamp === 'down' ? (
+            <line
+              class="line-gap"
+              x1={size.fork + node.rise + GAP_FROM_FORK}
+              y1={node.y}
+              x2={`${size.join}%`}
+              y2={node.y}
+            />
+          ) : (
+            <circle class="line-lamp" cx={`${size.node}%`} cy={node.y} r={size.station} />
+          )}
           {node.lamp === 'filled' && (
             <circle
               class="line-lamp-lit"
@@ -192,14 +203,6 @@ const drawings = SIZES[at].map((size) => {
               r={size.station + 1}
               data-lit=""
             />
-          )}
-          {node.lamp === 'cross' && (
-            <svg x={`${size.node}%`} overflow="visible">
-              <path
-                class="line-cross"
-                d={`M${-size.station * 0.6} ${node.y - size.station * 0.6}l${size.station * 1.2} ${size.station * 1.2}m0 ${-size.station * 1.2}l${-size.station * 1.2} ${size.station * 1.2}`}
-              />
-            </svg>
           )}
         </>
       ))}
