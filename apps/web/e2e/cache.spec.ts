@@ -652,39 +652,76 @@ for (const colorScheme of ['light', 'dark'] as const) {
   });
 }
 
-// The retry storm (test/cache-storm.test.ts): with readers retrying at once and every fetch kept,
-// the morning rush and a flush leave a line that grows on at calm load; dropping the fetches
-// nobody waits for empties it within a few seconds.
-test('a retry storm outlasts its trigger, and dropping the fetches nobody waits for ends it', async ({
+// The retry storm (test/cache-storm.test.ts), as the entry's try tells it and a visitor plays it:
+// the settings chosen on the opening, Start over, and the trigger pressed while the run plays, at
+// steady speed, so the moments land where a person's would. The numbers the try gives are ranges
+// that hold wherever the presses land after the stampede (a trigger anywhere from 5 to 12 s, calm
+// half a second to a second later), so the checks are those ranges, not one run's figures.
+test('the try: a retry storm outlasts its trigger, backoff does not end it, and dropping does', async ({
   page,
 }) => {
   test.setTimeout(120_000);
-  await page.goto(`${CACHE}#seed-7&retry=at-once&drop=off`);
-  await expect(clock(page)).toHaveText(/, seed 7$/);
-  await expect(page.getByRole('radio', { name: 'Retry at once', exact: true })).toBeChecked();
+  await page.goto(CACHE);
+  await choose(page, 'Retry at once');
   const drop = page.getByRole('button', { name: 'Drop fetches nobody waits for' });
+  await expect(drop).toHaveAttribute('aria-pressed', 'true');
+  await drop.click();
   await expect(drop).toHaveAttribute('aria-pressed', 'false');
   await expect(page.getByRole('group', { name: 'When a reader times out' })).toBeVisible();
+  await press(page, 'Start over');
+  await expect(clock(page)).toHaveText(/^Virtual time 2\.500 s, [\d,]+ events, seed 7$/);
+  expect(new URL(page.url()).hash).toBe('#seed-7&retry=at-once&drop=off');
+
+  // Run, and once the menu's stampede has passed, the morning rush, a flush, and calm a moment on.
+  await choose(page, 'Steady');
+  await press(page, 'Run');
+  await expect.poll(() => seconds(page), { timeout: 30_000 }).toBeGreaterThanOrEqual(5);
   await choose(page, 'Morning');
   await press(page, 'Flush every node');
-  await choose(page, 'Slow');
-  await press(page, 'Run');
-  await expect.poll(() => seconds(page), { timeout: 30_000 }).toBeGreaterThanOrEqual(5.5);
+  const trigger = await seconds(page);
+  await expect.poll(() => seconds(page), { timeout: 10_000 }).toBeGreaterThanOrEqual(trigger + 0.5);
   await choose(page, 'Calm');
-  await choose(page, 'Quick');
-  await expect.poll(() => seconds(page), { timeout: 60_000 }).toBeGreaterThanOrEqual(20);
-  await press(page, 'Pause');
-  // Calm for 14 s, and the line is longer than ever.
-  expect(Number((await waiting(page).textContent())?.replace(/,/g, ''))).toBeGreaterThan(1_000);
+
+  // The rush is over, but the line is not: hundreds at 20 s, thousands at 30 s.
+  const lineAt = async (t: number) => {
+    await choose(page, 'Quick');
+    await expect.poll(() => seconds(page), { timeout: 45_000 }).toBeGreaterThanOrEqual(t);
+    await press(page, 'Pause');
+    return Number((await waiting(page).textContent())?.replace(/,/g, ''));
+  };
+  expect(await lineAt(20)).toBeGreaterThan(300);
+  await press(page, 'Run');
+  const at30 = await lineAt(30);
+  expect(at30).toBeGreaterThan(1_500);
+  // Few reads come from the cache: in the strip's last 2 s, fewer than one in four.
+  const strip = (await page.locator('[data-cl-strip]').getAttribute('aria-label')) ?? '';
+  const got =
+    /got ([\d,]+) pages from the cache, ([\d,]+) stale cop\w+ and ([\d,]+) fresh fetch\w*; ([\d,]+) reads? timed out, and ([\d,]+) still/
+      .exec(strip)
+      ?.slice(1)
+      .map((n) => Number(n.replace(/,/g, '')));
+  expect(got, strip).toHaveLength(5);
+  const [hit = 0, stale = 0, served = 0, timedOut = 0, pending = 0] = got ?? [];
+  expect(4 * (hit + stale)).toBeLessThan(hit + stale + served + timedOut + pending);
   await expect(page.locator('[data-cl-readers]')).toHaveText(
-    /^Readers, 120 a second, and \d+ retries a second$/,
+    /^Readers, 120 a second, and [\d,]+ retries a second$/,
   );
   await expect(summary(page)).toHaveText(/, [\d,]+ of them retries, /);
+
+  // Backoff sends the same retries later: the line keeps growing.
   await choose(page, 'Retry with backoff');
   await expect(said(page)).toHaveText(/^A reader who times out now waits a random time/);
+  await press(page, 'Run');
+  expect(await lineAt(35)).toBeGreaterThan(at30);
+
+  // Dropping: all but a few hundred leave at once, and within a few seconds the line is empty.
+  const before = Number((await waiting(page).textContent())?.replace(/,/g, ''));
   await drop.click();
   await expect(drop).toHaveAttribute('aria-pressed', 'true');
   await expect(said(page)).toHaveText(/^[\d,]+ fetches leave the line: nobody waits for them/);
+  const left = Number((await waiting(page).textContent())?.replace(/,/g, ''));
+  expect(left).toBeLessThan(500);
+  expect(before - left).toBeGreaterThan(5 * left);
   const start = await seconds(page);
   await runUntil(page, () => document.querySelector('[data-cl-waiting]')?.textContent === '0');
   expect((await seconds(page)) - start).toBeLessThan(5);
