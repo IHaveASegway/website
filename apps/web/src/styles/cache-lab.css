@@ -25,38 +25,57 @@
   }
 }
 
-/* The demo on the desk. With the controls, from 64rem, the picture and the properties under it
-   take the left, and the panel of push-buttons the right. */
+/* The demo on the desk. The panel comes right after the map in the page, in two parts: Time and
+   the switches against a stampede, then the other settings. */
 .cl-stage {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 1.75rem;
 }
 
-/* Below 64rem the panel comes under the properties, a part of the desk of its own, under a rule
-   from bezel to bezel; from 64rem it stands beside them, with no rule. */
-@media (width < 64rem) {
-  .cl-panel {
+/* Below 64rem the desk is one column: the map and its caption, the panel's first part, the strip
+   and the properties, then the other settings. The first part is right under the map so that on a
+   phone the two fit one screen, and nothing pins: the visitor scrolls the desk as a page. The
+   panel's box steps aside so its two parts take places of their own in that column; the settings
+   go last by their order, and since the strip and the properties hold nothing that takes focus,
+   Tab still meets the controls in the order they are seen. Each part, and the strip after the
+   buttons, is a part of the desk of its own, under a rule from bezel to bezel. Without script the
+   panel is not shown at all, and the strip follows the caption with no rule. */
+@media (scripting: enabled) and (width < 64rem) {
+  .cl-stage > .cl-panel {
+    display: contents;
+  }
+
+  .cl-settings {
+    order: 1;
+  }
+
+  .cl-deck,
+  .cl-settings,
+  .cl-panel + .cl-strip {
     margin-inline: calc(var(--desk-side) * -1);
     padding: 1.25rem var(--desk-side) 0;
     border-block-start: 1px solid var(--input);
   }
 }
 
+/* From 64rem, with the controls, the picture, the strip and the properties under it take the
+   left, and the panel the right, its first part on top. */
 @media (scripting: enabled) and (width >= 64rem) {
   .cl-stage {
     grid-template-columns: minmax(0, 1.7fr) minmax(16rem, 1fr);
-    grid-template-rows: auto auto 1fr;
+    grid-template-rows: auto auto auto 1fr;
     column-gap: 2.5rem;
     align-items: start;
   }
 
   .cl-figure,
+  .cl-strip,
   .cl-props {
     grid-column: 1;
   }
 
-  /* The panel stands beside both and runs on past them, into a last row of its own, so the
+  /* The panel stands beside all three and runs on past them, into a last row of its own, so the
      properties sit right under the strip however tall the panel is. */
   .cl-panel {
     grid-column: 2;
@@ -558,13 +577,24 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* The panel: the clock, then the push-buttons by what they work on. A choice among a few is a
-   native radio inside a push-button, its lamp lit while it is the one chosen. */
-.cl-panel {
+/* The panel: the push-buttons by what they work on, the clock beside Time. A choice among a few is
+   a native radio inside a push-button, its lamp lit while it is the one chosen. */
+.cl-panel,
+.cl-deck,
+.cl-settings {
   display: grid;
   gap: 1.25rem;
   align-content: start;
   min-width: 0;
+}
+
+/* The Time group's name with the clock beside it, so the clock that Next event moves sits on the
+   line over the button, and costs the phone no line of its own. */
+.cl-group-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.75rem;
 }
 
 .cl-clock {
