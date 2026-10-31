@@ -38,11 +38,21 @@ export interface SimulatedLab {
  * of the three. Of the Queue Lab's app, the test-only faults are about 118 B and resizing the pool
  * 111 B, which no control reaches: ADR 0026 takes them out before any budget is raised again. The
  * Backfill Lab's map class is its board's.
+ *
+ * The Cache Lab's retry storm, 2026-10-31 (ADR 0026, postscript of that date): 11,848 B, its app
+ * 10,929 B and the same two chunks, so its budget is 12,000 B. Two settings, what a reader does
+ * when it times out and whether the pool drops a fetch nobody waits for, with their controls, the
+ * event log's lines and the retries beside the readers, added about 760 B to the app, 682 B net:
+ * first, as ADR 0026 asks before any budget is raised, the test-only fault branches left the
+ * shipped chunk (sim.ts, TESTING), about 80 B. The rest carries the lesson, and 12,000 B is the
+ * measure rounded up to the next 500 B. The review's fixes the same day, the event log telling a
+ * reader who asked again from one who gave up and the retries said as a rate, took it to 11,963 B,
+ * 37 B under: the next change to the Cache Lab's app meets its budget first.
  */
 export const SIMULATED_LABS = [
   { slug: 'raft', bundle: 'RaftLab', map: 'rf-map', lazyJavaScript: 8_000 },
   { slug: 'queue', bundle: 'QueueLab', map: 'qu-map', lazyJavaScript: 12_500 },
-  { slug: 'cache', bundle: 'CacheLab', map: 'cl-map', lazyJavaScript: 11_500 },
+  { slug: 'cache', bundle: 'CacheLab', map: 'cl-map', lazyJavaScript: 12_000 },
   { slug: 'backfill', bundle: 'BackfillLab', map: 'bf-board', lazyJavaScript: 12_000 },
 ] as const satisfies readonly SimulatedLab[];
 

@@ -138,7 +138,9 @@ export function conservation(sim: Sim, deep = false): Violation | null {
     );
   // Nothing waits in line for nobody: a fetch in line has a reader still waiting on it, or is a
   // stale refresh, which no reader asked for. Every reader gives up within 1,000 ms, so a fetch
-  // never waits in line longer than its newest reader, and the line stays bounded.
+  // never waits in line longer than its newest reader, and the line stays bounded. With dropping
+  // turned off the line keeps such fetches by design, and nothing bounds it: that is the lesson.
+  if (!sim.drop) return null;
   for (let i = sim.lineHead; i < sim.line.length; i++) {
     const fetch = sim.line[i] as Fetch;
     if (fetch.why !== 'stale' && !fetch.readers.some((read) => read.outcome === 'pending'))

@@ -10,6 +10,7 @@ import {
   type Violation,
 } from './check';
 import {
+  backoff,
   CACHE_MS,
   DATABASE,
   fetchTime,
@@ -23,6 +24,8 @@ import {
   PAGES,
   pageName,
   refreshEarly,
+  RETRIES,
+  RETRY,
   seconds,
   STALE_LIMIT,
   TIMEOUT,
@@ -30,6 +33,7 @@ import {
   ZIPF,
   type Load,
   type Placement,
+  type Retry,
 } from './core';
 
 // A deterministic simulation of the bakery's cache in front of its database, in the style of the
@@ -44,6 +48,16 @@ import {
 // the page: the database works for a reader who has gone, which is how a stampede feeds itself. A
 // fetch still waiting in line for a connection when its last reader gives up leaves the line
 // unstarted, as a connection pool drops a caller who stopped waiting (see `cancel`).
+//
+// Two settings change that, both off at first: a reader who times out may ask again, at once or
+// after a backoff (`retryLater`), and the pool may keep a fetch nobody waits for (`drop` off).
+// Together they let a short overload outlast its cause: a retry storm (test/cache-storm.test.ts).
+
+/** Whether the faults below can run: in the tests only. Vite fixes the mode when it builds, so
+ *  the page's chunk leaves out every branch that only a fault takes (ADR 0026, Revisit if: the
+ *  test-only branches leave the shipped chunks before any lab's budget is raised again). Outside
+ *  Vite, as when Playwright loads the core for e2e/index.spec.ts, there is no `env`: no faults. */
+const TESTING = import.meta.env?.MODE === 'test';
 
 /**
  * Deliberately broken behaviours, for the tests only: each one is a bug the tests must catch
@@ -67,12 +81,13 @@ export interface Faults {
   readonly moduloOnCircle?: boolean;
 }
 
-/** The four mitigations, all off at first, and whether a write deletes what it changed. */
-export type Toggle = 'coalesce' | 'stale' | 'early' | 'jitter' | 'invalidate';
+/** The four mitigations, all off at first, whether a write deletes what it changed, and whether
+ *  the pool drops a fetch nobody waits for any more. */
+export type Toggle = 'coalesce' | 'stale' | 'early' | 'jitter' | 'invalidate' | 'drop';
 
 /** Every switch a recorded action may flip, and every placement it may choose: a page restoring a
  *  run from a link or from storage hands on whatever it finds, so each action checks its names. */
-const TOGGLES: readonly Toggle[] = ['coalesce', 'stale', 'early', 'jitter', 'invalidate'];
+const TOGGLES: readonly Toggle[] = ['coalesce', 'stale', 'early', 'jitter', 'invalidate', 'drop'];
 const PLACEMENTS: readonly Placement[] = ['modulo', 'circle'];
 
 export interface Config {
@@ -85,6 +100,11 @@ export interface Config {
   readonly jitter?: boolean;
   /** Whether a write deletes the page's cached copies. On, unless the visitor turns it off. */
   readonly invalidate?: boolean;
+  /** What a reader does when it times out: gives up, unless the visitor chooses a retry. */
+  readonly retry?: Retry;
+  /** Whether a fetch still in line leaves it once every reader who waited on it has given up.
+   *  On, unless the visitor turns it off. */
+  readonly drop?: boolean;
   /** When the menu's warm entry expires, in ms. Every page starts cached, its entry expiring at a
    *  seeded moment within one TTL; the opening pins the menu's. */
   readonly menuExpires?: number;
@@ -127,6 +147,8 @@ export interface Read {
   version: number;
   /** The fetch it waits on, when it missed. */
   fetch: Fetch | null;
+  /** Which of its reader's tries it is: 1 and 2 for retries, absent for a first try. */
+  readonly attempt?: number;
 }
 
 export interface Fetch {
@@ -155,6 +177,7 @@ export type Action =
   | { readonly at: number; readonly kind: 'write'; readonly key: number }
   | { readonly at: number; readonly kind: 'load'; readonly load: Load }
   | { readonly at: number; readonly kind: 'placement'; readonly placement: Placement }
+  | { readonly at: number; readonly kind: 'retry'; readonly retry: Retry }
   | { readonly at: number; readonly kind: 'toggle'; readonly toggle: Toggle; readonly on: boolean };
 
 export interface Line {
@@ -190,6 +213,7 @@ type Event =
   | { readonly kind: 'read'; readonly stream: number }
   | { readonly kind: 'end'; readonly fetch: Fetch }
   | { readonly kind: 'give-up'; readonly read: Read }
+  | { readonly kind: 'retry'; readonly key: number; readonly attempt: number }
   | { readonly kind: 'sample' };
 
 /** A herd as it forms: when its first fetch was asked, why, and the most fetches in flight. */
@@ -212,6 +236,8 @@ export interface Sim {
   early: boolean;
   jitter: boolean;
   invalidate: boolean;
+  retry: Retry;
+  drop: boolean;
   readonly nodes: CacheNode[];
   /** Which node holds each page now, or -1 when no node is up. */
   owners: number[];
@@ -242,6 +268,12 @@ export interface Sim {
     cancelled: number;
     /** Fetches that ended with every reader who waited on them gone. */
     wasted: number;
+    /** Reads that were a reader's second or third try. */
+    retries: number;
+    /** Timeouts after which the reader asked again, and readers who left without their page for
+     *  good. Giving up, every timeout is the second; with retries on, most are the first. */
+    again: number;
+    gaveUp: number;
   };
   /** Reads that waited on a fetch, in the order they began, from `waitingHead` on. */
   readonly waiting: Read[];
@@ -265,8 +297,12 @@ export interface Sim {
     readonly herd: number[];
     menuExpiry: number;
     poolFull: boolean;
-    timeouts: number;
+    again: number;
+    gaveUp: number;
     dropped: boolean;
+    retried: boolean;
+    /** The longest line said so far since the line was last empty. */
+    line: number;
     readonly stale: Set<string>;
   };
 }
@@ -280,6 +316,8 @@ const RECENT_MS = 2_100;
 /** Herd sizes the event log reports as a herd grows. A herd of two is common on any hot page, so
  *  the log says it for the menu only. */
 const HERD_STEPS = [2, 5, 10, 20, 50, 100, 200, 500, 1_000];
+/** Lengths of the database's line the event log reports as it grows. */
+const LONG_LINES = [1_000, 2_000, 5_000, 10_000, 20_000, 50_000];
 
 const drawPage = zipf(PAGES, ZIPF);
 
@@ -307,8 +345,10 @@ export function createSim(config: Config): Sim {
     early: config.early ?? false,
     jitter: config.jitter ?? false,
     invalidate: config.invalidate ?? true,
+    retry: config.retry ?? 'give-up',
+    drop: config.drop ?? true,
     nodes,
-    owners: owners(placement, [true, true, true, true], Boolean(faults.moduloOnCircle)),
+    owners: owners(placement, [true, true, true, true], TESTING && Boolean(faults.moduloOnCircle)),
     versions: Array.from({ length: PAGES }, () => 1),
     writes: Array.from({ length: PAGES }, () => []),
     running: 0,
@@ -328,6 +368,9 @@ export function createSim(config: Config): Sim {
       ended: 0,
       cancelled: 0,
       wasted: 0,
+      retries: 0,
+      again: 0,
+      gaveUp: 0,
     },
     waiting: [],
     waitingHead: 0,
@@ -346,8 +389,11 @@ export function createSim(config: Config): Sim {
       herd: Array.from({ length: PAGES }, () => 0),
       menuExpiry: NaN,
       poolFull: false,
-      timeouts: 0,
+      again: 0,
+      gaveUp: 0,
       dropped: false,
+      retried: false,
+      line: 0,
       stale: new Set(),
     },
   };
@@ -412,6 +458,14 @@ export function step(sim: Sim): boolean {
     case 'give-up':
       giveUp(sim, event.read);
       break;
+    case 'retry':
+      // A reader's policy is the one in force when its retry comes: chosen since to give up, it
+      // gives up.
+      if (sim.retry !== 'give-up') {
+        sim.counts.retries += 1;
+        begin(sim, event.key, event.attempt);
+      } else sim.counts.gaveUp += 1;
+      break;
     case 'sample':
       sample(sim);
       break;
@@ -446,17 +500,23 @@ function arrive(sim: Sim, stream: number): void {
     kind: 'read',
     stream,
   });
+  begin(sim, drawPage(sim.random));
+}
+
+/** A read begins: a reader's first try, or a retry after one that timed out. */
+function begin(sim: Sim, key: number, attempt?: number): void {
   sim.counts.reads += 1;
   sim.counts.pending += 1;
   const read: Read = {
     n: sim.counts.reads,
-    key: drawPage(sim.random),
+    key,
     at: sim.now,
     outcome: 'pending',
     ended: NaN,
     latency: NaN,
     version: 0,
     fetch: null,
+    ...(attempt ? { attempt } : {}),
   };
   sim.recent.push(read);
   look(sim, read);
@@ -473,7 +533,10 @@ function look(sim: Sim, read: Read): void {
       fromCache(sim, read, entry, 'hit');
       return;
     }
-    if (sim.stale && (sim.now - entry.expiresAt <= STALE_LIMIT || sim.faults.staleForever)) {
+    if (
+      sim.stale &&
+      (sim.now - entry.expiresAt <= STALE_LIMIT || (TESTING && sim.faults.staleForever))
+    ) {
       if (key === 0 && sim.said.menuExpiry !== entry.expiresAt) {
         sim.said.menuExpiry = entry.expiresAt;
         say(
@@ -674,7 +737,7 @@ function start(sim: Sim, fetch: Fetch): void {
   // A fetch reaches the database after the cache's millisecond that told its reader to fetch.
   fetch.ends = Math.max(sim.now, fetch.asked + CACHE_MS) + time;
   // The bug: the answer to one fetch in 40 never comes, and the fetch keeps its connection.
-  if (sim.faults.lostEnd && fetch.n % 40 === 0) return;
+  if (TESTING && sim.faults.lostEnd && fetch.n % 40 === 0) return;
   schedule(sim.agenda, fetch.ends, { kind: 'end', fetch });
 }
 
@@ -747,7 +810,7 @@ function end(sim: Sim, fetch: Fetch): void {
 function store(sim: Sim, key: number, version: number, delta: number): void {
   const node = sim.nodes[sim.owners[key] ?? -1];
   if (!node) return;
-  const jitter = sim.jitter && !sim.faults.noJitter;
+  const jitter = sim.jitter && !(TESTING && sim.faults.noJitter);
   const expiresAt = sim.now + lifetime(jitter, jitter ? sim.random() : 0);
   const before = node.entries.get(key);
   node.entries.set(key, { version, writtenAt: sim.now, expiresAt, delta });
@@ -765,28 +828,55 @@ function store(sim: Sim, key: number, version: number, delta: number): void {
 }
 
 /** A reader's 1,000 ms are up. A fetch it waited on that has started runs on: the database cannot
- *  know. One still in line, with nobody left waiting on it, leaves the line unstarted. */
+ *  know. One still in line, with nobody left waiting on it, leaves the line unstarted, unless the
+ *  visitor has turned that off. Then the reader asks again, if its policy says to. */
 function giveUp(sim: Sim, read: Read): void {
   if (read.outcome !== 'pending') return;
   const fetch = read.fetch;
-  if (sim.faults.leakFlight && fetch?.shared) {
+  if (TESTING && sim.faults.leakFlight && fetch?.shared) {
     // The bug: the reader leaves the fetch's list and is never ended, so it waits forever.
     const index = fetch.readers.indexOf(read);
     if (index >= 0) fetch.readers.splice(index, 1);
     return;
   }
   finish(sim, read, 'timeout', TIMEOUT);
+  // A reader who will ask again has timed out, not given up: the log keeps the two apart.
+  const again = sim.retry !== 'give-up' && (read.attempt ?? 0) + 1 < RETRY.attempts;
   const t = sim.tally;
   t.timeouts += 1;
   if (!t.firstTimeout) {
     t.firstTimeout = {
       at: sim.now,
-      detail: `A reader of ${pageName(read.key)} gave up after waiting ${millis(TIMEOUT)}`,
+      detail: `A reader of ${pageName(read.key)} ${again ? 'timed out' : 'gave up'} after waiting ${millis(TIMEOUT)}`,
     };
     const waiting = sim.line.length - sim.lineHead;
     say(sim, `${t.firstTimeout.detail}, with ${waiting} fetches in line for the database`);
   }
-  if (fetch?.state === 'waiting' && fetch.why !== 'stale' && !awaited(fetch)) cancel(sim, fetch);
+  if (sim.drop && fetch?.state === 'waiting' && fetch.why !== 'stale' && !awaited(fetch))
+    cancel(sim, fetch);
+  if (again) retryLater(sim, read);
+  else sim.counts.gaveUp += 1;
+}
+
+/**
+ * A reader who timed out asks again: at once, or after a backoff with full jitter. Either way the
+ * database gets more work while it is already too slow, and with nothing dropped the fetches its
+ * earlier tries asked for still run: the two together are how a short overload can sustain itself
+ * (Bronson, Aghayev, Charapko and Zhu, "Metastable Failures in Distributed Systems", HotOS 2021;
+ * Huang et al., "Metastable Failures in the Wild", OSDI 2022). The backoff's draw comes from the
+ * run's one stream, only when a reader backs off, so a run that never retries draws as before.
+ */
+function retryLater(sim: Sim, read: Read): void {
+  const attempt = (read.attempt ?? 0) + 1;
+  const wait = sim.retry === 'backoff' ? backoff(attempt, sim.random()) : 0;
+  sim.counts.again += 1;
+  schedule(sim.agenda, sim.now + wait, { kind: 'retry', key: read.key, attempt });
+  if (sim.said.retried) return;
+  sim.said.retried = true;
+  say(
+    sim,
+    `A reader of ${pageName(read.key)} asks again ${wait > 0 ? `in ${millis(wait)}` : 'at once'} after it timed out`,
+  );
 }
 
 /** Whether any reader still waits on a fetch. Readers join a fetch in the order they arrive and
@@ -805,13 +895,11 @@ function awaited(fetch: Fetch): boolean {
  * holds stale refreshes and fetches someone still waits for, each asked within the last second.
  */
 function cancel(sim: Sim, fetch: Fetch): void {
-  fetch.state = 'cancelled';
-  sim.counts.cancelled += 1;
   // Readers give up in the order they came, so the fetch is nearly always at the front.
   const index = sim.line.indexOf(fetch, sim.lineHead);
   if (index === sim.lineHead) shiftLine(sim);
   else if (index > sim.lineHead) sim.line.splice(index, 1);
-  land(sim, fetch);
+  leave(sim, fetch);
   if (!sim.said.dropped) {
     sim.said.dropped = true;
     say(
@@ -819,6 +907,13 @@ function cancel(sim: Sim, fetch: Fetch): void {
       `${firstUp(pageName(fetch.key))}'s fetch leaves the line before it reaches the database: every reader who waited on it has given up`,
     );
   }
+}
+
+/** A fetch taken out of the line, unstarted. */
+function leave(sim: Sim, fetch: Fetch): void {
+  fetch.state = 'cancelled';
+  sim.counts.cancelled += 1;
+  land(sim, fetch);
 }
 
 /** The nearest-rank quantile of sorted numbers. */
@@ -872,17 +967,41 @@ function sample(sim: Sim): void {
     );
   } else if (sim.said.poolFull && waiting === 0) {
     sim.said.poolFull = false;
+    sim.said.line = 0;
     say(sim, 'The line for the database is empty again');
   }
-  if (sim.now % 1_000 === 0 && sim.counts.timeout > sim.said.timeouts) {
-    const fresh = sim.counts.timeout - sim.said.timeouts;
-    sim.said.timeouts = sim.counts.timeout;
+  // A line in the thousands: with dropping on, a fetch leaves the line within a second of being
+  // asked, and the line has never passed a few hundred (core.ts, DATABASE). Kept, fetches for
+  // readers long gone pile up, and the line says how many of them nobody waits for.
+  const step = LONG_LINES.findLast((n) => n <= waiting) ?? 0;
+  if (step > sim.said.line) {
+    sim.said.line = step;
+    let nobody = 0;
+    for (let i = sim.lineHead; i < sim.line.length; i++)
+      if (!awaited(sim.line[i] as Fetch)) nobody++;
     say(
       sim,
-      `${fresh.toLocaleString('en-US')} ${fresh === 1 ? 'reader' : 'readers'} gave up in the last second, ${sim.counts.timeout.toLocaleString('en-US')} in all`,
+      `${waiting.toLocaleString('en-US')} fetches wait in line for the database, and nobody waits for ${nobody.toLocaleString('en-US')} of them any more`,
+    );
+  }
+  // Each second, the readers who timed out: those who asked again apart from those who gave up,
+  // so that with retries on the log does not count a reader who is still asking as gone.
+  const c = sim.counts;
+  const s = sim.said;
+  if (sim.now % 1_000 === 0 && (c.gaveUp > s.gaveUp || c.again > s.again)) {
+    const again = c.again - s.again;
+    const left = c.gaveUp - s.gaveUp;
+    s.again = c.again;
+    s.gaveUp = c.gaveUp;
+    say(
+      sim,
+      `${again > 0 ? `${readers(again)} timed out and asked again in the last second, and ${count(left)} gave up` : `${readers(left)} gave up in the last second`}, ${count(c.gaveUp)} in all`,
     );
   }
 }
+
+const count = (n: number): string => n.toLocaleString('en-US');
+const readers = (n: number): string => `${count(n)} ${n === 1 ? 'reader' : 'readers'}`;
 
 function record(sim: Sim, action: Action): void {
   sim.actions.push(action);
@@ -894,7 +1013,7 @@ function place(sim: Sim): number {
   sim.owners = owners(
     sim.placement,
     sim.nodes.map((node) => node.up),
-    Boolean(sim.faults.moduloOnCircle),
+    TESTING && Boolean(sim.faults.moduloOnCircle),
   );
   let moved = 0;
   for (let key = 0; key < PAGES; key++) if (before[key] !== sim.owners[key]) moved++;
@@ -1017,6 +1136,10 @@ const TOGGLE_LINES: Record<Toggle, readonly [off: string, on: string]> = {
     'Writes no longer delete the cached copy: the old version stays until it expires',
     'Writes delete the cached copy at once',
   ],
+  drop: [
+    'The database now runs every fetch in its line, even one nobody waits for any more',
+    'A fetch in line now leaves it once nobody waits for it',
+  ],
 };
 
 export function setToggle(sim: Sim, toggle: Toggle, on: boolean): void {
@@ -1025,6 +1148,41 @@ export function setToggle(sim: Sim, toggle: Toggle, on: boolean): void {
   record(sim, { at: sim.now, kind: 'toggle', toggle, on });
   sim[toggle] = on;
   say(sim, TOGGLE_LINES[toggle][on ? 1 : 0]);
+  if (toggle === 'drop' && on) dropAbandoned(sim);
+  settle(sim);
+}
+
+/** Dropping turned on: every fetch in line that nobody waits for leaves it now, as each would
+ *  have when its last reader gave up. */
+function dropAbandoned(sim: Sim): void {
+  // One pass that keeps the rest in order: the line may hold tens of thousands.
+  let kept = sim.lineHead;
+  for (let i = sim.lineHead; i < sim.line.length; i++) {
+    const fetch = sim.line[i] as Fetch;
+    if (fetch.why === 'stale' || awaited(fetch)) sim.line[kept++] = fetch;
+    else leave(sim, fetch);
+  }
+  const dropped = sim.line.length - kept;
+  sim.line.length = kept;
+  if (dropped > 0)
+    say(
+      sim,
+      `${dropped.toLocaleString('en-US')} ${dropped === 1 ? 'fetch leaves' : 'fetches leave'} the line: nobody waits for ${dropped === 1 ? 'it' : 'them'} any more`,
+    );
+}
+
+const RETRY_LINES: Record<Retry, string> = {
+  'give-up': 'A reader who times out now gives up',
+  'at-once': 'A reader who times out now asks again at once, twice at most',
+  backoff:
+    'A reader who times out now waits a random time, up to 2 s and then 4 s, before it asks again: backoff with full jitter',
+};
+
+export function setRetry(sim: Sim, retry: Retry): void {
+  if (!RETRIES.includes(retry) || retry === sim.retry) return;
+  record(sim, { at: sim.now, kind: 'retry', retry });
+  sim.retry = retry;
+  say(sim, RETRY_LINES[retry]);
   settle(sim);
 }
 
@@ -1064,6 +1222,8 @@ function wellFormed(action: Action): boolean {
       return PLACEMENTS.includes(action.placement);
     case 'toggle':
       return TOGGLES.includes(action.toggle) && typeof action.on === 'boolean';
+    case 'retry':
+      return RETRIES.includes(action.retry);
     default:
       return false;
   }
@@ -1101,6 +1261,9 @@ export function replay(config: Config, actions: readonly Action[], until: number
         break;
       case 'toggle':
         setToggle(sim, action.toggle, action.on);
+        break;
+      case 'retry':
+        setRetry(sim, action.retry);
         break;
     }
   }

@@ -31,6 +31,29 @@ export const STALE_LIMIT = 4_000;
 export const TIMEOUT = 1_000;
 
 /**
+ * What a reader does when it times out: give up, ask again at once, or ask again after a backoff.
+ * Marc Brooker, "Timeouts, retries, and backoff with jitter" (Amazon Builders' Library, 2019): a
+ * retry is more work sent to a system already too slow to answer, so a client retries a few times
+ * at most, waits longer before each retry, and draws the wait at random ("full jitter") so the
+ * readers who timed out together do not all come back together.
+ */
+export type Retry = 'give-up' | 'at-once' | 'backoff';
+export const RETRIES: readonly Retry[] = ['give-up', 'at-once', 'backoff'];
+
+/**
+ * A reader asks at most three times, the first and two retries: a client that retries without
+ * limit turns any overload into a collapse, and the article's advice is a few tries. Before retry
+ * n it waits a draw uniform in [0, min(cap, base × 2^n)), the article's full jitter: up to 2 s,
+ * then up to 4 s. The base is the reader's own timeout, 1 s; the cap, 4 s, is the second retry's
+ * wait, so more tries would never wait longer than that.
+ */
+export const RETRY = { attempts: 3, base: 1_000, cap: 4_000 } as const;
+
+/** The wait before a reader's retry, `attempt` being the retry's number (1, 2), `u` uniform. */
+export const backoff = (attempt: number, u: number): number =>
+  u * Math.min(RETRY.cap, RETRY.base * 2 ** attempt);
+
+/**
  * The database behind the cache. A fetch's time is log-normal, plus 0.6 ms for each fetch already
  * waiting for a connection when it starts: a loaded database answers more slowly, so a line that
  * forms feeds itself.
@@ -50,7 +73,8 @@ export const TIMEOUT = 1_000;
  * after two minutes, each new fetch slower by 0.6 ms for every one of them, and 4% of reads hit.
  * So such a fetch leaves the line unstarted (sim.ts, `cancel`), and the rush overloads the
  * database in waves that clear: over 40 seeds of a minute each, the line never passed 314 fetches
- * and emptied again in the second half of every run.
+ * and emptied again in the second half of every run. The visitor can turn that off, and let
+ * readers retry, to see the failure itself (RETRY, above, and test/cache-storm.test.ts).
  */
 export const DATABASE = {
   /** Connections in the pool: at most this many fetches run at once; the rest wait in line. */

@@ -47,7 +47,9 @@ const [stripFrom, stripTo] = stripEnds(buckets, sim.now);
 const lines = sim.lines.slice(-12);
 const nodes = Array.from({ length: NODES }, (_, id) => id);
 // A choice among a few is a native radio in a push-button: how fast virtual time runs (virtual
-// seconds a second), how many readers ask, and how pages are placed on the nodes.
+// seconds a second), how many readers ask, what a reader does when it times out, and how pages
+// are placed on the nodes. The pool's switch for fetches nobody waits for sits under the
+// timeout's choices: both decide what becomes of a reader's work once it has given up.
 const choices = [
   {
     legend: 'Speed',
@@ -67,6 +69,16 @@ const choices = [
       { value: 'calm', name: 'Calm' },
       { value: 'busy', name: 'Busy' },
       { value: 'morning', name: 'Morning' },
+    ],
+  },
+  {
+    legend: 'When a reader times out',
+    name: 'cl-retry',
+    value: sim.retry,
+    options: [
+      { value: 'give-up', name: 'Give up' },
+      { value: 'at-once', name: 'Retry at once' },
+      { value: 'backoff', name: 'Retry with backoff' },
     ],
   },
   {
@@ -224,6 +236,18 @@ const mitigations: { toggle: Toggle; name: string }[] = [
                 </label>
               ))}
             </div>
+            {group.name === 'cl-retry' && (
+              <div class="cl-row">
+                <button
+                  type="button"
+                  class="btn"
+                  data-cl-toggle="drop"
+                  aria-pressed={sim.drop ? 'true' : 'false'}
+                >
+                  Drop fetches nobody waits for
+                </button>
+              </div>
+            )}
           </fieldset>
         ))}
 

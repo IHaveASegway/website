@@ -1,4 +1,4 @@
-import { NODES, PAGES, seconds, type Load, type Placement } from '../../lib/cache/core';
+import { NODES, PAGES, seconds, type Load, type Placement, type Retry } from '../../lib/cache/core';
 import {
   flush,
   loseNode,
@@ -7,6 +7,7 @@ import {
   runUntil,
   setLoad,
   setPlacement,
+  setRetry,
   setToggle,
   write,
   type Line,
@@ -50,7 +51,7 @@ import { pageLamps, stripEnds, stripPaths } from './picture';
 const FRAME_CAP = 100; // real ms: a frame after a long pause does not leap ahead
 const EVENTS_PER_FRAME = 4_000;
 const STILL_EVERY = 500; // real ms between steps under reduced motion
-const TOGGLES: readonly Toggle[] = ['coalesce', 'stale', 'early', 'jitter', 'invalidate'];
+const TOGGLES: readonly Toggle[] = ['coalesce', 'stale', 'early', 'jitter', 'invalidate', 'drop'];
 
 /** A broken invariant, the one thing that stops a run: a bug in the simulation, said where it
  *  happened. The properties' lamps say everything else, so the status line's sentence does not
@@ -157,6 +158,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     for (const [name, value] of [
       ['cl-load', sim.load],
       ['cl-placement', sim.placement],
+      ['cl-retry', sim.retry],
     ] as const) {
       const choice = $<HTMLInputElement>(`input[name="${name}"][value="${value}"]`);
       if (choice && !choice.checked) choice.checked = true;
@@ -284,6 +286,8 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
       setLoad(sim, value as Load);
     } else if (control.matches('input[name="cl-placement"]')) {
       setPlacement(sim, value as Placement);
+    } else if (control.matches('input[name="cl-retry"]')) {
+      setRetry(sim, value as Retry);
     } else return;
     const latest = sim.lines.at(-1);
     if (latest && latest !== shownLines) say(latest.text);

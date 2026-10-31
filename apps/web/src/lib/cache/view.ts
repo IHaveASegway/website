@@ -1,7 +1,25 @@
 import { readLink, writeLink } from '../sim/link';
 import { properties, type PropertyId } from './check';
-import { DATABASE, firstUp, LOADS, millis, pageName, PAGES, seconds, type Load } from './core';
-import { replay, type Action, type Config, type Outcome, type Sample, type Sim } from './sim';
+import {
+  DATABASE,
+  firstUp,
+  LOADS,
+  millis,
+  pageName,
+  PAGES,
+  RETRIES,
+  seconds,
+  type Load,
+} from './core';
+import {
+  replay,
+  type Action,
+  type Config,
+  type Outcome,
+  type Read,
+  type Sample,
+  type Sim,
+} from './sim';
 
 // What the Cache Lab says about a run, as text and numbers, never markup: the page stage draws
 // them. Like the Raft Lab's view, it serves twice: at build, to describe the opening run so the
@@ -30,7 +48,9 @@ export const REPLAY_FROM = (OPENING.config.menuExpires ?? 0) - 500;
 const SWITCH = [false, true] as const;
 
 /** The settings a link to a run names (lib/sim/link.ts), with the values the page offers and the
- *  opening's: the load, the placement, then the switches. Start over keeps them all. */
+ *  opening's: the load, the placement, the switches, then what a reader does when it times out and
+ *  whether the pool drops a fetch nobody waits for. Start over keeps them all. The last two came
+ *  after the rest, so a link written before them names the same run. */
 export const SETTINGS = {
   load: { values: Object.keys(LOADS) as Load[], opening: 'busy' },
   placement: { values: ['circle', 'modulo'], opening: 'circle' },
@@ -39,6 +59,8 @@ export const SETTINGS = {
   early: { values: SWITCH, opening: false },
   jitter: { values: SWITCH, opening: false },
   invalidate: { values: SWITCH, opening: true },
+  retry: { values: RETRIES, opening: 'give-up' },
+  drop: { values: SWITCH, opening: true },
 } as const;
 
 /** The link to a run's start: its seed, and each setting not the opening's, so it opens the run
@@ -78,7 +100,8 @@ export function summary(sim: Sim): string {
   const c = sim.counts;
   const ended = c.hit + c.stale + c.served + c.timeout;
   const share = ended > 0 ? `${((100 * (c.hit + c.stale)) / ended).toFixed(1)}%` : 'none';
-  const served = `${reads(c.reads)} in ${(sim.now / 1000).toFixed(1)} s, ${share} from the cache.`;
+  const retried = c.retries > 0 ? `, ${count(c.retries)} of them retries` : '';
+  const served = `${reads(c.reads)} in ${(sim.now / 1000).toFixed(1)} s${retried}, ${share} from the cache.`;
   const herd = sim.tally.herd;
   const findings: string[] = [];
   if (herd && herd.size >= 2) {
@@ -249,8 +272,18 @@ export function menuWords(sim: Sim): string {
 /** Fetches waiting in line for a connection. */
 export const waiting = (sim: Sim): number => sim.line.length - sim.lineHead;
 
-/** The readers, as the picture labels them: how many pages they ask for a second. */
-export const readersWords = (sim: Sim): string => `Readers, ${count(LOADS[sim.load])} a second`;
+/** The readers, as the picture labels them: how many pages they ask for a second, and how many
+ *  retries came on top in the last second, when any did. Both are rates, and the label says so
+ *  for each: beside the caption's run total of retries, a bare count would read as a total. */
+export function readersWords(sim: Sim): string {
+  let retries = 0;
+  for (let i = sim.recent.length - 1; i >= 0; i--) {
+    const read = sim.recent[i] as Read;
+    if (read.at <= sim.now - 1_000) break;
+    if (read.attempt) retries++;
+  }
+  return `Readers, ${count(LOADS[sim.load])} a second${retries > 0 ? `, and ${count(retries)} retries a second` : ''}`;
+}
 
 /** The picture's own name, for assistive technology: what its parts show now, the nodes' lamps
  *  counted by state and the database's connections and line. The caption under it tells the run,
