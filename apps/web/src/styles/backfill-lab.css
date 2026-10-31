@@ -1,0 +1,728 @@
+/*
+  The Backfill Lab (/lab/backfill/): the lab's head, then the desk, with the run board, the strip
+  of runs over time, the properties and the controls, then the event log (ADR 0026). Only that
+  page links this file. Every colour is a token from tokens.css, and the lab's own is var(--line),
+  which the page's data-line sets (global.css). A state the browser sets is an attribute (data-*),
+  never a class, so every class here is one a built page carries (test/css-classes.test.ts). The
+  demo moves only while the visitor runs it, in JavaScript, so this file declares no transition
+  and no animation.
+
+  State is a lamp's shape (ADR 0025): hollow not started, lit running, filled succeeded, a cross
+  failed, a clock face waiting to retry, a dash never run. Colour only says which line: the track,
+  and the lamps that are the lab's own, are its colour; the marks that report a fault are ink.
+
+  bf-head and bf-desk stand in for the lab head and desk the lab pages will share (ADR 0025, "Lab
+  pages"); the shared pieces replace them whole.
+*/
+
+/* The head: the lab's line across the top, ending in its lamp, then the title and the lead. */
+.bf-head {
+  display: grid;
+  align-content: start;
+  row-gap: 0.875rem;
+}
+
+.bf-head > * {
+  max-width: var(--measure);
+  margin: 0;
+}
+
+.bf-head > .page-title {
+  max-width: none;
+}
+
+.bf-head-line {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: none;
+  margin-bottom: 0.5rem;
+}
+
+.bf-head-track {
+  flex: 1;
+  block-size: 6px;
+  background-color: var(--line);
+}
+
+.bf-head-lamp {
+  flex: none;
+  inline-size: 1rem;
+  block-size: 1rem;
+  border-radius: 50%;
+  background-color: var(--line);
+}
+
+.bf {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  margin-top: 2rem;
+}
+
+@media (scripting: none) {
+  .bf [data-bf-js] {
+    display: none;
+  }
+}
+
+/* The desk: the board's surface, recessed in a 2 px bezel. */
+.bf-desk {
+  min-width: 0;
+  background-color: var(--surface-1);
+  border: 2px solid var(--input);
+}
+
+.bf-desk-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.75rem;
+  padding: 1rem 0.75rem 1.25rem;
+}
+
+@media (width >= 48rem) {
+  .bf-desk-main {
+    padding: 1.5rem;
+  }
+}
+
+.bf-figure {
+  display: grid;
+  gap: 1.25rem;
+  min-width: 0;
+  margin: 0;
+}
+
+/* The run board: a row a day, a lamp a step, on the day's track; the totals on the right. A table
+   needs its two directions, so where it cannot fit, at a large text size on a narrow screen, it
+   scrolls inside its own box, which the keyboard reaches, and the page never does (SC 1.4.10). */
+/* Positioned, so the words only assistive technology reads, set absolutely, are inside the box
+   that scrolls, and never widen the page past it. */
+.bf-board-box {
+  position: relative;
+  overflow-x: auto;
+}
+
+.bf-board {
+  width: 100%;
+  min-width: 16rem;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-family: var(--font-label);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.bf-board :is(th, td) {
+  padding: 0.375rem 0;
+  vertical-align: top;
+  font-weight: 500;
+}
+
+.bf-board thead th {
+  padding-block: 0 0.5rem;
+  color: var(--muted-foreground);
+  font-size: var(--text-label);
+  line-height: var(--text-label--line-height);
+  text-align: center;
+  vertical-align: bottom;
+}
+
+.bf-board thead .bf-col-num {
+  text-align: end;
+}
+
+.bf-col-day {
+  inline-size: 3.5rem;
+}
+
+.bf-col-num {
+  inline-size: 3rem;
+}
+
+/* A step's head is its first word on a phone, set on two staggered lines so the long words have
+   room; from 40rem each is whole on one line. */
+.bf-col-name {
+  display: inline-block;
+  margin-inline: -2rem;
+  white-space: nowrap;
+}
+
+.bf-col-rest {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.bf-board thead th:is(:nth-child(3), :nth-child(5)) .bf-col-name {
+  padding-bottom: 1.35em;
+}
+
+@media (width >= 40rem) {
+  .bf-col-day {
+    inline-size: 5.5rem;
+  }
+
+  .bf-col-num {
+    inline-size: 4.25rem;
+  }
+
+  .bf-board thead th:is(:nth-child(3), :nth-child(5)) .bf-col-name {
+    padding-bottom: 0;
+  }
+}
+
+@media (width >= 64rem) {
+  .bf-col-rest {
+    position: static;
+    inline-size: auto;
+    block-size: auto;
+    overflow: visible;
+    clip-path: none;
+  }
+}
+
+.bf-day {
+  padding-right: 0.5rem;
+  text-align: start;
+}
+
+.bf-day-name {
+  display: block;
+  color: var(--foreground);
+  font-size: var(--text-ui);
+  line-height: 1.25rem;
+}
+
+.bf-run {
+  display: block;
+  min-block-size: 1.125rem;
+  color: var(--muted-foreground);
+  font-size: var(--text-label);
+  line-height: var(--text-label--line-height);
+}
+
+/* The day's track joins its lamps, one line from the first lamp's middle to the last's: the five
+   step columns are equal, so it spans four of them. A line drawn in each cell instead left a seam
+   where two cells met at a fraction of a pixel. The lamps stand on it. */
+.bf-step {
+  text-align: center;
+}
+
+.bf-board tr > .bf-step:nth-child(2) {
+  position: relative;
+}
+
+.bf-board tr > .bf-step:nth-child(2)::before {
+  content: '';
+  position: absolute;
+  inset-block-start: calc(1.0625rem - 2px);
+  inset-inline-start: 50%;
+  inline-size: 400%;
+  border-top: 2px solid var(--line);
+}
+
+.bf-step .bf-lamp {
+  position: relative;
+  margin: -1px auto 0;
+}
+
+.bf-retry {
+  display: block;
+  color: var(--foreground);
+  font-size: var(--text-label);
+  line-height: var(--text-label--line-height);
+}
+
+.bf-num {
+  color: var(--foreground);
+  font-size: var(--text-ui);
+  line-height: 1.25rem;
+  text-align: end;
+}
+
+.bf-num[data-bf-source] {
+  color: var(--muted-foreground);
+}
+
+.bf-diff {
+  display: block;
+  font-size: var(--text-label);
+  line-height: var(--text-label--line-height);
+}
+
+.bf-note {
+  color: var(--muted-foreground);
+  font-size: var(--text-label);
+  line-height: 1.25rem;
+  text-align: center;
+}
+
+.bf-week > * {
+  border-top: 1px solid var(--input);
+}
+
+.bf-board .bf-week > * {
+  padding-top: 0.5rem;
+}
+
+/* A lamp: one drawing with every mark in it, and the state picks which show. The plate is the
+   desk's surface, so a mark that is no disc stands clear of the track. */
+.bf-lamp {
+  display: block;
+  inline-size: 1.375rem;
+  block-size: 1.375rem;
+  overflow: visible;
+}
+
+.bf-lamp > * {
+  display: none;
+  fill: none;
+}
+
+.bf-plate {
+  fill: var(--surface-1);
+}
+
+.bf-disc {
+  stroke-width: 2;
+}
+
+.bf-halo {
+  stroke: var(--primary);
+  stroke-width: 1.5;
+}
+
+.bf-x,
+.bf-hands,
+.bf-dash {
+  stroke: var(--foreground);
+  stroke-linecap: round;
+}
+
+.bf-x {
+  stroke-width: 2.5;
+}
+
+.bf-hands {
+  stroke-width: 1.5;
+}
+
+.bf-dash {
+  stroke-width: 2.5;
+}
+
+[data-lamp='hollow'] .bf-disc,
+[data-lamp='filled'] .bf-disc,
+[data-lamp='lit'] :is(.bf-plate, .bf-halo, .bf-disc),
+[data-lamp='cross'] :is(.bf-plate, .bf-x),
+[data-lamp='clock'] :is(.bf-plate, .bf-disc, .bf-hands),
+[data-lamp='dash'] :is(.bf-plate, .bf-dash) {
+  display: inline;
+}
+
+[data-lamp='hollow'] .bf-disc {
+  fill: var(--surface-1);
+  stroke: var(--line);
+}
+
+[data-lamp='filled'] .bf-disc {
+  fill: var(--line);
+  stroke: var(--line);
+}
+
+[data-lamp='lit'] .bf-disc {
+  fill: var(--primary);
+  stroke: var(--primary);
+}
+
+[data-lamp='clock'] .bf-disc {
+  fill: var(--surface-1);
+  stroke: var(--foreground);
+  stroke-width: 1.5;
+}
+
+/* The strip: each day's steps over time, under the board, with a line that says how to read it.
+   The days' names stand in a column of their own beside it, as wide as the names at any text
+   size, and each lane is as tall as a line of them. */
+.bf-strip-box {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 0.75rem;
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-weight: 500;
+}
+
+.bf-strip-days {
+  margin: 0;
+  padding: 0.5em 0 0;
+  list-style: none;
+  color: var(--muted-foreground);
+  /* A lane's height, which is a line's, no closer than the face is tall: a selection's fill
+     would otherwise cover the foot of the name above. */
+  line-height: 1.25em;
+}
+
+.bf-strip-title {
+  margin: 0 0 -0.5rem;
+  color: var(--muted-foreground);
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  line-height: var(--text-label--line-height);
+}
+
+.bf-strip {
+  display: block;
+  inline-size: 100%;
+  overflow: visible;
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Its words, the days, the hours and "The job is off", which only a run in the browser shows. */
+.bf-strip text {
+  fill: var(--muted-foreground);
+}
+
+.bf-strip-track {
+  stroke: var(--input);
+  stroke-width: 1;
+  stroke-dasharray: 1 3;
+}
+
+.bf-strip-wait {
+  fill: var(--surface-1);
+  stroke: var(--line);
+  stroke-width: 1.5;
+}
+
+.bf-strip-work {
+  fill: var(--line);
+}
+
+.bf-strip-x path {
+  fill: none;
+  stroke: var(--foreground);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.bf-strip-axis,
+.bf-strip-tick {
+  stroke: var(--input);
+  stroke-width: 1;
+}
+
+.bf-strip-now {
+  stroke: var(--primary);
+  stroke-width: 1.5;
+}
+
+.bf-summary {
+  max-width: var(--measure);
+  font-size: var(--text-label);
+  line-height: var(--text-label--line-height);
+}
+
+/* The properties, under the board; beside it, the clock and what the lamps mean. */
+.bf-checks-block,
+.bf-side {
+  display: grid;
+  gap: 1.25rem;
+  align-content: start;
+  min-width: 0;
+}
+
+.bf-heading {
+  margin: 0;
+  font-family: var(--font-label);
+  font-size: var(--text-ui);
+  font-weight: 500;
+  line-height: var(--text-ui--line-height);
+}
+
+.bf-checks {
+  display: grid;
+  gap: 0.875rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bf-check {
+  display: grid;
+  grid-template-columns: 1.375rem minmax(0, 1fr);
+  gap: 0.625rem;
+  align-items: start;
+}
+
+.bf-check-name {
+  display: block;
+  font-family: var(--font-label);
+  font-size: var(--text-ui);
+  line-height: var(--text-ui--line-height);
+}
+
+.bf-check-word,
+.bf-clock,
+.bf-key {
+  color: var(--muted-foreground);
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  line-height: var(--text-label--line-height);
+}
+
+.bf-check-word {
+  display: block;
+}
+
+.bf-clock {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.bf-key {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(9.5rem, 100%), 1fr));
+  gap: 0.375rem 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bf-key li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.bf-key .bf-lamp {
+  flex: none;
+}
+
+/* The controls: push-buttons in rows. A choice is a row of buttons whose chosen one shows its
+   lamp lit, as a pressed button's does (global.css): the radio itself is the lamp. */
+.bf-controls {
+  display: grid;
+  gap: 1.25rem;
+  padding: 1rem 0.75rem 1.25rem;
+  border-top: 2px solid var(--input);
+}
+
+@media (width >= 48rem) {
+  .bf-controls {
+    padding: 1.25rem 1.5rem 1.5rem;
+  }
+}
+
+.bf-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.75rem 1.25rem;
+}
+
+.bf-choice {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.bf-legend {
+  margin-bottom: 0.375rem;
+  padding: 0;
+  color: var(--muted-foreground);
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  line-height: var(--text-label--line-height);
+}
+
+.bf-options {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.bf-option {
+  padding-inline: 0.75rem;
+}
+
+/* A button that shows a short name, a number or a day's first letters, keeps to its words. */
+.bf-option[data-short] {
+  padding-inline: 0.5rem;
+}
+
+.bf-option + .bf-option {
+  margin-inline-start: -1px;
+}
+
+.bf-option input {
+  flex: none;
+  inline-size: 0.625rem;
+  block-size: 0.625rem;
+  margin: 0;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  appearance: none;
+}
+
+.bf-option input:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.bf-run-button {
+  min-inline-size: 5.5rem;
+}
+
+/* Read by assistive technology, hidden on screen: a lamp's word, a day's full name, what the
+   last press did. */
+.bf-sr {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  border-width: 0;
+  white-space: nowrap;
+}
+
+/* The event log: the newest line last, in a box that scrolls. */
+.bf-events {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.bf-lines {
+  max-height: 16rem;
+  padding: 0.75rem 0;
+  overflow-y: auto;
+  border-block: 1px solid var(--input);
+  font-size: var(--text-label);
+  line-height: var(--text-label--line-height);
+}
+
+.bf-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bf-list > li {
+  display: grid;
+  grid-template-columns: 3.25rem minmax(0, 1fr);
+  column-gap: 0.5rem;
+}
+
+.bf-at {
+  color: var(--muted-foreground);
+  font-family: var(--font-label);
+  font-variant-numeric: tabular-nums;
+}
+
+/* On a wide desk the board has beside it the clock, the lamps' key and the event log, which fills
+   the column's height and scrolls, so what happened reads beside the lamps it changed. The
+   properties run under both, as the lab's write-up reads them: the three properties under the
+   board. A phone stacks the same parts in the same order. */
+@media (width >= 64rem) {
+  .bf {
+    margin-top: 2.5rem;
+  }
+
+  .bf-desk-main {
+    grid-template-columns: minmax(0, 1.7fr) minmax(15rem, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'figure side'
+      'figure events'
+      'checks checks';
+    column-gap: 2.5rem;
+    align-items: start;
+  }
+
+  .bf-figure {
+    grid-area: figure;
+  }
+
+  .bf-side {
+    grid-area: side;
+  }
+
+  /* Its size is the column's, never its lines': they scroll inside it. */
+  .bf-events {
+    grid-area: events;
+    grid-template-rows: auto minmax(0, 1fr);
+    align-self: stretch;
+    contain: size;
+  }
+
+  .bf-lines {
+    max-height: none;
+  }
+
+  .bf-checks-block {
+    grid-area: checks;
+  }
+
+  .bf-checks {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: 2rem;
+  }
+}
+
+/* Forced colours (Windows contrast themes) would paint every lamp in one colour; the shapes stay,
+   in the user's own palette, and a lit lamp takes the highlight. */
+@media (forced-colors: active) {
+  .bf-lamp,
+  .bf-strip,
+  .bf-option input:checked {
+    forced-color-adjust: none;
+  }
+
+  .bf-plate,
+  [data-lamp='hollow'] .bf-disc,
+  [data-lamp='clock'] .bf-disc,
+  .bf-strip-wait {
+    fill: Canvas;
+  }
+
+  [data-lamp] .bf-disc,
+  .bf-x,
+  .bf-hands,
+  .bf-dash,
+  .bf-strip-wait,
+  .bf-strip-x path,
+  .bf-strip-axis,
+  .bf-strip-tick,
+  .bf-strip-track {
+    stroke: CanvasText;
+  }
+
+  [data-lamp='filled'] .bf-disc,
+  .bf-strip-work,
+  .bf-strip text {
+    fill: CanvasText;
+  }
+
+  [data-lamp='lit'] .bf-disc {
+    fill: Highlight;
+    stroke: Highlight;
+  }
+
+  [data-lamp='lit'] .bf-halo,
+  .bf-strip-now {
+    stroke: Highlight;
+  }
+
+  .bf-option input:checked {
+    border-color: ButtonText;
+    background-color: ButtonText;
+  }
+}

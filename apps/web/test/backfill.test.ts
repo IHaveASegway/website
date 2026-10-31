@@ -37,12 +37,24 @@ import {
 } from '../src/lib/backfill/sim';
 import {
   board,
+  boardView,
+  LATE_BY,
+  lineTime,
+  moment,
   OPENING,
   openingRun,
+  PROPERTY_NAMES,
+  propertyViews,
   SEEDS_IN_CI,
+  shortDay,
   statusText,
+  STRIP_HEIGHT,
+  stripLabel,
+  stripMarkup,
   strays,
   summary,
+  weekOff,
+  type Lamp,
 } from '../src/lib/backfill/view';
 import { seeded } from '../src/lib/sim/random';
 
@@ -820,5 +832,194 @@ describe('the opening the page draws', () => {
     expect(summary(sim)).toBe(
       "Every run has finished, and all 7 succeeded. Every day's total matches the source: 2,012 orders in all.",
     );
+  });
+});
+
+// The page (components/backfill-lab) draws what view.ts says, at build and in the browser, so the
+// lab entry's "Three things to try" are checked here first, on the same functions, with the same
+// seeds, times and numbers the entry gives; e2e/backfill.spec.ts plays them on the page.
+describe('what the page draws, and the three things to try', () => {
+  const lamps = (sim: Sim, step: number) => boardView(sim).days.map((d) => d.steps[step]?.lamp);
+  const CHECK = TASKS.indexOf('check');
+  /** Start over under some settings, switch the job on, and let the week run to its end. */
+  const week = (config: Partial<Config>, before: (sim: Sim) => void = () => {}) => {
+    const sim = weekOff({ ...OPENING.config, ...config });
+    before(sim);
+    start(sim);
+    runUntil(sim, Infinity);
+    return sim;
+  };
+
+  test('start over stands where the week ends, the job off and Wednesday set to fail; switched on, it is the opening again', () => {
+    const off = weekOff(OPENING.config);
+    expect(off.on).toBe(false);
+    expect(off.now).toBe(WEEK_END);
+    expect(off.failNext).toEqual([0, 0, 1, 0, 0, 0, 0]);
+    expect(summary(off)).toMatch(/^The job graph is off\./);
+    expect(boardView(off).days.every((d) => d.run === '' && d.report === '')).toBe(true);
+    expect(lamps(off, 0)).toEqual(Array.from({ length: DAYS }, () => 'hollow'));
+    expect(stripMarkup(off)).toContain('The job is off');
+    expect(JSON.stringify(week({}).runs)).toBe(JSON.stringify(openingRun().runs));
+  });
+
+  test('watch Wednesday count twice: 96 of 179 rows, then all 179, and a check that finds 275; with overwrite, 2,012 orders and every day matches', () => {
+    const opening = openingRun();
+    const wednesday = boardView(opening).days[2];
+    expect(wednesday).toMatchObject({
+      short: 'Wed 21',
+      run: 'done',
+      report: '275',
+      difference: '+96',
+      source: '179',
+    });
+    expect(wednesday?.steps[CHECK]).toEqual({
+      lamp: 'cross',
+      word: 'failed: the totals differ',
+      retry: '',
+    });
+    expect(lamps(opening, CHECK).filter((lamp) => lamp === 'cross')).toHaveLength(1);
+    expect(boardView(opening).week).toEqual({
+      report: '2,108',
+      difference: '+96',
+      source: '2,012',
+    });
+    const fixed = week({ mode: 'overwrite' });
+    expect(boardView(fixed).days.every((d) => d.difference === '' && d.report === d.source)).toBe(
+      true,
+    );
+    expect(lamps(fixed, CHECK)).toEqual(Array.from({ length: DAYS }, () => 'filled'));
+    expect(boardView(fixed).week).toEqual({ report: '2,012', difference: '', source: '2,012' });
+    expect(summary(fixed)).toContain('2,012 orders in all');
+    expect(propertyViews(fixed).every((p) => p.held)).toBe(true);
+  });
+
+  test("write to today: every day's orders land on Monday 26 October, and every check fails", () => {
+    const today = week({ partition: 'today' });
+    const view = boardView(today);
+    expect(view.stray).toEqual({ short: 'Mon 26', long: 'Monday 26 October', rows: '2,108' });
+    expect(view.days.every((d) => d.report === '0' && d.difference.startsWith('−'))).toBe(true);
+    expect(lamps(today, CHECK)).toEqual(Array.from({ length: DAYS }, () => 'cross'));
+    expect(view.week).toEqual({ report: '0', difference: '−2,012', source: '2,012' });
+  });
+
+  test("rerun a finished day: with append Tuesday's total doubles; with overwrite nothing changes", () => {
+    const appended = openingRun();
+    clear(appended, 1);
+    runUntil(appended, Infinity);
+    expect(boardView(appended).days[1]).toMatchObject({
+      report: '758',
+      difference: '+379',
+      source: '379',
+    });
+    const replaced = week({ mode: 'overwrite' });
+    const before = boardView(replaced).days[1];
+    clear(replaced, 1);
+    runUntil(replaced, Infinity);
+    expect(boardView(replaced).days[1]).toMatchObject({ report: before?.report, difference: '' });
+    expect(before?.report).toBe('379');
+  });
+
+  test("Monday's file five hours late with one run at a time: the week waits behind it", () => {
+    const sim = weekOff({ ...OPENING.config, maxActiveRuns: 1 });
+    lateFile(sim, 0, LATE_BY);
+    start(sim);
+    runUntil(sim, WEEK_END + 120);
+    const view = boardView(sim);
+    expect(view.days.map((d) => d.run)).toEqual([
+      'running',
+      ...Array.from({ length: 6 }, () => 'waiting'),
+    ]);
+    expect(view.days[0]?.steps[0]).toEqual({ lamp: 'lit', word: 'running', retry: '' });
+    expect(summary(sim)).toBe('0 of 7 runs have finished; 1 running and 6 waiting for a run slot.');
+    runUntil(sim, Infinity);
+    expect(
+      sim.lines.some((l) => l.text === "Monday's sensor finds the export file after 5 hours"),
+    ).toBe(true);
+  });
+
+  test('each lamp has its shape and its words: a retry carries its time, a load waiting for a slot is hollow, a step after a failure is a dash', () => {
+    const retry = weekOff(OPENING.config);
+    start(retry);
+    runUntil(retry, WEEK_END + 17);
+    expect(boardView(retry).days[2]?.steps[TASKS.indexOf('load')]).toEqual({
+      lamp: 'hollow',
+      word: 'waiting for a warehouse slot',
+      retry: '',
+    });
+    runUntil(retry, WEEK_END + 26);
+    expect(boardView(retry).days[2]?.steps[TASKS.indexOf('load')]).toEqual({
+      lamp: 'clock',
+      word: 'failed, tries again at 00:29',
+      retry: '00:29',
+    });
+    // Monday's partial rows are in the report before its check, with no difference yet.
+    expect(boardView(retry).days[2]).toMatchObject({ report: '96', difference: '' });
+    const never = week({}, (sim) => lateFile(sim, 0, 'never'));
+    const monday = boardView(never).days[0];
+    expect(monday?.run).toBe('failed');
+    expect(monday?.steps.map((s) => s.lamp)).toEqual([
+      'cross',
+      'dash',
+      'dash',
+      'dash',
+      'dash',
+    ] satisfies Lamp[]);
+    expect(monday?.steps[1]?.word).toBe('not run: a step before it failed');
+  });
+
+  test("the properties carry the page's words, and each break its first time and detail", () => {
+    expect(propertyViews(openingRun())).toEqual([
+      {
+        id: 'totals',
+        name: PROPERTY_NAMES.totals,
+        held: false,
+        word: "Broke once, first at 00:41: Wednesday's report holds 275 orders and the source 179.",
+      },
+      { id: 'order', name: 'No step started before the steps it needs', held: true, word: 'Held.' },
+      {
+        id: 'limits',
+        name: 'No more runs or loads at once than allowed',
+        held: true,
+        word: 'Held.',
+      },
+    ]);
+  });
+
+  test('the strip: a lane a day, a cross for each failed attempt, the now line, and whole hours across', () => {
+    const opening = openingRun();
+    const markup = stripMarkup(opening);
+    expect(markup.match(/class="bf-strip-track"/g)).toHaveLength(DAYS);
+    expect(markup.match(/class="bf-strip-x"/g)).toHaveLength(1);
+    expect([...markup.matchAll(/class="bf-strip-time"[^>]*>([^<]+)</g)].map(([, t]) => t)).toEqual([
+      '00:00',
+      '01:00',
+      '02:00',
+      '03:00',
+    ]);
+    // Every position across is a share of the width, inside it.
+    for (const [, x] of markup.matchAll(/ x[12]?="([^"]+)"/g))
+      if (x !== '0') expect(Number(/^([\d.]+)%$/.exec(x ?? '')?.[1])).toBeLessThanOrEqual(100);
+    expect(markup).toMatch(/class="bf-strip-now" x1="(\d+\.\d\d)%" x2="\1%"/);
+    // Heights are in em of the strip's text, so a larger text size gives the lanes room.
+    expect(STRIP_HEIGHT).toMatch(/^\d+(\.\d+)?em$/);
+    expect(markup).not.toMatch(/ (y|y1|y2|height)="[\d.-]+"/);
+    expect(stripLabel(opening)).toBe("Each day's steps over time, from 00:00 to 02:10");
+    // A week that runs past midnight, a day and more, still reads plainly: no file ever lands, and
+    // each sensor waits its 6 hours, one run at a time.
+    const late = week({ maxActiveRuns: 1 }, (sim) => {
+      for (let day = 0; day < DAYS; day++) lateFile(sim, day, 'never');
+    });
+    expect(late.now).toBeGreaterThan(WEEK_END + DAY);
+    for (const text of [stripMarkup(late), stripLabel(late), summary(late)])
+      expect(text).not.toMatch(/undefined|NaN|Infinity|null/);
+    expect(stripLabel(late)).toMatch(/to \d\d:\d\d on Tuesday 27 October$/);
+  });
+
+  test('times and days as the page writes them', () => {
+    expect([shortDay(0), shortDay(6), shortDay(7)]).toEqual(['Mon 19', 'Sun 25', 'Mon 26']);
+    expect(lineTime(WEEK_END + 41)).toBe('00:41');
+    expect(lineTime(WEEK_END + DAY + 10)).toBe('Tue 00:10');
+    expect(moment(WEEK_END + 41)).toBe('00:41');
+    expect(moment(WEEK_END + DAY + 10)).toBe(when(WEEK_END + DAY + 10));
   });
 });

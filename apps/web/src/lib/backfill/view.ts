@@ -1,8 +1,11 @@
 import { properties, type PropertyId } from './check';
 import {
+  BACKOFF,
+  clock,
   count,
   countOf,
   DAYS,
+  dayOf,
   dayText,
   isoDate,
   TASKS,
@@ -17,9 +20,10 @@ import {
 } from './core';
 import { replay, type Action, type Config, type Sim } from './sim';
 
-// What the Backfill Lab shows, as data and text, from a run's state: no markup yet. The page will
-// use it twice, as the Raft Lab's does: at build, to draw the opening run so the demo is complete
-// without JavaScript, and in the browser, on every frame of a run.
+// What the Backfill Lab shows, as data and text, from a run's state. The page uses it twice, as the
+// Raft Lab's does: at build, to draw the opening run so the demo is complete without JavaScript,
+// and in the browser, on every frame of a run (components/backfill-lab). The run board, the
+// properties and the strip below are that data; only the strip comes as markup, an SVG's inside.
 
 /**
  * The opening: the week's backfill with appends, Wednesday's first load attempt set to fail part
@@ -249,4 +253,268 @@ export function statusText(sim: Sim): string {
   const held = all.flatMap((p) => (p.held ? [SHORT[p.id]] : []));
   const tail = held.length > 0 ? `; ${joinAnd(held)} held` : '';
   return `${upperFirst(broken.join('; '))}${tail}, over ${events}.`;
+}
+
+// The page (components/backfill-lab): the run board, the properties and the strip, as the build
+// draws them and the browser redraws them, from the same functions, so the two never disagree.
+
+/**
+ * Start over: the same week and the opening's preset, Wednesday's next load set to fail, under the
+ * visitor's settings, at the minute the week ends, with the graph still off. The visitor switches
+ * it on, so a late file or a limit of one run can be set before any run starts, and the opening's
+ * story plays again under whatever load mode they chose.
+ */
+export const weekOff = (config: Config): Sim =>
+  replay(
+    config,
+    OPENING.actions.filter((a) => a.kind !== 'start'),
+    WEEK_END,
+  );
+
+/** How much later "make its file late" makes a day's export file land: 5 hours, in minutes. */
+export const LATE_BY = 300;
+
+/** A time as the page writes it: the clock alone on the day the week ends, where every week but a
+ *  very slow one stays, and the clock and its day after that. */
+export const moment = (at: number): string =>
+  dayOf(at) === dayOf(WEEK_END) ? clock(at) : when(at);
+
+/** An event line's time, short enough for its column: "00:41", or "Tue 00:10" a day later. */
+export const lineTime = (at: number): string =>
+  dayOf(at) === dayOf(WEEK_END) ? clock(at) : `${weekday(dayOf(at)).slice(0, 3)} ${clock(at)}`;
+
+/** "Mon 19": a day as the run board's rows name it. */
+export function shortDay(day: number): string {
+  const [name = '', date = ''] = dayText(day).split(' ');
+  return `${name.slice(0, 3)} ${date}`;
+}
+
+/** A lamp's shape (ADR 0025: state is a shape and a word): not started, running, succeeded, failed,
+ *  waiting to retry, or never run because a step before it failed. */
+export type Lamp = 'hollow' | 'lit' | 'filled' | 'cross' | 'clock' | 'dash';
+
+export interface StepView {
+  readonly lamp: Lamp;
+  /** What the lamp means, in words: assistive technology reads these. */
+  readonly word: string;
+  /** When a step waiting to retry tries again, "00:29"; empty otherwise. */
+  readonly retry: string;
+}
+
+export interface DayView {
+  readonly day: number;
+  /** "Mon 19", and "Monday 19 October". */
+  readonly short: string;
+  readonly long: string;
+  /** The run's state in a word; empty while the graph is off and the day has no run. */
+  readonly run: string;
+  readonly steps: readonly StepView[];
+  /** The report's count, once a load has written rows for the day or its check has run. */
+  readonly report: string;
+  /** The report less the source, signed, once the day's check has run and the two differ. */
+  readonly difference: string;
+  readonly source: string;
+}
+
+export interface BoardView {
+  readonly days: readonly DayView[];
+  /** Rows filed under a day after the week, the clock's day: what `today` does to a backfill. */
+  readonly stray: { readonly short: string; readonly long: string; readonly rows: string } | null;
+  /** The week's totals, and their difference once every day's check has run. */
+  readonly week: { readonly report: string; readonly difference: string; readonly source: string };
+}
+
+const RUN_WORD: Record<RunState, string> = {
+  queued: 'waiting',
+  running: 'running',
+  success: 'done',
+  failed: 'failed',
+};
+
+const signed = (n: number): string => (n > 0 ? `+${count(n)}` : `−${count(-n)}`);
+
+/** One lamp. A check that ran and found the totals apart is drawn failed, as the lesson reads it,
+ *  though the task itself succeeded: it did its job, and the run goes on to its end. */
+function stepView(sim: Sim, day: number, i: number): StepView {
+  const run = sim.runs[day];
+  const task = run?.tasks[i];
+  const last = task?.attempts.at(-1);
+  switch (task?.state) {
+    case 'running':
+      return { lamp: 'lit', word: 'running', retry: '' };
+    case 'up-for-retry': {
+      const at = (last?.end ?? sim.now) + (BACKOFF[(last?.n ?? 1) - 1] ?? 0);
+      return { lamp: 'clock', word: `failed, tries again at ${moment(at)}`, retry: clock(at) };
+    }
+    case 'success':
+      if (task.name !== 'check') return { lamp: 'filled', word: 'succeeded', retry: '' };
+      return run?.verdict && run.verdict.report !== run.verdict.source
+        ? { lamp: 'cross', word: 'failed: the totals differ', retry: '' }
+        : { lamp: 'filled', word: 'succeeded: the totals match', retry: '' };
+    case 'failed':
+      return { lamp: 'cross', word: 'failed', retry: '' };
+    case 'upstream-failed':
+      return { lamp: 'dash', word: 'not run: a step before it failed', retry: '' };
+    case 'queued':
+      return { lamp: 'hollow', word: 'waiting for a warehouse slot', retry: '' };
+    default:
+      return { lamp: 'hollow', word: 'not started', retry: '' };
+  }
+}
+
+/** The run board: a row for each day, a lamp for each step, and the day's totals. */
+export function boardView(sim: Sim): BoardView {
+  let held = 0;
+  let truth = 0;
+  let any = false;
+  let all = true;
+  const days = Array.from({ length: DAYS }, (_, day): DayView => {
+    const run = sim.runs[day];
+    const report = sim.report[day] ?? 0;
+    const source = sim.source[day] ?? 0;
+    const checked = sim.checker.checked[day] === true;
+    held += report;
+    truth += source;
+    any ||= checked || report > 0;
+    all &&= checked;
+    return {
+      day,
+      short: shortDay(day),
+      long: dayText(day),
+      run: run ? RUN_WORD[run.state] : '',
+      steps: TASKS.map((_, i) => stepView(sim, day, i)),
+      report: checked || report > 0 ? count(report) : '',
+      difference: checked && report !== source ? signed(report - source) : '',
+      source: count(source),
+    };
+  });
+  const lost = strays(sim);
+  const [first, last] = [lost[0], lost.at(-1)];
+  const span = (name: (day: number) => string) =>
+    first && last && first !== last
+      ? `${name(first.day)} to ${name(last.day)}`
+      : name(first?.day ?? 0);
+  return {
+    days,
+    stray: first
+      ? {
+          short: span(shortDay),
+          long: span(dayText),
+          rows: count(lost.reduce((sum, s) => sum + s.rows, 0)),
+        }
+      : null,
+    week: {
+      report: any ? count(held) : '',
+      difference: all && held !== truth ? signed(held - truth) : '',
+      source: count(truth),
+    },
+  };
+}
+
+/** The properties as the page names them: of steps, as the run board draws them, not of tasks. */
+export const PROPERTY_NAMES: Record<PropertyId, string> = {
+  totals: "Every day's total matches the source",
+  order: 'No step started before the steps it needs',
+  limits: 'No more runs or loads at once than allowed',
+};
+
+export interface PropertyView {
+  readonly id: PropertyId;
+  readonly name: string;
+  readonly held: boolean;
+  /** "Held.", or how often it broke and the first time, with what was wrong then. */
+  readonly word: string;
+}
+
+export const propertyViews = (sim: Sim): PropertyView[] =>
+  properties(sim).map((p) => ({
+    id: p.id,
+    name: PROPERTY_NAMES[p.id],
+    held: p.held,
+    word: p.first
+      ? `Broke ${times(p.count)}, first at ${moment(p.first.at)}: ${p.first.detail}.`
+      : 'Held.',
+  }));
+
+/** "44 events". */
+export const eventsText = (sim: Sim): string =>
+  `${count(sim.events)} ${sim.events === 1 ? 'event' : 'events'}`;
+
+/**
+ * The strip under the run board: each day's steps over time, a lane a day (the page names the days
+ * beside it, in a column as wide as their names), from the minute the
+ * graph was switched on. A sensor waiting for its file is a hollow bar, a step at work a filled
+ * one, and an attempt that failed ends in a cross; the dotted track is the run's life, from the
+ * switch to its end, so a run waiting for a slot is a track with nothing on it; the upright line
+ * is now. The span grows by whole hours, so the picture rescales once an hour,
+ * not on every frame. Across, everything is in percent, so the strip fills any width; down, it is in
+ * em of the strip's own text, so a larger text size makes the strip taller and its words never meet.
+ */
+const STRIP = { left: 0, right: 100, top: 0.5, lane: 1.25, bar: 0.5 } as const;
+const AXIS = STRIP.top + DAYS * STRIP.lane + 0.25;
+const em = (n: number): string => `${Number(n.toFixed(3))}em`;
+
+/** The strip's height: the seven lanes, the axis and its times. */
+export const STRIP_HEIGHT = em(AXIS + 1.625);
+
+function stripSpan(sim: Sim): { from: number; hours: number } {
+  const from = sim.actions.find((a) => a.kind === 'start')?.at ?? WEEK_END;
+  return { from, hours: Math.max(2, Math.ceil((sim.now - from) / 60)) };
+}
+
+export function stripMarkup(sim: Sim): string {
+  const { from, hours } = stripSpan(sim);
+  const share = (at: number) =>
+    STRIP.left + ((Math.max(at, from) - from) / (hours * 60)) * (STRIP.right - STRIP.left);
+  const x = (at: number) => `${share(at).toFixed(2)}%`;
+  const out: string[] = [];
+  for (let day = 0; day < DAYS; day++) {
+    const y = STRIP.top + day * STRIP.lane + STRIP.lane / 2;
+    const run = sim.runs[day];
+    if (!run) continue;
+    out.push(
+      `<line class="bf-strip-track" x1="${x(from)}" x2="${x(run.ended ?? sim.now)}" y1="${em(y)}" y2="${em(y)}"/>`,
+    );
+    for (const task of run.tasks)
+      for (const a of task.attempts) {
+        const end = a.end ?? sim.now;
+        const width = share(end) - share(a.start);
+        if (width > 0)
+          out.push(
+            `<rect class="${task.name === 'wait' ? 'bf-strip-wait' : 'bf-strip-work'}" x="${x(a.start)}" y="${em(y - STRIP.bar / 2)}" width="${width.toFixed(2)}%" height="${em(STRIP.bar)}"/>`,
+          );
+        if (a.outcome === 'failed')
+          out.push(
+            `<svg class="bf-strip-x" x="${x(end)}" y="${em(y)}" overflow="visible"><path d="M-3.5-3.5l7 7m0-7-7 7"/></svg>`,
+          );
+      }
+  }
+  const step = hours <= 4 ? 1 : hours <= 8 ? 2 : hours <= 16 ? 4 : 8;
+  out.push(
+    `<line class="bf-strip-axis" x1="${STRIP.left}%" x2="${STRIP.right}%" y1="${em(AXIS)}" y2="${em(AXIS)}"/>`,
+  );
+  for (let h = 0; h <= hours; h++) {
+    const at = from + h * 60;
+    out.push(
+      `<line class="bf-strip-tick" x1="${x(at)}" x2="${x(at)}" y1="${em(AXIS)}" y2="${em(AXIS + 0.3)}"/>`,
+    );
+    if (h % step === 0)
+      out.push(
+        `<text class="bf-strip-time" x="${x(at)}" y="${em(AXIS + 1.3)}" text-anchor="${h === 0 ? 'start' : h === hours ? 'end' : 'middle'}">${clock(at)}</text>`,
+      );
+  }
+  if (!sim.on)
+    out.push(
+      `<text class="bf-strip-off" x="${(STRIP.left + STRIP.right) / 2}%" y="${em(STRIP.top + 3.5 * STRIP.lane + 0.35)}" text-anchor="middle">The job is off</text>`,
+    );
+  out.push(
+    `<line class="bf-strip-now" x1="${x(sim.now)}" x2="${x(sim.now)}" y1="${em(STRIP.top - 0.3)}" y2="${em(AXIS)}"/>`,
+  );
+  return out.join('');
+}
+
+/** The strip's name for assistive technology. */
+export function stripLabel(sim: Sim): string {
+  if (!sim.on) return "Each day's steps over time: none yet, as the job is off";
+  return `Each day's steps over time, from ${moment(stripSpan(sim).from)} to ${moment(sim.now)}`;
 }

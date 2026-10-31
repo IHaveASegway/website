@@ -107,8 +107,9 @@ test('on an Apple keyboard the button shows the drawn command key and K', async 
 });
 
 // ADR 0022: the rail's search finds every demo and post, by its title or a word of its summary, and
-// Enter goes to the row that holds the query whole: "bak" is the bakery, though "Break a Raft
-// cluster" holds b, a and k in order.
+// Enter goes to the row that holds the query whole: "str" is the Route Lab's OpenStreetMap, though
+// "Break a Raft cluster" holds s, t and r in order. Until 2026-10-30 the query was "bak", the
+// bakery, which the newer labs' summaries hold whole too.
 test('the search finds a demo by its title or its summary, and Enter opens the whole match', async ({
   page,
 }) => {
@@ -118,7 +119,8 @@ test('the search finds a demo by its title or its summary, and Enter opens the w
   await opener(page).click();
   await input(page).fill('vroom');
   expect((await rows(page)).shown).toEqual(['palette-lab-routes']);
-  await input(page).fill('bak');
+  await input(page).fill('str');
+  expect((await rows(page)).shown).toContain('palette-lab-raft');
   expect((await rows(page)).active).toBe('palette-lab-routes');
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/lab\/routes\/$/);

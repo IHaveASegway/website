@@ -526,10 +526,12 @@ describe('motion lives only under prefers-reduced-motion: no-preference', () => 
       // The stylesheet every page links ships the card's bar and the view transition, both
       // guarded. The Route Lab's own sheet ships one, the maps' fade (ADR 0016), guarded too. The
       // Raft Lab's ships none: its demo moves in JavaScript, only while the visitor runs it, and
-      // its messages stand still under reduced motion (ADR 0020).
+      // its messages stand still under reduced motion (ADR 0020). Nor does the Backfill Lab's
+      // (ADR 0026): its lamps change state in JavaScript, and nothing glides.
       if (read(file).includes('.rl-map'))
         expect(found.map((m) => m.what)).toEqual(['transition:opacity .22s ease-out']);
       else if (read(file).includes('.rf-map')) expect(found).toEqual([]);
+      else if (read(file).includes('.bf-board')) expect(found).toEqual([]);
       else expect(found.length).toBeGreaterThanOrEqual(2);
     });
   }
