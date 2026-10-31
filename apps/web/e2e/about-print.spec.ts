@@ -149,7 +149,10 @@ for (const size of [16, 32]) {
         return { text: text.replace(/\s+/g, ''), rows: [...rows.values()] };
       }),
     );
-    const [email, web, linkedIn] = lines;
+    // By address, not by place: the writing fixture lists GitHub between Web and LinkedIn.
+    const find = (start: string) => lines.find((address) => address.text.startsWith(start));
+    const [email, web, linkedIn] = ['hello@', 'ihaveasegway.com', 'linkedin.com'].map(find);
+    expect([email, web, linkedIn].every(Boolean), JSON.stringify(lines)).toBe(true);
     if (size === 16) {
       for (const address of lines) expect(address.rows, address.text).toHaveLength(1);
     } else {
