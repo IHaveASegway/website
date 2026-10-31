@@ -27,7 +27,9 @@ export type Load = keyof typeof LOADS;
 /** When a worker's order is acknowledged: after its ticket prints (at-least-once), or as the
  *  broker delivers it, before the work (at-most-once, AMQP's automatic mode). A real broker
  *  ignores the prefetch window in automatic mode and sends without limit; here the worker returns
- *  its slot with a credit when it finishes, so a window holds the same number under both. */
+ *  its slot with a credit when it finishes, so a window holds the same number under both. A switch
+ *  to `before` applies to the orders already sent as well (setAck), and a switch back to `after`
+ *  from the next delivery: an acknowledgement cannot be taken back. */
 export type Ack = 'after' | 'before';
 
 /** What a failing order gets: straight back to the head of the queue, or retries with a backoff
@@ -167,6 +169,8 @@ export interface Worker {
    *  order is done and out of its window. */
   busy: number | null;
   started: number;
+  /** The order in progress has been through its ticket step: printed, or skipped by the key. */
+  ticketed: boolean;
   /** It already answered the broker for the order in progress (the `ackBeforeEffect` fault). */
   answered: boolean;
   /** Under `effectBeforeCheck`, the order whose ticket printed and whose key is not yet recorded. */
@@ -345,6 +349,7 @@ export function createSim(config: Config): Sim {
       window: [],
       busy: null,
       started: 0,
+      ticketed: false,
       answered: false,
       unrecorded: null,
     })),
@@ -463,6 +468,7 @@ function startWorker(sim: Sim, w: Worker): void {
   w.conn = conn.id;
   w.window = [];
   w.busy = null;
+  w.ticketed = false;
   w.answered = false;
   w.unrecorded = null;
   sim.consumers.push(conn.id);
@@ -549,6 +555,7 @@ function begin(sim: Sim, w: Worker): void {
   const wrapUp = Math.min(between(sim.random, WRAP_UP[0], WRAP_UP[1]) * pace, service - 1);
   w.busy = job.id;
   w.started = sim.now;
+  w.ticketed = false;
   w.answered = false;
   if (sim.faults.ackBeforeEffect && !job.ackSent) {
     job.ackSent = true;
@@ -581,6 +588,7 @@ function print(sim: Sim, w: Worker, job: Job): void {
 
 /** The ticket: one effect per order, unless a crash made the broker send it again. */
 function effect(sim: Sim, w: Worker, job: Job): void {
+  w.ticketed = true;
   if (sim.key && sim.doneSet.has(job.id)) {
     sim.skipped += 1;
     say(
@@ -948,12 +956,17 @@ export function crash(sim: Sim, k: number): void {
     const job = jobOf(sim, id);
     if (job.ackSent) {
       gone.push(id);
+      // Under `before` the broker let it go as it sent it, so before it arrived, or, for an order
+      // the worker already held, at the switch to `before` (setAck).
+      const sent = (job.acked ?? 0) < (job.delivered.at(-1) ?? Infinity);
       lose(
         sim,
         job,
-        job.mode === 'before'
-          ? `${workerName(k)} crashed holding it, and it was acknowledged on delivery`
-          : `${workerName(k)} crashed while working on it, after its ack had left`,
+        job.mode !== 'before'
+          ? `${workerName(k)} crashed while working on it, after its ack had left`
+          : sent
+            ? `${workerName(k)} crashed holding it, and it was acknowledged on delivery`
+            : `${workerName(k)} crashed holding it, and it was acknowledged at the switch, before its ticket printed`,
       );
     } else {
       job.place = 'orphan';
@@ -1038,18 +1051,61 @@ export function setLoad(sim: Sim, load: Load): void {
   settle(sim);
 }
 
+/**
+ * When workers acknowledge. A switch to `before` applies at once to what the broker has already
+ * sent: it lets go of every order on its way to a worker that is up or in its window, as if each
+ * had been sent under `before`, so a crash right after the switch loses what the worker held. An
+ * order whose ticket step has already run is done. A switch back to `after` applies from the next
+ * delivery, since an acknowledgement cannot be taken back.
+ */
 export function setAck(sim: Sim, ack: Ack): void {
   catchUp(sim);
   if (sim.ack === ack) return;
   record(sim, { at: sim.now, kind: 'ack', ack });
   sim.ack = ack;
-  say(
-    sim,
-    ack === 'after'
-      ? 'From the next delivery, a worker acknowledges an order after its ticket prints: at-least-once'
-      : 'From the next delivery, an order is acknowledged as it is delivered, before the work: at-most-once',
-  );
+  if (ack === 'after') {
+    say(
+      sim,
+      'From the next delivery, a worker acknowledges an order after its ticket prints: at-least-once',
+    );
+  } else {
+    const gone = letGo(sim);
+    const now = 'Orders are now acknowledged as they are delivered, before the work: at-most-once';
+    say(
+      sim,
+      gone.length === 0
+        ? now
+        : `${now}. The broker lets go at once of what it has already sent: ${ordersText(gone)}`,
+    );
+  }
   settle(sim);
+}
+
+/** The switch to `before`: the broker lets go of each order it has sent to a worker that is up
+ *  and not yet seen answered, worker by worker, in the order it sent them. An ack or a nack on
+ *  its way settles an order its own way, so those are left to it. */
+function letGo(sim: Sim): number[] {
+  const gone: number[] = [];
+  for (const w of sim.workers) {
+    if (w.state !== 'up') continue;
+    const conn = sim.connections[w.conn] as Connection;
+    for (const id of [...conn.unacked]) {
+      const job = jobOf(sim, id);
+      if (job.ackSent || job.place === 'reply') continue;
+      conn.unacked.delete(id);
+      job.ackSent = true;
+      job.acked = sim.now;
+      job.mode = 'before';
+      gone.push(id);
+      // Past its ticket step it is finished, as effect() finishes an order under `before`; the
+      // worker stays busy through the wrap-up, and its credit frees the slot.
+      if (w.busy === id && w.ticketed) {
+        takeOut(w, id);
+        complete(sim, job);
+      }
+    }
+  }
+  return gone;
 }
 
 export function setKey(sim: Sim, on: boolean): void {
