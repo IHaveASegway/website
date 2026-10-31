@@ -378,7 +378,10 @@ test.describe("Home's figures and activity", () => {
     expect(values[0]?.value).toBe(await page.locator('.lab-card').count());
   });
 
-  test("the calendar's total is its days' commits, a column a week, Monday first", async ({
+  // A row a week from Monday, each day with its date, from the week of the first commit and at
+  // most six weeks. Until 2026-10-31 it was a column a week across at least 26 weeks, and a
+  // repository ten days old drew 24 empty weeks before its first commit.
+  test("the calendar's total is its days' commits, a row a week from Monday, none before the first commit", async ({
     page,
   }) => {
     await page.goto('/');
@@ -386,16 +389,22 @@ test.describe("Home's figures and activity", () => {
     test.skip((await calendar.count()) === 0, 'this build has no history to read');
     const read = await calendar.evaluate((root) => {
       const days = [...root.querySelectorAll('rect[data-day]')];
-      const columns = new Map<string, string[]>();
+      const rows = new Map<string, string[]>();
       for (const day of days) {
-        const x = day.getAttribute('x') ?? '';
-        columns.set(x, [...(columns.get(x) ?? []), day.getAttribute('data-day') ?? '']);
+        const y = day.getAttribute('y') ?? '';
+        rows.set(y, [...(rows.get(y) ?? []), day.getAttribute('data-day') ?? '']);
       }
+      const dates = [...root.querySelectorAll('.activity-date')].map((t) => t.textContent);
+      const busy = days.filter((d) => Number(d.getAttribute('data-commits')) > 0);
       return {
         total: Number(root.querySelector('.activity-figure data')?.getAttribute('value')),
         sum: days.reduce((n, d) => n + Number(d.getAttribute('data-commits')), 0),
         titled: days.every((d) => d.querySelector('title')?.textContent?.includes(':')),
-        weeks: [...columns.values()],
+        weeks: [...rows.values()],
+        dated: days.every(
+          (d, i) => dates[i] === String(Number(d.getAttribute('data-day')?.slice(8))),
+        ),
+        firstBusy: busy[0]?.getAttribute('data-day') ?? '',
         dots: root.querySelectorAll('.activity-grid .activity-decision').length,
         words: root.querySelector('.activity-words')?.textContent ?? '',
       };
@@ -403,10 +412,15 @@ test.describe("Home's figures and activity", () => {
     expect(read.total).toBeGreaterThan(0);
     expect(read.sum).toBeLessThanOrEqual(read.total);
     expect(read.titled).toBe(true);
+    expect(read.dated).toBe(true);
+    expect(read.weeks.length).toBeGreaterThan(0);
+    expect(read.weeks.length).toBeLessThanOrEqual(6);
     for (const week of read.weeks.slice(0, -1)) {
       expect(week).toHaveLength(7);
       expect(new Date(`${week[0]}T00:00:00Z`).getUTCDay()).toBe(1);
     }
+    // The first week drawn holds a commit: none of the weeks before the history began.
+    expect(read.weeks[0]).toContain(read.firstBusy);
     expect(read.words).toContain('commits to this site');
     expect(read.dots).toBeGreaterThan(0);
   });

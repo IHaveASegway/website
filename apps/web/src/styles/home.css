@@ -745,9 +745,11 @@
   font-weight: 500;
 }
 
-/* The activity grid (components/home/Activity.astro): the total and its sentence, then the
-   calendar, beside each other from 64rem. Empty days are the sheet edged by a hairline; a day with
-   commits is cobalt in four steps; a day a decision record is dated carries a ringed dot. */
+/* The activity calendar (components/home/Activity.astro): the total and its sentence, then the
+   calendar, beside each other from 64rem. A row a week; each day a square with its date, the sheet
+   edged by a hairline on a day with no commit, cobalt in four steps on a day with some; a day a
+   decision record is dated carries a ringed dot in its corner. The calendar is drawn at a fixed
+   shape and scales to its column, at most 34rem wide. */
 .activity {
   display: grid;
   gap: 1.25rem;
@@ -772,6 +774,7 @@
 .activity-grid {
   display: block;
   inline-size: 100%;
+  max-inline-size: 34rem;
   block-size: auto;
 }
 
@@ -785,17 +788,17 @@
 }
 
 .activity-level-1 {
-  fill: color-mix(in oklab, var(--primary) 28%, var(--surface-1));
+  fill: color-mix(in oklab, var(--primary) 22%, var(--surface-1));
   stroke: none;
 }
 
 .activity-level-2 {
-  fill: color-mix(in oklab, var(--primary) 52%, var(--surface-1));
+  fill: color-mix(in oklab, var(--primary) 40%, var(--surface-1));
   stroke: none;
 }
 
 .activity-level-3 {
-  fill: color-mix(in oklab, var(--primary) 76%, var(--surface-1));
+  fill: color-mix(in oklab, var(--primary) 70%, var(--surface-1));
   stroke: none;
 }
 
@@ -807,15 +810,36 @@
 .activity-decision {
   fill: var(--surface-1);
   stroke: var(--foreground);
-  stroke-width: 1.25;
+  stroke-width: 1.5;
+}
+
+.activity-month,
+.activity-weekday,
+.activity-date {
+  font-family: var(--font-wide);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 
 .activity-month,
 .activity-weekday {
   fill: var(--muted-foreground);
-  font-family: var(--font-wide);
-  font-size: 8.5px;
-  font-weight: 500;
+  font-size: 12px;
+}
+
+.activity-date {
+  fill: var(--foreground);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+/* A date reads by its day's fill: muted on a day with no commit, white on the two darkest steps. */
+.activity-level-0 + .activity-date {
+  fill: var(--muted-foreground);
+}
+
+:is(.activity-level-3, .activity-level-4) + .activity-date {
+  fill: var(--primary-foreground);
 }
 
 .activity-key {
@@ -849,10 +873,16 @@
   }
 }
 
+/* A phone draws the calendar at about three quarters of its units: its words larger, so they read
+   at 11.5 px or more. */
 @media (width < 40rem) {
   .activity-month,
   .activity-weekday {
-    font-size: 11px;
+    font-size: 15.5px;
+  }
+
+  .activity-date {
+    font-size: 16px;
   }
 }
 

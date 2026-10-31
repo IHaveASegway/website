@@ -44,11 +44,11 @@ export interface ActivityDay {
   readonly decisions: readonly Decision[];
 }
 
-/** The calendar: a column a week, Monday to Sunday, the last column the week of the latest commit. A
- *  day after the latest commit is not drawn. */
+/** The calendar: a week at a time, Monday to Sunday, the last the week of the latest commit. A day
+ *  after the latest commit is not drawn. */
 export interface Activity {
   readonly weeks: readonly (readonly ActivityDay[])[];
-  /** The months, each at the first column whose week holds its first day (or the calendar's first). */
+  /** The months, each at the first week that holds its first day (or the calendar's first). */
   readonly months: readonly { readonly name: string; readonly column: number }[];
   readonly commits: number;
   /** The days with at least one commit. */
@@ -67,13 +67,15 @@ const monday = (ms: number): number => ms - ((new Date(ms).getUTCDay() + 6) % 7)
 /**
  * The activity calendar from each commit's day (YYYY-MM-DD, UTC, one entry a commit) and the decision
  * records: from the week of the first commit, or `least` weeks back if that is later, to the week
- * of the last, and never more than `most` weeks.
+ * of the last, and never more than `most` weeks. Home draws the repository's own weeks, at most the
+ * last six (components/home/Activity.astro): no week before the first commit, which would read as
+ * a week with nothing done. Until 2026-10-31 it drew at least 26.
  */
 export function activity(
   commitDays: readonly string[],
   decisions: readonly Decision[],
-  least = 26,
-  most = 53,
+  least = 1,
+  most = 6,
 ): Activity | null {
   const days = commitDays.filter((day) => DAY.test(day) && !Number.isNaN(at(day))).sort();
   const first = days[0];
