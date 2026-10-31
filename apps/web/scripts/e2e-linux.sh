@@ -18,12 +18,17 @@
 # E2E_LINUX_ALL=1 runs them anyway.
 #
 # Needs Docker and a build: pnpm build first, as for pnpm e2e. E2E_LINUX_PORT picks the port
-# (default 8789, beside pnpm serve's 8787 and serve:fixture's 8788).
+# (default 8789, beside pnpm serve's 8787 and serve:fixture's 8788). E2E_LINUX_INSPECTOR_PORT picks
+# the port wrangler dev's inspector takes beside it; unset, it is wrangler's default, as before:
+# the first free port from 9229. Two runs started together can probe the same free port, and a
+# sandbox may allow only the ports it names, so a run beside another is given both.
 set -euo pipefail
 
 web="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 repo="$(cd "$web/../.." && pwd)"
 port="${E2E_LINUX_PORT:-8789}"
+inspector=()
+[ -z "${E2E_LINUX_INSPECTOR_PORT:-}" ] || inspector=(--inspector-port "$E2E_LINUX_INSPECTOR_PORT")
 
 command -v docker >/dev/null || {
   echo "e2e-linux: docker is not installed" >&2
@@ -60,7 +65,7 @@ trap stop EXIT
 
 set -m # the server gets a process group of its own, which stop() ends
 (cd "$web" && exec node_modules/.bin/wrangler dev --local --ip "$ip" --port "$port" \
-  --show-interactive-dev-session=false) >"$log" 2>&1 &
+  ${inspector[@]+"${inspector[@]}"} --show-interactive-dev-session=false) >"$log" 2>&1 &
 server=$!
 set +m
 
