@@ -26,6 +26,9 @@ import { html, read } from './support/dist';
 // The Cache Lab, /lab/cache/, loads its own module the same way, on its page only: the bundle of
 // components/cache-lab/CacheLab.astro's script (boot.ts), which loads the rest on intent.
 //
+// The Backfill Lab, /lab/backfill/, loads its own module the same way, on its page only (ADR
+// 0026): the bundle of components/backfill-lab/BackfillLab.astro's script (boot.ts).
+//
 // And Home and the indexes have a fifth, once (design-system.md, "Motion"): the module of
 // components/Motion.astro (src/scripts/motion.js), which decodes a card's tag and hands a followed
 // title to the next page. A post, a demo, /about/ and the 404 carry none.
@@ -37,6 +40,7 @@ type Verdict =
   | 'raft-lab'
   | 'queue-lab'
   | 'cache-lab'
+  | 'backfill-lab'
   | 'palette'
   | 'motion'
   | string;
@@ -63,6 +67,12 @@ export const QUEUE_LAB = {
 export const CACHE_LAB = {
   page: 'lab/cache/index.html',
   src: /^\/_astro\/CacheLab\.astro_astro_type_script_index_0_lang\.[\w-]+\.js$/,
+} as const;
+
+/** The Backfill Lab's page and the name Astro gives its module's bundle. */
+export const BACKFILL_LAB = {
+  page: 'lab/backfill/index.html',
+  src: /^\/_astro\/BackfillLab\.astro_astro_type_script_index_0_lang\.[\w-]+\.js$/,
 } as const;
 
 /** The name Astro gives the command menu's bundle, which every page loads. */
@@ -117,6 +127,14 @@ export function classify(
   )
     return 'cache-lab';
   if (
+    page === BACKFILL_LAB.page &&
+    names === 'src type' &&
+    script.attributes['type'] === 'module' &&
+    BACKFILL_LAB.src.test(script.attributes['src'] ?? '') &&
+    script.body === ''
+  )
+    return 'backfill-lab';
+  if (
     names === 'src type' &&
     script.attributes['type'] === 'module' &&
     PALETTE.test(script.attributes['src'] ?? '') &&
@@ -147,6 +165,7 @@ for (const file of html) {
         'raft-lab',
         'queue-lab',
         'cache-lab',
+        'backfill-lab',
         'palette',
         'motion',
       ];
@@ -156,6 +175,9 @@ for (const file of html) {
       );
       expect(verdicts.filter((v) => v === 'cache-lab')).toHaveLength(
         file === CACHE_LAB.page ? 1 : 0,
+      );
+      expect(verdicts.filter((v) => v === 'backfill-lab')).toHaveLength(
+        file === BACKFILL_LAB.page ? 1 : 0,
       );
       expect(verdicts.filter((v) => v === 'motion').length).toBeLessThanOrEqual(1);
       expect(verdicts.filter((v) => !known.includes(v))).toEqual([]);
@@ -398,4 +420,36 @@ test('known answers: the Cache Lab module is allowed on its page only, from /_as
   expect(classify({ attributes: { src: boot.attributes.src }, body: '' }, CACHE_LAB.page)).toMatch(
     /^not allowed/,
   );
+});
+
+test('known answers: the Backfill Lab module is allowed on its page only, from /_astro/, never inline', () => {
+  const boot = {
+    attributes: {
+      type: 'module',
+      src: '/_astro/BackfillLab.astro_astro_type_script_index_0_lang.Ck2yV1aZ.js',
+    },
+    body: '',
+  };
+  expect(classify(boot, BACKFILL_LAB.page)).toBe('backfill-lab');
+  for (const page of [RAFT_LAB.page, ROUTE_LAB.page, 'index.html', 'lab/index.html', ''])
+    expect(classify(boot, page), page).toMatch(/^not allowed/);
+  // The Raft Lab's module is not allowed on the Backfill Lab's page, nor an inline or classic one.
+  expect(
+    classify(
+      {
+        attributes: {
+          type: 'module',
+          src: '/_astro/RaftLab.astro_astro_type_script_index_0_lang.D5gT1Uuz.js',
+        },
+        body: '',
+      },
+      BACKFILL_LAB.page,
+    ),
+  ).toMatch(/^not allowed/);
+  expect(
+    classify({ attributes: { type: 'module' }, body: 'import "./boot"' }, BACKFILL_LAB.page),
+  ).toMatch(/^not allowed/);
+  expect(
+    classify({ attributes: { src: boot.attributes.src }, body: '' }, BACKFILL_LAB.page),
+  ).toMatch(/^not allowed/);
 });

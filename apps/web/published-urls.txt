@@ -17,3 +17,4 @@
 /about/
 /lab/queue/
 /lab/cache/
+/lab/backfill/

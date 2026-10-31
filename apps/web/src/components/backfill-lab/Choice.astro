@@ -1,0 +1,39 @@
+---
+interface Option {
+  readonly value: string;
+  /** What the button shows. */
+  readonly words: string;
+  /** Its whole name, when the button shows less of it: "Mon" is Monday. */
+  readonly long?: string;
+}
+
+interface Props {
+  legend: string;
+  name: string;
+  options: readonly Option[];
+  checked: string;
+}
+
+// One of the desk's choices (backfill-lab.css): a row of push-buttons, each a native radio whose
+// lamp is lit while it is chosen. The arrow keys move between them, as between any radios.
+const { legend, name, options, checked } = Astro.props;
+---
+
+<fieldset class="bf-choice">
+  <legend class="bf-legend">{legend}</legend>
+  <div class="bf-options">
+    {options.map((option) => (
+      <label class="btn bf-option" data-short={option.long ? '' : undefined}>
+        <input
+          type="radio"
+          name={name}
+          value={option.value}
+          checked={option.value === checked}
+          autocomplete="off"
+        />
+        {option.long ? <span aria-hidden="true">{option.words}</span> : option.words}
+        {option.long && <span class="bf-sr">{option.long}</span>}
+      </label>
+    ))}
+  </div>
+</fieldset>

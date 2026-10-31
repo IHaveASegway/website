@@ -1,0 +1,63 @@
+---
+import { render } from 'astro:content';
+import BackfillLab from '../../../components/backfill-lab/BackfillLab.astro';
+import Base from '../../../layouts/Base.astro';
+import {
+  ATTEMPTS,
+  BACKOFF,
+  count,
+  FAIL_RATE,
+  LOAD_SLOTS,
+  MAX_ACTIVE_RUNS,
+} from '../../../lib/backfill/core';
+import { openingRun, SEEDS_IN_CI } from '../../../lib/backfill/view';
+import { labEntry, loadLabArea, loadProfile } from '../../../lib/content';
+import { labPath, type LabEntry } from '../../../lib/lab';
+import { labCard } from '../../../lib/og';
+
+// The Backfill Lab (ADR 0026), a page of its own, as the Raft Lab's is (ADR 0020), so it links none
+// of another demo's styles or code ([demo].astro leaves it out, lib/lab.ts OWN_PAGE). Static: the
+// simulation runs in the browser, with no Worker and no Durable Object. A rest parameter, so the
+// page builds only while its lab entry is live, as /lab/ does.
+export async function getStaticPaths() {
+  const lab = await loadLabArea();
+  const entry = lab.entries.find((e) => e.slug === 'backfill');
+  return entry ? [{ params: { index: undefined }, props: { entry } }] : [];
+}
+
+interface Props {
+  entry: LabEntry;
+}
+
+const { entry } = Astro.props;
+
+const { name } = (await loadProfile()).basics;
+const { Content } = await render(await labEntry(entry));
+const lead =
+  "A nightly job counts the bakery's orders, one run per day. Backfill the week, fail a load, rerun a day, and check every total against the source.";
+// How it is built, in the model's own figures, so none is typed here. Each paragraph is one string:
+// a figure that a formatter moves to the start of a line would lose the space before it.
+const opening = openingRun();
+const built = [
+  `The job graph is one TypeScript module: five steps for each day, from a sensor that waits for the export file to the check, a scheduler that lets runs in oldest day first, ${MAX_ACTIVE_RUNS} at a time unless you choose otherwise, and ${LOAD_SLOTS} warehouse slots that every load shares. An extract or a load fails on its own ${Math.round(FAIL_RATE * 100)}% of the time, and each gets ${ATTEMPTS} attempts, ${BACKOFF[0]} and then ${BACKOFF[1]} minutes apart. Time, the export files and every failure belong to a simulator around it: virtual time in minutes, one seeded random stream, and your presses recorded where they happened. The same seed and the same presses give the same week. That is how the page opens with a picture the build drew, ${count(opening.events)} events after the job was switched on, and how your browser then takes over at the same minute.`,
+  `After every event, a checker tests the three properties, and that no row appears or vanishes without a write. The same simulator runs ${count(SEEDS_IN_CI)} seeded weeks of failed loads, late files, reruns and changed limits in the site's tests. With overwrite and the run's own day, every property holds. With append, a retry or a rerun counts a day twice, and with the clock's day a week's rows land on one date. Three deliberately broken schedulers prove those runs can find a real bug: one that starts a step before the one it needs has succeeded, one that runs a third load beside the warehouse's ${LOAD_SLOTS}, and one whose overwrite deletes a day in one step and inserts its rows in another.`,
+];
+---
+
+<Base
+  title={`${entry.title} · ${name}`}
+  description={entry.summary}
+  path={labPath(entry)}
+  og={labCard(entry)}
+>
+  <article class="page bf-page" aria-labelledby="page-title" data-line="backfill">
+    <BackfillLab heading={entry.title} lead={lead} />
+    <div class="prose">
+      <Content />
+      <h2>How it is built</h2>
+      {built.map((paragraph) => (
+        <p>{paragraph}</p>
+      ))}
+    </div>
+  </article>
+</Base>
