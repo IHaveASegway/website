@@ -9,12 +9,7 @@ import WorkCard from '../components/WorkCard.astro';
 import Base from '../layouts/Base.astro';
 import { ABOUT_HEADINGS, aboutParts, LAB_NAMES, sectionOf, withLinks } from '../lib/about';
 import { SEEDS_IN_CI as BACKFILL_SEEDS, openingRun as backfillRun } from '../lib/backfill/view';
-import { replay as cacheReplay } from '../lib/cache/sim';
-import {
-  SEEDS_IN_CI as CACHE_SEEDS,
-  OPENING as CACHE_OPENING,
-  openingRun as cacheRun,
-} from '../lib/cache/view';
+import { SEEDS_IN_CI as CACHE_SEEDS, openingRun as cacheRun } from '../lib/cache/view';
 import {
   loadAbout,
   loadLabArea,
@@ -27,22 +22,12 @@ import { countTests, readCommitDays, readDecisions } from '../lib/home-sources';
 import { system, type Counts, type Lab, type Part } from '../lib/iso/system';
 import { homeGraph, serialize } from '../lib/jsonld';
 import { labPath } from '../lib/lab';
-import { backfillFact, cacheFact, figureWords, queueFact, raftFailover } from '../lib/lines';
+import { labFact } from '../lib/lab-facts';
 import { homeCard } from '../lib/og';
 import { checkedProfiles, homeDescription, roleLine } from '../lib/profile';
-import { replay as queueReplay } from '../lib/queue/sim';
-import {
-  SEEDS_IN_CI as QUEUE_SEEDS,
-  OPENING as QUEUE_OPENING,
-  openingRun as queueRun,
-} from '../lib/queue/view';
-import { leaderOf, replay as raftReplay } from '../lib/raft/sim';
-import {
-  SEEDS_IN_CI as RAFT_SEEDS,
-  OPENING as RAFT_OPENING,
-  openingRun as raftRun,
-} from '../lib/raft/view';
-import { formatDuration } from '../lib/route-lab/format';
+import { SEEDS_IN_CI as QUEUE_SEEDS, openingRun as queueRun } from '../lib/queue/view';
+import { leaderOf } from '../lib/raft/sim';
+import { SEEDS_IN_CI as RAFT_SEEDS, openingRun as raftRun } from '../lib/raft/view';
 import { routeLabPicture } from '../lib/route-lab/picture';
 import { CONTACT_EMAIL } from '../lib/site';
 import { writingRow } from '../lib/work';
@@ -116,54 +101,14 @@ const links: Partial<Record<Lab, { href: string; title: string }>> = Object.from
 );
 const parts = new Map<string, Part>(model?.parts.map((part) => [part.lab, part]) ?? []);
 
-const facts = new Map<string, string>();
-if (runs) {
-  if (demo.has('queue'))
-    facts.set(
-      'queue',
-      queueFact(
-        queueReplay(
-          { ...QUEUE_OPENING.config, key: true },
-          QUEUE_OPENING.actions,
-          QUEUE_OPENING.until,
-        ),
-      ),
-    );
-  if (demo.has('cache'))
-    facts.set(
-      'cache',
-      cacheFact(
-        runs.cache,
-        cacheReplay(
-          { ...CACHE_OPENING.config, coalesce: true },
-          CACHE_OPENING.actions,
-          CACHE_OPENING.until,
-        ),
-      ),
-    );
-  if (demo.has('raft') && leader)
-    facts.set(
-      'raft',
-      raftFailover(
-        runs.raft,
-        raftReplay(
-          { seed: RAFT_OPENING.seed },
-          [...RAFT_OPENING.actions, { at: RAFT_OPENING.until, kind: 'crash', node: leader.id }],
-          RAFT_OPENING.until,
-        ),
-      ),
-    );
-  if (demo.has('backfill'))
-    facts.set('backfill', backfillFact(runs.backfill, backfillRun('overwrite')));
-}
-// The Route Lab's figures say, where Home shows them, what they measure against and that the
-// bakery is made up (the visitor review of 2026-10-31), in the words the hero said them in until
-// ADR 0027 (lib/lines.ts, figureWords).
-if (picture)
-  facts.set(
-    'routes',
-    `${formatDuration(picture.after.measured.drive)} ${figureWords(picture.day)}, against ${formatDuration(picture.before.measured.drive)} as the orders came in.`,
-  );
+// Each card's fact (lib/lab-facts.ts, Home's sentences): the module the Lab index's cards read too.
+const facts = new Map<string, string>(
+  (
+    await Promise.all(
+      lab.entries.map(async (entry) => [entry.slug, await labFact(entry.slug, 'home')] as const),
+    )
+  ).flatMap(([slug, fact]) => (fact ? [[slug, fact] as [string, string]] : [])),
+);
 
 // Selected work (content.md, "Owned work"; lib/work.ts): one list feeds Home and /about/, item for
 // item. Each lab is a card with its glyph, in the lab's order; then a card for each project whose

@@ -115,6 +115,22 @@ describe("each lab's glyph, from the run its page opens on", () => {
     expect(await labGlyph('nothing')).toBeUndefined();
   });
 
+  // One module writes every card's fact, Home's and the Lab index's (lib/lab-facts.ts). Until the
+  // overhaul's merge Home worked out its own copy beside it. The places agree but for the two
+  // sentences that differ on purpose: Home's Raft card crashes the leader, and its Route Lab card
+  // says the bakery is made up.
+  test("Home's facts are the Lab index's, but Raft's failover and the made-up bakery", async () => {
+    for (const slug of LABS) {
+      const [home, index] = [await labFact(slug, 'home'), await labFact(slug, 'index')];
+      expect(home, slug).toMatch(/\S.*\.$/);
+      if (slug === 'raft')
+        expect(home).toMatch(/^Crash server \d, and server \d leads term \d+ after/);
+      else if (slug === 'routes') expect(home).toContain('made-up bakery');
+      else expect(home, slug).toBe(index);
+    }
+    expect(await labFact('raft')).toBe(await labFact('raft', 'index'));
+  });
+
   test('the queue: a lit plate per order waiting, up to eight; a worker that is down is dashed, its wire cut', () => {
     const sim = queueOpening();
     const pool = sim.workers.slice(0, sim.size);
