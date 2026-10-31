@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { declaredFonts, gzipBytes, preloadedFonts } from '../src/lib/weights';
 import { bytes, fileFor, files, html, kinds, read } from './support/dist';
+import { labName, labTitle, SIMULATED_LABS } from './support/labs';
 import {
   BUDGETS,
   cubeFiles,
@@ -134,145 +135,42 @@ describe('the Route Lab', () => {
   );
 });
 
-// The Raft Lab's own budgets (ADR 0020): one app chunk, loaded on intent, and its page's first
-// view within the 150 KB every page but the Route Lab's keeps.
-describe('the Raft Lab', () => {
-  const feature = FEATURES['raft-lab'];
-  const own = files.filter((file) => featureOf(file) === 'raft-lab');
-  const ownJs = own.filter((file) => /\.m?js$/.test(file) && !feature.entry.test(file));
-  const page = files.includes(feature.page) ? read(feature.page) : null;
+// Each simulated lab's own budgets (ADR 0020, ADR 0026; support/labs.ts): one app chunk, loaded on
+// intent, and its page's first view within the 150 KB every page but the Route Lab's keeps.
+for (const lab of SIMULATED_LABS) {
+  describe(labTitle(lab), () => {
+    const feature = FEATURES[labName(lab)];
+    const own = files.filter((file) => featureOf(file) === labName(lab));
+    const ownJs = own.filter((file) => /\.m?js$/.test(file) && !feature.entry.test(file));
+    const page = files.includes(feature.page) ? read(feature.page) : null;
 
-  test('owns one lazy chunk, and nothing a page loads eagerly', () => {
-    expect(ownJs).toHaveLength(1);
-    for (const file of ownJs) expect(eager.has(file), file).toBe(false);
+    test('owns one lazy chunk, and nothing a page loads eagerly', () => {
+      expect(ownJs).toHaveLength(1);
+      for (const file of ownJs) expect(eager.has(file), file).toBe(false);
+    });
+
+    const lazyBytes = ownJs.reduce((sum, file) => sum + gz(file), 0);
+    test(`lazy JavaScript: ${lazyBytes} B of ${feature.lazyJavaScript}`, () => {
+      expect(lazyBytes).toBeLessThanOrEqual(feature.lazyJavaScript);
+    });
+
+    test.runIf(page !== null)('the page reaches its app through import(), and nothing else', () => {
+      const chunks = reachable(feature.page);
+      expect(chunks.length).toBeGreaterThan(0);
+      for (const chunk of chunks) expect(featureOf(chunk)).toBe(labName(lab));
+    });
+
+    test.runIf(page !== null)(
+      `its first view, and with its app, stays within ${feature.firstView} B`,
+      () => {
+        const figures = measure(page ?? '');
+        const firstView =
+          gzipBytes(page ?? '') + figures.css + figures.declaredFonts + figures.eagerJavaScript;
+        expect(firstView + lazyBytes).toBeLessThanOrEqual(feature.firstView);
+      },
+    );
   });
-
-  const lazyBytes = ownJs.reduce((sum, file) => sum + gz(file), 0);
-  test(`lazy JavaScript: ${lazyBytes} B of ${feature.lazyJavaScript}`, () => {
-    expect(lazyBytes).toBeLessThanOrEqual(feature.lazyJavaScript);
-  });
-
-  test.runIf(page !== null)('the page reaches its app through import(), and nothing else', () => {
-    const chunks = reachable(feature.page);
-    expect(chunks.length).toBeGreaterThan(0);
-    for (const chunk of chunks) expect(featureOf(chunk)).toBe('raft-lab');
-  });
-
-  test.runIf(page !== null)(
-    `its first view, and with its app, stays within ${feature.firstView} B`,
-    () => {
-      const figures = measure(page ?? '');
-      const firstView =
-        gzipBytes(page ?? '') + figures.css + figures.declaredFonts + figures.eagerJavaScript;
-      expect(firstView + lazyBytes).toBeLessThanOrEqual(feature.firstView);
-    },
-  );
-});
-
-// The Queue Lab's own budgets (ADR 0026), as the Raft Lab's: one app chunk, loaded on intent, and its
-// page's first view within the 150 KB every page but the Route Lab's keeps.
-describe('the Queue Lab', () => {
-  const feature = FEATURES['queue-lab'];
-  const own = files.filter((file) => featureOf(file) === 'queue-lab');
-  const ownJs = own.filter((file) => /\.m?js$/.test(file) && !feature.entry.test(file));
-  const page = files.includes(feature.page) ? read(feature.page) : null;
-
-  test('owns one lazy chunk, and nothing a page loads eagerly', () => {
-    expect(ownJs).toHaveLength(1);
-    for (const file of ownJs) expect(eager.has(file), file).toBe(false);
-  });
-
-  const lazyBytes = ownJs.reduce((sum, file) => sum + gz(file), 0);
-  test(`lazy JavaScript: ${lazyBytes} B of ${feature.lazyJavaScript}`, () => {
-    expect(lazyBytes).toBeLessThanOrEqual(feature.lazyJavaScript);
-  });
-
-  test.runIf(page !== null)('the page reaches its app through import(), and nothing else', () => {
-    const chunks = reachable(feature.page);
-    expect(chunks.length).toBeGreaterThan(0);
-    for (const chunk of chunks) expect(featureOf(chunk)).toBe('queue-lab');
-  });
-
-  test.runIf(page !== null)(
-    `its first view, and with its app, stays within ${feature.firstView} B`,
-    () => {
-      const figures = measure(page ?? '');
-      const firstView =
-        gzipBytes(page ?? '') + figures.css + figures.declaredFonts + figures.eagerJavaScript;
-      expect(firstView + lazyBytes).toBeLessThanOrEqual(feature.firstView);
-    },
-  );
-});
-
-// The Cache Lab's own budgets: one app chunk, loaded on intent, and its page's first view within
-// the 150 KB every page but the Route Lab's keeps.
-describe('the Cache Lab', () => {
-  const feature = FEATURES['cache-lab'];
-  const own = files.filter((file) => featureOf(file) === 'cache-lab');
-  const ownJs = own.filter((file) => /\.m?js$/.test(file) && !feature.entry.test(file));
-  const page = files.includes(feature.page) ? read(feature.page) : null;
-
-  test('owns one lazy chunk, and nothing a page loads eagerly', () => {
-    expect(ownJs).toHaveLength(1);
-    for (const file of ownJs) expect(eager.has(file), file).toBe(false);
-  });
-
-  const lazyBytes = ownJs.reduce((sum, file) => sum + gz(file), 0);
-  test(`lazy JavaScript: ${lazyBytes} B of ${feature.lazyJavaScript}`, () => {
-    expect(lazyBytes).toBeLessThanOrEqual(feature.lazyJavaScript);
-  });
-
-  test.runIf(page !== null)('the page reaches its app through import(), and nothing else', () => {
-    const chunks = reachable(feature.page);
-    expect(chunks.length).toBeGreaterThan(0);
-    for (const chunk of chunks) expect(featureOf(chunk)).toBe('cache-lab');
-  });
-
-  test.runIf(page !== null)(
-    `its first view, and with its app, stays within ${feature.firstView} B`,
-    () => {
-      const figures = measure(page ?? '');
-      const firstView =
-        gzipBytes(page ?? '') + figures.css + figures.declaredFonts + figures.eagerJavaScript;
-      expect(firstView + lazyBytes).toBeLessThanOrEqual(feature.firstView);
-    },
-  );
-});
-
-// The Backfill Lab's own budgets (ADR 0026), as the Raft Lab's: one app chunk, loaded on intent,
-// and its page's first view within the 150 KB every page but the Route Lab's keeps.
-describe('the Backfill Lab', () => {
-  const feature = FEATURES['backfill-lab'];
-  const own = files.filter((file) => featureOf(file) === 'backfill-lab');
-  const ownJs = own.filter((file) => /\.m?js$/.test(file) && !feature.entry.test(file));
-  const page = files.includes(feature.page) ? read(feature.page) : null;
-
-  test('owns one lazy chunk, and nothing a page loads eagerly', () => {
-    expect(ownJs).toHaveLength(1);
-    for (const file of ownJs) expect(eager.has(file), file).toBe(false);
-  });
-
-  const lazyBytes = ownJs.reduce((sum, file) => sum + gz(file), 0);
-  test(`lazy JavaScript: ${lazyBytes} B of ${feature.lazyJavaScript}`, () => {
-    expect(lazyBytes).toBeLessThanOrEqual(feature.lazyJavaScript);
-  });
-
-  test.runIf(page !== null)('the page reaches its app through import(), and nothing else', () => {
-    const chunks = reachable(feature.page);
-    expect(chunks.length).toBeGreaterThan(0);
-    for (const chunk of chunks) expect(featureOf(chunk)).toBe('backfill-lab');
-  });
-
-  test.runIf(page !== null)(
-    `its first view, and with its app, stays within ${feature.firstView} B`,
-    () => {
-      const figures = measure(page ?? '');
-      const firstView =
-        gzipBytes(page ?? '') + figures.css + figures.declaredFonts + figures.eagerJavaScript;
-      expect(firstView + lazyBytes).toBeLessThanOrEqual(feature.firstView);
-    },
-  );
-});
+}
 
 // Home's scene (ADR 0024): one chunk, which Home's motion module loads through import() after the
 // page has painted, and the day's tracks it fetches; Home's first view with both, and with the

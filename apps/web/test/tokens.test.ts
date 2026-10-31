@@ -13,6 +13,7 @@ import {
 import { describe, expect, test } from 'vitest';
 import { SELECTORS, block, stripComments, themeBlocks, themeColors } from '../src/lib/tokens';
 import { files, read } from './support/dist';
+import { labPage, labTitle, SIMULATED_LABS } from './support/labs';
 
 // The contrast claim belongs to this test, not to a comment (ADR 0010). It reads tokens.css,
 // resolves every color token in both themes, and checks each text and non-text token against
@@ -524,18 +525,28 @@ describe('motion lives only under prefers-reduced-motion: no-preference', () => 
       const found = motion(read(file));
       expect(found.filter((m) => !guarded(m)).map((m) => m.what)).toEqual([]);
       // The stylesheet every page links ships the card's bar and the view transition, both
-      // guarded. The Route Lab's own sheet ships one, the maps' fade (ADR 0016), guarded too. The
-      // Raft Lab's ships none: its demo moves in JavaScript, only while the visitor runs it, and
-      // its messages stand still under reduced motion (ADR 0020). Nor do the Queue Lab's, the
-      // Cache Lab's and the Backfill Lab's, for the same reason (ADR 0026).
+      // guarded. The Route Lab's own sheet ships one, the maps' fade (ADR 0016), guarded too. A
+      // simulated lab's ships none (support/labs.ts): its demo moves in JavaScript, only while the
+      // visitor runs it, and stands still under reduced motion (ADR 0020, ADR 0026).
       if (read(file).includes('.rl-map'))
         expect(found.map((m) => m.what)).toEqual(['transition:opacity .22s ease-out']);
-      else if (read(file).includes('.rf-map')) expect(found).toEqual([]);
-      else if (read(file).includes('.qu-map')) expect(found).toEqual([]);
-      else if (read(file).includes('.cl-map')) expect(found).toEqual([]);
-      else if (read(file).includes('.bf-board')) expect(found).toEqual([]);
+      else if (SIMULATED_LABS.some((lab) => read(file).includes(`.${lab.map}`)))
+        expect(found).toEqual([]);
       else expect(found.length).toBeGreaterThanOrEqual(2);
     });
+  }
+
+  // Each simulated lab's sheet is found by its row's map class, wherever its page builds, so a row
+  // that names no sheet fails here rather than leaving that sheet to the checks above.
+  for (const lab of SIMULATED_LABS) {
+    test.runIf(files.includes(labPage(lab)))(
+      `${labTitle(lab)}'s sheet ships, found by .${lab.map}, and moves nothing`,
+      () => {
+        const sheets = shipped.filter((file) => read(file).includes(`.${lab.map}`));
+        expect(sheets).toHaveLength(1);
+        expect(motion(read(sheets[0] ?? ''))).toEqual([]);
+      },
+    );
   }
 
   test('known answers', () => {
