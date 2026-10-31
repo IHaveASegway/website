@@ -115,10 +115,11 @@ test('inline code has no padding on paper or in forced colors, and keeps it on s
 
 // Home on paper is its opening in one column, each part as tall as it draws (home.css): a page is
 // narrower than 64rem, so the phone's rows apply on paper, the name, the role and the buttons, then
-// the drawing, then the bio's blocks, with no gap between them wider than a line. Until ADR 0027 the
-// check was that the scene's row held nothing on paper; until 2026-10-30 it kept its 18.75rem, a
-// blank gap of 300 px between the buttons and the bio's opening.
-test('Home on paper keeps no gap between the buttons, the drawing and the blocks', async ({
+// the bio's blocks, then the drawing, with no gap between them wider than a line. Until 2026-10-31
+// the drawing came before the blocks there; until ADR 0027 the check was that the scene's row held
+// nothing on paper; until 2026-10-30 it kept its 18.75rem, a blank gap of 300 px between the
+// buttons and the bio's opening.
+test('Home on paper keeps no gap between the buttons, the blocks and the drawing', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 816, height: 1056 });
@@ -126,9 +127,9 @@ test('Home on paper keeps no gap between the buttons, the drawing and the blocks
   await page.emulateMedia({ media: 'print' });
   const gaps = await page.evaluate(() => {
     const box = (selector: string) => document.querySelector(selector)?.getBoundingClientRect();
-    const [actions, drawing, blocks] = ['.intro-actions', 'figure.iso', '.bio-blocks'].map(box);
-    return actions && drawing && blocks
-      ? [drawing.top - actions.bottom, blocks.top - drawing.bottom]
+    const [actions, blocks, drawing] = ['.intro-actions', '.bio-blocks', 'figure.iso'].map(box);
+    return actions && blocks && drawing
+      ? [blocks.top - actions.bottom, drawing.top - blocks.bottom]
       : null;
   });
   test.skip(gaps === null, 'Home has no drawing or bio here');
