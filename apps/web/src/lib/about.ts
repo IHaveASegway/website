@@ -107,6 +107,16 @@ export function sectionOf(parts: AboutParts, heading: string): AboutSection | un
   return parts.sections.find((section) => section.heading === heading);
 }
 
+/** The first sentence of a paragraph: Home's hero says the bio's opening sentence (content.md,
+ *  "Home page"), what Joseph builds, and /about/ says the whole opening. The bio's opening grew to
+ *  two sentences on 2026-10-31; both at once ran the hero past the first screen at 1440 × 900 and
+ *  let the fallback face wrap it a line longer than the web face on a 390 px phone (e2e/fold.spec.ts).
+ *  A sentence ends at a full stop, question or exclamation mark followed by a space and a capital;
+ *  a paragraph with no such end is one sentence. */
+export function openingSentence(paragraph: string): string {
+  return /^.+?[.!?](?=\s+[A-Z])/.exec(paragraph)?.[0] ?? paragraph;
+}
+
 /** The demos the bio names, by their lab's slug: on Home the first mention of each opens its page,
  *  once the build writes it. */
 export const LAB_NAMES = [

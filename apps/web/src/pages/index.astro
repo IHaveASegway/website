@@ -8,7 +8,14 @@ import RouteScene from '../components/RouteScene.astro';
 import SectionTitle from '../components/SectionTitle.astro';
 import WorkCard from '../components/WorkCard.astro';
 import Base from '../layouts/Base.astro';
-import { ABOUT_HEADINGS, aboutParts, LAB_NAMES, sectionOf, withLinks } from '../lib/about';
+import {
+  ABOUT_HEADINGS,
+  aboutParts,
+  LAB_NAMES,
+  openingSentence,
+  sectionOf,
+  withLinks,
+} from '../lib/about';
 import {
   loadAbout,
   loadLabArea,
@@ -48,6 +55,8 @@ const bio = bioEntry?.body === undefined ? undefined : aboutParts(bioEntry.body)
 // Each part by its heading: What I build comes before How I work and is a list of bold leads too,
 // so neither its place nor its shape picks the principles. Home shows How I work and the close.
 const principles = bio && sectionOf(bio, ABOUT_HEADINGS.how);
+// The hero says the opening's first sentence, what Joseph builds; /about/ says the whole opening.
+const lede = bio?.lede[0] === undefined ? undefined : [openingSentence(bio.lede[0])];
 const toward = bio && sectionOf(bio, ABOUT_HEADINGS.toward);
 // The demos this build writes, by slug. The bio names them, and on Home those words link to them.
 const demo = new Map(lab.entries.map((entry) => [entry.slug, entry]));
@@ -81,7 +90,7 @@ const linkedIn = checkedProfiles(profile).find((p) => p.network === 'LinkedIn');
     {scene && <RouteScene picture={scene.picture} data={`${scene.href}scene.json`} />}
     <Hero
       profile={profile}
-      lede={bio?.lede}
+      lede={lede}
       figures={
         scene && {
           before: formatDuration(scene.picture.before.measured.drive),

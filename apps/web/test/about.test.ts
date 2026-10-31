@@ -6,6 +6,7 @@ import {
   aboutParts,
   aboutSchema,
   LAB_NAMES,
+  openingSentence,
   sectionOf,
   withLinks,
 } from '../src/lib/about';
@@ -73,6 +74,21 @@ describe('aboutParts: Home reads the bio it does not own', () => {
     expect(how?.paragraphs).toEqual([]);
     expect(toward?.principles).toEqual([]);
     expect(toward?.paragraphs).toHaveLength(1);
+  });
+
+  test("openingSentence: Home's hero says the opening's first sentence, /about/ the whole", () => {
+    const opening = aboutParts(body).lede[0] ?? '';
+    expect(openingSentence(opening)).toBe(
+      "I'm a software engineer who builds the systems work flows through: queues, data pipelines, caches and the clusters under them, and now the lines where agents write the code.",
+    );
+    expect(opening.startsWith(openingSentence(opening))).toBe(true);
+    // Known answers: the first of several, a lone sentence whole, no end at a lower-case word or
+    // inside a number.
+    expect(openingSentence('One. Two! Three?')).toBe('One.');
+    expect(openingSentence('Is it one? Yes.')).toBe('Is it one?');
+    expect(openingSentence('Just one.')).toBe('Just one.');
+    expect(openingSentence('It ran 3.5 s. then stopped.')).toBe('It ran 3.5 s. then stopped.');
+    expect(openingSentence('No full stop')).toBe('No full stop');
   });
 
   test('sectionOf: a section by its heading, wherever it stands, and none by another name', () => {

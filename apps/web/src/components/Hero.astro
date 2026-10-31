@@ -4,8 +4,9 @@ import { CONTACT_EMAIL } from '../lib/site';
 
 interface Props {
   profile: Profile;
-  /** The bio's opening, Joseph's own words (src/content/about.md). Left out where the build holds
-   *  no bio, as the fixture builds do: then the column has no sentence. */
+  /** The bio's opening sentence, Joseph's own words (src/content/about.md; lib/about.ts,
+   *  openingSentence). Left out where the build holds no bio, as the fixture builds do: then the
+   *  column has no sentence. */
   lede?: readonly string[] | undefined;
   /** The Route Lab's result, from the build's own solve: the day's driving as the orders came in
    *  and as VROOM plans it, and the words under them. Left out where the Route Lab does not build. */
@@ -23,8 +24,8 @@ const external = checkedProfiles(profile);
 // lines, the role in a sentence, the bio's opening, the Route Lab's result, the ways to reach him,
 // and the scene's caption. Below 64rem the name, the role and the buttons lead and the map's band
 // follows them (home.css places each item; the order stays this one). Each button is its words
-// alone: no arrows. The sentence is the bio's opening, which Joseph cleared with the bio on
-// 2026-10-29 (content.md, row 1), so Home and /about/ say it from one file (ADR 0023).
+// alone: no arrows. The sentence is the bio's opening sentence, which Joseph cleared with the bio
+// (content.md, row 1), so Home and /about/ say it from one file (ADR 0023).
 ---
 
 <section class="hero hero-home" aria-labelledby="name" data-row="1">
