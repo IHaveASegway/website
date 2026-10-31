@@ -714,8 +714,14 @@ const TOGGLES = ['coalesce', 'stale', 'early', 'jitter', 'invalidate'] as const;
 
 /** A seeded run with faults: a random load, placement and set of toggles, then an action every
  *  0.25-1.75 s for 15 s: a flush, a lost or restored node, a write (half of them to the menu), a
- *  switch flipped, a new load or a new placement. */
-function randomRun(seed: number, faults: Faults = {}, force: Partial<Config> = {}) {
+ *  switch flipped, a new load or a new placement. A switch in `kept` is never flipped: its draw is
+ *  made and dropped, so the rest of the run's choices are the same. */
+function randomRun(
+  seed: number,
+  faults: Faults = {},
+  force: Partial<Config> = {},
+  kept: readonly Toggle[] = [],
+) {
   const pick = seeded(seed * 7919 + 17);
   const coin = () => pick() < 0.5;
   const one = <T>(list: readonly T[]): T => list[Math.floor(pick() * list.length)] as T;
@@ -745,8 +751,10 @@ function randomRun(seed: number, faults: Faults = {}, force: Partial<Config> = {
     else if (roll < 0.32) loseNode(sim, node);
     else if (roll < 0.48) restoreNode(sim, node);
     else if (roll < 0.66) write(sim, pick() < 0.5 ? 0 : Math.floor(pick() * PAGES));
-    else if (roll < 0.84) setToggle(sim, one(TOGGLES), coin());
-    else if (roll < 0.94) setLoad(sim, one(LOADS));
+    else if (roll < 0.84) {
+      const [toggle, on] = [one(TOGGLES), coin()];
+      if (!kept.includes(toggle)) setToggle(sim, toggle, on);
+    } else if (roll < 0.94) setLoad(sim, one(LOADS));
     else setPlacement(sim, coin() ? 'circle' : 'modulo');
   }
   runUntil(sim, 15_000);
@@ -885,6 +893,35 @@ describe('the property sweep', { timeout: 30_000 }, () => {
     expect(seen.timeouts).toBeGreaterThan(0);
     expect(seen.stale).toBeGreaterThan(0);
     expect(seen.moved).toBeGreaterThan(0);
+  });
+
+  // Coalescing's promise, held over every seed: in the sweep above it is checked only in the runs
+  // that start with it on and never flip it, about a third of them. Here every run does.
+  test(`${SEEDS} random runs with coalescing on throughout: no node fetches a page twice at once`, () => {
+    const broken: string[] = [];
+    let held = 0;
+    let moved = 0;
+    for (let seed = 1; seed <= SEEDS; seed++) {
+      const { sim, config } = randomRun(seed, {}, { coalesce: true }, ['coalesce']);
+      if (throughout(sim, config, 'coalesce', true)) held += 1;
+      for (const problem of problems(sim, config)) broken.push(`seed ${seed}: ${problem}`);
+      // A page that moved node mid-fetch is fetched again on its new node: the database's one
+      // fetch at a time breaks, and coalescing, which is per node, still holds.
+      if (sim.tally.overlaps > 0) moved += 1;
+    }
+    expect(broken).toEqual([]);
+    expect(held).toBe(SEEDS);
+    expect(moved).toBeGreaterThan(0);
+  });
+
+  // The check above can fail: turned off while its coalesced fetch is in flight, coalescing lets
+  // the node's next readers fetch the page again, and the tally counts each such fetch.
+  test('known answer: a node that fetches a page while its own coalesced fetch is in flight is counted', () => {
+    const sim = replay({ ...OPENING.config, coalesce: true }, [], 3_100);
+    expect(sim.tally.sameNode).toBe(0);
+    setToggle(sim, 'coalesce', false);
+    runUntil(sim, 3_300);
+    expect(sim.tally.sameNode).toBeGreaterThan(0);
   });
 
   test.each([

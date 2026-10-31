@@ -630,6 +630,12 @@ legend.cl-group-name {
   gap: 0.5rem;
 }
 
+/* Run is the lit lamp, and keeps its width as it turns to Pause, so the buttons after it stay
+   where they are, as the Queue and Backfill Labs' Run does. */
+.cl-run {
+  min-inline-size: 5.5rem;
+}
+
 /* The choices of one radio group stand edge to edge, one push-button of several parts. */
 .cl-segments {
   gap: 0;
