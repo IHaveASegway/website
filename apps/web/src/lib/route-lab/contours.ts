@@ -175,23 +175,6 @@ export const clearOfPlaces = (box: Box, places: readonly { x: number; y: number 
       p.y > box.bottom + MARKER,
   );
 
-/** Where "The bakery" goes: left of its mark, as before, unless that covers a place (International
- *  Fountain is there, a stop on the default day), and then right. */
-export function bakeryLabelAt(
-  bakery: { readonly x: number; readonly y: number },
-  places: readonly { x: number; y: number }[],
-): { x: number; y: number; anchor: 'start' | 'end' } {
-  const tries = [
-    { x: bakery.x - 24, y: bakery.y + 11, anchor: 'end' as const },
-    { x: bakery.x + 24, y: bakery.y + 11, anchor: 'start' as const },
-  ];
-  const others = places.filter((p) => p.x !== bakery.x || p.y !== bakery.y);
-  return (
-    tries.find((t) => clearOfPlaces(labelBox(t.x, t.y, 10, t.anchor, 37), others)) ??
-    (tries[0] as (typeof tries)[number])
-  );
-}
-
 /** `fits`, where given, is the test a label's spot must pass instead of clearOfPlaces: the page
  *  knows each size it draws the label at, and the names already on the map (labels.ts). */
 export function contours(
