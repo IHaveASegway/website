@@ -323,6 +323,15 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
   });
   for (const map of maps) sized.observe(map);
 
-  for (const control of queued) press(control);
+  // The choices made while the app loaded are read before any is played: playing one draws the
+  // page, and the draw sets every radio from the run, which unchecked a later choice before its
+  // turn (a slow load lost "Rush" after "On"). Each is checked again as its turn comes.
+  const chosen = new Set(
+    queued.filter((control) => control instanceof HTMLInputElement && control.checked),
+  );
+  for (const control of queued) {
+    if (control instanceof HTMLInputElement && chosen.has(control)) control.checked = true;
+    press(control);
+  }
   draw();
 }

@@ -351,6 +351,27 @@ test('a link to a run opens it: #seed-8 loads that seed with no other intent, St
   await expect(page.getByRole('radio', { name: 'On' })).toBeChecked();
 });
 
+// The known answer for a slow load: the app's chunk is held until three choices are made, so all
+// three wait in the boot script's queue and are played when it arrives. Playing the first draws
+// the page; the other two must still be played as they were made.
+test('choices made while the app loads are each kept, however slow the load', async ({ page }) => {
+  let release = () => {};
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route('**/_astro/app.*.js', async (route) => {
+    await held;
+    await route.continue();
+  });
+  await page.goto(QUEUE);
+  await page.getByRole('radio', { name: 'On' }).check();
+  await page.getByRole('radio', { name: 'Rush' }).check();
+  await page.getByRole('radio', { name: 'Dead-letter after four tries' }).check();
+  release();
+  await page.getByRole('button', { name: 'Start over' }).click();
+  await expect(clock(page)).toHaveText('Virtual time 4.000 s');
+  expect(new URL(page.url()).hash).toBe('#seed-28&load=rush&key=on&handling=dead-letter');
+  await expect(page.getByRole('radio', { name: 'Rush' })).toBeChecked();
+});
+
 test('Start over writes the link to its run, the seed and each setting changed, and a reload opens the same run', async ({
   page,
 }) => {
