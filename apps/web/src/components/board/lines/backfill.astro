@@ -1,5 +1,6 @@
 ---
 import { openingRun } from '../../../lib/backfill/view';
+import { BACKFILL_SIZES, backfillShape } from '../../../lib/line-shapes';
 import { backfillFact, backfillFix, backfillLine } from '../../../lib/lines';
 import type { LineAt } from '../line-of';
 import '../../../styles/lines.css';
@@ -21,7 +22,8 @@ interface Props {
 // line is (routes.astro): heights in pixels, the days and the report in shares of the width. On
 // the board its describer names the day that failed and what loads that overwrite their day do
 // about it; on the Lab index it is larger, names its stations, comes in from the page's edge, and
-// says what those loads give, in figures.
+// says what those loads give, in figures. Where everything stands, at each size, is
+// lib/line-shapes.ts, which the link previews draw too.
 const { at = 'board' } = Astro.props;
 const appended = openingRun();
 const overwritten = openingRun('overwrite');
@@ -31,89 +33,9 @@ const words =
     ? `${line.words} ${backfillFix(overwritten)}`
     : backfillFact(appended, overwritten);
 
-interface Size {
-  readonly name: 'wide' | 'compact';
-  readonly height: number;
-  /** The week's track and the report's, from the top. */
-  readonly week: number;
-  readonly report: number;
-  /** Where the first day and the last stand, and the report, in percent. */
-  readonly from: number;
-  readonly to: number;
-  readonly table: number;
-  /** The report's side, and a day's lamp by radius. */
-  readonly side: number;
-  readonly lamp: number;
-  readonly labels: boolean;
-}
-
-const SIZES: Record<LineAt, readonly Size[]> = {
-  board: [
-    {
-      name: 'wide',
-      height: 80,
-      week: 22,
-      report: 60,
-      from: 14,
-      to: 62,
-      table: 72,
-      side: 14,
-      lamp: 7,
-      labels: false,
-    },
-    {
-      name: 'compact',
-      height: 56,
-      week: 15,
-      report: 42,
-      from: 12,
-      to: 72,
-      table: 84,
-      side: 10,
-      lamp: 4.5,
-      labels: false,
-    },
-  ],
-  // Made, as the Route Lab's is, for a column of 30rem at the least beside the words from 64rem,
-  // and the whole column of a phone below 48rem.
-  index: [
-    {
-      name: 'wide',
-      height: 128,
-      week: 44,
-      report: 96,
-      from: 10,
-      to: 64,
-      table: 76,
-      side: 16,
-      lamp: 9,
-      labels: true,
-    },
-    {
-      name: 'compact',
-      height: 56,
-      week: 15,
-      report: 42,
-      from: 10,
-      to: 72,
-      table: 84,
-      side: 10,
-      lamp: 4.5,
-      labels: false,
-    },
-  ],
-};
-
 // On the index the week comes in from past the drawing's left edge, as the Route Lab's track does.
 const enters = at === 'index' ? '-100%' : '0';
-const drawings = SIZES[at].map((size) => {
-  const span = line.days.length - 1;
-  const days = line.days.map((day, i) => ({
-    ...day,
-    x: Math.round((size.from + (span > 0 ? (i / span) * (size.to - size.from) : 0)) * 100) / 100,
-  }));
-  return { size, days };
-});
+const drawings = BACKFILL_SIZES[at].map((size) => backfillShape(line, size));
 ---
 
 <div class="line line-backfill">

@@ -3,15 +3,19 @@ import tokensCss from '../styles/tokens.css?raw';
 import { openingRun as backfillOpening } from './backfill/view';
 import { openingRun as cacheOpening } from './cache/view';
 import {
-  backfillLine,
-  cacheLine,
-  type Lamp,
-  queueLine,
-  raftLine,
-  routesLine,
-  spread,
-  TANK,
-} from './lines';
+  BACKFILL_SIZES,
+  backfillShape,
+  CACHE_SIZES,
+  cacheShape,
+  QUEUE_SIZES,
+  queueShape,
+  RAFT_SIZES,
+  raftShape,
+  ROUTES_SIZES,
+  routesShape,
+  wide,
+} from './line-shapes';
+import { backfillLine, cacheLine, type Lamp, queueLine, raftLine, routesLine } from './lines';
 import { OG_SIZE, type OgArt } from './og';
 import { openingRun as queueOpening } from './queue/view';
 import { openingRun as raftOpening } from './raft/view';
@@ -21,14 +25,14 @@ import { hex, themeColors } from './tokens';
 
 // The labs' lines on their link previews (ADR 0025): a lab's card carries its own line across the
 // top, in its own colour, and Home's and the Lab index's cards stack every line, as the board
-// does. Each line is drawn from the same model and the same opening run as its component in
-// components/board/lines/, at the board's wide sizes, scaled to the card. It draws no word: no
-// label, no server's number, so the card's only text is still its title and its label (lib/og.ts).
-// The colours are the dark theme's tokens, as the card's are. Build-time only.
-//
-// The geometry here is a second copy of the components' wide drawing, by hand: the components
-// keep theirs in their frontmatter, which a PNG drawn outside Astro cannot import. The proper home
-// for it is one module both read; until then, a change to a line's shape is made in both places.
+// does. Each line is the board's wide drawing scaled to the card: the same shape (lib/line-shapes.ts)
+// from the same opening run as its component in components/board/lines/. This is the shape's second
+// renderer, SVG for a PNG drawn outside Astro; the components are the first. It holds no geometry
+// of its own, only how a board pixel and a share of the width land on the card, and which mark
+// each station's lamp is. It draws no word: no label, no server's number, so the card's only text
+// is still its title and its label (lib/og.ts). The colours are the dark theme's tokens, as the
+// card's are. Build-time only. test/line-shapes.test.ts reads the stations back from both
+// drawings and fails if they disagree.
 
 /** A line's picture on a lab's card: the full width, above the words, low enough that the
  *  longest title a card draws (three lines at 80 px, lib/og.ts titleSize) still fits beneath. */
@@ -38,15 +42,11 @@ export const OG_LINE = { width: OG_SIZE.width, height: 248 } as const;
 export const OG_BOARD = { width: OG_SIZE.width, height: 332 } as const;
 
 /** Pixels on the card per pixel of the board's wide drawing: the lab's own card, and the stack. */
-const LINE_SCALE = 2.1;
-const BOARD_SCALE = 0.55;
+export const LINE_SCALE = 2.1;
+export const BOARD_SCALE = 0.55;
 
 /** The board's wide stroke widths, from styles/lines.css at 48rem and up. */
 const STROKE = { track: 6, spoke: 4, loop: 3.5, lamp: 2.5, now: 3, cross: 3, gap: 2.25 } as const;
-
-/** How far past the fork's bend a downed station's hollow starts, as lines/queue.astro and
- *  cache.astro give it (GAP_FROM_FORK), so it never cuts the tracks that leave the fork beside it. */
-const GAP_FROM_FORK = 6;
 
 interface Ink {
   readonly line: string;
@@ -120,43 +120,30 @@ function lamp(pen: Pen, x: number, y: number, r: number, state: Lamp): string {
 const routes: Drawer = async (pen, app) => {
   const { u, at } = pen;
   const { after } = await routeLabPicture(app);
-  const line = routesLine(after.measured);
-  const size = { height: 96, gap: 26, depot: 40, side: 14, fork: 62, from: 16, to: 86, room: 2.8 };
-  const r = { lamp: 6, van: 9, loop: 7 };
-  const middle = (size.height / 2) * u;
-  const count = line.vans.length;
-  const gap = (count > 3 ? size.gap * 0.85 : size.gap) * u;
-  const shapes = [track(pen, 0, middle, size.depot * u, middle)];
-  const vans = line.vans.map((van, i) => {
-    const y = Math.round(middle + (i - (count - 1) / 2) * gap);
-    const along = spread([0, ...van.stops, van.back], size.from, size.to, size.room).map(at);
-    return { ...van, y, along, rise: Math.abs(y - middle) };
-  });
-  const fork = size.fork * u;
+  const { size, middle, vans } = routesShape(routesLine(after.measured), wide(ROUTES_SIZES.board));
+  const stem = middle * u;
+  const shapes = [track(pen, 0, stem, size.depot * u, stem)];
   for (const van of vans) {
-    const back = van.along.at(-1) ?? at(size.to);
+    const rise = (size.fork + van.rise) * u;
     shapes.push(
       path(
         pen,
-        `M${n((size.depot + size.side) * u)} ${n(middle)}H${n(fork)}L${n(fork + van.rise)} ${n(van.y)}`,
+        `M${n((size.depot + size.side) * u)} ${n(stem)}H${n(size.fork * u)}L${n(rise)} ${n(van.y * u)}`,
       ),
-      track(pen, fork + van.rise, van.y, back, van.y),
+      track(pen, rise, van.y * u, at(van.back), van.y * u),
     );
   }
-  shapes.push(square(pen, size.depot * u, middle - (size.side / 2) * u, size.side * u));
+  shapes.push(square(pen, size.depot * u, (middle - size.side / 2) * u, size.side * u));
   for (const van of vans) {
-    const back = van.along.at(-1) ?? at(size.to);
-    const loop = back + r.loop * u;
+    const y = van.y * u;
+    const loop = at(van.back) + size.loop * u;
     shapes.push(
-      `<circle cx="${n(loop)}" cy="${n(van.y)}" r="${n(r.loop * u)}" ${stroked(pen, STROKE.loop)}/>`,
+      `<circle cx="${n(loop)}" cy="${n(y)}" r="${n(size.loop * u)}" ${stroked(pen, STROKE.loop)}/>`,
     );
-    const stops = van.along.slice(1, -1);
-    stops.forEach((x, k) =>
-      shapes.push(lamp(pen, x, van.y, r.lamp, k + 1 < van.now ? 'filled' : 'hollow')),
-    );
+    for (const stop of van.stops) shapes.push(lamp(pen, at(stop.x), y, size.lamp, stop.lamp));
     // The van itself, lit where the still board shows it: the head of its track, a stop, or back.
-    const here = [van.along[0] ?? at(size.from), ...stops, loop][van.now];
-    if (here !== undefined) shapes.push(lamp(pen, here, van.y, r.van, 'lit'));
+    const here = [at(van.head), ...van.stops.map((stop) => at(stop.x)), loop][van.now];
+    if (here !== undefined) shapes.push(lamp(pen, here, y, size.van, 'lit'));
   }
   return { height: size.height * u, shapes };
 };
@@ -165,46 +152,20 @@ const routes: Drawer = async (pen, app) => {
  *  and the leader's log, filled once committed, ending in a buffer stop. */
 const raft: Drawer = async (pen) => {
   const { u } = pen;
-  const line = raftLine(raftOpening());
-  const size = {
-    height: 80,
-    hub: 96,
-    reach: [44, 24],
-    leader: 14,
-    server: 11.5,
-    log: 190,
-    step: 30,
-    lamp: 6,
-    stop: [5, 20],
-  };
-  const middle = (size.height / 2) * u;
-  const [dx = 0, dy = 0] = size.reach;
-  const around = [
-    [-1, -1],
-    [1, -1],
-    [1, 1],
-    [-1, 1],
-  ] as const;
-  const hub = size.hub * u;
-  const followers = line.followers.slice(0, around.length).map((_, i) => {
-    const [sx, sy] = around[i] ?? [1, 1];
-    return { x: hub + sx * dx * u, y: middle + sy * dy * u };
-  });
-  // The log ends a step past its last entry in a buffer stop, as raft.astro draws it.
-  const end = (size.log + line.log.length * size.step) * u;
-  const [stopWidth = 0, stopHeight = 0] = size.stop;
-  const shapes = [
-    track(pen, 0, middle, end, middle),
-    square(pen, end, middle - (stopHeight / 2) * u, stopWidth * u, stopHeight * u),
-  ];
-  for (const f of followers) shapes.push(track(pen, hub, middle, f.x, f.y, STROKE.spoke));
-  line.log.forEach((committed, k) =>
-    shapes.push(
-      lamp(pen, (size.log + k * size.step) * u, middle, size.lamp, committed ? 'filled' : 'hollow'),
-    ),
+  const { size, middle, leader, followers, log, end } = raftShape(
+    raftLine(raftOpening()),
+    wide(RAFT_SIZES.board),
   );
-  for (const f of followers) shapes.push(lamp(pen, f.x, f.y, size.server, 'hollow'));
-  if (line.leader !== null) shapes.push(disc(pen, hub, middle, size.leader * u));
+  const [stopWidth, stopHeight] = size.stop;
+  const shapes = [
+    track(pen, 0, middle * u, end * u, middle * u),
+    square(pen, end * u, (middle - stopHeight / 2) * u, stopWidth * u, stopHeight * u),
+  ];
+  for (const f of followers)
+    shapes.push(track(pen, size.hub * u, middle * u, f.x * u, f.y * u, STROKE.spoke));
+  for (const entry of log) shapes.push(lamp(pen, entry.x * u, middle * u, size.lamp, entry.lamp));
+  for (const f of followers) shapes.push(lamp(pen, f.x * u, f.y * u, size.server, 'hollow'));
+  if (leader !== null) shapes.push(disc(pen, size.hub * u, middle * u, size.leader * u));
   return { height: size.height * u, shapes };
 };
 
@@ -212,53 +173,32 @@ const raft: Drawer = async (pen) => {
  *  worker's track, and the siding of dead letters ending in its buffer stop. */
 const queue: Drawer = async (pen) => {
   const { u, at } = pen;
-  const line = queueLine(queueOpening());
-  const size = {
-    height: 96,
-    gap: 21,
-    depot: 40,
-    side: 14,
-    tank: 70,
-    step: 16,
-    worker: 62,
-    end: 82,
-    stop: 74,
-    lamp: 5,
-    station: 8,
-  };
-  const middle = (size.height / 2) * u;
-  const fork = (size.tank + (TANK - 1) * size.step + size.lamp + 12) * u;
-  const rows = [
-    ...line.workers.map((w) => ({ lamp: w.lamp, dead: false })),
-    { lamp: 'hollow' as Lamp, dead: true },
-  ];
-  const tracks = rows.map((row, i) => {
-    const y = Math.round(middle + (i - (rows.length - 1) / 2) * size.gap * u);
-    return { ...row, y, rise: Math.abs(y - middle) };
-  });
+  const { size, middle, fork, tracks, waiting, letters } = queueShape(
+    queueLine(queueOpening()),
+    wide(QUEUE_SIZES.board),
+  );
+  const stem = middle * u;
   const shapes = [
-    track(pen, 0, middle, size.depot * u, middle),
-    track(pen, (size.depot + size.side) * u, middle, fork, middle),
+    track(pen, 0, stem, size.depot * u, stem),
+    track(pen, (size.depot + size.side) * u, stem, fork * u, stem),
   ];
   for (const t of tracks)
     shapes.push(
-      track(pen, fork, middle, fork + t.rise, t.y),
-      track(pen, fork + t.rise, t.y, at(t.dead ? size.stop : size.end), t.y),
+      track(pen, fork * u, stem, (fork + t.rise) * u, t.y * u),
+      track(pen, (fork + t.rise) * u, t.y * u, at(t.dead ? size.stop : size.end), t.y * u),
     );
-  shapes.push(square(pen, size.depot * u, middle - (size.side / 2) * u, size.side * u));
-  for (let k = 0; k < line.waiting; k++)
-    shapes.push(lamp(pen, (size.tank + k * size.step) * u, middle, size.lamp, 'hollow'));
+  shapes.push(square(pen, size.depot * u, (middle - size.side / 2) * u, size.side * u));
+  for (const x of waiting) shapes.push(lamp(pen, x * u, stem, size.lamp, 'hollow'));
   for (const t of tracks) {
+    const y = t.y * u;
     if (t.dead) {
       const stop = at(size.stop);
       shapes.push(
-        square(pen, stop, t.y - size.station * u, (size.side / 3) * u, size.station * 2 * u),
+        square(pen, stop, y - size.station * u, (size.side / 3) * u, size.station * 2 * u),
       );
-      for (let k = 0; k < line.dead; k++)
-        shapes.push(disc(pen, stop - (k + 1) * size.step * u, t.y, (size.lamp + 1) * u));
-    } else if (t.lamp === 'down')
-      shapes.push(gap(pen, fork + t.rise + GAP_FROM_FORK * u, t.y, at(size.end)));
-    else shapes.push(lamp(pen, at(size.worker), t.y, size.station, t.lamp));
+      for (const x of letters) shapes.push(disc(pen, stop + x * u, y, (size.lamp + 1) * u));
+    } else if (t.lamp === 'down') shapes.push(gap(pen, t.hollow * u, y, at(size.end)));
+    else shapes.push(lamp(pen, at(size.worker), y, size.station, t.lamp));
   }
   return { height: size.height * u, shapes };
 };
@@ -267,50 +207,36 @@ const queue: Drawer = async (pen) => {
  *  tracks joining at the database, and its pool of connections, lit while a fetch runs. */
 const cache: Drawer = async (pen) => {
   const { u, at } = pen;
-  const line = cacheLine(cacheOpening());
-  const size = {
-    height: 96,
-    gap: 21,
-    fork: 62,
-    node: 32,
-    join: 56,
-    side: 14,
-    step: 16,
-    station: 7,
-    lamp: 5,
-  };
-  const middle = (size.height / 2) * u;
-  const nodes = line.nodes.map((state, i) => {
-    const y = Math.round(middle + (i - (line.nodes.length - 1) / 2) * size.gap * u);
-    return { state, y, rise: Math.abs(y - middle) };
-  });
+  const { size, middle, nodes, meet, database, pool } = cacheShape(
+    cacheLine(cacheOpening()),
+    wide(CACHE_SIZES.board),
+  );
+  const stem = middle * u;
   const fork = size.fork * u;
+  // The join is a share of the width; the database and its pool stand in pixels past it.
   const join = at(size.join);
-  const meet = Math.max(0, ...nodes.map((node) => node.rise));
-  const database = join + meet + 12 * u;
-  const pool = line.connections.map((_, k) => database + (size.side + 14 + k * size.step) * u);
-  const shapes = [track(pen, 0, middle, fork, middle)];
+  const past = (x: number) => join + x * u;
+  const shapes = [track(pen, 0, stem, fork, stem)];
   for (const node of nodes)
     shapes.push(
-      track(pen, fork, middle, fork + node.rise, node.y),
-      track(pen, fork + node.rise, node.y, join, node.y),
+      track(pen, fork, stem, fork + node.rise * u, node.y * u),
+      track(pen, fork + node.rise * u, node.y * u, join, node.y * u),
       path(
         pen,
-        `M${n(join)} ${n(node.y)}H${n(join + meet - node.rise)}L${n(join + meet)} ${n(middle)}`,
+        `M${n(join)} ${n(node.y * u)}H${n(past(meet - node.rise))}L${n(past(meet))} ${n(stem)}`,
       ),
     );
   shapes.push(
-    track(pen, join + meet, middle, pool.at(-1) ?? database, middle),
-    square(pen, database, middle - (size.side / 2) * u, size.side * u),
+    track(pen, past(meet), stem, past(pool.at(-1)?.x ?? database), stem),
+    square(pen, past(database), (middle - size.side / 2) * u, size.side * u),
   );
-  pool.forEach((x, k) =>
-    shapes.push(lamp(pen, x, middle, size.lamp, line.connections[k] ? 'lit' : 'hollow')),
-  );
+  for (const connection of pool)
+    shapes.push(lamp(pen, past(connection.x), stem, size.lamp, connection.lamp));
   for (const node of nodes)
     shapes.push(
-      node.state === 'down'
-        ? gap(pen, fork + node.rise + GAP_FROM_FORK * u, node.y, join)
-        : lamp(pen, at(size.node), node.y, size.station, node.state),
+      node.lamp === 'down'
+        ? gap(pen, node.hollow * u, node.y * u, join)
+        : lamp(pen, at(size.node), node.y * u, size.station, node.lamp),
     );
   return { height: size.height * u, shapes };
 };
@@ -319,22 +245,16 @@ const cache: Drawer = async (pen) => {
  *  to the report's track below, which ends in the report. */
 const backfill: Drawer = async (pen) => {
   const { u, at } = pen;
-  const line = backfillLine(backfillOpening());
-  const size = { height: 80, week: 22, report: 60, from: 14, to: 62, table: 72, side: 14, lamp: 7 };
+  const { size, days } = backfillShape(backfillLine(backfillOpening()), wide(BACKFILL_SIZES.board));
   const week = size.week * u;
   const report = size.report * u;
-  const span = line.days.length - 1;
-  const days = line.days.map((day, i) => ({
-    ...day,
-    x: at(size.from + (span > 0 ? (i / span) * (size.to - size.from) : 0)),
-  }));
-  const shapes = [track(pen, 0, week, days.at(-1)?.x ?? at(size.to), week)];
-  for (const day of days) shapes.push(track(pen, day.x, week, day.x, report, STROKE.spoke));
+  const shapes = [track(pen, 0, week, at(days.at(-1)?.x ?? size.to), week)];
+  for (const day of days) shapes.push(track(pen, at(day.x), week, at(day.x), report, STROKE.spoke));
   shapes.push(
-    track(pen, days[0]?.x ?? at(size.from), report, at(size.table), report),
+    track(pen, at(days[0]?.x ?? size.from), report, at(size.table), report),
     square(pen, at(size.table), report - (size.side / 2) * u, size.side * u),
   );
-  for (const day of days) shapes.push(lamp(pen, day.x, week, size.lamp, day.lamp));
+  for (const day of days) shapes.push(lamp(pen, at(day.x), week, size.lamp, day.lamp));
   return { height: size.height * u, shapes };
 };
 
@@ -363,6 +283,17 @@ const svg = (box: { width: number; height: number }, shapes: readonly string[]) 
   `<svg xmlns="http://www.w3.org/2000/svg" width="${box.width}" height="${box.height}" viewBox="0 0 ${box.width} ${box.height}">${shapes.join('')}</svg>`;
 
 const png = (text: string) => sharp(Buffer.from(text)).png({ compressionLevel: 9 }).toBuffer();
+
+/** One lab's line as a card draws it at a scale, an SVG of the card's width and the line's own
+ *  height, before it is placed: what test/line-shapes.test.ts reads the stations back from. */
+export async function lineDrawing(
+  slug: string,
+  scale: number,
+  app: string,
+): Promise<string | undefined> {
+  const drawn = await strip(slug, scale, app);
+  return drawn && svg({ width: OG_SIZE.width, height: drawn.height }, drawn.shapes);
+}
 
 /** One lab's line across a card, centred in its strip, or none for a lab without a line. */
 export async function linePicture(slug: string, app: string): Promise<Buffer | undefined> {

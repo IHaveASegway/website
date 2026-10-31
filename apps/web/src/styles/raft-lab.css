@@ -7,10 +7,12 @@
   this file declares no transition and no animation.
 
   The demo is the lab's desk (ADR 0025; global.css, .desk). A server is a lamp in the lab's line,
-  var(--line), hollow while it follows and filled while it leads; each log entry is a lamp, filled
-  once committed, with its term under it as a number: colour means the lab, never the term. The
-  controls are the panel's push-buttons, set apart from the picture and the event log by rules
-  from bezel to bezel. What stands on the desk takes its surface, --surface-1, for ground.
+  var(--line), hollow while it follows, lit while it stands for election, filled while it leads, and
+  hollow down its middle while it is down; each log entry is a lamp, filled once committed, with its
+  term under it as a number: colour means the lab, never the term. Each mark means what it means on
+  every desk and on the board (design-system.md, "Lamps: one meaning per mark"). The controls are
+  the panel's push-buttons, set apart from the picture and the event log by rules from bezel to
+  bezel. What stands on the desk takes its surface, --surface-1, for ground.
 */
 
 .rf {
@@ -105,7 +107,9 @@
 }
 
 /* A server: its body, a lamp in the lab's line, its election timer as a dial around it, its
-   number and its role. The leader's lamp is filled, its number in the desk's colour on it. */
+   number and its role. The dial is a gauge, not a lamp, so it is drawn in --input on every server,
+   the leader's too, whose dial stays full: until 2026-10-31 the leader's was --primary, the lit
+   lamp's colour, round a filled lamp, which read as a lamp both lit and in service. */
 .rf-track {
   fill: none;
   stroke: var(--border);
@@ -149,10 +153,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.rf-node[data-role='leader'] .rf-role {
-  fill: var(--primary);
-}
-
 /* A node's role and term are set in the picture's own units, so on a phone they shrink with it:
    at 390 px wide the picture is about 350 px across, and 12 and 10.5 units drew 11.7 and 10.2 px.
    Under 30rem they grow to draw 13 px at the least down to 24rem, and under 24rem again, to keep
@@ -191,10 +191,18 @@
   stroke-linejoin: round;
 }
 
+/* A candidate is where the work is now, asking the others for their votes: the lit lamp, ringed
+   in the line, its number in the ink set on a lamp. Until 2026-10-31 it was a dashed ring, which on
+   the Queue Lab's desk is an order taken and not yet acknowledged. */
 .rf-node[data-role='candidate'] .rf-body {
-  stroke-dasharray: 4 3;
+  fill: var(--primary);
 }
 
+.rf-node[data-role='candidate'] .rf-name {
+  fill: var(--primary-foreground);
+}
+
+/* The leader is in service: the filled lamp, as the board's Raft line draws it. */
 .rf-node[data-role='leader'] .rf-body {
   fill: var(--line);
 }
@@ -203,20 +211,31 @@
   fill: var(--surface-1);
 }
 
-.rf-node[data-role='leader'] .rf-dial {
-  stroke: var(--primary);
+/* A server that is down is hollow, as a down worker's or cache node's track is: its ring at a
+   track's weight in the line, with the desk's surface down the middle (the gap over it), and no
+   dial, since its timer has stopped. Until 2026-10-31 it was a dotted ring in --input, neither the
+   lab's line nor the site's mark for down. Its words say "down" beside it. The gap draws nothing
+   while the server is up. */
+.rf-gap {
+  fill: none;
+  stroke: none;
+  stroke-width: 2.5;
 }
 
 .rf-node[data-up='false'] .rf-body {
-  stroke: var(--input);
-  stroke-dasharray: 2 3;
+  fill: var(--surface-1);
+  stroke-width: 6;
+}
+
+.rf-node[data-up='false'] .rf-gap {
+  stroke: var(--surface-1);
 }
 
 .rf-node[data-up='false'] :is(.rf-name, .rf-role, .rf-term) {
   fill: var(--subtle-foreground);
 }
 
-.rf-node[data-up='false'] .rf-dial {
+.rf-node[data-up='false'] :is(.rf-dial, .rf-track) {
   stroke: none;
 }
 

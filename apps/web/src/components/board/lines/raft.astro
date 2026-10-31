@@ -1,4 +1,5 @@
 ---
+import { RAFT_SIZES, raftShape } from '../../../lib/line-shapes';
 import { inWords, raftFailover, raftLine } from '../../../lib/lines';
 import { replay } from '../../../lib/raft/sim';
 import { OPENING, openingRun, statusText } from '../../../lib/raft/view';
@@ -22,7 +23,8 @@ interface Props {
 // On the board its describer says who leads, and what happens when that leader crashes: the same
 // opening replayed with the crash, until another server leads; on the Lab index it is larger,
 // names its stations, comes in from the page's edge, and says what the run proved: the properties
-// held over its events.
+// held over its events. Where everything stands, at each size, is lib/line-shapes.ts, which the
+// link previews draw too.
 const { at = 'board' } = Astro.props;
 const run = openingRun();
 const line = raftLine(run);
@@ -34,99 +36,23 @@ const crashed = () =>
   );
 const words = at === 'board' ? `${line.words} ${raftFailover(run, crashed())}` : statusText(run);
 
-const SIZES = {
-  board: [
-    {
-      name: 'wide',
-      height: 80,
-      hub: 96,
-      reach: [44, 24],
-      leader: 14,
-      server: 11.5,
-      log: 190,
-      step: 30,
-      lamp: 6,
-      stop: [5, 20],
-      numbers: true,
-      labels: false,
-    },
-    {
-      name: 'compact',
-      height: 56,
-      hub: 60,
-      reach: [30, 17],
-      leader: 9,
-      server: 6.5,
-      log: 116,
-      step: 18,
-      lamp: 4,
-      stop: [3.5, 13],
-      numbers: false,
-      labels: false,
-    },
-  ],
-  index: [
-    {
-      name: 'wide',
-      height: 128,
-      hub: 70,
-      reach: [54, 32],
-      leader: 18,
-      server: 13,
-      log: 204,
-      step: 38,
-      lamp: 8,
-      stop: [5.5, 26],
-      numbers: true,
-      labels: true,
-    },
-    {
-      name: 'compact',
-      height: 56,
-      hub: 40,
-      reach: [30, 17],
-      leader: 9,
-      server: 6.5,
-      log: 96,
-      step: 18,
-      lamp: 4,
-      stop: [3.5, 13],
-      numbers: false,
-      labels: false,
-    },
-  ],
-} as const;
-
-// The followers' places around the hub: upper left, upper right, lower right, lower left.
-const AROUND = [
-  [-1, -1],
-  [1, -1],
-  [1, 1],
-  [-1, 1],
-] as const;
-
 // On the index the track comes in from past the drawing's left edge, as the Route Lab's does.
 const enters = at === 'index' ? '-100%' : '0';
 // The stations the index names: the servers, the log's first lamp, and its first lamp not yet
 // committed, when there is room between the two for both names.
 const servers = `${inWords(run.servers.length).replace(/^./, (c) => c.toUpperCase())} servers`;
 const pending = line.log.indexOf(false);
-const drawings = SIZES[at].map((size) => {
-  const middle = size.height / 2;
-  const [dx, dy] = size.reach;
-  const followers = line.followers.slice(0, AROUND.length).map((id, i) => {
-    const [sx, sy] = AROUND[i] ?? [1, 1];
-    return { id, x: size.hub + sx * dx, y: middle + sy * dy };
-  });
-  const under = middle + size.lamp + 17;
-  // The log's end: a step past its last entry, where its first would be while it holds none.
-  const end = size.log + line.log.length * size.step;
-  return { size, middle, followers, under, end, below: middle + dy + size.server + 15 };
+const drawings = RAFT_SIZES[at].map((size) => {
+  const shape = raftShape(line, size);
+  // The names' baselines: under the log's lamps, and under the lower spokes' servers.
+  const under = shape.middle + size.lamp + 17;
+  const below = shape.middle + size.reach[1] + size.server + 15;
+  return { ...shape, under, below };
 });
 ---
 
 <div class="line line-raft">
-  {drawings.map(({ size, middle, followers, under, end, below }) => (
+  {drawings.map(({ size, middle, leader, followers, log, under, end, below }) => (
     <svg
       class={`line-draw line-${size.name}`}
       height={size.height}
@@ -144,17 +70,11 @@ const drawings = SIZES[at].map((size) => {
       {followers.map((f) => (
         <line class="line-spoke" x1={size.hub} y1={middle} x2={f.x} y2={f.y} />
       ))}
-      {line.log.map((committed, k) => (
+      {log.map((entry) => (
         <>
-          <circle class="line-lamp" cx={size.log + k * size.step} cy={middle} r={size.lamp} />
-          {committed && (
-            <circle
-              class="line-lamp-lit"
-              cx={size.log + k * size.step}
-              cy={middle}
-              r={size.lamp + 1}
-              data-lit=""
-            />
+          <circle class="line-lamp" cx={entry.x} cy={middle} r={size.lamp} />
+          {entry.lamp === 'filled' && (
+            <circle class="line-lamp-lit" cx={entry.x} cy={middle} r={size.lamp + 1} data-lit="" />
           )}
         </>
       ))}
@@ -168,12 +88,12 @@ const drawings = SIZES[at].map((size) => {
           )}
         </>
       ))}
-      {line.leader !== null && (
+      {leader !== null && (
         <>
           <circle class="line-hub" cx={size.hub} cy={middle} r={size.leader} />
           {size.numbers && (
             <text class="line-number line-number-lit" x={size.hub} y={middle}>
-              {line.leader}
+              {leader}
             </text>
           )}
         </>
@@ -183,7 +103,7 @@ const drawings = SIZES[at].map((size) => {
           <text class="line-label line-label-middle" x={size.hub} y={below}>
             {servers}
           </text>
-          {line.log.length > 0 && (
+          {log.length > 0 && (
             <text class="line-label line-label-middle" x={size.log} y={under}>
               Log entry 1
             </text>
