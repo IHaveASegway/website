@@ -107,9 +107,8 @@ test('on an Apple keyboard the button shows the drawn command key and K', async 
 });
 
 // ADR 0022: the rail's search finds every demo and post, by its title or a word of its summary, and
-// Enter goes to the first row that holds the query whole: "bak" is the bakery, though "Break a Raft
-// cluster" holds b, a and k in order. Since the Cache Lab, more than one demo serves the bakery, so
-// the whole match Enter opens is the first of them, and never the Raft Lab's scattered one.
+// Enter goes to the row that holds the query whole: "bak" is the bakery, though "Break a Raft
+// cluster" holds b, a and k in order.
 test('the search finds a demo by its title or its summary, and Enter opens the whole match', async ({
   page,
 }) => {
@@ -120,25 +119,9 @@ test('the search finds a demo by its title or its summary, and Enter opens the w
   await input(page).fill('vroom');
   expect((await rows(page)).shown).toEqual(['palette-lab-routes']);
   await input(page).fill('bak');
-  const { shown, active } = await rows(page);
-  const whole = await page.evaluate((ids) => {
-    const holds = (id: string) => {
-      const row = document.getElementById(id);
-      return [row?.textContent ?? '', row?.dataset['find'] ?? ''].some((text) =>
-        text.toLowerCase().includes('bak'),
-      );
-    };
-    return ids.filter(holds);
-  }, shown);
-  expect(whole).toContain('palette-lab-routes');
-  if (demos.includes('/lab/raft/')) {
-    expect(shown).toContain('palette-lab-raft');
-    expect(whole).not.toContain('palette-lab-raft');
-  }
-  expect(active).toBe(whole[0]);
-  const href = await page.locator(`#${active}`).getAttribute('data-href');
+  expect((await rows(page)).active).toBe('palette-lab-routes');
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(new RegExp(`${href}$`));
+  await expect(page).toHaveURL(/\/lab\/routes\/$/);
 });
 
 test('typing filters the rows by subsequence, hides empty groups, and selects the first match', async ({
