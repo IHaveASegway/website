@@ -16,3 +16,4 @@
 /lab/raft/
 /about/
 /lab/queue/
+/lab/cache/

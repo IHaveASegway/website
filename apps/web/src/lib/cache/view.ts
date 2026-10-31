@@ -1,5 +1,5 @@
 import { properties, type PropertyId } from './check';
-import { firstUp, millis, pageName, seconds } from './core';
+import { DATABASE, firstUp, LOADS, millis, pageName, PAGES, seconds } from './core';
 import { replay, type Action, type Config, type Outcome, type Sample, type Sim } from './sim';
 
 // What the Cache Lab says about a run, as text and numbers, never markup: the page stage draws
@@ -20,6 +20,11 @@ export const OPENING = {
 } as const;
 
 export const openingRun = (): Sim => replay(OPENING.config, OPENING.actions, OPENING.until);
+
+/** Where the browser plays a run from when the visitor starts it over, or runs one that still
+ *  stands at the opening's moment: half a second before the menu expires, so the stampede the
+ *  caption tells plays live, its lamps lighting and its line growing. */
+export const REPLAY_FROM = (OPENING.config.menuExpires ?? 0) - 500;
 
 /** How many seeded runs the property sweep in test/cache.test.ts makes: the page says the number. */
 export const SEEDS_IN_CI = 600;
@@ -128,3 +133,114 @@ export function outcomeStrip(sim: Sim): Bucket[] {
   }
   return buckets;
 }
+
+/** The three properties as the page names them beside their lamps, in PROPERTIES' order: the
+ *  checker's names, said shorter. */
+export const PROPERTY_NAMES: Record<PropertyId, string> = {
+  'one-fetch': 'One fetch of a page at a time',
+  'no-timeouts': 'No reader timed out',
+  fresh: 'No reader got a page past its limit',
+};
+
+/** A property as the page shows it: its lamp, held or broken, its name, and a few words that count
+ *  the breaks and say the worst of them. */
+export interface PropertyLine {
+  readonly id: PropertyId;
+  readonly name: string;
+  readonly held: boolean;
+  readonly words: string;
+}
+
+export function propertyLines(sim: Sim): PropertyLine[] {
+  return properties(sim).map((p) => {
+    const worst = p.worst ?? 0;
+    const broke =
+      p.id === 'one-fetch'
+        ? `Broken ${times(p.count)}, at worst ${count(worst)} fetches of one page at once`
+        : p.id === 'no-timeouts'
+          ? `Broken: ${reads(p.count)} timed out`
+          : `Broken: ${reads(p.count)}, the worst ${millis(worst)} out of date`;
+    return { id: p.id, name: PROPERTY_NAMES[p.id], held: p.held, words: p.held ? 'Held' : broke };
+  });
+}
+
+/**
+ * What a page's lamp shows, on the node that holds it: fresh until its entry expires, stale once it
+ * has (an entry still held, which only stale-while-revalidate serves), or missing; and being
+ * fetched, which outranks the rest, while any fetch of it is in flight.
+ */
+export type PageState = 'fresh' | 'stale' | 'missing' | 'fetching';
+
+export function pageState(sim: Sim, key: number): PageState {
+  if ((sim.flying[key]?.length ?? 0) > 0) return 'fetching';
+  const entry = sim.nodes[sim.owners[key] ?? -1]?.entries.get(key);
+  if (!entry) return 'missing';
+  return sim.now < entry.expiresAt ? 'fresh' : 'stale';
+}
+
+/** The pages a node holds now, in page order: none while it is down. */
+export function pagesOn(sim: Sim, node: number): number[] {
+  const keys: number[] = [];
+  if (!sim.nodes[node]?.up) return keys;
+  for (const [key, owner] of sim.owners.entries()) if (owner === node) keys.push(key);
+  return keys;
+}
+
+/** A node in a word or two: how many pages it holds, or that it is down. */
+export function nodeWords(sim: Sim, node: number): string {
+  if (!sim.nodes[node]?.up) return 'Down';
+  const held = pagesOn(sim, node).length;
+  return `${count(held)} ${held === 1 ? 'page' : 'pages'}`;
+}
+
+/** The menu beside its lamp: its state and when it changes, how many fetches of it are in flight
+ *  in a herd, and the version its node still serves when the database holds a newer one. */
+export function menuWords(sim: Sim): string {
+  const flying = sim.flying[0]?.length ?? 0;
+  const entry = sim.nodes[sim.owners[0] ?? -1]?.entries.get(0);
+  const newest = sim.versions[0] ?? 1;
+  const old = entry && entry.version < newest ? `, still version ${entry.version}` : '';
+  const at = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
+  switch (pageState(sim, 0)) {
+    case 'fetching':
+      return flying > 1 ? `Menu, ${count(flying)} fetches at once` : `Menu, being fetched${old}`;
+    case 'fresh':
+      return `Menu, fresh until ${at(entry?.expiresAt ?? 0)}${old}`;
+    case 'stale':
+      return `Menu, expired at ${at(entry?.expiresAt ?? 0)}${old}`;
+    default:
+      return 'Menu, missing';
+  }
+}
+
+/** Fetches waiting in line for a connection. */
+export const waiting = (sim: Sim): number => sim.line.length - sim.lineHead;
+
+/** The readers, as the picture labels them: how many pages they ask for a second. */
+export const readersWords = (sim: Sim): string => `Readers, ${count(LOADS[sim.load])} a second`;
+
+/** The picture's own name, for assistive technology: what its parts show now, the nodes' lamps
+ *  counted by state and the database's connections and line. The caption under it tells the run,
+ *  so the name does not repeat it. */
+export function mapWords(sim: Sim): string {
+  const lamps: Record<PageState, number> = { fresh: 0, stale: 0, missing: 0, fetching: 0 };
+  for (let key = 0; key < PAGES; key++) lamps[pageState(sim, key)] += 1;
+  const down = sim.nodes.filter((node) => !node.up).map((node) => `node ${node.id + 1}`);
+  const line = waiting(sim);
+  return `${readersWords(sim)}, four cache nodes${down.length > 0 ? `, ${and(down)} down,` : ''} and the database. The nodes’ pages: ${count(lamps.fresh)} fresh, ${count(lamps.stale)} expired, ${count(lamps.missing)} missing and ${count(lamps.fetching)} being fetched. ${menuWords(sim)}. The database: ${sim.running} of ${DATABASE.pool} connections busy and ${count(line)} ${line === 1 ? 'fetch' : 'fetches'} waiting.`;
+}
+
+/** The outcome strip in one sentence, for assistive technology: what the last 2 s of reads got. */
+export function stripWords(sim: Sim): string {
+  const total = { hit: 0, stale: 0, served: 0, timeout: 0, pending: 0 };
+  for (const bucket of outcomeStrip(sim))
+    for (const outcome of Object.keys(total) as (keyof typeof total)[])
+      total[outcome] += bucket[outcome];
+  const copies = total.stale === 1 ? 'stale copy' : 'stale copies';
+  const fetches = total.served === 1 ? 'fresh fetch' : 'fresh fetches';
+  return `In the last 2 s, readers got ${count(total.hit)} pages from the cache, ${count(total.stale)} ${copies} and ${count(total.served)} ${fetches}; ${reads(total.timeout)} timed out, and ${count(total.pending)} still ${total.pending === 1 ? 'waits' : 'wait'}.`;
+}
+
+/** The clock under the picture: the run's virtual time and its seed. */
+export const clockWords = (sim: Sim): string =>
+  `Virtual time ${seconds(sim.now)}, seed ${sim.seed}`;

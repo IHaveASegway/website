@@ -61,7 +61,7 @@ export function measure(page: string) {
  *
  * The Raft Lab (ADR 0020) has one too: its app chunk, and the first view of its page.
  *
- * So does the Queue Lab (ADR 0026), the same way.
+ * So do the Queue Lab and the Cache Lab (ADR 0026), the same way.
  *
  * So does Home's scene (ADR 0024): the chunk that drives it, which Home's motion module loads after
  * the page has painted, the day's data it fetches, and Home's first view with both. It shares the
@@ -106,6 +106,19 @@ export const FEATURES = {
     entry: /^_astro\/QueueLab\.astro_astro_type_script_index_0_lang\.[\w-]+\.js$/,
     paths: [],
     lazyJavaScript: 12_000,
+    firstView: 150_000,
+  },
+  // The Cache Lab: its app, the cache, the database and the readers, the checker and what it draws,
+  // in one chunk loaded on intent. No data file and no WebAssembly; its page keeps 150 KB. It cannot
+  // keep the 8,000 B a lab's app has: with every string emptied the chunk is still 7,718 B, gzip,
+  // and its words (the event log's, the checker's, the picture's) bring it to 10,689 B
+  // (2026-10-30). So 11,000 B is proposed here, not decided: ADR 0026 is to decide it, with these
+  // figures, and until then this line is an open question, not a settled limit.
+  'cache-lab': {
+    page: 'lab/cache/index.html',
+    entry: /^_astro\/CacheLab\.astro_astro_type_script_index_0_lang\.[\w-]+\.js$/,
+    paths: [],
+    lazyJavaScript: 11_000,
     firstView: 150_000,
   },
   // Home's scene (ADR 0024): the canvas that drives the Route Lab's day behind the hero, and the
