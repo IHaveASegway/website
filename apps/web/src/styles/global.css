@@ -2238,8 +2238,11 @@
 
   /* Paper gets no Print button, and of the bio only its first paragraph, the summary a printed
      résumé opens with: how I work is the web edition's, so the page stays one sheet whatever the
-     profile holds (e2e/about-print.spec.ts). */
+     profile holds (e2e/about-print.spec.ts). Nor does it get what only the screen may say: the
+     offer of the full résumé, which on paper would ask its reader for the sheet in their hand
+     (about/index.astro). */
   .resume .print-item,
+  .resume .screen-only,
   .bio .prose > :not(:first-child) {
     display: none;
   }

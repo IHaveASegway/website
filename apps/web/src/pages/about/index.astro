@@ -104,7 +104,15 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
       </section>
     )}
 
-    <section class="section" aria-labelledby="experience-title">
+    {/* The offer of the full résumé is the screen's: on paper the page is the résumé, and a sheet
+        that tells its reader to ask for the résumé sends them round in a circle. So the offer never
+        prints, and on paper the section holds the roles and where the history is, and is left off
+        the sheet when it has neither. Whether the screen keeps the offer once roles are listed is
+        the content's question (content.md, Q8), not the sheet's. */}
+    <section
+      class:list={['section', { 'screen-only': profile.work.length === 0 && !linkedIn }]}
+      aria-labelledby="experience-title"
+    >
       <SectionTitle id="experience-title" title="Experience" />
       {profile.work.length > 0 && (
         <ol class="roles" role="list">
@@ -122,7 +130,7 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
             Full history on <a href={linkedIn.url}>LinkedIn</a>.
           </p>
         )}
-        <p>
+        <p class="screen-only">
           Full résumé on request:{' '}
           <span class="resume-email">
             <a href={`mailto:${CONTACT_EMAIL}`}>
