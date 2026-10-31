@@ -127,20 +127,19 @@
   gap: 0.5rem;
 }
 
-/* The buttons, each one width at every screen width, wider than their words at the usual text
-   size; at twice it on a 320 px screen the address breaks inside its button, which grows a line,
-   rather than run past its border (SC 1.4.10). */
+/* The buttons, both one width, the same at every screen width: the address's label is 224 px at
+   15 px in Linux's Chromium (e2e/layout.spec.ts under e2e:linux), so 15rem clears it on any
+   renderer. LinkedIn takes the same width, so where the two stack, on a phone, they make one
+   column of two equal bars; until 2026-10-31 it was half as wide and stood alone under the
+   address's. At twice the text size on a 320 px screen the address breaks inside its button, which
+   grows a line, rather than run past its border (SC 1.4.10). */
 .intro-actions .btn {
-  min-inline-size: min(7.5rem, 100%);
+  min-inline-size: min(15rem, 100%);
+  text-align: center;
 }
 
-/* The address's button is wider than its words at the largest UI size on any renderer: its label
-   is 224 px at 15 px in Linux's Chromium, past the 13.5rem (216 px) floor it had, so there it grew
-   with the fluid text size (e2e/layout.spec.ts under e2e:linux); macOS sets it narrower. */
 .intro-actions .btn-email {
-  min-inline-size: min(15rem, 100%);
   overflow-wrap: anywhere;
-  text-align: center;
 }
 
 @media (width >= 48rem) {
