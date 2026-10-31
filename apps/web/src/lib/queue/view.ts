@@ -1,13 +1,16 @@
+import { readLink, writeLink } from '../sim/link';
 import { properties, type PropertyState } from './check';
 import {
   DRAIN_WITHIN,
   jobOf,
   live,
+  LOADS,
   replay,
   type Action,
   type Config,
   type Effect,
   type Job,
+  type Load,
   type Place,
   type Sample,
   type Sim,
@@ -274,27 +277,38 @@ export const SPEEDS = [
 export const PREFETCHES = [1, 2, 5, 10] as const;
 
 /**
- * Start over: the opening again, on this run's seed and with the visitor's settings (the load,
- * the prefetch, when workers acknowledge, the key and what a failing order gets), so the same crash
- * comes at the same moment and the settings are all that differ. Crashes, slow spells, poison
- * orders and a stopped producer are things the visitor did, so they go with the old run.
+ * The settings a link to a run names (lib/sim/link.ts), with the values the page offers and the
+ * opening's: the load, the prefetch, when workers acknowledge, the key and what a failing order
+ * gets. The speed is not one of them: it changes how fast a run plays, never the run.
  */
-export function startOver(sim: Sim): Sim {
-  const config: Config = {
-    ...OPENING.config,
-    seed: sim.seed,
-    load: sim.load,
-    prefetch: sim.prefetch,
-    ack: sim.ack,
-    key: sim.key,
-    handling: sim.handling,
-  };
-  return replay(config, OPENING.actions, OPENING.until);
+export const SETTINGS = {
+  load: { values: Object.keys(LOADS) as Load[], opening: 'busy' },
+  prefetch: { values: PREFETCHES, opening: 1 },
+  ack: { values: ['after', 'before'], opening: 'after' },
+  key: { values: [false, true], opening: false },
+  handling: { values: ['requeue', 'dead-letter'], opening: 'requeue' },
+} as const;
+
+/** The link to a run's start: its seed, and each setting not the opening's (#seed-28&key=on). */
+export const linkTo = (sim: Sim): string => writeLink(sim.seed, sim, SETTINGS);
+
+/** The run a link names, at the opening's moment: the opening's crash, on the link's seed and
+ *  under its settings. Null when the hash links to no run. */
+export function openLink(hash: string): Sim | null {
+  const link = readLink(hash, SETTINGS);
+  return (
+    link &&
+    replay({ ...OPENING.config, ...link.values, seed: link.seed }, OPENING.actions, OPENING.until)
+  );
 }
 
-/** The opening on another seed, for a link to a run (#seed-8). */
-export const openingOf = (seed: number): Sim =>
-  replay({ ...OPENING.config, seed }, OPENING.actions, OPENING.until);
+/**
+ * Start over: the run this one's link names, the opening again on this run's seed and with the
+ * visitor's settings, so the same crash comes at the same moment and the settings are all that
+ * differ. Crashes, slow spells, poison orders and a stopped producer are things the visitor did,
+ * so they go with the old run.
+ */
+export const startOver = (sim: Sim): Sim => openLink(linkTo(sim)) as Sim;
 
 /** A property's words beside its lamp: "Holds", or "Broken" and what broke it, counted. Until the
  *  page knows whether the queue drains, the words say when it will. */

@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'vitest';
-import { fromLink, settingsOf, toLink } from '../src/components/cache-lab/link';
 import {
   fanPath,
   LANES,
@@ -9,15 +8,17 @@ import {
   stripEnds,
   stripPaths,
 } from '../src/components/cache-lab/picture';
-import { NODES, PAGES } from '../src/lib/cache/core';
-import { flush, loseNode, replay, setToggle, write } from '../src/lib/cache/sim';
+import { LOADS, NODES, PAGES } from '../src/lib/cache/core';
+import { flush, loseNode, replay, setToggle, write, type Sim } from '../src/lib/cache/sim';
 import {
   clockWords,
+  linkTo,
   mapWords,
   menuWords,
   nodeWords,
   OPENING,
   openingRun,
+  openLink,
   outcomeStrip,
   pagesOn,
   pageState,
@@ -25,6 +26,7 @@ import {
   propertyLines,
   readersWords,
   REPLAY_FROM,
+  SETTINGS,
   stripWords,
   summary,
   waiting,
@@ -226,10 +228,27 @@ test('Start over, and the first Run, play from half a second before the menu exp
 });
 
 describe('a link to a run', () => {
+  /** A run's settings, in the order a link names them. */
+  const settings = (sim: Sim) =>
+    Object.keys(SETTINGS).map((name) => sim[name as keyof typeof SETTINGS]);
+  /** Everything a run has done, as one string: two runs that match are the same run. */
+  const shape = (sim: Sim) =>
+    JSON.stringify([sim.now, sim.events, sim.counts, sim.lines, sim.tally, settings(sim)]);
+
   test('names the seed, then each setting that differs from the opening’s, and opens the same run', () => {
-    expect(toLink(openingRun())).toBe('#seed-7');
+    // Each setting a link names opens as the opening's run has it, and takes the page's values.
+    const opening = openingRun();
+    for (const [name, setting] of Object.entries(SETTINGS))
+      expect(opening[name as keyof typeof SETTINGS], name).toBe(setting.opening);
+    expect(SETTINGS.load.values).toEqual(Object.keys(LOADS));
+    // A link that names no setting is the build's picture for its seed.
+    expect(linkTo(opening)).toBe('#seed-7');
+    expect(shape(openLink('#seed-7') as Sim)).toBe(shape(opening));
     const tamed = replay({ ...OPENING.config, coalesce: true, stale: true }, [], OPENING.until);
-    expect(toLink(tamed)).toBe('#seed-7&coalesce=on&stale=on');
+    expect(linkTo(tamed)).toBe('#seed-7&coalesce=on&stale=on');
+    expect(summary(openLink('#seed-7&coalesce=on&stale=on') as Sim)).toBe(
+      '1,515 reads in 5.0 s, 99.9% from the cache. No page was fetched twice at once and no reader timed out.',
+    );
     const odd = replay(
       {
         ...OPENING.config,
@@ -243,37 +262,36 @@ describe('a link to a run', () => {
       [],
       1_000,
     );
-    expect(toLink(odd)).toBe(
+    expect(linkTo(odd)).toBe(
       '#seed-12&load=morning&placement=modulo&early=on&jitter=on&invalidate=off',
     );
-    // Opened, a link gives the run it was made from, event for event.
-    for (const sim of [openingRun(), tamed, odd]) {
-      const link = fromLink(toLink(sim));
-      expect(link?.seed).toBe(sim.seed);
-      const again = replay(
-        { ...OPENING.config, ...link?.settings, seed: link?.seed ?? -1 },
-        [],
-        1_000,
-      );
-      const first = replay({ ...OPENING.config, ...settingsOf(sim), seed: sim.seed }, [], 1_000);
-      expect(again.events).toBe(first.events);
-      expect(summary(again)).toBe(summary(first));
-      expect(settingsOf(again)).toEqual(settingsOf(first));
+    // Opened, a link gives the run it was made from, event for event, and the same link again.
+    for (const sim of [opening, tamed, odd]) {
+      const again = openLink(linkTo(sim), sim.now) as Sim;
+      expect(shape(again)).toBe(shape(sim));
+      expect(linkTo(again)).toBe(linkTo(sim));
     }
+    // Start over plays the run its link names from half a second before the menu expires.
+    expect(openLink(linkTo(tamed), REPLAY_FROM)?.now).toBe(REPLAY_FROM);
   });
 
   test('leaves out a setting the lab does not have or a value it cannot take, and names no run when malformed', () => {
-    expect(fromLink('#seed-7&load=rush&placement=line&coalesce=yes&colour=red')).toEqual({
-      seed: 7,
-      settings: {},
-    });
-    // Only the loads the lab has, never a name every object inherits.
-    expect(fromLink('#seed-7&load=constructor')?.settings).toEqual({});
-    expect(fromLink('#seed-12&load=calm&invalidate=off')).toEqual({
-      seed: 12,
-      settings: { load: 'calm', invalidate: false },
-    });
-    for (const hash of ['', '#main', '#seed-', '#seed-1234567', '#seed-7&coalesce', '#seed-7&'])
-      expect(fromLink(hash), hash).toBeNull();
+    const openingSettings = settings(openingRun());
+    for (const hash of [
+      '#seed-7&load=rush&placement=line&coalesce=yes&colour=red',
+      '#seed-7&load=constructor',
+      '#seed-7&coalesce',
+      '#seed-7&',
+    ])
+      expect(settings(openLink(hash) as Sim), hash).toEqual(openingSettings);
+    const some = openLink('#seed-12&load=calm&invalidate=off') as Sim;
+    expect([some.seed, some.load, some.invalidate, some.coalesce]).toEqual([
+      12,
+      'calm',
+      false,
+      false,
+    ]);
+    for (const hash of ['', '#main', '#seed-', '#seed-1234567'])
+      expect(openLink(hash), hash).toBeNull();
   });
 });

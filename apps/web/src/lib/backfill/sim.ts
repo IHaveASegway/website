@@ -342,8 +342,9 @@ function failedLoad(sim: Sim, run: Run, attempt: Attempt, write: Write | null): 
   return `${name}'s load fails part way, and as its overwrite is one atomic step, the report is as it was`;
 }
 
-/** A run's check: the report's count for the run's own day against the source's. */
-function judge(sim: Sim, run: Run): void {
+/** A run's check: the report's count for the run's own day against the source's, read as the
+ *  check ends. Says whether the two agree. */
+function judge(sim: Sim, run: Run): boolean {
   const name = weekday(run.day);
   const held = sim.report[run.day] ?? 0;
   const truth = sim.source[run.day] ?? 0;
@@ -354,18 +355,29 @@ function judge(sim: Sim, run: Run): void {
     sim,
     gap === 0
       ? `${name}'s check finds ${count(held)} orders in the report, as in the source`
-      : `${name}'s check finds ${count(held)} orders in the report and ${count(truth)} in the source: ${count(Math.abs(gap))} too ${gap > 0 ? 'many' : 'few'}`,
+      : `${name}'s check finds ${count(held)} orders in the report and ${count(truth)} in the source: ${count(Math.abs(gap))} too ${gap > 0 ? 'many' : 'few'}, so it fails and is not retried`,
   );
+  return gap === 0;
 }
 
-/** An attempt's end, as it was planned when the attempt started. */
+/**
+ * An attempt's end, as it was planned when the attempt started; a check's, as it finds the data.
+ * A check fails when the totals it reads differ, as a data check in a scheduler fails its task,
+ * and it is not retried: a retry would read the same rows and find the same totals, since only a
+ * load changes them. Its run fails with it. Retries are for transient faults, such as an extract's
+ * or a load's dropped connection, which the next attempt may not meet.
+ */
 function complete(sim: Sim, run: Run, task: Task, attempt: Attempt): void {
   const write = attempt.task === 'load' ? commit(sim, attempt) : null;
+  if (attempt.task === 'check' && !judge(sim, run)) {
+    close(attempt, sim.now, 'failed');
+    task.state = 'failed';
+    return;
+  }
   if (!attempt.fails) {
     close(attempt, sim.now, 'success');
     task.state = 'success';
     if (attempt.task === 'load') say(sim, loaded(sim, run, attempt));
-    if (attempt.task === 'check') judge(sim, run);
     return;
   }
   close(attempt, sim.now, 'failed');
@@ -419,7 +431,9 @@ function finish(sim: Sim, run: Run): void {
       ? `${name}'s run succeeds`
       : failed.name === 'wait'
         ? `${name}'s run fails: its sensor gave up`
-        : `${name}'s run fails: its ${TASK_WORD[failed.name]} failed ${failed.tries} times`,
+        : failed.name === 'check'
+          ? `${name}'s run fails: its check found the totals differ`
+          : `${name}'s run fails: its ${TASK_WORD[failed.name]} failed ${failed.tries} times`,
   );
   if (finished(sim)) {
     const ok = countOf(sim.runs, (r) => r.state === 'success');
@@ -427,7 +441,9 @@ function finish(sim: Sim, run: Run): void {
       sim,
       ok === DAYS
         ? `Every run has finished, and all ${DAYS} succeeded`
-        : `Every run has finished: ${ok} succeeded and ${DAYS - ok} failed`,
+        : ok === 0
+          ? `Every run has finished, and all ${DAYS} failed`
+          : `Every run has finished: ${ok} succeeded and ${DAYS - ok} failed`,
     );
   }
 }

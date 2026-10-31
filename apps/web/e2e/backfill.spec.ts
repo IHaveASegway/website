@@ -13,7 +13,7 @@ const BACKFILL = '/lab/backfill/';
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 const MINUS = '−';
 const OPENING_SUMMARY =
-  "Every run has finished. Wednesday's report counts 275 orders, 96 more than the source: a failed load left 96 rows behind, and the retry appended all 179 again; the other 6 days match.";
+  "Every run has finished, and Wednesday's failed. Wednesday's report counts 275 orders, 96 more than the source: a failed load left 96 rows behind, and the retry appended all 179 again; the other 6 days match.";
 
 const summary = (page: Page) => page.locator('[data-bf-summary]');
 const day = (page: Page, n: number) => page.locator(`[data-bf-day="${n}"]`);
@@ -80,6 +80,8 @@ test('without JavaScript, the page is the opening run: Wednesday counted twice, 
   await expect(day(page, 2).locator('[data-bf-source]')).toHaveText('179');
   await expect(day(page, 2).locator('[data-bf-diff]')).toHaveText('+96');
   await expect(lamp(page, 2, CHECK)).toHaveAttribute('data-lamp', 'cross');
+  // Its check found the totals apart and failed, and so did its run.
+  await expect(day(page, 2).locator('[data-bf-run-word]')).toHaveText('failed');
   await expect(summary(page)).toHaveText(OPENING_SUMMARY);
   await expect(page.locator('[data-bf-day]')).toHaveCount(7);
   await expect(page.locator('[data-bf-step][data-lamp="filled"]')).toHaveCount(34);
@@ -87,7 +89,8 @@ test('without JavaScript, the page is the opening run: Wednesday counted twice, 
   await expect(page.locator('[data-bf-check="order"]')).toHaveAttribute('data-lamp', 'filled');
   await expect(page.locator('[data-bf-stray]')).toBeHidden();
   await expect(page.locator('[data-bf-week-source]')).toHaveText('2,012');
-  await expect(page.locator('.bf-strip-x')).toHaveCount(1);
+  // A cross for each failed attempt: Wednesday's first load, and its check.
+  await expect(page.locator('.bf-strip-x')).toHaveCount(2);
   await expect(page.locator('[data-bf-lines] li').first()).toHaveText(
     "00:00 Wednesday's next load attempt will fail part way through",
   );
@@ -211,7 +214,10 @@ test('watch Wednesday count twice; then overwrite the day and start over, and ev
     "Wednesday's load fails after appending 96 of its 179 rows, and they stay in the report",
   );
   await expect(page.locator('[data-bf-lines]')).toContainText(
-    "Wednesday's check finds 275 orders in the report and 179 in the source: 96 too many",
+    "Wednesday's check finds 275 orders in the report and 179 in the source: 96 too many, so it fails and is not retried",
+  );
+  await expect(page.locator('[data-bf-lines]')).toContainText(
+    "Wednesday's run fails: its check found the totals differ",
   );
   await page.getByRole('radio', { name: 'Overwrite the day' }).check();
   await expect(page.locator('[data-bf-said]')).toHaveText(
@@ -243,9 +249,12 @@ test("write to today: every day's orders land on Monday 26 October, and every ch
   await page.getByRole('radio', { name: 'Today, by the clock' }).check();
   // The backfill runs again under the clock's day as the week starts over.
   await startOver(page);
-  // No run is called a success while every check lamp shows its check failed.
+  // Every check finds its day empty and fails, and every run with it.
   await expect(summary(page)).toHaveText(
-    "Every run has finished. 7 days show no orders in the report, because their rows were filed under Monday 26 October, the clock's day.",
+    "Every run has finished, and all 7 failed. 7 days show no orders in the report, because their rows were filed under Monday 26 October, the clock's day.",
+  );
+  await expect(page.locator('[data-bf-run-word]')).toHaveText(
+    Array.from({ length: 7 }, () => 'failed'),
   );
   const stray = page.locator('[data-bf-stray]');
   await expect(stray).toBeVisible();
@@ -276,9 +285,11 @@ test("rerun a finished day: with append Tuesday's total doubles; with overwrite 
   await expect(lamp(page, 1, 1)).toHaveAttribute('data-lamp', 'lit');
   await page.getByRole('radio', { name: 'Quick' }).check();
   await page.getByRole('button', { name: 'Run', exact: true }).click();
-  await expect(tuesday.locator('[data-bf-run-word]')).toHaveText('done', { timeout: 20_000 });
+  // The rerun's check finds Tuesday counted twice, so it fails, and the run with it.
+  await expect(tuesday.locator('[data-bf-run-word]')).toHaveText('failed', { timeout: 20_000 });
   await expect(tuesday.locator('[data-bf-report]')).toHaveText('758');
   await expect(tuesday.locator('[data-bf-diff]')).toHaveText('+379');
+  await expect(lamp(page, 1, CHECK)).toHaveAttribute('data-lamp', 'cross');
 
   await page.getByRole('radio', { name: 'Overwrite the day' }).check();
   await startOver(page);
@@ -394,13 +405,83 @@ test("a link to a week opens it: #seed-12 draws that seed's week, every column o
     // Its week ends at 01:19, and the clock stands there, as a played week stops.
     await expect(page.locator('[data-bf-clock]')).toHaveText('01:19 on Monday 26 October');
     await expect(page.locator('[data-bf-lines] li').last()).toHaveText(
-      /^01:19 Every run has finished/,
+      '01:19 Every run has finished: 4 succeeded and 3 failed',
     );
   };
   await seedTwelve();
   await startOver(page);
   await expect(page.locator('[data-bf-seed]')).toHaveText('12');
   await seedTwelve();
+});
+
+/** What the page says of the week it shows: its seed, clock, events, caption, board and log. */
+const shown = async (page: Page) => [
+  await page.locator('[data-bf-seed]').textContent(),
+  await page.locator('[data-bf-clock]').textContent(),
+  await page.locator('[data-bf-events]').textContent(),
+  await summary(page).textContent(),
+  await page.locator('[data-bf-day]').allTextContents(),
+  await page.locator('[data-bf-week-report]').textContent(),
+  await page.locator('[data-bf-lines] li').allTextContents(),
+];
+
+test('Start over writes the link to its week, the seed and each setting changed, and a reload opens the same week', async ({
+  page,
+}) => {
+  await page.goto(BACKFILL);
+  await page.getByRole('radio', { name: 'Overwrite the day' }).check();
+  await page.getByRole('radio', { name: '1 run at once' }).check();
+  // A choice alone writes nothing: the link names how a week starts.
+  expect(new URL(page.url()).hash).toBe('');
+  const entries = await page.evaluate(() => history.length);
+  await startOver(page);
+  // The address names the week and replaces itself: no new entry in the history.
+  expect(new URL(page.url()).hash).toBe('#seed-9&mode=overwrite&runs=1');
+  expect(await page.evaluate(() => history.length)).toBe(entries);
+  const before = await shown(page);
+  expect(before[3]).not.toBe(OPENING_SUMMARY);
+  await page.reload();
+  // The link loads the app with no other intent, and the week it opens has the settings chosen.
+  await expect(page.getByRole('radio', { name: 'Overwrite the day' })).toBeChecked();
+  await expect(page.getByRole('radio', { name: '1 run at once' })).toBeChecked();
+  expect(await shown(page)).toEqual(before);
+});
+
+test('a link followed on the page opens its week paused where the build’s would stand, and a value the lab cannot take is left out', async ({
+  page,
+}) => {
+  await page.goto(BACKFILL);
+  await rewind(page);
+  await page.getByRole('radio', { name: 'Quick' }).check();
+  await page.getByRole('button', { name: 'Run', exact: true }).click();
+  await expect.poll(() => minutes(page), { timeout: 5_000 }).toBeGreaterThan(10);
+  // Followed while the week plays: that week, paused, under the link's settings and the
+  // opening's for every setting it does not name.
+  await page.evaluate(() => (location.hash = '#seed-12&partition=today'));
+  await expect(page.locator('[data-bf-seed]')).toHaveText('12');
+  await expect(page.getByRole('button', { name: 'Run', exact: true })).toBeVisible();
+  await expect(page.getByRole('radio', { name: 'Today, by the clock' })).toBeChecked();
+  await expect(page.getByRole('radio', { name: 'Append rows' })).toBeChecked();
+  await expect(page.getByRole('radio', { name: '3 runs at once' })).toBeChecked();
+  await expect(page.locator('[data-bf-stray]')).toBeVisible();
+  const today = await shown(page);
+  await page.waitForTimeout(300);
+  expect(await shown(page)).toEqual(today);
+
+  // A name the lab does not have and values its settings cannot take are dropped: the week is
+  // seed 12's under the opening's settings, as the bare link gives it.
+  await page.evaluate(() => (location.hash = '#seed-12'));
+  await expect(page.getByRole('radio', { name: "The run's own day" })).toBeChecked();
+  const bare = await shown(page);
+  await page.evaluate(
+    () => (location.hash = '#seed-12&runs=9&mode=delete&partition=yesterday&colour=red'),
+  );
+  await expect(page.getByRole('radio', { name: '3 runs at once' })).toBeChecked();
+  expect(await shown(page)).toEqual(bare);
+  // A hash that links to no week, as the skip link's, leaves the week alone.
+  await page.evaluate(() => (location.hash = '#main'));
+  await page.waitForTimeout(200);
+  expect(await shown(page)).toEqual(bare);
 });
 
 for (const colorScheme of ['light', 'dark'] as const) {

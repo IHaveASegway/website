@@ -11,6 +11,7 @@ import {
   SENSOR_TIMEOUT,
   TASKS,
   WEEK_END,
+  weekday,
   when,
   type Attempt,
   type Faults,
@@ -42,13 +43,16 @@ import {
   holdFile,
   LATE_BY,
   lineTime,
+  linkTo,
   moment,
   OPENING,
   openingRun,
   openingWeek,
+  openLink,
   PROPERTY_NAMES,
   propertyViews,
   SEEDS_IN_CI,
+  SETTINGS,
   shortDay,
   startOver,
   statusText,
@@ -309,7 +313,7 @@ describe('retries', () => {
     expect(sim.failNext[2]).toBe(0);
   });
 
-  test('extract and load attempts fail on their own about 8% of the time; the other tasks never do', () => {
+  test('extract and load attempts fail on their own about 8% of the time; convert never fails, and a check only when it finds the totals apart', () => {
     let tries = 0;
     let failures = 0;
     for (let seed = 1; seed <= 300; seed++) {
@@ -318,11 +322,89 @@ describe('retries', () => {
         if (a.task === 'extract' || a.task === 'load') {
           tries++;
           if (a.outcome === 'failed') failures++;
+        } else if (a.task === 'check') {
+          // No clear here, so each day's one check is the one its verdict records.
+          const verdict = runOf(sim, a.day).verdict;
+          expect(a.outcome).toBe(verdict?.report === verdict?.source ? 'success' : 'failed');
         } else if (a.task !== 'wait') expect(a.outcome).toBe('success');
       }
     }
     expect(failures / tries).toBeGreaterThan(0.065);
     expect(failures / tries).toBeLessThan(0.095);
+  });
+});
+
+// A check reads the report and the source as it ends, and fails when their totals differ, as a
+// data check in a scheduler does. A retry would read the same rows, so it is not retried, and the
+// run it belongs to fails.
+describe('the check', () => {
+  test('a check that finds the totals apart fails, is not retried, and fails its run; the other days’ checks pass', () => {
+    const sim = backfill({ ...quiet, mode: 'append' }, (s) => failNextLoad(s, 2));
+    const check = taskOf(sim, 2, 'check');
+    expect(check.state).toBe('failed');
+    expect(check.attempts.map((a) => a.outcome)).toEqual(['failed']);
+    expect(runOf(sim, 2).state).toBe('failed');
+    expect(runOf(sim, 2).verdict).toMatchObject({ report: 319, source: 201 });
+    for (const day of [0, 1, 3, 4, 5, 6]) {
+      expect(taskOf(sim, day, 'check').state, weekday(day)).toBe('success');
+      expect(runOf(sim, day).state, weekday(day)).toBe('success');
+    }
+    const texts = sim.lines.map((l) => l.text);
+    const at = (text: string) => texts.indexOf(text);
+    expect(
+      at(
+        "Wednesday's check finds 319 orders in the report and 201 in the source: 118 too many, so it fails and is not retried",
+      ),
+    ).toBeGreaterThan(-1);
+    expect(at("Wednesday's run fails: its check found the totals differ")).toBe(
+      at(
+        "Wednesday's check finds 319 orders in the report and 201 in the source: 118 too many, so it fails and is not retried",
+      ) + 1,
+    );
+    expect(texts.at(-1)).toBe('Every run has finished: 6 succeeded and 1 failed');
+    expect(texts.filter((t) => /retried in/.test(t))).toEqual([
+      "Wednesday's load fails after appending 118 of its 201 rows, and they stay in the report; it is retried in 5 minutes",
+    ]);
+    // Failing the check changes what the run is called, never when anything happens: the same
+    // week with a check that only looked would have the same events, at the same minutes.
+    expect(sim.events).toBe(
+      backfill({ ...quiet, mode: 'overwrite' }, (s) => failNextLoad(s, 2)).events,
+    );
+    expect(invariant(sim)).toBeNull();
+    expect(finished(sim)).toBe(true);
+  });
+
+  test('a check that finds the totals equal succeeds, and so does its run', () => {
+    const sim = backfill({ ...quiet, mode: 'overwrite' }, (s) => failNextLoad(s, 2));
+    expect(sim.runs.map((r) => r.state)).toEqual(Array.from({ length: DAYS }, () => 'success'));
+    expect(sim.lines.map((l) => l.text)).toContain(
+      "Wednesday's check finds 201 orders in the report, as in the source",
+    );
+    expect(sim.lines.at(-1)?.text).toBe(`Every run has finished, and all ${DAYS} succeeded`);
+  });
+
+  test('under today every check finds its day empty, so all seven runs fail, and the log says so', () => {
+    const sim = backfill({ ...quiet, partition: 'today' });
+    expect(sim.runs.map((r) => r.state)).toEqual(Array.from({ length: DAYS }, () => 'failed'));
+    expect(sim.runs.map((r) => taskOf(sim, r.day, 'check').attempts.length)).toEqual(
+      Array.from({ length: DAYS }, () => 1),
+    );
+    expect(sim.lines.at(-1)?.text).toBe(`Every run has finished, and all ${DAYS} failed`);
+    expect(summary(sim)).toMatch(
+      /^Every run has finished, and all 7 failed\. 7 days show no orders/,
+    );
+  });
+
+  test('a rerun whose check finds the day right again succeeds: the run is judged by its last check', () => {
+    const sim = backfill({ ...quiet, mode: 'append' }, (s) => failNextLoad(s, 2));
+    expect(runOf(sim, 2).state).toBe('failed');
+    setMode(sim, 'overwrite');
+    clear(sim, 2);
+    runUntil(sim, Infinity);
+    expect(runOf(sim, 2).state).toBe('success');
+    // The day's history keeps the first run's failed check; the rerun's passed.
+    expect(taskOf(sim, 2, 'check').attempts.map((a) => a.outcome)).toEqual(['failed', 'success']);
+    expect(sim.lines.at(-1)?.text).toBe(`Every run has finished, and all ${DAYS} succeeded`);
   });
 });
 
@@ -424,7 +506,7 @@ describe('the summary', () => {
     // 118 left behind by the failed attempt, then all 201 from the retry and 201 from the rerun.
     expect(sim.report[2]).toBe(118 + 2 * 201);
     expect(summary(sim)).toBe(
-      "Every run has finished. Wednesday's report counts 520 orders, 319 more than the source: a failed load left 118 rows behind, and all 201 were appended twice; the other 6 days match.",
+      "Every run has finished, and Wednesday's failed. Wednesday's report counts 520 orders, 319 more than the source: a failed load left 118 rows behind, and all 201 were appended twice; the other 6 days match.",
     );
   });
 
@@ -437,7 +519,7 @@ describe('the summary', () => {
     // The overwrite's 201, then 104 left behind and the retry's 201: the appends explain only part.
     expect(sim.report[2]).toBe(201 + 104 + 201);
     expect(summary(sim)).toBe(
-      "Every run has finished. Wednesday's report counts 506 orders, 305 more than the source; the other 6 days match.",
+      "Every run has finished, and Wednesday's failed. Wednesday's report counts 506 orders, 305 more than the source; the other 6 days match.",
     );
   });
 });
@@ -559,7 +641,8 @@ function faultyRun(seed: number, over: Partial<Config> = {}): Sim {
 /** How many seeds each pass of the sweep runs: its six passes take about 3.8 s of the suite on a
  *  laptop, measured on 2026-10-30. Over 3,000 seeds the faults are caught in 3,000
  *  (ignoreDependencies), 2,172 (poolOverrun) and 1,709 (nonAtomicOverwrite); append breaks totals
- *  in 2,986 and today in all 3,000; conservation holds in every pass. */
+ *  in 2,986 and today in all 3,000; conservation holds in every pass. Since a check fails when it
+ *  finds its day's total wrong, 15,326 checks fail under append and none under overwrite. */
 const SEEDS = SEEDS_IN_CI;
 
 // As in the Raft Lab, the limit only catches a hang: a broken scheduler that stops being caught
@@ -581,6 +664,11 @@ describe('the property sweep', { timeout: 30_000 }, () => {
       for (const p of properties(sim))
         if (!p.held) broken.push(`seed ${seed}: ${p.id}: ${p.first?.detail}`);
       if (!finished(sim)) broken.push(`seed ${seed}: a run never finished`);
+      // The safe design's checks always find their day right: its runs fail only when a file
+      // never lands or a step fails three times.
+      for (const a of sim.attempts)
+        if (a.task === 'check' && a.outcome === 'failed')
+          broken.push(`seed ${seed}: ${a.day}'s check found its total wrong`);
     }
     expect(broken).toEqual([]);
     // The sweep did real work: reruns, failed attempts, and whole runs that failed.
@@ -592,16 +680,19 @@ describe('the property sweep', { timeout: 30_000 }, () => {
 
   // Conservation must hold in every configuration, so each pass below checks it on every seed,
   // not only up to the first seed that breaks the property the pass is about.
-  test('with append, the same backfills break totals: a retry or a rerun counts a day twice', () => {
+  test('with append, the same backfills break totals: a retry or a rerun counts a day twice, and its check fails', () => {
     const broken: string[] = [];
     let caught = 0;
+    let failedChecks = 0;
     for (let seed = 1; seed <= SEEDS; seed++) {
       const sim = faultyRun(seed, { mode: 'append' });
       if (sim.violation) broken.push(`seed ${seed}: conservation: ${sim.violation.detail}`);
       if (!property(sim, 'totals').held) caught++;
+      failedChecks += countOf(sim.attempts, (a) => a.task === 'check' && a.outcome === 'failed');
     }
     expect(broken).toEqual([]);
     expect(caught).toBeGreaterThan(0);
+    expect(failedChecks).toBeGreaterThan(0);
   });
 
   test("with today, every one of them breaks totals: the week's rows land on the clock's day", () => {
@@ -793,7 +884,16 @@ describe('the opening the page draws', () => {
     const sim = openingRun();
     expect(sim.violation).toBeNull();
     expect(sim.now).toBe(OPENING.until);
-    expect(sim.runs.map((r) => r.state)).toEqual(Array.from({ length: DAYS }, () => 'success'));
+    // Wednesday's check finds its total wrong, so it fails, and Wednesday's run with it.
+    expect(sim.runs.map((r) => r.state)).toEqual([
+      'success',
+      'success',
+      'failed',
+      'success',
+      'success',
+      'success',
+      'success',
+    ]);
     // The last run finishes at the minute the picture stands at: 02:10 on Monday 26 October.
     expect(Math.max(...sim.runs.map((r) => r.ended ?? 0))).toBe(OPENING.until);
     const [failed, retry] = attemptsOf(sim, 2, 'load') as [Attempt, Attempt];
@@ -811,15 +911,20 @@ describe('the opening the page draws', () => {
     expect(rows[2]?.difference).toBe(failed.wrote);
     for (const row of rows)
       if (row.day !== 2) expect(row).toMatchObject({ difference: 0, verdict: 'match' });
-    // Wednesday's is the week's only failure, so nothing else blurs the story.
-    expect(countOf(sim.attempts, (a) => a.outcome === 'failed')).toBe(1);
+    // Wednesday's load and its check are the week's only failures, so nothing else blurs the story.
+    expect(sim.attempts.filter((a) => a.outcome === 'failed').map((a) => [a.day, a.task])).toEqual([
+      [2, 'load'],
+      [2, 'check'],
+    ]);
+    expect(sim.lines.at(-1)?.text).toBe('Every run has finished: 6 succeeded and 1 failed');
     // Sunday's file lands after the week ends, and its sensor is seen waiting for it.
     expect(
       sim.lines.some((l) => l.text === "Sunday's sensor finds the export file after 1 hour"),
     ).toBe(true);
     expect(summary(sim)).toBe(
-      "Every run has finished. Wednesday's report counts 275 orders, 96 more than the source: a failed load left 96 rows behind, and the retry appended all 179 again; the other 6 days match.",
+      "Every run has finished, and Wednesday's failed. Wednesday's report counts 275 orders, 96 more than the source: a failed load left 96 rows behind, and the retry appended all 179 again; the other 6 days match.",
     );
+    expect([sim.events, when(sim.now)]).toEqual([44, '02:10 on Monday 26 October']);
     expect(statusText(sim)).toMatch(
       /^Day totals broke once, first at 00:41 on Monday 26 October \(Wednesday's report holds 275 orders and the source 179\); task order and the limits held/,
     );
@@ -880,6 +985,54 @@ describe('what the page draws, and the three things to try', () => {
     );
   });
 
+  test('a link to a week: Start over’s names the seed and each setting the visitor changed, and opens the week Start over did; one that names none is the build’s', () => {
+    const shape = (sim: Sim) =>
+      JSON.stringify([sim.now, sim.events, sim.runs, sim.report, sim.writes, sim.lines]);
+    const settings = (sim: Sim | null) => [
+      sim?.seed,
+      sim?.mode,
+      sim?.partition,
+      sim?.maxActiveRuns,
+    ];
+    // Each setting a link names opens as the opening's week has it.
+    const opening = openingRun();
+    expect([opening.mode, opening.partition, opening.maxActiveRuns]).toEqual([
+      SETTINGS.mode.opening,
+      SETTINGS.partition.opening,
+      SETTINGS.runs.opening,
+    ]);
+    expect(SETTINGS.runs.values).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(linkTo(opening)).toBe('#seed-9');
+    expect(shape(openLink('#seed-9') as Sim)).toBe(shape(opening));
+
+    setMode(opening, 'overwrite');
+    setMaxActiveRuns(opening, 1);
+    const again = startOver(opening);
+    expect(linkTo(again)).toBe('#seed-9&mode=overwrite&runs=1');
+    const linked = openLink(linkTo(again)) as Sim;
+    expect(shape(linked)).toBe(shape(again));
+    expect(linkTo(linked)).toBe(linkTo(again));
+
+    // Every value the page offers reads back as written.
+    for (const mode of SETTINGS.mode.values)
+      for (const partition of SETTINGS.partition.values)
+        for (const runs of SETTINGS.runs.values) {
+          const link = linkTo({ ...createSim({ seed: 4 }), mode, partition, maxActiveRuns: runs });
+          expect(settings(openLink(link)), link).toEqual([4, mode, partition, runs]);
+        }
+    // A name the lab does not have, or a value it cannot take, is dropped.
+    expect(
+      settings(openLink('#seed-12&runs=9&mode=delete&partition=yesterday&colour=red')),
+    ).toEqual([12, 'append', 'run-day', 3]);
+    expect(settings(openLink('#seed-12&runs=0&partition=today'))).toEqual([
+      12,
+      'append',
+      'today',
+      3,
+    ]);
+    for (const hash of ['', '#main', '#seed-', '#seed-1234567']) expect(openLink(hash)).toBeNull();
+  });
+
   test('before the switch: the job off at the minute the week ends, under the chosen settings, with what was set before the switch; switched on, it is the opening again', () => {
     const before = off();
     expect(before.on).toBe(false);
@@ -907,7 +1060,7 @@ describe('what the page draws, and the three things to try', () => {
     const wednesday = boardView(opening).days[2];
     expect(wednesday).toMatchObject({
       short: 'Wed 21',
-      run: 'done',
+      run: 'failed',
       report: '275',
       difference: '+96',
       source: '179',
@@ -923,8 +1076,11 @@ describe('what the page draws, and the three things to try', () => {
       difference: '+96',
       source: '2,012',
     });
-    // A run whose check found its total wrong is not called a success: the board draws it failed.
-    expect(summary(opening)).toMatch(/^Every run has finished\. Wednesday's report counts 275/);
+    // A check that found its total wrong failed, and so did its run: the caption names it.
+    expect(summary(opening)).toMatch(
+      /^Every run has finished, and Wednesday's failed\. Wednesday's report counts 275/,
+    );
+    expect(boardView(opening).days.filter((d) => d.run === 'failed')).toHaveLength(1);
     setMode(opening, 'overwrite');
     const fixed = startOver(opening);
     expect(fixed.mode).toBe('overwrite');
@@ -950,8 +1106,10 @@ describe('what the page draws, and the three things to try', () => {
     expect(lamps(today, CHECK)).toEqual(Array.from({ length: DAYS }, () => 'cross'));
     expect(view.week).toEqual({ report: '0', difference: '−2,012', source: '2,012' });
     expect(summary(today)).toBe(
-      "Every run has finished. 7 days show no orders in the report, because their rows were filed under Monday 26 October, the clock's day.",
+      "Every run has finished, and all 7 failed. 7 days show no orders in the report, because their rows were filed under Monday 26 October, the clock's day.",
     );
+    expect(view.days.map((d) => d.run)).toEqual(Array.from({ length: DAYS }, () => 'failed'));
+    expect(today.lines.at(-1)?.text).toBe('Every run has finished, and all 7 failed');
   });
 
   test("rerun a finished day: with append Tuesday's total doubles; with overwrite nothing changes", () => {
@@ -959,17 +1117,25 @@ describe('what the page draws, and the three things to try', () => {
     clear(appended, 1);
     runUntil(appended, Infinity);
     expect(boardView(appended).days[1]).toMatchObject({
+      run: 'failed',
       report: '758',
       difference: '+379',
       source: '379',
     });
+    expect(summary(appended)).toBe(
+      "Every run has finished, and Tuesday's and Wednesday's failed. 2 days' totals are wrong: Tuesday's by 379 too many and Wednesday's by 96 too many; the other 5 days match.",
+    );
     const opening = openingRun();
     setMode(opening, 'overwrite');
     const replaced = startOver(opening);
     const before = boardView(replaced).days[1];
     clear(replaced, 1);
     runUntil(replaced, Infinity);
-    expect(boardView(replaced).days[1]).toMatchObject({ report: before?.report, difference: '' });
+    expect(boardView(replaced).days[1]).toMatchObject({
+      run: 'done',
+      report: before?.report,
+      difference: '',
+    });
     expect(before?.report).toBe('379');
   });
 
@@ -986,7 +1152,9 @@ describe('what the page draws, and the three things to try', () => {
     expect(summary(sim)).not.toContain('Tuesday');
     runUntil(sim, Infinity);
     expect(boardView(sim).days[1]).toMatchObject({ report: '955', difference: '+576' });
-    expect(summary(sim)).toMatch(/^Every run has finished\. 2 days' totals are wrong: Tuesday's/);
+    expect(summary(sim)).toMatch(
+      /^Every run has finished, and Tuesday's and Wednesday's failed\. 2 days' totals are wrong: Tuesday's by 576/,
+    );
   });
 
   test("then Monday's file five hours late with one run at a time: the week goes back to before the switch, and waits behind it", () => {
@@ -1073,7 +1241,8 @@ describe('what the page draws, and the three things to try', () => {
     const opening = openingRun();
     const markup = stripMarkup(opening);
     expect(markup.match(/class="bf-strip-track"/g)).toHaveLength(DAYS);
-    expect(markup.match(/class="bf-strip-x"/g)).toHaveLength(1);
+    // Wednesday's failed load and its failed check.
+    expect(markup.match(/class="bf-strip-x"/g)).toHaveLength(2);
     expect([...markup.matchAll(/class="bf-strip-time"[^>]*>([^<]+)</g)].map(([, t]) => t)).toEqual([
       '00:00',
       '01:00',

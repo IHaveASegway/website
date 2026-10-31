@@ -197,6 +197,7 @@ test('let the menu expire: the first run plays it, 23 fetches at once and two ti
   await press(page, 'Start over');
   await expect(clock(page)).toHaveText('Virtual time 2.500 s, seed 7');
   await expect(said(page)).toHaveText('Virtual time 2.500 s, seed 7. Menu, fresh until 3.0 s.');
+  const restarted = [await summary(page).textContent(), await waiting(page).textContent()];
   await runUntil(page, () =>
     /Virtual time ([5-9]|\d\d)\./.test(
       document.querySelector('[data-cl-clock]')?.textContent ?? '',
@@ -225,6 +226,11 @@ test('let the menu expire: the first run plays it, 23 fetches at once and two ti
       'aria-pressed',
       'true',
     );
+  // It is the run Start over played: started over again, it stands where that one stood.
+  await press(page, 'Start over');
+  await expect(clock(page)).toHaveText('Virtual time 2.500 s, seed 7');
+  expect([await summary(page).textContent(), await waiting(page).textContent()]).toEqual(restarted);
+  expect(new URL(page.url()).hash).toBe('#seed-7&coalesce=on&stale=on');
 });
 
 test('flush every node at the morning rush: the database falls behind, and the overload comes back with the expiries', async ({
@@ -373,32 +379,48 @@ test('a link to a run opens it: #seed-8 loads that seed with no other intent, an
   expect(new URL(page.url()).hash).toBe('#seed-8');
 });
 
-test('a link names a run’s switches, load and placement, and one the lab cannot take is left out', async ({
+test('a link names a run’s switches, load and placement; followed on the page it opens that run paused, and a value the lab cannot take is left out', async ({
   page,
 }) => {
-  // A fresh page for each link: a link that changes only the address's hash opens no page.
-  const open = async (hash: string) => {
-    await page.goto('about:blank');
-    await page.goto(`${CACHE}${hash}`);
-  };
-  await open('#seed-7&coalesce=on&stale=on');
+  await page.goto(`${CACHE}#seed-7&coalesce=on&stale=on`);
   await expect(summary(page)).toHaveText(TAMED);
+  // Followed on the page while a run plays: that run, paused at the picture's moment.
+  await choose(page, 'Quick');
+  await press(page, 'Run');
+  await expect.poll(() => seconds(page)).toBeGreaterThan(2.6);
+  const open = (hash: string) => page.evaluate((link) => (location.hash = link), hash);
   await open('#seed-9&load=morning&placement=modulo&invalidate=off');
   await expect(clock(page)).toHaveText('Virtual time 5.000 s, seed 9');
+  await expect(page.getByRole('button', { name: 'Run', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Coalesce misses' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
   await expect(page.getByRole('radio', { name: 'Morning', exact: true })).toBeChecked();
   await expect(page.getByRole('radio', { name: 'Modulo', exact: true })).toBeChecked();
   await expect(page.getByRole('button', { name: 'Invalidate on write' })).toHaveAttribute(
     'aria-pressed',
     'false',
   );
-  // A load the lab does not have is left out: the run keeps the opening's.
-  await open('#seed-9&load=rush&coalesce=yes');
+  // A load the lab does not have, a switch's word it does not know and a name it lacks are left
+  // out: the run is seed 9's under the opening's settings, as the bare link gives it.
+  await open('#seed-9');
+  await expect(page.getByRole('radio', { name: 'Busy', exact: true })).toBeChecked();
+  const bare = [
+    await summary(page).textContent(),
+    await page.locator('[data-cl-map]').getAttribute('aria-label'),
+  ];
+  await open('#seed-9&load=rush&coalesce=yes&colour=red');
   await expect(page.locator('[data-cl-readers]')).toHaveText('Readers, 300 a second');
   await expect(page.locator('[data-cl-clock]')).toHaveText('Virtual time 5.000 s, seed 9');
   await expect(page.getByRole('button', { name: 'Coalesce misses' })).toHaveAttribute(
     'aria-pressed',
     'false',
   );
+  expect([
+    await summary(page).textContent(),
+    await page.locator('[data-cl-map]').getAttribute('aria-label'),
+  ]).toEqual(bare);
 });
 
 test('a page’s four lamps differ in shape, not only colour: in both themes and in forced colours', async ({

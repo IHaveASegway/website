@@ -1,3 +1,4 @@
+import { readLink, writeLink } from '../sim/link';
 import { properties, type PropertyId } from './check';
 import {
   BACKOFF,
@@ -8,12 +9,14 @@ import {
   dayOf,
   dayText,
   isoDate,
+  MAX_ACTIVE_RUNS,
   TASKS,
   WEEK_END,
   weekday,
   when,
   type Mode,
   type Outcome,
+  type PartitionKey,
   type RunState,
   type TaskName,
   type TaskState,
@@ -28,14 +31,15 @@ import { lateFile, nextTime, replay, runUntil, type Action, type Config, type Si
 /**
  * The opening: the week's backfill with appends, Wednesday's first load attempt set to fail part
  * way, and every run left to finish, at 02:10. The story: Wednesday's load fails after writing 96
- * of its 179 rows, the retry appends all 179 again, and Wednesday's check finds 96 too many, while
- * the other six days match. Sunday's file lands at 01:34, after Sunday's run has started, so its
- * sensor is seen waiting for it. The browser replays it to take over where the picture stands.
+ * of its 179 rows, the retry appends all 179 again, and Wednesday's check finds 96 too many and
+ * fails, and its run with it, while the other six days match. Sunday's file lands at 01:34, after
+ * Sunday's run has started, so its sensor is seen waiting for it. The browser replays it to take
+ * over where the picture stands.
  *
  * Seed 9, not the 7 the Raft Lab opens with: under seed 7 Thursday's load also fails on its own
  * (each extract and load attempt has an 8% chance), and under 8 Saturday's does, so two days come
- * out wrong and the story blurs. 9 is the first seed after 7 where Wednesday's failure is the
- * week's only one.
+ * out wrong and the story blurs. 9 is the first seed after 7 where Wednesday's load is the only
+ * one of the week to fail.
  */
 export const OPENING = {
   seed: 9,
@@ -201,9 +205,10 @@ function cause(sim: Sim, day: number): string | null {
  *  and its total is judged again only once its rerun's check has run. */
 const judged = (sim: Sim, day: number): boolean => Boolean(sim.runs[day]?.verdict);
 
-/** One or two sentences for the picture's caption: how far the backfill has got, and whether
- *  the days it has checked add up. A run whose check found its total wrong is not called a
- *  success, since the run board draws that check failed. */
+/** One or two sentences for the picture's caption: how far the backfill has got, which runs
+ *  failed, and whether the days it has checked add up. A check that found its day's total wrong
+ *  failed, and its run with it (sim.ts, complete), so the caption names that run among the
+ *  failed, as the run board does. */
 export function summary(sim: Sim): string {
   if (!sim.on)
     return `The job graph is off. Switched on, it creates a run for each day from ${dayText(0)} to ${dayText(DAYS - 1)} at once, and lets ${sim.maxActiveRuns} run at a time.`;
@@ -217,11 +222,13 @@ export function summary(sim: Sim): string {
   const running = countOf(sim.runs, (r) => r.state === 'running');
   const progress =
     done === DAYS
-      ? failed.length > 0
-        ? `Every run has finished, and ${joinAnd(failed)}'s failed.`
-        : wrong.length > 0
-          ? 'Every run has finished.'
-          : `Every run has finished, and all ${DAYS} succeeded.`
+      ? `Every run has finished, and ${
+          failed.length === 0
+            ? `all ${DAYS} succeeded`
+            : failed.length === DAYS
+              ? `all ${DAYS} failed`
+              : `${joinAnd(failed.map((name) => `${name}'s`))} failed`
+        }.`
       : `${done} of ${DAYS} runs ${done === 1 ? 'has' : 'have'} finished; ${running} running and ${DAYS - done - running} waiting for a run slot.`;
 
   if (checked.length === 0) return progress;
@@ -285,8 +292,9 @@ export function statusText(sim: Sim): string {
 // The page (components/backfill-lab): the run board, the properties and the strip, as the build
 // draws them and the browser redraws them, from the same functions, so the two never disagree.
 
-/** A week's settings, which carry into the week it starts over as: the seed, how a load writes,
- *  which day it writes and the limit of runs, and the test-only failure rate and faults. */
+/** A week's settings, which carry into the week before its switch (beforeSwitch): the seed, how a
+ *  load writes, which day it writes and the limit of runs, and the test-only failure rate and
+ *  faults. */
 const settingsOf = (sim: Sim): Config => ({
   seed: sim.seed,
   mode: sim.mode,
@@ -296,9 +304,35 @@ const settingsOf = (sim: Sim): Config => ({
   faults: sim.faults,
 });
 
-/** Start over: the opening's week again, on the same seed, under the visitor's settings, so the
- *  lab entry's "start over" shows the week each setting gives at once. */
-export const startOver = (sim: Sim): Sim => openingWeek(settingsOf(sim));
+/** The settings a link to a week names (lib/sim/link.ts), with the values the page offers and the
+ *  opening's: how a load writes, which day it writes, and how many runs may be active at once. */
+export const SETTINGS = {
+  mode: { values: ['append', 'overwrite'] as Mode[], opening: 'append' },
+  partition: { values: ['run-day', 'today'] as PartitionKey[], opening: 'run-day' },
+  runs: { values: Array.from({ length: DAYS }, (_, i) => i + 1), opening: MAX_ACTIVE_RUNS },
+} as const;
+
+/** The link to a week: its seed, and each setting not the opening's (#seed-9&mode=overwrite). */
+export const linkTo = (sim: Sim): string =>
+  writeLink(
+    sim.seed,
+    { mode: sim.mode, partition: sim.partition, runs: sim.maxActiveRuns },
+    SETTINGS,
+  );
+
+/** The week a link names: the opening's week on its seed, under its settings, standing where the
+ *  build's stands (openingWeek). Null when the hash links to no week. */
+export function openLink(hash: string): Sim | null {
+  const link = readLink(hash, SETTINGS);
+  if (!link) return null;
+  const { mode, partition, runs } = link.values;
+  return openingWeek({ ...OPENING.config, seed: link.seed, mode, partition, maxActiveRuns: runs });
+}
+
+/** Start over: the week this one's link names, the opening's week again on the same seed under
+ *  the visitor's settings, so the lab entry's "start over" shows the week each setting gives at
+ *  once. */
+export const startOver = (sim: Sim): Sim => openLink(linkTo(sim)) as Sim;
 
 /**
  * The week as it stood before the job was switched on: the minute the week ends, the job off,
@@ -388,8 +422,8 @@ const RUN_WORD: Record<RunState, string> = {
 
 const signed = (n: number): string => (n > 0 ? `+${count(n)}` : `−${count(-n)}`);
 
-/** One lamp. A check that ran and found the totals apart is drawn failed, as the lesson reads it,
- *  though the task itself succeeded: it did its job, and the run goes on to its end. */
+/** One lamp. A check's lamp says what it found: it succeeds when the totals match, and fails,
+ *  with no retry, when they differ. */
 function stepView(sim: Sim, day: number, i: number): StepView {
   const run = sim.runs[day];
   const task = run?.tasks[i];
@@ -402,12 +436,17 @@ function stepView(sim: Sim, day: number, i: number): StepView {
       return { lamp: 'clock', word: `failed, tries again at ${moment(at)}`, retry: clock(at) };
     }
     case 'success':
-      if (task.name !== 'check') return { lamp: 'filled', word: 'succeeded', retry: '' };
-      return run?.verdict && run.verdict.report !== run.verdict.source
-        ? { lamp: 'cross', word: 'failed: the totals differ', retry: '' }
-        : { lamp: 'filled', word: 'succeeded: the totals match', retry: '' };
+      return {
+        lamp: 'filled',
+        word: task.name === 'check' ? 'succeeded: the totals match' : 'succeeded',
+        retry: '',
+      };
     case 'failed':
-      return { lamp: 'cross', word: 'failed', retry: '' };
+      return {
+        lamp: 'cross',
+        word: task.name === 'check' ? 'failed: the totals differ' : 'failed',
+        retry: '',
+      };
     case 'upstream-failed':
       return { lamp: 'dash', word: 'not run: a step before it failed', retry: '' };
     case 'queued':

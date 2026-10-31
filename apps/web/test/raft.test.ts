@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import { fresh } from '../src/components/raft-lab/app';
 import { check, createChecker } from '../src/lib/raft/check';
 import {
   createServer,
@@ -30,7 +31,7 @@ import {
   type Flight,
   type Sim,
 } from '../src/lib/raft/sim';
-import { cutFence, footprint, openingRun, SEEDS_IN_CI, SIZE } from '../src/lib/raft/view';
+import { cutFence, footprint, OPENING, openingRun, SEEDS_IN_CI, SIZE } from '../src/lib/raft/view';
 
 // The Raft Lab's core (ADR 0020): known answers for each of Figure 2's rules, then a property
 // sweep. The sweep runs many seeded runs with crashes, partitions and loss, checks the five safety
@@ -522,6 +523,24 @@ describe('running in frames', () => {
     // The limit did bind: in many frames the clock stood short of the frame's end.
     expect(short).toBeGreaterThan(100);
   });
+});
+
+test('a run the page opens with messages lost records the loss at the opening’s moment, so its actions replay it', () => {
+  // Start over, or a link followed, with the slider at 30%: the loss is the run's last action.
+  const sim = fresh(8, 0.3);
+  expect(sim.loss).toBe(0.3);
+  expect(sim.actions).toEqual([...OPENING.actions, { at: OPENING.until, kind: 'loss', loss: 0.3 }]);
+  runUntil(sim, 3_000);
+  write(sim);
+  crash(sim, leaderOf(sim)?.id ?? 0);
+  runUntil(sim, 6_000);
+  expect(differences(replay({ seed: 8 }, sim.actions, 6_000), sim)).toEqual([]);
+  // Without that action, the replay loses no message, and is another run.
+  const unrecorded = sim.actions.filter((a) => a.kind !== 'loss');
+  expect(differences(replay({ seed: 8 }, unrecorded, 6_000), sim)).not.toEqual([]);
+  // With none lost nothing is recorded, and the run is the build's for its seed.
+  expect(fresh(7, 0).actions).toEqual(OPENING.actions);
+  expect(differences(fresh(7, 0), openingRun())).toEqual([]);
 });
 
 test('the opening the page draws: a leader, three committed writes, and every follower caught up', () => {

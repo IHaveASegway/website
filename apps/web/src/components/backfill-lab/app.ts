@@ -17,9 +17,10 @@ import {
   eventsText,
   holdFile,
   lineTime,
+  linkTo,
   moment,
-  OPENING,
-  openingWeek,
+  openingRun,
+  openLink,
   propertyViews,
   startOver,
   statusText,
@@ -36,20 +37,17 @@ import {
 // paid in whole minutes, through runUntil, never a bare step between actions, so every press lands
 // where replay would put it. With reduced motion it moves in still steps, twice a second.
 //
-// Start over, like a link to a seed, shows the opening's week under the chosen settings, as the
-// build draws it (view.ts, openingWeek). The job is off only once a late file has sent the week
-// back to before the switch (holdFile); then Run, or Next event, switches it on first, so the
-// clock never moves with the job off and the week starts at 00:00, as the lab entry's does.
+// Start over, like a link to a week (lib/sim/link.ts), shows the opening's week under the chosen
+// settings, as the build draws it (view.ts, openingWeek), and writes the link to it; a link opens
+// its week paused, on load or when followed on the page. The job is off only once a late file has
+// sent the week back to before the switch (holdFile); then Run, or Next event, switches it on
+// first, so the clock never moves with the job off and the week starts at 00:00, as the lab
+// entry's does.
 
 const FRAME_CAP = 100; // real ms: a frame after a long pause does not leap ahead
 const EVENTS_PER_FRAME = 2_000;
 const STILL_EVERY = 500; // real ms between still steps
 const LINES_SHOWN = 60;
-
-const seedFromHash = (): number | null => {
-  const match = /^#seed-(\d{1,6})$/.exec(location.hash);
-  return match ? Number(match[1]) : null;
-};
 
 export function start(root: HTMLElement, queued: readonly Element[]): void {
   const $ = <T extends Element>(selector: string, from: ParentNode = root) =>
@@ -73,8 +71,8 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     if (element && element.getAttribute(name) !== value) element.setAttribute(name, value);
   };
 
-  const hashed = seedFromHash();
-  let sim: Sim = openingWeek({ ...OPENING.config, seed: hashed ?? OPENING.seed });
+  const linked = openLink(location.hash);
+  let sim: Sim = linked ?? openingRun();
   let playing = false;
   let last = 0;
   let owed = 0; // virtual minutes the clock is owed, under one
@@ -290,6 +288,8 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
       else words = stuck() ?? '';
     } else if (control.matches('[data-bf-reset]')) {
       show(startOver(sim));
+      // The address names the week, settings and all, so a reload or the link shared opens it.
+      history.replaceState(null, '', linkTo(sim));
       words = `The week starts over under these settings, and stands at ${moment(sim.now)}. ${summary(sim)}`;
     } else if (control.matches('[data-bf-on]')) {
       const on = sim.actions.find((a) => a.kind === 'start');
@@ -329,6 +329,14 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && playing) pause();
   });
+  // A link to a week followed on this page opens that week, paused, as loading it would.
+  addEventListener('hashchange', () => {
+    const next = openLink(location.hash);
+    if (!next) return;
+    show(next);
+    draw();
+    say(summary(sim));
+  });
   still.addEventListener('change', () => {
     if (playing) {
       pause();
@@ -337,8 +345,8 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
   });
 
   pick(day);
-  if (hashed === null) shownLine = sim.lines.at(-1);
-  else lines?.replaceChildren();
+  if (linked) lines?.replaceChildren();
+  else shownLine = sim.lines.at(-1);
   draw();
   for (const control of queued) press(control);
 }

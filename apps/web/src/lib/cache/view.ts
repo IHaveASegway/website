@@ -1,5 +1,6 @@
+import { readLink, writeLink } from '../sim/link';
 import { properties, type PropertyId } from './check';
-import { DATABASE, firstUp, LOADS, millis, pageName, PAGES, seconds } from './core';
+import { DATABASE, firstUp, LOADS, millis, pageName, PAGES, seconds, type Load } from './core';
 import { replay, type Action, type Config, type Outcome, type Sample, type Sim } from './sim';
 
 // What the Cache Lab says about a run, as text and numbers, never markup: the page stage draws
@@ -25,6 +26,38 @@ export const openingRun = (): Sim => replay(OPENING.config, OPENING.actions, OPE
  *  stands at the opening's moment: half a second before the menu expires, so the stampede the
  *  caption tells plays live, its lamps lighting and its line growing. */
 export const REPLAY_FROM = (OPENING.config.menuExpires ?? 0) - 500;
+
+const SWITCH = [false, true] as const;
+
+/** The settings a link to a run names (lib/sim/link.ts), with the values the page offers and the
+ *  opening's: the load, the placement, then the switches. Start over keeps them all. */
+export const SETTINGS = {
+  load: { values: Object.keys(LOADS) as Load[], opening: 'busy' },
+  placement: { values: ['circle', 'modulo'], opening: 'circle' },
+  coalesce: { values: SWITCH, opening: false },
+  stale: { values: SWITCH, opening: false },
+  early: { values: SWITCH, opening: false },
+  jitter: { values: SWITCH, opening: false },
+  invalidate: { values: SWITCH, opening: true },
+} as const;
+
+/** The link to a run's start: its seed, and each setting not the opening's, so it opens the run
+ *  the page showed, switches and all (#seed-7&coalesce=on&stale=on). */
+export const linkTo = (sim: Sim): string => writeLink(sim.seed, sim, SETTINGS);
+
+/**
+ * The run a link names, replayed to `until`: by default the opening's moment, where the build's
+ * picture stands; Start over plays from REPLAY_FROM. Null when the hash links to no run. A link
+ * names the seed, not the readers: every draw comes from one seeded stream, so a switch that
+ * changes how many draws the run makes, as coalescing does by making fewer fetches, moves every
+ * arrival after it. Two runs compare by their counts.
+ */
+export function openLink(hash: string, until: number = OPENING.until): Sim | null {
+  const link = readLink(hash, SETTINGS);
+  return (
+    link && replay({ ...OPENING.config, ...link.values, seed: link.seed }, OPENING.actions, until)
+  );
+}
 
 /** How many seeded runs the property sweep in test/cache.test.ts makes: the page says the number. */
 export const SEEDS_IN_CI = 600;

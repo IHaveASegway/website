@@ -330,7 +330,16 @@ test('under reduce, Run advances in still steps of half a second, and nothing an
   expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
 });
 
-test('a link to a run opens it: #seed-8 loads that seed with no other intent, Start over keeps it and the settings, and a link followed on the page opens its own', async ({
+/** What the page says of the run it shows: its seed, clock, caption, status line and log. */
+const shown = async (page: Page) => [
+  await page.locator('[data-qu-seed]').textContent(),
+  await clock(page).textContent(),
+  await summary(page).textContent(),
+  await status(page).textContent(),
+  await log(page).locator('li').allTextContents(),
+];
+
+test('a link to a run opens it: #seed-8 loads that seed with no other intent, Start over keeps it and the settings', async ({
   page,
 }) => {
   await page.goto(`${QUEUE}#seed-8`);
@@ -340,13 +349,68 @@ test('a link to a run opens it: #seed-8 loads that seed with no other intent, St
   await expect(page.locator('[data-qu-seed]')).toHaveText('8');
   await expect(clock(page)).toHaveText('Virtual time 4.000 s');
   await expect(page.getByRole('radio', { name: 'On' })).toBeChecked();
-  // The page loaded, a link to another seed opens that run at its opening, paused, as a load would.
-  await page.getByRole('button', { name: 'Next event' }).click();
-  await expect(clock(page)).not.toHaveText('Virtual time 4.000 s');
-  await page.evaluate(() => (location.hash = '#seed-9'));
+});
+
+test('Start over writes the link to its run, the seed and each setting changed, and a reload opens the same run', async ({
+  page,
+}) => {
+  await page.goto(QUEUE);
+  await page.getByRole('radio', { name: 'On' }).check();
+  await page.getByRole('radio', { name: 'Rush' }).check();
+  await page.getByRole('radio', { name: 'Dead-letter after four tries' }).check();
+  // A choice alone writes nothing: the link names how a run starts.
+  expect(new URL(page.url()).hash).toBe('');
+  const entries = await page.evaluate(() => history.length);
+  await page.getByRole('button', { name: 'Start over' }).click();
+  await expect(clock(page)).toHaveText('Virtual time 4.000 s');
+  // The address names the run and replaces itself: no new entry in the history.
+  expect(new URL(page.url()).hash).toBe('#seed-28&load=rush&key=on&handling=dead-letter');
+  expect(await page.evaluate(() => history.length)).toBe(entries);
+  const before = await shown(page);
+  expect(before[2]).not.toBe(OPENING_STORY);
+  await page.reload();
+  // The link loads the app with no other intent, and the run it opens has the settings checked.
+  await expect(page.getByRole('radio', { name: 'Rush' })).toBeChecked();
+  await expect(page.getByRole('radio', { name: 'On' })).toBeChecked();
+  await expect(page.getByRole('radio', { name: 'Dead-letter after four tries' })).toBeChecked();
+  expect(await shown(page)).toEqual(before);
+});
+
+test('a link followed on the page opens its run paused at the opening’s moment, and a value the lab cannot take is left out', async ({
+  page,
+}) => {
+  await page.goto(QUEUE);
+  await page.getByRole('radio', { name: 'On' }).check();
+  await page.getByRole('radio', { name: 'Quick' }).check();
+  await page.getByRole('button', { name: 'Run' }).click();
+  await expect.poll(() => seconds(page)).toBeGreaterThan(4.5);
+  // Followed while the run plays: the page shows that seed's opening, paused, under the link's
+  // settings, and the opening's for every setting it does not name.
+  await page.evaluate(() => (location.hash = '#seed-9&prefetch=10&ack=before'));
   await expect(page.locator('[data-qu-seed]')).toHaveText('9');
   await expect(clock(page)).toHaveText('Virtual time 4.000 s');
   await expect(page.getByRole('button', { name: 'Run' })).toBeVisible();
+  await expect(page.getByRole('radio', { name: '10', exact: true })).toBeChecked();
+  await expect(page.getByRole('radio', { name: 'Before the work' })).toBeChecked();
+  await expect(page.getByRole('radio', { name: 'Off' })).toBeChecked();
+  const nine = await shown(page);
+  await page.waitForTimeout(300);
+  expect(await shown(page)).toEqual(nine);
+
+  // A name the lab does not have and values its settings cannot take are dropped: the run is
+  // seed 9's under the opening's settings, as the bare link gives it.
+  await page.evaluate(() => (location.hash = '#seed-9'));
+  await expect(page.getByRole('radio', { name: '1', exact: true })).toBeChecked();
+  const bare = await shown(page);
+  await page.evaluate(() => (location.hash = '#seed-9&load=storm&prefetch=3&key=maybe&colour=red'));
+  await expect(page.getByRole('radio', { name: 'Busy' })).toBeChecked();
+  await expect(page.getByRole('radio', { name: '1', exact: true })).toBeChecked();
+  await expect(page.getByRole('radio', { name: 'Off' })).toBeChecked();
+  expect(await shown(page)).toEqual(bare);
+  // A hash that links to no run, as the skip link's, leaves the run alone.
+  await page.evaluate(() => (location.hash = '#main'));
+  await page.waitForTimeout(200);
+  expect(await shown(page)).toEqual(bare);
 });
 
 test('a choice shows its focus around its whole push-button, as a button does', async ({
