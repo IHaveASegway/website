@@ -502,10 +502,11 @@
     padding-block: 1.75rem 0.5rem;
   }
 
-  /* The words under the figures hold the scene's live clock, so their length changes as the day
-     runs, and in a narrow column they take one line in one face and two in another (Linux's
-     fallback wraps them where Barlow does not). Two lines are kept for them, so the hero is one
-     height whichever face draws it (e2e/fold.spec.ts). */
+  /* The words under the figures are static, "of driving on a busy Saturday, planned by VROOM in
+     your browser"; the scene's live clock is in the hero's caption (Hero.astro, .scene-clock), not
+     here. At a phone's width they take one line in Barlow and two in Linux's fallback face, so two
+     lines are kept for them, and the hero is one height whichever face draws it
+     (e2e/fold.spec.ts). */
   .figure-words {
     min-block-size: 2lh;
   }
@@ -593,15 +594,17 @@
 }
 
 /* The Route Lab's chapter, the stage's second row: the lab's line across the column, its title,
-   one sentence, the vans' days and the way to the lab. From 64rem it is a screen tall with its
-   words in the middle, and the day lifts into the cube beside them; below 64rem it follows the
-   scene and its caption, and the cube has lifted by the time its title comes up. */
+   one sentence, the vans' days and the way to the lab. From 64rem it is a screen tall, and the day
+   lifts into the cube beside it (below); below 64rem it follows the scene and its caption, and the
+   cube has lifted by the time its title comes up. */
 .chapter {
+  padding-block: 4rem;
+}
+
+.chapter-words {
   display: grid;
-  align-content: center;
   justify-items: start;
   row-gap: 1.125rem;
-  padding-block: 4rem;
 }
 
 .chapter-title {
@@ -665,10 +668,32 @@
   }
 }
 
+/* From 64rem the chapter is a screen tall, because the lift needs that much scroll: the day lifts
+   as the chapter's top comes up the window, all of it by the time the top is a tenth of the way
+   down (route-scene.ts, rising and liftFor), and the scene stands still only to the chapter's end.
+   Its words are far shorter than a screen, 453 px from the 1440 sizes up, so they come up straight
+   after the column's, a padding below the chapter's top, and then stand still in the middle of the
+   window, beside the cube, until the chapter's end takes them away with the scene. --hold is where
+   they stand: half the window less half of 28.5rem, their height at the 1440 sizes, and never
+   nearer the top than the padding. Taller or shorter words stand a little off the middle, and the
+   chapter's foot still ends their stillness, so every word stays in reach. The padding under them
+   is the same length, so their stillness ends where the scene's does. Until 2026-10-31 the words
+   sat in the middle of the chapter's own box, and a taller window put half its extra height under
+   the column's words and half again above the chapter's: at 2560 × 1440 the column had no word
+   for 811 px of the window, 56% of it, and at 1920 × 1080 for 451 px, 42% (HOM-4). Now 495 px,
+   34%, and 315 px, 29%: what is left is the room around the words at the scene's end, which a
+   screen tall chapter needs while the lift is measured in screens. */
 @media (width >= 64rem) {
   .chapter {
+    --hold: max(4rem, 50svh - 14.25rem);
     min-height: 100svh;
     max-inline-size: var(--column);
+    padding-block-end: var(--hold);
+  }
+
+  .chapter-words {
+    position: sticky;
+    inset-block-start: var(--hold);
   }
 }
 
