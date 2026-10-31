@@ -1,5 +1,6 @@
+import { NODES, owners, type Placement } from '../../lib/cache/core';
 import type { Sim } from '../../lib/cache/sim';
-import { menuWords, pageState, pagesOn, type Bucket } from '../../lib/cache/view';
+import { MENU_ROOM, menuWords, pageState, pagesOn, type Bucket } from '../../lib/cache/view';
 
 // The Cache Lab's picture as markup, the one piece of it that is not plain text: the build writes
 // it into the page for the opening run (CacheLab.astro), and the browser writes the same markup as
@@ -16,6 +17,30 @@ export function pageLamps(sim: Sim, node: number): string {
         : `<span class="cl-lamp" data-state="${pageState(sim, key)}"></span>`,
     )
     .join('');
+}
+
+/** The most pages one node holds, by either placement, with every node up or any one of them
+ *  down: 47 today, of the 120. A node's box keeps the room for that many lamps (roomLamps). */
+export const ROOM: number = (() => {
+  let most = 0;
+  for (const placement of ['circle', 'modulo'] as Placement[]) {
+    for (let down = -1; down < NODES; down++) {
+      const up = Array.from({ length: NODES }, (_, id) => id !== down);
+      const held = owners(placement, up);
+      for (let id = 0; id < NODES; id++) most = Math.max(most, held.filter((o) => o === id).length);
+    }
+  }
+  return most;
+})();
+
+/** A node's room: the menu with its longest words and ROOM lamps in all, laid out as a node's
+ *  lamps are and never shown, stacked under them (cache-lab.css, .cl-room). The box is then as
+ *  tall from the first paint as a run's lamps and the menu's words can make it, so the nodes keep
+ *  one height under a running demo, and when a node is lost. Losing a second node can give one
+ *  node more lamps than this, up to all 120; then the box gets taller, at that press. */
+export function roomLamps(): string {
+  const lamps = '<span class="cl-lamp"></span>'.repeat(ROOM - 1);
+  return `<span class="cl-menu"><span class="cl-lamp cl-menu-lamp"></span><span>${MENU_ROOM}</span></span>${lamps}`;
 }
 
 /** The outcome strip's four lanes, top to bottom, as their labels name them. Reads still waiting
