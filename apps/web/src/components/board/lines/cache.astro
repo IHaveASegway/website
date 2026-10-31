@@ -1,0 +1,223 @@
+---
+import { replay } from '../../../lib/cache/sim';
+import { OPENING, openingRun } from '../../../lib/cache/view';
+import { cacheFact, cacheLine } from '../../../lib/lines';
+import type { LineAt } from '../line-of';
+import '../../../styles/lines.css';
+
+interface Props {
+  /** Home's board, the default, or the Lab index (line-of.ts). */
+  at?: LineAt;
+}
+
+// The Cache Lab's line (ADR 0025): the readers come in from the left and fan out to the four cache
+// nodes, each a filled lamp while it is up, crossed while it is down; the nodes' tracks fan in to
+// the database, a square, and its pool runs on from it as a track of lamps, one per connection,
+// lit while a fetch runs on it. All of it from the Cache Lab's opening run (lib/cache/view.ts), the
+// run its own page draws before anyone presses anything, as it stands once the menu's stampede has
+// passed. It stands still: the board's one moving thing is the Route Lab's vans. Drawn twice, for a
+// narrow screen and a wide one, without a viewBox, as the Route Lab's line is (routes.astro): the
+// fork in pixels, the nodes and the join in shares of the width, the database and its pool in
+// pixels from the join. On the board its describer tells the stampede; on the Lab index it is
+// larger, names its stations, comes in from the page's edge, and says what coalescing saves.
+const { at = 'board' } = Astro.props;
+const opening = openingRun();
+const line = cacheLine(opening);
+const words =
+  at === 'board'
+    ? line.words
+    : cacheFact(
+        opening,
+        replay({ ...OPENING.config, coalesce: true }, OPENING.actions, OPENING.until),
+      );
+
+interface Size {
+  readonly name: 'wide' | 'compact';
+  /** Its height, and the space between the nodes' tracks. */
+  readonly height: number;
+  readonly gap: number;
+  /** Where the readers' stem forks, in pixels; where the nodes stand and their tracks join, in
+   *  percent. */
+  readonly fork: number;
+  readonly node: number;
+  readonly join: number;
+  /** The database's side, and the space between its connections' lamps. */
+  readonly side: number;
+  readonly step: number;
+  /** A node's lamp and a connection's, by radius. */
+  readonly station: number;
+  readonly lamp: number;
+  readonly labels: boolean;
+}
+
+const SIZES: Record<LineAt, readonly Size[]> = {
+  board: [
+    {
+      name: 'wide',
+      height: 96,
+      gap: 21,
+      fork: 62,
+      node: 32,
+      join: 56,
+      side: 14,
+      step: 16,
+      station: 7,
+      lamp: 5,
+      labels: false,
+    },
+    {
+      name: 'compact',
+      height: 64,
+      gap: 13,
+      fork: 30,
+      node: 32,
+      join: 56,
+      side: 10,
+      step: 9,
+      station: 4.5,
+      lamp: 3,
+      labels: false,
+    },
+  ],
+  // Made, as the Route Lab's is, for a column of 30rem at the least beside the words from 64rem,
+  // and the whole column of a phone below 48rem.
+  index: [
+    {
+      name: 'wide',
+      height: 128,
+      gap: 24,
+      fork: 84,
+      node: 34,
+      join: 48,
+      side: 16,
+      step: 19,
+      station: 9,
+      lamp: 6,
+      labels: true,
+    },
+    {
+      name: 'compact',
+      height: 64,
+      gap: 13,
+      fork: 24,
+      node: 30,
+      join: 54,
+      side: 10,
+      step: 9,
+      station: 4.5,
+      lamp: 3,
+      labels: false,
+    },
+  ],
+};
+
+// On the index the stem comes in from past the drawing's left edge, as the Route Lab's does.
+const enters = at === 'index' ? '-100%' : '0';
+const drawings = SIZES[at].map((size) => {
+  const middle = size.height / 2;
+  const nodes = line.nodes.map((lamp, i) => {
+    const y = Math.round(middle + (i - (line.nodes.length - 1) / 2) * size.gap);
+    return { lamp, y, rise: Math.abs(y - middle) };
+  });
+  // From the join, in pixels: every node's track turns in to meet the others at one point, as far
+  // out as the widest fan needs, then the database, then its pool.
+  const meet = Math.max(0, ...nodes.map((n) => n.rise));
+  const database = meet + 12;
+  const pool = line.connections.map((_, k) => database + size.side + 14 + k * size.step);
+  return { size, middle, nodes, meet, database, pool };
+});
+---
+
+<div class="line line-cache">
+  {drawings.map(({ size, middle, nodes, meet, database, pool }) => (
+    <svg
+      class={`line-draw line-${size.name}`}
+      height={size.height}
+      aria-hidden="true"
+      focusable="false"
+    >
+      <line class="line-track" x1={enters} y1={middle} x2={size.fork} y2={middle} />
+      {nodes.map((node) => (
+        <>
+          <line
+            class="line-track"
+            x1={size.fork}
+            y1={middle}
+            x2={size.fork + node.rise}
+            y2={node.y}
+          />
+          <line
+            class="line-track"
+            x1={size.fork + node.rise}
+            y1={node.y}
+            x2={`${size.join}%`}
+            y2={node.y}
+          />
+        </>
+      ))}
+      <svg x={`${size.join}%`} overflow="visible">
+        {nodes.map((node) => (
+          <path class="line-track" d={`M0 ${node.y}H${meet - node.rise}L${meet} ${middle}`} />
+        ))}
+        <line class="line-track" x1={meet} y1={middle} x2={pool.at(-1) ?? database} y2={middle} />
+        <rect
+          class="line-depot"
+          x={database}
+          y={middle - size.side / 2}
+          width={size.side}
+          height={size.side}
+        />
+        {pool.map((x, k) => (
+          <circle
+            class={line.connections[k] ? 'line-now' : 'line-lamp'}
+            cx={x}
+            cy={middle}
+            r={size.lamp}
+          />
+        ))}
+        {size.labels && (
+          <text class="line-label" x={database} y={middle - size.side / 2 - 10}>
+            Database
+          </text>
+        )}
+      </svg>
+      {nodes.map((node) => (
+        <>
+          <circle class="line-lamp" cx={`${size.node}%`} cy={node.y} r={size.station} />
+          {node.lamp === 'filled' && (
+            <circle
+              class="line-lamp-lit"
+              cx={`${size.node}%`}
+              cy={node.y}
+              r={size.station + 1}
+              data-lit=""
+            />
+          )}
+          {node.lamp === 'cross' && (
+            <svg x={`${size.node}%`} overflow="visible">
+              <path
+                class="line-cross"
+                d={`M${-size.station * 0.6} ${node.y - size.station * 0.6}l${size.station * 1.2} ${size.station * 1.2}m0 ${-size.station * 1.2}l${-size.station * 1.2} ${size.station * 1.2}`}
+              />
+            </svg>
+          )}
+        </>
+      ))}
+      {size.labels && (
+        <>
+          <text class="line-label" x="0" y={middle - 13}>
+            Readers
+          </text>
+          <text
+            class="line-label line-label-middle"
+            x={`${size.node}%`}
+            y={(nodes.at(-1)?.y ?? middle) + size.station + 15}
+          >
+            Cache nodes
+          </text>
+        </>
+      )}
+    </svg>
+  ))}
+</div>
+<p class={at === 'board' ? 'band-words' : 'lab-fact'}>{words}</p>

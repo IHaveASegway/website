@@ -4,13 +4,16 @@
   index. The line components import this sheet, so a page that draws a line carries it and no other
   page does. Every colour is a token from tokens.css. A track is the lab's colour at a lamp's
   weight; a lamp is round, the only round thing on the page: hollow is a ring in the line's colour
-  on the surface it stands on, filled is the line's colour, and the lit lamp, --primary, is where
-  the work is now. A lamp's fill layer and the lit lamps are separate shapes, shown or hidden by
-  opacity alone, so styles/board.css can move the Route Lab's day without moving anything.
+  on the surface it stands on, filled is the line's colour, the lit lamp, --primary, is where the
+  work is now, and a cross over a hollow lamp has failed or is down. A lamp's fill layer and the
+  lit lamps are separate shapes, shown or hidden by opacity alone, so styles/board.css can move the
+  Route Lab's day without moving anything.
+
+  The surface a lamp stands on is --line-ground, which Home's board sets to its own recessed
+  surface (board.css, .band); anywhere else it is the page's.
 */
 
 .line {
-  --line-ground: var(--background);
   display: block;
 }
 
@@ -62,15 +65,25 @@
 }
 
 .line-lamp {
-  fill: var(--line-ground);
+  fill: var(--line-ground, var(--background));
   stroke: var(--line);
   stroke-width: 1.75px;
 }
 
-.line-van-at {
+.line-van-at,
+.line-now {
   fill: var(--primary);
   stroke: var(--line);
   stroke-width: 2px;
+}
+
+/* A failed or downed station: its hollow lamp crossed (lines/queue.astro, cache.astro and
+   backfill.astro). */
+.line-cross {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 2px;
+  stroke-linecap: square;
 }
 
 @media (width >= 48rem) {
@@ -90,7 +103,9 @@
     stroke-width: 2.5px;
   }
 
-  .line-van-at {
+  .line-van-at,
+  .line-now,
+  .line-cross {
     stroke-width: 3px;
   }
 }
@@ -115,7 +130,7 @@
   fill: var(--muted-foreground);
 }
 
-/* A station named under its lamp: the Lab index's servers and log (lines/raft.astro). */
+/* A station named under or over its lamp: the Lab index's servers, log, queue and days. */
 .line-label-middle {
   text-anchor: middle;
 }
@@ -129,5 +144,5 @@
 }
 
 .line-number-lit {
-  fill: var(--line-ground);
+  fill: var(--line-ground, var(--background));
 }

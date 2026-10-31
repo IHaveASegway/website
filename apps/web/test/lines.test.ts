@@ -2,18 +2,32 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
+import { replay as replayBackfill } from '../src/lib/backfill/sim';
+import { openingRun as backfillOpening } from '../src/lib/backfill/view';
+import { replay as replayCache } from '../src/lib/cache/sim';
+import { OPENING as CACHE, openingRun as cacheOpening } from '../src/lib/cache/view';
 import {
+  backfillFact,
+  backfillLine,
+  cacheFact,
+  cacheLine,
   figureWords,
   inWords,
   MIDDAY,
+  queueFact,
+  queueLine,
   raftLine,
   ROUNDS,
   routesFact,
   routesLine,
   routesWords,
+  SIDING,
   spread,
+  TANK,
   vanLines,
 } from '../src/lib/lines';
+import { replay as replayQueue } from '../src/lib/queue/sim';
+import { OPENING as QUEUE, openingRun as queueOpening } from '../src/lib/queue/view';
 import { openingRun, statusText } from '../src/lib/raft/view';
 import type { RouteData } from '../src/lib/route-lab/data';
 import type { Day } from '../src/lib/route-lab/days';
@@ -157,6 +171,108 @@ describe('the Raft line', () => {
 
   test("the index's fact: the five properties held over every event of the opening run", () => {
     expect(statusText(openingRun())).toBe('All five safety properties held over 249 events.');
+  });
+});
+
+// The three simulated labs' lines, each from its own lab's opening run, through its simulation, as
+// the components draw them; each index fact from the same opening with the change its lab entry
+// tells the visitor to make first. The words are the runs' own, so a change to a simulation shows
+// here as a change of words, and each must agree with its lab entry (src/content/lab/).
+describe('the Queue line', () => {
+  test('the opening run: worker 2 down after its crash, eleven orders waiting, none dead', () => {
+    const line = queueLine(queueOpening());
+    expect(line.workers).toEqual([
+      { name: 'Worker 1', lamp: 'lit' },
+      { name: 'Worker 2', lamp: 'cross' },
+      { name: 'Worker 3', lamp: 'lit' },
+    ]);
+    expect(line.waiting).toBe(11);
+    expect(line.waiting).toBeLessThanOrEqual(TANK);
+    expect(line.dead).toBe(0);
+    expect(line.words).toBe('Worker 2 is down. Order 18 was printed twice, and no order was lost.');
+  });
+
+  test("the index's fact: the same crash with the idempotency key prints order 18 once", () => {
+    const keyed = replayQueue({ ...QUEUE.config, key: true }, QUEUE.actions, QUEUE.until);
+    expect(queueFact(keyed)).toBe(
+      'With an idempotency key, worker 2’s crash prints order 18 once: 25 orders done in 4 s, none lost or printed twice.',
+    );
+    // The opening itself printed order 18 twice, so it cannot be the fact.
+    expect(() => queueFact(queueOpening())).toThrow(/doubled/);
+  });
+
+  test('a queue the tank cannot hold, or dead letters the siding cannot, are refused', () => {
+    const sim = queueOpening();
+    sim.ready.push(...Array.from({ length: TANK }, (_, k) => 100 + k));
+    expect(() => queueLine(sim)).toThrow(/tank/);
+    const dead = queueOpening();
+    dead.dead.push(...Array.from({ length: SIDING + 1 }, (_, k) => 100 + k));
+    expect(() => queueLine(dead)).toThrow(/siding/);
+  });
+});
+
+describe('the Cache line', () => {
+  test('the opening run, once the stampede has passed: four nodes up, one fetch running', () => {
+    const line = cacheLine(cacheOpening());
+    expect(line.nodes).toEqual(['filled', 'filled', 'filled', 'filled']);
+    expect(line.connections).toEqual([true, false, false, false, false, false, false, false]);
+    expect(line.words).toBe(
+      'When the menu expired at 3.0 s, the database fetched it 23 times at once, and 2 reads timed out.',
+    );
+  });
+
+  test("the index's fact: coalescing has the database fetch the menu once instead of 23 times", () => {
+    const coalesced = replayCache({ ...CACHE.config, coalesce: true }, CACHE.actions, CACHE.until);
+    expect(cacheFact(cacheOpening(), coalesced)).toBe(
+      'When the menu expires at 3.0 s, coalescing has the database fetch it once instead of 23 times.',
+    );
+    // With no herd at an expiry there is nothing to compare.
+    expect(() => cacheFact(coalesced, coalesced)).toThrow(/herd/);
+  });
+});
+
+describe('the Backfill line', () => {
+  test("the opening week: every run done, Wednesday's check crossed, and its words", () => {
+    const line = backfillLine(backfillOpening());
+    expect(line.days.map((day) => day.name)).toEqual([
+      'Mon',
+      'Tue',
+      'Wed',
+      'Thu',
+      'Fri',
+      'Sat',
+      'Sun',
+    ]);
+    expect(line.days.map((day) => day.lamp)).toEqual([
+      'filled',
+      'filled',
+      'cross',
+      'filled',
+      'filled',
+      'filled',
+      'filled',
+    ]);
+    expect(line.words).toBe(
+      'Wednesday’s report counts 275 orders against the source’s 179; the other six days match.',
+    );
+    expect(backfillLine(backfillOpening('overwrite')).words).toBe(
+      'Every day matches the source: 2,012 orders in the week.',
+    );
+  });
+
+  test('a week that has not started is hollow, and one under way says how far its checks got', () => {
+    const off = backfillLine(replayBackfill({ seed: 9 }, [], 0));
+    expect(off.days.every((day) => day.lamp === 'hollow')).toBe(true);
+    expect(off.words).toBe('No day has been checked yet.');
+  });
+
+  test("the index's fact: loads that overwrite their day count the week once", () => {
+    const appended = backfillOpening();
+    expect(backfillFact(appended, backfillOpening('overwrite'))).toBe(
+      'Loads that overwrite their day: the week’s report counts 2,012 orders, as the source does, instead of 2,108.',
+    );
+    // The appended week does not match its source, so it cannot be the fact.
+    expect(() => backfillFact(appended, appended)).toThrow(/match/);
   });
 });
 

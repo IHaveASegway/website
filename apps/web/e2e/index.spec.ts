@@ -1,4 +1,17 @@
 import { expect, test } from '@playwright/test';
+import { replay as replayCache } from '../src/lib/cache/sim';
+import { OPENING as CACHE, openingRun as cacheOpening } from '../src/lib/cache/view';
+import { openingRun as backfillOpening } from '../src/lib/backfill/view';
+import {
+  backfillFact,
+  backfillLine,
+  cacheFact,
+  cacheLine,
+  queueFact,
+  queueLine,
+} from '../src/lib/lines';
+import { replay as replayQueue } from '../src/lib/queue/sim';
+import { OPENING as QUEUE, openingRun as queueOpening } from '../src/lib/queue/view';
 import { pages } from './expected';
 
 // The site as an index (ADR 0022): a row of an index opens its page wherever it is pressed, the
@@ -144,6 +157,129 @@ for (const { width, height, beside } of [
       expect((await drawing.locator('.line-label').count()) > 0, `${slug}: names`).toBe(beside);
       await expect(row.locator('.lab-fact'), `${slug}: its fact`).toHaveText(/\S.*\.$/);
     }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+  });
+}
+
+// The simulated labs' rows (ADR 0025): each line drawn from its lab's opening run, through its own
+// simulation, its stations named and its lamps in the states the run leaves them in, and its fact
+// the sentence the model writes from the same opening with the change its lab entry makes first
+// (lib/lines.ts), so the page and the simulation cannot disagree. Every row in its own colour.
+test('the Lab index draws the queue, the cache and the backfill from their openings, each with its fact', async ({
+  page,
+}) => {
+  test.skip(!pages().includes('/lab/'), 'this build has no lab');
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/lab/');
+  const row = (slug: string) => page.locator(`main .lab-row[data-line="${slug}"]`);
+  const wide = (slug: string) => row(slug).locator('svg.line-wide');
+  const count = <T>(list: readonly T[], test: (item: T) => boolean) => list.filter(test).length;
+
+  if ((await row('queue').count()) > 0) {
+    const line = queueLine(queueOpening());
+    const keyed = replayQueue({ ...QUEUE.config, key: true }, QUEUE.actions, QUEUE.until);
+    await expect(row('queue').locator('.lab-fact')).toHaveText(queueFact(keyed));
+    await expect(wide('queue').locator('.line-label')).toHaveText([
+      ...line.workers.map((w) => w.name),
+      'Dead letters',
+      'Publisher',
+      'Queue',
+    ]);
+    // A lamp in the tank for each order waiting, then a worker's lamp each: lit while it works,
+    // crossed while it is down.
+    await expect(wide('queue').locator('.line-now')).toHaveCount(
+      count(line.workers, (w) => w.lamp === 'lit'),
+    );
+    await expect(wide('queue').locator('.line-cross')).toHaveCount(
+      count(line.workers, (w) => w.lamp === 'cross'),
+    );
+    await expect(wide('queue').locator('.line-lamp')).toHaveCount(
+      line.waiting + count(line.workers, (w) => w.lamp !== 'lit'),
+    );
+  }
+
+  if ((await row('cache').count()) > 0) {
+    const opening = cacheOpening();
+    const line = cacheLine(opening);
+    const coalesced = replayCache({ ...CACHE.config, coalesce: true }, CACHE.actions, CACHE.until);
+    await expect(row('cache').locator('.lab-fact')).toHaveText(cacheFact(opening, coalesced));
+    await expect(wide('cache').locator('.line-label')).toHaveText([
+      'Database',
+      'Readers',
+      'Cache nodes',
+    ]);
+    // A filled lamp per node up, and a lamp per connection of the database's pool, lit while a
+    // fetch runs on it.
+    await expect(wide('cache').locator('.line-lamp-lit[data-lit]')).toHaveCount(
+      count(line.nodes, (lamp) => lamp === 'filled'),
+    );
+    await expect(wide('cache').locator('.line-now')).toHaveCount(
+      count(line.connections, (busy) => busy),
+    );
+    await expect(wide('cache').locator('.line-lamp')).toHaveCount(
+      line.nodes.length + count(line.connections, (busy) => !busy),
+    );
+  }
+
+  if ((await row('backfill').count()) > 0) {
+    const line = backfillLine(backfillOpening());
+    await expect(row('backfill').locator('.lab-fact')).toHaveText(
+      backfillFact(backfillOpening(), backfillOpening('overwrite')),
+    );
+    await expect(wide('backfill').locator('.line-label')).toHaveText([
+      ...line.days.map((day) => day.name),
+      'Report',
+    ]);
+    await expect(wide('backfill').locator('.line-lamp-lit[data-lit]')).toHaveCount(
+      count(line.days, (day) => day.lamp === 'filled'),
+    );
+    await expect(wide('backfill').locator('.line-cross')).toHaveCount(
+      count(line.days, (day) => day.lamp === 'cross'),
+    );
+  }
+
+  // A colour per lab: each row's track in its own line's colour.
+  const strokes = await page.locator('main .lab-row').evaluateAll((rows) =>
+    rows.map((r) => {
+      const track = r.querySelector('svg.line-wide .line-track');
+      return track ? getComputedStyle(track).stroke : null;
+    }),
+  );
+  expect(new Set(strokes).size).toBe(strokes.length);
+});
+
+// Home's board (ADR 0025) draws a band for every live lab with a line, one drawing at a time, and
+// never wider than the page. A hollow lamp there stands on the board's own surface, not the page's:
+// it takes the band's --line-ground (styles/lines.css), where it once took the page's background.
+for (const { width, height } of [
+  { width: 1440, height: 900 },
+  { width: 390, height: 844 },
+]) {
+  test(`at ${width} px Home's board draws a line for every lab, its hollow lamps on the board's surface`, async ({
+    page,
+  }) => {
+    const demos = pages().filter((path) => /^\/lab\/[^/]+\/$/.test(path));
+    test.skip(demos.length === 0, 'this build has no demo');
+    await page.setViewportSize({ width, height });
+    await page.goto('/');
+    const board = page.locator('[data-board]');
+    const bands = board.locator('.band');
+    expect(
+      (await bands.evaluateAll((all) => all.map((band) => band.getAttribute('data-line')))).sort(),
+    ).toEqual(demos.map((path) => path.split('/')[2]).sort());
+    for (const band of await bands.all())
+      await expect(band.locator('svg.line-draw').filter({ visible: true })).toHaveCount(1);
+    const { surface, lamps } = await board.evaluate((element) => ({
+      surface: getComputedStyle(element).backgroundColor,
+      lamps: [
+        ...new Set(
+          [...element.querySelectorAll('.line-draw .line-lamp')].map(
+            (lamp) => getComputedStyle(lamp).fill,
+          ),
+        ),
+      ],
+    }));
+    expect(lamps).toEqual([surface]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
   });
 }
