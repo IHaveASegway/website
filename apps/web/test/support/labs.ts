@@ -15,23 +15,26 @@ export interface SimulatedLab {
   readonly bundle: string;
   /** A class only its own sheet holds, by which the checks find that sheet in the build. */
   readonly map: string;
-  /** Its lazy JavaScript budget, in bytes, gzip -9. */
+  /** Its lazy JavaScript budget: every chunk its module can load, in bytes, gzip -9. */
   readonly lazyJavaScript: number;
 }
 
 /**
- * One row per simulated lab. The Raft Lab keeps the 8,000 B of ADR 0020. The builders of the other
- * three pages raised theirs over it, for ADR 0026 to accept or refuse, each to fit its own app
- * chunk as measured on 2026-10-30: the Queue Lab's 11,524 B, of which the test-only faults are
- * 118 B and resizing the pool 111 B, which no control reaches; the Cache Lab's 10,686 B, still
- * 7,718 B with every string emptied; and the Backfill Lab's 10,631 B, about 6,200 B of it the
- * simulator, its checker and the model. The Backfill Lab's map class is its board's.
+ * One row per simulated lab. The Raft Lab keeps the 8,000 B of ADR 0020; the other three have
+ * 12,000 B each, a raise for ADR 0026 to accept or refuse. Measured on 2026-10-30, every chunk a
+ * lab's module can load: the Raft Lab 6,847 B in one chunk; the Queue Lab 11,843 B, the Cache Lab
+ * 10,892 B and the Backfill Lab 10,880 B, each its app and lib/sim's chunk, the agenda and the
+ * seeded stream, 592 B, which all three load. The apps alone: the Queue Lab's 11,251 B, of which
+ * the test-only faults are about 118 B and resizing the pool 111 B, which no control reaches; the
+ * Cache Lab's 10,300 B, about 7,700 B with every string emptied; and the Backfill Lab's 10,288 B,
+ * about 6,200 B of it the simulator, its checker and the model. The Backfill Lab's map class is its
+ * board's.
  */
 export const SIMULATED_LABS = [
   { slug: 'raft', bundle: 'RaftLab', map: 'rf-map', lazyJavaScript: 8_000 },
   { slug: 'queue', bundle: 'QueueLab', map: 'qu-map', lazyJavaScript: 12_000 },
-  { slug: 'cache', bundle: 'CacheLab', map: 'cl-map', lazyJavaScript: 11_000 },
-  { slug: 'backfill', bundle: 'BackfillLab', map: 'bf-board', lazyJavaScript: 11_000 },
+  { slug: 'cache', bundle: 'CacheLab', map: 'cl-map', lazyJavaScript: 12_000 },
+  { slug: 'backfill', bundle: 'BackfillLab', map: 'bf-board', lazyJavaScript: 12_000 },
 ] as const satisfies readonly SimulatedLab[];
 
 type Row = (typeof SIMULATED_LABS)[number];

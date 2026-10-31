@@ -82,8 +82,8 @@ const SIMULATED = Object.fromEntries(
  * meaning: a solver that grew would still fail them. Its own ceiling, the first view with the app,
  * the route data and the cube, is what a visitor who turns the cube has fetched.
  *
- * So does each simulated lab (ADR 0020, ADR 0026; support/labs.ts): its app chunk, and the first
- * view of its page. Its row in that table makes its feature here.
+ * So does each simulated lab (ADR 0020, ADR 0026; support/labs.ts): every chunk its module can
+ * load, and the first view of its page with them. Its row in that table makes its feature here.
  *
  * So does Home's scene (ADR 0024): the chunk that drives it, which Home's motion module loads after
  * the page has painted, the day's data it fetches, and Home's first view with both. It shares the
@@ -213,8 +213,23 @@ export function reachableFrom(scripts: readonly string[]): string[] {
   return lazy;
 }
 
+/** The build's entry scripts: every script no other script imports, statically or with import().
+ *  They are the bundles pages name, and those Astro writes for a component whose page a build
+ *  leaves out; every other chunk is reached from one of them. */
+export function entryScripts(): string[] {
+  const scripts = files.filter((file) => /\.m?js$/.test(file));
+  const imported = new Set(
+    scripts.flatMap((file) =>
+      importsOf(read(file)).map((spec) => posix.normalize(posix.join(posix.dirname(file), spec))),
+    ),
+  );
+  return scripts.filter((file) => !imported.has(file));
+}
+
 /** The feature a dist/ file belongs to, or null: under one of its paths, its entry bundle, or a
- *  chunk that bundle reaches. */
+ *  chunk that bundle reaches. A chunk two features reach is the first's in FEATURES, which serves
+ *  the 2,000 B budget for files outside every feature; the simulated labs' own budgets read each
+ *  lab's whole graph instead, since three of them share lib/sim's chunk (budgets.test.ts). */
 export function featureOf(file: string): Feature | null {
   for (const [name, feature] of Object.entries(FEATURES) as [
     Feature,
