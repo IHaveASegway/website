@@ -13,6 +13,7 @@
     "test": "vitest run",
     "e2e": "playwright test --project=site",
     "e2e:writing": "E2E_SITE=writing-fixture playwright test --project=writing-fixture",
+    "e2e:linux": "scripts/e2e-linux.sh",
     "smoke": "playwright test --project=smoke",
     "prod-smoke": "playwright test --config playwright.prod.config.ts",
     "icons": "node scripts/icons.mjs"

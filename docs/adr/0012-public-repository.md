@@ -79,3 +79,7 @@ One-way. Once the repository is public, every commit, PR text and log can be cop
 ## Postscript, 2026-10-25
 
 Joseph made the repository public on 2026-10-25, between 12:57 UTC (a Dependabot run still recorded it as private) and about 13:45 UTC (an anonymous request returned it). Of the three preconditions, the third held. The first did not: `firewall` was red on `main` from the Route Lab merge on, for a WebAssembly file it cannot read and for chance runs of numbers in the route data, so nothing new deployed. The second, the full-history audit, ran only in part. What the switch still needs (the ruleset, push protection, private vulnerability reporting, and the checks the audit could not make) is in [roadmap.md](../roadmap.md#gate-repository-public) and [operations.md](../operations.md).
+
+## Postscript, 2026-10-31
+
+The firewall self-test moved out of `verify` into a job of its own, `firewall-selftest`, which `deploy` needs ([ADR 0006](0006-github-actions-owns-deploys.md), postscript of that day). The ruleset's required checks gain it: `verify`, `firewall`, `firewall-selftest`, `e2e` and `lighthouse`.
