@@ -163,6 +163,14 @@ test("each lab's page heads its title with its line, in its own colour, ending i
       const before = getComputedStyle(line, '::before');
       const after = getComputedStyle(line, '::after');
       const lamp = document.querySelector('.nav-leaves a[aria-current] .nav-lamp');
+      // The lab's own line token, as the page resolves it from the lab's slug, read from a probe,
+      // so the drawing is tied to the token and not only to the rail's lamp.
+      const slug = line.closest('[data-line]')?.getAttribute('data-line') ?? '';
+      const probe = document.createElement('span');
+      probe.style.setProperty('background-color', `var(--line-${slug})`);
+      document.body.append(probe);
+      const token = getComputedStyle(probe).backgroundColor;
+      probe.remove();
       return {
         hidden: line.getAttribute('aria-hidden'),
         line: before.backgroundColor,
@@ -170,15 +178,18 @@ test("each lab's page heads its title with its line, in its own colour, ending i
         lamp: after.backgroundColor,
         round: after.borderRadius,
         rail: lamp ? getComputedStyle(lamp).fill : null,
+        token,
       };
     });
+    expect(head.token, demo).not.toBe('rgba(0, 0, 0, 0)');
     expect(head, demo).toEqual({
       hidden: 'true',
-      line: head.rail,
+      line: head.token,
       height: '6px',
-      lamp: head.rail,
+      lamp: head.token,
       round: '50%',
-      rail: expect.any(String),
+      rail: head.token,
+      token: head.token,
     });
     seen.add(head.line);
   }
