@@ -93,7 +93,9 @@ export function timerShare(s: Server, now: number): number {
  *  page carries (test/css-classes.test.ts). */
 export const termShade = (term: number): number => (((term - 1) % 4) + 4) % 4;
 
-/** One node's log as a row of cells: filled when committed, outlined when not, term below. */
+/** One node's log as a row of cells: filled when that node knows the entry is committed,
+ *  outlined when not, term below. A crash clears what it knew (Figure 2's commitIndex is
+ *  volatile), so a node that is down outlines every cell. */
 export function logMarkup(s: Server): string {
   const cells = s.log
     .map((entry, i) => {
@@ -104,10 +106,12 @@ export function logMarkup(s: Server): string {
   return cells;
 }
 
-/** The same log said in words, for assistive technology and for the text it stands beside. */
+/** The same log said in words, for assistive technology and for the text it stands beside: what
+ *  the node knows is committed, as its lamps draw it, so a node that is down knows of none. */
 export function logWords(s: Server): string {
   if (s.log.length === 0) return 'empty log';
-  const committed = s.commitIndex > 0 ? `, ${s.commitIndex} committed` : ', none committed';
+  const committed =
+    s.commitIndex > 0 ? `, ${s.commitIndex} known committed` : ', none known committed';
   return `${s.log.length} ${s.log.length === 1 ? 'entry' : 'entries'}${committed}, last of term ${s.log.at(-1)?.term}`;
 }
 

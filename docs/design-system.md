@@ -345,14 +345,15 @@ A **station** does work: a worker, a cache node, a server, a day's run, a step, 
 
 | Mark | Means | Of | Never means |
 |---|---|---|---|
-| Hollow lamp: a ring in the line's colour | **Not yet.** Waiting, idle or not started: an order in the queue, an entry not yet committed, a stop not yet reached, an idle worker, a step not started, a Raft follower (followers are passive until the leader sends; Raft paper, §5.1) | both | done, down |
-| Filled lamp | **Done, or in service.** An order delivered or printed, an entry committed, a step that succeeded, a cache node up, a property that holds | both | |
+| Hollow lamp: a ring in the line's colour | **Not yet.** Waiting, idle or not started: an order in the queue, an entry its server does not yet know is committed, a stop not yet reached, an idle worker, a step not started, a Raft follower (followers are passive until the leader sends; Raft paper, §5.1) | both | done, down |
+| Filled lamp | **Done, or in service.** An order delivered or printed, an entry its server knows is committed, a step that succeeded, a cache node up, a property that holds | both | |
 | Lit lamp: `--primary`, ringed in the line | **Where the work is now.** A van, a busy worker, a running step, a connection fetching | both | |
 | ⊗: a hollow lamp crossed | **Failed.** An attempt that ended in failure: a step, a day's check whose totals differ, a property that broke | station | down, lost |
 | Hollow track: the surface runs down its middle, and no lamp | **Down.** A station out of service, crashed or stopped, which can come back. A station drawn without a track of its own, such as a server on the Raft desk, is drawn hollow the same way: its ring with the surface down its middle | station | failed, lost |
 | Hollow lamp with one slash, as ∅ | **Lost.** An item that will never be done: an order never printed | item | failed, a broken property |
 | Filled lamp with a second ring around it | **Twice.** An item done twice: an order printed twice | item | |
 | Dashed ring | **Taken, not yet acknowledged.** An order sent to a worker, on its way or dropped in a crash, until the broker takes it back | item | down |
+| Dot: a filled disc a quarter of a lamp's width, with no ring, on a plate of the surface where it stands on a track | **Room for one more.** A place on a station that is free, where one more item can go: a slot in a Queue worker's window, up to its prefetch | station | an item, waiting or otherwise |
 | Hollow lamp with clock hands | **Waiting to retry**, at the time beside it: it failed once and will try again | both | |
 | Hollow lamp with a bar | **Not run**, because a step before it failed | station | |
 
@@ -363,10 +364,10 @@ Why down is not ⊗. The desks already drew a station that is down as a hollow t
 What each surface changes to meet it (2026-10-31):
 
 - **Home's board and the Lab index** (`lib/lines.ts`, `components/board/lines/`): a worker or a cache node that is down is a hollow track with no lamp, not ⊗; ⊗ stays for the Backfill day whose check failed, and the board's caption says "failed" beside it. `e2e/board-words.spec.ts` holds the board's ⊗ to the word "failed" and its hollow tracks to "down".
-- **The Queue Lab's desk:** a lost order's ticket is the slashed lamp, not ⊗; a broken property is ⊗, not the slashed lamp; an order waiting in the tank is a hollow round lamp, as on the board, and one waiting out a backoff the clock lamp, not a hollow square; "On its way, or dropped in a crash" is one state, "Taken, not yet acknowledged", in the key.
-- **The Backfill Lab's desk:** a failed step and a failed check are ⊗ in the line's colour, not a bare × in the text's.
+- **The Queue Lab's desk:** a lost order's ticket is the slashed lamp, not ⊗; a broken property is ⊗, not the slashed lamp; an order waiting in the tank is a hollow round lamp, as on the board, and one waiting out a backoff the clock lamp, not a hollow square; "On its way, or dropped in a crash" is one state, "Taken, not yet acknowledged", in the key; a worker's free slot is the dot, room for one more, in the line's colour, not in the muted text's, and it has a row of its own above.
+- **The Backfill Lab's desk:** a failed step and a failed check are ⊗ in the line's colour, not a bare × in the text's; a step waiting to retry is the hollow lamp with clock hands, ring and hands in the line's colour, as on the Queue Lab's desk, not in the text's.
 - **The Cache Lab's desk:** a broken property's ⊗ is drawn in the line's colour, as the Queue Lab's is, not in the text's.
-- **The Raft Lab's desk:** a server that is down is drawn hollow, its ring with the surface down its middle, not dashed: a dashed ring is the Queue Lab's order in flight.
+- **The Raft Lab's desk:** a server that is down is drawn hollow, its ring with the surface down its middle, not dashed: a dashed ring is the Queue Lab's order in flight. Each log's lamps are its own server's view: the commit index is volatile state (Raft paper, Figure 2), so a crash clears it and a server that is down draws its whole log hollow, though what a majority holds is still committed. The legend under the logs says so, and a log's words say "known committed".
 
 ## Page geometry
 

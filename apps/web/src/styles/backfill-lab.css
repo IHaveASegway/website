@@ -9,8 +9,9 @@
 
   State is a lamp's shape (ADR 0025): hollow not started, lit running, filled succeeded, a cross
   inside its ring failed, a clock face waiting to retry, a dash never run. Colour only says which
-  line: the track, and the lamps that are the lab's own, failed ones too, are its colour, as on the
-  board's lines (lines.css, .line-cross); the clock face and the dash are ink.
+  line: the track, and the lamps that are the lab's own, failed and waiting ones too, are its
+  colour, as on the board's lines (lines.css, .line-cross) and the Queue Lab's desk; the dash is
+  ink.
 
   The page's head is the lab's line (PageHead.astro), and the demo is the lab's desk (ADR 0025;
   global.css, .desk): the controls are set apart from the board by a rule from bezel to bezel, and
@@ -280,7 +281,13 @@
   stroke-width: 1.5;
 }
 
-.bf-hands,
+/* The clock's hands are the line's, as its ring is: a lamp waiting to retry is the hollow lamp with
+   hands (design-system.md, "Lamps: one meaning per mark"), and until 2026-10-31 both were ink. */
+.bf-hands {
+  stroke: var(--line);
+  stroke-linecap: round;
+}
+
 .bf-dash {
   stroke: var(--foreground);
   stroke-linecap: round;
@@ -312,7 +319,8 @@
 }
 
 [data-lamp='hollow'] .bf-disc,
-[data-lamp='cross'] .bf-disc {
+[data-lamp='cross'] .bf-disc,
+[data-lamp='clock'] .bf-disc {
   fill: var(--surface-1);
   stroke: var(--line);
 }
@@ -325,12 +333,6 @@
 [data-lamp='lit'] .bf-disc {
   fill: var(--primary);
   stroke: var(--primary);
-}
-
-[data-lamp='clock'] .bf-disc {
-  fill: var(--surface-1);
-  stroke: var(--foreground);
-  stroke-width: 1.5;
 }
 
 /* The strip: each day's steps over time, under the board, with a line that says how to read it.

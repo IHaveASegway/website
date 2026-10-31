@@ -81,7 +81,7 @@ Q18 · Q-analytics chose it on 2026-10-22 ([product.md](product.md#decided)). It
 
 The rules are never committed and never quoted ([ADR 0007](adr/0007-content-firewall.md)). The private file is the source of truth; the two GitHub secrets are copies of it.
 
-1. In the clone: `git config core.hooksPath .githooks`. The setting is per clone. `pnpm install` warns until it is set (`scripts/check-hooks.sh`, run as the root `postinstall` script), but no script sets it: an install should not change git configuration as a side effect.
+1. In the clone: `git config core.hooksPath .githooks`. The setting is per clone. `pnpm install` warns until it is set (`scripts/check-hooks.sh`, run as the root `postinstall` script), but no script sets it: an install should not change git configuration as a side effect. A worktree shares its clone's setting, so there it may be the clone's `.githooks` by an absolute path; since 2026-10-31 the check takes any path to a directory whose hooks are the checkout's own, byte for byte and runnable, with nothing beside them, and still warns for anything else (`test/check-hooks.test.ts`).
 2. Commit identity: `git config --show-origin user.email` must show the GitHub noreply address ([security.md](security.md)).
 3. Create the rules file, readable only by its owner:
 

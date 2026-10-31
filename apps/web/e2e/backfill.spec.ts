@@ -765,6 +765,26 @@ test('on a phone every choice is a 44 px target, and a failed step is a crossed 
   expect(failed.colours).toEqual([failed.line, failed.line]);
 });
 
+test('a lamp waiting to retry is the hollow lamp with hands, ring and hands in the line’s colour, not the ink', async ({
+  page,
+}) => {
+  await page.goto(BACKFILL);
+  // The key's clock lamp, which the board's draws the same: a step that failed once and waits.
+  const clock = await page.locator('.bf-key [data-lamp="clock"]').evaluate((item) => {
+    const style = (selector: string) => getComputedStyle(item.querySelector(selector) as Element);
+    const hollow = document.querySelector('.bf-key [data-lamp="hollow"] .bf-disc');
+    return {
+      drawn: [style('.bf-disc').display, style('.bf-hands').display],
+      colours: [style('.bf-disc').stroke, style('.bf-hands').stroke],
+      line: hollow ? getComputedStyle(hollow).stroke : '',
+      ink: getComputedStyle(document.body).color,
+    };
+  });
+  expect(clock.drawn).not.toContain('none');
+  expect(clock.colours).toEqual([clock.line, clock.line]);
+  expect(clock.line).not.toBe(clock.ink);
+});
+
 for (const colorScheme of ['light', 'dark'] as const) {
   test(`axe finds no violation after a run, ${colorScheme}`, async ({ page }) => {
     await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });

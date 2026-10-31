@@ -33,6 +33,11 @@ import '../../styles/raft-lab.css';
 // what a press does, Run or Pause, so it is a plain button, never a toggle: a toggle keeps its name
 // and says its state through aria-pressed (WAI-ARIA APG, "Button Pattern").
 //
+// A log's lamps are its own server's view, as Raft's are: an entry is filled once that server
+// knows it is committed. The commit index is volatile state (Raft paper, Figure 2), so a crash
+// clears it and a server that is down draws its whole log hollow, though every entry a majority
+// holds is still committed. The legend says so, since "hollow" alone would read "not committed".
+//
 // The controls come straight after the picture, before the logs, so on a phone the picture and the
 // buttons that work it, Run, Next event, Start over and the network's, share one screen: a press and
 // what it does are seen together. From 64rem the logs stand beside the picture and the controls
@@ -177,8 +182,11 @@ const SPEEDS = [
       ))}
     </ol>
     <p class="rf-legend">
-      Each lamp is one entry, with its term under it. A filled lamp is committed: a majority holds
-      it, and it can never be lost. A hollow lamp is not committed yet.
+      Each lamp is one entry, with its term under it, as its node knows it. A filled lamp is
+      committed: a majority holds it, and it can never be lost. A hollow lamp is one its node has
+      not heard is committed yet. A crash keeps a node's log but not what it knew was committed,
+      which Raft holds only in memory, so a node that is down shows its whole log hollow until the
+      leader tells it again.
     </p>
     <p class="rf-status" data-rf-status>
       {statusText(sim)}
