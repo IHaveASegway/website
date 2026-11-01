@@ -88,6 +88,22 @@
   overflow-wrap: anywhere;
 }
 
+/* Lines kept on a phone, so the opening is one height whether the web faces arrive or not
+   (e2e/fold.spec.ts): measured in CI's Linux Chromium, the statement takes a line more in Archivo
+   than in its fitted fallback below 392 px, and the rest of the opening a line more in the fallback
+   below 380 px. Each keeps the longer of its two. */
+@media (width < 24.5rem) {
+  .hero-statement {
+    min-block-size: 6lh;
+  }
+}
+
+@media (width < 23.75rem) {
+  .hero-more {
+    min-block-size: 5lh;
+  }
+}
+
 @media (width >= 64rem) {
   .hero {
     grid-template-columns: minmax(0, 13fr) minmax(0, 11fr);
@@ -312,10 +328,13 @@
   }
 }
 
-/* Home's section titles, in the wide face. */
+/* Home's section titles, in the wide face, which is wide enough that at twice the text size on a
+   320 px screen one word can outrun the column ("Selected", by 5 px on Linux): it breaks there
+   rather than scroll the page sideways (SC 1.4.10). */
 .section-title {
   font-family: var(--font-wide);
   font-weight: 500;
+  overflow-wrap: break-word;
 }
 
 /* A section's title with its way to the whole list at the row's far end. */
