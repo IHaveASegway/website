@@ -9,10 +9,10 @@ import { FEATURED_POSTS } from '../src/lib/work';
 import { app, files, fixture, profile, read } from './support/dist';
 
 // Selected work on Home (content.md, "Owned work"; lib/work.ts): an item renders only when the page
-// it opens exists. Each demo the lab builds is a lab card, its title linking to its page (ADR 0016,
-// ADR 0027); then a card per project whose check is recorded and whose hold is lifted, linking to
-// its repository, then a card per featured post this build lists, linking to the post. With
-// neither, Home has no Selected work section. This runs on every build vitest.config.ts names, so
+// it opens exists. The demos the lab builds are What I build's, each linked where the bio names it
+// (ADR 0028; ADR 0016); Selected work holds the rest: a card per project whose check is recorded
+// and whose hold is lifted, linking to its repository, then a card per featured post this build
+// lists, linking to the post. With neither, Home has no Selected work section. This runs on every build vitest.config.ts names, so
 // the real build (no card today) and the fixture builds (a made-up project, checked and held by
 // nothing) meet the same check. The expected demos and post cards are read from the build's own
 // pages, not from lib/work.ts, so the rule is checked against what exists.
@@ -55,18 +55,6 @@ const expected: RenderedCard[] = [
 /** Home's Selected work section, or null when Home has none. */
 const section = /<section\b[^>]*\bid="work"[^>]*>([\s\S]*?)<\/section>/.exec(home)?.[1] ?? null;
 
-/** Home's lab cards (components/home/LabCards.astro), by title and link, in page order. */
-function homeLabCards(): RenderedCard[] {
-  return [
-    ...(section ?? '').matchAll(/<li\b[^>]*class="card lab-card\b[^"]*"[^>]*>([\s\S]*?)<\/li>/g),
-  ].map(([, body = '']) => {
-    const link = /<a\b[^>]*class="card-more\b[^"]*"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/.exec(
-      body,
-    );
-    return { title: (link?.[2] ?? '').trim(), href: link?.[1] ?? null };
-  });
-}
-
 /** The cards in Home's Selected work section, in page order. */
 function homeCards(): RenderedCard[] {
   return [
@@ -84,15 +72,15 @@ test('Home renders exactly the cards whose page exists: checked, unheld projects
   expect(homeCards()).toEqual(expected);
 });
 
-// Home draws every demo the lab lists as a lab card, in the lab's order, each its own page's title
-// and link (ADR 0027; until then a line on the board, ADR 0025).
-test('Home draws a lab card for each demo this build lists, in the lab’s order, linking to it', () => {
-  expect(homeLabCards()).toEqual(demos.map((href) => ({ title: heading(href), href })));
+// Every demo the lab lists is a link on Home (ADR 0028; until then a card, ADR 0027, and before it a
+// line on the board, ADR 0025): the bio names four of them, and "All five labs" opens the index.
+test('Home links each demo this build lists', () => {
+  for (const href of demos) expect(home, href).toContain(`href="${href}"`);
 });
 
-test('with no demo and no card, Home has no Selected work section, and nothing links to it', () => {
-  expect(section !== null, 'Selected work renders exactly when a demo or a card does').toBe(
-    demos.length + expected.length > 0,
+test('with no card, Home has no Selected work section, and nothing links to it', () => {
+  expect(section !== null, 'Selected work renders exactly when a card does').toBe(
+    expected.length > 0,
   );
   expect(home.includes('href="#work"'), 'no button scrolls to it: the column leads to it').toBe(
     false,

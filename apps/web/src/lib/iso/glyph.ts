@@ -63,8 +63,8 @@ export interface Glyph {
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
 /** Where the model's origin lands in the picture, in px: right of and below every glyph's reach, so
- *  every number a path names is positive, as in the system drawing (lib/iso/system.ts). The box is
- *  measured from the paths, so the picture is the same wherever the origin sits. */
+ *  every number a path names is positive. The box is measured from the paths, so the picture is the
+ *  same wherever the origin sits. */
 export const ORIGIN = [128, 32] as const;
 
 /** Where a point of the model is drawn: its projection from ORIGIN, to a hundredth of a pixel. */

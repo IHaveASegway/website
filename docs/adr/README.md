@@ -31,11 +31,14 @@ Status: Draft for review in PR 1 · 2026-10-22
 | [0024](0024-home-led-by-the-work.md) | Home led by the work: the Route Lab's day live behind the name, the Raft Lab's election, a bolder type | Proposed |
 | [0025](0025-signal-box-identity.md) | The site's identity is a signal box: a line per lab, lamps for state, Barlow and B612 Mono, Seattle on the water | Proposed |
 | [0026](0026-three-more-labs-simulated-in-the-browser.md) | The Queue, Cache and Backfill Labs are deterministic simulations in the browser, on one shared kernel | Proposed |
-| [0027](0027-design-follows-josephs-references.md) | The site's design follows Joseph's references: a light technical drawing, a top bar, his system drawn isometrically | Proposed |
+| [0027](0027-design-follows-josephs-references.md) | The site's design follows Joseph's references: a light technical drawing, a top bar, his system drawn isometrically | Proposed; superseded in part by 0028 |
+| [0028](0028-home-is-his-own.md) | Home is his own: his words as the statement, his Raft cluster live beside them, what he builds with the labs as its evidence | Proposed |
 
 0013 is reserved for protocol v1 and the recording format, written in PR 6 ([roadmap.md](../roadmap.md#pr-6-lab-platform-and-presence)).
 
 0027, proposed on 2026-10-31, supersedes 0025 in part (its palette, faces, rail and chrome), 0024 (Home's composition) and 0023 (the rail's drop-downs), and amends 0021 and 0022; the plan for builders is [docs/design/overhaul.md](../design/overhaul.md).
+
+0028, proposed on 2026-11-01, supersedes 0027's Home, which had taken a reference's composition with new assets; the page's design is [docs/design/home.md](../design/home.md).
 
 0025, proposed on 2026-10-30, supersedes 0010 in part: its palette and its faces. 0010's ownership of the tokens, the copy rather than the import, and the contrast test stand, so 0010 stays Accepted, with a postscript that says so.
 

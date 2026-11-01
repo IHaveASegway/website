@@ -1,5 +1,7 @@
 # The overhaul: the design plan
 
+> Home's section here is superseded by [home.md](home.md) ([ADR 0028](../adr/0028-home-is-his-own.md)): it laid Home out as a reference's homepage, composition and signature included. The palette, the faces, the top bar, the footer and the other pages stand.
+
 Status: the plan for builders, 2026-10-31 · Decision: [ADR 0027](../adr/0027-design-follows-josephs-references.md) (Proposed) · Foundation on `feat/overhaul`
 
 This file is what every builder of the overhaul works from: the subject, the tokens, the type, each page's layout, the components with their class names, and the principles. The foundation (tokens, fonts, base styles, the top bar, the footer, the page chrome) is built; the pages are laid out anew on it, wave by wave. Where this plan and an older section of [design-system.md](../design-system.md) disagree, this plan wins until design-system.md is rewritten to match.

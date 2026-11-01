@@ -1,0 +1,103 @@
+---
+import { inWords } from '../../lib/lines';
+
+// Home's live picture (docs/design/home.md): the Raft Lab's cluster as its page opens, five servers on
+// one ring, laid back in perspective so the ring reads as a plane seen from above. The leader is
+// lit, a heartbeat runs from it to each follower and an answer runs back, and beside each server
+// lies its log, an entry a bead, the same length on every server because they agree. All of it is
+// the opening run's (lib/raft/view.ts), drawn at build: who leads, in which term, how long the logs
+// are. CSS turns the ring slowly and runs the heartbeats once the motion module marks the page
+// (scripts/motion.js, data-motion); under reduced motion it is a still picture, and the top bar's
+// button pauses it. Every number a path names is drawn from the ring's centre, so the picture is
+// the same at any size: the SVG scales to its box, which the stylesheet sizes before it paints.
+
+interface Server {
+  readonly id: number;
+  readonly leader: boolean;
+  readonly entries: number;
+}
+
+interface Props {
+  servers: readonly Server[];
+  term: number;
+  /** The Raft Lab's page, where the cluster can be broken. */
+  href: string;
+}
+
+const { servers, term, href } = Astro.props;
+const C = 200; // the ring's centre, in the drawing's own pixels (a 400 × 400 box)
+const R = 156; // the ring's radius
+const at = (k: number, r = R) => {
+  const a = -Math.PI / 2 + (k * 2 * Math.PI) / servers.length;
+  return [C + r * Math.cos(a), C + r * Math.sin(a)] as const;
+};
+const n = (v: number) => Math.round(v * 100) / 100;
+const place = servers.map((server, k) => ({ server, xy: at(k), k }));
+const lead = place.find((p) => p.server.leader);
+// A bead per entry, in a row outward from the server along its spoke.
+const beads = (k: number, entries: number) =>
+  Array.from({ length: entries }, (_, i) => at(k, R + 26 + i * 8));
+const leader = lead?.server;
+const count = inWords(servers.length);
+const others = inWords(servers.length - 1);
+const caption = leader
+  ? `${count[0]?.toUpperCase()}${count.slice(1)} servers keeping one log: server ${leader.id + 1} leads term ${term}, and its heartbeats hold the other ${others}.`
+  : `${count[0]?.toUpperCase()}${count.slice(1)} servers keeping one log.`;
+---
+
+<figure class="orbit" data-live aria-labelledby="orbit-caption">
+  <div class="orbit-stage" aria-hidden="true">
+    <div class="orbit-plane">
+      <svg class="orbit-svg" viewBox="0 0 400 400" focusable="false">
+        <g class="orbit-spin">
+          <circle class="orbit-track" cx={C} cy={C} r={R}></circle>
+          <circle class="orbit-floor" cx={C} cy={C} r={R + 6}></circle>
+          <circle class="orbit-track orbit-track-inner" cx={C} cy={C} r={R - 52}></circle>
+          {lead &&
+            place
+              .filter((p) => !p.server.leader)
+              .map((p) => (
+                <g class={`orbit-link orbit-link-${p.k}`}>
+                  <path
+                    class="orbit-wire"
+                    d={`M${n(lead.xy[0])} ${n(lead.xy[1])}L${n(p.xy[0])} ${n(p.xy[1])}`}
+                  />
+                  <path
+                    class="orbit-beat"
+                    pathLength="100"
+                    d={`M${n(lead.xy[0])} ${n(lead.xy[1])}L${n(p.xy[0])} ${n(p.xy[1])}`}
+                  />
+                  <path
+                    class="orbit-ack"
+                    pathLength="100"
+                    d={`M${n(p.xy[0])} ${n(p.xy[1])}L${n(lead.xy[0])} ${n(lead.xy[1])}`}
+                  />
+                </g>
+              ))}
+          {place.map((p) => (
+            <g class={p.server.leader ? 'orbit-server orbit-leader' : 'orbit-server'}>
+              {beads(p.k, p.server.entries).map(([x, y]) => (
+                <circle class="orbit-entry" cx={n(x)} cy={n(y)} r="3" />
+              ))}
+              {p.server.leader && (
+                <circle class="orbit-glow" cx={n(p.xy[0])} cy={n(p.xy[1])} r="44" />
+              )}
+              {p.server.leader && (
+                <circle class="orbit-halo" cx={n(p.xy[0])} cy={n(p.xy[1])} r="24" />
+              )}
+              <circle
+                class="orbit-node"
+                cx={n(p.xy[0])}
+                cy={n(p.xy[1])}
+                r={p.server.leader ? 18 : 15}
+              />
+            </g>
+          ))}
+        </g>
+      </svg>
+    </div>
+  </div>
+  <figcaption class="orbit-caption" id="orbit-caption">
+    {caption} <a href={href}>Break it in the Raft Lab</a>
+  </figcaption>
+</figure>

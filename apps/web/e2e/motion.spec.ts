@@ -138,13 +138,13 @@ test('a card with nothing to activate does not react to the pointer; one with a 
   expect(await sign(page)).not.toBe(atRest);
 });
 
-/** What Home would move with no preference (ADR 0027): each post's sweep; the drawing's parts and
- *  their drop lines, which lift as the page scrolls where the browser has scroll timelines; and,
- *  once the motion module has marked the page, the drawing's requests, vans, heartbeats, stampede,
- *  fetch and nightly run, and the cache's tops that take the stampede. Until ADR 0027 the scan
- *  found Home's board, its bands and its day; until ADR 0025 also the Raft Lab's election, each
- *  section's self-drawing rule, the rising titles, a card link's nudging arrow and the closing
- *  address's arrow. In document order. */
+/** What Home would move with no preference (ADR 0028): each post's sweep; the cluster's plane,
+ *  which rises as the page scrolls where the browser has scroll timelines; and, once the motion
+ *  module has marked the page, the ring's turn, the heartbeats and their answers, and the leader's
+ *  halo. Until ADR 0028 the scan found the isometric drawing's lifts, requests, vans, heartbeats,
+ *  stampede, fetch and nightly run; until ADR 0027 Home's board, its bands and its day; until ADR
+ *  0025 also the Raft Lab's election, each section's self-drawing rule, the rising titles, a card
+ *  link's nudging arrow and the closing address's arrow. In document order. */
 const expectedMotion = (page: Page) =>
   page.evaluate(() => {
     const live = 'motion' in document.documentElement.dataset;
@@ -154,13 +154,10 @@ const expectedMotion = (page: Page) =>
     return [...document.querySelectorAll('*')].flatMap((element) => {
       if (element.matches('.post-list > li'))
         return [`${element.getAttribute('class') ? name(element) : 'li'}::before`];
-      if (scrolls && element.matches('figure.iso :is(.iso-lift, .iso-drop)'))
-        return [name(element)];
+      if (scrolls && element.matches('figure.orbit .orbit-plane')) return [name(element)];
       if (
         live &&
-        element.matches(
-          'figure.iso :is(.iso-flow, .iso-vans, .iso-beat, .iso-burst, .iso-fetch, .iso-night, .iso-cache .iso-face-top)',
-        )
+        element.matches('figure.orbit :is(.orbit-spin, .orbit-beat, .orbit-ack, .orbit-halo)')
       )
         return [name(element)];
       return [];
@@ -180,8 +177,8 @@ test('known answer: with no preference, the same scan finds the sweeps and the d
   const expected = await expectedMotion(page);
   expect(await moving(page)).toEqual(expected);
   // So the scan is shown to find motion where there is some, on the site's own stylesheet.
-  if ((await page.locator('figure.iso').count()) > 0)
-    expect(expected.some((name) => name.startsWith('path.iso-flow'))).toBe(true);
+  if ((await page.locator('figure.orbit').count()) > 0)
+    expect(expected.some((name) => name.startsWith('path.orbit-beat'))).toBe(true);
   await addCard(page);
   expect(await moving(page)).toEqual(await expectedMotion(page));
 });

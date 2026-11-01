@@ -1429,7 +1429,7 @@
     border-bottom: 0;
   }
 
-  :root:has(.nameplate) .masthead {
+  :root:has(.hero-name) .masthead {
     display: none;
   }
 
@@ -1440,7 +1440,10 @@
     .post-title a,
     .card-more,
     .section-more,
-    .principle-text a
+    .principle-text a,
+    .hero-statement a,
+    .build-text a,
+    .build-more a
   )::after {
     display: inline-block;
     margin-inline-start: 0.375em;
@@ -1462,7 +1465,10 @@
       .post-title a,
       .card-more,
       .section-more,
-      .principle-text a
+      .principle-text a,
+      .hero-statement a,
+      .build-text a,
+      .build-more a
     )[href^='/']::after {
     content: 'ihaveasegway.com' attr(href);
   }

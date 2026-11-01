@@ -1,0 +1,45 @@
+---
+import { CONTACT_EMAIL } from '../../lib/site';
+
+// Home's closing (docs/design/home.md, "Contact"): the address at a title's size, then a button that
+// copies it and LinkedIn. A mailto link opens nothing on a computer with no mail app set up, so the
+// address is there to read and to copy as well as to press (scripts/copy.js).
+
+interface Props {
+  /** LinkedIn, when the profile's link to it is checked (lib/profile.ts). */
+  linkedIn?: { readonly url: string; readonly network: string } | undefined;
+}
+
+const { linkedIn } = Astro.props;
+// The address may break after its "@", and only there.
+const [mailbox, domain] = CONTACT_EMAIL.split('@');
+---
+
+<section class="section contact" id="contact" aria-labelledby="contact-title">
+  <h2 class="section-title" id="contact-title">
+    Contact
+  </h2>
+  <p class="contact-line">
+    {/* A phone breaks the address after its @, never inside a word (a <wbr>, unseen and unread). */}
+    <a class="contact-address" href={`mailto:${CONTACT_EMAIL}`}>
+      {mailbox}@<wbr />
+      {domain}
+    </a>
+  </p>
+  <div class="contact-actions">
+    <button class="btn btn-copy" type="button" data-copy-address={CONTACT_EMAIL}>
+      <span class="copy-label" aria-live="polite">
+        Copy the address
+      </span>
+    </button>
+    {linkedIn && (
+      <a class="btn" href={linkedIn.url}>
+        {linkedIn.network}
+      </a>
+    )}
+  </div>
+</section>
+
+<script>
+  import '../../scripts/copy.js';
+</script>

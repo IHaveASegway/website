@@ -1,15 +1,14 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// The fold (content.md, "Home page"; ADR 0027): what Home's first screen holds at 390×844 and
-// 1440×900, with the web fonts and without them. Row 1 is the opening (the name, the role, the
-// buttons, the drawing and the bio's blocks), the one rendered row. On a phone the fold holds the
-// name, the role, both buttons and the whole first block ("Now"), an about-me first as the
-// references open; from 64rem it holds those and the drawing beside the blocks. Until 2026-10-31
-// the phone's fold held the drawing in the first block's place; until ADR 0027 the fold held the
+// The fold (content.md, "Home page"; ADR 0028): what Home's first screen holds at 390×844 and
+// 1440×900, with the web fonts and without them. Row 1 is the opening (the role, the name, the
+// statement, the rest of the bio's opening, the buttons and the cluster), the one rendered row. On a
+// phone the fold holds the role, the name, the whole opening and both buttons, an about-me first;
+// from 64rem it holds those and the cluster beside them. Until ADR 0028 it held the name, the
+// buttons and the bio's first block, with the isometric drawing beside them; until ADR 0027 the
 // name, the role and the Email button, and the Route Lab's scene beside them.
 // And the opening is the same height either way, within 1 px: the fallback faces are fitted so the
-// name does not rewrap when its font arrives (layout shift).
-
+// words do not rewrap when their font arrives (layout shift).
 const VIEWPORTS = [
   { width: 390, height: 844 },
   { width: 1440, height: 900 },
@@ -62,18 +61,19 @@ async function measure(page: Page, fonts: Fonts) {
     const rows = [...document.querySelectorAll<HTMLElement>('[data-row]')];
     const box = (selector: string) => document.querySelector(selector)?.getBoundingClientRect();
     const bottoms = [
-      '.nameplate',
-      '.intro-role',
-      '.intro-actions .btn-email',
-      '.intro-actions .btn:last-child',
-      '.bio-block:first-child',
-      ...(innerWidth >= 1024 ? ['figure.iso svg'] : []),
+      '.hero-role',
+      '.hero-name',
+      '.hero-statement',
+      '.hero-more:last-of-type',
+      '.hero-actions .btn-email',
+      '.hero-actions .btn:last-child',
+      ...(innerWidth >= 1024 ? ['figure.orbit .orbit-stage'] : []),
     ].map((selector) => box(selector)?.bottom ?? Infinity);
     return {
       rows: rows.map((row) => row.dataset['row']),
       bottom: Math.max(...bottoms),
       hero: box('[data-row="1"]')?.height ?? 0,
-      name: box('.nameplate')?.height ?? 0,
+      name: box('.hero-name')?.height ?? 0,
     };
   });
 }

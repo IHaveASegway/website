@@ -52,6 +52,12 @@ export const MOTION = {
   src: /^\/_astro\/Motion\.astro_astro_type_script_index_0_lang\.[\w-]+\.js$/,
 } as const;
 
+/** Home's address and its copy button (components/home/Contact.astro), and its bundle's name. */
+export const CONTACT = {
+  page: 'index.html',
+  src: /^\/_astro\/Contact\.astro_astro_type_script_index_0_lang\.[\w-]+\.js$/,
+} as const;
+
 export function classify(
   script: {
     attributes: Readonly<Record<string, string>>;
@@ -87,6 +93,14 @@ export function classify(
   )
     return 'palette';
   if (
+    page === CONTACT.page &&
+    names === 'src type' &&
+    script.attributes['type'] === 'module' &&
+    CONTACT.src.test(script.attributes['src'] ?? '') &&
+    script.body === ''
+  )
+    return 'contact';
+  if (
     MOTION.pages.test(page) &&
     names === 'src type' &&
     script.attributes['type'] === 'module' &&
@@ -102,7 +116,7 @@ for (const file of html) {
     const page = read(file);
     const verdicts = tags(page, 'script').map((script) => classify(script, file));
 
-    test("every script is the theme script, JSON-LD or the command menu's module, once, on a lab's page its own module, and on Home and the indexes the motion module", () => {
+    test("every script is the theme script, JSON-LD or the command menu's module, once, on a lab's page its own module, on Home the address's, and on Home and the indexes the motion module", () => {
       const known = [
         'theme',
         'json-ld',
@@ -110,7 +124,9 @@ for (const file of html) {
         ...SIMULATED_LABS.map(labName),
         'palette',
         'motion',
+        'contact',
       ];
+      expect(verdicts.filter((v) => v === 'contact')).toHaveLength(file === CONTACT.page ? 1 : 0);
       for (const lab of SIMULATED_LABS)
         expect(
           verdicts.filter((v) => v === labName(lab)),

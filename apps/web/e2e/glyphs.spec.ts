@@ -28,7 +28,7 @@ test('known answer: a glyph outside the subsets is reported, with the system fon
 }) => {
   await page.goto('/');
   await page.evaluate(() => {
-    const title = document.querySelector('.intro-role');
+    const title = document.querySelector('.hero-role');
     if (!title) throw new Error('Home has no role line');
     title.textContent = 'Łódź';
   });
