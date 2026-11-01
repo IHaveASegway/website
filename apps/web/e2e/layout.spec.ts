@@ -29,7 +29,7 @@ function linesOf(selector: string): number {
 
 /** The widths of Home's opening buttons, to the pixel. Runs in the page. */
 function buttonWidths(): number[] {
-  return [...document.querySelectorAll('.intro-actions .btn')].map((button) =>
+  return [...document.querySelectorAll('.hero-actions .btn')].map((button) =>
     Math.round(button.getBoundingClientRect().width),
   );
 }
@@ -84,7 +84,7 @@ for (const fonts of FONTS) {
       await page.setViewportSize({ width, height: 900 });
       await open(page, '/');
       (await page.evaluate(buttonWidths)).forEach((button, i) => (widths[i] ??= []).push(button));
-      titleLines[width] = await page.evaluate(linesOf, '.intro-role');
+      titleLines[width] = await page.evaluate(linesOf, '.hero-role');
     }
     // Each button one width at every screen width, within a pixel of rounding.
     expect(widths.length, 'Home has buttons').toBeGreaterThan(0);
@@ -139,17 +139,35 @@ for (const width of [768, 1440, 2560]) {
 // The bar's height and row, and the frame's place on a wide screen, are e2e/top-bar.spec.ts's
 // since ADR 0027 replaced the rail with one bar at every width.
 
-// Home's closing address fits its column on one line from 320 px up (home.css): at a title's size
-// it is wider than a phone's column, so below 27rem it takes a section's size. Until 2026-10-30 it
-// broke wherever the column ended, "hello@ihaveasegway.co" over "m". Since ADR 0027 it closes the
-// page under Contact.
-test('Home’s closing address stands on one line from 320 to 1440 px', async ({ page }) => {
+// Home's closing address never breaks inside a word (components/home/Contact.astro): it stands on
+// one line where its column holds it, and where it does not, it breaks after its @ and nowhere
+// else, "hello@" over "ihaveasegway.com". Until 2026-10-30 it broke wherever the column ended,
+// "hello@ihaveasegway.co" over "m". Since ADR 0028 it is set in the wide face, which a phone's
+// column holds only broken after its @.
+test('Home’s closing address breaks only after its @, from 320 to 1440 px', async ({ page }) => {
   for (const width of [320, 375, 390, 414, 431, 432, 768, 1440]) {
     await page.setViewportSize({ width, height: 800 });
     await open(page, '/');
-    const lines = await page.evaluate(linesOf, '.closing-mail');
-    test.skip(lines === 0, 'Home has no closing address here');
-    expect(lines, `${width}`).toBe(1);
+    const parts = await page.evaluate(() => {
+      const address = document.querySelector('.contact-address');
+      if (!address) return null;
+      const lines = (node: Node) => {
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        return new Set(
+          [...range.getClientRects()].filter((r) => r.width).map((r) => Math.round(r.top)),
+        ).size;
+      };
+      const texts = [...address.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE);
+      return { whole: lines(address), parts: texts.map(lines) };
+    });
+    test.skip(parts === null, 'Home has no closing address here');
+    expect(
+      parts?.parts.every((n) => n === 1),
+      `${width}: each side of the @ on one line`,
+    ).toBe(true);
+    expect(parts?.whole, `${width}`).toBeLessThanOrEqual(2);
+    if (width >= 768) expect(parts?.whole, `${width}`).toBe(1);
   }
 });
 
@@ -182,7 +200,7 @@ test('known answers: the layout checks count lines, read widths and find a line 
     [
       '<body style="margin: 0; font: 16px monospace">',
       '<p class="hero-title" style="width: 100px">Senior Software Engineer</p>',
-      '<div class="intro-actions"><a class="btn" style="display: inline-block; width: 132px">A</a>',
+      '<div class="hero-actions"><a class="btn" style="display: inline-block; width: 132px">A</a>',
       '<a class="btn" style="display: inline-block; width: 176px">B</a></div>',
       '<footer><div class="site-footer" style="display: flex; flex-wrap: wrap; width: 300px">',
       '<a style="width: 250px">hello@example.com</a><ul style="display: flex; margin: 0; padding: 0"><li>Link</li></ul>',

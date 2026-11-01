@@ -9,7 +9,7 @@ import { app, files, html, read } from './support/dist';
 // a time:
 //
 //   1. Capitals and tracking. No rule sets text-transform: uppercase but the name's own,
-//      .nameplate, where ADR 0027 sets Joseph's name in capitals in the display face; no
+//      .nameplate, which ADR 0027 set in capitals and ADR 0028 no longer uses; no
 //      letter-spacing is above zero (the tracked, all-capital eyebrow), and a rule that sets the
 //      label face or a label's size sets no letter-spacing but 0: labels are signage, in sentence
 //      case and untracked.

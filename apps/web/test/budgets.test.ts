@@ -195,20 +195,20 @@ test("known answers: the other entries' chunks, the Route Lab's app among them, 
   expect(simulatedEntries).toHaveLength(SIMULATED_LABS.length);
 });
 
-// Home's drawing (ADR 0027): SVG the build writes and CSS animates, with no script of its own. So
-// Home reaches nothing through import() beyond what it loads at once, nothing on Home fetches a
-// chunk or data after the first paint, and its first view is all its visitors fetch, within the
-// 150 KB every page keeps. Until ADR 0027 Home loaded the Route Lab's scene, a chunk and the day's
-// tracks, once it had painted.
-describe("Home's drawing", () => {
+// Home's live picture (ADR 0028), the Raft Lab's cluster: SVG the build writes and CSS animates,
+// with no script of its own. So Home reaches nothing through import() beyond what it loads at once,
+// nothing on Home fetches a chunk or data after the first paint, and its first view is all its
+// visitors fetch, within the 150 KB every page keeps. Until ADR 0027 Home loaded the Route Lab's
+// scene, a chunk and the day's tracks, once it had painted.
+describe("Home's live picture", () => {
   const feature = HOME;
   const page = read(feature.page);
 
-  test('is SVG in the page, with a link to each lab this build writes', () => {
-    const svg = /<figure class="iso"[^>]*>([\s\S]*?)<\/figure>/.exec(page)?.[1] ?? '';
-    const labs = files.filter((file) => /^lab\/[a-z0-9-]+\/index\.html$/.test(file));
-    expect(svg.length > 0).toBe(labs.length > 0);
-    for (const file of labs) expect(svg, file).toContain(`href="/${file.slice(0, -10)}"`);
+  test('is SVG in the page, linking to the Raft Lab, exactly when this build writes it', () => {
+    const figure = /<figure class="orbit"[^>]*>([\s\S]*?)<\/figure>/.exec(page)?.[1] ?? '';
+    const raft = files.includes('lab/raft/index.html');
+    expect(figure.includes('<svg'), 'the cluster').toBe(raft);
+    if (raft) expect(figure).toContain('href="/lab/raft/"');
   });
 
   test('Home reaches no chunk on intent: what it can load, it loads at once', () => {

@@ -11,10 +11,9 @@ const ROUTES = [...pages(), NOT_FOUND_PAGE];
 
 /** Links that print no address of their own: the name in the header, a button (Home's, the
  *  404's way home), and the résumé's notes, whose addresses the footer or the contact list prints;
- *  the map's attribution, whose address the write-up's credits print; and the parts of Home's
- *  drawing, SVG links that cannot print text after them, whose addresses the lab cards under the
- *  drawing print (ADR 0027). */
-const PRINTS_ELSEWHERE = '.wordmark, .btn, .resume-notes a, .rl-attribution a, .iso-node';
+ *  and the map's attribution, whose address the write-up's credits print. Home's cluster, the only
+ *  link inside a picture on Home, is not printed at all (ADR 0028). */
+const PRINTS_ELSEWHERE = '.wordmark, .btn, .resume-notes a, .rl-attribution a';
 
 for (const path of ROUTES) {
   test(`${path} on paper: no control, and every link prints its address`, async ({ page }) => {
@@ -113,28 +112,30 @@ test('inline code has no padding on paper or in forced colors, and keeps it on s
   expect(seen).toBeGreaterThan(0);
 });
 
-// Home on paper is its opening in one column, each part as tall as it draws (home.css): a page is
-// narrower than 64rem, so the phone's rows apply on paper, the name, the role and the buttons, then
-// the bio's blocks, then the drawing, with no gap between them wider than a line. Until 2026-10-31
-// the drawing came before the blocks there; until ADR 0027 the check was that the scene's row held
-// nothing on paper; until 2026-10-30 it kept its 18.75rem, a blank gap of 300 px between the
-// buttons and the bio's opening.
-test('Home on paper keeps no gap between the buttons, the blocks and the drawing', async ({
+// Home on paper is its words in one column (home.css): a page is narrower than 64rem, so the phone's
+// order applies, and the cluster, a moving picture, is left off, with no gap where it stood; What I
+// build follows the buttons a section's space below. Until ADR 0028 the check held the isometric
+// drawing to its place under the bio's blocks; until 2026-10-30 the scene kept its 18.75rem on
+// paper, a blank gap of 300 px between the buttons and the bio's opening.
+test('Home on paper leaves the cluster off, and What I build follows the buttons', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 816, height: 1056 });
   await page.goto('/');
   await page.emulateMedia({ media: 'print' });
-  const gaps = await page.evaluate(() => {
+  const paper = await page.evaluate(() => {
     const box = (selector: string) => document.querySelector(selector)?.getBoundingClientRect();
-    const [actions, blocks, drawing] = ['.intro-actions', '.bio-blocks', 'figure.iso'].map(box);
-    return actions && blocks && drawing
-      ? [blocks.top - actions.bottom, drawing.top - blocks.bottom]
-      : null;
+    const actions = box('.hero-actions');
+    const build = box('#build-title');
+    const orbit = document.querySelector('figure.orbit');
+    return {
+      shown: orbit ? orbit.checkVisibility() : false,
+      gap: actions && build ? build.top - actions.bottom : null,
+      section: parseFloat(getComputedStyle(document.documentElement).fontSize) * 7,
+    };
   });
-  test.skip(gaps === null, 'Home has no drawing or bio here');
-  for (const gap of gaps ?? []) {
-    expect(gap).toBeGreaterThanOrEqual(0);
-    expect(gap).toBeLessThan(48);
-  }
+  expect(paper.shown).toBe(false);
+  test.skip(paper.gap === null, 'Home has no bio here');
+  expect(paper.gap).toBeGreaterThanOrEqual(0);
+  expect(paper.gap).toBeLessThanOrEqual(paper.section);
 });

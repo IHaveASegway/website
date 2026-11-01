@@ -57,12 +57,15 @@
      three). Hero, title, section and headline are Archivo ExtraCondensed; lead and base Archivo;
      ui and label Archivo Condensed SemiBold or, for signage, Archivo Expanded, which is wide, so
      a step smaller than the roles suggest. */
-  /* The name on Home, in capitals (.nameplate): 48px to 104px, a ratio of 2.17, on one line from
-     390 px (6.8em wide). It stops at 15vw, its 48px floor at 320px, so at the default text size
-     the cap never binds, and with a larger default text size on a phone it does, so the two words
-     wrap whole instead of running off the screen. */
-  --text-hero: min(clamp(3rem, 1.7rem + 5.333333vw, 6.5rem), 15vw);
-  --text-hero--line-height: 0.9;
+  /* The name on Home, in the wide face (ADR 0028): 32px at 390 px to 72px at 1440 px, a ratio of
+     2.25, one line from 390 px ("Joseph Peterson" is about 10.2em wide). It stops at 10vw, its 32px
+     floor at 320px, so at the default text size the cap never binds, and with a larger default on a
+     phone it does, so the two words wrap whole. */
+  --text-name: min(clamp(2rem, 1.071429rem + 3.809524vw, 4.5rem), 10vw);
+  --text-name--line-height: 1.02;
+  /* Home's opening sentence, said at the size of a statement: 22px to 30px. */
+  --text-statement: clamp(1.375rem, 1.189286rem + 0.761905vw, 1.875rem);
+  --text-statement--line-height: 1.32;
   /* A page's title and the figures in a stats row: 40px to 64px, stopping at 12.5vw for the
      hero's reason. */
   --text-title: min(clamp(2.5rem, 1.942857rem + 2.285714vw, 4rem), 12.5vw);

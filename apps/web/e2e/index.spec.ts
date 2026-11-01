@@ -190,38 +190,29 @@ test('the Lab index draws each glyph from its lab’s opening, and each fact fro
   expect(new Set(seen.map((s) => s.wire)).size).toBe(seen.length);
 });
 
-// Home draws a card for every live lab (ADR 0027; until then a band of the board, ADR 0025), one
-// glyph each, cut from the drawing and drawn in the lab's own colour, so no two cards' glyphs share
-// a colour, and never wider than the page.
+// Home marks each lab What I build names in that lab's own colour (ADR 0028; until then a card per
+// lab, ADR 0027, and a band of the board, ADR 0025), so no two rows share a colour, each row's lab
+// is one this build lists, and nothing is wider than the page.
 for (const { width, height } of [
   { width: 1440, height: 900 },
   { width: 390, height: 844 },
 ]) {
-  test(`at ${width} px Home draws a card for every lab, each glyph in its own lab's colour`, async ({
-    page,
-  }) => {
+  test(`at ${width} px What I build marks each lab's row in its own colour`, async ({ page }) => {
     const demos = pages().filter((path) => /^\/lab\/[^/]+\/$/.test(path));
     test.skip(demos.length === 0, 'this build has no demo');
     await page.setViewportSize({ width, height });
     await page.goto('/');
-    const cards = page.locator('#work .lab-card');
-    expect(
-      (await cards.evaluateAll((all) => all.map((card) => card.getAttribute('data-line')))).sort(),
-    ).toEqual(demos.map((path) => path.split('/')[2]).sort());
-    for (const card of await cards.all())
-      await expect(card.locator('svg.iso-glyph').filter({ visible: true })).toHaveCount(1);
-    const colours = await cards.evaluateAll((all) =>
-      all.map((card) => {
-        const edge = card.querySelector('.iso-glyph path');
-        return {
-          glyph: edge ? getComputedStyle(edge).stroke : '',
-          card: getComputedStyle(card).borderTopColor,
-        };
+    const rows = page.locator('#build .build[data-line]');
+    const lines = await rows.evaluateAll((all) => all.map((row) => row.getAttribute('data-line')));
+    expect(lines.length).toBeGreaterThan(0);
+    for (const line of lines) expect(demos).toContain(`/lab/${line}/`);
+    const colours = await rows.evaluateAll((all) =>
+      all.map((row) => {
+        const lead = row.querySelector('.build-lead');
+        return lead ? getComputedStyle(lead, '::before').backgroundColor : '';
       }),
     );
-    expect(new Set(colours.map((c) => c.glyph)).size).toBe(colours.length);
-    // The card's own edge is the page's hairline, never the lab's colour.
-    expect(new Set(colours.map((c) => c.card)).size).toBe(1);
+    expect(new Set(colours).size).toBe(colours.length);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
   });
 }

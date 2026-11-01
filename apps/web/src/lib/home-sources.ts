@@ -45,9 +45,9 @@ export function countTests(dirs = ['test', 'e2e'].map((d) => resolve(root(), d))
 }
 
 /**
- * Each commit's day in the repository's history, in UTC, one entry a commit: the activity calendar's
- * record. None from a shallow clone, whose history is cut short and would draw a false calendar: CI's
- * build checks out the whole history (.github/workflows/ci.yml, fetch-depth 0).
+ * Each commit's day in the repository's history, in UTC, one entry a commit: Home counts them in
+ * its record. None from a shallow clone, whose history is cut short and would give a false count:
+ * CI's build checks out the whole history (.github/workflows/ci.yml, fetch-depth 0).
  */
 export function readCommitDays(cwd = root()): string[] {
   try {

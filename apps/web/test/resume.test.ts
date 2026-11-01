@@ -157,10 +157,15 @@ describe('/about/, the résumé', () => {
       ? []
       : byClass('post-title', descendants(within)).map((t) => links(t)[0]?.href);
 
-  // On Home every item is a card (ADR 0027; until then a demo was a line on the board, ADR 0025):
-  // the labs' cards, then the others, in the list's own order, which the résumé shows as cards.
-  test("Selected work is Home's, item for item: one list feeds both (lib/content.ts)", () => {
-    expect(cardsOf(section('Selected work'))).toEqual(cardsOf(homeSection('work')));
+  // One list feeds both (lib/content.ts). The résumé shows every item as a card; Home carries the
+  // labs in What I build and links each (ADR 0028), and shows the rest as cards in Selected work.
+  test("Selected work is Home's: its labs are the ones Home links, its other cards Home's, item for item", () => {
+    const isLab = (href: string | null | undefined) => /^\/lab\/[a-z0-9-]+\/$/.test(href ?? '');
+    const cards = cardsOf(section('Selected work'));
+    const linked = new Set(home.filter((e) => e.tagName === 'a').map((e) => attribute(e, 'href')));
+    for (const card of cards.filter((c) => isLab(c.href)))
+      expect(linked.has(card.href), String(card.href)).toBe(true);
+    expect(cards.filter((c) => !isLab(c.href))).toEqual(cardsOf(homeSection('work')));
   });
 
   test("Writing lists Home's latest posts, and renders exactly when Home lists one", () => {

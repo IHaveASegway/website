@@ -1,6 +1,6 @@
 # ADR 0027: The site's design follows Joseph's references: a light technical drawing, a top bar, his system drawn isometrically
 
-Status: Proposed · 2026-10-31 · Deciders: Joseph Peterson · Supersedes in part [ADR 0025](0025-signal-box-identity.md) (the palette, the faces, the rail and the signal-box chrome), [ADR 0024](0024-home-led-by-the-work.md) (Home's composition) and [ADR 0023](0023-home-as-a-story-and-rail-drop-downs.md) (the rail's drop-downs) · Amends [ADR 0021](0021-rail-and-living-ground.md) and [ADR 0022](0022-rail-as-index-and-row-links.md) · The plan for builders: [docs/design/overhaul.md](../design/overhaul.md)
+Status: Proposed · 2026-10-31 · Superseded in part by [ADR 0028](0028-home-is-his-own.md) (Home's composition) · Deciders: Joseph Peterson · Supersedes in part [ADR 0025](0025-signal-box-identity.md) (the palette, the faces, the rail and the signal-box chrome), [ADR 0024](0024-home-led-by-the-work.md) (Home's composition) and [ADR 0023](0023-home-as-a-story-and-rail-drop-downs.md) (the rail's drop-downs) · Amends [ADR 0021](0021-rail-and-living-ground.md) and [ADR 0022](0022-rail-as-index-and-row-links.md) · The plan for builders: [docs/design/overhaul.md](../design/overhaul.md)
 
 ## Context
 

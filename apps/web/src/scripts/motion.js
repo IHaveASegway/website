@@ -1,10 +1,10 @@
 // The motion an index carries (design-system.md, "Motion"), on Home and the indexes only
 // (components/Motion.astro). Two things, both only with no reduced-motion preference:
 //
-// - Home's drawing (components/iso/System.astro; ADR 0027): the requests, the vans, the heartbeats
-//   and the stampede run once this marks the page (data-motion, home.css), after it has painted,
-//   and never under Save-Data. The top bar's button pauses and plays them (SC 2.2.2), and the
-//   choice lasts for the tab (sessionStorage key "motion"), as the theme's does.
+// - Home's live picture (components/home/Orbit.astro; ADR 0028): the ring turns and the heartbeats
+//   run once this marks the page (data-motion, home.css), after it has painted, and never under
+//   Save-Data. The top bar's button pauses and plays them (SC 2.2.2), and the choice lasts for the
+//   tab (sessionStorage key "motion"), as the theme's does.
 // - The title a visitor follows becomes the next page's title, a cross-document view transition.
 //   Each page's <h1> carries the name in the stylesheet; as the page is left, the followed title
 //   takes the name and the page's own <h1> gives it up, since a document may hold a name once.
@@ -33,7 +33,7 @@ function whenSettled(work) {
 
 const KEY = 'motion';
 
-/** Whether the visitor paused the drawing earlier in this tab. */
+/** Whether the visitor paused the picture earlier in this tab. */
 function storedPause() {
   try {
     return sessionStorage.getItem(KEY) === 'paused';
@@ -52,7 +52,7 @@ function storePause(paused) {
   }
 }
 
-/** Runs Home's drawing, with the top bar's button to pause and play it. */
+/** Runs Home's live picture, with the top bar's button to pause and play it. */
 function runDrawing() {
   const root = document.documentElement;
   const toggle = document.querySelector('[data-motion-toggle]');
@@ -74,7 +74,7 @@ function runDrawing() {
 }
 
 function boot() {
-  if (document.querySelector('[data-iso]') && !reduced() && !navigator.connection?.saveData)
+  if (document.querySelector('[data-live]') && !reduced() && !navigator.connection?.saveData)
     whenSettled(runDrawing);
 
   // The link a press or a key followed, so the title beside it is the one that flies.
