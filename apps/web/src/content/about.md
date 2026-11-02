@@ -10,7 +10,7 @@ I build the backend systems other software runs on: queues, data pipelines, cach
 - **Caches.** Expiry, coalescing and early refresh, tuned so one popular page doesn't overwhelm the database behind it. The Cache Lab sets off a stampede on purpose.
 - **Data pipelines.** Scheduled jobs in Airflow, change data capture and backfills that can run a day twice and still count it once. The Backfill Lab runs a week of them.
 - **Cloud platforms.** Kubernetes, managed databases and serverless functions on AWS and GCP, with the bill worked out before the first deploy. I can't show that work here, so the Raft Lab stands in: five simulated servers that keep agreeing while you break them.
-- **Coding agents.** Specs, scoped permissions, tests and staged releases around them, so people still make the decisions that matter. This site is how I learned it.
+- **Coding agents.** Specs, scoped permissions, tests and staged releases around them, so people still make the decisions that matter. This site is how I learned it, and my essay says where I think it's going.
 
 ### How I work
 

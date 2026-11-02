@@ -18,7 +18,7 @@ Joseph is about to share an essay on LinkedIn, and traffic from recruiters and t
 
 **Language.** The site uses one plain vocabulary, listed in [content.md](../content.md#the-sites-language). `test/language.test.ts` fails on a retired phrase, on every built page and in every content file. This is a ubiquitous language (Evans, *Domain-Driven Design*, chapter 2) held by a fitness function (*Building Evolutionary Architectures*).
 
-**The essays.** "The road closed" leaves the site, and its URL gets a 301 and stays in the ledger (ADR 0005). Its replacement lands in its own pull request once Joseph has read it. The teardown is cut to about 450 words. Length comes back only once tone and stories are right.
+**The essays.** "The road closed" leaves the site, and its URL gets a 301 and stays in the ledger (ADR 0005). Its replacement is "You will be missed", in its own pull request after Joseph's read. The teardown is cut to about 450 words. Length comes back only once tone and stories are right.
 
 **Type.** Width says who is speaking:
 
