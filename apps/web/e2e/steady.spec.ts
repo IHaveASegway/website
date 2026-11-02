@@ -340,8 +340,9 @@ for (const { phone, viewport } of PHONES) {
       // under a thumb that hasn't moved.
       test(`the ${name} lab, as a visitor lands on it and it starts`, async ({ page }) => {
         await steady(page);
+        // From the load, when the page has its styles: the run waits for the page to settle after it.
         await page.addInitScript(() => {
-          addEventListener('DOMContentLoaded', () => window.__steady.watch());
+          addEventListener('load', () => window.__steady.watch());
         });
         await page.goto(lab.path, { waitUntil: 'load' });
         await expect(page.locator(`[data-${lab.short}-run]`)).toHaveText('Pause');
