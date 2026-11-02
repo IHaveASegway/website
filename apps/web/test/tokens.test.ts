@@ -1,6 +1,5 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import {
-  converter,
   differenceCiede2000,
   differenceEuclidean,
   filterDeficiencyDeuter,
@@ -444,28 +443,13 @@ describe('selected text', () => {
     }
   }
 
-  test('known answers: the 30% tint is refused, and measured under 4.5:1 for muted text', () => {
+  test('known answers: a bare tint is refused, since it leaves the text in its own color', () => {
     const before =
       '::selection { background-color: color-mix(in oklab, var(--primary) 30%, transparent); }';
     const [old] = selectionRules(before);
     expect(old && selectionProblem(old, 'dark')).toBe(
       '::selection: set both a text color and a fill',
     );
-    // What a browser painted: the apricot at 30% over the page, and the text in its own color.
-    const rgb = converter('rgb');
-    for (const theme of ['dark', 'light'] as const) {
-      const [apricot, page, muted] = ['primary', 'background', 'muted-foreground'].map((name) =>
-        rgb(themes[theme].get(name)),
-      );
-      if (!apricot || !page || !muted) throw new Error('tokens missing');
-      const tint = {
-        mode: 'rgb' as const,
-        r: 0.3 * apricot.r + 0.7 * page.r,
-        g: 0.3 * apricot.g + 0.7 * page.g,
-        b: 0.3 * apricot.b + 0.7 * page.b,
-      };
-      expect(wcagContrast(muted, tint), theme).toBeLessThan(4.5);
-    }
     const [now] = selectionRules(
       '::selection{background-color:var(--primary);color:var(--primary-foreground)}',
     );

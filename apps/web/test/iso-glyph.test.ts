@@ -133,7 +133,7 @@ describe("each lab's glyph, from the run its page opens on", () => {
       const [home, index] = [await labFact(slug, 'home'), await labFact(slug, 'index')];
       expect(home, slug).toMatch(/\S.*\.$/);
       if (slug === 'raft')
-        expect(home).toMatch(/^Crash server \d, and server \d leads term \d+ after/);
+        expect(home).toMatch(/^Crash server \d, and server \d takes over in term \d+ after/);
       else if (slug === 'routes') expect(home).toContain('made-up bakery');
       else expect(home, slug).toBe(index);
     }

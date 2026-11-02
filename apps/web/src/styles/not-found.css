@@ -30,7 +30,7 @@
   max-width: none;
   font-family: var(--font-display);
   font-size: var(--text-title);
-  font-weight: 800;
+  font-weight: 600;
   line-height: var(--text-title--line-height);
   letter-spacing: -0.005em;
   text-wrap: balance;
@@ -121,7 +121,7 @@
 
 .mp-label {
   fill: var(--muted-foreground);
-  font-family: var(--font-label);
+  font-family: var(--font-sans);
   font-size: 13px;
   font-weight: 600;
 }

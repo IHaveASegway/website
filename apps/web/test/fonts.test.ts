@@ -38,7 +38,7 @@ test('every font the site serves is a locked output, byte for byte', () => {
   const locked = new Set(Object.values(lock.outputs).map((entry) => entry.sha256));
   // Archivo ExtraCondensed ExtraBold, Condensed SemiBold, Expanded Medium, Regular and SemiBold,
   // and B612 Mono.
-  expect(shipped.length).toBe(6);
+  expect(shipped.length).toBe(8);
   for (const file of shipped) expect(locked.has(sha256(bytes(file))), file).toBe(true);
 });
 
@@ -87,7 +87,7 @@ const committed = sources(repository)
 
 test('every font in the repository is a locked output of scripts/fonts/build.sh', () => {
   // The six faces the site serves, and the two the Open Graph images draw with.
-  expect(committed.length).toBe(8);
+  expect(committed.length).toBe(10);
   for (const path of committed) expect(lock.outputs[path], path).toBeDefined();
 });
 
@@ -109,11 +109,22 @@ const archivo = (family: string, postscript: string, full = family): string[] =>
   'Version 2.001',
   postscript,
 ];
+const SOURCE_SERIF =
+  '© 2014 - 2021 Adobe Systems Incorporated (http://www.adobe.com/), with Reserved Font Name ‘Source’.';
+/** The reading faces: instances of Source Serif 4 under a name of their own (cut.py, SERIF). */
+const reading = (family: string, postscript: string, full = family): string[] => [
+  SOURCE_SERIF,
+  family,
+  'Regular',
+  `4.004;READ;${postscript}`,
+  full,
+  'Version 4.004;hotconv 1.0.116;makeotfexe 2.5.65601',
+  postscript,
+];
 const NAMES: Record<string, string[]> = {
-  'Archivo ExtraCondensed ExtraBold': archivo(
-    'Archivo ExtraCondensed ExtraBold',
-    'Archivo-ExtraCondensedExtraBold',
-  ),
+  'Archivo Expanded SemiBold': archivo('Archivo Expanded SemiBold', 'Archivo-ExpandedSemiBold'),
+  'Reading Serif': reading('Reading Serif', 'ReadingSerif-Regular', 'Reading Serif Regular'),
+  'Reading Serif SemiBold': reading('Reading Serif SemiBold', 'ReadingSerif-SemiBold'),
   'Archivo Condensed SemiBold': archivo('Archivo Condensed SemiBold', 'Archivo-CondensedSemiBold'),
   'Archivo Expanded Medium': archivo('Archivo Expanded Medium', 'Archivo-ExpandedMedium'),
   Archivo: archivo('Archivo', 'Archivo-Regular', 'Archivo Regular'),
@@ -139,7 +150,7 @@ function nameStrings(records: unknown): string[] {
 /** The tables a font of ours may hold: outlines, metrics, layout and variations. A table that can
  *  carry free data (meta, DSIG, Zapf, a vendor's own) fails the check. */
 const TABLES = new Set(
-  'GDEF GPOS GSUB HVAR MVAR OS/2 STAT avar cmap cvt fpgm fvar gasp glyf gvar head hhea hmtx loca maxp name post prep'.split(
+  'BASE GDEF GPOS GSUB HVAR MVAR OS/2 STAT avar cmap cvt fpgm fvar gasp glyf gvar head hhea hmtx loca maxp name post prep'.split(
     ' ',
   ),
 );
@@ -190,7 +201,7 @@ describe("every font's strings and blocks, served or committed", () => {
     const privateBlock = Buffer.from(real);
     privateBlock.writeUInt32BE(1, 44);
     expect(fontProblems(privateBlock)).toContain('a WOFF2 metadata or private block');
-    const ttf = readFileSync(join(app, 'src/og/fonts/archivo-condensed-extrabold.ttf'));
+    const ttf = readFileSync(join(app, 'src/og/fonts/archivo-expanded-semibold.ttf'));
     // The same bytes with one name string changed: "Regular" becomes "Rxgular", in UTF-16.
     const at = ttf.indexOf(Buffer.from('Regular', 'utf16le').swap16());
     expect(at).toBeGreaterThan(0);
@@ -210,7 +221,7 @@ describe('axes and coverage', () => {
   const faces = shipped.map((file) => open(bytes(file)));
   const byFamily = Object.fromEntries(faces.map((font) => [font.familyName, font]));
   const archivoFaces = [
-    'Archivo ExtraCondensed ExtraBold',
+    'Archivo Expanded SemiBold',
     'Archivo Condensed SemiBold',
     'Archivo Expanded Medium',
     'Archivo',
@@ -272,7 +283,7 @@ describe('what the Fonts API writes into every page', () => {
   for (const file of html) {
     test(file, () => {
       const page = read(file);
-      const display = fontFile(page, 'Archivo Display', 800);
+      const display = fontFile(page, 'Archivo Display', 600);
       const wide = fontFile(page, 'Archivo Wide', 500);
       const label = fontFile(page, 'Archivo Label', 600);
       const regular = fontFile(page, 'Archivo', 400);
@@ -281,7 +292,20 @@ describe('what the Fonts API writes into every page', () => {
       expect(label, 'Archivo Label has an @font-face').toBeDefined();
       expect(regular, 'Archivo has an @font-face').toBeDefined();
       expect(fontFile(page, 'Archivo', 600), "Archivo's SemiBold has an @font-face").toBeDefined();
-      expect(preloads(page)).toEqual([display, wide, label, regular]);
+      // Every page declares the reading face, so every page shares one style-src, and a long read
+      // also preloads it, in the order Base.astro asks for them.
+      const serif = fontFile(page, 'Reading Serif', 400);
+      expect(serif, 'Reading Serif has an @font-face').toBeDefined();
+      const long = page.includes('class="page long-form"');
+      // The label face is preloaded only on a page with a lab's instruments (Base.astro).
+      const instruments = /^lab\/[a-z]+\/index\.html$/.test(file);
+      expect(preloads(page)).toEqual([
+        display,
+        wide,
+        ...(instruments ? [label] : []),
+        regular,
+        ...(long ? [serif] : []),
+      ]);
       expect(fontFile(page, 'B612 Mono', 400) !== undefined, 'B612 Mono only with code').toBe(
         drawsCode(page),
       );
@@ -291,7 +315,9 @@ describe('what the Fonts API writes into every page', () => {
       for (const [, src, display] of page.matchAll(
         /@font-face\{[^}]*src:url\("([^"]+)"\)[^}]*font-display:(\w+);/g,
       ))
-        expect(display, src).toBe(preloaded.includes(src ?? '') ? 'optional' : 'swap');
+        expect(display, src).toBe(
+          preloaded.includes(src ?? '') || src === serif || src === label ? 'optional' : 'swap',
+        );
     });
   }
 
@@ -313,10 +339,10 @@ describe('what the Fonts API writes into every page', () => {
     const link = (href: string) =>
       `<link rel="preload" href="${href}" as="font" type="font/woff2" crossorigin>`;
     const page =
-      face('Archivo Display', '/_astro/fonts/c.woff2', 800) +
+      face('Archivo Display', '/_astro/fonts/c.woff2', 600) +
       face('Archivo', '/_astro/fonts/r.woff2', 400) +
       face('Archivo', '/_astro/fonts/b.woff2', 600);
-    expect(fontFile(page, 'Archivo Display', 800)).toBe('/_astro/fonts/c.woff2');
+    expect(fontFile(page, 'Archivo Display', 600)).toBe('/_astro/fonts/c.woff2');
     // A family's name is matched whole: "Archivo" is not "Archivo Display".
     expect(fontFile(page, 'Archivo', 400)).toBe('/_astro/fonts/r.woff2');
     expect(fontFile(page, 'Archivo', 600)).toBe('/_astro/fonts/b.woff2');
@@ -330,8 +356,8 @@ describe('what the Fonts API writes into every page', () => {
 describe('the fallback faces', () => {
   const css = readFileSync(join(app, 'src/styles/font-fallbacks.css'), 'utf8');
 
-  test('the condensed faces were fitted to the name profile.json holds now', () => {
-    // Archivo ExtraCondensed's fallbacks fit the name's own widths; a new name needs
+  test('the display face was fitted to the name profile.json holds now', () => {
+    // Archivo Expanded SemiBold's fallbacks fit the name's own widths; a new name needs
     // scripts/fonts/build.sh --write.
     expect(css).toContain(`fitted to "${profile.basics.name}"`);
   });

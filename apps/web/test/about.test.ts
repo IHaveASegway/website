@@ -31,7 +31,7 @@ test('the entry carries the review stamp and no other field', () => {
 });
 
 // /about/ lays the bio out as named blocks (ADR 0027, after syntaqx's Currently and Previously): its
-// opening under "Now", then each of its sections under its own heading, the words as about.md has
+// opening, then each of its sections under its own heading, the words as about.md has
 // them. Until 2026-10-31 it rendered the Markdown whole, under "About me".
 const decode = (text: string) =>
   text
@@ -51,11 +51,11 @@ test('the bio renders exactly where its entry is, as named blocks in its own wor
   expect(bio).toBeDefined();
   expect(bio).toContain('aria-label="About me"');
   const parts = aboutParts(body);
-  // A block a part, each under its label: "Now" over the opening, then the bio's own headings.
+  // A block a part: the opening with no label, then the bio's own headings, each over its block.
   const labels = [...(bio ?? '').matchAll(/<h2 class="block-label">([\s\S]*?)<\/h2>/g)].map(
     ([, text = '']) => decode(text),
   );
-  expect(labels).toEqual(['Now', ...parts.sections.map((section) => decode(section.heading))]);
+  expect(labels).toEqual(parts.sections.map((section) => decode(section.heading)));
   // The opening, the paragraph that prints, as the entry has it.
   const first = /<p class="bio-lede">([\s\S]*?)<\/p>/.exec(bio ?? '')?.[1] ?? '';
   expect(decode(first)).toBe(decode(parts.lede[0] ?? ''));
@@ -87,7 +87,7 @@ describe('aboutParts: Home reads the bio it does not own', () => {
   test('the real bio: an opening, then What I build, How I work and what comes next', () => {
     const parts = aboutParts(body);
     expect(parts.lede).toHaveLength(1);
-    expect(parts.lede[0]).toMatch(/^I'm a software engineer/);
+    expect(parts.lede[0]).toMatch(/^I build the backend systems/);
     // Home finds its parts by these headings, so the bio keeps them, in this order.
     expect(parts.sections.map((s) => s.heading)).toEqual(Object.values(ABOUT_HEADINGS));
     expect(parts.sections.map((s) => s.heading)).toEqual([
@@ -99,9 +99,9 @@ describe('aboutParts: Home reads the bio it does not own', () => {
     const how = sectionOf(parts, ABOUT_HEADINGS.how);
     const toward = sectionOf(parts, ABOUT_HEADINGS.toward);
     expect(build?.principles).toHaveLength(5);
-    expect(build?.principles[0]?.lead).toBe('Queues that lose nothing.');
-    expect(how?.principles).toHaveLength(5);
-    expect(how?.principles[0]?.lead).toBe('The reasoning comes before the code.');
+    expect(build?.principles[0]?.lead).toBe('Message queues.');
+    expect(how?.principles).toHaveLength(6);
+    expect(how?.principles[0]?.lead).toBe('I write down the reasoning first.');
     expect(how?.paragraphs).toEqual([]);
     expect(toward?.principles).toEqual([]);
     expect(toward?.paragraphs).toHaveLength(1);
@@ -110,7 +110,7 @@ describe('aboutParts: Home reads the bio it does not own', () => {
   test("openingSentence: Home's hero says the opening's first sentence, /about/ the whole", () => {
     const opening = aboutParts(body).lede[0] ?? '';
     expect(openingSentence(opening)).toBe(
-      "I'm a software engineer who builds the systems work flows through: queues, data pipelines, caches and the clusters under them, and now the lines where agents write the code.",
+      'I build the backend systems other software runs on: queues, data pipelines, caches and the clusters under them.',
     );
     expect(opening.startsWith(openingSentence(opening))).toBe(true);
     // Known answers: the first of several, a lone sentence whole, no end at a lower-case word or

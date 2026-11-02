@@ -4,16 +4,12 @@ import PostList from '../../components/PostList.astro';
 import Prose from '../../layouts/Prose.astro';
 import { loadProfile, loadWritingArea, postEntry } from '../../lib/content';
 import { postingGraph, serialize } from '../../lib/jsonld';
+import { aboutParts, openingSentence } from '../../lib/about';
+import { checkedProfiles } from '../../lib/profile';
+import { CONTACT_EMAIL } from '../../lib/site';
+import { loadAbout } from '../../lib/content';
 import { postCard } from '../../lib/og';
-import {
-  isoDay,
-  minutesWords,
-  postLabel,
-  postPath,
-  tagWords,
-  wordDay,
-  type PostPage,
-} from '../../lib/posts';
+import { isoDay, minutesWords, postLabel, postPath, wordDay, type PostPage } from '../../lib/posts';
 
 // One post: /writing/<slug>/ for an essay, /notes/<slug>/ for a field note. A listed page is a
 // published post, and Writing renders from the first one. Where drafts are included (pull request
@@ -35,9 +31,9 @@ const { page } = Astro.props;
 const { post } = page;
 const listed = page.exposure === 'listed';
 const profile = await loadProfile();
-const { Content, headings } = await render(await postEntry(post));
+const { Content } = await render(await postEntry(post));
 const path = postPath(post);
-const card = postCard(post);
+const card = postCard(post, profile.basics.name);
 const image = new URL('og.png', new URL(path, profile.basics.url)).href;
 const source = post.source ? new URL(post.source) : null;
 // The register under the lead (layouts/Prose.astro, ADR 0025): the post's day, its kind (Draft
@@ -46,6 +42,13 @@ const source = post.source ? new URL(post.source) : null;
 // index lists them, and the way back to the index, a link in words with no arrow. A draft lists
 // nothing, since nothing lists a draft either way.
 const area = await loadWritingArea();
+// The close (ADR 0029): this reader arrives cold from a shared link, so the post says who wrote it
+// and how to reach him, in words the bio and the profile already own. It renders on a listed post
+// where the bio's entry exists; the fixture builds hold none.
+const bioEntry = await loadAbout();
+const opening = bioEntry?.body === undefined ? undefined : aboutParts(bioEntry.body).lede[0];
+const whoWrote = opening === undefined ? undefined : openingSentence(opening);
+const linkedIn = checkedProfiles(profile).find((p) => p.network === 'LinkedIn');
 const others = listed ? area.published.filter((p) => postPath(p) !== path).slice(0, 3) : [];
 const links = [
   ...(listed
@@ -65,12 +68,13 @@ const links = [
   path={path}
   heading={post.title}
   lead={post.summary}
-  headings={headings}
   noindex={!listed}
   ogType="article"
+  published={isoDay(post.published)}
   {...(listed ? { og: card, jsonLd: serialize(postingGraph(post, profile, image)) } : {})}
 >
   <ul slot="register" class="register" role="list">
+    <li class="register-by">{profile.basics.name}</li>
     <li>
       <time datetime={isoDay(post.published)}>{wordDay(post.published)}</time>
     </li>
@@ -81,10 +85,29 @@ const links = [
         Updated <time datetime={isoDay(post.updated)}>{wordDay(post.updated)}</time>
       </li>
     )}
-    {post.tags.length > 0 && <li>{tagWords(post.tags)}</li>}
   </ul>
   <Content />
   <Fragment slot="after">
+    {listed && whoWrote && (
+      <aside class="post-close" aria-label="About the author">
+        <p class="post-close-name">{profile.basics.name}</p>
+        <p class="post-close-text">{whoWrote}</p>
+        <div class="post-close-actions">
+          <a class="btn btn-primary" href={`mailto:${CONTACT_EMAIL}`}>
+            Email me
+          </a>
+          {linkedIn && (
+            <a class="btn" href={linkedIn.url} rel="me">
+              LinkedIn
+            </a>
+          )}
+        </div>
+        <p class="post-close-more">
+          <a href="/lab/">Try the labs</a>
+          <a href="/about/">About me</a>
+        </p>
+      </aside>
+    )}
     {source && (
       <ul class="post-links">
         <li>

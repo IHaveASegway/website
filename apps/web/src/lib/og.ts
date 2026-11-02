@@ -18,6 +18,8 @@ import { hex, themeColors } from './tokens';
 export interface OgCard {
   readonly title: string;
   readonly label: string;
+  /** A byline, not a section: og:title is the title alone, and the alt says who wrote it. */
+  readonly byline?: boolean;
 }
 
 export const OG_SIZE = { width: 1200, height: 630 } as const;
@@ -33,10 +35,10 @@ export function aboutCard(profile: Profile, label: string): OgCard {
   return { title: profile.basics.name, label };
 }
 
-/** A post's card: its title, and the section it belongs to (content.md, "Structured data and
- *  link previews": the section label and the entry's title). */
-export function postCard(post: Pick<Post, 'title' | 'section'>): OgCard {
-  return { title: post.title, label: SECTION_LABELS[post.section] };
+/** A post's card: its title and who wrote it (ADR 0029). A share arrives cold, on LinkedIn as a
+ *  small tile, so the card says what this is and whose it is. */
+export function postCard(post: Pick<Post, 'title'>, author: string): OgCard {
+  return { title: post.title, label: author, byline: true };
 }
 
 /** A section index's card: the section, and whose it is. */
@@ -55,20 +57,23 @@ export function labIndexCard(profile: Profile): OgCard {
 }
 
 /**
- * The title's size on the card. Home's name is drawn at 150 px; a post's title can run to 70
- * characters (lib/posts.ts), which at that size would need five lines and leave the canvas. So the
- * size steps down with the length, and the longest title fits in three lines at 80 px. Steps rather
- * than a formula, so a title one character longer than another never draws at an odd size.
+ * The title's size on the card. The display face is wide: "Joseph Peterson" is about 10.2em, so at
+ * 100 px it just fills the card's measure, and a post's title can run to 70 characters
+ * (lib/posts.ts). So the size steps down with the length, and the longest title fits in four lines
+ * at 72 px. Steps rather than a formula, so a title one character longer than another never draws at
+ * an odd size.
  */
 export function titleSize(title: string): number {
-  if (title.length <= 16) return 150;
-  if (title.length <= 32) return 104;
-  return 80;
+  if (title.length <= 16) return 100;
+  if (title.length <= 40) return 84;
+  return 72;
 }
 
 /** og:title and og:image:alt, written from the drawn strings and nothing else. */
-export const ogTitle = (card: OgCard) => `${card.title} · ${card.label}`;
-export const ogAlt = (card: OgCard) => `${card.title}, ${card.label}`;
+export const ogTitle = (card: OgCard) =>
+  card.byline ? card.title : `${card.title} · ${card.label}`; // an ogTitle, for the head
+export const ogAlt = (card: OgCard) =>
+  card.byline ? `${card.title}, by ${card.label}` : `${card.title}, ${card.label}`;
 
 export interface OgNode {
   type: string;
@@ -126,14 +131,26 @@ export function ogTree(
       color: colors.foreground,
     },
     node(
-      { flexDirection: 'column', gap: 28 },
+      {
+        flexDirection: 'column',
+        // With no picture the title takes the top of the card and the label its foot, so the card
+        // still reads as a small tile; a post's words also keep clear of a 3:2 centre crop.
+        ...(picture
+          ? { gap: 28 }
+          : {
+              height: '100%',
+              justifyContent: 'space-between',
+              ...(card.byline ? { paddingInline: 56 } : {}),
+            }),
+      },
       node(
         {
-          fontFamily: 'Archivo Condensed',
-          fontWeight: 800,
+          fontFamily: 'Archivo Display',
+          fontWeight: 600,
           fontSize: titleSize(card.title),
-          lineHeight: 0.95,
+          lineHeight: 1.06,
           letterSpacing: titleSize(card.title) * -0.012,
+          textWrap: 'balance',
           // A word longer than a line, such as a long identifier, breaks instead of leaving the card.
           wordBreak: 'break-word',
         },
@@ -181,7 +198,7 @@ export function drawnStrings(tree: OgNode | string): string[] {
 }
 
 // The two faces the card draws, cut by scripts/fonts/build.sh as TrueType, which satori reads:
-// Archivo ExtraCondensed for the title, Archivo Expanded for the label (ADR 0027).
+// Archivo Expanded SemiBold for the title, Archivo Expanded Medium for the label (ADR 0029).
 const fontFiles = import.meta.glob<string>('../og/fonts/*.ttf', {
   query: '?inline',
   import: 'default',
@@ -238,9 +255,9 @@ export async function renderOg(card: OgCard, art: OgArt = {}): Promise<Buffer> {
     ...OG_SIZE,
     fonts: [
       {
-        name: 'Archivo Condensed',
-        data: font('archivo-condensed-extrabold.ttf'),
-        weight: 800,
+        name: 'Archivo Display',
+        data: font('archivo-expanded-semibold.ttf'),
+        weight: 600,
         style: 'normal',
       },
       {

@@ -16,10 +16,41 @@
 /* The opening. One column below 64rem, the words first and the cluster under them; from 64rem the
    words take a little over half the row and the cluster the rest, centred beside them. */
 .hero {
+  position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   row-gap: 2.5rem;
   padding-block: 2.75rem 0.5rem;
+}
+
+/* A faint grid behind the opening, brightest behind the cluster and gone by the edges, so the page
+   stays one sheet. It paints in the hero's own box and takes no pointer. */
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 3.5rem 3.5rem;
+  mask-image: radial-gradient(90% 34% at 50% 86%, var(--foreground), transparent);
+  pointer-events: none;
+}
+
+/* From a laptop up the cluster stands beside the words, so the grid does too; on a phone it stays
+   down behind the cluster, clear of the words. */
+@media (width >= 64rem) {
+  .hero::before {
+    mask-image: radial-gradient(62% 72% at 72% 46%, var(--foreground), transparent);
+  }
+}
+
+@media (forced-colors: active), print {
+  .hero::before {
+    display: none;
+  }
 }
 
 .hero-role {
@@ -33,13 +64,14 @@
 
 .hero-name {
   margin: 0 0 1.75rem -0.04em;
-  font: 500 var(--text-name) / var(--text-name--line-height) var(--font-wide);
+  font: 600 var(--text-name) / var(--text-name--line-height) var(--font-display);
+  letter-spacing: -0.012em;
   overflow-wrap: break-word;
 }
 
 /* The bio's opening, the statement. The kinds of system it names are its links, each underlined in
-   its lab's colour, thick enough to read as a mark and not as a hairline (SC 1.4.1 holds through the
-   underline, which every link has). */
+   the accent (ADR 0029: the labs' colours appear where they are explained, in What I build), thick
+   enough to read as a mark and not as a hairline (SC 1.4.1 holds through the underline). */
 .hero-statement {
   margin: 0 0 1.25rem;
   max-inline-size: 30em;
@@ -50,8 +82,8 @@
 }
 
 .hero-statement a[data-line] {
-  text-decoration-color: var(--line);
-  text-decoration-thickness: 0.14em;
+  text-decoration-color: var(--primary);
+  text-decoration-thickness: 0.1em;
   text-underline-offset: 0.18em;
   text-decoration-skip-ink: none;
 }
@@ -75,33 +107,11 @@
   gap: 0.5rem;
 }
 
-/* The buttons, both one width, the same at every screen width: the address's label is 224 px at
-   15 px in Linux's Chromium (e2e/layout.spec.ts under e2e:linux), so 15rem clears it on any
-   system, and a phone stacks two equal bars. At twice the text size on a 320 px screen the address
-   breaks inside its button, which grows a line, rather than run past its border (SC 1.4.10). */
+/* The buttons, both one width at every screen width: side by side from 390 px, and stacked as two
+   equal bars on a narrower phone. */
 .hero-actions .btn {
-  min-inline-size: min(15rem, 100%);
+  min-inline-size: min(10.75rem, 100%);
   text-align: center;
-}
-
-.hero-actions .btn-email {
-  overflow-wrap: anywhere;
-}
-
-/* Lines kept on a phone, so the opening is one height whether the web faces arrive or not
-   (e2e/fold.spec.ts): measured in CI's Linux Chromium, the statement takes a line more in Archivo
-   than in its fitted fallback below 392 px, and the rest of the opening a line more in the fallback
-   below 380 px. Each keeps the longer of its two. */
-@media (width < 24.5rem) {
-  .hero-statement {
-    min-block-size: 6lh;
-  }
-}
-
-@media (width < 23.75rem) {
-  .hero-more {
-    min-block-size: 5lh;
-  }
 }
 
 @media (width >= 64rem) {
@@ -134,7 +144,7 @@
   perspective: 70rem;
   background: radial-gradient(
     56% 46% at 50% 52%,
-    color-mix(in oklch, var(--primary) 10%, transparent),
+    color-mix(in oklab, var(--primary) 12%, transparent),
     transparent
   );
   pointer-events: none;
@@ -157,7 +167,7 @@
 }
 
 .orbit-floor {
-  fill: color-mix(in oklch, var(--primary) 5%, transparent);
+  fill: color-mix(in oklab, var(--primary) 5%, transparent);
 }
 
 .orbit-track {
@@ -192,7 +202,13 @@
 }
 
 .orbit-ack {
-  stroke: color-mix(in oklch, var(--primary) 45%, var(--background));
+  stroke: color-mix(in oklab, var(--primary) 45%, var(--background));
+}
+
+/* The current in the picture: the leader and its heartbeat are lit, so they read as live. */
+.orbit-beat,
+.orbit-leader .orbit-node {
+  filter: drop-shadow(0 0 0.375rem var(--primary));
 }
 
 .orbit-node {
@@ -328,12 +344,10 @@
   }
 }
 
-/* Home's section titles, in the wide face, which is wide enough that at twice the text size on a
-   320 px screen one word can outrun the column ("Selected", by 5 px on Linux): it breaks there
-   rather than scroll the page sideways (SC 1.4.10). */
+/* The display face is wide enough that at twice the text size on a 320 px screen one word can
+   outrun the column ("Selected", by 5 px on Linux): it breaks there rather than scroll the page
+   sideways (SC 1.4.10). */
 .section-title {
-  font-family: var(--font-wide);
-  font-weight: 500;
   overflow-wrap: break-word;
 }
 
@@ -381,9 +395,9 @@
 
 .build-lead {
   margin: 0;
-  font-family: var(--font-wide);
+  font-family: var(--font-display);
   font-size: var(--text-headline);
-  font-weight: 500;
+  font-weight: 600;
   line-height: var(--text-headline--line-height);
 }
 
@@ -394,7 +408,7 @@
   block-size: 0.5em;
   margin-inline-end: 0.55em;
   border-radius: 50%;
-  background-color: var(--line, var(--primary));
+  background-color: var(--primary);
   vertical-align: 0.1em;
 }
 
@@ -406,7 +420,7 @@
 .build-evidence {
   max-inline-size: var(--measure);
   padding-top: 0.625rem;
-  border-top: 2px solid var(--line, var(--primary));
+  border-top: 1px solid var(--primary);
 }
 
 .build-fact {
@@ -419,9 +433,9 @@
 .build-lab {
   margin: 0 0 0.25rem;
   color: var(--foreground);
-  font-family: var(--font-label);
+  font-family: var(--font-wide);
   font-size: var(--text-label);
-  font-weight: 600;
+  font-weight: 500;
   line-height: var(--text-label--line-height);
 }
 
@@ -446,12 +460,6 @@
   }
 }
 
-/* The writing's titles, in Home's wide face. */
-.post-title {
-  font-family: var(--font-wide);
-  font-weight: 500;
-}
-
 /* How I work: the bio's principles, each its lead over its words, two columns from 64rem; then the
    repository's record under a hairline. */
 .principles-list {
@@ -464,9 +472,9 @@
 
 .principle-lead {
   margin: 0 0 0.5rem;
-  font-family: var(--font-wide);
+  font-family: var(--font-display);
   font-size: var(--text-headline);
-  font-weight: 500;
+  font-weight: 600;
   line-height: var(--text-headline--line-height);
 }
 
@@ -504,7 +512,7 @@
   display: inline-block;
   max-inline-size: 100%;
   padding-block: 0.2em; /* a target of 24 px or more at a headline's size (SC 2.5.8) */
-  font: 500 var(--text-title) / 1.05 var(--font-wide);
+  font: 600 var(--text-section) / 1.1 var(--font-display);
   text-decoration-thickness: 0.05em;
   text-underline-offset: 0.14em;
   text-decoration-skip-ink: none;
@@ -525,18 +533,11 @@
 }
 
 .btn-copy {
-  min-inline-size: min(11.5rem, 100%);
+  min-inline-size: min(12.75rem, 100%);
 }
 
-/* In the wide face the address at a title's size needs a wide screen's column: below 64rem it takes
-   a section's size, and below 27rem a headline's, so that each side of its @ keeps to one line and
-   only the @ breaks it (e2e/layout.spec.ts). */
-@media (width < 64rem) {
-  .contact-address {
-    font-size: var(--text-section);
-  }
-}
-
+/* The address at a section's size, and below 27rem a headline's, so that each side of its @ keeps
+   to one line and only the @ breaks it (e2e/layout.spec.ts). */
 @media (width < 27rem) {
   .contact-address {
     font-size: var(--text-headline);

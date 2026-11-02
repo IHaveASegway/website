@@ -82,7 +82,7 @@
     content: 'ihaveasegway.com' attr(href);
     margin-inline-start: 0.375em;
     color: var(--muted-foreground);
-    font-family: var(--font-label);
+    font-family: var(--font-sans);
     font-size: 0.6875rem;
     font-weight: 500;
     overflow-wrap: anywhere;
@@ -96,10 +96,9 @@
   padding-block-start: 0.75rem;
   border-block-start: 1px solid var(--border);
   color: var(--muted-foreground);
-  font-family: var(--font-label);
-  font-size: var(--text-label);
-  font-weight: var(--text-label--font-weight);
-  line-height: var(--text-label--line-height);
+  font-family: var(--font-sans);
+  font-size: var(--text-ui);
+  line-height: 1.45;
   font-variant-numeric: tabular-nums;
   text-wrap: pretty;
 }

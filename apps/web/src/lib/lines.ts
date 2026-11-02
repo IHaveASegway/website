@@ -177,7 +177,7 @@ export function raftFailover(opening: Sim, crashed: Sim): string {
       : committed === 1
         ? 'its committed entry kept'
         : `all ${inWords(committed)} committed entries kept`;
-  return `Crash server ${old.id + 1}, and server ${next.id + 1} leads term ${next.term} after ${Math.round(crashed.now - from)} ms, with ${kept}.`;
+  return `Crash server ${old.id + 1}, and server ${next.id + 1} takes over in term ${next.term} after ${Math.round(crashed.now - from)} ms, with ${kept}.`;
 }
 
 /**
@@ -251,7 +251,7 @@ export function queueFact(keyed: QueueSim): string {
   const kept = keptOnce(keyed);
   const crashed = (kept.effects[0]?.worker ?? 0) + 1;
   const seconds = Math.round(keyed.now / 1000);
-  return `With an idempotency key, worker ${crashed}’s crash prints order ${kept.id} once: ${orders(keyed.doneCount)} done in ${seconds} s, none lost or printed twice.`;
+  return `With an idempotency key, worker ${crashed} crashes and order ${kept.id} still prints once. ${firstUp(orders(keyed.doneCount))} done in ${seconds} s, none lost or printed twice.`;
 }
 
 /** The Queue line's fix on the board, after the crash its describer tells: "With an idempotency
@@ -311,7 +311,7 @@ export function cacheFact(opening: CacheSim, coalesced: CacheSim): string {
   const at = (herd.expired / 1000).toFixed(1);
   const once = coalesced.fetchesOf[herd.key] ?? 0;
   const without = opening.fetchesOf[herd.key] ?? 0;
-  return `${firstUp(`when ${page} expires at ${at} s`)}, coalescing has the database fetch it ${times(once)} instead of ${times(without)}.`;
+  return `${firstUp(`when ${page} expires at ${at} s`)}, coalescing means the database fetches it ${times(once)} instead of ${times(without)}.`;
 }
 
 /** The Cache line's fix on the board, after the stampede its describer tells: "With coalescing,
@@ -403,7 +403,7 @@ export function backfillLine(sim: BackfillSim): BackfillLine {
 export function backfillFact(appended: BackfillSim, overwritten: BackfillSim): string {
   const sum = (numbers: readonly number[]) => numbers.reduce((total, n) => total + n, 0);
   matchedWeek(overwritten);
-  return `Loads that overwrite their day: the week’s report counts ${orders(sum(overwritten.report))}, as the source does, instead of ${count(sum(appended.report))}.`;
+  return `When each load overwrites its day, the week’s report counts ${orders(sum(overwritten.report))}, matching the source, instead of ${count(sum(appended.report))}.`;
 }
 
 /** The Backfill line's fix on the board, after the failed check its describer tells: "Loads that

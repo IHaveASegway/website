@@ -219,8 +219,11 @@ test.describe('web fonts arriving late move nothing', () => {
       const preloaded = [...html.matchAll(/<link rel="preload" href="([^"]+\.woff2)"/g)].map(
         ([, href]) => href ?? '',
       );
-      // Four since ADR 0027: Archivo's display, wide, label and reading faces.
-      expect(preloaded).toHaveLength(4);
+      // Archivo's display, wide and interface faces, on a lab its label face, and on a long read
+      // the reading face (ADR 0029).
+      const lab = /^\/lab\/[a-z]+\/$/.test(path);
+      const post = /^\/writing\/[a-z-]+\/$/.test(path);
+      expect(preloaded).toHaveLength(3 + (lab ? 1 : 0) + (post ? 1 : 0));
       let asked = 0;
       let served = 0;
       await page.route(/\.woff2$/, async (route) => {

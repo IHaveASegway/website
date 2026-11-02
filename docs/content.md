@@ -315,6 +315,44 @@ Banned, because each claims a quality instead of showing it: "seamless", "robust
 | "A robust, scalable CLI that seamlessly manages all your repositories." | "gitops runs one git command across every repository in a directory. 5 releases; the last three ship checksums signed with cosign." |
 | "Analytics that leverage advanced statistics to surface insights." | "stillhere publishes its own failed metric: `durable@1` scored an AUC of 0.42 where change size alone scored 0.82." |
 
+### How he sounds (2026-11-02)
+
+The register above is the restraint. The rest comes from how Joseph talks, read from his own messages and his résumé's summary, not from an agent's idea of a thought leader ([ADR 0029](adr/0029-one-voice-one-column-honed-colour.md)):
+
+- **He's in it.** First-person words run at about 39 per 1,000 in his messages. A page about his work says "I" and says what happened to him.
+- **Plain and warm.** Contractions, everyday images, and a verdict first with the thing he saw right after. Humor is deadpan and thrown in, never set up.
+- **He hedges requests and taste, not verdicts.** "I could be wrong about some of it" is fine. A false certainty isn't, and neither is a claim the build can't back.
+- **No slogans.** No "X, not Y", no "It isn't that... it's that", no aphorism to close a paragraph, no bold "The lesson:", no parallel triads. If a sentence sounds good and says little, cut it.
+- **Tell what it cost.** What went wrong is the most credible thing on the page.
+
+A claim about him needs his read. An agent drafts; he answers for what ships.
+
+### The site's language
+
+One vocabulary, so nobody has to translate ([ADR 0029](adr/0029-one-voice-one-column-honed-colour.md)). A recruiter should get the first screen, and a tech lead shouldn't feel talked down to. `apps/web/test/language.test.ts` fails on a retired phrase.
+
+| Use | Avoid |
+|---|---|
+| senior software engineer | title variants |
+| backend systems | "the systems work flows through" |
+| queues, data pipelines, caches, clusters | "the clusters under them" as a job title |
+| coding agents | "agents" alone on first mention; "lines where agents" |
+| scoped permissions, tests, staged releases | "walls", "harness" on Home and About |
+| software factory, in the essay, with who says it | "dark factory" without attribution |
+| lab, for the page | demo, drawing or board as a page's name |
+| simulation, simulated | "live" or "real" for what a simulation outputs |
+| the made-up bakery, on first mention in a page | "the bakery" as if it were a client |
+| essay | post, or field note until one exists |
+| written decisions, then decision records (ADRs) once | "two-way doors" |
+| tests | "rules live in the build" |
+| simulated runs on Home and About; seeded runs inside a lab | seeded runs on Home |
+| server (Raft); node (Cache) | swapping them |
+| dots | lamps |
+| dead-letter queue | siding, buffer stops |
+| checks; safety properties in Raft | properties outside Raft |
+| How to read it | lines and lamps |
+| US English | colour, neighbour |
+
 ## Firewall classes for copy
 
 The policy is in [product.md](product.md#content-firewall); enforcement is in [ADR 0007](adr/0007-content-firewall.md) and [security.md](security.md#content-firewall-design). This is how a writer applies it. When unsure, use the stricter class. An item moves to a looser class only when Joseph clears that exact wording in writing in the private record ([product.md](product.md#content-firewall)).

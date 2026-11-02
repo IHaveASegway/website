@@ -86,8 +86,8 @@ describe('/about/, the résumé', () => {
     ]);
   });
 
-  test('Experience lists exactly the roles profile.json holds, then the ways to the full history', () => {
-    const experience = section('Experience');
+  test('Background lists exactly the roles profile.json holds, then the ways to the full history', () => {
+    const experience = section('Background');
     expect(experience).toBeDefined();
     const rows = descendants(experience as Element).filter(
       (e) => e.tagName === 'li' && descendants(e).some((d) => hasClass(d, 'role-title')),
@@ -109,8 +109,9 @@ describe('/about/, the résumé', () => {
         .filter((e) => e.tagName === 'p')
         .map(textOf),
     ).toEqual([
-      ...(linkedIn ? ['Full history on LinkedIn.'] : []),
-      `Full résumé on request: ${CONTACT_EMAIL}.`,
+      ...(profile.basics.summary ? [profile.basics.summary] : []),
+      ...(linkedIn ? ['My full work history is on LinkedIn.'] : []),
+      `I'll send a résumé if you email me: ${CONTACT_EMAIL}.`,
     ]);
     expect(links(notes)).toEqual([
       ...(linkedIn ? [{ href: linkedIn.url, text: 'LinkedIn' }] : []),

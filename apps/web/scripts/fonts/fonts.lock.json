@@ -5,7 +5,7 @@
       "url": "https://raw.githubusercontent.com/google/fonts/0b58fb370093f9a9f4ff785d94405710b79de67c/ofl/archivo/Archivo%5Bwdth%2Cwght%5D.ttf",
       "sha256": "0e094a7d3c7c4c25cf1310c4b30014f1dae9332220b1c2c88f4fa996f0b05053",
       "bytes": 658596,
-      "provenance": "Archivo 2.001, by Omnibus-Type (Héctor Gatti and team), OFL 1.1, no Reserved Font Name. The variable font, widths 62 to 125 and weights 100 to 900: cut.py instances four static faces from it, ExtraCondensed ExtraBold, Expanded Medium, Regular and SemiBold (docs/design/overhaul.md, \"Type\"; ADR 0027). google/fonts at commit 0b58fb37."
+      "provenance": "Archivo 2.001, by Omnibus-Type (Héctor Gatti and team), OFL 1.1, no Reserved Font Name. The variable font, widths 62 to 125 and weights 100 to 900: cut.py instances four static faces from it, Expanded SemiBold, Expanded Medium, Condensed SemiBold, Regular and SemiBold (ADR 0029). google/fonts at commit 0b58fb37."
     },
     "archivo-ofl": {
       "url": "https://raw.githubusercontent.com/google/fonts/0b58fb370093f9a9f4ff785d94405710b79de67c/ofl/archivo/OFL.txt",
@@ -24,6 +24,18 @@
       "sha256": "a815f65bc72d90494b01842d3171f7cb0f9f935e023d9cc260904d221ef1064a",
       "bytes": 4470,
       "provenance": "google/fonts at commit 0b58fb37, git blob 9d0aff04."
+    },
+    "source-serif-4-ttf": {
+      "url": "https://raw.githubusercontent.com/google/fonts/0b58fb370093f9a9f4ff785d94405710b79de67c/ofl/sourceserif4/SourceSerif4%5Bopsz%2Cwght%5D.ttf",
+      "sha256": "97b2d4da6e3cb494b5a1e66ae176914d852ccabef49e0c02c0df25f3e39aca0b",
+      "bytes": 1209508,
+      "provenance": "Source Serif 4, by Frank Grießhammer for Adobe, OFL 1.1, no Reserved Font Name. The variable font, optical sizes and weights: cut.py instances its Regular and SemiBold at optical size 14 and names them Reading Serif, since the upstream's name table reserves \"Source\" (ADR 0029). google/fonts at commit 0b58fb37."
+    },
+    "source-serif-4-ofl": {
+      "url": "https://raw.githubusercontent.com/google/fonts/0b58fb370093f9a9f4ff785d94405710b79de67c/ofl/sourceserif4/OFL.txt",
+      "sha256": "5f94c3fd3a23131a417ab5a0c8452de57e70c3cfb9f604d88241f7065ebf9fd9",
+      "bytes": 4400,
+      "provenance": "google/fonts at commit 0b58fb37: Source Serif 4's license, served as OFL-SourceSerif4.txt."
     },
     "arimo-ttf": {
       "url": "https://raw.githubusercontent.com/google/fonts/0b58fb370093f9a9f4ff785d94405710b79de67c/apache/arimo/Arimo%5Bwght%5D.ttf",
@@ -77,9 +89,9 @@
       "sha256": "a815f65bc72d90494b01842d3171f7cb0f9f935e023d9cc260904d221ef1064a",
       "bytes": 4470
     },
-    "src/assets/fonts/archivo-condensed-extrabold.woff2": {
-      "sha256": "e72ba17fffc71b5d7f13a7eea6c6e1feb53d05061d7da1cfad2e21e2300a2686",
-      "bytes": 11800
+    "public/fonts/OFL-SourceSerif4.txt": {
+      "sha256": "5f94c3fd3a23131a417ab5a0c8452de57e70c3cfb9f604d88241f7065ebf9fd9",
+      "bytes": 4400
     },
     "src/assets/fonts/archivo-condensed-semibold.woff2": {
       "sha256": "11b4c9e1e574e943e4a487ce99e8d4e628115bf029f89914ca91c3cc462bfcfa",
@@ -88,6 +100,10 @@
     "src/assets/fonts/archivo-expanded-medium.woff2": {
       "sha256": "95d3b27fd865da1c78499794c8bd43861ddce8d5dd9958cdd721df86fe2ee0ff",
       "bytes": 12272
+    },
+    "src/assets/fonts/archivo-expanded-semibold.woff2": {
+      "sha256": "1d11402516230516a4b3e130546d2def3df3ebdd3abb3df75c9445574a4bc7c1",
+      "bytes": 11284
     },
     "src/assets/fonts/archivo-regular.woff2": {
       "sha256": "9195b5f98a1491c01cf55f0fb6ec657e1329cdb05de793892b8cfded3bddf61c",
@@ -101,17 +117,25 @@
       "sha256": "01f5bbdf9ba0d00bd7f694a271692754b515600d71144706d278926c2ca65eff",
       "bytes": 12084
     },
-    "src/og/fonts/archivo-condensed-extrabold.ttf": {
-      "sha256": "ab77a841813275a2cbbdd92e828c4acd1e825534ed04046e3c1fba5de3483dc9",
-      "bytes": 33316
+    "src/assets/fonts/reading-serif-regular.woff2": {
+      "sha256": "0f72ce469807ad4bb942f364c19979e637a2d02516ca0342f3cc57a9155d8b42",
+      "bytes": 18752
+    },
+    "src/assets/fonts/reading-serif-semibold.woff2": {
+      "sha256": "25249a8167aeafe34c6481a946d71850e8adac0e35795e7eb93cfe45292e6bef",
+      "bytes": 20072
     },
     "src/og/fonts/archivo-expanded-medium.ttf": {
       "sha256": "0ca83c7bd08b3086e3c5c593b836acc002905707ab097c6a5395f625f9fb8840",
       "bytes": 33592
     },
+    "src/og/fonts/archivo-expanded-semibold.ttf": {
+      "sha256": "cc6449749aba69ced1832ea582d77ec1d2729bb7a2f9acb518f01778c006232a",
+      "bytes": 33588
+    },
     "src/styles/font-fallbacks.css": {
-      "sha256": "31a156ff91f26ce1c55c809af28b9461114f469f2d9a9128b124bad404dd58fd",
-      "bytes": 6422
+      "sha256": "02ebc94297841708734008f030b82347c272a82dc3a2a6f649a045202ddf2582",
+      "bytes": 6655
     }
   }
 }

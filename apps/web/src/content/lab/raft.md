@@ -5,7 +5,7 @@ lifecycle: live
 runtime:
   kind: browser
 decisions: ['0020']
-firewall_reviewed: 2026-10-29
+firewall_reviewed: 2026-11-02
 ---
 
 ## What Raft promises
@@ -18,13 +18,13 @@ What it guarantees is safety, whatever the network does: two servers never commi
 
 **Cut off the leader.** Press Run, then Cut off the leader. The others stop hearing its heartbeats; one of them times out, wins a new term and leads. The old leader still thinks it leads. Send a write: it takes it, but can never commit it, since it cannot reach a majority.
 
-**Split 2 and 3.** The leader and one neighbour end up on the small side. Writes sent to it pile up uncommitted, while the three on the other side elect a leader of their own and commit theirs.
+**Split 2 and 3.** The leader and one neighbor end up on the small side. Writes sent to it pile up uncommitted, while the three on the other side elect a leader of their own.
 
-**Heal the network.** The old leader hears the newer term and steps down. Its uncommitted entries conflict with the new leader's log, so they are dropped and replaced. The event log names each one. That is the rule doing its job: those entries were never promised to anyone.
+**Heal the network.** The old leader hears the newer term and steps down. Its uncommitted entries stay until the new leader sends one of its own: send a write, and they are dropped and replaced. The event log says how many, and names each write as gone once its place is committed with another entry. That's correct: those entries were never committed.
 
 Then try crashing two servers at once, or three, and losing a third of all messages.
 
-## What the colors and shapes mean
+## How to read it
 
 Each server's ring is its election timer: when it closes, the server asks for votes. The leader's ring stays full. A hollow dot on the wire asks for a vote; a filled dot grants one. A filled square carries log entries; an outlined square is a heartbeat with none. When the network is cut, a dashed outline fences off the smaller side, and no message crosses it. In each log, a cell is one entry with its term under it, filled once committed.
 

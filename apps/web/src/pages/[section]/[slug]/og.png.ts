@@ -1,5 +1,6 @@
 import type { APIRoute, GetStaticPaths } from 'astro';
 import { loadWritingArea } from '../../../lib/content';
+import { loadProfile } from '../../../lib/content';
 import { postCard, renderOg } from '../../../lib/og';
 import type { Post } from '../../../lib/posts';
 
@@ -13,6 +14,6 @@ export const getStaticPaths = (async () => {
 }) satisfies GetStaticPaths;
 
 export const GET: APIRoute<{ post: Post }> = async ({ props }) => {
-  const png = await renderOg(postCard(props.post));
+  const png = await renderOg(postCard(props.post, (await loadProfile()).basics.name));
   return new Response(new Uint8Array(png), { headers: { 'Content-Type': 'image/png' } });
 };

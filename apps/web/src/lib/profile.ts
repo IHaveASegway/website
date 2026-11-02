@@ -108,9 +108,13 @@ const cardWords = (p: {
 export const COUNTRY_NAMES = { US: 'United States' } as const;
 
 export const profileSchema = z.strictObject({
+  // The tools he has used, in one plain line a recruiter can search (ADR 0029): the skills below
+  // each link to a page that shows them, and most of this list's work cannot be shown here.
+  tools: z.string().min(1).max(240).optional(),
   basics: z.strictObject({
     name: z.string().min(1),
     label: z.string().min(1), // the title line (Q4)
+    summary: z.string().min(1).max(160).optional(), // one sentence for /about/'s Background (ADR 0029)
     url: z.literal('https://ihaveasegway.com/'),
     // Country only (Q5): a region, a city or an address cannot be entered at all.
     location: z.strictObject({ countryCode: z.enum(['US']), remote: z.boolean() }),
@@ -203,7 +207,7 @@ export function roleLine(profile: Profile): string {
 /** "Joseph Peterson, Senior Software Engineer. Remote, US.": Home's description, for search
  *  results and link previews, and the summary line of /llms.txt. */
 export function homeDescription(profile: Profile): string {
-  return `${profile.basics.name}, ${roleLine(profile)}`;
+  return `${profile.basics.name} is a senior software engineer (remote, US) who builds queues, data pipelines, caches and clusters, and writes about working with coding agents.`;
 }
 
 /** Every URL a record holds, checked or not, with the network it is on: the readiness test's list

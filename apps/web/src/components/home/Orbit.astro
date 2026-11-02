@@ -19,12 +19,11 @@ interface Server {
 
 interface Props {
   servers: readonly Server[];
-  term: number;
   /** The Raft Lab's page, where the cluster can be broken. */
   href: string;
 }
 
-const { servers, term, href } = Astro.props;
+const { servers, href } = Astro.props;
 const C = 200; // the ring's centre, in the drawing's own pixels (a 400 × 400 box)
 const R = 156; // the ring's radius
 const at = (k: number, r = R) => {
@@ -41,7 +40,7 @@ const leader = lead?.server;
 const count = inWords(servers.length);
 const others = inWords(servers.length - 1);
 const caption = leader
-  ? `${count[0]?.toUpperCase()}${count.slice(1)} servers keeping one log: server ${leader.id + 1} leads term ${term}, and its heartbeats hold the other ${others}.`
+  ? `A simulation of ${count} servers keeping the same log. Server ${leader.id + 1} is the leader in this picture, and its heartbeats hold the other ${others}.`
   : `${count[0]?.toUpperCase()}${count.slice(1)} servers keeping one log.`;
 ---
 
@@ -98,6 +97,6 @@ const caption = leader
     </div>
   </div>
   <figcaption class="orbit-caption" id="orbit-caption">
-    {caption} <a href={href}>Break it in the Raft Lab</a>
+    {caption} <a href={href}>Try to break it in the Raft Lab</a>
   </figcaption>
 </figure>
