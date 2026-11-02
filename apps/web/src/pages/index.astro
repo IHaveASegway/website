@@ -23,7 +23,7 @@ import {
   loadWritingArea,
 } from '../lib/content';
 import { figure } from '../lib/home';
-import { countTests, readCommitDays, readDecisions } from '../lib/home-sources';
+import { countTests, readDecisions } from '../lib/home-sources';
 import { homeGraph, serialize } from '../lib/jsonld';
 import { labPath } from '../lib/lab';
 import { labFact } from '../lib/lab-facts';
@@ -90,8 +90,8 @@ const kinds = KINDS.flatMap(({ words, slug }) => {
 const lineOf = new Map(lab.entries.map((entry) => [labPath(entry), entry.slug]));
 
 // The essay the bio's last thing he builds points to, linked where this build lists it.
-const essay = area.published.find((post) => post.slug === 'the-road-closed');
-const reads = essay ? [{ name: 'essay on the road that closed', href: postPath(essay) }] : [];
+const essay = area.published.find((post) => post.slug === 'you-will-be-missed');
+const reads = essay ? [{ name: 'essay', href: postPath(essay) }] : [];
 
 // What I build: each of the bio's five, with the lab its words name and that lab's fact (lib/lab-facts.ts,
 // the sentences the Lab index's cards read too).
@@ -142,15 +142,13 @@ const SEEDS: Record<string, number> = {
   cache: CACHE_SEEDS,
   backfill: BACKFILL_SEEDS,
 };
-const commits = readCommitDays().length;
 const decisions = readDecisions().length;
 const tests = countTests();
 const seeded = lab.entries.reduce((n, entry) => n + (SEEDS[entry.slug] ?? 0), 0);
 const record = [
-  commits > 0 ? `${figure(commits)} commits` : '',
-  decisions > 0 ? `${figure(decisions)} decision records` : '',
+  decisions > 0 ? `${figure(decisions)} written decisions` : '',
   tests > 0 ? `${figure(tests)} tests` : '',
-  seeded > 0 ? `${figure(seeded)} seeded runs on every pull request` : '',
+  seeded > 0 ? `${figure(seeded)} simulated runs on every pull request` : '',
 ].filter(Boolean);
 const recordLine =
   record.length > 1 ? `${record.slice(0, -1).join(', ')} and ${record.at(-1)}` : (record[0] ?? '');
@@ -191,7 +189,7 @@ const latest = writingRow(area.published, work);
       ))}
       <div class="hero-actions">
         <a class="btn btn-primary btn-email" href={`mailto:${CONTACT_EMAIL}`}>
-          Email {CONTACT_EMAIL}
+          Email me
         </a>
         {external.map((p) => (
           <a class="btn" href={p.url} rel="me">
@@ -200,9 +198,7 @@ const latest = writingRow(area.published, work);
         ))}
       </div>
     </div>
-    {servers && raft && raftEntry && (
-      <Orbit servers={servers} term={leader?.term ?? 0} href={labPath(raftEntry)} />
-    )}
+    {servers && raft && raftEntry && <Orbit servers={servers} href={labPath(raftEntry)} />}
   </section>
 
   {builds.length > 0 && (
@@ -221,7 +217,7 @@ const latest = writingRow(area.published, work);
             </p>
             {where?.fact && (
               <div class="build-evidence">
-                <p class="build-lab">{where.name}</p>
+                <p class="build-lab">Simulated in the {where.name}</p>
                 <p class="build-fact">{where.fact}</p>
               </div>
             )}
@@ -230,7 +226,7 @@ const latest = writingRow(area.published, work);
       </ul>
       {lab.visible && (
         <p class="build-more">
-          <a href="/lab/">All {inWords(lab.entries.length)} labs</a>
+          <a href="/lab/">Try all {inWords(lab.entries.length)} labs</a>
         </p>
       )}
     </section>
@@ -285,7 +281,7 @@ const latest = writingRow(area.published, work);
           </li>
         ))}
       </ul>
-      {recordLine && <p class="record">The repository's record so far: {recordLine}.</p>}
+      {recordLine && <p class="record">This site so far: {recordLine}.</p>}
     </section>
   )}
 

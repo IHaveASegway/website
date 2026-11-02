@@ -1,6 +1,4 @@
 ---
-import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import PostList from '../../components/PostList.astro';
 import WorkCard from '../../components/WorkCard.astro';
 import Base from '../../layouts/Base.astro';
@@ -16,23 +14,21 @@ import { profilePageGraph, serialize } from '../../lib/jsonld';
 import { labPath } from '../../lib/lab';
 import { labelOf, navAll } from '../../lib/nav';
 import { aboutCard } from '../../lib/og';
-import { areaRoutes, isoDay, shortDay, SECTION_LABELS } from '../../lib/posts';
+import { areaRoutes, SECTION_LABELS } from '../../lib/posts';
 import { checkedProfiles, locationLine } from '../../lib/profile';
 import { addressText, evidencePages, roleYears, shownSkills } from '../../lib/resume';
 import { CONTACT_EMAIL, ORIGIN } from '../../lib/site';
-import { recordDays, timeline } from '../../lib/timeline';
 import { writingRow } from '../../lib/work';
 import '../../styles/about.css';
 
-// /about/ (docs/design/overhaul.md, "/about/"; ADR 0027): who Joseph is, then his résumé, on one
-// page since 2026-10-28, when it took /resume/'s place (public/_redirects). After brittanychiang's
-// two columns from 64rem: on the left, held in view, the name, the role, the way round the page,
-// the addresses and Print; on the right, scrolling, the bio as named blocks after syntaqx's
-// Currently, Previously and Otherwise, a brief timeline after taniarascia's, then the résumé.
+// /about/ (ADR 0029): who Joseph is, what he has worked with and how to reach him, one column on
+// every screen, since 2026-10-28 in /resume/'s place (public/_redirects). The head is the name, the
+// role and the addresses; then the bio, his background and his skills. On screen the labs and the
+// writing stay on Home and their indexes, and on paper they print, since a sheet has no links.
 //
-// The bio is src/content/about.md, his words, laid out here and never changed: its opening under
-// "Now", then each of its sections under its own heading, and the labs it names linked where they
-// stand, as Home links them. Everything after it is generated from profile.json and from what this
+// The bio is src/content/about.md, his words, laid out here and never changed: its opening, then
+// each of its sections under its own heading, and the labs it names linked where they stand, as
+// Home links them. Everything after it is generated from profile.json and from what this
 // build already renders; nothing is copied from a résumé file, which names the employer and is
 // never committed. A section renders only when its source exists (lib/resume.ts): the bio where its
 // entry is (the fixture builds hold none), the roles once Joseph adds them (Q8), a skill once every
@@ -56,23 +52,6 @@ const names = LAB_NAMES.flatMap(({ slug, name: words }) => {
   const entry = demo.get(slug);
   return entry ? [{ name: words, href: labPath(entry) }] : [];
 });
-// The timeline (lib/timeline.ts): the posts on their days and each lab on its decision record's,
-// read from the records' own status lines in docs/adr/. Astro's root is apps/web (node-solver.ts).
-const records = join(process.cwd(), '../../docs/adr');
-const days = recordDays(
-  readdirSync(records)
-    .filter((file) => /^\d{4}-.+\.md$/.test(file))
-    .map((file) => ({ name: file, text: readFileSync(join(records, file), 'utf8') })),
-);
-const shipped = timeline(
-  area.published,
-  lab.entries.map((entry) => ({
-    title: entry.title,
-    href: labPath(entry),
-    decisions: entry.decisions,
-  })),
-  days,
-);
 const profiles = checkedProfiles(profile);
 const linkedIn = profiles.find((p) => p.network === 'LinkedIn');
 // The pages a skill may name: Selected work's, the listed posts, and the other pages this build
@@ -86,20 +65,11 @@ const title = labelOf('about');
 // The address may break after its "@" when a larger text size leaves it no room on one line, as
 // the footer's does, and inside a part only when that part alone is wider than the screen.
 const [mailbox, domain] = CONTACT_EMAIL.split('@');
-// The way round the page, on the left from 64rem: each section this build writes, by its name.
-const toc = [
-  ...(bio ? [{ id: 'now', label: 'About' }] : []),
-  ...(shipped.length > 0 ? [{ id: 'timeline', label: 'Timeline' }] : []),
-  { id: 'experience', label: 'Experience' },
-  ...(skills.length > 0 ? [{ id: 'skills', label: 'Skills' }] : []),
-  ...(cards.length > 0 ? [{ id: 'work', label: 'Selected work' }] : []),
-  ...(latest.length > 0 ? [{ id: 'writing', label: 'Writing' }] : []),
-];
 ---
 
 <Base
   title={`${title} · ${name}`}
-  description={`Who ${name} is, how he works, and his résumé. ${label}. ${locationLine(profile)}.`}
+  description={`${name}, senior software engineer: what he builds, how he works and his skills. ${locationLine(profile)}.`}
   path={ABOUT_PATH}
   og={aboutCard(profile, title)}
   jsonLd={serialize(profilePageGraph(profile, ABOUT_PATH))}
@@ -114,15 +84,6 @@ const toc = [
         <p class="about-role">{label}</p>
         <p class="about-where">{locationLine(profile)}</p>
       </div>
-      <nav class="about-toc" aria-label="On this page">
-        <ul role="list">
-          {toc.map((entry) => (
-            <li>
-              <a href={`#${entry.id}`}>{entry.label}</a>
-            </li>
-          ))}
-        </ul>
-      </nav>
       <dl class="kv resume-contact">
         <dt>Email</dt>
         <dd>
@@ -156,7 +117,6 @@ const toc = [
         <section class="bio" id="now" aria-label="About me">
           {bio.lede.length > 0 && (
             <div class="bio-block bio-now">
-              <h2 class="block-label">Now</h2>
               {bio.lede.map((paragraph) => (
                 <p class="bio-lede">{paragraph}</p>
               ))}
@@ -191,33 +151,6 @@ const toc = [
         </section>
       )}
 
-      {/* The timeline is the web edition's: on paper the roles carry the dates (about.css). */}
-      {shipped.length > 0 && (
-        <section class="about-section screen-only" id="timeline" aria-labelledby="timeline-title">
-          <h2 id="timeline-title" class="block-label">
-            Timeline
-          </h2>
-          <ol class="timeline" role="list">
-            {shipped.map((entry) => (
-              <li class="timeline-day">
-                <p class="timeline-date">
-                  <time datetime={isoDay(entry.day)}>{shortDay(entry.day)}</time>
-                </p>
-                <ul class="timeline-items" role="list">
-                  {entry.items.map((item) => (
-                    <li>
-                      <span class="timeline-kind">{item.kind}</span>
-                      <a href={item.href}>{item.title}</a>
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            ))}
-          </ol>
-          <p class="about-note">A lab is dated by its decision record.</p>
-        </section>
-      )}
-
       {/* The offer of the full résumé is the screen's: on paper the page is the résumé, and a sheet
           that tells its reader to ask for the résumé sends them round in a circle. So the offer
           never prints, and on paper the section holds the roles and where the history is, and is
@@ -228,7 +161,7 @@ const toc = [
         aria-labelledby="experience-title"
       >
         <h2 id="experience-title" class="block-label">
-          Experience
+          Background
         </h2>
         {profile.work.length > 0 && (
           <ol class="roles" role="list">
@@ -241,13 +174,14 @@ const toc = [
           </ol>
         )}
         <div class="resume-notes">
+          {profile.basics.summary && <p>{profile.basics.summary}</p>}
           {linkedIn && (
             <p>
-              Full history on <a href={linkedIn.url}>LinkedIn</a>.
+              My full work history is on <a href={linkedIn.url}>LinkedIn</a>.
             </p>
           )}
           <p class="screen-only">
-            Full résumé on request:{' '}
+            I'll send a résumé if you email me:{' '}
             <span class="resume-email">
               <a href={`mailto:${CONTACT_EMAIL}`}>
                 {mailbox}@<wbr />
@@ -264,6 +198,8 @@ const toc = [
           <h2 id="skills-title" class="block-label">
             Skills
           </h2>
+          {profile.tools && <p class="skills-tools">{profile.tools}</p>}
+          <p class="skills-note">What you can see working here:</p>
           <dl class="skills">
             {skills.map((skill) => (
               <div>
@@ -283,7 +219,7 @@ const toc = [
       )}
 
       {cards.length > 0 && (
-        <section class="about-section" id="work" aria-labelledby="work-title">
+        <section class="about-section print-only" id="work" aria-labelledby="work-title">
           <h2 id="work-title" class="block-label">
             Selected work
           </h2>
@@ -302,7 +238,7 @@ const toc = [
       )}
 
       {latest.length > 0 && (
-        <section class="about-section" id="writing" aria-labelledby="writing-title">
+        <section class="about-section print-only" id="writing" aria-labelledby="writing-title">
           <h2 id="writing-title" class="block-label">
             Writing
           </h2>

@@ -186,7 +186,7 @@ describe('the Raft line', () => {
 
   test("the board's fix: crash the leader, and another leads the next term with every entry kept", () => {
     expect(raftFailover(openingRun(), crashedAt(RAFT.until, 0))).toBe(
-      'Crash server 1, and server 5 leads term 2 after 221 ms, with all three committed entries kept.',
+      'Crash server 1, and server 5 takes over in term 2 after 221 ms, with all three committed entries kept.',
     );
   });
 
@@ -233,7 +233,7 @@ describe('the Queue line', () => {
   test("the index's fact: the same crash with the idempotency key prints order 18 once", () => {
     const keyed = replayQueue({ ...QUEUE.config, key: true }, QUEUE.actions, QUEUE.until);
     expect(queueFact(keyed)).toBe(
-      'With an idempotency key, worker 2’s crash prints order 18 once: 25 orders done in 4 s, none lost or printed twice.',
+      'With an idempotency key, worker 2 crashes and order 18 still prints once. 25 orders done in 4 s, none lost or printed twice.',
     );
     // The opening itself printed order 18 twice, so it cannot be the fact.
     expect(() => queueFact(queueOpening())).toThrow(/doubled/);
@@ -268,7 +268,7 @@ describe('the Cache line', () => {
   test("the index's fact: coalescing has the database fetch the menu once instead of 23 times", () => {
     const coalesced = replayCache({ ...CACHE.config, coalesce: true }, CACHE.actions, CACHE.until);
     expect(cacheFact(cacheOpening(), coalesced)).toBe(
-      'When the menu expires at 3.0 s, coalescing has the database fetch it once instead of 23 times.',
+      'When the menu expires at 3.0 s, coalescing means the database fetches it once instead of 23 times.',
     );
     // With no herd at an expiry there is nothing to compare.
     expect(() => cacheFact(coalesced, coalesced)).toThrow(/herd/);
@@ -346,7 +346,7 @@ describe('the Backfill line', () => {
   test("the index's fact: loads that overwrite their day count the week once", () => {
     const appended = backfillOpening();
     expect(backfillFact(appended, backfillOpening('overwrite'))).toBe(
-      'Loads that overwrite their day: the week’s report counts 2,012 orders, as the source does, instead of 2,108.',
+      'When each load overwrites its day, the week’s report counts 2,012 orders, matching the source, instead of 2,108.',
     );
     // The appended week does not match its source, so it cannot be the fact.
     expect(() => backfillFact(appended, appended)).toThrow(/match/);

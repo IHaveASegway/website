@@ -100,3 +100,10 @@ export function declaredFonts(html: string): string[] {
 /** The theme script exactly as Base.astro inlines it; the build hashes it with the rest of a page's
  *  inline code into the page policy (src/lib/csp.mjs). */
 export const THEME_SCRIPT: string = themeSource;
+
+/** The files of one family's @font-face rules in a page's styles. */
+export function familyFonts(html: string, family: string): string[] {
+  return [...html.matchAll(/@font-face\{([^}]*)\}/g)]
+    .filter(([, rule = '']) => rule.includes(`font-family:"${family}-`))
+    .flatMap(([, rule = '']) => [...rule.matchAll(/url\("([^"]+)"\)/g)].map(([, src = '']) => src));
+}

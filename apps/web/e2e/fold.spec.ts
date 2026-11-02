@@ -40,23 +40,19 @@ async function measure(page: Page, fonts: Fonts) {
   expect(faces.map(([face]) => face).sort(), 'each web face once').toEqual([
     'Archivo 400',
     'Archivo 600',
-    'Archivo Display 800',
+    'Archivo Display 600',
     'Archivo Label 600',
     'Archivo Wide 500',
   ]);
   const web = Object.fromEntries(faces);
-  // The four faces every first screen draws arrived, or every one failed: never a mix that would
+  // The three faces every first screen draws arrived, or every one failed: never a mix that would
   // measure something else. Archivo's SemiBold draws <strong> only, so it loads or fails with them,
   // or, on a Home that sets none, is never fetched ("unloaded").
   const status = fonts === 'loaded' ? 'loaded' : 'error';
-  for (const face of [
-    'Archivo 400',
-    'Archivo Display 800',
-    'Archivo Label 600',
-    'Archivo Wide 500',
-  ])
+  for (const face of ['Archivo 400', 'Archivo Display 600', 'Archivo Wide 500'])
     expect(web[face], face).toBe(status);
   expect([status, 'unloaded']).toContain(web['Archivo 600']);
+  expect([status, 'unloaded']).toContain(web['Archivo Label 600']);
   return page.evaluate(() => {
     const rows = [...document.querySelectorAll<HTMLElement>('[data-row]')];
     const box = (selector: string) => document.querySelector(selector)?.getBoundingClientRect();

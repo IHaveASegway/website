@@ -197,7 +197,7 @@ for (const { width, height } of [
   { width: 1440, height: 900 },
   { width: 390, height: 844 },
 ]) {
-  test(`at ${width} px What I build marks each lab's row in its own colour`, async ({ page }) => {
+  test(`at ${width} px What I build marks each lab's row in the one accent`, async ({ page }) => {
     const demos = pages().filter((path) => /^\/lab\/[^/]+\/$/.test(path));
     test.skip(demos.length === 0, 'this build has no demo');
     await page.setViewportSize({ width, height });
@@ -212,7 +212,8 @@ for (const { width, height } of [
         return lead ? getComputedStyle(lead, '::before').backgroundColor : '';
       }),
     );
-    expect(new Set(colours).size).toBe(colours.length);
+    // One accent across the chrome (ADR 0029): a lab's own colour stays in the lab's own picture.
+    expect(new Set(colours).size).toBe(1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
   });
 }

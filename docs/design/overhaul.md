@@ -1,5 +1,7 @@
 # The overhaul: the design plan
 
+> Since 2026-11-02, [ADR 0029](../adr/0029-one-voice-one-column-honed-colour.md) overrides this document on type, the reading page, /about/ and colour.
+
 > Home's section here is superseded by [home.md](home.md) ([ADR 0028](../adr/0028-home-is-his-own.md)): it laid Home out as a reference's homepage, composition and signature included. The palette, the faces, the top bar, the footer and the other pages stand.
 
 Status: the plan for builders, 2026-10-31 · Decision: [ADR 0027](../adr/0027-design-follows-josephs-references.md) (Proposed) · Foundation on `feat/overhaul`

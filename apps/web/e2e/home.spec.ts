@@ -43,7 +43,7 @@ test.describe("Home's opening", () => {
       const lines = await name.evaluate((h) =>
         Math.round(h.getBoundingClientRect().height / parseFloat(getComputedStyle(h).lineHeight)),
       );
-      expect(lines, 'lines of the name').toBe(width === 390 ? 1 : lines);
+      expect(lines, 'lines of the name').toBe(2);
       expect(lines).toBeLessThanOrEqual(2);
       await expect(page.locator('.hero-actions .btn-email')).toHaveAttribute(
         'href',
@@ -53,7 +53,7 @@ test.describe("Home's opening", () => {
     });
   }
 
-  test("the statement's kinds of system each open their lab, underlined in the lab's colour", async ({
+  test("the statement's kinds of system each open their lab, underlined in the accent", async ({
     page,
   }) => {
     await page.goto('/');
@@ -64,7 +64,7 @@ test.describe("Home's opening", () => {
       await expect(link).toHaveAttribute('href', `/lab/${line}/`);
       const [underline, colour] = await link.evaluate((a) => {
         const probe = document.createElement('span');
-        probe.style.color = 'var(--line)';
+        probe.style.color = 'var(--primary)';
         a.append(probe);
         const value = getComputedStyle(probe).color;
         probe.remove();
@@ -90,7 +90,7 @@ test.describe("Home's live picture", () => {
     expect(new Set(logs).size, `logs ${logs.join(', ')}`).toBe(1);
     expect(logs[0]).toBeGreaterThan(0);
     await expect(picture(page).locator('figcaption')).toHaveText(
-      /^Five servers keeping one log: server \d leads term \d+, and its heartbeats hold the other four\. Break it in the Raft Lab$/,
+      /^A simulation of five servers keeping the same log\. Server \d is the leader in this picture, and its heartbeats hold the other four\. Try to break it in the Raft Lab$/,
     );
     await expect(picture(page).locator('figcaption a')).toHaveAttribute('href', '/lab/raft/');
   });
@@ -168,7 +168,7 @@ test.describe("Home's live picture", () => {
 // What I build: the bio's five, in its order, each with the lab its words name, that lab's colour
 // and one fact from its build (lib/lab-facts.ts). The labs the bio names are the cards' labs on the
 // Lab index, so each fact here is the one a visitor finds there.
-test("What I build: the bio's five in its order, each lab's row in its colour with its fact", async ({
+test("What I build: the bio's five in its order, each lab's row with its fact", async ({
   page,
 }) => {
   await page.goto('/about/');

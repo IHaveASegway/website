@@ -18,7 +18,7 @@ export const GET: APIRoute = async () => {
   const { name } = (await loadProfile()).basics;
   return rss({
     title: name,
-    description: `Essays and field notes by ${name}.`,
+    description: `Essays by ${name}.`,
     site,
     // @astrojs/rss has a slash option of its own; it follows astro.config.mjs, so the feed's links
     // and GUIDs take the same form as the canonical links and the sitemap (ADR 0005).

@@ -22,17 +22,21 @@ function face(file: string): Set<number> {
 }
 const FACES = {
   display: {
-    name: 'Archivo ExtraCondensed',
+    name: 'Archivo Expanded SemiBold',
     where: 'a title or heading',
-    file: 'archivo-condensed-extrabold.woff2',
+    file: 'archivo-expanded-semibold.woff2',
   },
   wide: {
     name: 'Archivo Expanded',
     where: 'the register',
     file: 'archivo-expanded-medium.woff2',
   },
-  text: { name: 'Archivo', where: 'the text', file: 'archivo-regular.woff2' },
-  bold: { name: 'Archivo SemiBold', where: 'bold text', file: 'archivo-semibold.woff2' },
+  text: { name: 'Reading Serif', where: 'the text', file: 'reading-serif-regular.woff2' },
+  bold: {
+    name: 'Reading Serif SemiBold',
+    where: 'bold text',
+    file: 'reading-serif-semibold.woff2',
+  },
   mono: { name: 'B612 Mono', where: 'code', file: 'b612-mono-regular.woff2' },
 } as const;
 type Face = keyof typeof FACES;
@@ -60,7 +64,7 @@ export function textByFace(page: string): Record<Face, string> {
   // The body closes its own column (layouts/Prose.astro, .long-form-body), then the page goes on to
   // a note's source, More writing, or the article's end.
   const body =
-    /<div class="prose">([\s\S]*?)<\/div><\/div>(?=<ul class="post-links">|<section class="section more-writing"|<\/article>)/.exec(
+    /<div class="prose">([\s\S]*?)<\/div><\/div>(?=<aside class="post-close"|<ul class="post-links">|<section class="section more-writing"|<\/article>)/.exec(
       page,
     )?.[1];
   const lost = [
@@ -128,18 +132,18 @@ test('known answers: a missing character is named with its code point and its fa
     [],
   );
   expect(glyphProblems(page('<p>p99 ≤ 2 s</p>'))).toEqual([
-    '"≤" (U+2264) in the text: not in Archivo',
+    '"≤" (U+2264) in the text: not in Reading Serif',
   ]);
   // The cut keeps only the up and down arrows: no sideways arrow in any width, so the design
   // writes words instead; "↓" is drawn.
   expect(glyphProblems(page('<p>See below ↓, next →</p>', 'Up ↗', 'Next →'))).toEqual([
-    '"↗" (U+2197) in a title or heading: not in Archivo ExtraCondensed',
+    '"↗" (U+2197) in a title or heading: not in Archivo Expanded SemiBold',
     '"→" (U+2192) in the register: not in Archivo Expanded',
-    '"→" (U+2192) in the text: not in Archivo',
+    '"→" (U+2192) in the text: not in Reading Serif',
   ]);
   expect(glyphProblems(page('<h2>Then ← back</h2><p><b>Bold ←</b></p>'))).toEqual([
-    '"←" (U+2190) in a title or heading: not in Archivo ExtraCondensed',
-    '"←" (U+2190) in bold text: not in Archivo SemiBold',
+    '"←" (U+2190) in a title or heading: not in Archivo Expanded SemiBold',
+    '"←" (U+2190) in bold text: not in Reading Serif SemiBold',
   ]);
   expect(glyphProblems(page('<pre><code>├── src</code></pre>'))).toEqual([
     '"├" (U+251C) in code: not in B612 Mono',

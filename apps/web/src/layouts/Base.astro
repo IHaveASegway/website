@@ -37,6 +37,12 @@ interface Props {
   /** The page draws code, so it declares B612 Mono, the face code is set in: a post with a code
    *  span or block (Prose.astro). No other page does. */
   code?: boolean;
+  /** The page holds a lab's instruments, which are set in the label face (ADR 0029). */
+  instruments?: boolean;
+  /** The page holds a long read, so it declares and preloads Reading Serif (ADR 0029). */
+  reading?: boolean;
+  /** An article's day, for link previews: article:published_time. */
+  published?: string;
 }
 
 const {
@@ -49,6 +55,9 @@ const {
   jsonLd,
   print = false,
   code = false,
+  reading = false,
+  instruments = false,
+  published,
 } = Astro.props;
 const canonical = path === undefined ? undefined : new URL(path, Astro.site).href;
 const image = og && canonical ? new URL('og.png', canonical).href : undefined;
@@ -132,6 +141,10 @@ const chrome = (['dark', 'light'] as const).map((scheme) => ({
         <meta property="og:image:width" content={String(OG_SIZE.width)} />
         <meta property="og:image:height" content={String(OG_SIZE.height)} />
         <meta property="og:image:alt" content={ogAlt(og)} />
+        <meta property="og:site_name" content={profile.basics.name} />
+        {published && <meta property="article:published_time" content={published} />}
+        {published && <meta property="article:author" content={profile.basics.name} />}
+        {published && <meta name="author" content={profile.basics.name} />}
         <meta name="twitter:card" content="summary_large_image" />
       </>
     )}
@@ -149,9 +162,23 @@ const chrome = (['dark', 'light'] as const).map((scheme) => ({
     )}
     <Font cssVariable="--font-archivo-display" preload />
     <Font cssVariable="--font-archivo-wide" preload />
-    <Font cssVariable="--font-archivo-label" preload />
+    {/* The label face draws a lab's instruments, so it is preloaded there; elsewhere it stays
+        declared, so every page shares one style-src, and is fetched only if something draws it. */}
+    {instruments ? (
+      <Font cssVariable="--font-archivo-label" preload />
+    ) : (
+      <Font cssVariable="--font-archivo-label" />
+    )}
     <Font cssVariable="--font-archivo" preload={[{ weight: 400 }]} />
     {code && <Font cssVariable="--font-b612-mono" />}
+    {/* Declared on every page, so every page shares one style-src (src/lib/csp.mjs: a page whose
+        policy differs gets a _headers rule, and a draft's path would show there); fetched only
+        where something draws it, and preloaded only on a long read. */}
+    {reading ? (
+      <Font cssVariable="--font-reading-serif" preload={[{ weight: 400 }]} />
+    ) : (
+      <Font cssVariable="--font-reading-serif" />
+    )}
   </head>
   <body>
     <div class="masthead">

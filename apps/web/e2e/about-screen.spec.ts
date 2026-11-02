@@ -108,44 +108,29 @@ test("the page's sections are named by wide labels in the accent, and the bio's 
   }
 });
 
-// After brittanychiang's (ADR 0027): from 64rem two columns, the head on the left, held in view as
-// the page scrolls, and the body on the right; below it, one column, the head over the body. Every
-// link of the way round the page leads to a section the page holds, and the page never scrolls
-// sideways.
-test('/about/ is two columns from 64rem, the head held in view, and one column on a phone', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('/about/');
-  const wide = await page.evaluate(() => {
-    const head = document.querySelector('.about-head')?.getBoundingClientRect();
-    const body = document.querySelector('.about-body')?.getBoundingClientRect();
-    return { headRight: head?.right ?? 0, bodyLeft: body?.left ?? 0, headTop: head?.top ?? 0 };
-  });
-  expect(wide.headRight).toBeLessThanOrEqual(wide.bodyLeft);
-  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight / 2));
-  const held = await page.locator('.about-name').boundingBox();
-  expect(held?.y ?? -1).toBeGreaterThanOrEqual(0);
-  expect(held?.y ?? 1e6).toBeLessThan(900);
-  const targets = await page
-    .locator('.about-toc a')
-    .evaluateAll((links) =>
-      links.map((a) => document.getElementById((a.getAttribute('href') ?? '').slice(1)) !== null),
-    );
-  expect(targets.length).toBeGreaterThan(2);
-  expect(targets.every(Boolean)).toBe(true);
-
-  for (const width of [320, 390]) {
-    await page.setViewportSize({ width, height: 844 });
+// One column on every screen (ADR 0029): the head over the body, centred from a laptop up, and the
+// page never scrolls sideways.
+test('/about/ is one column on every screen, the head over the body', async ({ page }) => {
+  for (const [width, height] of [
+    [1440, 900],
+    [390, 844],
+    [320, 844],
+  ] as const) {
+    await page.setViewportSize({ width, height });
     await page.goto('/about/');
-    const narrow = await page.evaluate(() => ({
-      head: document.querySelector('.about-head')?.getBoundingClientRect().bottom ?? 0,
-      body: document.querySelector('.about-body')?.getBoundingClientRect().top ?? 0,
-      sideways: document.documentElement.scrollWidth - window.innerWidth,
-      toc: getComputedStyle(document.querySelector('.about-toc') as Element).display,
-    }));
-    expect(narrow.head, String(width)).toBeLessThanOrEqual(narrow.body);
-    expect(narrow.sideways, String(width)).toBeLessThanOrEqual(0);
-    expect(narrow.toc).toBe('none');
+    const at = await page.evaluate(() => {
+      const head = document.querySelector('.about-head')?.getBoundingClientRect();
+      const body = document.querySelector('.about-body')?.getBoundingClientRect();
+      return {
+        headBottom: head?.bottom ?? 0,
+        bodyTop: body?.top ?? 0,
+        headLeft: head?.left ?? 0,
+        bodyLeft: body?.left ?? 0,
+        sideways: document.documentElement.scrollWidth - window.innerWidth,
+      };
+    });
+    expect(at.headBottom, String(width)).toBeLessThanOrEqual(at.bodyTop);
+    expect(Math.abs(at.headLeft - at.bodyLeft), String(width)).toBeLessThanOrEqual(1);
+    expect(at.sideways, String(width)).toBeLessThanOrEqual(0);
   }
 });

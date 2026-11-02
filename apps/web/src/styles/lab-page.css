@@ -12,6 +12,18 @@
   display: none;
 }
 
+/* A control on a lab's desk keeps the compact label face and the 44 px height the instruments were
+   laid out for (ADR 0029): only the chrome's buttons moved to the signage face. */
+.desk .btn {
+  min-height: 2.75rem;
+  padding: 0.375rem 1rem;
+  font-family: var(--font-label);
+}
+
+.desk .label {
+  font-family: var(--font-label);
+}
+
 @media (width >= 48rem) {
   .lab-head {
     grid-template-columns: minmax(0, 1fr) clamp(13rem, 24vw, 20rem);
@@ -47,6 +59,18 @@
   background-color: var(--surface-1);
 }
 
+/* A control on a lab's desk keeps the compact label face and the 44 px height the instruments were
+   laid out for (ADR 0029): only the chrome's buttons moved to the signage face. */
+.desk .btn {
+  min-height: 2.75rem;
+  padding: 0.375rem 1rem;
+  font-family: var(--font-label);
+}
+
+.desk .label {
+  font-family: var(--font-label);
+}
+
 @media (width >= 48rem) {
   .desk {
     --desk-side: 1.75rem;
@@ -60,6 +84,18 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   margin-block-start: 3.5rem;
+}
+
+/* A control on a lab's desk keeps the compact label face and the 44 px height the instruments were
+   laid out for (ADR 0029): only the chrome's buttons moved to the signage face. */
+.desk .btn {
+  min-height: 2.75rem;
+  padding: 0.375rem 1rem;
+  font-family: var(--font-label);
+}
+
+.desk .label {
+  font-family: var(--font-label);
 }
 
 @media (width >= 48rem) {

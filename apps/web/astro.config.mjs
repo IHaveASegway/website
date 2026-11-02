@@ -38,10 +38,11 @@ const font = (name, cssVariable, weights) => ({
 // swap: a page fetches them only once it sets <strong> or code, never in that first moment, and
 // every glyph is drawn in a self-hosted face (e2e/glyphs.spec.ts).
 const PRELOADED = new Set([
-  'archivo-condensed-extrabold.woff2',
+  'archivo-expanded-semibold.woff2',
   'archivo-expanded-medium.woff2',
   'archivo-condensed-semibold.woff2',
   'archivo-regular.woff2',
+  'reading-serif-regular.woff2',
 ]);
 
 // Which command Astro is running, fixed into the build as a constant. lib/content.ts includes
@@ -137,11 +138,11 @@ export default defineConfig({
   // Spike S9 (roadmap.md): the Fonts API's local provider serves the files from /_astro/fonts/,
   // writes the preload links Base.astro asks for and emits a <style> with each family's faces,
   // which pagePolicy hashes into style-src (above). So it serves the faces, with Astro's fallbacks
-  // off. Archivo across its width axis, one width per role, and B612 Mono for code
-  // (docs/design/overhaul.md, "Type"; ADR 0027), each a static instance, so no face has an axis.
+  // off. Archivo across its width axis, one width per role, B612 Mono for code, and Reading Serif, an
+  // instance of Source Serif 4, for long reads (ADR 0029), each a static instance, so no face has an axis.
   fonts: [
     font('Archivo Display', '--font-archivo-display', {
-      800: 'archivo-condensed-extrabold.woff2',
+      600: 'archivo-expanded-semibold.woff2',
     }),
     font('Archivo Wide', '--font-archivo-wide', { 500: 'archivo-expanded-medium.woff2' }),
     font('Archivo Label', '--font-archivo-label', { 600: 'archivo-condensed-semibold.woff2' }),
@@ -150,6 +151,10 @@ export default defineConfig({
       600: 'archivo-semibold.woff2',
     }),
     font('B612 Mono', '--font-b612-mono', { 400: 'b612-mono-regular.woff2' }),
+    font('Reading Serif', '--font-reading-serif', {
+      400: 'reading-serif-regular.woff2',
+      600: 'reading-serif-semibold.woff2',
+    }),
   ],
   // No code blocks yet. Shiki's default highlighting writes inline styles the policy would refuse;
   // Expressive Code arrives with the first post that needs it (stack.md).

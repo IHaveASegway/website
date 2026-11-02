@@ -97,12 +97,16 @@ def cut(font: TTFont, points: list[int], flavor, out: Path):
 
 # The faces the site serves (docs/design/overhaul.md, "Type"; ADR 0027): one family, Archivo by
 # Omnibus-Type, in three widths, each a static instance cut here from google/fonts' variable font,
-# so no served face has an axis. (file name, family name the font records, PostScript name, axes,
-# CSS weight.) B612 Mono is google/fonts' own static instance, cut as it comes.
+# so no served face has an axis (ADR 0029 moved the display face from ExtraCondensed to Expanded).
+# (file name, family name the font records, PostScript name, axes, CSS weight.) B612 Mono is
+# google/fonts' own static instance, cut as it comes. Long reads are set in two static instances of
+# Source Serif 4 at its text optical size (ADR 0029), named Reading Serif: the upstream's name table
+# reserves "Source" under the OFL, and an instanced subset is a modified version, so it goes by a
+# name of its own. Its copyright notice and license stay.
 ARCHIVO = [
-    # The name, page titles and figures: the narrowest width at ExtraBold.
-    ("archivo-condensed-extrabold", "Archivo ExtraCondensed ExtraBold",
-     "Archivo-ExtraCondensedExtraBold", {"wdth": 62, "wght": 800}, 800),
+    # The name, every title and heading, and the figures: the widest width at SemiBold.
+    ("archivo-expanded-semibold", "Archivo Expanded SemiBold", "Archivo-ExpandedSemiBold",
+     {"wdth": 125, "wght": 600}, 600),
     # Controls, buttons and the labels inside drawings, where room is short: Condensed SemiBold,
     # as narrow on the labs' own words as the face it replaced.
     ("archivo-condensed-semibold", "Archivo Condensed SemiBold", "Archivo-CondensedSemiBold",
@@ -115,10 +119,14 @@ ARCHIVO = [
     ("archivo-semibold", "Archivo SemiBold", "Archivo-SemiBold", {"wdth": 100, "wght": 600}, 600),
 ]
 MONO = ("b612-mono-ttf", "b612-mono-regular", 400)
+SERIF = [
+    ("reading-serif-regular", "Reading Serif", "ReadingSerif-Regular", {"opsz": 14, "wght": 400}, 400),
+    ("reading-serif-semibold", "Reading Serif SemiBold", "ReadingSerif-SemiBold", {"opsz": 14, "wght": 600}, 600),
+]
 
-# The Open Graph card draws its title in the condensed face and its label in the expanded one
+# The Open Graph card draws its title in the display face and its label in the signage face
 # (lib/og.ts). Satori reads TrueType, not WOFF2, so these two are cut again as .ttf.
-OG_FACES = ["archivo-condensed-extrabold", "archivo-expanded-medium"]
+OG_FACES = ["archivo-expanded-semibold", "archivo-expanded-medium"]
 
 
 def archivo(files: dict[str, Path], file: str) -> TTFont:
@@ -147,6 +155,28 @@ def archivo(files: dict[str, Path], file: str) -> TTFont:
     return font
 
 
+def serif(files: dict[str, Path], file: str) -> TTFont:
+    """One of the reading instances, named as itself, as archivo() does."""
+    _, family, postscript, axes, _ = next(face for face in SERIF if face[0] == file)
+    font = instance(files["source-serif-4-ttf"], axes)
+    version = font["name"].getDebugName(5) or ""
+    number = version.removeprefix("Version ").split(";")[0]
+    for name_id, value in {
+        1: family,
+        2: "Regular",
+        3: f"{number};READ;{postscript}",
+        4: "Reading Serif Regular" if family == "Reading Serif" else family,
+        6: postscript,
+    }.items():
+        font["name"].setName(value, name_id, 3, 1, 0x409)
+        font["name"].removeNames(nameID=name_id, platformID=1)
+    for name_id in (16, 17, 25):
+        font["name"].removeNames(nameID=name_id)
+    if "STAT" in font:
+        del font["STAT"]
+    return font
+
+
 # Fallback faces --------------------------------------------------------------------------------
 #
 # While a web font loads, or when it never arrives, the browser draws the text in a local font.
@@ -154,7 +184,7 @@ def archivo(files: dict[str, Path], file: str) -> TTFont:
 # widths, so a line breaks in the same place in both and nothing moves when the web font swaps in
 # (CLS). Each fallback family declares the weights its web family has, no more, so a weight the
 # design never sets resolves to the same face in both. One shared size-adjust cannot fit them all: DejaVu Sans is about 15% wider than Arial, and
-# 20% in bold. The condensed face sets the name, the LCP element on Home, so its fallbacks fit the
+# 20% in bold. The display face sets the name, the LCP element on Home, so its fallbacks fit the
 # name itself; the others fit English text.
 
 
@@ -228,7 +258,7 @@ def locals_for(files: dict[str, Path]):
 
 
 def fallback_css(files: dict[str, Path], name: str) -> str:
-    condensed = archivo(files, "archivo-condensed-extrabold")
+    display = archivo(files, "archivo-expanded-semibold")
     expanded = archivo(files, "archivo-expanded-medium")
     label = archivo(files, "archivo-condensed-semibold")
     regular = archivo(files, "archivo-regular")
@@ -242,13 +272,13 @@ def fallback_css(files: dict[str, Path], name: str) -> str:
     stacks: dict[str, list[str]] = {"display": [], "wide": [], "label": [], "sans": []}
     faces = []
     for suffix, regular_names, bold_names, local_regular, local_bold in locals_:
-        # The name and the titles: Archivo ExtraCondensed ExtraBold, against the bold local face,
-        # fitted to the name's own widths, set in capitals as Home sets it.
+        # The name and the titles: Archivo Expanded SemiBold, against the bold local face, fitted
+        # to the name's own widths, as Home sets it.
         family = f"Archivo Display Fallback {suffix}"
         stacks["display"].append(family)
         faces.append(face(family, bold_names,
-                          advance(condensed, name.upper()) / advance(local_bold, name.upper()),
-                          condensed, 800))
+                          advance(display, name) / advance(local_bold, name),
+                          display, 600))
         # Signage, the navigation, block names and dates: Archivo Expanded Medium.
         family = f"Archivo Wide Fallback {suffix}"
         stacks["wide"].append(family)
@@ -277,16 +307,18 @@ def fallback_css(files: dict[str, Path], name: str) -> str:
         return ", ".join(f"'{family}'" for family in families) + f", {generic}"
 
     header = f"""/*
-  Written by scripts/fonts/build.sh: do not edit. Metric-matched fallback faces for the six web
-  faces, one family per web face and local font, each with size-adjust fitted to the web face's
+  Written by scripts/fonts/build.sh: do not edit. Metric-matched fallback faces for the web faces,
+  one family per web face and local font, each with size-adjust fitted to the web face's
   widths, so text breaks in the same place before and after the web font arrives.
 
   - Arial: Arial (Apple, Windows), Liberation Sans and Arimo (Linux), which share its widths.
     Measured from Arimo. Roboto: Android. DejaVu Sans: Linux without Liberation.
   - Menlo and DejaVu Sans Mono share one width, and so do Courier New, Liberation Mono and Cousine.
   - Archivo's wide, label and reading faces and B612 Mono are fitted to English letter
-    frequencies. Archivo ExtraCondensed is fitted to "{name}", from profile.json, in capitals: the
-    name is Home's largest text.
+    frequencies. Archivo Expanded SemiBold is fitted to "{name}", from profile.json: the name is
+    Home's largest text.
+  - Reading Serif has no fitted fallback: its 400 is font-display: optional, so nothing swaps, and
+    a reader who gets the fallback reads the whole page in a system serif.
   - The stacks below are the one list of fallbacks: tokens.css puts the web faces in front.
 */
 
@@ -296,6 +328,7 @@ def fallback_css(files: dict[str, Path], name: str) -> str:
   --font-label-fallbacks: {stack(stacks["label"], "sans-serif")};
   --font-sans-fallbacks: {stack(stacks["sans"], "sans-serif")};
   --font-mono-fallbacks: {stack(mono_families, "monospace")};
+  --font-reading-fallbacks: Georgia, 'Noto Serif', 'DejaVu Serif', serif;
 }}
 """
     return header + "\n" + "\n\n".join(faces) + "\n"
@@ -325,14 +358,19 @@ def outputs(files: dict[str, Path], name: str) -> list[tuple[str, object]]:
     def archivo_og(file: str):
         return lambda out: cut(archivo(files, file), unicodes(LATIN), None, out)
 
+    def serif_web(file: str):
+        return lambda out: cut(serif(files, file), unicodes(LATIN), "woff2", out)
+
     key, mono_file, _ = MONO
     return [
         *[(f"src/assets/fonts/{file}.woff2", archivo_web(file)) for file, *_ in ARCHIVO],
         (f"src/assets/fonts/{mono_file}.woff2", web(key)),
+        *[(f"src/assets/fonts/{file}.woff2", serif_web(file)) for file, *_ in SERIF],
         *[(f"src/og/fonts/{file}.ttf", archivo_og(file)) for file in OG_FACES],
         ("src/styles/font-fallbacks.css", lambda out: out.write_text(fallback_css(files, name), "utf-8")),
         ("public/fonts/OFL-Archivo.txt", license_copy("archivo-ofl", [])),
         ("public/fonts/OFL-B612Mono.txt", license_copy("b612-mono-ofl", [])),
+        ("public/fonts/OFL-SourceSerif4.txt", license_copy("source-serif-4-ofl", [])),
     ]
 
 

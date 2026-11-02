@@ -1,14 +1,16 @@
 /*
-  Written by scripts/fonts/build.sh: do not edit. Metric-matched fallback faces for the six web
-  faces, one family per web face and local font, each with size-adjust fitted to the web face's
+  Written by scripts/fonts/build.sh: do not edit. Metric-matched fallback faces for the web faces,
+  one family per web face and local font, each with size-adjust fitted to the web face's
   widths, so text breaks in the same place before and after the web font arrives.
 
   - Arial: Arial (Apple, Windows), Liberation Sans and Arimo (Linux), which share its widths.
     Measured from Arimo. Roboto: Android. DejaVu Sans: Linux without Liberation.
   - Menlo and DejaVu Sans Mono share one width, and so do Courier New, Liberation Mono and Cousine.
   - Archivo's wide, label and reading faces and B612 Mono are fitted to English letter
-    frequencies. Archivo ExtraCondensed is fitted to "Joseph Peterson", from profile.json, in capitals: the
-    name is Home's largest text.
+    frequencies. Archivo Expanded SemiBold is fitted to "Joseph Peterson", from profile.json: the name is
+    Home's largest text.
+  - Reading Serif has no fitted fallback: its 400 is font-display: optional, so nothing swaps, and
+    a reader who gets the fallback reads the whole page in a system serif.
   - The stacks below are the one list of fallbacks: tokens.css puts the web faces in front.
 */
 
@@ -18,6 +20,7 @@
   --font-label-fallbacks: 'Archivo Label Fallback Arial', 'Archivo Label Fallback Roboto', 'Archivo Label Fallback DejaVu', sans-serif;
   --font-sans-fallbacks: 'Archivo Fallback Arial', 'Archivo Fallback Roboto', 'Archivo Fallback DejaVu', sans-serif;
   --font-mono-fallbacks: 'B612 Mono Fallback Menlo', 'B612 Mono Fallback Courier', monospace;
+  --font-reading-fallbacks: Georgia, 'Noto Serif', 'DejaVu Serif', serif;
 }
 
 @font-face {
@@ -29,10 +32,10 @@
     local('LiberationSans-Bold'),
     local('Arimo Bold'),
     local('Arimo-Bold');
-  font-weight: 800;
-  size-adjust: 69.1851%;
-  ascent-override: 127%;
-  descent-override: 30%;
+  font-weight: 600;
+  size-adjust: 123.838%;
+  ascent-override: 71%;
+  descent-override: 17%;
   line-gap-override: 0%;
 }
 
@@ -105,10 +108,10 @@
   src:
     local('Roboto Bold'),
     local('Roboto-Bold');
-  font-weight: 800;
-  size-adjust: 75.0613%;
-  ascent-override: 117%;
-  descent-override: 28%;
+  font-weight: 600;
+  size-adjust: 131.0316%;
+  ascent-override: 67%;
+  descent-override: 16%;
   line-gap-override: 0%;
 }
 
@@ -167,10 +170,10 @@
   src:
     local('DejaVu Sans Bold'),
     local('DejaVuSans-Bold');
-  font-weight: 800;
-  size-adjust: 64.7975%;
-  ascent-override: 135%;
-  descent-override: 32%;
+  font-weight: 600;
+  size-adjust: 108.9044%;
+  ascent-override: 81%;
+  descent-override: 19%;
   line-gap-override: 0%;
 }
 

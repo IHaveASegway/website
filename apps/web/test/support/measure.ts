@@ -1,6 +1,7 @@
 import { posix } from 'node:path';
 import {
   declaredFonts,
+  familyFonts,
   eagerScripts,
   gzipBytes,
   pageStyles,
@@ -42,7 +43,13 @@ export function measure(page: string) {
   const styles = pageStyles(page);
   const linkedCss = styles.linked.reduce((sum, href) => sum + gzipBytes(bytes(fileFor(href))), 0);
   const scriptFiles = eagerFiles(page).reduce((sum, file) => sum + gzipBytes(bytes(file)), 0);
-  const fonts = declaredFonts(page).reduce((sum, href) => sum + bytes(fileFor(href)).byteLength, 0);
+  // Every page declares the reading face, so that every page shares one policy (Base.astro), but
+  // only a long read fetches it: it counts where the page preloads it.
+  const reading = familyFonts(page, 'Reading Serif');
+  const readsAtLength = preloadedFonts(page).some((href) => reading.includes(href));
+  const fonts = declaredFonts(page)
+    .filter((href) => readsAtLength || !reading.includes(href))
+    .reduce((sum, href) => sum + bytes(fileFor(href)).byteLength, 0);
   return {
     eagerJavaScript: inline.reduce((sum, body) => sum + gzipBytes(body), 0) + scriptFiles,
     css: linkedCss + styles.inline.reduce((sum, body) => sum + gzipBytes(body), 0),

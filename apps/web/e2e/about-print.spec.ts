@@ -81,7 +81,7 @@ test('on paper the site chrome is gone, the name is at a print size, and links s
 // it. The screen offers the full résumé; paper drops the offer, and drops the Experience section
 // too when nothing is left in it to print. Read as the printed
 // text, so whatever hides the line, or fails to, is what the check sees.
-const ASKS = /on request/i;
+const ASKS = /send a résumé/i;
 
 /** The résumé's text as the page lays it out, and its Experience section's and that title's. */
 const onPaper = (page: Page) =>
@@ -247,17 +247,15 @@ test('on paper the bio keeps its opening only, and the Print button and the way 
     bio: [...document.querySelectorAll('.bio :is(p, li, h2)')].map((e) => e.checkVisibility()),
     opening: document.querySelector('.bio-lede')?.checkVisibility() ?? null,
     button: [...document.querySelectorAll('[data-print]')].map((e) => e.checkVisibility()),
-    hidden: ['.about-toc', '#timeline'].map(
-      (s) => document.querySelector(s)?.checkVisibility() ?? false,
-    ),
+    hidden: ['.skills-note'].map((s) => document.querySelector(s)?.checkVisibility() ?? false),
   }));
   if (paper.bio.length > 0) {
-    // The "Now" label is gone too: the opening alone, as a printed résumé opens.
+    // The opening alone, as a printed résumé opens.
     expect(paper.opening).toBe(true);
     expect(paper.bio.filter(Boolean)).toHaveLength(1);
   }
   expect(paper.button).toEqual([false]);
-  expect(paper.hidden).toEqual([false, false]);
+  expect(paper.hidden).toEqual([false]);
 });
 
 // The Print button opens the browser's own print, whose dialog saves a PDF (content.md, "Résumé"):

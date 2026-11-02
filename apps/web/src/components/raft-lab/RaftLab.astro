@@ -182,11 +182,11 @@ const SPEEDS = [
       ))}
     </ol>
     <p class="rf-legend">
-      Each lamp is one entry, with its term under it, as its node knows it. A filled lamp is
-      committed: a majority holds it, and it can never be lost. A hollow lamp is one its node has
-      not heard is committed yet. A crash keeps a node's log but not what it knew was committed,
-      which Raft holds only in memory, so a node that is down shows its whole log hollow until the
-      leader tells it again.
+      Each dot is one entry, with its term under it, as its node knows it. A filled dot is
+      committed: a majority holds it, and it can never be lost. A hollow dot is one its node has not
+      heard is committed yet. A crash keeps a node's log but not what it knew was committed, which
+      Raft holds only in memory, so a node that is down shows its whole log hollow until the leader
+      tells it again.
     </p>
     <p class="rf-status" data-rf-status>
       {statusText(sim)}

@@ -33,6 +33,7 @@ Status: Draft for review in PR 1 · 2026-10-22
 | [0026](0026-three-more-labs-simulated-in-the-browser.md) | The Queue, Cache and Backfill Labs are deterministic simulations in the browser, on one shared kernel | Proposed |
 | [0027](0027-design-follows-josephs-references.md) | The site's design follows Joseph's references: a light technical drawing, a top bar, his system drawn isometrically | Proposed; superseded in part by 0028 |
 | [0028](0028-home-is-his-own.md) | Home is his own: his words as the statement, his Raft cluster live beside them, what he builds with the labs as its evidence | Proposed |
+| [0029](0029-one-voice-one-column-honed-colour.md) | One voice, a reading column, and the colour honed | Proposed |
 
 0013 is reserved for protocol v1 and the recording format, written in PR 6 ([roadmap.md](../roadmap.md#pr-6-lab-platform-and-presence)).
 

@@ -2,6 +2,7 @@
   "basics": {
     "name": "Joseph Peterson",
     "label": "Senior Software Engineer",
+    "summary": "About five years building backend systems and data platforms, and before that I came up through operations.",
     "url": "https://ihaveasegway.com/",
     "location": { "countryCode": "US", "remote": true },
     "profiles": [
@@ -15,6 +16,7 @@
   },
   "work": [],
   "education": [],
+  "tools": "Go, Python, TypeScript and SQL. PostgreSQL, MongoDB, RabbitMQ, LavinMQ and SQS. AWS, Kubernetes on GCP, Terraform and Pulumi. Airflow, dbt and Snowflake.",
   "skills": [
     { "name": "Message brokers: RabbitMQ, LavinMQ, SQS", "evidence": ["/lab/queue/"] },
     { "name": "Caching: look-aside, coalescing, TTLs", "evidence": ["/lab/cache/"] },
@@ -24,7 +26,10 @@
     { "name": "WebAssembly", "evidence": ["/lab/routes/"] },
     { "name": "TypeScript", "evidence": ["/lab/raft/", "/lab/queue/", "/lab/cache/"] },
     { "name": "AWS Lambda and API Gateway", "evidence": ["/writing/trading-bot-teardown/"] },
-    { "name": "Coding agents and their harness", "evidence": ["/writing/the-road-closed/"] }
+    {
+      "name": "Coding agents: specs, permissions, tests",
+      "evidence": ["/writing/you-will-be-missed/"]
+    }
   ],
   "projects": [
     {
@@ -38,5 +43,5 @@
       "url": "https://github.com/IHaveASegway/gitops"
     }
   ],
-  "meta": { "firewall_reviewed": "2026-10-31" }
+  "meta": { "firewall_reviewed": "2026-11-02" }
 }

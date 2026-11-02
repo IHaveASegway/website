@@ -93,6 +93,9 @@ describe("Home's link preview", () => {
 /** The two strings a card drew, read back from og:title ("title · label") and og:image:alt
  *  ("title, label"): the one split where both agree. */
 function cardFrom(ogTitle: string, ogAlt: string): OgCard | null {
+  // A post's card (ADR 0029): og:title is the title alone, and the alt says who wrote it.
+  if (ogAlt.startsWith(`${ogTitle}, by `))
+    return { title: ogTitle, label: ogAlt.slice(ogTitle.length + 5), byline: true };
   for (let at = ogTitle.indexOf(' · '); at >= 0; at = ogTitle.indexOf(' · ', at + 1)) {
     const card = { title: ogTitle.slice(0, at), label: ogTitle.slice(at + 3) };
     if (ogAlt === `${card.title}, ${card.label}`) return card;
@@ -117,7 +120,7 @@ for (const file of previewed) {
     );
     expect(
       card,
-      'og:title and og:image:alt must be "title · label" and "title, label"',
+      'og:title and og:image:alt must be "title · label" and "title, label", or a post\'s "title" and "title, by label"',
     ).not.toBeNull();
     // A demo's card, Home's and the Lab index's also carry a picture, which draws no word
     // (lib/route-lab/og-map.ts, lib/og-lines.ts).
@@ -183,15 +186,16 @@ test('known answers: a card is read back from its two strings, whatever they hol
     label: 'Writing',
   });
   expect(cardFrom('A · B', 'A, C')).toBeNull();
+  expect(cardFrom('A', 'A, by B')).toEqual({ title: 'A', label: 'B', byline: true });
 });
 
 test("a title's size steps down with its length, so the longest title still fits the card", () => {
-  expect(titleSize(homeCard(profile).title)).toBe(150);
-  expect(titleSize('x'.repeat(16))).toBe(150);
-  expect(titleSize('x'.repeat(17))).toBe(104);
-  expect(titleSize('x'.repeat(32))).toBe(104);
-  expect(titleSize('x'.repeat(33))).toBe(80);
-  expect(titleSize('x'.repeat(70))).toBe(80);
+  expect(titleSize(homeCard(profile).title)).toBe(100);
+  expect(titleSize('x'.repeat(16))).toBe(100);
+  expect(titleSize('x'.repeat(17))).toBe(84);
+  expect(titleSize('x'.repeat(40))).toBe(84);
+  expect(titleSize('x'.repeat(41))).toBe(72);
+  expect(titleSize('x'.repeat(70))).toBe(72);
 });
 
 test('pages without a canonical URL (the 404) carry no preview tags', () => {
