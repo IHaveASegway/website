@@ -19,3 +19,4 @@
 /lab/queue/
 /lab/cache/
 /lab/backfill/
+/writing/you-will-be-missed/
