@@ -188,7 +188,9 @@
      reaches the window's edge (Home's stage, the Lab index's lines) takes back. */
   .frame {
     --gutter: 1rem;
-    --frame-pad: 1.125rem;
+    /* 18 px on any phone. A larger default text size doesn't widen it past that, so the words keep
+       the room: at 320 px and 32 px, "Peterson", 252 px wide, would otherwise have 250 px. */
+    --frame-pad: min(1.125rem, 5.625vw);
     width: 100%;
     max-width: 81rem;
     margin-inline: auto;
@@ -830,7 +832,7 @@
     justify-content: center;
     width: 2.75rem;
     height: 2.75rem;
-    margin-inline-end: -0.625rem;
+    margin-inline-end: calc(-1 * min(0.625rem, var(--frame-pad)));
     padding: 0;
     border: 0;
     border-radius: var(--radius-md);
