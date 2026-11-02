@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { clockAnimations, handsOn } from './expected';
 
 // The Cache Lab in a browser: without JavaScript the page is the opening run the build drew, with
 // no control; with it, nothing moves or loads until the visitor shows intent, the simulation takes
@@ -12,6 +13,8 @@ import { expect, test, type Page } from '@playwright/test';
 // redrew it.
 
 const CACHE = '/lab/cache/';
+
+test.beforeEach(({ page }) => handsOn(page));
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 const OPENING =
   '1,500 reads in 5.0 s, 94.3% from the cache. When the menu expired at 3.0 s, the database fetched it 23 times at once and 2 reads timed out.';
@@ -105,7 +108,7 @@ test('nothing loads or moves before intent; Run plays, Pause stops, with no poli
   await page.goto(CACHE);
   await page.waitForTimeout(300);
   expect(app).toEqual([]);
-  expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
+  expect(await clockAnimations(page)).toBe(0);
 
   expect(await seconds(page)).toBe(5);
   // The picture tells a stampede that has happened, so Run plays it from half a second before.
@@ -118,7 +121,7 @@ test('nothing loads or moves before intent; Run plays, Pause stops, with no poli
   const paused = await seconds(page);
   await page.waitForTimeout(400);
   expect(await seconds(page)).toBe(paused);
-  expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
+  expect(await clockAnimations(page)).toBe(0);
   expect(await violations()).toEqual([]);
 });
 
@@ -410,7 +413,7 @@ test('under reduce, Run advances in still steps of half a second of the chosen s
   const slow = await steps(0.12);
   expect(slow.length).toBeGreaterThan(2);
   expect(new Set(slow)).toEqual(new Set([50]));
-  expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
+  expect(await clockAnimations(page)).toBe(0);
 });
 
 test('Next event says where the run stands when the log has nothing to tell, and the clock counts the events', async ({

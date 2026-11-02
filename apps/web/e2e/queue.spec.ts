@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { clockAnimations, handsOn } from './expected';
 import { REPLAY_FROM } from '../src/lib/queue/view';
 
 // The Queue Lab in a browser (ADR 0026, after ADR 0020's pattern): without JavaScript the page is
@@ -13,6 +14,8 @@ import { REPLAY_FROM } from '../src/lib/queue/view';
 // redrew it.
 
 const QUEUE = '/lab/queue/';
+
+test.beforeEach(({ page }) => handsOn(page));
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 const OPENING_STORY =
   'Order 18 was printed twice: worker 2 crashed after printing its ticket and before its ack left, so the broker sent it again and worker 1 printed it a second time. Nothing was lost; 25 orders are done and 13 are queued or with a worker.';
@@ -161,7 +164,7 @@ test('nothing loads or moves before intent; Run plays, Pause stops, with no poli
   await page.goto(QUEUE);
   await page.waitForTimeout(300);
   expect(app).toEqual([]);
-  expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
+  expect(await clockAnimations(page)).toBe(0);
 
   await expect(summary(page)).toHaveText(OPENING_STORY);
   expect(await seconds(page)).toBe(4);
@@ -456,7 +459,7 @@ test('under reduce, Run advances in still steps of half a second, and nothing an
   const moved = Math.round((await seconds(page)) * 1000) - REPLAY_FROM;
   expect(moved).toBeGreaterThan(0);
   expect(moved % 500).toBe(0);
-  expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
+  expect(await clockAnimations(page)).toBe(0);
 });
 
 /** What the page says of the run it shows: its seed, clock, caption, status line and log. */

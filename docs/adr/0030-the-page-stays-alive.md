@@ -1,0 +1,75 @@
+# ADR 0030: The page stays alive as you scroll, and a lab is running when you land
+
+Status: Proposed · 2026-11-02
+
+## Context
+
+Reading the site on his phone, Joseph wrote: "As i scroll down many of the pages, it just turns white with text or back with text, the animations stop and there is no like background, looks unfinished." Then, of the labs: each one's "animated sketch at the very top should probably be running when you first land on the page."
+
+He was right on both, and for one reason. The first screen was the only part of the site that had been designed as a place. ADR 0024 and ADR 0028 put a live picture on Home's opening, and below it the page was a white or black sheet. A lab stood still until a press, because ADR 0020 loads its simulation on intent to keep the first view light. A visitor can't tell a demo that's waiting from a demo that's broken.
+
+## Decision
+
+**The field.** Every page stands on one layer, fixed to the window behind everything:
+
+| Part | What it is | How it moves |
+|---|---|---|
+| The grid | Faint lines, 4 to 6 rem apart | It doesn't. The page scrolls over it, which is the depth. |
+| The patch | The grid lit in the accent, in one soft hole | A veil with a hole in it translates across the window as the page scrolls |
+| The current | Lines of light that run on the grid's lines | Tied to the scroll, and they fade when it stops |
+| The charge | A 2 px line at the window's top | Fills with the scroll |
+| Pulses | The same lines, dimmer | By the clock, on Home only, under the top bar's pause |
+
+The veil is the design's one trick. Moving a mask would repaint the window on every frame. Moving a large layer with a hole in it costs a transform on the compositor.
+
+Current that stayed where the scroll left it stood across the words someone was reading, so it shows only while the page moves (`scripts/field.js`, 16 lines). The field goes quieter behind a long read, by its colours, since an opacity over the whole layer would be composited again on every frame.
+
+**Lines carry current.** One grammar for the page's own marks: a section opens on a line that fills as it comes up the window, a line runs down What I build with its front at one height in the window, and each row's mark lights as it reaches it. Facts' lines carry a signal on Home's clock. Text never moves, per ADR 0025. This reverses ADR 0025's "no rule draws itself": that rule answered motion that ran by itself on arrival, and these are tied to the visitor's own scroll.
+
+**A lab is running when you land.** Once the page has settled, its simulation loads and plays, which reverses ADR 0020's load on intent for arrival only. It holds back under reduced motion and Save-Data, and after a Pause anywhere in the tab, including Home's button. It plays only while the demo is on the screen and the tab is showing. Its live regions say nothing until the visitor's first press, and from that press the demo is theirs. A link to a run still opens paused.
+
+**The Route Lab's vans.** It has no simulation to run, and its solver is 350 KB, so its sketch is its plans: a dot for each van drives the route already drawn, on one clock across both maps, so the better plan is visibly home first. SMIL's `animateMotion` follows the drawn path by reference, so it needs no script and no copy of the route, and it sits on a layer of its own so a moving dot repaints nothing of the map.
+
+## Options
+
+**The background**
+
+| Option | Cost to a phone | Bytes | Gives |
+|---|---|---|---|
+| CSS field, compositor transforms (chosen) | One transform per moving layer | About 3 KB of CSS | Every page, both themes, no script needed |
+| WebGL ground, as ADR 0021 tried | A GPU program running all the time | 140 KB of three.js, or a hand-written shader | Richer light, retired by ADR 0024 for what it cost |
+| A canvas on the main thread | A frame's script per frame, fighting the scroll | Small | Nothing the CSS doesn't, and it lags under a thumb |
+| Art per section, as Linear and Stripe do | Depends on the art | Large, and more with every section | The strongest result, and a design project per page |
+
+**The labs**
+
+| Option | Weight on arrival | Truth |
+|---|---|---|
+| Run the real simulation (chosen) | 8 to 13 KB, after the page has settled | It's the thing itself, so it can't disagree with the page |
+| A CSS loop of the picture, as Home's Orbit does | None | Looks right, and would be a drawing of a demo sitting on top of the demo |
+| Keep load on intent, with a louder Run button | None | Doesn't answer him: a page that needs a press still reads as stopped |
+
+Why not build more of the field by hand: scroll-driven animation is a browser feature now, in Chromium and in Safari 26. Below that, the default styles are the finished state, so an older browser shows the grid and every line lit, with nothing to fix.
+
+## What holds it
+
+- `test/tokens.test.ts`: at the field's brightest point every text token still reaches 4.5:1, since axe can't read a gradient.
+- `e2e/motion.spec.ts`: under reduced motion nothing moves, and with no preference exactly this list does.
+- `e2e/steady.spec.ts`: on an iPhone in WebKit, a lab starting by itself moves nothing under a still thumb.
+- `e2e/landing.spec.ts`: each lab runs with no press, and holds back for reduced motion, Save-Data and a kept Pause.
+
+## Door
+
+Two-way. It's about 300 lines of CSS, one component's markup and a return value on each lab's `start`. Removing the `<div class="field">` and the landing call puts the site back.
+
+## Revisit if
+
+- Joseph's phone shows the scroll stuttering. Safari's scroll timelines may run off the compositor, which no test here can measure. The first thing to cut is the current, then the veil's travel.
+- A reader says the grid gets in the way of reading: raise the calm on long reads, or drop the lit lines behind them.
+- A lab's run costs a visitor something measurable: lab pages' Lighthouse performance falls under its gate, or a phone runs warm.
+
+## Further reading
+
+- Bramus Van Damme, [Scroll-driven Animations](https://scroll-driven-animations.style/), the worked examples behind this.
+- Paul Lewis and Paul Irish, [High Performance Animations](https://web.dev/articles/animations-guide), on why transform and opacity are the cheap ones.
+- W3C, [Understanding SC 2.2.2: Pause, Stop, Hide](https://www.w3.org/WAI/WCAG22/Understanding/pause-stop-hide.html), on what starts by itself.

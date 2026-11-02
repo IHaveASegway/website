@@ -41,9 +41,9 @@ export interface SimulatedLab {
  */
 export const SIMULATED_LABS = [
   { slug: 'raft', bundle: 'RaftLab', map: 'rf-map', lazyJavaScript: 8_000 },
-  { slug: 'queue', bundle: 'QueueLab', map: 'qu-map', lazyJavaScript: 12_500 },
-  { slug: 'cache', bundle: 'CacheLab', map: 'cl-map', lazyJavaScript: 11_500 },
-  { slug: 'backfill', bundle: 'BackfillLab', map: 'bf-board', lazyJavaScript: 12_000 },
+  { slug: 'queue', bundle: 'QueueLab', map: 'qu-map', lazyJavaScript: 13_200 },
+  { slug: 'cache', bundle: 'CacheLab', map: 'cl-map', lazyJavaScript: 12_000 },
+  { slug: 'backfill', bundle: 'BackfillLab', map: 'bf-board', lazyJavaScript: 12_500 },
 ] as const satisfies readonly SimulatedLab[];
 
 type Row = (typeof SIMULATED_LABS)[number];

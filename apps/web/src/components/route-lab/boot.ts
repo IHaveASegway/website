@@ -7,6 +7,8 @@
 // about 350 KB, loads only when VROOM has something to plan (app.ts). A touch that only scrolls
 // the page loads nothing.
 
+import { keepChoice, landsRunning } from '../../lib/lab/arrival';
+
 const UNLOADED =
   'The demo did not load, so the maps still show the day it opened with. Change anything to try again.';
 const LOADING = 'Loading the solver…';
@@ -35,6 +37,36 @@ if (root) {
   // scripting media feature); this only covers a browser too old to know that feature.
   for (const part of root.querySelectorAll('[data-rl-nojs]')) part.setAttribute('hidden', '');
   const status = root.querySelector('[data-rl-status]');
+
+  // The vans drive when a visitor lands (ADR 0030), by the page's own markup: no script runs them,
+  // this only pauses them, on the button, or while the maps are off the screen.
+  const maps = root.querySelector('.rl-maps');
+  const buttons = root.querySelectorAll<HTMLButtonElement>('[data-rl-drive]');
+  let wanted = landsRunning();
+  let shown = true;
+  const drive = () => {
+    for (const layer of root.querySelectorAll<SVGSVGElement>('[data-rl-fleet]')) {
+      if (wanted && shown) layer.unpauseAnimations();
+      else layer.pauseAnimations();
+    }
+    for (const button of buttons) {
+      button.textContent = wanted ? 'Pause' : 'Run';
+      button.setAttribute('aria-label', wanted ? 'Pause the vans' : 'Run the vans');
+      button.dataset['lamp'] = wanted ? 'on' : 'off';
+    }
+  };
+  drive();
+  for (const button of buttons)
+    button.addEventListener('click', () => {
+      wanted = !wanted;
+      keepChoice(!wanted);
+      drive();
+    });
+  if (maps)
+    new IntersectionObserver(([entry]) => {
+      shown = entry?.isIntersecting ?? true;
+      drive();
+    }).observe(maps);
 
   // What the visitor changes before the rest has loaded, in order, so nothing is lost: a control,
   // or the surprise. Which map a phone shows is not a change to the plan.

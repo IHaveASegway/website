@@ -104,7 +104,7 @@ test('a tap on a map orders from that place, and both plans follow by themselves
   page,
 }) => {
   await page.goto(ROUTE_LAB);
-  const map = page.locator('[data-rl-plan="after"] svg');
+  const map = page.locator('[data-rl-plan="after"] svg[data-rl-map]');
   const box = await map.boundingBox();
   const scale = (box?.width ?? 0) / 2000;
   // Discovery Park, place 3, at (143, 786) in the map's units: not on a busy Saturday.
@@ -144,7 +144,7 @@ test('nothing loads until a visitor shows intent, and the solver only once there
   const solver = () => asked.filter((p) => p.startsWith(SOLVER));
   await page.goto(ROUTE_LAB);
   // A finger that only scrolls the page: no app, no data, no solver.
-  const map = page.locator('[data-rl-plan="after"] svg');
+  const map = page.locator('[data-rl-plan="after"] svg[data-rl-map]');
   for (const type of ['pointerover', 'pointerdown', 'pointerup'])
     await map.dispatchEvent(type, { pointerType: 'touch', bubbles: true });
   await page.waitForTimeout(300);
@@ -212,7 +212,7 @@ test('on a phone one map shows at a time, and a tap on VROOM’s map plans it th
   await expect(before).toBeVisible();
   await expect(after).toBeHidden();
   await page.check('input[name="rl-view"][value="after"]');
-  const map = after.locator('svg');
+  const map = after.locator('svg[data-rl-map]');
   const box = await map.boundingBox();
   const scale = (box?.width ?? 0) / 2000;
   await map.click({ position: { x: 143 * scale + 1, y: 786 * scale + 1 } });
@@ -225,7 +225,7 @@ test('on a phone one map shows at a time, and a tap on VROOM’s map plans it th
 
 test('a mouse over a place shows its name, its order and its stop', async ({ page }) => {
   await page.goto(ROUTE_LAB);
-  const map = page.locator('[data-rl-plan="after"] svg');
+  const map = page.locator('[data-rl-plan="after"] svg[data-rl-map]');
   await map.scrollIntoViewIfNeeded();
   const box = await map.boundingBox();
   const scale = (box?.width ?? 0) / 2000;
@@ -254,7 +254,7 @@ test('without JavaScript the page is both plans, worked out at build, and no con
   for (const which of ['before', 'after']) {
     const figure = page.locator(`[data-rl-plan="${which}"]`);
     await expect(figure.locator('.rl-route')).toHaveCount(3);
-    await expect(figure.locator('svg')).toBeVisible();
+    await expect(figure.locator('svg[data-rl-map]')).toBeVisible();
   }
   await expect(page.locator('[data-rl-plan="before"] [data-rl-time]')).toHaveText(
     `5${NBSP}h 34${NBSP}min`,
@@ -303,7 +303,8 @@ for (const colorScheme of ['dark', 'light'] as const) {
 const moving = (page: Page) =>
   page.evaluate(() => {
     const found: string[] = [];
-    for (const element of document.querySelectorAll('*')) {
+    // The demo's own: the field behind the page has its own check (e2e/motion.spec.ts).
+    for (const element of document.querySelectorAll('#route-lab *')) {
       for (const pseudo of [null, '::before', '::after']) {
         const style = getComputedStyle(element, pseudo);
         const moves =

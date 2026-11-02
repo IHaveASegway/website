@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { create } from 'fontkitten';
-import { NOT_FOUND_PAGE, pages } from './expected';
+import { handsOn, NOT_FOUND_PAGE, pages } from './expected';
 import { fallbacksOn } from './fonts-drawn';
 
 // Glyph coverage (design-system.md, "Budgets as CI fitness functions"): every character on every
@@ -19,6 +19,9 @@ async function openWarm(page: Page, path: string): Promise<void> {
   await page.evaluate(() => document.fonts.ready);
   await page.goto(path);
 }
+
+// A lab stands still for these: its run rewrites the nodes they read one by one.
+test.beforeEach(({ page }) => handsOn(page));
 
 for (const path of [...pages(), NOT_FOUND_PAGE]) {
   test(`every glyph on ${path} comes from a self-hosted face`, async ({ page }) => {

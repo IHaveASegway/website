@@ -25,6 +25,12 @@ import {
 /** A van's class suffix: a, b, c, d, read by tokens.css's --map-van-a to --map-van-d. */
 export const vanClass = (van: number): string => vanName(van).toLowerCase();
 
+/** Which of a day's two plans a map draws. */
+export type Which = 'before' | 'after';
+
+/** The id of a van's route on a map, which the van's dot follows. */
+const routeId = (which: Which, van: number): string => `rl-${which}-${vanClass(van)}`;
+
 /** Van A is the Route Lab's own van: its route is drawn in the lab's line colour, on a casing
  *  (route-lab.css, .rl-route-casing), in both themes. */
 export const casedRoute = (van: number): boolean => van === 0;
@@ -47,19 +53,53 @@ export const esc = (text: string): string => text.replace(/[&<>"]/g, (c) => ESCA
  *  each other, and the tables still count every stop. */
 export const NUMBERED = 30;
 
-/** A mark at each point: a zero-length subpath that a line cap draws at any map scale. */
+/** A mark at each point: a subpath too short to see, that a line cap draws at any map scale. Not
+ *  quite zero long: WebKit draws a zero-length subpath's square cap at every angle, a spiked star. */
 const dots = (points: readonly Pick<Point, 'x' | 'y'>[]): string =>
-  points.map((p) => `M${p.x} ${p.y}h0`).join('');
+  points.map((p) => `M${p.x} ${p.y}h.01`).join('');
 
 /** Each van's route on the roads, from the bakery and back, van A's on its casing. A van with no
  *  stops draws nothing. */
-export function routesMarkup(leg: (i: number, j: number) => Line, plan: Plan): string {
+export function routesMarkup(
+  leg: (i: number, j: number) => Line,
+  plan: Plan,
+  which: Which,
+): string {
   return plan.routes
     .map((route, van) => {
       if (route.length === 0) return '';
       const d = pathData(routeLine(leg, [BAKERY, ...route, BAKERY]));
       const casing = casedRoute(van) ? `<path class="rl-route-casing" d="${d}"/>` : '';
-      return `${casing}<path class="rl-route van-${vanClass(van)}" d="${d}"/>`;
+      const id = routeId(which, van);
+      return `${casing}<path class="rl-route van-${vanClass(van)}" id="${id}" d="${d}"/>`;
+    })
+    .join('');
+}
+
+/** How long the vans take to drive their day on a map, in real seconds, and the share of that the
+ *  latest van spends on the road: the rest is the wait before they all set out again. */
+const DRIVE_LOOP = 18;
+const ON_THE_ROAD = 0.86;
+
+/**
+ * The vans on a map (ADR 0030): a dot for each, driving the route already drawn (mpath, so the page
+ * holds each route once), on a clock both maps share, so the plan that saves driving is visibly home
+ * first. Each van gets to the bakery when its day ends, by `longest`, the later of the two plans'
+ * last van back. Declarative, so it needs no script, and CSS shows it only with no reduced-motion
+ * preference and a script to pause it (route-lab.css, boot.ts).
+ */
+export function vansMarkup(plan: Plan, measured: Measured, longest: number, which: Which): string {
+  return plan.routes
+    .map((route, van) => {
+      if (route.length === 0 || longest <= 0) return '';
+      const back = measured.vans[van]?.back ?? 0;
+      const share = ((back / longest) * ON_THE_ROAD).toFixed(3);
+      return (
+        `<g class="van-${vanClass(van)}">` +
+        '<path class="rl-van-casing" d="M0 0h.01"/><path class="rl-van" d="M0 0h.01"/>' +
+        `<animateMotion dur="${DRIVE_LOOP}s" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;${share};1">` +
+        `<mpath href="#${routeId(which, van)}"/></animateMotion></g>`
+      );
     })
     .join('');
 }

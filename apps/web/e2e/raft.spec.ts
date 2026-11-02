@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { clockAnimations, handsOn } from './expected';
 
 // The Raft Lab in a browser (ADR 0020): without JavaScript the page is the opening run the build
 // drew, with no control; with it, nothing moves or loads until the visitor shows intent, the
@@ -8,6 +9,8 @@ import { expect, test, type Page } from '@playwright/test';
 // discrete steps; and the page meets axe after a run, since script redrew it.
 
 const RAFT = '/lab/raft/';
+
+test.beforeEach(({ page }) => handsOn(page));
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 const HELD = /^All five safety properties held over [\d,]+ events\.$/;
 
@@ -58,7 +61,7 @@ test('nothing loads or moves before intent; Run plays, Pause stops, with no poli
   await page.goto(RAFT);
   await page.waitForTimeout(300);
   expect(app).toEqual([]);
-  expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
+  expect(await clockAnimations(page)).toBe(0);
 
   const opening = await seconds(page);
   await page.getByRole('button', { name: 'Run' }).click();
@@ -228,7 +231,7 @@ test('under reduce, Run advances in still steps of half a second of the chosen s
   const quick = await steps();
   expect(quick.length).toBeGreaterThan(1);
   expect(new Set(quick)).toEqual(new Set([50]));
-  expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
+  expect(await clockAnimations(page)).toBe(0);
 });
 
 test('Next event says where the run stands when the log has nothing to tell', async ({ page }) => {

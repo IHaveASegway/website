@@ -1,0 +1,378 @@
+/*
+  The field (ADR 0030): what stands behind every page, so no page is a flat sheet once its first
+  screen has gone. A grid fixed to the window, which the page scrolls over; a patch of it lit, which
+  drifts as the page scrolls; and current running along its lines. It holds nothing to read, takes
+  no pointer and moves only by transform, so it costs the page no layout. Scroll-linked motion
+  answers the visitor's own thumb, and it stops when they do; the current then fades
+  (scripts/field.js), so no line stands across the words someone is reading. Only Home's slow pulses
+  run by the clock, and only while the page is marked (scripts/motion.js), so the top bar's button
+  pauses them (SC 2.2.2). Every colour is a token.
+*/
+
+.field {
+  --cell: clamp(4rem, 6vw, 6rem);
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: -1;
+  /* The large viewport: the layer keeps its size as a phone's toolbars come and go. */
+  block-size: 100lvh;
+  overflow: clip;
+  contain: strict;
+  background-image:
+    linear-gradient(var(--field-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--field-line) 1px, transparent 1px),
+    linear-gradient(var(--field-light), var(--field-light));
+  background-size:
+    var(--cell) var(--cell),
+    var(--cell) var(--cell),
+    auto;
+  pointer-events: none;
+}
+
+/* A long read: the same field, quieter behind its column, by its colours: an opacity over the whole
+   layer would have the phone composite it again on every frame of a scroll. */
+.field[data-calm] {
+  --field-line: var(--field-calm-line);
+  --field-light: var(--field-calm-light);
+  --grid-line: var(--field-calm-grid);
+}
+
+/* The veil hides the lit grid but for one soft hole, and moving the veil moves the light: a transform
+   on one layer, where moving a mask would repaint the window on every frame. */
+.field::before {
+  content: '';
+  position: absolute;
+  inset: -36lvh -36vw;
+  background-image: radial-gradient(
+    circle 52vmax at center,
+    transparent 0%,
+    var(--field-veil-near) 38%,
+    var(--field-veil-far) 70%,
+    var(--background) 100%
+  );
+  translate: 20vw -14lvh;
+}
+
+/* The grid everywhere, over the veil, so the page is never bare outside the patch. */
+.field::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: var(--cell) var(--cell);
+}
+
+/* Current: each runs on a line of the grid, wherever the window puts that line. Out of sight until
+   it moves, so a browser with no scroll timelines shows only the grid and the patch. */
+.field-run,
+.field-pulse {
+  position: absolute;
+  inset-block-start: 0;
+  z-index: 1;
+  inline-size: 1px;
+  block-size: 34lvh;
+  background-image: linear-gradient(to bottom, transparent, var(--primary));
+  translate: 0 -100%;
+}
+
+.field-across {
+  position: absolute;
+  inset-inline-start: 0;
+  z-index: 1;
+  inline-size: 34vw;
+  block-size: 1px;
+  background-image: linear-gradient(to right, transparent, var(--primary));
+  translate: -100% 0;
+}
+
+/* The scroll's current shows while the page moves, and fades as it stops. */
+.field-run,
+.field-across {
+  opacity: 0;
+}
+
+.field[data-moving] > :is(.field-run, .field-across) {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .field-run,
+  .field-across {
+    transition: opacity 0.6s ease-out;
+  }
+
+  .field[data-moving] > :is(.field-run, .field-across) {
+    transition-duration: 0.12s;
+  }
+}
+
+.field-run::after,
+.field-pulse::after,
+.field-across::after {
+  content: '';
+  position: absolute;
+  inline-size: 3px;
+  block-size: 3px;
+  border-radius: 50%;
+  background-color: var(--primary);
+  box-shadow: 0 0 0.5rem 0.0625rem var(--primary);
+}
+
+.field-run::after,
+.field-pulse::after {
+  inset-block-end: -1px;
+  inset-inline-start: -1px;
+}
+
+.field-across::after {
+  inset-block-start: -1px;
+  inset-inline-end: -1px;
+}
+
+.field-run:nth-child(1) {
+  inset-inline-start: round(down, 20vw, var(--cell));
+}
+
+.field-run:nth-child(2) {
+  inset-inline-start: round(down, 82vw, var(--cell));
+}
+
+.field-run:nth-child(3) {
+  inset-inline-start: round(down, 46vw, var(--cell));
+}
+
+.field-run:nth-child(4) {
+  inset-inline-start: round(down, 64vw, var(--cell));
+}
+
+.field-run:nth-child(5) {
+  inset-inline-start: round(down, 32vw, var(--cell));
+}
+
+.field-across:nth-child(6) {
+  inset-block-start: round(down, 30lvh, var(--cell));
+}
+
+.field-across:nth-child(7) {
+  inset-block-start: round(down, 72lvh, var(--cell));
+}
+
+.field-pulse:nth-child(8) {
+  inset-inline-start: round(down, 72vw, var(--cell));
+}
+
+.field-pulse:nth-child(9) {
+  inset-inline-start: round(down, 12vw, var(--cell));
+}
+
+.field-pulse:nth-child(10) {
+  inset-inline-start: round(down, 54vw, var(--cell));
+}
+
+/* The charge: a line across the top of the window that fills as the page scrolls. It's 2 px, so it
+   covers nothing that can take focus, and with nothing to scroll it isn't there. */
+.field-charge {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: 30;
+  block-size: 2px;
+  background-color: var(--primary);
+  box-shadow: 0 0 0.5rem var(--primary);
+  transform-origin: left;
+  scale: 0 1;
+  pointer-events: none;
+}
+
+/* Every section opens on a line that carries the current, lit from its left. It fills as the section
+   comes up the window, by the visitor's scroll; with no scroll timelines it stands lit. */
+.section {
+  position: relative;
+}
+
+.section::before {
+  content: '';
+  position: absolute;
+  inset-block-start: calc(var(--section-pad) * 0.45);
+  inset-inline: 0;
+  block-size: 1px;
+  background-image: linear-gradient(to right, var(--primary), var(--border) 45%, transparent);
+  transform-origin: left;
+  pointer-events: none;
+}
+
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .section::before {
+      animation-timing-function: linear;
+      animation-fill-mode: both;
+      animation-timeline: view(block);
+      animation-range: entry 0% cover 34%;
+    }
+
+    .frame .section::before {
+      animation-name: field-fill;
+    }
+
+    @keyframes field-fill {
+      from {
+        scale: 0 1;
+      }
+
+      to {
+        scale: 1 1;
+      }
+    }
+
+    .field::before,
+    .field-run,
+    .field-across,
+    .field-charge {
+      animation-timing-function: linear;
+      animation-fill-mode: both;
+      animation-timeline: scroll(root block);
+    }
+
+    .field::before {
+      animation-name: field-drift;
+    }
+
+    .field-run {
+      animation-name: field-down;
+    }
+
+    .field-across {
+      animation-name: field-across;
+    }
+
+    .field-charge {
+      animation-name: field-charge;
+    }
+
+    .field-run:nth-child(1) {
+      animation-range: 0% 26%;
+    }
+
+    .field-run:nth-child(2) {
+      animation-range: 10% 38%;
+    }
+
+    .field-run:nth-child(3) {
+      animation-range: 28% 58%;
+    }
+
+    .field-run:nth-child(4) {
+      animation-range: 48% 76%;
+    }
+
+    .field-run:nth-child(5) {
+      animation-range: 70% 100%;
+    }
+
+    .field-across:nth-child(6) {
+      animation-range: 18% 44%;
+    }
+
+    .field-across:nth-child(7) {
+      animation-range: 56% 84%;
+    }
+
+    @keyframes field-drift {
+      0% {
+        translate: 20vw -14lvh;
+      }
+
+      34% {
+        translate: -24vw 6lvh;
+      }
+
+      68% {
+        translate: 22vw 16lvh;
+      }
+
+      100% {
+        translate: -10vw 26lvh;
+      }
+    }
+
+    @keyframes field-down {
+      from {
+        translate: 0 -100%;
+      }
+
+      to {
+        translate: 0 100lvh;
+      }
+    }
+
+    @keyframes field-across {
+      from {
+        translate: -100% 0;
+      }
+
+      to {
+        translate: 100vw 0;
+      }
+    }
+
+    @keyframes field-charge {
+      from {
+        scale: 0 1;
+      }
+
+      to {
+        scale: 1 1;
+      }
+    }
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Dimmer than the scroll's: these run while someone reads. */
+  .field-pulse {
+    opacity: 0.55;
+  }
+
+  :root[data-motion] .field-pulse {
+    animation-name: field-pulse;
+    animation-duration: 13s;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+
+  :root[data-motion] .field-pulse:nth-child(9) {
+    animation-duration: 17s;
+    animation-delay: -6s;
+  }
+
+  :root[data-motion] .field-pulse:nth-child(10) {
+    animation-duration: 21s;
+    animation-delay: -13s;
+  }
+
+  :root[data-motion='paused'] .field-pulse {
+    animation-play-state: paused;
+  }
+
+  @keyframes field-pulse {
+    0% {
+      translate: 0 -100%;
+    }
+
+    24%,
+    100% {
+      translate: 0 100lvh;
+    }
+  }
+}
+
+/* More contrast, a Windows contrast theme or paper: the page alone. */
+@media (prefers-contrast: more), (forced-colors: active), print {
+  .field,
+  .field-charge {
+    display: none;
+  }
+}

@@ -1,5 +1,5 @@
 import { expect, test, type ElementHandle, type Locator, type Page } from '@playwright/test';
-import { pages, ROUTE_LAB } from './expected';
+import { handsOn, pages, ROUTE_LAB } from './expected';
 
 // A page that holds still on a phone (design-system.md, "Layout"): once a page has painted, nothing
 // on the screen moves unless the visitor scrolls or opens something. Live text, a log, a picture
@@ -16,7 +16,8 @@ import { pages, ROUTE_LAB } from './expected';
 //
 // What it watches: every element on the screen, by its top, every frame. It leaves out what moves
 // by design: the inside of an SVG picture or a canvas (vans, lamps and curves, though not the
-// picture's own box), and whatever scrolls inside a box of its own, as an event log's lines do.
+// picture's own box), the field behind the page, and whatever scrolls inside a box of its own, as
+// an event log's lines do.
 // A move of more than 1 px fails, and so does a scroll the test did not make, or a focus the
 // visitor did not put somewhere: on the page's body, or off the screen.
 
@@ -61,9 +62,10 @@ async function steady(page: Page): Promise<void> {
       const kind = el.getAttribute('class')?.split(' ')[0];
       return `${tag}${kind ? `.${kind}` : ''}${data ? `[${data.name}]` : ''}`;
     };
-    /** Whether an element moves by design: inside a picture, or inside a box that scrolls. */
+    /** Whether an element moves by design: inside a picture, inside a box that scrolls, or in the
+     *  field behind the page (field.css), which holds nothing to read. */
     const exempt = (el: Element) => {
-      if (el.parentElement?.closest('svg') || el.closest('canvas')) return true;
+      if (el.parentElement?.closest('svg') || el.closest('canvas, .field')) return true;
       for (let up = el.parentElement; up && up !== document.body; up = up.parentElement) {
         const { overflowY } = getComputedStyle(up);
         if (overflowY === 'auto' || overflowY === 'scroll') return true;
@@ -174,8 +176,9 @@ const activeName = (page: Page) =>
   });
 
 /** Loads a page, its fonts in, and turns its scroll anchoring off. */
-async function open(page: Page, path: string): Promise<void> {
+async function open(page: Page, path: string, landing = false): Promise<void> {
   await steady(page);
+  if (!landing) await handsOn(page);
   await page.goto(path, { waitUntil: 'load' });
   await page.evaluate(() => document.fonts.ready);
   // A frame or two for what the load set going: boot scripts, the scene's first frame.
@@ -209,6 +212,7 @@ test.describe('web fonts arriving late move nothing', () => {
   for (const path of pages()) {
     test(`on ${path}`, async ({ page }) => {
       await steady(page);
+      await handsOn(page);
       // The faces every page preloads a second late, as on a slow first visit. They are optional
       // (astro.config.mjs): not here in the browser's first moment, they are not swapped in, and
       // the page stays in its fitted fallback. Archivo's SemiBold and B612 Mono swap by design, as
@@ -332,6 +336,19 @@ for (const { phone, viewport } of PHONES) {
   test.describe(`on ${phone}, a lab moves nothing on the screen, and the focus stays put`, () => {
     if (viewport) test.use({ viewport });
     for (const [name, lab] of Object.entries(LABS)) {
+      // The run a visitor lands on (ADR 0030): it starts by itself, a frame or two after they arrive,
+      // under a thumb that hasn't moved.
+      test(`the ${name} lab, as a visitor lands on it and it starts`, async ({ page }) => {
+        await steady(page);
+        await page.addInitScript(() => {
+          addEventListener('DOMContentLoaded', () => window.__steady.watch());
+        });
+        await page.goto(lab.path, { waitUntil: 'load' });
+        await expect(page.locator(`[data-${lab.short}-run]`)).toHaveText('Pause');
+        await page.waitForTimeout(1_500);
+        expect(await page.evaluate(() => window.__steady.moves())).toEqual([]);
+      });
+
       test(`the ${name} lab, standing still while it runs`, async ({ page }) => {
         await open(page, lab.path);
         const run = page.locator(`[data-${lab.short}-run]`);

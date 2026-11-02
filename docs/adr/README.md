@@ -34,10 +34,13 @@ Status: Draft for review in PR 1 · 2026-10-22
 | [0027](0027-design-follows-josephs-references.md) | The site's design follows Joseph's references: a light technical drawing, a top bar, his system drawn isometrically | Proposed; superseded in part by 0028 |
 | [0028](0028-home-is-his-own.md) | Home is his own: his words as the statement, his Raft cluster live beside them, what he builds with the labs as its evidence | Proposed |
 | [0029](0029-one-voice-one-column-honed-colour.md) | One voice, a reading column, and the colour honed | Proposed |
+| [0030](0030-the-page-stays-alive.md) | The page stays alive as you scroll, and a lab is running when you land | Proposed |
 
 0013 is reserved for protocol v1 and the recording format, written in PR 6 ([roadmap.md](../roadmap.md#pr-6-lab-platform-and-presence)).
 
 0027, proposed on 2026-10-31, supersedes 0025 in part (its palette, faces, rail and chrome), 0024 (Home's composition) and 0023 (the rail's drop-downs), and amends 0021 and 0022; the plan for builders is [docs/design/overhaul.md](../design/overhaul.md).
+
+0030, proposed on 2026-11-02, amends 0020 (a lab loads on arrival, as well as on intent) and 0025 (a rule may fill with the scroll; text still never moves).
 
 0028, proposed on 2026-11-01, supersedes 0027's Home, which had taken a reference's composition with new assets; the page's design is [docs/design/home.md](../design/home.md).
 

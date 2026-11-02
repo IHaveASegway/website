@@ -1,10 +1,12 @@
 // The motion an index carries (design-system.md, "Motion"), on Home and the indexes only
 // (components/Motion.astro). Two things, both only with no reduced-motion preference:
 //
-// - Home's live picture (components/home/Orbit.astro; ADR 0028): the ring turns and the heartbeats
-//   run once this marks the page (data-motion, home.css), after it has painted, and never under
-//   Save-Data. The top bar's button pauses and plays them (SC 2.2.2), and the choice lasts for the
-//   tab (sessionStorage key "motion"), as the theme's does.
+// - What runs by the clock on Home, /lab/ and /writing/ (data-live): Home's live picture
+//   (components/home/Orbit.astro; ADR 0028), its facts' signals, the lab glyphs' sparks and the
+//   field's pulses (ADR 0030). They run once this marks the page (data-motion), after it has
+//   painted, and never under Save-Data. The top bar's button pauses and plays them (SC 2.2.2), and
+//   the choice lasts for the tab (sessionStorage key "motion"), as the theme's does, and holds on
+//   the labs too (lib/lab/arrival.ts).
 // - The title a visitor follows becomes the next page's title, a cross-document view transition.
 //   Each page's <h1> carries the name in the stylesheet; as the page is left, the followed title
 //   takes the name and the page's own <h1> gives it up, since a document may hold a name once.

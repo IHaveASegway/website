@@ -284,6 +284,13 @@
   color: var(--foreground);
 }
 
+/* Under the name where they can't share a line, so the count stays put as its words change length. */
+@media (width < 48rem) {
+  .qu-strip-now {
+    flex-basis: 100%;
+  }
+}
+
 .qu-strip-body {
   display: grid;
   grid-template-columns: 2.25rem minmax(0, 1fr);

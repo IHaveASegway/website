@@ -1,3 +1,4 @@
+import { keepRunChoice, runOnLanding } from '../../lib/lab/landing-run';
 import { NODES, PAGES, seconds, type Load, type Placement } from '../../lib/cache/core';
 import {
   flush,
@@ -58,7 +59,7 @@ const TOGGLES: readonly Toggle[] = ['coalesce', 'stale', 'early', 'jitter', 'inv
 const broken = (sim: Sim): string =>
   sim.violation ? `Broken at ${seconds(sim.violation.at)}: ${sim.violation.detail}.` : '';
 
-export function start(root: HTMLElement, queued: readonly Element[]): void {
+export function start(root: HTMLElement, queued: readonly Element[]): () => void {
   const $ = <T extends Element>(selector: string) => root.querySelector<T>(selector);
   const still = matchMedia('(prefers-reduced-motion: reduce)');
   const run = $<HTMLButtonElement>('[data-cl-run]');
@@ -301,6 +302,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     const control = target?.closest('button');
     if (control) press(control);
   });
+  keepRunChoice(root, '[data-cl-run]', () => playing);
   root.addEventListener('change', (event) => {
     if (event.target instanceof Element) press(event.target);
   });
@@ -329,4 +331,19 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
   const box = lines?.parentElement;
   if (box) box.scrollTop = box.scrollHeight;
   for (const control of queued) press(control);
+  // The run a visitor lands on plays the stampede the picture told, as Run does, and again.
+  return () =>
+    runOnLanding(root, {
+      play: () => {
+        if (sim.now === OPENING.until && sim.actions.length === 0) begin();
+        play();
+      },
+      pause,
+      playing: () => playing,
+      finished: () => Boolean(sim.violation) || !Number.isFinite(nextTime(sim)),
+      again: () => {
+        begin();
+        play();
+      },
+    });
 }

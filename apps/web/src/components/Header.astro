@@ -23,6 +23,8 @@ const { name, generated } = Astro.props;
 const headerNav = navFor('header', generated);
 const here = Astro.url.pathname;
 const home = here === '/';
+// The pages whose motion runs by the clock (scripts/motion.js), so they hold its button.
+const live = home || here === '/lab/' || here === '/writing/';
 ---
 
 <header class="site-header">
@@ -66,7 +68,7 @@ const home = here === '/';
         <span class="search-word">Search</span> <Keys />
       </button>
     </li>
-    {home && (
+    {live && (
       <li class="motion-item">
         <button
           type="button"

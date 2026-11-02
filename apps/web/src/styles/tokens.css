@@ -122,6 +122,9 @@
   --subtle-foreground: var(--muted-foreground);
   --border: oklch(0.91 0.006 255);
   --ground: oklch(0.975 0.004 255);
+  --grid-line: oklch(0.17 0.02 262 / 0.045);
+  --field-line: oklch(0.5 0.27 264 / 0.11);
+  --field-light: oklch(0.5 0.27 264 / 0.05);
   --input: oklch(0.6 0.02 258);
   --primary: oklch(0.5 0.27 264);
   --primary-strong: oklch(0.42 0.24 264);
@@ -178,6 +181,9 @@
   --subtle-foreground: var(--muted-foreground);
   --border: oklch(0.31 0.024 262);
   --ground: oklch(0.175 0.015 262);
+  --grid-line: oklch(0.97 0.005 240 / 0.045);
+  --field-line: oklch(0.82 0.14 212 / 0.15);
+  --field-light: oklch(0.82 0.14 212 / 0.08);
   --input: oklch(0.6 0.03 255);
   --primary: oklch(0.82 0.14 212);
   --primary-strong: oklch(0.9 0.08 212);
@@ -247,6 +253,9 @@
     --subtle-foreground: var(--muted-foreground);
     --border: oklch(0.31 0.024 262);
     --ground: oklch(0.175 0.015 262);
+    --grid-line: oklch(0.97 0.005 240 / 0.045);
+    --field-line: oklch(0.82 0.14 212 / 0.15);
+    --field-light: oklch(0.82 0.14 212 / 0.08);
     --input: oklch(0.6 0.03 255);
     --primary: oklch(0.82 0.14 212);
     --primary-strong: oklch(0.9 0.08 212);
@@ -370,11 +379,18 @@
   }
 }
 
-/* The current (ADR 0029): the accent as light, for what is live or can be pressed, and the faint grid
-   behind Home's opening. Both follow the theme through the tokens they mix. */
+/* The current (ADR 0029): the accent as light, for what is live or can be pressed. It follows the
+   theme through the token it mixes. */
 :root {
   --glow: color-mix(in oklab, var(--primary) 55%, transparent);
-  --grid-line: color-mix(in oklab, var(--foreground) 7%, transparent);
+  /* The field behind every page (field.css): its quieter lines behind a long read, the veil that
+     hides all of the lit grid but the patch that drifts, and the top bar and footer's band over it. */
+  --field-calm-line: color-mix(in oklab, var(--field-line) 55%, transparent);
+  --field-calm-light: color-mix(in oklab, var(--field-light) 55%, transparent);
+  --field-calm-grid: color-mix(in oklab, var(--grid-line) 70%, transparent);
+  --field-veil-near: color-mix(in oklab, var(--background) 42%, transparent);
+  --field-veil-far: color-mix(in oklab, var(--background) 84%, transparent);
+  --band: color-mix(in oklab, var(--background) 82%, transparent);
 }
 
 /* Tailwind names for the semantic tokens; values are var() references, so the block is inline. */
