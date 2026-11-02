@@ -8,9 +8,21 @@ import { fallbacksOn } from './fonts-drawn';
 // each element's text (DevTools Protocol, CSS.getPlatformFontsForNode), after text-transform,
 // so the check reads what was painted rather than a list of selectors that could drift.
 
+/**
+ * Opens a page with its faces already in the browser's cache. A preloaded face is optional
+ * (astro.config.mjs): on a first load, one a moment late isn't drawn at all, and the page stays in
+ * its fitted fallback. That's the design working, and says nothing about which glyphs the face has,
+ * but on a busy machine it failed these checks at random, as it did on /lab/queue/ on 2026-11-02.
+ */
+async function openWarm(page: Page, path: string): Promise<void> {
+  await page.goto(path);
+  await page.evaluate(() => document.fonts.ready);
+  await page.goto(path);
+}
+
 for (const path of [...pages(), NOT_FOUND_PAGE]) {
   test(`every glyph on ${path} comes from a self-hosted face`, async ({ page }) => {
-    await page.goto(path);
+    await openWarm(page, path);
     const { fallbacks, elements, painted } = await fallbacksOn(page);
     expect(elements).toBeGreaterThan(5);
     // Hidden elements paint nothing and report no font; enough of the page must have painted.
@@ -53,6 +65,8 @@ async function unusedFonts(
   drawn: Set<string>;
   families: Record<string, string>;
 }> {
+  // Warm first, so a preloaded face that's late doesn't read as one the page never draws.
+  await openWarm(page, path);
   const fetched: string[] = [];
   page.on('request', (request) => {
     if (request.resourceType() === 'font') fetched.push(new URL(request.url()).pathname);
