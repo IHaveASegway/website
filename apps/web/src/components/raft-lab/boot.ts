@@ -4,7 +4,7 @@
 // press, and a press made before it arrives is kept and played once it has. A touch that only
 // scrolls the page loads nothing, but a visitor who lands here gets the demo running (below).
 
-import { keepChoice, landsRunning, whenSettled } from '../../lib/lab/arrival';
+import { whenMoving } from '../../lib/lab/when-moving';
 
 const UNLOADED = 'The demo did not load. Press any control to try again.';
 
@@ -45,8 +45,6 @@ if (root) {
     const target = event.target instanceof Element ? event.target : null;
     const control = target?.closest('button, [data-rf-node]');
     if (!control) return;
-    // Nothing plays yet, so this Run is a visitor asking for it: it undoes a Pause kept for the tab.
-    if (control.matches('[data-rf-run]')) keepChoice(false);
     queued.push(control);
     start();
   });
@@ -64,8 +62,8 @@ if (root) {
   });
   // Unless they asked otherwise, a visitor lands on the demo running (ADR 0030): once the page has
   // settled the simulation loads and plays, and a press made before then is theirs to play instead.
-  if (landsRunning() && !linked())
-    whenSettled(() => {
+  if (!linked())
+    whenMoving(() => {
       start();
       void started?.then(() => {
         if (queued.length === 0) arrive?.();

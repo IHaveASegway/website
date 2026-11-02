@@ -1,11 +1,9 @@
-import { keepChoice } from './arrival';
-
 // The run a visitor lands on (ADR 0030), loaded with the lab's simulation. It plays while the demo is
-// on the screen and the tab is showing, and the end of a run stands a moment, then plays again. All
-// of that stops at the visitor's first press, and from there the demo is theirs, as if they had
-// pressed Run. While it's nobody's choice it says nothing to a screen reader: a live region that
-// spoke from the moment a page opened would talk over the page. Their first press gives it its
-// voice back.
+// on the screen, the tab is showing and motion isn't paused, and the end of a run stands a moment,
+// then plays again. All of that stops at the visitor's first press, and from there the demo is
+// theirs, as if they had pressed Run. While it's nobody's choice it says nothing to a screen reader:
+// a live region that spoke from the moment a page opened would talk over the page. Their first press
+// gives it its voice back.
 
 /** What the run does, in the lab's own words. */
 export interface LandingRun {
@@ -32,7 +30,8 @@ export function runOnLanding(root: HTMLElement, run: LandingRun): void {
   let held = 0;
 
   const look = () => {
-    const wanted = shown && !document.hidden;
+    const paused = document.documentElement.dataset['motion'] === 'paused';
+    const wanted = shown && !document.hidden && !paused;
     if (!wanted) {
       if (run.playing()) run.pause();
       return;
@@ -57,12 +56,14 @@ export function runOnLanding(root: HTMLElement, run: LandingRun): void {
   });
   seen.observe(root);
   document.addEventListener('visibilitychange', look);
+  document.addEventListener('motionchange', look);
 
   const leave = () => {
     clearInterval(every);
     clearTimeout(held);
     seen.disconnect();
     document.removeEventListener('visibilitychange', look);
+    document.removeEventListener('motionchange', look);
     root.removeEventListener('click', taken, true);
     root.removeEventListener('change', taken, true);
     root.removeEventListener('input', taken, true);
@@ -83,12 +84,4 @@ export function runOnLanding(root: HTMLElement, run: LandingRun): void {
   root.addEventListener('change', taken, true);
   root.addEventListener('input', taken, true);
   addEventListener('hashchange', leave);
-}
-
-/** Keeps the visitor's own Run and Pause for the tab: a Pause here holds on the next lab too. Call
- *  it after the lab's own click handler, so it reads where the press left the run. */
-export function keepRunChoice(root: HTMLElement, selector: string, playing: () => boolean): void {
-  root.addEventListener('click', (event) => {
-    if (event.target instanceof Element && event.target.closest(selector)) keepChoice(!playing());
-  });
 }

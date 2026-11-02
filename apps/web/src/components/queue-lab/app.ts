@@ -1,4 +1,4 @@
-import { keepRunChoice, runOnLanding } from '../../lib/lab/landing-run';
+import { runOnLanding } from '../../lib/lab/landing-run';
 import { properties } from '../../lib/queue/check';
 import { valueOf, word } from '../../lib/sim/link';
 import {
@@ -335,7 +335,6 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     const control = target?.closest('button');
     if (control) press(control);
   });
-  keepRunChoice(root, '[data-qu-run]', () => playing);
   root.addEventListener('change', (event) => {
     if (event.target instanceof Element) press(event.target);
   });

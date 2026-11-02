@@ -1,4 +1,4 @@
-import { keepRunChoice, runOnLanding } from '../../lib/lab/landing-run';
+import { runOnLanding } from '../../lib/lab/landing-run';
 import {
   crash,
   heal,
@@ -285,7 +285,6 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     const control = target?.closest('button, [data-rf-node]');
     if (control) press(control);
   });
-  keepRunChoice(root, '[data-rf-run]', () => playing);
   root.addEventListener('input', (event) => {
     if (event.target instanceof Element) press(event.target);
   });

@@ -1,15 +1,8 @@
 // The motion an index carries (design-system.md, "Motion"), on Home and the indexes only
-// (components/Motion.astro). Two things, both only with no reduced-motion preference:
-//
-// - What runs by the clock on Home, /lab/ and /writing/ (data-live): Home's live picture
-//   (components/home/Orbit.astro; ADR 0028), its facts' signals, the lab glyphs' sparks and the
-//   field's pulses (ADR 0030). They run once this marks the page (data-motion), after it has
-//   painted, and never under Save-Data. The top bar's button pauses and plays them (SC 2.2.2), and
-//   the choice lasts for the tab (sessionStorage key "motion"), as the theme's does, and holds on
-//   the labs too (lib/lab/arrival.ts).
-// - The title a visitor follows becomes the next page's title, a cross-document view transition.
-//   Each page's <h1> carries the name in the stylesheet; as the page is left, the followed title
-//   takes the name and the page's own <h1> gives it up, since a document may hold a name once.
+// (components/Motion.astro): the title a visitor follows becomes the next page's title, a
+// cross-document view transition. Each page's <h1> carries the name in the stylesheet; as the page
+// is left, the followed title takes the name and the page's own <h1> gives it up, since a document
+// may hold a name once. What runs by itself on a page is scripts/field.js's.
 //
 // Text never animates (ADR 0025): a card's tag no longer decodes, and no title rises.
 
@@ -24,61 +17,7 @@ export function titleFor(links, path, followed = null) {
   return (leading.find((link) => link.element === followed) ?? leading[0])?.title ?? null;
 }
 
-const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-/** Runs `work` once the page has loaded and the main thread is idle. */
-function whenSettled(work) {
-  const idle = () => (window.requestIdleCallback ? requestIdleCallback(work) : setTimeout(work, 1));
-  if (document.readyState === 'complete') idle();
-  else addEventListener('load', idle, { once: true });
-}
-
-const KEY = 'motion';
-
-/** Whether the visitor paused the picture earlier in this tab. */
-function storedPause() {
-  try {
-    return sessionStorage.getItem(KEY) === 'paused';
-  } catch {
-    return false;
-  }
-}
-
-/** @param {boolean} paused */
-function storePause(paused) {
-  try {
-    if (paused) sessionStorage.setItem(KEY, 'paused');
-    else sessionStorage.removeItem(KEY);
-  } catch {
-    // Storage refused: the choice lasts until the page is left.
-  }
-}
-
-/** Runs Home's live picture, with the top bar's button to pause and play it. */
-function runDrawing() {
-  const root = document.documentElement;
-  const toggle = document.querySelector('[data-motion-toggle]');
-  let paused = storedPause();
-  const show = () => {
-    root.dataset['motion'] = paused ? 'paused' : 'on';
-    if (!toggle) return;
-    const name = paused ? 'Play motion' : 'Pause motion';
-    toggle.setAttribute('aria-label', name);
-    toggle.setAttribute('title', name);
-    toggle.dataset['state'] = paused ? 'paused' : 'on';
-  };
-  toggle?.addEventListener('click', () => {
-    paused = !paused;
-    storePause(paused);
-    show();
-  });
-  show();
-}
-
 function boot() {
-  if (document.querySelector('[data-live]') && !reduced() && !navigator.connection?.saveData)
-    whenSettled(runDrawing);
-
   // The link a press or a key followed, so the title beside it is the one that flies.
   let followed = null;
   addEventListener('click', (event) => {

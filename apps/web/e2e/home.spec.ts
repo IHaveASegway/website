@@ -156,15 +156,12 @@ test.describe("Home's live picture", () => {
     expect(await picture(page).boundingBox()).toEqual(running);
   });
 
-  // The indexes whose field and glyphs run by the clock hold the button too (ADR 0030).
-  test('no other page has the picture, and only the live indexes have the motion button', async ({
-    page,
-  }) => {
-    const live = ['/lab/', '/writing/'];
+  // Every page holds the button, since the field behind every page runs by itself (ADR 0030).
+  test('no other page has the picture, and every page has the motion button', async ({ page }) => {
     for (const path of pages().filter((p) => p !== '/')) {
       await page.goto(path);
       await expect(picture(page), path).toHaveCount(0);
-      await expect(toggle(page), path).toHaveCount(live.includes(path) ? 1 : 0);
+      await expect(toggle(page), path).toHaveCount(1);
     }
   });
 });

@@ -7,7 +7,7 @@ import { inWords } from '../../lib/lines';
 // lies its log, an entry a bead, the same length on every server because they agree. All of it is
 // the opening run's (lib/raft/view.ts), drawn at build: who leads, in which term, how long the logs
 // are. CSS turns the ring slowly and runs the heartbeats once the motion module marks the page
-// (scripts/motion.js, data-motion); under reduced motion it is a still picture, and the top bar's
+// (scripts/field.js, data-motion); under reduced motion it is a still picture, and the top bar's
 // button pauses it. Every number a path names is drawn from the ring's centre, so the picture is
 // the same at any size: the SVG scales to its box, which the stylesheet sizes before it paints.
 
@@ -44,7 +44,7 @@ const caption = leader
   : `${count[0]?.toUpperCase()}${count.slice(1)} servers keeping one log.`;
 ---
 
-<figure class="orbit" data-live aria-labelledby="orbit-caption">
+<figure class="orbit" aria-labelledby="orbit-caption">
   <div class="orbit-stage" aria-hidden="true">
     <div class="orbit-plane">
       <svg class="orbit-svg" viewBox="0 0 400 400" focusable="false">

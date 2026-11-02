@@ -39,7 +39,7 @@ const [x, y, width, height] = glyph?.box ?? [0, 0, 0, 0];
         <path class={`iso-${mark.paint}`} d={mark.d} />
       ))}
     </g>
-    {/* A spark on each wire while its lab runs (ADR 0030), the one thing that moves on its own. */}
+    {/* A spark on each wire (ADR 0030), the one thing here that moves on its own. */}
     <g class="iso-sparks">
       {glyph.wires.map((mark) => (
         <path class="iso-spark" d={mark.d} pathLength="100" />

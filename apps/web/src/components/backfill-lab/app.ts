@@ -1,4 +1,4 @@
-import { keepRunChoice, runOnLanding } from '../../lib/lab/landing-run';
+import { runOnLanding } from '../../lib/lab/landing-run';
 import {
   TASKS,
   WEEK_END,
@@ -369,7 +369,6 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     const control = target?.closest('button');
     if (control) press(control);
   });
-  keepRunChoice(root, '[data-bf-run]', () => playing);
   root.addEventListener('change', (event) => {
     if (event.target instanceof HTMLInputElement) press(event.target);
   });

@@ -2,12 +2,15 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { ROUTE_LAB } from './expected';
 
-// The run a visitor lands on (ADR 0030): each lab's demo is running when they arrive, with no press.
-// Until 2026-11-02 a lab stood still until a press, and Joseph read that as a page not started. It
-// holds back for a visitor who asked for less motion or to save data, and for one who pressed Pause
-// earlier in the tab. It plays only while it's on the screen and says nothing to a screen reader,
-// and the visitor's first press makes it theirs. e2e/steady.spec.ts checks that it moves nothing on a
-// phone as it starts.
+// What runs by itself (ADR 0030). Each lab's demo is running when a visitor lands, with no press:
+// until 2026-11-02 a lab stood still until a press, and Joseph read that as a page not started. It
+// holds back for a visitor who asked for less motion or to save data, and for one who pressed the top
+// bar's Pause earlier in the tab. It plays only while it's on the screen and says nothing to a screen
+// reader, and the visitor's first press makes it theirs. e2e/steady.spec.ts checks that it moves
+// nothing on a phone as it starts.
+//
+// The field behind every page runs by its own clocks, and a scroll has nothing to do with it: tied to
+// the scroll and fading with it, each turn of a wheel read as the page reloading.
 
 const LABS = [
   { name: 'raft', path: '/lab/raft/', short: 'rf' },
@@ -81,24 +84,37 @@ for (const lab of LABS) {
       await expect(run(page, lab)).toHaveText('Run');
     });
 
-    test('Pause holds for the tab, on this lab and the next, until Run', async ({ page }) => {
+    test('its own Pause stops it alone: the field runs on, and the next lab lands running', async ({
+      page,
+    }) => {
       await page.goto(lab.path);
       await expect(run(page, lab)).toHaveText('Pause');
       await run(page, lab).click();
       await expect(run(page, lab)).toHaveText('Run');
-      expect(await page.evaluate(() => sessionStorage.getItem('motion'))).toBe('paused');
       const first = await clock(page, lab).textContent();
       await page.waitForTimeout(700);
       await expect(clock(page, lab)).toHaveText(first ?? '');
+      await expect(page.locator('html')).toHaveAttribute('data-motion', 'on');
+      expect(await page.evaluate(() => sessionStorage.getItem('motion'))).toBeNull();
+
+      const next = LABS[(LABS.indexOf(lab) + 1) % LABS.length] as Lab;
+      await page.goto(next.path);
+      await expect(run(page, next)).toHaveText('Pause');
+    });
+
+    test('the top bar’s Pause stops it for the tab, and its Play starts it', async ({ page }) => {
+      await page.goto(lab.path);
+      await expect(run(page, lab)).toHaveText('Pause');
+      await page.locator('[data-motion-toggle]').click();
+      await expect(run(page, lab)).toHaveText('Run');
+      expect(await page.evaluate(() => sessionStorage.getItem('motion'))).toBe('paused');
 
       const next = LABS[(LABS.indexOf(lab) + 1) % LABS.length] as Lab;
       await page.goto(next.path);
       await page.waitForTimeout(800);
       await expect(run(page, next)).toHaveText('Run');
-
-      await run(page, next).click();
+      await page.locator('[data-motion-toggle]').click();
       await expect(run(page, next)).toHaveText('Pause');
-      expect(await page.evaluate(() => sessionStorage.getItem('motion'))).toBeNull();
     });
 
     test('it pauses off the screen and goes on when it comes back', async ({ page }) => {
@@ -148,16 +164,22 @@ test.describe('the Route Lab', () => {
     expect(new Set(routes)).toEqual(new Set(['found']));
   });
 
-  test('the button pauses them for the tab, and plays them', async ({ page }) => {
+  test('their button pauses and plays them, and the top bar’s reaches them too', async ({
+    page,
+  }) => {
     await page.goto(ROUTE_LAB);
     await expect(drive(page)).toHaveText('Pause');
     await drive(page).click();
     await expect(drive(page)).toHaveText('Run');
+    await expect(drive(page)).toHaveAccessibleName('Run the vans');
     expect(await paused(page)).toBe(true);
-    expect(await page.evaluate(() => sessionStorage.getItem('motion'))).toBe('paused');
     await drive(page).click();
     await expect(drive(page)).toHaveText('Pause');
     expect(await paused(page)).toBe(false);
+
+    await page.locator('[data-motion-toggle]').click();
+    await expect(drive(page)).toHaveText('Run');
+    expect(await paused(page)).toBe(true);
   });
 
   test('under reduced motion they and their button are gone', async ({ page }) => {
@@ -181,59 +203,109 @@ test.describe('the Route Lab', () => {
   });
 });
 
-test.describe('the indexes', () => {
-  /** What on the page runs by the clock, by the class of what it moves. */
+test.describe('the field', () => {
+  /** What runs by the clock, by the class of what it moves. */
   const running = (page: Page) =>
     page.evaluate(() => [
       ...new Set(
         document
           .getAnimations()
-          .filter((a) => a.timeline === document.timeline)
+          .filter((a) => a.timeline === document.timeline && a.playState === 'running')
           .map((a) => (a.effect as KeyframeEffect).target?.getAttribute('class')?.split(' ')[0]),
       ),
     ]);
-  const pulses = (page: Page) =>
-    page.evaluate(
-      () =>
-        document.getAnimations().filter((a) => {
-          const target = (a.effect as KeyframeEffect).target;
-          return a.playState === 'running' && target?.matches('.field-pulse, .iso-spark');
-        }).length,
-    );
 
-  test('/lab/ runs its glyphs’ sparks and the field’s pulses, under the top bar’s button', async ({
-    page,
-  }) => {
-    await page.goto('/lab/');
-    await expect
-      .poll(() => running(page))
-      .toEqual(expect.arrayContaining(['field-pulse', 'iso-spark']));
-    await page.locator('[data-motion-toggle]').click();
-    await expect.poll(() => pulses(page)).toBe(0);
+  for (const path of ['/', '/lab/', '/writing/', '/about/', '/writing/trading-bot-teardown/']) {
+    test(`${path}: the lines run by themselves, under the top bar’s button`, async ({ page }) => {
+      await page.goto(path);
+      await expect.poll(() => running(page)).toEqual(expect.arrayContaining(['field-run']));
+      await page.locator('[data-motion-toggle]').click();
+      await expect.poll(() => running(page)).not.toEqual(expect.arrayContaining(['field-run']));
+    });
+  }
+
+  test('a scroll has nothing to do with them', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('html')).toHaveAttribute('data-motion', 'on');
+    // Everything the scroll could touch, watched while the wheel turns.
+    await page.evaluate(() => {
+      const w = window as unknown as { changes: number };
+      w.changes = 0;
+      new MutationObserver((list) => (w.changes += list.length)).observe(
+        document.querySelector('.field') as Element,
+        { attributes: true, subtree: true, childList: true },
+      );
+    });
+    const line = page.locator('.field-run').first();
+    const state = () =>
+      line.evaluate((element) => {
+        const [animation] = element.getAnimations();
+        return {
+          clock: animation?.timeline === document.timeline,
+          state: animation?.playState,
+          time: Number(animation?.currentTime),
+          opacity: getComputedStyle(element).opacity,
+          now: document.timeline.currentTime as number,
+        };
+      });
+    const before = await state();
+    await page.mouse.move(600, 400);
+    for (let tick = 0; tick < 8; tick++) {
+      await page.mouse.wheel(0, 240);
+      await page.waitForTimeout(60);
+    }
+    const after = await state();
+    expect(await page.evaluate(() => scrollY)).toBeGreaterThan(0);
+    expect(await page.evaluate(() => (window as unknown as { changes: number }).changes)).toBe(0);
+    expect(after.clock).toBe(true);
+    expect(after.state).toBe('running');
+    expect(after.opacity).toBe(before.opacity);
+    // Its time went on by exactly the time that passed: it didn't restart or jump with the scroll.
+    const passed = after.now - before.now;
+    expect(Math.abs(after.time - before.time - passed)).toBeLessThan(100);
   });
 
-  test('/writing/ runs the field’s pulses under the top bar’s button', async ({ page }) => {
-    await page.goto('/writing/');
-    await expect.poll(() => running(page)).toEqual(expect.arrayContaining(['field-pulse']));
-    await page.locator('[data-motion-toggle]').click();
-    await expect.poll(() => pulses(page)).toBe(0);
+  test('a section’s line lights once, and stays lit as the page scrolls back', async ({ page }) => {
+    await page.goto('/');
+    const last = page.locator('.section').last();
+    await expect(last).not.toHaveAttribute('data-lit');
+    await last.scrollIntoViewIfNeeded();
+    await expect(last).toHaveAttribute('data-lit');
+    await page.evaluate(() => scrollTo(0, 0));
+    await page.waitForTimeout(200);
+    await expect(last).toHaveAttribute('data-lit');
+    // A row lights when it reaches its height in the window, and stays lit past it.
+    const row = page.locator('.build').first();
+    await row.scrollIntoViewIfNeeded();
+    await expect(row).toHaveAttribute('data-lit');
+    await page.evaluate(() => scrollTo(0, 0));
+    await expect(row).toHaveAttribute('data-lit');
   });
 
-  test('a lab’s glyph runs with its demo, and stops with it', async ({ page }) => {
-    await page.goto('/lab/raft/');
-    const sparks = () => page.locator('.lab-head-glyph .iso-spark').first();
-    await expect(page.locator('[data-rf-run]')).toHaveText('Pause');
-    await expect(sparks()).toBeVisible();
-    await page.locator('[data-rf-run]').click();
-    await expect(sparks()).toBeHidden();
-  });
-
-  test('under reduced motion none of it runs', async ({ page }) => {
+  test('under reduced motion none of it runs, and every line stands lit', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    for (const path of ['/lab/', '/writing/']) {
+    for (const path of ['/', '/lab/', '/writing/']) {
       await page.goto(path);
       await page.waitForTimeout(400);
       expect(await running(page)).toEqual([]);
+    }
+    await page.goto('/');
+    const scale = await page
+      .locator('.section')
+      .last()
+      .evaluate((section) => getComputedStyle(section, '::before').scale);
+    expect(scale).toBe('none');
+  });
+
+  test('/lab/ runs its glyphs’ sparks, and so does a lab’s page, under the same button', async ({
+    page,
+  }) => {
+    for (const path of ['/lab/', '/lab/raft/']) {
+      await page.goto(path);
+      await expect.poll(() => running(page)).toEqual(expect.arrayContaining(['iso-spark']));
+      await page.locator('[data-motion-toggle]').click();
+      await expect.poll(() => running(page)).not.toEqual(expect.arrayContaining(['iso-spark']));
+      await page.locator('[data-motion-toggle]').click();
     }
   });
 });

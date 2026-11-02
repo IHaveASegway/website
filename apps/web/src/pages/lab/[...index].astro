@@ -34,7 +34,7 @@ const lab = await loadLabArea();
       heading="Lab"
       lead="Small working models of real systems, running in your browser. Crash them, change the settings and see what holds. Most use the same made-up bakery, so you can follow along without knowing the jargon."
     />
-    <ul class="lab-cards" role="list" data-live>
+    <ul class="lab-cards" role="list">
       {lab.entries.map((entry) => (
         <LabCard entry={entry} />
       ))}

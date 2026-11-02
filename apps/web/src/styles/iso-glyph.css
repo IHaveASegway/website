@@ -23,9 +23,9 @@
   vector-effect: non-scaling-stroke;
 }
 
-/* A spark running along each wire (ADR 0030): on a lab's page while its demo runs, so its Pause stops
-   this too; on /lab/ while the page is marked (scripts/motion.js), under the top bar's button.
-   Scaled strokes, since a dash and a non-scaling stroke don't agree on what a path's length is. */
+/* A spark running along each wire while the page is marked (scripts/field.js), under the top bar's
+   button (ADR 0030). Scaled strokes, since a dash and a non-scaling stroke don't agree on what a
+   path's length is. */
 .iso-glyph .iso-spark {
   display: none;
   stroke: var(--foreground);
@@ -36,8 +36,7 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  :root[data-motion] .iso-glyph .iso-spark,
-  main:has(.desk [data-lamp='on']) .iso-glyph .iso-spark {
+  :root[data-motion] .iso-glyph .iso-spark {
     display: inline;
     animation: iso-spark 2.6s linear infinite;
   }

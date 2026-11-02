@@ -7,8 +7,6 @@
 // about 350 KB, loads only when VROOM has something to plan (app.ts). A touch that only scrolls
 // the page loads nothing.
 
-import { keepChoice, landsRunning } from '../../lib/lab/arrival';
-
 const UNLOADED =
   'The demo did not load, so the maps still show the day it opened with. Change anything to try again.';
 const LOADING = 'Loading the solver…';
@@ -39,10 +37,12 @@ if (root) {
   const status = root.querySelector('[data-rl-status]');
 
   // The vans drive when a visitor lands (ADR 0030), by the page's own markup: no script runs them,
-  // this only pauses them, on the button, or while the maps are off the screen.
+  // this only holds them, on a button, or while the maps are off the screen.
   const maps = root.querySelector('.rl-maps');
   const buttons = root.querySelectorAll<HTMLButtonElement>('[data-rl-drive]');
-  let wanted = landsRunning();
+  // Still until the chrome's module says the page may move (scripts/field.js), and for good if it
+  // never does.
+  let wanted = false;
   let shown = true;
   const drive = () => {
     for (const layer of root.querySelectorAll<SVGSVGElement>('[data-rl-fleet]')) {
@@ -59,9 +59,13 @@ if (root) {
   for (const button of buttons)
     button.addEventListener('click', () => {
       wanted = !wanted;
-      keepChoice(!wanted);
       drive();
     });
+  // The top bar's button reaches the vans too, as it does a lab's run.
+  document.addEventListener('motionchange', (event) => {
+    wanted = !(event as CustomEvent<{ paused: boolean }>).detail.paused;
+    drive();
+  });
   if (maps)
     new IntersectionObserver(([entry]) => {
       shown = entry?.isIntersecting ?? true;

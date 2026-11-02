@@ -1,4 +1,4 @@
-import { keepRunChoice, runOnLanding } from '../../lib/lab/landing-run';
+import { runOnLanding } from '../../lib/lab/landing-run';
 import { NODES, PAGES, seconds, type Load, type Placement } from '../../lib/cache/core';
 import {
   flush,
@@ -302,7 +302,6 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     const control = target?.closest('button');
     if (control) press(control);
   });
-  keepRunChoice(root, '[data-cl-run]', () => playing);
   root.addEventListener('change', (event) => {
     if (event.target instanceof Element) press(event.target);
   });
