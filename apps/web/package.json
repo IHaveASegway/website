@@ -19,11 +19,11 @@
     "icons": "node scripts/icons.mjs"
   },
   "dependencies": {
-    "@astrojs/markdown-satteri": "0.4.5",
+    "@astrojs/markdown-satteri": "0.4.6",
     "@astrojs/rss": "4.0.19",
     "@astrojs/sitemap": "3.7.4",
     "@tailwindcss/vite": "4.3.3",
-    "astro": "7.4.2",
+    "astro": "7.4.4",
     "culori": "4.0.2",
     "parse5": "8.0.1",
     "satori": "0.63.2",
@@ -37,7 +37,7 @@
     "@lhci/cli": "0.15.1",
     "@playwright/test": "catalog:",
     "@types/culori": "^4.0.1",
-    "@types/node": "^26.6.5",
+    "@types/node": "^26.6.6",
     "@types/three": "0.186.0",
     "fontkitten": "1.0.3",
     "typescript": "catalog:",
