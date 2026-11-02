@@ -718,6 +718,19 @@
     margin: 0;
   }
 
+  /* Too narrow for a name beside its value, as at 320 px or with a larger text size: the value
+     goes under its name rather than past the screen's edge (SC 1.4.10). */
+  @media (width < 27rem) {
+    .kv {
+      grid-template-columns: minmax(0, 1fr);
+      row-gap: 0;
+    }
+
+    .kv dd + dt {
+      margin-block-start: 0.4375rem;
+    }
+  }
+
   /* The footer (docs/design/overhaul.md, "Footer"): a band of the raised paper under a hairline,
      who this is and the address on the left, the links beside it from 48rem, the copyright under
      both. All of it in the label face but the name, which is the display face's. */

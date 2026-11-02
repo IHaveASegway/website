@@ -47,7 +47,12 @@ async function unusedFonts(
   page: Page,
   path: string,
   before?: () => Promise<unknown>,
-): Promise<{ fetched: string[]; unused: string[]; drawn: Set<string> }> {
+): Promise<{
+  fetched: string[];
+  unused: string[];
+  drawn: Set<string>;
+  families: Record<string, string>;
+}> {
   const fetched: string[] = [];
   page.on('request', (request) => {
     if (request.resourceType() === 'font') fetched.push(new URL(request.url()).pathname);
@@ -64,7 +69,12 @@ async function unusedFonts(
     const font = create(Buffer.from(await (await page.request.get(file)).body()));
     if (!font.isCollection) families[file] = font.familyName;
   }
-  return { fetched, unused: fetched.filter((file) => !drawn.has(families[file] ?? file)), drawn };
+  return {
+    fetched,
+    unused: fetched.filter((file) => !drawn.has(families[file] ?? file)),
+    drawn,
+    families,
+  };
 }
 
 for (const path of [...pages(), NOT_FOUND_PAGE]) {
@@ -101,7 +111,7 @@ test('known answer: a font file fetched for a face that draws no text is reporte
     expect(body).not.toMatch(/<(code|pre)\b/);
     await route.fulfill({ response, body });
   });
-  const { unused } = await unusedFonts(page, withCode, () =>
+  const { unused, families } = await unusedFonts(page, withCode, () =>
     page.evaluate(async () => {
       const mono = [...document.fonts].find((face) =>
         face.family.replace(/"/g, '').startsWith('B612 Mono-'),
@@ -110,6 +120,10 @@ test('known answer: a font file fetched for a face that draws no text is reporte
       await mono.load();
     }),
   );
-  expect(unused).toHaveLength(1);
-  expect(unused[0]).toMatch(/\.woff2$/);
+  // By name, not by count: page.route turns off the cache and slows every fetch, so a preloaded face
+  // (font-display: optional) can miss its first moment here and sit undrawn beside the mono, as one
+  // did on 2026-11-02. That is the fallback working, not the fault this answer is about.
+  const mono = unused.filter((file) => families[file] === 'B612 Mono');
+  expect(mono).toHaveLength(1);
+  expect(mono[0]).toMatch(/\.woff2$/);
 });
