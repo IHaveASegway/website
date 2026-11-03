@@ -60,20 +60,25 @@ const found = [
 ---
 
 <dialog class="palette" data-palette aria-label="Command menu">
-  <input
-    class="palette-input"
-    type="text"
-    role="combobox"
-    aria-label="Find a page or an action"
-    aria-expanded="true"
-    aria-controls="palette-list"
-    aria-autocomplete="list"
-    autocomplete="off"
-    spellcheck="false"
-    autocapitalize="none"
-    enterkeyhint="go"
-    placeholder="Find a page or an action"
-  />
+  <div class="palette-bar">
+    <input
+      class="palette-input"
+      type="text"
+      role="combobox"
+      aria-label="Find a page or an action"
+      aria-expanded="true"
+      aria-controls="palette-list"
+      aria-autocomplete="list"
+      autocomplete="off"
+      spellcheck="false"
+      autocapitalize="none"
+      enterkeyhint="go"
+      placeholder="Find a page or an action"
+    />
+    <button type="button" class="palette-close" data-palette-close>
+      Close
+    </button>
+  </div>
   <div
     class="palette-list"
     id="palette-list"

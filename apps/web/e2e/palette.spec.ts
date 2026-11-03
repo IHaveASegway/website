@@ -178,6 +178,25 @@ test("the site's own words find their pages, and scattered letters don't take En
   expect(await rows(page)).toEqual({ shown: ['palette-copy'], active: 'palette-copy' });
 });
 
+// A wheel or a finger on the backdrop scrolled the page behind the menu. A modal dialog makes a page
+// inert, which stops neither.
+test('the page behind the open menu stays where it is, and scrolls again once it closes', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1024, height: 700 });
+  await ready(page, '/about/');
+  await page.evaluate(() => window.scrollTo(0, 300));
+  await expect.poll(() => page.evaluate(() => scrollY)).toBe(300);
+  await page.keyboard.press('Control+k');
+  await page.mouse.move(8, 400);
+  await page.mouse.wheel(0, 600);
+  await page.waitForTimeout(200);
+  expect(await page.evaluate(() => scrollY)).toBe(300);
+  await page.keyboard.press('Escape');
+  await page.mouse.wheel(0, 200);
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(300);
+});
+
 test('the arrows move the selection, wrapping at the ends, and Enter goes to the page', async ({
   page,
 }) => {
@@ -302,6 +321,33 @@ test.describe('on a touch screen', () => {
     await page.keyboard.press('Control+k');
     await expect(menu(page)).toHaveJSProperty('open', true);
   });
+
+  // A phone has no Esc and no arrows, and its keyboard leaves little backdrop to tap.
+  test('the menu says nothing of keys, and a Close button closes it', async ({ page }) => {
+    await ready(page);
+    await opener(page).tap();
+    await expect(menu(page)).toHaveJSProperty('open', true);
+    await expect(page.locator('.palette-help')).toBeHidden();
+    const close = page.getByRole('button', { name: 'Close' });
+    await expect(close).toBeVisible();
+    const box = await close.boundingBox();
+    expect(box?.height).toBeGreaterThanOrEqual(44);
+    await close.tap();
+    await expect(menu(page)).toHaveJSProperty('open', false);
+    await expect(opener(page)).toBeFocused();
+  });
+});
+
+// Under a pointer that can hover, the keys are what closes it, and the help line says so.
+test('under a pointer that can hover, the menu names its keys and shows no Close button', async ({
+  page,
+}) => {
+  await ready(page);
+  await page.keyboard.press('Control+k');
+  await expect(page.locator('.palette-help')).toHaveText(
+    'Up and down to move, Enter to open, Esc to close',
+  );
+  await expect(page.locator('.palette-close')).toBeHidden();
 });
 
 test.describe('without JavaScript', () => {

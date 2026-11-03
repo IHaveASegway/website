@@ -147,6 +147,8 @@ function boot() {
     narrow();
     clearTimeout(timer);
     say.textContent = '';
+    const root = document.documentElement;
+    root.dataset.palette = root.scrollHeight > root.clientHeight ? 'scrolls' : '';
     dialog.showModal();
     input.focus();
   };
@@ -199,27 +201,20 @@ function boot() {
     }
   });
 
-  // A row acts on a click, as on Enter. A click anywhere else in the box, a heading or a line under
-  // the rows, does nothing but leave focus where the keys work: in the input. A click outside the
-  // box, on the backdrop, closes the menu, but only when the press began there too: a drag that
-  // ends outside the box is not a click on the backdrop.
-  const outside = (event) => {
-    const box = dialog.getBoundingClientRect();
-    return (
-      event.target === dialog &&
-      (event.clientX < box.left ||
-        event.clientX > box.right ||
-        event.clientY < box.top ||
-        event.clientY > box.bottom)
-    );
-  };
+  // A row acts on a click, as on Enter. The Close button, which a touch screen shows, closes the
+  // menu. A click anywhere else in the box, a heading or a line under the rows, does nothing but
+  // leave focus where the keys work: in the input. A click outside the box, on the backdrop, closes
+  // the menu, but only when the press began there too: a drag that ends outside the box is not a
+  // click on the backdrop.
+  // The box's rows and lines fill it, so a press on the dialog itself is on its backdrop.
+  const outside = (event) => event.target === dialog;
   dialog.addEventListener('pointerdown', (event) => (pressedOutside = outside(event)));
   dialog.addEventListener('click', (event) => {
     const option = event.target.closest('[role="option"]');
     if (option) {
       select(option);
       run(option, event.metaKey || event.ctrlKey);
-    } else if (pressedOutside && outside(event)) {
+    } else if (event.target.closest('[data-palette-close]') || (pressedOutside && outside(event))) {
       dialog.close();
     }
     if (dialog.open) input.focus();
