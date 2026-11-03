@@ -20,7 +20,6 @@ import { countTests, readDecisions } from '../lib/home-sources';
 import { homeGraph, serialize } from '../lib/jsonld';
 import { LAB_NAMES, labNamedIn, labPath } from '../lib/lab';
 import { factSource, labFact } from '../lib/lab-facts';
-import { inWords } from '../lib/lines';
 import { homeCard } from '../lib/og';
 import { checkedProfiles, homeDescription, roleLine } from '../lib/profile';
 import { SEEDS_IN_CI as QUEUE_SEEDS } from '../lib/queue/view';
@@ -195,7 +194,7 @@ const latest = writingRow(area.published, work);
       </ul>
       {lab.visible && (
         <p class="build-more">
-          <a href="/lab/">Try all {inWords(lab.entries.length)} labs</a>
+          <a href="/lab/">Try all the labs</a>
         </p>
       )}
     </section>

@@ -73,7 +73,7 @@ test('Home renders exactly the cards whose page exists: checked, unheld projects
 });
 
 // Every demo the lab lists is a link on Home (ADR 0028; until then a card, ADR 0027, and before it a
-// line on the board, ADR 0025): the bio names four of them, and "All five labs" opens the index.
+// line on the board, ADR 0025): the bio names each of them, and "Try all the labs" opens the index.
 test('Home links each demo this build lists', () => {
   for (const href of demos) expect(home, href).toContain(`href="${href}"`);
 });

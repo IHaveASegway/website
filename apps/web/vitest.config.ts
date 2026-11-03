@@ -25,6 +25,7 @@ const DIST_CHECKS = [
   'jsonld',
   'llms',
   'nav',
+  'no-lab-count',
   'not-on-site',
   'og',
   'palette',

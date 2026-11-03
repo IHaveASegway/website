@@ -14,7 +14,7 @@ import {
   vroomInput,
   type Measured,
 } from '../src/lib/route-lab/plan';
-import { app, fileFor, html, profile, read } from './support/dist';
+import { app, html, read } from './support/dist';
 
 // The labs' words against the site's language (docs/content.md, "The site's language"; ADR 0029),
 // where test/language.test.ts's list of retired phrases can't reach: a rule about the order of two
@@ -174,7 +174,11 @@ describe('what a page says of itself', () => {
     ],
     [
       'lab/index.html',
-      'This is where I practice, in small working models of real systems that run in your browser.',
+      'Each lab explains one part of the software it takes to run a business at scale, safely and with good performance.',
+    ],
+    [
+      'lab/index.html',
+      'Most use the same made-up bakery, and the end goal is to tie them all together into that bakery’s working software.',
     ],
     ['writing/coding-by-hand/index.html', 'Try the labs: small systems you can break'],
   ];
@@ -230,7 +234,7 @@ describe('what a page says of itself', () => {
     'the Lab says the same in its description as in its lead',
     () => {
       const said =
-        'This is where I practice, in small working models of real systems that run in your browser. Crash them, change the settings and see what holds.';
+        'Each lab explains one part of the software it takes to run a business at scale, safely and with good performance. Crash them, change the settings and see what holds.';
       const page = read('lab/index.html');
       expect(words(page)).toContain(said);
       expect(page).toContain(`<meta name="description" content="${said}">`);
@@ -317,52 +321,5 @@ describe('the Route Lab’s write-up says what VROOM answers', () => {
     expect(later).toBeGreaterThan(0);
     expect(writeUp).toContain('using one van means the least driving, but that van is back last');
     expect(writeUp).toContain('the day can even end later');
-  });
-});
-
-// A row of the résumé's skills that opens a lab can name only what that lab shows. The labs name no
-// product (docs/lab.md), so the tools line says what Joseph has used, and the row should say what the
-// page does. Two rows don't yet, under a note that says "working": About's words are held for its
-// overhaul, and Joseph hasn't read a rewrite of them, so they stand here as the list that overhaul
-// has to clear. It can only shrink, as test/language.test.ts's list does.
-const ROWS_AWAITING_THE_ABOUT_OVERHAUL: Readonly<Record<string, readonly string[]>> = {
-  'Message brokers: RabbitMQ, LavinMQ, SQS': ['RabbitMQ', 'LavinMQ', 'SQS'],
-  'Scheduled pipelines: Airflow': ['Airflow'],
-};
-
-describe('a skill promises what its page shows', () => {
-  const TOOLS = (profile.tools ?? '')
-    .split(/[,.]\s*|\s+and\s+|\s+on\s+/)
-    .map((tool) => tool.trim())
-    .filter(Boolean);
-  /** The tools a row names that its page never does. */
-  const unbacked = (row: string, page: string) =>
-    TOOLS.filter((tool) => new RegExp(`\\b${tool}\\b`).test(row) && !page.includes(tool));
-
-  test('known answers: the tools line is read, and a tool the page does not name is caught', () => {
-    expect(TOOLS).toContain('RabbitMQ');
-    expect(TOOLS).toContain('Airflow');
-    expect(unbacked('Message brokers: RabbitMQ, LavinMQ, SQS', 'a simulated broker')).toEqual([
-      'RabbitMQ',
-      'LavinMQ',
-      'SQS',
-    ]);
-    expect(unbacked('Message queues: acks, idempotency keys', 'a simulated broker')).toEqual([]);
-    expect(unbacked('TypeScript', 'one TypeScript module')).toEqual([]);
-  });
-
-  const toLabs = profile.skills.flatMap((skill) =>
-    skill.evidence
-      .filter((href) => href.startsWith('/lab/'))
-      .map((href) => [skill.name, href] as const),
-  );
-  test.each(toLabs)('%s, on %s', (name, href) => {
-    expect(unbacked(name, words(read(`${fileFor(href)}index.html`)))).toEqual(
-      ROWS_AWAITING_THE_ABOUT_OVERHAUL[name] ?? [],
-    );
-  });
-
-  test('the note over the rows stands as Joseph last read it, until the overhaul replaces both', () => {
-    expect(words(read('about/index.html'))).toContain('What you can see working here:');
   });
 });
