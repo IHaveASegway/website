@@ -213,6 +213,35 @@ test('with no preference, a hovered or focused row keeps its words as they are',
   expect(await words()).toBe(before);
 });
 
+// The opt-in stands in the page, because a browser reads it the first time it works out the new page's
+// style, which can come before a linked sheet has arrived. In a sheet, Chromium aborted the transition on
+// most arrivals at a lab, the second always, with a red line in the console.
+test('a lab followed from the index arrives with its transition, however often, and no error', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.addInitScript(() =>
+    addEventListener('pagereveal', (event) =>
+      sessionStorage.setItem(
+        'revealed',
+        String(Boolean((event as Event & { viewTransition?: unknown }).viewTransition)),
+      ),
+    ),
+  );
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  for (const slug of ['routes', 'queue', 'cache', 'backfill', 'raft']) {
+    for (let visit = 0; visit < 2; visit++) {
+      await page.goto('/lab/');
+      await page.locator(`a[href="/lab/${slug}/"]`).first().click();
+      await page.waitForURL(`**/lab/${slug}/`);
+      await page.waitForLoadState('load');
+      expect(await page.evaluate(() => sessionStorage.getItem('revealed')), slug).toBe('true');
+    }
+  }
+  expect(errors).toEqual([]);
+});
+
 test('with no preference, the followed title takes the page title’s name as Home is left, and the next page’s title has it', async ({
   page,
 }) => {

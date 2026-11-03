@@ -63,6 +63,11 @@ const {
 } = Astro.props;
 const canonical = path === undefined ? undefined : new URL(path, Astro.site).href;
 const image = og && canonical ? new URL('og.png', canonical).href : undefined;
+// The opt-in to a cross-document view transition, inline, the one rule that can't live in a sheet. A
+// browser reads it the first time it works out the new page's style, which can come before a linked
+// sheet has arrived: in the sheet every page links, Chromium aborted most arrivals, with a red line in
+// the console, and always from a cache. No bytes move: it's the same rule, in the page.
+const VIEW_TRANSITION = '@media (prefers-reduced-motion:no-preference){@view-transition{navigation:auto}}';
 const profile = await loadProfile();
 // Writing's pages and feed exist only from the first published post (lib/posts.ts), and the lab's
 // from its first live demo (lib/lab.ts): the header, the footer and the feed link below learn from
@@ -129,6 +134,7 @@ const chrome = (['dark', 'light'] as const).map((scheme) => ({
       <meta name="theme-color" media={media} content={color} />
     ))}
     <script is:inline set:html={THEME_SCRIPT} />
+    <style is:inline set:html={VIEW_TRANSITION} />
     <title>{title}</title>
     <meta name="description" content={typeset(description)} />
     {noindex && <Fragment set:html={NOINDEX} />}

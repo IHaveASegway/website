@@ -436,7 +436,7 @@ Rules:
 |---|---|---|---|---|---|
 | Card bar sweep | cards that hold a link | CSS: a 2 px `::before` scaled from 0 to 1 | 0 | `:focus-within` mirrors hover; under reduce the bar appears at once | Low |
 | Outline focus | everything focusable | a 2 px outline in the accent, offset 3 px; since 2026-10-30 in the lit lamp's colour, `--ring` | 0 | the focus indicator; never removed | Low |
-| Cross-document view transitions | page to page | `@view-transition { navigation: auto; }` inside no-preference ([ADR 0003](adr/0003-astro-static-first.md)) | 0 | none under reduce; Firefox navigates normally | Low |
+| Cross-document view transitions | page to page | `@view-transition { navigation: auto; }` inside no-preference ([ADR 0003](adr/0003-astro-static-first.md)), inline in each page's head since 2026-11-03: a browser reads the opt-in the first time it works out a page's style, which can come before a linked sheet has arrived, and Chromium aborted most arrivals at a lab | 0 | none under reduce; Firefox navigates normally | Low |
 | Theme toggle | the end of the header, an icon for each state | the pre-paint script's click handler; CSS picks the icon, the name and the title; the script points `theme-color` at a chosen theme, and applies the choice again when the back-forward cache restores a page | inside the theme script | a native button whose name states the current theme, with a title of the same words; 44 × 44 px; hidden without JavaScript, in print and in forced colors | Low |
 
 Eager JavaScript on a content page: 591 B on 2026-10-25, the theme script alone, against the 5 KB budget (546 B on 2026-10-24); the command menu, below, joined it that day.

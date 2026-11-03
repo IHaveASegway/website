@@ -138,10 +138,6 @@
    appears anywhere else. Nothing moves after the first paint unless the visitor scrolls or opens
    something: no entrance on load, no loop. */
 @media (prefers-reduced-motion: no-preference) {
-  @view-transition {
-    navigation: auto;
-  }
-
   /* A page's one title carries the name, so the title a visitor followed on an index flies to it:
      src/scripts/motion.js gives the followed title the same name as the index is left, and takes it
      from the index's own title. With nothing followed, the titles crossfade. */
