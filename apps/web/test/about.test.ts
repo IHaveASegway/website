@@ -76,6 +76,15 @@ test('the bio renders exactly where its entry is, as named blocks in its own wor
   expect(page.indexOf('class="bio"')).toBeLessThan(page.indexOf('id="experience-title"'));
 });
 
+// The bio names the essay and the Lab, and until 2026-11-02 only Home linked the essay: this is the
+// page for readers who want more, so each opens its page here too.
+test('the essay and the Lab the bio names open their pages, as the labs do', () => {
+  if (fixtureBuild) return;
+  const bio = /<section class="bio"[\s\S]*?<\/section>/.exec(page)?.[0] ?? '';
+  expect(bio).toContain('<a href="/writing/you-will-be-missed/">essay</a>');
+  expect(bio).toContain('<a href="/lab/">The Lab</a>');
+});
+
 test('the page has one Print button, and no PDF is written for it', () => {
   expect(page.match(/<button\b[^>]*\bdata-print\b/g)).toHaveLength(1);
   expect(page).not.toMatch(/href="[^"]*\.pdf"/);
