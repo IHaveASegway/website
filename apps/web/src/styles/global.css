@@ -1679,6 +1679,34 @@
   .prose :not(pre) > code {
     padding: 0;
   }
+
+  /* The footer on paper stays whole, under the page's last words: one column, since the links' printed
+     addresses left the name and the email address a column too narrow for them, with no finger's
+     target height and little space. As the screen has it, it took the essay a fifth sheet of US Letter
+     holding nothing but the copyright line. */
+  .site-foot {
+    margin-top: 2rem;
+    break-inside: avoid;
+  }
+
+  .site-footer {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.5rem;
+    padding-block: 1rem 0;
+  }
+
+  .footer-role {
+    margin-block-end: 0;
+  }
+
+  .footer-email,
+  .footer-links a {
+    min-height: 0;
+  }
+
+  .fine-print {
+    padding-top: 0.5rem;
+  }
 }
 
 @media (forced-colors: active) {

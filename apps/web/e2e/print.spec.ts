@@ -84,6 +84,29 @@ for (const theme of ['dark', 'light'] as const) {
   });
 }
 
+// The footer on paper stays whole, under the page's last words (global.css). On US Letter the essay's
+// spilled a fifth sheet that held only a rule and the copyright line. Should a later edit fill the last
+// sheet to its foot, the footer may take the next one, whole: then read this count again, not the essay.
+test('the essay on paper: the footer stays whole, and takes no sheet of its own', async ({
+  page,
+}) => {
+  const essay = '/writing/you-will-be-missed/';
+  test.skip(!pages().includes(essay), 'no essay in this build');
+  await page.goto(essay);
+  await page.evaluate(() => document.fonts.ready);
+  const sheets = async (format: 'Letter' | 'A4') =>
+    ((await page.pdf({ format })).toString('latin1').match(/\/Type\s*\/Page(?!s)/g) ?? []).length;
+  const withIt = [await sheets('Letter'), await sheets('A4')];
+  await page.emulateMedia({ media: 'print' });
+  expect(
+    await page.locator('.site-foot').evaluate((foot) => getComputedStyle(foot).breakInside),
+  ).toBe('avoid');
+  await page.locator('.site-foot').evaluate((foot) => {
+    (foot as HTMLElement).style.display = 'none';
+  });
+  expect(withIt).toEqual([await sheets('Letter'), await sheets('A4')]);
+});
+
 test('inline code has no padding on paper or in forced colors, and keeps it on screen', async ({
   page,
 }) => {
