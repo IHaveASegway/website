@@ -211,7 +211,7 @@ const judged = (sim: Sim, day: number): boolean => Boolean(sim.runs[day]?.verdic
  *  failed, as the run board does. */
 export function summary(sim: Sim): string {
   if (!sim.on)
-    return `The job graph is off. Switched on, it creates a run for each day from ${dayText(0)} to ${dayText(DAYS - 1)} at once, and lets ${sim.maxActiveRuns} run at a time.`;
+    return `The job is off. Switched on, it creates a run for each day from ${dayText(0)} to ${dayText(DAYS - 1)} at once, and lets ${sim.maxActiveRuns} run at a time.`;
   const checked: number[] = [];
   for (let day = 0; day < DAYS; day++) if (judged(sim, day)) checked.push(day);
   const wrong = checked.flatMap((day) =>
@@ -283,7 +283,7 @@ export function statusText(sim: Sim): string {
       : [],
   );
   if (broken.length === 0)
-    return `All three properties held over ${events}: every checked day's total matched the source, no task started before its upstream succeeded, and no limit was passed.`;
+    return `All three checks held over ${events}: every checked day's total matched the source, no task started before its upstream succeeded, and no limit was passed.`;
   const held = all.flatMap((p) => (p.held ? [SHORT[p.id]] : []));
   const tail = held.length > 0 ? `; ${joinAnd(held)} held` : '';
   return `${upperFirst(broken.join('; '))}${tail}, over ${events}.`;
@@ -534,7 +534,7 @@ export interface PropertyView {
   readonly id: PropertyId;
   readonly name: string;
   readonly held: boolean;
-  /** "Held.", or how often it broke and the first time, with what was wrong then. */
+  /** "Held", or how often it broke and the first time, with what was wrong then. */
   readonly word: string;
 }
 
@@ -544,8 +544,8 @@ export const propertyViews = (sim: Sim): PropertyView[] =>
     name: PROPERTY_NAMES[p.id],
     held: p.held,
     word: p.first
-      ? `Broke ${times(p.count)}, first at ${moment(p.first.at)}: ${p.first.detail}.`
-      : 'Held.',
+      ? `Broken ${times(p.count)}, first at ${moment(p.first.at)}: ${p.first.detail}.`
+      : 'Held',
   }));
 
 /** "44 events". */

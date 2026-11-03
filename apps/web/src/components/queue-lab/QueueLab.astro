@@ -300,7 +300,7 @@ if (pool.length > MAX_WORKERS) throw new Error('queue lab: more workers than the
       </div>
     </fieldset>
     <fieldset class="qu-group">
-      <legend class="qu-legend">Orders each worker may hold</legend>
+      <legend class="qu-legend">Prefetch: orders each worker may hold</legend>
       <div class="qu-row">
         {PREFETCHES.map((n) => (
           <label class="qu-choice">

@@ -234,7 +234,7 @@ test('Home closes with the address, a button that copies it without moving, and 
   );
   await expect(contact.locator('.contact-address')).toHaveText('hello@ihaveasegway.com');
   const copy = contact.locator('.btn-copy');
-  await expect(copy).toHaveText('Copy the address');
+  await expect(copy).toHaveText('Copy email address');
   await copy.scrollIntoViewIfNeeded();
   const size = async () => {
     const box = await copy.boundingBox();
@@ -255,6 +255,6 @@ test('Home closes with the address, a button that copies it without moving, and 
     );
   }
   expect(await size()).toEqual(before);
-  await expect(copy).toHaveText('Copy the address', { timeout: 5_000 });
+  await expect(copy).toHaveText('Copy email address', { timeout: 5_000 });
   await expect(contact.locator('a.btn')).toHaveText(['LinkedIn']);
 });

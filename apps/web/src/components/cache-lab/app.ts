@@ -123,7 +123,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
         attribute($(`[data-cl-${part}="${id}"]`), 'data-up', String(up));
       text($(`[data-cl-node="${id}"] [data-cl-node-words]`), nodeWords(sim, id));
       const button = $(`[data-cl-lose="${id}"]`);
-      const words = `${up ? 'Lose' : 'Restore'} node ${id + 1}`;
+      const words = `${up ? 'Lose' : 'Restart'} node ${id + 1}`;
       text(button, words);
       attribute(button, 'aria-label', `${words}, now ${up ? `up, ${nodeWords(sim, id)}` : 'down'}`);
     }

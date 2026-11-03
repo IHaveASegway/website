@@ -18,7 +18,7 @@ const QUEUE = '/lab/queue/';
 test.beforeEach(({ page }) => handsOn(page));
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 const OPENING_STORY =
-  'Order 18 was printed twice: worker 2 crashed after printing its ticket and before its ack left, so the broker sent it again and worker 1 printed it a second time. Nothing was lost; 25 orders are done and 13 are queued or with a worker.';
+  'Order 18 was printed twice: worker 2 crashed after printing its ticket and before its acknowledgement left, so the broker sent it again and worker 1 printed it a second time. Nothing was lost; 25 orders are done and 13 are queued or with a worker.';
 
 const clock = (page: Page) => page.locator('[data-qu-clock]');
 /** The line under the clock: the opening's crash, which every run takes. */
@@ -242,7 +242,7 @@ test('Run on the untouched opening plays worker 2’s crash as it happens, and N
   for (let n = 0; n < 200 && (await seconds(page)) < 2.4; n++) await step.click();
   await expect(clock(page)).toHaveText('Virtual time 2.400 s');
   await expect(log(page)).toContainText(
-    '2.400 s Worker 2 crashes holding order 18, after its ticket printed and before its ack left.',
+    '2.400 s Worker 2 crashes holding order 18, after its ticket printed and before its acknowledgement left.',
   );
   await expect(map(page).locator('.qu-state')).toHaveText(['Down']);
   // Run on: order 18 comes back and prints a second time, and the run is the opening's again.
@@ -260,7 +260,7 @@ test('the first thing to try: worker 2 crashes at 2.4 s and order 18 prints twic
   await page.goto(QUEUE);
   await expect(summary(page)).toHaveText(OPENING_STORY);
   for (const line of [
-    '2.400 s Worker 2 crashes holding order 18, after its ticket printed and before its ack left.',
+    '2.400 s Worker 2 crashes holding order 18, after its ticket printed and before its acknowledgement left.',
     "2.404 s The broker sees worker 2's connection close and puts order 18 back at the head of the queue",
     "2.873 s Worker 1 prints order 18's ticket again: order 18 is printed twice",
   ])
@@ -275,10 +275,10 @@ test('the first thing to try: worker 2 crashes at 2.4 s and order 18 prints twic
     ((await log(page).textContent()) ?? '').includes('2.873 s Worker 1 finds order 18'),
   );
   await expect(summary(page)).toHaveText(
-    /^Order 18 was sent twice and printed once: worker 2 crashed after printing its ticket and before its ack left, so the broker sent it again, and worker 1 found it in the done set and skipped the ticket\. Nothing was lost;/,
+    /^Order 18 was sent twice and printed once: worker 2 crashed after printing its ticket and before its acknowledgement left, so the broker sent it again, and worker 1 found it in the record and skipped the ticket\. Nothing was lost;/,
   );
   await expect(log(page)).toContainText(
-    '2.873 s Worker 1 finds order 18 in the done set and does not print it again',
+    '2.873 s Worker 1 finds order 18 in the record and does not print it again',
   );
   await expect(map(page).locator('.qu-again')).toHaveCount(0);
   await expect(map(page).locator('.qu-ticket[data-order="18"]')).toHaveAttribute(
@@ -358,7 +358,7 @@ test('the third: a poison order, then no more orders: under requeue the queue ne
   await runUntil(page, async () => ((await log(page).textContent()) ?? '').includes('it drained'));
   for (const line of [
     '1.993 s Order 14 fails on worker 1, try 1, and waits 200 ms before the next',
-    '2.400 s Worker 2 crashes holding order 14. The broker has no ack for it, so it will send it again',
+    '2.400 s Worker 2 crashes holding order 14. The broker has no acknowledgement for it, so it will send it again',
     '2.814 s Order 14 fails on worker 3, try 2, and waits 400 ms before the next',
     '3.533 s Order 14 fails on worker 1, try 3, and waits 800 ms before the next',
     '4.555 s Order 14 fails on worker 3, try 4, and goes to the dead-letter queue',
@@ -386,7 +386,7 @@ test('while orders still come, a poison order under requeue fails over and over:
   await expect(status(page)).toHaveText(
     'No order was lost, but 1 order was printed twice. Whether the queue drains is checked once orders stop.',
   );
-  await expect(property(page, 'drains')).toContainText('Holds; checked once orders stop');
+  await expect(property(page, 'drains')).toContainText('Held so far; checked once orders stop');
 });
 
 test('then a slow worker: with ten orders of prefetch it sits on nine it cannot reach, with one it holds one', async ({

@@ -187,7 +187,7 @@ test('with the job off, Next event and Run switch it on first, so the clock neve
 }) => {
   await page.goto(BACKFILL);
   await rewind(page);
-  await expect(summary(page)).toHaveText(/^The job graph is off\./);
+  await expect(summary(page)).toHaveText(/^The job is off\./);
   await page.getByRole('button', { name: 'Next event' }).click();
   // The switch only switches on, so it is no toggle: once the job is on it says so, unavailable.
   const on = page.getByRole('button', { name: 'Job on since 00:00' });
@@ -195,7 +195,7 @@ test('with the job off, Next event and Run switch it on first, so the clock neve
   await expect(on).not.toHaveAttribute('aria-pressed');
   await expect(page.locator('[data-bf-clock]')).toHaveText('00:00 on Monday 26 October');
   await expect(page.locator('[data-bf-said]')).toHaveText(
-    /^The job graph is switched on with catch-up, which creates all 7 days' runs at once; 3 may run at a time\./,
+    /^The job is switched on with catch-up, which creates all 7 days' runs at once; 3 may run at a time\./,
   );
   // Unavailable, it is still a button a keyboard reaches, and pressed it says why it does nothing.
   await on.focus();
@@ -536,7 +536,7 @@ test('the opening’s week has happened, so Run plays it again from the switch, 
   await page.getByRole('button', { name: 'Run', exact: true }).click();
   // Back at the switch, said, and on the clock: the week plays as the entry tells it.
   await expect(page.locator('[data-bf-said]')).toHaveText(
-    /^The week plays again from the switch\. The job graph is switched on with catch-up/,
+    /^The week plays again from the switch\. The job is switched on with catch-up/,
   );
   expect(await minutes(page)).toBeLessThan(60);
   await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
@@ -605,7 +605,7 @@ test('Start over goes back to the switch, and Run plays the failed load and the 
   await page.goto(BACKFILL);
   await startOver(page);
   await expect(page.locator('[data-bf-events]')).toHaveText('0 events');
-  await expect(summary(page)).toHaveText(/^The job graph is off\./);
+  await expect(summary(page)).toHaveText(/^The job is off\./);
   await expect(day(page, 2).locator('[data-bf-report]')).toHaveText('');
   await expect(page.getByRole('button', { name: 'Switch the job on' })).not.toHaveAttribute(
     'aria-disabled',

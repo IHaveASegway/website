@@ -574,7 +574,7 @@ export function start(sim: Sim): void {
   for (let day = 0; day < DAYS; day++) sim.runs.push(createRun(day, sim.now));
   say(
     sim,
-    `The job graph is switched on with catch-up, which creates all ${DAYS} days' runs at once; ${sim.maxActiveRuns} may run at a time`,
+    `The job is switched on with catch-up, which creates all ${DAYS} days' runs at once; ${sim.maxActiveRuns} may run at a time`,
   );
   settle(sim);
 }

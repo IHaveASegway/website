@@ -591,10 +591,7 @@ function effect(sim: Sim, w: Worker, job: Job): void {
   w.ticketed = true;
   if (sim.key && sim.doneSet.has(job.id)) {
     sim.skipped += 1;
-    say(
-      sim,
-      `${WorkerName(w.id)} finds order ${job.id} in the done set and does not print it again`,
-    );
+    say(sim, `${WorkerName(w.id)} finds order ${job.id} in the record and does not print it again`);
   } else {
     // With the key, the check, the ticket and the record are one atomic step (a transaction, in
     // Leach's post). The fault splits off the record, to the end of the handler.
@@ -628,7 +625,7 @@ function finish(sim: Sim, w: Worker, job: Job): void {
       lose(sim, job, `it failed on ${workerName(w.id)} after its ack had left`);
       say(
         sim,
-        `Order ${job.id} fails on ${workerName(w.id)} after its ack had left, so nobody holds it now: it is lost`,
+        `Order ${job.id} fails on ${workerName(w.id)} after its acknowledgement had left, so nobody holds it now: it is lost`,
       );
       if (!w.answered) answer(sim, w, job.id, 'credit');
     } else {
@@ -988,11 +985,11 @@ export function crash(sim: Sim, k: number): void {
   const them = (ids: readonly number[]) =>
     ids.length === held.length ? (ids.length === 1 ? 'it' : 'them') : ordersText(ids);
   const pronoun = (ids: readonly number[]) => (ids.length === 1 ? 'it' : 'them');
-  let text = `${WorkerName(k)} crashes ${held.length === 0 ? 'with an empty window' : `holding ${ordersText(held)}`}`;
+  let text = `${WorkerName(k)} crashes ${held.length === 0 ? 'holding nothing' : `holding ${ordersText(held)}`}`;
   if (printed !== null)
-    text += `, after ${held.length === 1 ? 'its' : `order ${printed}'s`} ticket printed and before its ack left`;
+    text += `, after ${held.length === 1 ? 'its' : `order ${printed}'s`} ticket printed and before its acknowledgement left`;
   if (kept.length > 0)
-    text += `. The broker has no ack for ${them(kept)}, so it will send ${pronoun(kept)} again`;
+    text += `. The broker has no acknowledgement for ${them(kept)}, so it will send ${pronoun(kept)} again`;
   if (gone.length > 0)
     text += `. The broker had already let ${them(gone)} go, so ${gone.length === 1 ? 'it is' : 'they are'} lost`;
   say(sim, text);
@@ -1005,7 +1002,7 @@ export function restart(sim: Sim, k: number): void {
   const w = sim.workers[k];
   if (!w || w.state !== 'down') return;
   record(sim, { at: sim.now, kind: 'restart', worker: k });
-  say(sim, `${WorkerName(k)} restarts with an empty window`);
+  say(sim, `${WorkerName(k)} restarts, holding nothing`);
   startWorker(sim, w);
   settle(sim);
 }
@@ -1116,7 +1113,7 @@ export function setKey(sim: Sim, on: boolean): void {
   say(
     sim,
     on
-      ? 'The idempotency key is on: a worker records each order in the done set in the same step as its ticket'
+      ? 'The idempotency key is on: a worker keeps a record of each order, written in the same step as its ticket'
       : 'The idempotency key is off: a worker prints whatever it is given',
   );
   settle(sim);

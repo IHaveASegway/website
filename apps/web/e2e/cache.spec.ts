@@ -251,7 +251,7 @@ test('flush every node at the morning rush: the database falls behind, and the o
 }) => {
   test.setTimeout(90_000);
   await page.goto(CACHE);
-  await choose(page, 'Morning');
+  await choose(page, 'Morning rush');
   await press(page, 'Flush every node');
   await expect(said(page)).toHaveText(
     'The cache is flushed: every node is empty, and the pages fetched again now will expire together',
@@ -280,7 +280,7 @@ test('turn on jitter and early refresh before the flush, and the expiries spread
 }) => {
   test.setTimeout(90_000);
   await page.goto(CACHE);
-  await choose(page, 'Morning');
+  await choose(page, 'Morning rush');
   await press(page, 'Jitter expiry times');
   await press(page, 'Refresh early');
   await press(page, 'Flush every node');
@@ -320,7 +320,7 @@ test('lose a node: the circle moves only its quarter of the pages, modulo about 
   );
   await expect(page.locator('[data-cl-node="0"]')).toHaveAttribute('data-up', 'false');
   await expect(page.locator('[data-cl-node="0"] [data-cl-node-words]')).toHaveText('Down');
-  await expect(first).toHaveAccessibleName('Restore node 1, now down');
+  await expect(first).toHaveAccessibleName('Restart node 1, now down');
   // Those 28 pages land on the other three nodes, empty.
   await expect(page.locator('.cl-pages .cl-lamp[data-state="missing"]')).toHaveCount(28);
   await first.click();
@@ -458,7 +458,7 @@ test('a link followed before the app has loaded loads it, and opens that run wit
   // The boot script hears the link and loads the app, which opens the run the link names.
   await page.evaluate(() => (location.hash = '#seed-9&load=morning'));
   await expect(clock(page)).toHaveText('Virtual time 5.000 s, 3,167 events, seed 9');
-  await expect(page.getByRole('radio', { name: 'Morning', exact: true })).toBeChecked();
+  await expect(page.getByRole('radio', { name: 'Morning rush', exact: true })).toBeChecked();
   expect(app).toHaveLength(1);
 });
 
@@ -479,7 +479,7 @@ test('a link names a run’s switches, load and placement; followed on the page 
     'aria-pressed',
     'false',
   );
-  await expect(page.getByRole('radio', { name: 'Morning', exact: true })).toBeChecked();
+  await expect(page.getByRole('radio', { name: 'Morning rush', exact: true })).toBeChecked();
   await expect(page.getByRole('radio', { name: 'Modulo', exact: true })).toBeChecked();
   await expect(page.getByRole('button', { name: 'Invalidate on write' })).toHaveAttribute(
     'aria-pressed',
@@ -497,7 +497,7 @@ test('a link names a run’s switches, load and placement; followed on the page 
   ];
   await open('#seed-12&load=morning&coalesce=on');
   await expect(page.locator('[data-cl-clock]')).toHaveText(/, seed 12$/);
-  await expect(page.getByRole('radio', { name: 'Morning', exact: true })).toBeChecked();
+  await expect(page.getByRole('radio', { name: 'Morning rush', exact: true })).toBeChecked();
   await open('#seed-9&load=rush&coalesce=yes&colour=red');
   await expect(page.locator('[data-cl-readers]')).toHaveText('Readers, 300 a second');
   await expect(page.locator('[data-cl-clock]')).toHaveText(
@@ -648,7 +648,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await page.goto(CACHE);
     await press(page, 'Coalesce misses');
     await page.locator('[data-cl-lose="1"]').click();
-    await choose(page, 'Morning');
+    await choose(page, 'Morning rush');
     await press(page, 'Next event');
     const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
     expect(results.violations.map((v) => `${v.id}: ${v.nodes.length}`)).toEqual([]);

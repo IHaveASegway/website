@@ -134,7 +134,7 @@ describe('the week', () => {
     expect(board(sim).every((row) => row.run === null && row.cells.every((c) => !c.state))).toBe(
       true,
     );
-    expect(summary(sim)).toMatch(/^The job graph is off\./);
+    expect(summary(sim)).toMatch(/^The job is off\./);
   });
 });
 
@@ -981,7 +981,7 @@ describe('what the page draws, and the three things to try', () => {
     expect(view.days[2]).toMatchObject({ report: '415', source: '303', difference: '+112' });
     expect(view.week).toEqual({ report: '2,203', difference: '+455', source: '1,748' });
     expect(propertyViews(twelve)[0]?.word).toBe(
-      "Broke 3 times, first at 00:28: Wednesday's report holds 415 orders and the source 303.",
+      "Broken 3 times, first at 00:28: Wednesday's report holds 415 orders and the source 303.",
     );
   });
 
@@ -1038,7 +1038,7 @@ describe('what the page draws, and the three things to try', () => {
     expect(before.on).toBe(false);
     expect(before.now).toBe(WEEK_END);
     expect(before.failNext).toEqual([0, 0, 1, 0, 0, 0, 0]);
-    expect(summary(before)).toMatch(/^The job graph is off\./);
+    expect(summary(before)).toMatch(/^The job is off\./);
     expect(boardView(before).days.every((d) => d.run === '' && d.report === '')).toBe(true);
     expect(lamps(before, 0)).toEqual(Array.from({ length: DAYS }, () => 'hollow'));
     expect(stripMarkup(before)).toContain('The job is off');
@@ -1225,14 +1225,14 @@ describe('what the page draws, and the three things to try', () => {
         id: 'totals',
         name: PROPERTY_NAMES.totals,
         held: false,
-        word: "Broke once, first at 00:41: Wednesday's report holds 275 orders and the source 179.",
+        word: "Broken once, first at 00:41: Wednesday's report holds 275 orders and the source 179.",
       },
-      { id: 'order', name: 'No step started before the steps it needs', held: true, word: 'Held.' },
+      { id: 'order', name: 'No step started before the steps it needs', held: true, word: 'Held' },
       {
         id: 'limits',
         name: 'No more runs or loads at once than allowed',
         held: true,
-        word: 'Held.',
+        word: 'Held',
       },
     ]);
   });

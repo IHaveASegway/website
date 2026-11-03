@@ -170,7 +170,7 @@ export function statusText(sim: Sim): string {
 }
 
 /** The first order the idempotency key kept from printing twice: done, printed once, and sent
- *  again after that ticket, so a later delivery found it in the done set. A done order's last
+ *  again after that ticket, so a later delivery found it in the record. A done order's last
  *  delivery has run its ticket step, so that is the delivery that skipped. */
 function skippedOrder(sim: Sim): Job | undefined {
   return sim.jobs.find(
@@ -202,7 +202,7 @@ function story(sim: Sim): string | null {
         : `worker ${b.worker + 1} printed it a second time`;
     told.push({
       at: twice.at,
-      text: `Order ${job.id} was printed ${times}: worker ${a.worker + 1} crashed after printing its ticket and before its ack left, so the broker sent it again and ${again}.`,
+      text: `Order ${job.id} was printed ${times}: worker ${a.worker + 1} crashed after printing its ticket and before its acknowledgement left, so the broker sent it again and ${again}.`,
     });
   }
   const lost = sim.tallies['no-loss'].first;
@@ -238,7 +238,7 @@ function story(sim: Sim): string | null {
   if (!kept) return null;
   const printer = (kept.effects[0] as Effect).worker + 1;
   const sent = kept.delivered.length === 2 ? 'twice' : `${kept.delivered.length} times`;
-  return `Order ${kept.id} was sent ${sent} and printed once: worker ${printer} crashed after printing its ticket and before its ack left, so the broker sent it again, and worker ${kept.worker + 1} found it in the done set and skipped the ticket.`;
+  return `Order ${kept.id} was sent ${sent} and printed once: worker ${printer} crashed after printing its ticket and before its acknowledgement left, so the broker sent it again, and worker ${kept.worker + 1} found it in the record and skipped the ticket.`;
 }
 
 function totals(sim: Sim): string {
@@ -370,12 +370,12 @@ export function openLink(hash: string, until: number = OPENING.until): Sim | nul
 export const startOver = (sim: Sim, until: number = OPENING.until): Sim =>
   openLink(linkTo(sim), until) as Sim;
 
-/** A property's words beside its lamp: "Holds", or "Broken" and what broke it, counted. Until the
- *  page knows whether the queue drains, the words say when it will. */
+/** A check's words beside its lamp, in the same form in every lab: "Held", or "Broken" and what
+ *  broke it, counted. Until the page knows whether the queue drains, the words say when it will. */
 export function propertyWords(sim: Sim, p: PropertyState): string {
   if (p.held) {
     const check = p.id === 'drains' ? drainCheck(sim) : null;
-    return check === null ? 'Holds' : `Holds; checked ${check}`;
+    return check === null ? 'Held' : `Held so far; checked ${check}`;
   }
   const n = p.count;
   const orders = `${n} ${n === 1 ? 'order' : 'orders'}`;
