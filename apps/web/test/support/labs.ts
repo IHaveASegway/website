@@ -48,6 +48,11 @@ export interface SimulatedLab {
  * ADR 0026 asks for the test-only faults to go first. They are about 118 B of the Queue Lab's app,
  * too little to stay inside any of these, and the build-time constant that would drop them ties the
  * core to the bundler: e2e specs import these modules outside it. That one is left for Joseph.
+ *
+ * With the same day's other fixes merged, the helper that sets an apostrophe (lib/typeset.mjs) stands
+ * in the chunk all four share, so the three's shared chunks, 2,098 B, import it. Measured then: the
+ * Raft Lab 8,490 B, the Queue Lab 13,857 B, the Cache Lab 12,482 B, the Backfill Lab 12,989 B. The
+ * Cache and Backfill Labs came in over by 23 and 29 B and were trimmed back, with no budget moved.
  */
 export const SIMULATED_LABS = [
   { slug: 'raft', bundle: 'RaftLab', map: 'rf-map', lazyJavaScript: 8_500 },
