@@ -3,28 +3,31 @@ import {
   crash,
   heal,
   leaderOf,
+  playTo,
   replay,
   restart,
-  runUntil,
   setLoss,
   split,
   step,
   write,
+  type Action,
   type Line,
   type Sim,
 } from '../../lib/raft/sim';
 import {
   cutFence,
   flightsMarkup,
+  landingStory,
   linkTo,
   logMarkup,
+  LOG_LINES,
   logWords,
-  nextSeed,
-  nodeText,
   OPENING,
+  propertyWord,
   readRun,
   ROLE_WORD,
   seconds,
+  serverState,
   statusText,
   summary,
   timerShare,
@@ -32,13 +35,21 @@ import {
 import { curled } from '../../lib/typeset.mjs';
 
 // The Raft Lab in the browser (ADR 0020): the simulation, run in virtual time and drawn on every
-// frame while it runs. It opens paused, on the same opening the build drew, and moves only when
-// the visitor presses Run, which Pause stops (SC 2.2.2); a hidden tab pauses it too. Run says what
-// it does next, Run or Pause, and has no pressed state, as the other labs' Run does. With reduced
-// motion, messages do not glide: each one stands half way along its path, and Run advances in
-// still steps, half a second of the chosen speed twice a second. A link to a run (lib/sim/link.ts)
-// names its seed and the share of messages it loses (#seed-8&loss=30), and opens that run's
-// opening, paused, on load or when followed on the page; Start over writes the link to its run.
+// frame while it runs. It opens paused, on the same opening the build drew, and moves when the
+// visitor presses Run, which Pause stops (SC 2.2.2), or when they land on it (below); a hidden tab
+// pauses it too. Run says what it does next, Run or Pause, and has no pressed state, as the other
+// labs' Run does. With reduced motion, messages do not glide: each one stands half way along its
+// path, and Run advances in still steps, half a second of the chosen speed twice a second. A link to
+// a run (lib/sim/link.ts) names its seed and the share of messages it loses (#seed-8&loss=30), and
+// opens that run's opening, paused, on load or when followed on the page. Start over keeps the seed
+// and the loss, as the other labs do, so the run can be watched again, and writes the link to it.
+//
+// The run a visitor lands on tells a story (lib/raft/view.ts, landingStory): the leader crashes and
+// the others elect a new one. It's the landing's alone: a press drops what's left of it, and the demo
+// is theirs. So a press of Run never brings a crash nobody asked for, and neither do Pause and Run or
+// a link. A visitor who presses gets what their presses make. Start over is the one press that asks
+// for that run again, so on a run with no other press in it, it tells the story again, once, as the
+// Queue Lab's brings its crash back; the same run a visitor just watched can be watched again.
 
 const FRAME_CAP = 100; // real ms: a frame after a long pause does not leap ahead
 const EVENTS_PER_FRAME = 4_000;
@@ -91,14 +102,23 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   const linked = readRun(location.hash);
   if (!queued.includes(loss as Element)) showLoss(linked?.loss ?? 0);
   let sim: Sim = fresh(linked?.seed ?? OPENING.seed, (linked?.loss ?? 0) / 100);
+  /** What's left of the story the run a visitor lands on tells, none once the demo is theirs. */
+  let ahead: Action[] = [];
+  /** When that story is over, so the landing run can stand a moment and go round again. */
+  let storyEnds = Infinity;
+  /** Whether the run is the one they landed on, with no press in it but Start over. */
+  let told = false;
+  /** Whether the visitor has pressed anything or followed a link: then no landing starts for them. */
+  let theirs = false;
   let playing = false;
   let last = 0;
   let frame = 0;
   let timer = 0;
   let shownLines: Line | undefined;
+  let shownBroken: string | undefined;
   const shownLogs: string[] = [];
-  // The build wrote the opening's last lines; the run writes its own from the first draw, so none
-  // is written twice, and a link's run shows its own.
+  // The build wrote the opening's lines; the run writes its own from the first draw, so none is
+  // written twice, and a link's run shows its own.
   lines?.replaceChildren();
 
   /** Everything the page shows of the run, changed only where it changed. */
@@ -120,16 +140,15 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       const markup = logMarkup(s);
       if (log && shownLogs[s.id] !== markup) {
         log.innerHTML = markup;
-        log.setAttribute('aria-label', `Node ${s.id + 1}: ${logWords(s)}`);
+        log.setAttribute('aria-label', `Server ${s.id + 1}: ${logWords(s)}`);
         shownLogs[s.id] = markup;
       }
       const toggle = root.querySelector(`[data-rf-toggle="${s.id}"]`);
       if (toggle) {
         const verb = s.up ? 'Crash' : 'Restart';
-        const words = `${verb} node ${s.id + 1}`;
+        const words = `${verb} server ${s.id + 1}`;
         if (toggle.textContent !== words) toggle.textContent = words;
-        const state = nodeText(s).split(', ').slice(1).join(', ');
-        toggle.setAttribute('aria-label', `${words}, now ${state}`);
+        toggle.setAttribute('aria-label', `${words}, now ${serverState(s)}`);
       }
     }
     if (flights) flights.innerHTML = flightsMarkup(sim, still.matches);
@@ -141,13 +160,24 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       } else cut.setAttribute('data-off', '');
     }
     text('[data-rf-summary]', summary(sim));
+    // A property breaks at most once in a run, and that stops the run, so this rarely has work.
+    const broken = sim.violation?.property;
+    if (broken !== shownBroken) {
+      shownBroken = broken;
+      for (const row of root.querySelectorAll('[data-rf-prop]')) {
+        const held = row.getAttribute('data-rf-prop') !== broken;
+        row.setAttribute('data-held', String(held));
+        const word = row.querySelector('[data-rf-prop-word]');
+        if (word) word.textContent = propertyWord(held);
+      }
+    }
     text('[data-rf-status]', statusText(sim));
     text('[data-rf-clock]', `Virtual time ${seconds(sim.now)}`);
     text('[data-rf-seed]', String(sim.seed));
     drawLines();
   }
 
-  /** The event log: new lines appended, the oldest dropped past 60. */
+  /** The event log: new lines appended, the oldest dropped past LOG_LINES. */
   function drawLines(): void {
     if (!lines) return;
     const from = shownLines ? sim.lines.indexOf(shownLines) + 1 : 0;
@@ -157,7 +187,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     const box = lines.parentElement;
     const following = box && box.scrollHeight - box.scrollTop - box.clientHeight < 2;
     if (shownLines && from === 0) lines.replaceChildren();
-    const start = from === 0 ? Math.max(0, sim.lines.length - 60) : from;
+    const start = from === 0 ? Math.max(0, sim.lines.length - LOG_LINES) : from;
     for (const line of sim.lines.slice(start)) {
       const item = document.createElement('li');
       const at = document.createElement('span');
@@ -166,7 +196,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       item.append(at, ` ${curled(line.text)}`);
       lines.append(item);
     }
-    while (lines.children.length > 60) lines.firstElementChild?.remove();
+    while (lines.children.length > LOG_LINES) lines.firstElementChild?.remove();
     if (box && following && sim.lines.length > start) box.scrollTop = box.scrollHeight;
     shownLines = sim.lines.at(-1);
   }
@@ -184,11 +214,12 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     draw();
   }
 
-  /** Shows another run from its opening, paused, and says what it shows: Start over's, or a
-   *  link's. */
+  /** Shows another run from its opening, paused, and says what it shows: Start over's, a link's, or
+   *  the landing run going round again. */
   function open(next: Sim): void {
     pause();
     sim = next;
+    ahead = [];
     shownLines = undefined;
     lines?.replaceChildren();
     draw();
@@ -199,7 +230,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     if (!playing) return;
     const elapsed = Math.min(FRAME_CAP, now - last);
     last = now;
-    runUntil(sim, sim.now + elapsed * speed(), EVENTS_PER_FRAME);
+    playTo(sim, ahead, sim.now + elapsed * speed(), EVENTS_PER_FRAME);
     draw();
     if (sim.violation) {
       say(statusText(sim));
@@ -216,7 +247,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     run?.setAttribute('data-lamp', 'on');
     if (still.matches) {
       timer = window.setInterval(() => {
-        runUntil(sim, sim.now + STILL_EVERY * speed(), EVENTS_PER_FRAME);
+        playTo(sim, ahead, sim.now + STILL_EVERY * speed(), EVENTS_PER_FRAME);
         draw();
         if (sim.violation) pause();
       }, STILL_EVERY);
@@ -226,14 +257,29 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     }
   }
 
-  /** A side of two: the leader and the node after it, or nodes 1 and 2 with no leader. */
+  /** A side of two: the leader and the server after it, or servers 1 and 2 with no leader. */
   function twoAndThree(): number[] {
     const leader = leaderOf(sim)?.id ?? 0;
     const size = sim.servers.length;
     return sim.servers.map((s) => (s.id === leader || s.id === (leader + 1) % size ? 1 : 0));
   }
 
+  /** Starts the story over from where the run stands, its opening. */
+  function tell(): void {
+    const story = landingStory(sim);
+    ahead = story.actions;
+    storyEnds = story.ends;
+    told = true;
+  }
+
   function press(control: Element): void {
+    theirs = true;
+    // Every press but Start over drops what's left of the story: Start over asks for it again.
+    const reset = control.matches('[data-rf-reset]');
+    if (!reset) {
+      told = false;
+      ahead = [];
+    }
     const node = control.closest('[data-rf-node], [data-rf-toggle]');
     const id = node?.getAttribute('data-rf-node') ?? node?.getAttribute('data-rf-toggle');
     if (id !== null && id !== undefined) {
@@ -259,9 +305,10 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       split(sim, twoAndThree());
     } else if (control.matches('[data-rf-heal]')) {
       heal(sim);
-    } else if (control.matches('[data-rf-reset]')) {
+    } else if (reset) {
       const wasPlaying = playing;
-      open(fresh(nextSeed(sim.seed), lost()));
+      open(fresh(sim.seed, lost()));
+      if (told) tell();
       // The address names the run, its loss and all, so a reload or the link shared opens it.
       history.replaceState(null, '', linkTo(sim.seed, percent()));
       if (wasPlaying) play();
@@ -282,9 +329,11 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     draw();
   }
 
+  // A label too, though it does nothing here: the speed already chosen fires no input, and it's as
+  // much a first press as any (lib/lab/landing-run.ts).
   root.addEventListener('click', (event) => {
     const target = event.target instanceof Element ? event.target : null;
-    const control = target?.closest('button, [data-rf-node]');
+    const control = target?.closest('button, label, [data-rf-node]');
     if (control) press(control);
   });
   root.addEventListener('input', (event) => {
@@ -297,6 +346,8 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   addEventListener('hashchange', () => {
     const link = readRun(location.hash);
     if (!link) return;
+    theirs = true;
+    told = false;
     showLoss(link.loss);
     open(fresh(link.seed, link.loss / 100));
   });
@@ -309,13 +360,22 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
 
   draw();
   for (const control of queued) press(control);
-  // The run a visitor lands on goes on from the moment the picture tells.
-  return () =>
+  // The run a visitor lands on goes on from the moment the picture tells, with its story ahead. A
+  // visitor who already pressed something, while the top bar's Pause kept the landing waiting, has
+  // their demo already, and nothing here takes it back.
+  return () => {
+    if (theirs) return;
+    tell();
     runOnLanding(root, {
       play,
       pause,
       playing: () => playing,
-      finished: () => Boolean(sim.violation),
-      again: () => undefined,
+      finished: () => Boolean(sim.violation) || sim.now >= storyEnds,
+      again: () => {
+        open(fresh(sim.seed, lost()));
+        tell();
+        play();
+      },
     });
+  };
 }

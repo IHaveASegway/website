@@ -20,9 +20,11 @@ export interface SimulatedLab {
 }
 
 /**
- * One row per simulated lab. The Raft Lab keeps the 8,000 B of ADR 0020. The others' budgets are
- * proposed in ADR 0026, each its lab's measure rounded up to the next 500 B, so the next growth
- * past it is a decision and not a default.
+ * One row per simulated lab. The Raft Lab kept the 8,000 B of ADR 0020 until 2026-11-02, when a run
+ * that lands with a story to tell, a caption that says who only thinks it leads and a row for each
+ * property took it to 8,451 B (its postscript): 8,500 B, rounded up to the next 500 B as the others
+ * are. The others' budgets are proposed in ADR 0026, each its lab's measure rounded up to the next
+ * 500 B, so the next growth past it is a decision and not a default.
  *
  * Measured on 2026-10-31 on the labs' review fixes merged with the signal box, every chunk a lab's
  * module can load, gzip -9:
@@ -48,7 +50,7 @@ export interface SimulatedLab {
  * core to the bundler: e2e specs import these modules outside it. That one is left for Joseph.
  */
 export const SIMULATED_LABS = [
-  { slug: 'raft', bundle: 'RaftLab', map: 'rf-map', lazyJavaScript: 8_000 },
+  { slug: 'raft', bundle: 'RaftLab', map: 'rf-map', lazyJavaScript: 8_500 },
   { slug: 'queue', bundle: 'QueueLab', map: 'qu-map', lazyJavaScript: 14_000 },
   { slug: 'cache', bundle: 'CacheLab', map: 'cl-map', lazyJavaScript: 12_500 },
   { slug: 'backfill', bundle: 'BackfillLab', map: 'bf-board', lazyJavaScript: 13_000 },

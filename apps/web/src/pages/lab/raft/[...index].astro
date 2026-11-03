@@ -30,7 +30,7 @@ const { entry } = Astro.props;
 const { name } = (await loadProfile()).basics;
 const { Content, headings } = await render(await labEntry(entry));
 const lead =
-  'Five servers agree on one log with Raft. Crash them, cut the network and lose messages, and watch the five safety properties hold.';
+  'Raft keeps five servers agreed on one log, the ordered list of every write. Crash them, split the network and lose messages, and watch its five safety properties hold.';
 ---
 
 <Base

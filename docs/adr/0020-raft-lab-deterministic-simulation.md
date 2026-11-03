@@ -73,3 +73,9 @@ The counts are the same at b6f709c, the commit that built the lab and wrote this
 The fix, 8c36fbe: a frame cut short keeps time, and an action lands where its replay puts it. `runUntil` with an event limit moved the clock to the frame's end even when the limit had stopped the frame first, so the events still due ran late. It now stands at its last event, and stops only between two moments. Every action now first runs the events still due in its millisecond, as the Queue Lab's do ([ADR 0026](0026-three-more-labs-simulated-in-the-browser.md)), so a replay puts it where the run did. Runs moved without a limit never stood inside a millisecond, so the opening, the 3,000 runs and both catches are the same before and after.
 
 The decision stands, and no Revisit if condition was met: both broken servers are still caught within the 3,000 seeds. lab.md's Raft Lab section carries the corrected counts.
+
+## Postscript 2026-11-02
+
+The Raft Lab's lazy JavaScript has a new budget, 8,500 B where this record set 8,000 B, rounded up to the next 500 B as the other labs' are ([ADR 0026](0026-three-more-labs-simulated-in-the-browser.md)). It measures 8,451 B, gzip -9: its app, 7,589 B, and the chunk it shares with the other labs, 862 B. It was 7,879 B before the review of this day, and three things the review asked for took it past the line: the story the run a visitor lands on tells ([ADR 0030](0030-the-page-stays-alive.md)), a caption that says who leads and who only thinks so, and the safety properties' rows. The properties' plain words stay out of it, since the build draws them and they never change.
+
+Cutting those to keep 8,000 B was the weaker choice: the page would go back to a caption that contradicts its picture, to save 451 B on a page whose first view with its app is about 92,000 B of its 150,000 B. The budget still does its job, with 49 B of room, so the next growth is a decision too. No Revisit if condition was met.

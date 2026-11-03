@@ -47,7 +47,7 @@ export const createChecker = (): Checker => ({
   checkedApplied: [],
 });
 
-const name = (id: number) => `node ${id + 1}`;
+export const serverName = (id: number) => `Server ${id + 1}`;
 
 /** The first property the servers break now, or null. */
 export function check(c: Checker, servers: readonly Server[], now: number): Violation | null {
@@ -61,7 +61,10 @@ export function check(c: Checker, servers: readonly Server[], now: number): Viol
     // Election Safety: at most one leader in a term.
     const known = c.leaders.get(s.term);
     if (known !== undefined && known !== s.id)
-      return fail('Election Safety', `${name(known)} and ${name(s.id)} both lead term ${s.term}`);
+      return fail(
+        'Election Safety',
+        `${serverName(known)} and ${serverName(s.id)} both lead term ${s.term}`,
+      );
     c.leaders.set(s.term, s.id);
 
     // Leader Append-Only: a leader never overwrites or deletes an entry in its own log.
@@ -73,7 +76,7 @@ export function check(c: Checker, servers: readonly Server[], now: number): Viol
     )
       return fail(
         'Leader Append-Only',
-        `${name(s.id)} changed its log while leading term ${s.term}`,
+        `${serverName(s.id)} changed its log while leading term ${s.term}`,
       );
     c.leaderLogs.set(s.id, {
       term: s.term,
@@ -94,7 +97,7 @@ export function check(c: Checker, servers: readonly Server[], now: number): Viol
       if (k > 0 && x.hashes[k] !== y.hashes[k])
         return fail(
           'Log Matching',
-          `${name(a)} and ${name(b)} agree on the term at index ${k} but not on what comes before`,
+          `${serverName(a)} and ${serverName(b)} agree on the term at index ${k} but not on what comes before`,
         );
     }
   }
@@ -102,7 +105,10 @@ export function check(c: Checker, servers: readonly Server[], now: number): Viol
   // State Machine Safety: no two servers commit or apply different entries at one index.
   for (const s of servers) {
     if (s.commitIndex > s.log.length)
-      return fail('State Machine Safety', `${name(s.id)} has committed entries it no longer holds`);
+      return fail(
+        'State Machine Safety',
+        `${serverName(s.id)} has committed entries it no longer holds`,
+      );
     for (let k = Math.max(1, c.committed.length); k <= s.commitIndex; k++) {
       c.committed[k] = {
         term: termAt(s, k),
@@ -115,7 +121,7 @@ export function check(c: Checker, servers: readonly Server[], now: number): Viol
     if (top > 0 && c.committed[top]?.hash !== s.hashes[top])
       return fail(
         'State Machine Safety',
-        `${name(s.id)} committed a different entry at index ${top} than another server did`,
+        `${serverName(s.id)} committed a different entry at index ${top} than another server did`,
       );
     const seen = c.checkedApplied[s.id];
     const from = seen?.list === s.applied ? seen.count : 0;
@@ -123,7 +129,7 @@ export function check(c: Checker, servers: readonly Server[], now: number): Viol
       if (s.applied[k - 1] !== c.committed[k]?.write)
         return fail(
           'State Machine Safety',
-          `${name(s.id)} applied a different write at index ${k} than another server did`,
+          `${serverName(s.id)} applied a different write at index ${k} than another server did`,
         );
     }
     c.checkedApplied[s.id] = { list: s.applied, count: s.applied.length };
@@ -138,7 +144,7 @@ export function check(c: Checker, servers: readonly Server[], now: number): Viol
     if (k > 0 && s.hashes[k] !== (c.committed[k] as Committed).hash)
       return fail(
         'Leader Completeness',
-        `${name(s.id)} leads term ${s.term} without the entry committed at index ${k}`,
+        `${serverName(s.id)} leads term ${s.term} without the entry committed at index ${k}`,
       );
   }
   return null;

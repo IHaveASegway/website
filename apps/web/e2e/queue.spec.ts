@@ -275,10 +275,10 @@ test('the first thing to try: worker 2 crashes at 2.4 s and order 18 prints twic
   await expect(clock(page)).toHaveText(STARTED_OVER);
   await expect(map(page).locator('.qu-state')).toHaveCount(0);
   await expect(page.locator('[data-qu-said]')).toHaveText(
-    "The idempotency key is on: a worker keeps a record of each order, written in the same step as its ticket. The run starts over under it, at 1.500 s, before worker 2's crash. Press Run to watch it.",
+    'The idempotency key is on: a worker keeps a record of each order, written in the same step as its ticket. The run starts over under it, at 1.500 s, before worker 2’s crash. Press Run to watch it.',
   );
   await expect(page.locator('[data-said]').first()).toHaveText(
-    "The idempotency key is on. The run starts over under it, at 1.500 s, before worker 2's crash. Press Run to watch it.",
+    'The idempotency key is on. The run starts over under it, at 1.500 s, before worker 2’s crash. Press Run to watch it.',
   );
   await runUntil(page, async () =>
     ((await log(page).textContent()) ?? '').includes('2.873 s Worker 1 finds order 18'),

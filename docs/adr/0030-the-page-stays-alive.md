@@ -76,3 +76,18 @@ Two-way. It's about 300 lines of CSS, one component's markup and a return value 
 - WebKit, [bug 312407](https://bugs.webkit.org/show_bug.cgi?id=312407), on when Safari's scroll-driven animations came off the main thread (iOS 26.4).
 - Paul Lewis and Paul Irish, [High Performance Animations](https://web.dev/articles/animations-guide), on why transform and opacity are the cheap ones.
 - W3C, [Understanding SC 2.2.2: Pause, Stop, Hide](https://www.w3.org/WAI/WCAG22/Understanding/pause-stop-hide.html), on what starts by itself.
+
+## Postscript 2026-11-02
+
+The Raft Lab's landing run had no story. A healthy cluster only sends heartbeats, so a visitor watched dots for as long as they stayed, where the Queue Lab's run crashes a worker. So left alone it now crashes its leader 2 s in at the Steady speed; another server wins a newer term about 6 s in; the old one comes back as a follower at 10 s; the new leader commits one write all five hold at 15 s. Then it stands a moment and goes round again, as the other labs' landing runs do. One write and no more, so each log stays on one line on a phone.
+
+It's a script of the same actions a press records (`landingStory` in `lib/raft/view.ts`), played by `playTo` in `lib/raft/sim.ts`, so it's a run its actions replay. Two things differ from the Queue Lab's crash, on purpose:
+
+- **It isn't in the opening.** The build's picture and a link's run never hold it.
+- **A press drops what's left of it.** A crash that came after a visitor's press would be the page breaking something they were using. A visitor who wants the election again presses Crash or Cut off the leader, and a visitor who presses Run first, as under reduced motion, starts on heartbeats for the same reason.
+
+Start over is the one press that doesn't, on a run with no other press in it. It asks for that run again, so the story plays again, once and with no going round, as the Queue Lab's Start over brings its crash back. The weaker design let it drop the story like any other press, and a visitor who watched the election and pressed Start over got heartbeats, so the run they just saw still couldn't be replayed, the thing this day's review asked Start over to stop doing. After any other press, Start over goes back to the opening with nothing ahead. Which way it goes is one line in `press`, in the lab's `app.ts`, so it's a two-way door.
+
+The same review found two faults in `runOnLanding` itself, in all four labs. Any hash change ended its work, so an "On this page" link or the skip link left a run playing off the screen and deaf to the top bar's Pause. Now only a link to a run does (`readLink`, the one owner of what a link is). And the end of a run went round with nobody watching, or under the top bar's Pause, lighting the button and putting the picture back to the opening on a page told to hold still. It stands now until it's wanted.
+
+`e2e/landing.spec.ts` holds the story, each kind of first press, Start over, a link, a link to a heading and reduced motion, on Playwright's clock so a press lands exactly when it says. `e2e/steady.spec.ts` holds that nothing moves on a phone through the whole of it and round again. The other labs' runs are otherwise unchanged, and no Revisit if condition was met.
