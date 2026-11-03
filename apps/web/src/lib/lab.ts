@@ -1,5 +1,6 @@
 import { z } from 'astro/zod';
 import { asDay } from './posts';
+import { typeset } from './typeset.mjs';
 import type { WorkCard } from './work';
 
 // The lab (content.md, "Content model"; lab.md): demos with a write-up, one Markdown entry each in
@@ -50,8 +51,8 @@ export interface LabEntry {
 
 export const fromLab = (slug: string, data: LabData): LabEntry => ({
   slug,
-  title: data.title,
-  summary: data.summary,
+  title: typeset(data.title),
+  summary: typeset(data.summary),
   decisions: data.decisions,
 });
 

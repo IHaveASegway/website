@@ -35,6 +35,7 @@ import {
   whereWords,
 } from '../../lib/cache/view';
 import { pageLamps, stripEnds, stripPaths } from './picture';
+import { curled } from '../../lib/typeset.mjs';
 
 // The Cache Lab in the browser: the simulation, run in virtual time and drawn on every frame while
 // it runs. It opens paused, on the same opening the build drew, and moves only when the visitor
@@ -67,7 +68,8 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   const strip = $('[data-cl-strip]');
   const said = $('[data-cl-said]');
   const text = (element: Element | null | undefined, value: string) => {
-    if (element && element.textContent !== value) element.textContent = value;
+    const words = curled(value);
+    if (element && element.textContent !== words) element.textContent = words;
   };
   const attribute = (element: Element | null | undefined, name: string, value: string) => {
     if (element && element.getAttribute(name) !== value) element.setAttribute(name, value);
@@ -181,7 +183,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       const at = document.createElement('span');
       at.className = 'cl-at';
       at.textContent = seconds(line.at);
-      item.append(at, ` ${line.text}`);
+      item.append(at, ` ${curled(line.text)}`);
       lines.append(item);
     }
     while (lines.children.length > 60) lines.firstElementChild?.remove();
@@ -190,7 +192,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   }
 
   const say = (words: string) => {
-    if (said) said.textContent = words;
+    if (said) said.textContent = curled(words);
   };
 
   function pause(): void {

@@ -19,12 +19,12 @@ import {
   readingMinutes,
   TAGS,
   tagWords,
-  typeset,
   wordDay,
   writingArea,
   type Post,
   type PostPage,
 } from '../src/lib/posts';
+import { typeset } from '../src/lib/typeset.mjs';
 import { app, dist, files as distFiles, filesIn, html, kindOf, read } from './support/dist';
 import { frontMatter, indirection, valueNode } from './support/front-matter';
 

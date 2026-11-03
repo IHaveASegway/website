@@ -1,5 +1,6 @@
 import { z } from 'astro/zod';
 import { asDay } from './posts';
+import { typeset } from './typeset.mjs';
 
 // /about/ (content.md, "About"): who Joseph is and how he works, then his résumé. Two sources, one
 // owner each: src/content/about.md holds the bio, his words, and profile.json holds every fact the
@@ -52,7 +53,7 @@ const plain = (text: string, where: string): string => {
   const flat = text.replace(/\s+/g, ' ').trim();
   if (UNREAD.test(flat))
     throw new Error(`about.md: Home reads plain text only, and ${where} holds markup: "${flat}"`);
-  return flat;
+  return typeset(flat);
 };
 
 /**
@@ -99,7 +100,7 @@ export function aboutParts(body: string): AboutParts {
 export const ABOUT_HEADINGS = {
   build: 'What I build',
   how: 'How I work',
-  toward: "What I'm working toward",
+  toward: 'What I\u2019m working toward',
 } as const;
 
 /** The section under a heading, or undefined when the bio has none by that name. */

@@ -1,4 +1,5 @@
 import { z } from 'astro/zod';
+import { typeset } from './typeset.mjs';
 
 // Essays and field notes (content.md, "Content model"; roadmap.md, PR 5). This module is pure: the
 // collections' schemas and every rule about what a build writes. The build reads the posts through
@@ -122,20 +123,6 @@ export function readingMinutes(markdown: string): number {
     .replace(/\]\([^)]*\)/g, ']')
     .replace(/^\[[^\]]+\]:\s*\S+.*$/gm, ' ');
   return Math.max(1, Math.ceil((count(prose) + code / 2) / WORDS_PER_MINUTE));
-}
-
-/**
- * Typographer's quotes for front matter, which the Markdown pipeline's smart quotes never see: a
- * post's body has curly apostrophes and quotes, so its title and summary should too, on its page,
- * on Home, in the feed and in link previews. An apostrophe inside or at the end of a word is ’, a
- * quote that opens after a space, a dash or a bracket is ‘ or “, and any other is ’ or ”.
- */
-export function typeset(text: string): string {
-  return text
-    .replace(/(^|[\s([{\u2014\u2013-])"/g, '$1\u201c')
-    .replace(/"/g, '\u201d')
-    .replace(/(^|[\s([{\u2014\u2013-])'(?=\S)/g, '$1\u2018')
-    .replace(/'/g, '\u2019');
 }
 
 export const fromEssay = (slug: string, data: EssayData, body = ''): Post => ({

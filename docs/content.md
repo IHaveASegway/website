@@ -307,6 +307,7 @@ Joseph's register: short declarative sentences; numbers over adjectives; named s
 - Conclusion first. If the opening paragraph only warms up, cut it.
 - Dates in US English, one form everywhere a person reads one: Nov 2, 2026, and in a lab's week, which has no year, Monday, October 19. The ISO day (2026-11-02) is for machines: a `<time>`'s `datetime`, the feed, structured data, and these docs. Sentence-case headings, link text that says where it goes.
 - No emojis. No exclamation marks.
+- Curled apostrophes and quotes, however a source typed them. Markdown's pipeline curls a post's body; everything else that passes through code gets the same at render (`lib/typeset.mjs`): front matter and the bio as they're read, every page's text once it's written, and a lab's own lines where its app writes them. Code stays as it was typed. `test/typography.test.ts` and `e2e/typography.spec.ts` read what a reader reads, since 2026-11-02, when Home said "I've" over essays that said "week’s".
 
 Banned, because each claims a quality instead of showing it: "seamless", "robust", "blazing", "leverage", "cutting-edge", and their cousins "world-class", "best-in-class", "game-changing", "revolutionary", "next-generation", "synergy", "passionate", "rockstar", "ninja". The pull-request template asks for a pass over this list. A prose linter such as Vale can enforce it later, if the list keeps getting broken.
 

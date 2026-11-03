@@ -41,6 +41,7 @@ import {
   waitWords,
   type Crash,
 } from '../../lib/queue/view';
+import { curled } from '../../lib/typeset.mjs';
 
 // The Queue Lab in the browser (ADR 0020's pattern): the simulation, run in virtual time and drawn
 // on every frame while it runs. It opens paused, on the same opening the build drew, and moves only
@@ -85,7 +86,8 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   const curve = $<SVGPolylineElement>('[data-qu-strip-line]');
   const ticks = $<SVGGElement>('[data-qu-crashes]');
   const text = (element: Element | null, value: string) => {
-    if (element && element.textContent !== value) element.textContent = value;
+    const words = curled(value);
+    if (element && element.textContent !== words) element.textContent = words;
   };
   const attribute = (element: Element | null, name: string, value: string) => {
     if (element && element.getAttribute(name) !== value) element.setAttribute(name, value);
@@ -185,7 +187,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       const at = document.createElement('span');
       at.className = 'qu-at';
       at.textContent = seconds(line.at);
-      item.append(at, ` ${line.text}`);
+      item.append(at, ` ${curled(line.text)}`);
       lines.append(item);
     }
     while (lines.children.length > 60) lines.firstElementChild?.remove();
@@ -194,7 +196,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   }
 
   const say = (words: string) => {
-    if (said) said.textContent = words;
+    if (said) said.textContent = curled(words);
   };
 
   /** Runs the core on by some virtual ms, to a whole one, within a frame's budget of events. */

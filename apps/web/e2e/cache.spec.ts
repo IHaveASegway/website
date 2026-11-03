@@ -220,7 +220,7 @@ test('let the menu expire: the first run plays it, 23 fetches at once and two ti
     await expect(words(page, id)).toHaveText('Held');
   // One fetch refreshes the menu; its readers take the old copy meanwhile, and none waits a second.
   await expect(log).toContainText(
-    "The menu's entry expired at 3.000 s: its readers still get it at once, while one fetch refreshes it",
+    'The menu’s entry expired at 3.000 s: its readers still get it at once, while one fetch refreshes it',
   );
   await expect(log).not.toContainText('fetched twice at once');
   await expect(log).not.toContainText('gave up');

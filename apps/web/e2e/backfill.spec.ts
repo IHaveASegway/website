@@ -18,7 +18,7 @@ test.beforeEach(({ page }) => handsOn(page));
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 const MINUS = '−';
 const OPENING_SUMMARY =
-  "Every run has finished, and Wednesday's failed. Wednesday's report counts 275 orders, 96 more than the source: a failed load left 96 rows behind, and the retry appended all 179 again; the other 6 days match.";
+  'Every run has finished, and Wednesday’s failed. Wednesday’s report counts 275 orders, 96 more than the source: a failed load left 96 rows behind, and the retry appended all 179 again; the other 6 days match.';
 
 const summary = (page: Page) => page.locator('[data-bf-summary]');
 const day = (page: Page, n: number) => page.locator(`[data-bf-day="${n}"]`);
@@ -59,7 +59,7 @@ async function startOver(page: Page): Promise<void> {
 /** Make Monday's file late on a week whose Monday has found it: the week goes back to before the
  *  job is switched on, so a run from 00:00 can be watched. */
 async function rewind(page: Page): Promise<void> {
-  await page.getByRole('button', { name: "Make Monday's file 5 hours late" }).click();
+  await page.getByRole('button', { name: 'Make Monday’s file 5 hours late' }).click();
   await expect(page.getByRole('button', { name: 'Switch the job on' })).not.toHaveAttribute(
     'aria-disabled',
   );
@@ -97,7 +97,7 @@ test('without JavaScript, the page is the opening run: Wednesday counted twice, 
   // A cross for each failed attempt: Wednesday's first load, and its check.
   await expect(page.locator('.bf-strip-x')).toHaveCount(2);
   await expect(page.locator('[data-bf-lines] li').first()).toHaveText(
-    "00:00 Wednesday's next load attempt will fail part way through",
+    '00:00 Wednesday’s next load attempt will fail part way through',
   );
   for (const control of await page.locator('.bf-controls, .bf-clock').all())
     await expect(control).toBeHidden();
@@ -195,7 +195,7 @@ test('with the job off, Next event and Run switch it on first, so the clock neve
   await expect(on).not.toHaveAttribute('aria-pressed');
   await expect(page.locator('[data-bf-clock]')).toHaveText('00:00 on Monday, October 26');
   await expect(page.locator('[data-bf-said]')).toHaveText(
-    /^The job graph is switched on with catch-up, which creates all 7 days' runs at once; 3 may run at a time\./,
+    /^The job graph is switched on with catch-up, which creates all 7 days’ runs at once; 3 may run at a time\./,
   );
   // Unavailable, it is still a button a keyboard reaches, and pressed it says why it does nothing.
   await on.focus();
@@ -221,17 +221,17 @@ test('watch Wednesday count twice; then overwrite the day and start over, and ev
 }) => {
   await page.goto(BACKFILL);
   await expect(page.locator('[data-bf-lines]')).toContainText(
-    "Wednesday's load fails after appending 96 of its 179 rows, and they stay in the report",
+    'Wednesday’s load fails after appending 96 of its 179 rows, and they stay in the report',
   );
   await expect(page.locator('[data-bf-lines]')).toContainText(
-    "Wednesday's check finds 275 orders in the report and 179 in the source: 96 too many, so it fails and is not retried",
+    'Wednesday’s check finds 275 orders in the report and 179 in the source: 96 too many, so it fails and is not retried',
   );
   await expect(page.locator('[data-bf-lines]')).toContainText(
-    "Wednesday's run fails: its check found the totals differ",
+    'Wednesday’s run fails: its check found the totals differ',
   );
   await page.getByRole('radio', { name: 'Overwrite the day' }).check();
   await expect(page.locator('[data-bf-said]')).toHaveText(
-    "Loads now overwrite their day's partition in one atomic step.",
+    'Loads now overwrite their day’s partition in one atomic step.',
   );
   await startOver(page);
   // As the entry says, once the week is run: Start over keeps the choice, and Wednesday's first
@@ -239,10 +239,10 @@ test('watch Wednesday count twice; then overwrite the day and start over, and ev
   await expect(page.getByRole('radio', { name: 'Overwrite the day' })).toBeChecked();
   await runToTheEnd(page);
   await expect(summary(page)).toHaveText(
-    "Every run has finished, and all 7 succeeded. Every day's total matches the source: 2,012 orders in all.",
+    'Every run has finished, and all 7 succeeded. Every day’s total matches the source: 2,012 orders in all.',
   );
   await expect(page.locator('[data-bf-lines]')).toContainText(
-    "Wednesday's load fails part way, and as its overwrite is one atomic step, the report is as it was",
+    'Wednesday’s load fails part way, and as its overwrite is one atomic step, the report is as it was',
   );
   await expect(page.locator('[data-bf-week-report]')).toHaveText('2,012');
   await expect(page.locator('[data-bf-week-source]')).toHaveText('2,012');
@@ -253,7 +253,7 @@ test('watch Wednesday count twice; then overwrite the day and start over, and ev
   await expect(page.locator('[data-bf-events]')).toHaveText('44 events');
 });
 
-test("write to today: every day's orders land on Monday, October 26, and every check fails", async ({
+test('write to today: every day’s orders land on Monday, October 26, and every check fails', async ({
   page,
 }) => {
   await page.goto(BACKFILL);
@@ -263,7 +263,7 @@ test("write to today: every day's orders land on Monday, October 26, and every c
   await runToTheEnd(page);
   // Every check finds its day empty and fails, and every run with it.
   await expect(summary(page)).toHaveText(
-    "Every run has finished, and all 7 failed. 7 days show no orders in the report, because their rows were filed under Monday, October 26, the clock's day.",
+    'Every run has finished, and all 7 failed. 7 days show no orders in the report, because their rows were filed under Monday, October 26, the clock’s day.',
   );
   await expect(page.locator('[data-bf-run-word]')).toHaveText(
     Array.from({ length: 7 }, () => 'failed'),
@@ -280,7 +280,7 @@ test("write to today: every day's orders land on Monday, October 26, and every c
   await expect(page.locator('[data-bf-week-diff]')).toHaveText(`${MINUS}2,012`);
 });
 
-test("rerun a finished day: with append Tuesday's total doubles; with overwrite nothing changes", async ({
+test('rerun a finished day: with append Tuesday’s total doubles; with overwrite nothing changes', async ({
   page,
 }) => {
   await page.goto(BACKFILL);
@@ -289,7 +289,7 @@ test("rerun a finished day: with append Tuesday's total doubles; with overwrite 
   await page.getByRole('radio', { name: 'Tuesday' }).check();
   await page.getByRole('button', { name: 'Clear Tuesday and rerun it' }).click();
   await expect(page.locator('[data-bf-said]')).toHaveText(
-    "Tuesday, October 20 is cleared, and its run starts again from extract. Tuesday's run starts.",
+    'Tuesday, October 20 is cleared, and its run starts again from extract. Tuesday’s run starts.',
   );
   // A run slot is free, so the rerun starts at once, from extract: the sensor keeps its file.
   await expect(tuesday.locator('[data-bf-run-word]')).toHaveText('running');
@@ -314,7 +314,7 @@ test("rerun a finished day: with append Tuesday's total doubles; with overwrite 
   await expect(tuesday.locator('[data-bf-diff]')).toHaveText('');
 });
 
-test("then Monday's file five hours late with one run at a time: the week waits behind it", async ({
+test('then Monday’s file five hours late with one run at a time: the week waits behind it', async ({
   page,
 }) => {
   await page.goto(BACKFILL);
@@ -323,7 +323,7 @@ test("then Monday's file five hours late with one run at a time: the week waits 
   // file late there and one run at a time, and Run switches the job on and plays it.
   await rewind(page);
   await expect(page.locator('[data-bf-said]')).toHaveText(
-    "Monday's sensor has found its file already, so the week goes back to before the job is switched on. Monday's export file is held back 5 hours: it lands at 05:00 on Monday, October 26. Press Run to backfill the week.",
+    'Monday’s sensor has found its file already, so the week goes back to before the job is switched on. Monday’s export file is held back 5 hours: it lands at 05:00 on Monday, October 26. Press Run to backfill the week.',
   );
   await expect(page.getByRole('radio', { name: '1 run at once' })).toBeChecked();
   await page.getByRole('radio', { name: 'Quick' }).check();
@@ -338,7 +338,7 @@ test("then Monday's file five hours late with one run at a time: the week waits 
     await expect(day(page, n).locator('[data-bf-run-word]')).toHaveText('waiting');
   await page.getByRole('button', { name: 'Run', exact: true }).click();
   await expect(page.locator('[data-bf-lines]')).toContainText(
-    "Monday's sensor finds the export file after 5 hours",
+    'Monday’s sensor finds the export file after 5 hours',
     { timeout: 20_000 },
   );
 });
@@ -347,15 +347,15 @@ test('the buttons for one day say which day they act on', async ({ page }) => {
   await page.goto(BACKFILL);
   await page.getByRole('radio', { name: 'Thursday' }).check();
   for (const name of [
-    "Fail Thursday's next load",
-    "Make Thursday's file 5 hours late",
+    'Fail Thursday’s next load',
+    'Make Thursday’s file 5 hours late',
     'Clear Thursday and rerun it',
   ])
     await expect(page.getByRole('button', { name, exact: true })).toBeVisible();
   // A press that can change nothing yet says what would.
-  await page.getByRole('button', { name: "Fail Thursday's next load" }).click();
+  await page.getByRole('button', { name: 'Fail Thursday’s next load' }).click();
   await expect(page.locator('[data-bf-said]')).toHaveText(
-    "Thursday's next load attempt will fail part way through. Thursday has loaded already, so this fails only a load after a clear.",
+    'Thursday’s next load attempt will fail part way through. Thursday has loaded already, so this fails only a load after a clear.',
   );
 });
 
@@ -395,13 +395,13 @@ test('under reduce, Run moves the clock in still steps of 3 minutes, every one o
   expect(await clockAnimations(page)).toBe(0);
 });
 
-test("a link to a week opens it: #seed-12 draws that seed's week, every column of it, where its last event stands, and Start over keeps it", async ({
+test('a link to a week opens it: #seed-12 draws that seed’s week, every column of it, where its last event stands, and Start over keeps it', async ({
   page,
 }) => {
   await page.goto(`${BACKFILL}#seed-12`);
   await expect(page.locator('[data-bf-seed]')).toHaveText('12');
   await expect(page.locator('[data-bf-lines] li').first()).toHaveText(
-    "00:00 Wednesday's next load attempt will fail part way through",
+    '00:00 Wednesday’s next load attempt will fail part way through',
   );
   // Seed 12's own week, not the build's seed 9: its sources, its totals and its clock.
   const sources = ['220', '161', '303', '404', '182', '143', '335'];
@@ -413,7 +413,7 @@ test("a link to a week opens it: #seed-12 draws that seed's week, every column o
     await expect(day(page, 2).locator('[data-bf-diff]')).toHaveText('+112');
     // The board and the property say the same of Wednesday.
     await expect(page.locator('[data-bf-check="totals"] [data-bf-check-word]')).toContainText(
-      "Wednesday's report holds 415 orders and the source 303",
+      'Wednesday’s report holds 415 orders and the source 303',
     );
     // Its week ends at 01:19, and the clock stands there, as a played week stops.
     await expect(page.locator('[data-bf-clock]')).toHaveText('01:19 on Monday, October 26');
@@ -491,7 +491,7 @@ test('a link followed on the page opens its week paused where the build’s woul
   // A name the lab does not have and values its settings cannot take are dropped: the week is
   // seed 12's under the opening's settings, as the bare link gives it.
   await page.evaluate(() => (location.hash = '#seed-12'));
-  await expect(page.getByRole('radio', { name: "The run's own day" })).toBeChecked();
+  await expect(page.getByRole('radio', { name: 'The run’s own day' })).toBeChecked();
   const bare = await shown(page);
   // Followed from another seed's week under other settings, so a page that ignored it would show
   // that week instead.
@@ -542,7 +542,7 @@ test('the opening’s week has happened, so Run plays it again from the switch, 
   await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
   await page.getByRole('radio', { name: 'Quick' }).check();
   await expect(page.locator('[data-bf-lines]')).toContainText(
-    "Wednesday's load fails after appending 96 of its 179 rows, and they stay in the report",
+    'Wednesday’s load fails after appending 96 of its 179 rows, and they stay in the report',
     { timeout: 20_000 },
   );
   // It stops where the picture stood, the same week: board, caption, clock and log.

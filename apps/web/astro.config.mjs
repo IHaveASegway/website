@@ -8,6 +8,7 @@ import { defineConfig, fontProviders } from 'astro/config';
 import { commit, withBuildHeader } from './src/lib/build.mjs';
 import { policyFor, withPagePolicies } from './src/lib/csp.mjs';
 import { isNoindex } from './src/lib/noindex.mjs';
+import { typesetHtml } from './src/lib/typeset-html.mjs';
 
 /** A self-hosted family cut by scripts/fonts/build.sh: one static file per weight. Base.astro
  *  writes its faces into every page and says which it preloads. */
@@ -69,6 +70,26 @@ const buildHeader = {
   },
 };
 
+/** Every file under a directory. */
+const walk = (at) =>
+  readdirSync(at).flatMap((name) => {
+    const path = join(at, name);
+    return statSync(path).isDirectory() ? walk(path) : [path];
+  });
+
+// Every page's text as a post's body is set: curled quotes, whatever code it passed through
+// (src/lib/typeset-html.mjs). It touches text and nothing else, so it can run before or after the
+// policy below, which hashes scripts and styles.
+const typesetPages = {
+  name: 'typeset',
+  hooks: {
+    'astro:build:done': ({ dir }) => {
+      for (const file of walk(fileURLToPath(dir)).filter((name) => name.endsWith('.html')))
+        writeFileSync(file, typesetHtml(readFileSync(file, 'utf8')));
+    },
+  },
+};
+
 // The page policy is a header (security.md, "Headers and Content Security Policy"; ADR 0018). Once
 // the pages are written, each one's policy is read from its own inline code, a hash for each
 // script and style it holds, and written into the build's _headers: the 404's on the "/*" rule,
@@ -79,11 +100,6 @@ const pagePolicy = {
   hooks: {
     'astro:build:done': ({ dir }) => {
       const root = fileURLToPath(dir);
-      const walk = (at) =>
-        readdirSync(at).flatMap((name) => {
-          const path = join(at, name);
-          return statSync(path).isDirectory() ? walk(path) : [path];
-        });
       const policies = new Map(
         walk(root)
           .filter((file) => file.endsWith('.html'))
@@ -132,6 +148,7 @@ export default defineConfig({
     recordCommand,
     recordOutDir,
     buildHeader,
+    typesetPages,
     pagePolicy,
     sitemap({ filter: indexable }),
   ],

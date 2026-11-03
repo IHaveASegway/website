@@ -93,7 +93,7 @@ describe('aboutParts: Home reads the bio it does not own', () => {
     expect(parts.sections.map((s) => s.heading)).toEqual([
       'What I build',
       'How I work',
-      "What I'm working toward",
+      'What I’m working toward',
     ]);
     const build = sectionOf(parts, ABOUT_HEADINGS.build);
     const how = sectionOf(parts, ABOUT_HEADINGS.how);

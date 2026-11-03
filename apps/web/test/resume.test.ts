@@ -111,7 +111,7 @@ describe('/about/, the résumé', () => {
     ).toEqual([
       ...(profile.basics.summary ? [profile.basics.summary] : []),
       ...(linkedIn ? ['My full work history is on LinkedIn.'] : []),
-      `I'll send a résumé if you email me: ${CONTACT_EMAIL}.`,
+      `I’ll send a résumé if you email me: ${CONTACT_EMAIL}.`,
     ]);
     expect(links(notes)).toEqual([
       ...(linkedIn ? [{ href: linkedIn.url, text: 'LinkedIn' }] : []),

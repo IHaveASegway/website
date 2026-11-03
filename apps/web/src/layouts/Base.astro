@@ -9,6 +9,7 @@ import { NOINDEX } from '../lib/noindex.mjs';
 import { ogAlt, ogTitle, OG_SIZE, type OgCard } from '../lib/og';
 import { areaRoutes, postPath } from '../lib/posts';
 import { chromeColor } from '../lib/tokens';
+import { typeset } from '../lib/typeset.mjs';
 import { THEME_SCRIPT } from '../lib/weights';
 import tokensCss from '../styles/tokens.css?raw';
 import '../styles/global.css';
@@ -128,14 +129,14 @@ const chrome = (['dark', 'light'] as const).map((scheme) => ({
     ))}
     <script is:inline set:html={THEME_SCRIPT} />
     <title>{title}</title>
-    <meta name="description" content={description} />
+    <meta name="description" content={typeset(description)} />
     {noindex && <Fragment set:html={NOINDEX} />}
     {canonical && <link rel="canonical" href={canonical} />}
     {og && canonical && image && (
       <>
         <meta property="og:type" content={ogType} />
         <meta property="og:title" content={ogTitle(og)} />
-        <meta property="og:description" content={description} />
+        <meta property="og:description" content={typeset(description)} />
         <meta property="og:url" content={canonical} />
         <meta property="og:image" content={image} />
         <meta property="og:image:type" content="image/png" />
