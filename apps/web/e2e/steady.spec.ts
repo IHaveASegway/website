@@ -350,6 +350,38 @@ for (const { phone, viewport } of PHONES) {
         expect(await page.evaluate(() => window.__steady.moves())).toEqual([]);
       });
 
+      if (name === 'raft') {
+        // A server's button says Crash, then Restart, and the caption grows as the cluster breaks,
+        // over the buttons a thumb is on.
+        test('the raft lab, as its cluster breaks and comes back', async ({ page }) => {
+          await open(page, lab.path);
+          const presses: Press[] = [
+            { what: 'Run', selector: 'button[data-rf-run]', by: 'tap', ms: 500 },
+            { what: 'a server crashed', selector: '[data-rf-toggle="0"]', by: 'key', ms: 800 },
+            { what: 'the servers split', selector: '[data-rf-split]', by: 'key', ms: 800 },
+            { what: 'another crashed', selector: '[data-rf-toggle="3"]', by: 'tap', ms: 800 },
+            { what: 'the network healed', selector: '[data-rf-heal]', by: 'tap', ms: 800 },
+            { what: 'a server restarted', selector: '[data-rf-toggle="0"]', by: 'key', ms: 800 },
+          ];
+          expect(await play(page, presses)).toEqual([]);
+        });
+
+        // Its caption takes the room its longest words take from the first paint, so a run that
+        // breaks the cluster further never moves the controls under it.
+        test('the raft lab keeps its caption the room of its longest words', async ({ page }) => {
+          await open(page, lab.path);
+          const caption = page.locator('[data-rf-summary]');
+          const before = await caption.boundingBox();
+          // The longest a run can say, with each number a digit longer than a run makes it.
+          await caption.evaluate((p) => {
+            p.textContent =
+              'No leader in term 123, 1000 entries committed, 2 servers down, the network is split. Servers 1, 3 and 4 still think they lead older terms.';
+          });
+          const after = await caption.boundingBox();
+          expect(Math.abs((after?.height ?? 0) - (before?.height ?? 0))).toBeLessThanOrEqual(1);
+        });
+      }
+
       test(`the ${name} lab, standing still while it runs`, async ({ page }) => {
         await open(page, lab.path);
         const run = page.locator(`[data-${lab.short}-run]`);

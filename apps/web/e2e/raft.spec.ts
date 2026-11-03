@@ -44,7 +44,7 @@ test('without JavaScript, the page is the opening run: five nodes, three committ
   await page.goto(RAFT);
   await expect(page.locator('[data-rf-node]')).toHaveCount(5);
   await expect(page.locator('.rf-cell[data-done]')).toHaveCount(15);
-  await expect(summary(page)).toHaveText(/^Node \d leads term \d+, 3 entries committed\.$/);
+  await expect(summary(page)).toHaveText(/^Server \d leads term \d+, 3 entries committed\.$/);
   await expect(status(page)).toHaveText(HELD);
   for (const control of await page.locator('.rf-controls, .rf-clock').all())
     await expect(control).toBeHidden();
@@ -80,7 +80,7 @@ test('cut off the leader: a new term elects another leader, and every safety pro
 }) => {
   await page.goto(RAFT);
   const before = (await summary(page).textContent()) ?? '';
-  const [, oldLeader, oldTerm] = /^Node (\d) leads term (\d+)/.exec(before) ?? [];
+  const [, oldLeader, oldTerm] = /^Server (\d) leads term (\d+)/.exec(before) ?? [];
   await page.getByRole('button', { name: 'Cut off the leader' }).click();
   await page.getByRole('radio', { name: 'Quick' }).check();
   await page.getByRole('button', { name: 'Run' }).click();
@@ -89,7 +89,7 @@ test('cut off the leader: a new term elects another leader, and every safety pro
     .poll(
       async () => {
         const [, leader, term] =
-          /^Node (\d) leads term (\d+)/.exec((await summary(page).textContent()) ?? '') ?? [];
+          /^Server (\d) leads term (\d+)/.exec((await summary(page).textContent()) ?? '') ?? [];
         return leader !== undefined && leader !== oldLeader && Number(term) > Number(oldTerm);
       },
       { timeout: 15_000 },
@@ -184,6 +184,69 @@ test('a node button crashes it and then restarts it, and says so in its name', a
   await expect(first).toHaveText('Crash node 1');
   await expect(page.locator('[data-rf-node="0"]')).toHaveAttribute('data-up', 'true');
 });
+
+// A crash clears what a server knows is committed (Figure 2's commitIndex is volatile), and a new
+// leader can't count an older term's entries (section 5.4.2), so with all five crashed no server
+// knows of any. What a majority holds is still committed, so the caption's count stays: it read "0
+// entries committed" under a log line saying a write could never be lost until 2026-11-02.
+test('crash all five and the caption still says 3, through a new leader, until a write makes it 4', async ({
+  page,
+}) => {
+  await page.goto(RAFT);
+  for (let id = 0; id < 5; id++) await page.locator(`[data-rf-toggle="${id}"]`).click();
+  await expect(summary(page)).toHaveText('No leader, 3 entries committed, 5 servers down.');
+  await expect(page.locator('.rf-cell[data-done]')).toHaveCount(0);
+  for (let id = 0; id < 5; id++) await page.locator(`[data-rf-toggle="${id}"]`).click();
+  await page.getByRole('radio', { name: 'Quick' }).check();
+  await page.getByRole('button', { name: 'Run' }).click();
+  await expect(summary(page)).toHaveText(/^Server \d leads term \d+, 3 entries committed\.$/, {
+    timeout: 15_000,
+  });
+  await expect(page.locator('.rf-cell[data-done]')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Send a write' }).click();
+  await expect(summary(page)).toHaveText(/^Server \d leads term \d+, 4 entries committed\.$/, {
+    timeout: 15_000,
+  });
+  await expect(page.locator('.rf-cell[data-done]').first()).toBeVisible({ timeout: 15_000 });
+  await page.getByRole('button', { name: 'Pause' }).click();
+});
+
+// The picture draws what each server thinks, so a leader cut off from the rest is still drawn as one,
+// and the caption says so at that moment: "No leader" under a server labelled leader read as a bug.
+test('with its leader cut off, the caption says who still thinks it leads, during the election and after it', async ({
+  page,
+}) => {
+  await page.goto(RAFT);
+  await page.getByRole('button', { name: 'Cut off the leader' }).click();
+  const next = page.getByRole('button', { name: 'Next event' });
+  const candidate = page.locator('[data-rf-node][data-role="candidate"]');
+  for (let i = 0; i < 400 && (await candidate.count()) === 0; i++) await next.click();
+  await expect(page.locator('[data-rf-node="0"]')).toHaveAttribute('data-role', 'leader');
+  await expect(summary(page)).toHaveText(
+    /^No leader in term 2, 3 entries committed, the network is split\. Server 1 still thinks it leads term 1\.$/,
+  );
+  const elected = page.locator('[data-rf-node][data-role="leader"]');
+  for (let i = 0; i < 400 && (await elected.count()) < 2; i++) await next.click();
+  await expect(summary(page)).toHaveText(
+    /^Server [2-5] leads term 2, 3 entries committed, the network is split\. Server 1 still thinks it leads term 1\.$/,
+  );
+});
+
+// The room the caption keeps at every width the desk changes at, for its longest words, with each
+// number a digit longer than a run makes it (e2e/steady.spec.ts holds the two phones, in WebKit).
+for (const width of [384, 768, 1024, 1440]) {
+  test(`at ${width} px wide, the caption keeps the room of its longest words`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(RAFT);
+    const before = await summary(page).boundingBox();
+    await summary(page).evaluate((p) => {
+      p.textContent =
+        'No leader in term 123, 1000 entries committed, 2 servers down, the network is split. Servers 1, 3 and 4 still think they lead older terms.';
+    });
+    const after = await summary(page).boundingBox();
+    expect(Math.abs((after?.height ?? 0) - (before?.height ?? 0))).toBeLessThanOrEqual(1);
+  });
+}
 
 test('under reduce, Run advances in still steps of half a second of the chosen speed, and nothing animates', async ({
   page,

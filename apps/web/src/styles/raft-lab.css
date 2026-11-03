@@ -98,12 +98,40 @@
   color: var(--foreground);
 }
 
+/* Under the picture, what a term is, since every server in it says one, then the caption, the
+   cluster in words. The caption changes as the run does, and takes the room its longest words take
+   at that width from the first paint, so the controls under it never move: a run with no leader, two
+   servers down, the network split and three old leaders left over is two lines from 390 px and three
+   under it (measured in CI's Linux image, which sets these faces a little wider than a Mac does, with
+   each number a digit longer than a run makes it). */
+.rf-caption {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.rf-gloss,
 .rf-summary {
-  color: var(--muted-foreground);
+  margin: 0;
   font-family: var(--font-label);
   font-size: var(--text-label);
   font-weight: var(--text-label--font-weight);
   line-height: var(--text-label--line-height);
+}
+
+.rf-gloss {
+  color: var(--muted-foreground);
+}
+
+.rf-summary {
+  min-block-size: 2lh;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (width < 24.375rem) {
+  .rf-summary {
+    min-block-size: 3lh;
+  }
 }
 
 /* A server: its body, a lamp in the lab's line, its election timer as a dial around it, its
@@ -393,6 +421,8 @@
 }
 
 /* What the run proved, the desk's one result: the label face at the controls' size, in the ink. */
+  margin: 0;
+  margin: 0;
 .rf-status {
   font-size: var(--text-ui);
   line-height: var(--text-ui--line-height);

@@ -1,6 +1,15 @@
 import { readLink, writeLink } from '../sim/link';
 import type { Server } from './core';
-import { leaderOf, replay, type Action, type Flight, type Sim } from './sim';
+import {
+  committedCount,
+  currentTerm,
+  leaderOf,
+  leaders,
+  replay,
+  type Action,
+  type Flight,
+  type Sim,
+} from './sim';
 
 // What the Raft Lab draws, as markup and text, from a run's state. The page uses it twice: at
 // build, to draw the opening run so the demo is complete without JavaScript, and in the browser,
@@ -232,16 +241,38 @@ export function statusText(sim: Sim): string {
 
 export const seconds = (ms: number): string => `${(ms / 1000).toFixed(3)} s`;
 
-/** A one-line summary of the cluster, for the picture's name. */
+/** The numbers of some servers in a sentence: 1, 2 and 3. */
+const named = (servers: readonly Server[]): string => {
+  const ids = servers.map((s) => s.id + 1);
+  return ids.length > 1 ? `${ids.slice(0, -1).join(', ')} and ${ids.at(-1)}` : `${ids[0]}`;
+};
+
+/**
+ * A one-line summary of the cluster, for the picture's name. A leader cut off from the rest is still
+ * drawn as a leader, since that's what it thinks it is, so the words say so as well, and the caption
+ * never contradicts the picture above it. The committed count is the run's high-water mark, not what
+ * the servers remember now, so a crash can't take it down.
+ */
 export function summary(sim: Sim): string {
-  const leader = leaderOf(sim);
-  const committed = Math.max(0, ...sim.servers.map((s) => s.commitIndex));
+  const { leader, behind } = leaders(sim);
+  const committed = committedCount(sim);
   const down = sim.servers.filter((s) => !s.up).length;
+  const term = currentTerm(sim);
   const parts = [
-    leader ? `Node ${leader.id + 1} leads term ${leader.term}` : 'No leader',
+    leader
+      ? `Server ${leader.id + 1} leads term ${leader.term}`
+      : term > 0
+        ? `No leader in term ${term}`
+        : 'No leader',
     `${committed} ${committed === 1 ? 'entry' : 'entries'} committed`,
   ];
-  if (down > 0) parts.push(`${down} ${down === 1 ? 'node' : 'nodes'} down`);
+  if (down > 0) parts.push(`${down} ${down === 1 ? 'server' : 'servers'} down`);
   if (new Set(sim.groups).size > 1) parts.push('the network is split');
-  return `${parts.join(', ')}.`;
+  const words =
+    behind.length === 1
+      ? ` Server ${named(behind)} still thinks it leads term ${behind[0]?.term}.`
+      : behind.length > 1
+        ? ` Servers ${named(behind)} still think they lead older terms.`
+        : '';
+  return `${parts.join(', ')}.${words}`;
 }

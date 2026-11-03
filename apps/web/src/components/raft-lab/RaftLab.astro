@@ -36,7 +36,9 @@ import '../../styles/raft-lab.css';
 // A log's lamps are its own server's view, as Raft's are: an entry is filled once that server
 // knows it is committed. The commit index is volatile state (Raft paper, Figure 2), so a crash
 // clears it and a server that is down draws its whole log hollow, though every entry a majority
-// holds is still committed. The legend says so, since "hollow" alone would read "not committed".
+// holds is still committed. The legend says so, since "hollow" alone would read "not committed",
+// and the caption counts from the run's high-water mark (lib/raft/sim.ts, committedCount), which
+// no crash takes down.
 //
 // The controls come straight after the picture, before the logs, so on a phone the picture and the
 // buttons that work it, Run, Next event, Start over and the network's, share one screen: a press and
@@ -97,8 +99,11 @@ const SPEEDS = [
       })}
       <g class="rf-flights" data-rf-flights set:html={flightsMarkup(sim, false)} />
     </svg>
-    <figcaption class="rf-summary" id="rf-summary" data-rf-summary>
-      {summary(sim)}
+    <figcaption class="rf-caption">
+      <p class="rf-gloss">A term is a numbered stretch of time with at most one leader.</p>
+      <p class="rf-summary" id="rf-summary" data-rf-summary>
+        {summary(sim)}
+      </p>
     </figcaption>
   </figure>
 
@@ -182,14 +187,13 @@ const SPEEDS = [
       ))}
     </ol>
     <p class="rf-legend">
-      Each dot is one entry, with its term under it, as its node knows it. A filled dot is
-      committed: a majority holds it, and it can never be lost. A hollow dot is one its node has not
-      heard is committed yet. A crash keeps a node's log but not what it knew was committed, which
-      Raft holds only in memory, so a node that is down shows its whole log hollow until the leader
-      tells it again.
-    </p>
-    <p class="rf-status" data-rf-status>
-      {statusText(sim)}
+      Each dot is one entry, with its term under it, as its server knows it. A filled dot is
+      committed: a majority holds it, and it can never be lost. A hollow dot is one its server has
+      not heard is committed yet. A crash keeps a server’s log but not what it knew was committed,
+      which Raft holds only in memory, so a server shows its whole log hollow until a leader tells
+      it again. If all five crash, no leader knows either: a new leader can’t count an older term’s
+      entries until an entry of its own term commits, so they stay hollow until the next write. The
+      caption counts what was ever committed, so its number doesn’t fall.
     </p>
     <p class="rf-clock" data-rf-js>
       <span data-rf-clock>Virtual time {seconds(sim.now)}</span>, seed{' '}

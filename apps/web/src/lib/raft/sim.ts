@@ -2,6 +2,7 @@ import { check, createChecker, type Checker, type Violation } from './check';
 import {
   crash as crashServer,
   createServer,
+  majority,
   propose,
   receive,
   restart as restartServer,
@@ -350,11 +351,56 @@ export function replay(config: Config, actions: readonly Action[], until: number
   return sim;
 }
 
-/** The leader now, if one server leads the highest term any server holds. */
-export function leaderOf(sim: Sim): Server | null {
-  const up = sim.servers.filter((s) => s.up);
-  const top = Math.max(0, ...up.map((s) => s.term));
-  return up.find((s) => s.role === 'leader' && s.term === top) ?? null;
+/** The side of the network that can elect a leader and commit: one with a majority of the cluster
+ *  up. There is at most one, and none when crashes and cuts leave every side short. */
+const electingSide = (sim: Sim): number | undefined =>
+  sim.groups.find(
+    (group) =>
+      sim.servers.filter((s) => s.up && sim.groups[s.id] === group).length >=
+      majority(sim.servers.length),
+  );
+
+/** The term the cluster is in: the highest on the side that can elect, or anywhere when no side
+ *  can. A server cut off from a majority keeps timing out and its term climbs, but nobody it can
+ *  reach can vote it in, so that climbing number says nothing about the cluster. */
+export function currentTerm(sim: Sim): number {
+  const side = electingSide(sim);
+  return Math.max(
+    0,
+    ...sim.servers.flatMap((s) =>
+      s.up && (side === undefined || sim.groups[s.id] === side) ? [s.term] : [],
+    ),
+  );
 }
+
+/** Who leads, and who only thinks so. A leader is overtaken once a higher term reaches it or a
+ *  majority has moved on without it: until then it's the leader, cut off or not, and it stays one
+ *  beside a lone server whose term has climbed past its own, committing writes all the while. Every
+ *  other leader that's up is behind, and will think it leads until it hears otherwise, which a leader
+ *  cut off from the rest can't. */
+export function leaders(sim: Sim): { leader: Server | null; behind: Server[] } {
+  const side = electingSide(sim);
+  const up = sim.servers.filter((s) => s.up);
+  const all = up.filter((s) => s.role === 'leader');
+  const [leader = null] = all
+    .filter(
+      (s) =>
+        !up.some(
+          (x) =>
+            x.term > s.term && (sim.groups[x.id] === sim.groups[s.id] || sim.groups[x.id] === side),
+        ),
+    )
+    .sort((a, b) => b.term - a.term);
+  return { leader, behind: all.filter((s) => s !== leader) };
+}
+
+/** The leader now, if there is one. */
+export const leaderOf = (sim: Sim): Server | null => leaders(sim).leader;
+
+/** How many entries are committed: the highest index any server ever committed, a high-water mark.
+ *  Each server's own commit index is volatile (Raft paper, Figure 2), so it falls to 0 in a crash,
+ *  and with all five down no server knows any. What a majority holds is still committed, and the
+ *  checker keeps what each committed index holds (1-based, so its length is one past the last). */
+export const committedCount = (sim: Sim): number => Math.max(0, sim.checker.committed.length - 1);
 
 export type { Violation };

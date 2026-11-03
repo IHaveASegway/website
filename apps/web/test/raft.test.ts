@@ -14,10 +14,13 @@ import {
   type Server,
 } from '../src/lib/raft/core';
 import {
+  committedCount,
   crash,
   createSim,
+  currentTerm,
   heal,
   leaderOf,
+  leaders,
   nextTime,
   replay,
   restart,
@@ -44,6 +47,8 @@ import {
   readRun,
   SEEDS_IN_CI,
   SIZE,
+  statusText,
+  summary,
 } from '../src/lib/raft/view';
 
 // The Raft Lab's core (ADR 0020): known answers for each of Figure 2's rules, then a property
@@ -598,6 +603,212 @@ test('a log says what its server knows is committed, so a crash keeps the entrie
   expect(logMarkup(follower)).not.toContain('data-done');
   expect(sim.writes.map((w) => w.state)).toEqual(['committed', 'committed', 'committed']);
   expect(logWords(leader)).toBe(`3 entries, 3 known committed, last of term ${term}`);
+});
+
+describe('the committed count', () => {
+  const crashAll = (sim: Sim) => sim.servers.forEach((s) => crash(sim, s.id));
+  const restartAll = (sim: Sim) => sim.servers.forEach((s) => restart(sim, s.id));
+
+  test('known answer: crash all five and the caption still says 3, though no server remembers any', () => {
+    const sim = openingRun();
+    expect(summary(sim)).toBe('Server 1 leads term 1, 3 entries committed.');
+    crashAll(sim);
+    expect(sim.servers.map((s) => s.commitIndex)).toEqual([0, 0, 0, 0, 0]);
+    expect(committedCount(sim)).toBe(3);
+    expect(summary(sim)).toBe('No leader, 3 entries committed, 5 servers down.');
+  });
+
+  test('known answer: after a full restart a new leader can’t count old entries, and the caption still says 3 until a write commits', () => {
+    const sim = openingRun();
+    crashAll(sim);
+    restartAll(sim);
+    expect(summary(sim)).toBe('No leader in term 1, 3 entries committed.');
+    stepUntil(sim, (s) => leaderOf(s) !== null);
+    runUntil(sim, sim.now + 500);
+    // Section 5.4.2: a leader commits only its own term's entries by counting, so none knows yet.
+    expect(sim.servers.map((s) => s.commitIndex)).toEqual([0, 0, 0, 0, 0]);
+    const leader = leaderOf(sim) as Server;
+    expect(summary(sim)).toBe(
+      `Server ${leader.id + 1} leads term ${leader.term}, 3 entries committed.`,
+    );
+    // One write of its own term commits, and with it the three before it: every dot fills again.
+    write(sim);
+    runUntil(sim, sim.now + 500);
+    expect(sim.writes.at(-1)?.state).toBe('committed');
+    expect(sim.servers.map((s) => s.commitIndex)).toEqual([4, 4, 4, 4, 4]);
+    expect(summary(sim)).toBe(
+      `Server ${leader.id + 1} leads term ${leader.term}, 4 entries committed.`,
+    );
+  });
+
+  test('it never falls, and it covers every write the run calls committed, whatever crashes', () => {
+    const broken: string[] = [];
+    for (let seed = 1; seed <= 200; seed++) {
+      const sim = createSim({ seed });
+      const pick = seeded(seed * 31 + 5);
+      let before = 0;
+      while (sim.now < 5_000 && !sim.violation) {
+        runUntil(sim, sim.now + 40);
+        const roll = pick();
+        const id = Math.floor(pick() * 5);
+        if (roll < 0.3) write(sim);
+        else if (roll < 0.45) crash(sim, id);
+        else if (roll < 0.7) restart(sim, id);
+        const count = committedCount(sim);
+        const most = Math.max(0, ...sim.servers.map((s) => s.commitIndex));
+        const told = sim.writes.filter((w) => w.state === 'committed').map((w) => w.index);
+        if (count < before) broken.push(`seed ${seed}: fell from ${before} to ${count}`);
+        if (count < most) broken.push(`seed ${seed}: ${count} under a server's ${most}`);
+        if (told.some((index) => index > count))
+          broken.push(`seed ${seed}: a write committed past ${count}`);
+        before = count;
+      }
+      if (before === 0) broken.push(`seed ${seed}: nothing ever committed, so it proved nothing`);
+    }
+    expect(broken).toEqual([]);
+  });
+});
+
+describe('the caption never contradicts the picture', () => {
+  /** Seed 7 with its leader cut off, stepped until `reached`. */
+  const cutOff = (reached: (sim: Sim) => boolean) => {
+    const sim = openingRun();
+    const leader = leaderOf(sim) as Server;
+    split(
+      sim,
+      sim.servers.map((s) => (s.id === leader.id ? 1 : 0)),
+    );
+    stepUntil(sim, reached);
+    return sim;
+  };
+
+  test('known answers: while the others elect, and after, it says who still thinks it leads', () => {
+    const during = cutOff((s) => s.servers.some((x) => x.role === 'candidate'));
+    expect(during.servers.filter((s) => s.role === 'leader').map((s) => s.id)).toEqual([0]);
+    expect(leaderOf(during)).toBeNull();
+    expect(summary(during)).toBe(
+      'No leader in term 2, 3 entries committed, the network is split. Server 1 still thinks it leads term 1.',
+    );
+    const after = cutOff((s) => leaderOf(s) !== null && leaderOf(s)?.id !== 0);
+    expect(after.servers.filter((s) => s.role === 'leader')).toHaveLength(2);
+    expect(summary(after)).toBe(
+      `Server ${(leaderOf(after) as Server).id + 1} leads term 2, 3 entries committed, the network is split. Server 1 still thinks it leads term 1.`,
+    );
+  });
+
+  test('it says so once the network heals, until the old leader hears, and then it stops', () => {
+    const sim = cutOff((s) => leaderOf(s) !== null && leaderOf(s)?.id !== 0);
+    heal(sim);
+    expect(summary(sim)).toContain('Server 1 still thinks it leads term 1.');
+    runUntil(sim, sim.now + 200);
+    expect(leaders(sim).behind).toEqual([]);
+    expect(summary(sim)).not.toContain('still');
+  });
+
+  test('known answer: more than one old leader, in one sentence', () => {
+    const sim = openingRun();
+    Object.assign(sim.servers[1] as Server, { role: 'leader', term: 2 });
+    Object.assign(sim.servers[2] as Server, { role: 'candidate', term: 3 });
+    expect(leaders(sim).behind.map((s) => s.id)).toEqual([0, 1]);
+    expect(summary(sim)).toBe(
+      'No leader in term 3, 3 entries committed. Servers 1 and 2 still think they lead older terms.',
+    );
+  });
+
+  test('with nobody up, it names no term, since no server is there to hold one', () => {
+    const sim = openingRun();
+    sim.servers.forEach((s) => crash(sim, s.id));
+    expect(summary(sim)).toMatch(/^No leader, /);
+    expect(leaders(sim).behind).toEqual([]);
+  });
+
+  test('a down leader is not an old leader: it is down, and the caption says that', () => {
+    const sim = openingRun();
+    crash(sim, 0);
+    expect(summary(sim)).toBe('No leader in term 1, 3 entries committed, 1 server down.');
+    expect(leaders(sim).behind).toEqual([]);
+  });
+
+  // Split two from three, crash the leader on the small side, and the one server left there times
+  // out over and over, its term climbing past the working leader's with no way to win. It said "No
+  // leader in term 15" here, while that leader committed a write.
+  test('known answer: a cut-off server’s climbing term says nothing about the leader the majority has', () => {
+    const sim = openingRun();
+    split(sim, [1, 1, 0, 0, 0]);
+    stepUntil(sim, (s) => (leaderOf(s)?.id ?? 0) > 1);
+    crash(sim, 0);
+    const leader = leaderOf(sim) as Server;
+    runUntil(sim, sim.now + 3_000);
+    const alone = sim.servers[1] as Server;
+    expect(alone.term).toBeGreaterThan(leader.term + 3);
+    expect(leaderOf(sim)).toBe(leader);
+    expect(currentTerm(sim)).toBe(leader.term);
+    expect(summary(sim)).toBe(
+      `Server ${leader.id + 1} leads term ${leader.term}, 3 entries committed, 1 server down, the network is split.`,
+    );
+    write(sim);
+    runUntil(sim, sim.now + 300);
+    expect(sim.writes.at(-1)?.state).toBe('committed');
+    expect(summary(sim)).toContain(`Server ${leader.id + 1} leads term ${leader.term}, 4 entries`);
+    // Heal, and its term reaches the leader, which steps down: now it is true that nobody leads it.
+    heal(sim);
+    expect(summary(sim)).toBe(
+      `No leader in term ${alone.term}, 4 entries committed, 1 server down. Server ${leader.id + 1} still thinks it leads term ${leader.term}.`,
+    );
+  });
+
+  test('in any state a run reaches, every server drawn as a leader is named, as leading or as behind', () => {
+    const broken: string[] = [];
+    let behind = 0;
+    for (let seed = 1; seed <= 200; seed++) {
+      const sim = createSim({ seed });
+      const pick = seeded(seed * 13 + 3);
+      while (sim.now < 5_000 && !sim.violation) {
+        runUntil(sim, sim.now + 30);
+        const roll = pick();
+        const id = Math.floor(pick() * 5);
+        if (roll < 0.1) crash(sim, id);
+        else if (roll < 0.25) restart(sim, id);
+        else if (roll < 0.33)
+          split(
+            sim,
+            sim.servers.map(() => (pick() < 0.5 ? 0 : 1)),
+          );
+        else if (roll < 0.4) heal(sim);
+        const drawn = sim.servers.filter((s) => s.up && s.role === 'leader');
+        const named = leaders(sim);
+        const words = summary(sim);
+        behind += named.behind.length;
+        const all = [named.leader, ...named.behind].filter((s) => s !== null);
+        if (JSON.stringify(all.map((s) => s.id).sort()) !== JSON.stringify(drawn.map((s) => s.id)))
+          broken.push(`seed ${seed} at ${sim.now}: ${words}`);
+        if (named.leader && !words.startsWith(`Server ${named.leader.id + 1} leads term `))
+          broken.push(`seed ${seed} at ${sim.now}: ${words}`);
+        if (!named.leader && !words.startsWith('No leader'))
+          broken.push(`seed ${seed} at ${sim.now}: ${words}`);
+        if (named.behind.length > 0 && !/ still think(s it leads| they lead) /.test(words))
+          broken.push(`seed ${seed} at ${sim.now}: ${words}`);
+      }
+    }
+    expect(broken).toEqual([]);
+    // The sweep did reach the states the sentence is for.
+    expect(behind).toBeGreaterThan(100);
+  });
+
+  test('with no side able to elect, the highest term anywhere is the term, and a leader there leads it', () => {
+    const sim = openingRun();
+    split(sim, [1, 1, 0, 0, 0]);
+    crash(sim, 3);
+    crash(sim, 4);
+    expect(summary(sim)).toBe(
+      'Server 1 leads term 1, 3 entries committed, 2 servers down, the network is split.',
+    );
+    runUntil(sim, sim.now + 1_000);
+    // Server 3, alone on its side, has climbed. No side can vote it in or outvote server 1.
+    expect((sim.servers[2] as Server).term).toBeGreaterThan(1);
+    expect(leaderOf(sim)?.id).toBe(0);
+    expect(currentTerm(sim)).toBe((sim.servers[2] as Server).term);
+  });
 });
 
 describe('the cut', () => {
