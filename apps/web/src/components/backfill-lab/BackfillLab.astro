@@ -13,8 +13,12 @@ import {
   summary,
   switchWords,
 } from '../../lib/backfill/view';
+import { LINES_SHOWN } from '../../lib/lab/event-log';
 import '../../styles/backfill-lab.css';
-import Choice from './Choice.astro';
+import Choice from '../lab/Choice.astro';
+import EventLog from '../lab/EventLog.astro';
+import Said from '../lab/Said.astro';
+import Time from '../lab/Time.astro';
 
 // The Backfill Lab (ADR 0026): the bakery's report pipeline as a run board, a row a day and a lamp
 // a step, drawn at build from the opening run (lib/backfill/view.ts), so the page is complete
@@ -23,22 +27,23 @@ import Choice from './Choice.astro';
 // exactly where this stands.
 //
 // It all sits on the lab's desk (ADR 0027; styles/lab-page.css, .desk), in two parts: the
-// picture (the board, the lamps' key, the caption, the strip and the checks) and the panel (the controls, then
-// the log). The controls that play the week, and the choice that fixes it, come first, so on a
-// phone they stand right under the board, and a visitor sees the lamps change as they press;
-// on a wide desk the panel is the column beside the picture (backfill-lab.css). Run is a
-// push-button whose lamp is lit while the run is on (app.ts sets data-lamp; its words change, so
-// it is no toggle and has no aria-pressed).
+// picture (the board, the lamps' key, the caption, the strip and the checks) and the panel (the
+// controls, then the log). The controls that play the week, and the choice that fixes it, come
+// first, so on a phone they stand right under the board, and a visitor sees the lamps change as they
+// press; on a wide desk the panel is the column beside the picture (backfill-lab.css). Each part of
+// the controls says what its presses did (lib/lab/said.ts).
 const sim = openingRun();
 const board = boardView(sim);
 const checks = propertyViews(sim);
-const lines = sim.lines.slice(-60);
+const lines = sim.lines
+  .slice(-LINES_SHOWN)
+  .map((line) => ({ at: lineTime(line.at), text: line.text }));
 
 /** The steps' column heads: the first word stays on a phone, the rest joins it on a wider desk. */
 const STEPS = [
   { word: 'Wait', rest: ' for the file' },
   { word: 'Extract', rest: '' },
-  { word: 'Convert', rest: '' },
+  { word: 'Transform', rest: '' },
   { word: 'Load', rest: '' },
   { word: 'Check', rest: '' },
 ];
@@ -91,13 +96,13 @@ const KEY = [
         tabindex="0"
       >
         <table class="bf-board" data-bf-board>
-          <caption class="bf-sr" id="bf-board-name">
+          <caption class="lab-sr" id="bf-board-name">
             The run board: a row for each day, and a dot for each step of its run
           </caption>
           <thead>
             <tr>
               <th scope="col" class="bf-col-day">
-                <span class="bf-sr">Day</span>
+                <span class="lab-sr">Day</span>
               </th>
               {STEPS.map((step) => (
                 <th scope="col" class="bf-col-step">
@@ -122,7 +127,7 @@ const KEY = [
                   <span class="bf-day-name" aria-hidden="true">
                     {day.short}
                   </span>
-                  <span class="bf-sr">{day.long}</span>
+                  <span class="lab-sr">{day.long}</span>
                   <span class="bf-run" data-bf-run-word>
                     {day.run}
                   </span>
@@ -137,7 +142,7 @@ const KEY = [
                       <path class="bf-hands" d="M0-3.5V0h3" />
                       <path class="bf-dash" d="M-4.5 0h9" />
                     </svg>
-                    <span class="bf-sr" data-bf-word>
+                    <span class="lab-sr" data-bf-word>
                       {step.word}
                     </span>
                     <span class="bf-retry" aria-hidden="true" data-bf-retry>
@@ -158,29 +163,24 @@ const KEY = [
             ))}
           </tbody>
           <tfoot>
-            <tr class="bf-stray" data-bf-stray hidden={board.stray === null}>
-              <th scope="row" class="bf-day">
-                <span class="bf-day-name" aria-hidden="true" data-bf-stray-short>
-                  {board.stray?.short}
-                </span>
-                <span class="bf-sr" data-bf-stray-long>
-                  {board.stray?.long}
-                </span>
-                <span class="bf-run">after the week</span>
-              </th>
-              <td class="bf-note" colspan="5">
-                Filed here by the clock
-              </td>
-              <td class="bf-num" data-bf-stray-rows>
-                {board.stray?.rows}
-              </td>
-              <td class="bf-num" />
-            </tr>
             <tr class="bf-week">
               <th scope="row" class="bf-day">
                 <span class="bf-day-name">Week</span>
               </th>
-              <td colspan="5" />
+              <td colspan="5" class="bf-note">
+                {/* Rows filed under a day after the week, the clock's day, in the room this row has
+                    anyway, so a run that writes them moves nothing mid-week. */}
+                <span data-bf-stray hidden={board.stray === null}>
+                  <span data-bf-stray-rows>{board.stray?.rows}</span> rows filed under{' '}
+                  <span aria-hidden="true" data-bf-stray-short>
+                    {board.stray?.short}
+                  </span>
+                  <span class="lab-sr" data-bf-stray-long>
+                    {board.stray?.long}
+                  </span>
+                  , by the clock
+                </span>
+              </td>
               <td class="bf-num">
                 <span data-bf-week-report>{board.week.report}</span>
                 <span class="bf-diff" data-bf-week-diff>
@@ -195,7 +195,7 @@ const KEY = [
         </table>
       </div>
 
-      <ul class="bf-key" aria-label="What the lamps mean" role="list">
+      <ul class="bf-key" aria-label="What the dots mean" role="list">
         {KEY.map((item) => (
           <li data-lamp={item.lamp}>
             <svg class="bf-lamp" viewBox="-11 -11 22 22" aria-hidden="true">
@@ -239,8 +239,8 @@ const KEY = [
       </div>
 
       <section class="bf-checks-block" aria-labelledby="bf-checks">
-        <h2 class="bf-heading" id="bf-checks">
-          Checked after every event
+        <h2 class="lab-heading" id="bf-checks">
+          Checked as the run goes
         </h2>
         <ul class="bf-checks" aria-labelledby="bf-checks" role="list">
           {checks.map((check) => (
@@ -267,30 +267,21 @@ const KEY = [
     </div>
 
     <div class="bf-panel">
-      <div class="bf-controls bf-play" data-bf-js>
-        <p class="bf-clock">
-          <span data-bf-clock>{when(sim.now)}</span>, <span data-bf-events>{eventsText(sim)}</span>,
-          seed <span data-bf-seed>{sim.seed}</span>
-        </p>
-        <div class="bf-row" role="group" aria-label="Time">
-          <button type="button" class="btn bf-run-button" data-lamp="off" data-bf-run>
-            Run
-          </button>
-          <button type="button" class="btn" data-bf-step>
-            Next event
-          </button>
-          <button type="button" class="btn" data-bf-reset>
-            Start over
-          </button>
-          <Choice legend="Speed" name="bf-speed" options={SPEEDS} checked="6" />
-        </div>
+      <div class="bf-controls bf-play" data-bf-js data-part>
+        <Time short="bf" speeds={SPEEDS} speed="6">
+          <p class="lab-clock">
+            <span data-bf-clock>{when(sim.now)}</span>,{' '}
+            <span data-bf-events>{eventsText(sim)}</span>, seed <span data-bf-seed>{sim.seed}</span>
+          </p>
+        </Time>
         <div class="bf-row" role="group" aria-label="Its loads">
           <Choice legend="How a load writes" name="bf-mode" options={MODES} checked={sim.mode} />
         </div>
-        <p class="bf-sr" role="status" data-bf-said></p>
+        <Said words="Choose how a load writes, and the week starts over under it, from its switch." />
+        <p class="lab-sr" role="status" data-bf-said></p>
       </div>
 
-      <div class="bf-controls bf-more" data-bf-js>
+      <div class="bf-controls bf-more" data-bf-js data-part>
         <div class="bf-row" role="group" aria-label="The job">
           <button
             type="button"
@@ -333,21 +324,11 @@ const KEY = [
             </span>
           </button>
         </div>
+        <Said words="Which day a load writes starts the week over too. The rest change the week as it stands." />
       </div>
 
       <div class="bf-events">
-        <h2 class="bf-heading" id="bf-events">
-          What happened
-        </h2>
-        <div class="bf-lines" role="log" aria-live="off" aria-labelledby="bf-events" tabindex="0">
-          <ol class="bf-list" data-bf-lines>
-            {lines.map((line) => (
-              <li>
-                <span class="bf-at">{lineTime(line.at)}</span> {line.text}
-              </li>
-            ))}
-          </ol>
-        </div>
+        <EventLog short="bf" lines={lines} />
       </div>
     </div>
   </div>

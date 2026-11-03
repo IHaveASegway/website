@@ -1,0 +1,18 @@
+---
+import '../../styles/lab-controls.css';
+
+interface Props {
+  /** What its controls do, which it says until a press has something to say. */
+  words: string;
+}
+
+// The line under a part of a lab's controls that says what its presses did (lib/lab/said.ts). It
+// keeps its room from the first paint. It isn't live, since a screen reader hears the whole of each
+// press from one live region elsewhere, but it's there to read, as the Route Lab's line is: until a
+// press it's the only place that says what these controls do.
+const { words } = Astro.props;
+---
+
+<p class="lab-said" data-said={words}>
+  {words}
+</p>

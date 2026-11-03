@@ -233,7 +233,7 @@ describe('the Queue line', () => {
   test("the index's fact: the same crash with the idempotency key prints order 18 once", () => {
     const keyed = replayQueue({ ...QUEUE.config, key: true }, QUEUE.actions, QUEUE.until);
     expect(queueFact(keyed)).toBe(
-      'With an idempotency key, worker 2 crashes and order 18 still prints once. 25 orders done in 4 s, none lost or printed twice.',
+      'With an idempotency key, worker 2 crashes and order 18’s oven ticket still prints once. 25 orders done in 4 s, none lost or printed twice.',
     );
     // The opening itself printed order 18 twice, so it cannot be the fact.
     expect(() => queueFact(queueOpening())).toThrow(/doubled/);
@@ -261,14 +261,14 @@ describe('the Cache line', () => {
     expect(line.nodes).toEqual(['filled', 'filled', 'filled', 'filled']);
     expect(line.connections).toEqual([true, false, false, false, false, false, false, false]);
     expect(line.words).toBe(
-      'When the menu expired at 3.0 s, the database fetched it 23 times at once, and 2 reads timed out.',
+      'When the menu expired at 3.0 s, the database had 23 fetches of it in flight at once, and 2 reads timed out.',
     );
   });
 
-  test("the index's fact: coalescing has the database fetch the menu once instead of 23 times", () => {
+  test("the index's fact: with coalescing the database is asked for the menu once instead of 23 times", () => {
     const coalesced = replayCache({ ...CACHE.config, coalesce: true }, CACHE.actions, CACHE.until);
     expect(cacheFact(cacheOpening(), coalesced)).toBe(
-      'When the menu expires at 3.0 s, coalescing means the database fetches it once instead of 23 times.',
+      'When the menu expires at 3.0 s, coalescing means the database is asked for it once instead of 23 times.',
     );
     // With no herd at an expiry there is nothing to compare.
     expect(() => cacheFact(coalesced, coalesced)).toThrow(/herd/);
@@ -277,11 +277,11 @@ describe('the Cache line', () => {
   test("the board's fix: coalescing fetches the menu once, and no read times out", () => {
     const coalesced = replayCache({ ...CACHE.config, coalesce: true }, CACHE.actions, CACHE.until);
     expect(cacheFix(cacheOpening(), coalesced)).toBe(
-      'With coalescing, the database fetches it once, and no read times out.',
+      'With coalescing, the database is asked for it once, and no read times out.',
     );
     // Without coalescing the same words would be false: 23 fetches, and two reads timed out.
     expect(cacheFix(cacheOpening(), cacheOpening())).toBe(
-      'With coalescing, the database fetches it 23 times, and 2 reads time out.',
+      'With coalescing, the database is asked for it 23 times, and 2 reads time out.',
     );
     expect(() => cacheFix(coalesced, coalesced)).toThrow(/herd/);
   });

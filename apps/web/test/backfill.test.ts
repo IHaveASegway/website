@@ -134,7 +134,7 @@ describe('the week', () => {
     expect(board(sim).every((row) => row.run === null && row.cells.every((c) => !c.state))).toBe(
       true,
     );
-    expect(summary(sim)).toMatch(/^The job graph is off\./);
+    expect(summary(sim)).toMatch(/^The job is off\./);
   });
 });
 
@@ -313,7 +313,7 @@ describe('retries', () => {
     expect(sim.failNext[2]).toBe(0);
   });
 
-  test('extract and load attempts fail on their own about 8% of the time; convert never fails, and a check only when it finds the totals apart', () => {
+  test('extract and load attempts fail on their own about 8% of the time; transform never fails, and a check only when it finds the totals apart', () => {
     let tries = 0;
     let failures = 0;
     for (let seed = 1; seed <= 300; seed++) {
@@ -981,7 +981,7 @@ describe('what the page draws, and the three things to try', () => {
     expect(view.days[2]).toMatchObject({ report: '415', source: '303', difference: '+112' });
     expect(view.week).toEqual({ report: '2,203', difference: '+455', source: '1,748' });
     expect(propertyViews(twelve)[0]?.word).toBe(
-      "Broke 3 times, first at 00:28: Wednesday's report holds 415 orders and the source 303.",
+      "Broken 3 times, first at 00:28: Wednesday's report holds 415 orders and the source 303.",
     );
   });
 
@@ -1038,7 +1038,7 @@ describe('what the page draws, and the three things to try', () => {
     expect(before.on).toBe(false);
     expect(before.now).toBe(WEEK_END);
     expect(before.failNext).toEqual([0, 0, 1, 0, 0, 0, 0]);
-    expect(summary(before)).toMatch(/^The job graph is off\./);
+    expect(summary(before)).toMatch(/^The job is off\./);
     expect(boardView(before).days.every((d) => d.run === '' && d.report === '')).toBe(true);
     expect(lamps(before, 0)).toEqual(Array.from({ length: DAYS }, () => 'hollow'));
     expect(stripMarkup(before)).toContain('The job is off');
@@ -1053,6 +1053,36 @@ describe('what the page draws, and the three things to try', () => {
     expect(back.maxActiveRuns).toBe(5);
     expect(back.files).toEqual(sim.files);
     expect(back.actions.map((a) => a.kind)).toEqual(['fail-next-load', 'late-file']);
+  });
+
+  // The lead promises "fail a load". Until 2026-11-02 a failure set after the switch went with the
+  // old week: fail Monday's next load on the finished opening, press Run, and Monday succeeded, right
+  // after the log said it wouldn't.
+  test('a failed load set after the switch and not yet spent carries back to before it, as many as are left', () => {
+    const sim = openingRun();
+    failNextLoad(sim, 0);
+    const back = beforeSwitch(sim);
+    expect(back.on).toBe(false);
+    expect(back.now).toBe(WEEK_END);
+    expect(back.failNext).toEqual([1, 0, 1, 0, 0, 0, 0]);
+    start(back);
+    runUntil(back, Infinity);
+    expect(boardView(back).days[0]).toMatchObject({ run: 'failed', difference: '+46' });
+    expect(back.lines.some((line) => /Monday's load fails after appending/.test(line.text))).toBe(
+      true,
+    );
+    // Wednesday's own, from the opening, is spent in the opening's week and set again before the
+    // switch; pressed again on top of it, it counts once more, as it would have had it not been spent.
+    const twice = openingRun();
+    failNextLoad(twice, 2);
+    expect(beforeSwitch(twice).failNext).toEqual([0, 0, 2, 0, 0, 0, 0]);
+    // A failure already spent stays spent: that week's first load took it.
+    const spent = beforeSwitch(openingRun());
+    start(spent);
+    failNextLoad(spent, 0);
+    runUntil(spent, Infinity);
+    expect(spent.failNext).toEqual([0, 0, 0, 0, 0, 0, 0]);
+    expect(beforeSwitch(spent).failNext).toEqual([0, 0, 1, 0, 0, 0, 0]);
   });
 
   test('watch Wednesday count twice: 96 of 179 rows, then all 179, and a check that finds 275; overwrite the day and start over, and every day matches: 2,012 orders', () => {
@@ -1225,14 +1255,14 @@ describe('what the page draws, and the three things to try', () => {
         id: 'totals',
         name: PROPERTY_NAMES.totals,
         held: false,
-        word: "Broke once, first at 00:41: Wednesday's report holds 275 orders and the source 179.",
+        word: "Broken once, first at 00:41: Wednesday's report holds 275 orders and the source 179.",
       },
-      { id: 'order', name: 'No step started before the steps it needs', held: true, word: 'Held.' },
+      { id: 'order', name: 'No step started before the steps it needs', held: true, word: 'Held' },
       {
         id: 'limits',
         name: 'No more runs or loads at once than allowed',
         held: true,
-        word: 'Held.',
+        word: 'Held',
       },
     ]);
   });

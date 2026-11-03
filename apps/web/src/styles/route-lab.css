@@ -132,9 +132,14 @@
   cursor: pointer;
 }
 
-.rl-chip:hover,
 .rl-chip:has(:checked) {
   background-color: var(--surface-2);
+}
+
+@media (hover: hover) {
+  .rl-chip:hover {
+    background-color: var(--surface-2);
+  }
 }
 
 .rl-chip:has(:focus-visible) {
@@ -1047,9 +1052,11 @@
   rotate: 45deg;
 }
 
-.rl-orders summary:hover::after,
-.rl-stops summary:hover::after {
-  border-color: currentColor;
+@media (hover: hover) {
+  .rl-orders summary:hover::after,
+  .rl-stops summary:hover::after {
+    border-color: currentColor;
+  }
 }
 
 .rl-orders fieldset {

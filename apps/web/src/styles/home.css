@@ -59,9 +59,11 @@
   text-decoration-skip-ink: none;
 }
 
-.hero-statement a[data-line]:hover {
-  color: inherit;
-  text-decoration-thickness: 0.24em;
+@media (hover: hover) {
+  .hero-statement a[data-line]:hover {
+    color: inherit;
+    text-decoration-thickness: 0.24em;
+  }
 }
 
 .hero-more {
@@ -532,6 +534,7 @@
   line-height: 1.5;
 }
 
+/* Balanced, so a phone's two lines break at a word: left to wrap, it broke "made-" from "up". */
 .build-lab {
   margin: 0 0 0.25rem;
   color: var(--foreground);
@@ -539,6 +542,7 @@
   font-size: var(--text-label);
   font-weight: 500;
   line-height: var(--text-label--line-height);
+  text-wrap: balance;
 }
 
 .build-more {
@@ -635,7 +639,7 @@
 }
 
 .btn-copy {
-  min-inline-size: min(12.75rem, 100%);
+  min-inline-size: min(13.75rem, 100%);
 }
 
 /* The address at a section's size, and below 27rem a headline's, so that each side of its @ keeps

@@ -113,6 +113,10 @@ Classes: `.site-foot` (the band), `.site-footer` (the frame; a grid, two columns
 
 Label face, `--text-ui`, 44 px tall, 4 px corners. Primary: cobalt fill, white text, one a screen. Secondary: an outline in `--input`, `--surface-2` under the pointer. A toggle (`aria-pressed`, or `data-lamp`) shows a small round lamp before its words, filled with cobalt when on. No arrow in a label: "Open the Queue Lab", not "Try it →".
 
+### A lab's controls (built): `.lab-time`, `.lab-option`, `.lab-said`, `.lab-log`
+
+One set on every simulated lab's desk, in `styles/lab-controls.css`, from `components/lab/`: the Time group in one order, clock, Run, Next event, Start over, Speed; a choice among a few as joined push-buttons with a control's 4 px corners, each a native radio with a lamp; a line under each part of the controls that says what its last press did, with its room kept; and the event log, a box of one size that stands on its end. What each control means is in [lab.md](../lab.md#the-controls).
+
 ### Cards (built): `.cards`, `.card`, `.card-title`, `.card-text`, `.card-more`
 
 White sheet on the paper, a hairline edge, 8 px corners, no shadow. Title in display at `headline`. A card that leads somewhere is its link (the stretched `.card-more`); under the pointer its edge darkens to `--input` and its title turns cobalt, at once. A card that leads nowhere does not react. A lab's card carries `data-line` so a glyph inside it can draw in the lab's colour; the card's own edge never does.

@@ -5,7 +5,7 @@ import { backfillFact, cacheFact, figureWords, queueFact, raftFailover, routesFa
 import { replay as replayQueue } from './queue/sim';
 import { OPENING as QUEUE } from './queue/view';
 import { leaderOf, replay as replayRaft } from './raft/sim';
-import { OPENING as RAFT, openingRun as raftOpening, statusText } from './raft/view';
+import { OPENING as RAFT, openingRun as raftOpening } from './raft/view';
 import { formatDuration } from './route-lab/format';
 import { routeLabPicture } from './route-lab/picture';
 
@@ -31,9 +31,10 @@ const cache = () =>
   );
 const backfill = () => backfillFact(backfillOpening(), backfillOpening('overwrite'));
 
-// The Raft Lab: on the Lab index, that every property held over the opening run; on Home, what the
-// board said, the failover its write-up asks the visitor to cause: crash the leader.
-const raftHeld = () => statusText(raftOpening());
+// The Raft Lab: the failover its write-up asks the visitor to cause, crash the leader, in both
+// places. Until 2026-11-02 the Lab index said every safety property held over the opening run, which
+// is true and shows nothing: 249 events, one election, three writes and no fault to survive, on a
+// card that tells the visitor to crash the servers. That sentence stays the lab's own status line.
 function raftFailedOver(): string {
   const opening = raftOpening();
   const leader = leaderOf(opening);
@@ -59,11 +60,22 @@ async function routes(place: FactPlace): Promise<string> {
 
 const FACTS: Record<string, (place: FactPlace) => string | Promise<string>> = {
   queue,
-  raft: (place) => (place === 'home' ? raftFailedOver() : raftHeld()),
+  raft: raftFailedOver,
   cache,
   backfill,
   routes,
 };
+
+/** What each lab's fact on Home is about. Home names the made-up bakery nowhere else, and its facts
+ *  talk of order 18 and the menu: without this a reader who has not opened the lab can't tell what
+ *  prints or whose menu it is. The Route Lab's fact says so itself, and the Raft Lab's has none. */
+const BAKERY: Record<string, string> = { queue: 'orders', cache: 'menu', backfill: 'report' };
+
+/** The line over a lab's fact on Home: where it comes from, and what it is about. */
+export function factSource(slug: string, name: string): string {
+  const about = BAKERY[slug];
+  return `Simulated in the ${name}${about ? `, with a made-up bakery’s ${about}` : ''}`;
+}
 
 /** The fact on the card of the lab with this slug in this place (the Lab index unless named), or
  *  undefined for a lab that has none yet. */

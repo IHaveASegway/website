@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
+  crowded,
   fanPath,
   LANES,
   linkPath,
@@ -59,7 +60,7 @@ describe('the properties beside their lamps', () => {
         id: 'one-fetch',
         name: 'One fetch of a page at a time',
         held: false,
-        words: 'Broken 40 times, at worst 23 fetches of one page at once',
+        words: 'Broken 40 times: at worst 23 fetches of one page in flight',
       },
       {
         id: 'no-timeouts',
@@ -116,10 +117,10 @@ describe('the nodes and their pages', () => {
     // The herd: every reader who misses fetches it, and the line forms behind the pool.
     const herd = at(3_300);
     expect(pageState(herd, 0)).toBe('fetching');
-    expect(menuWords(herd)).toBe('Menu, 19 fetches at once');
+    expect(menuWords(herd)).toBe('Menu, 19 fetches in flight');
     expect(waiting(herd)).toBe(13);
     // Its herd still in flight after the first fetch stored it again: still being fetched.
-    expect(menuWords(at(3_500))).toBe('Menu, 19 fetches at once');
+    expect(menuWords(at(3_500))).toBe('Menu, 19 fetches in flight');
     // By the opening's moment, every fetch of it has come back.
     const opening = openingRun();
     expect(pageState(opening, 0)).toBe('fresh');
@@ -135,22 +136,22 @@ describe('the nodes and their pages', () => {
     expect(menuWords(opening)).toBe('Menu, missing');
   });
 
-  test('the markup: a lamp a page, in page order, and the menu first, with its words, where it lives', () => {
+  test('the markup: a lamp a page, in page order, and the menu first, a size larger, where it lives', () => {
     const sim = openingRun();
     for (let node = 0; node < NODES; node++) {
       const markup = pageLamps(sim, node);
       expect(markup.match(/class="cl-lamp[ "]/g)).toHaveLength(pagesOn(sim, node).length);
-      expect(markup.includes('data-cl-menu')).toBe(node === sim.owners[0]);
+      expect(markup.includes('cl-menu-lamp')).toBe(node === sim.owners[0]);
     }
     expect(pageLamps(sim, sim.owners[0] ?? -1)).toMatch(
-      /^<span class="cl-menu"><span class="cl-lamp cl-menu-lamp" data-state="fresh"><\/span><span class="cl-menu-words" data-cl-menu>Menu, fresh until 12\.5 s<\/span><\/span>/,
+      /^<span class="cl-lamp cl-menu-lamp" data-state="fresh"><\/span><span class="cl-lamp" /,
     );
     loseNode(sim, 0);
     expect(pageLamps(sim, 0)).toBe('');
   });
 });
 
-describe("a node's room: the lamps and words its box keeps room for (e2e/steady.spec.ts)", () => {
+describe("a node's room: the lamps its box keeps room for (e2e/steady.spec.ts)", () => {
   test('the room holds the most pages a node takes with one node down, by either placement', () => {
     expect(ROOM).toBe(47);
     for (const placement of ['circle', 'modulo'] as const) {
@@ -161,11 +162,24 @@ describe("a node's room: the lamps and words its box keeps room for (e2e/steady.
           expect(held.filter((o) => o === id).length).toBeLessThanOrEqual(ROOM);
       }
     }
-    // Two down is past it: the box gets taller then, at that press.
+    // Two down is past it: the lamps are drawn smaller then, in the same room.
     const two = owners('circle', [true, true, false, false]);
     expect(two.filter((o) => o === 0)).toHaveLength(66);
     expect(roomLamps().match(/class="cl-lamp[ "]/g)).toHaveLength(ROOM);
     expect(roomLamps()).not.toContain('data-');
+  });
+
+  test('a node holding more than its room is crowded, and one holding its room or less is not', () => {
+    const sim = openingRun();
+    expect([0, 1, 2, 3].map((node) => crowded(sim, node))).toEqual([false, false, false, false]);
+    loseNode(sim, 0);
+    expect([0, 1, 2, 3].map((node) => crowded(sim, node))).toEqual([false, false, false, false]);
+    loseNode(sim, 1);
+    expect([0, 1, 2, 3].map((node) => pagesOn(sim, node).length)).toEqual([0, 0, 68, 52]);
+    expect([2, 3].map((node) => crowded(sim, node))).toEqual([true, true]);
+    loseNode(sim, 2);
+    expect(pagesOn(sim, 3)).toHaveLength(PAGES);
+    expect(crowded(sim, 3)).toBe(true);
   });
 
   test("the menu's words never run longer than its room, over a long run with writes", () => {
@@ -254,7 +268,7 @@ test('the picture is named by what its parts show, not by the caption’s accoun
   const herd = at(3_300);
   loseNode(herd, 1);
   expect(mapWords(herd)).toMatch(
-    /^Readers, 300 a second, four cache nodes, node 2 down, and the database\. The nodes’ pages: \d+ fresh, \d+ expired, \d+ missing and \d+ being fetched\. Menu, 19 fetches at once\. The database: 8 of 8 connections busy and 13 fetches waiting\.$/,
+    /^Readers, 300 a second, four cache nodes, node 2 down, and the database\. The nodes’ pages: \d+ fresh, \d+ expired, \d+ missing and \d+ being fetched\. Menu, 19 fetches in flight\. The database: 8 of 8 connections busy and 13 fetches waiting\.$/,
   );
 });
 

@@ -81,9 +81,14 @@
     text-underline-offset: 0.2em;
   }
 
-  a:hover {
-    color: var(--primary);
-    text-decoration-color: currentColor;
+  /* Under a pointer that can hover, here and everywhere. A touch screen keeps :hover on what was last
+     tapped until the next tap elsewhere, so an unguarded hover fill stays behind on a phone: a switch
+     just turned off looks half on, and a paused Run looks pressed (test/hover.test.ts). */
+  @media (hover: hover) {
+    a:hover {
+      color: var(--primary);
+      text-decoration-color: currentColor;
+    }
   }
 
   time,
@@ -269,8 +274,10 @@
     text-decoration-line: none;
   }
 
-  .wordmark:hover {
-    color: var(--foreground);
+  @media (hover: hover) {
+    .wordmark:hover {
+      color: var(--foreground);
+    }
   }
 
   .wordmark-tile {
@@ -313,8 +320,10 @@
     text-decoration-line: none;
   }
 
-  .site-nav a:hover {
-    color: var(--foreground);
+  @media (hover: hover) {
+    .site-nav a:hover {
+      color: var(--foreground);
+    }
   }
 
   .site-nav a[aria-current] {
@@ -389,7 +398,15 @@
     cursor: pointer;
   }
 
-  .search-open:hover {
+  @media (hover: hover) {
+    .search-open:hover {
+      color: var(--foreground);
+      background-color: var(--surface-2);
+    }
+  }
+
+  /* A finger's press shows while it lasts, and leaves nothing behind. */
+  .search-open:active {
     color: var(--foreground);
     background-color: var(--surface-2);
   }
@@ -539,7 +556,14 @@
     cursor: pointer;
   }
 
-  .btn:hover {
+  @media (hover: hover) {
+    .btn:hover {
+      background-color: var(--surface-2);
+      color: var(--foreground);
+    }
+  }
+
+  .btn:active {
     background-color: var(--surface-2);
     color: var(--foreground);
   }
@@ -572,7 +596,15 @@
     box-shadow: 0 0 1.5rem -0.375rem var(--glow);
   }
 
-  .btn-primary:hover {
+  @media (hover: hover) {
+    .btn-primary:hover {
+      border-color: var(--primary-strong);
+      background-color: var(--primary-strong);
+      color: var(--primary-foreground);
+    }
+  }
+
+  .btn-primary:active {
     border-color: var(--primary-strong);
     background-color: var(--primary-strong);
     color: var(--primary-foreground);
@@ -590,10 +622,18 @@
      tokens.css, give the button the user's palette for both, and keep a lit lamp lit. */
   @media (forced-colors: active) {
     .btn-primary,
-    .btn-primary:hover {
+    .btn-primary:active {
       border-color: ButtonText;
       background-color: ButtonFace;
       color: ButtonText;
+    }
+
+    @media (hover: hover) {
+      .btn-primary:hover {
+        border-color: ButtonText;
+        background-color: ButtonFace;
+        color: ButtonText;
+      }
     }
 
     .btn:not(.btn-primary)[aria-pressed='true']::before,
@@ -608,10 +648,18 @@
      prints as an outline with ink text, which reads the same with or without background graphics. */
   @media print {
     .btn-primary,
-    .btn-primary:hover {
+    .btn-primary:active {
       border-color: var(--foreground);
       background-color: transparent;
       color: var(--foreground);
+    }
+
+    @media (hover: hover) {
+      .btn-primary:hover {
+        border-color: var(--foreground);
+        background-color: transparent;
+        color: var(--foreground);
+      }
     }
   }
 
@@ -664,12 +712,14 @@
     border-color: var(--input);
   }
 
-  .card:has(.card-more):hover {
-    border-color: var(--input);
-  }
+  @media (hover: hover) {
+    .card:has(.card-more):hover {
+      border-color: var(--input);
+    }
 
-  .card:has(.card-more):hover .card-title {
-    color: var(--primary);
+    .card:has(.card-more):hover .card-title {
+      color: var(--primary);
+    }
   }
 
   .card-title {
@@ -842,7 +892,13 @@
     cursor: pointer;
   }
 
-  .theme-toggle:hover {
+  @media (hover: hover) {
+    .theme-toggle:hover {
+      background-color: var(--surface-2);
+    }
+  }
+
+  .theme-toggle:active {
     background-color: var(--surface-2);
   }
 
@@ -950,9 +1006,14 @@
     transform-origin: left;
   }
 
-  .post-list > li:focus-within::before,
-  .post-list > li:hover::before {
+  .post-list > li:focus-within::before {
     transform: scaleX(1);
+  }
+
+  @media (hover: hover) {
+    .post-list > li:hover::before {
+      transform: scaleX(1);
+    }
   }
 
   @media (prefers-reduced-motion: no-preference) {
@@ -1063,8 +1124,10 @@
     border-radius: 50%;
   }
 
-  .palette-option:hover {
-    background-color: var(--surface-2);
+  @media (hover: hover) {
+    .palette-option:hover {
+      background-color: var(--surface-2);
+    }
   }
 
   .palette-option[aria-selected='true'] {
@@ -1381,8 +1444,10 @@
     text-decoration-line: none;
   }
 
-  .post-title > a:hover {
-    text-decoration-line: underline;
+  @media (hover: hover) {
+    .post-title > a:hover {
+      text-decoration-line: underline;
+    }
   }
 
   .post-summary {

@@ -185,7 +185,12 @@ test("What I build: the bio's five in its order, each lab's row with its fact", 
     const line = await row.getAttribute('data-line');
     if (!line) continue;
     await expect(row.locator(`.build-text a[href="/lab/${line}/"]`)).toHaveCount(1);
-    await expect(row.locator('.build-lab')).toHaveText(/ Lab$/);
+    // Home names the made-up bakery nowhere else, so the line over a fact says what it is about.
+    await expect(row.locator('.build-lab')).toHaveText(
+      line === 'raft' || line === 'routes'
+        ? /^Simulated in the \w+ Lab$/
+        : /^Simulated in the \w+ Lab, with a made-up bakery’s (orders|menu|report)$/,
+    );
     await expect(row.locator('.build-fact')).toHaveText(/\S.*\.$/);
   }
 });
@@ -221,6 +226,27 @@ test("Home's writing rows: the day, the title as the row's link, its summary, it
 // The address works with no mail app (components/home/Contact.astro; scripts/copy.js): pressed, the
 // button copies it, or where the clipboard refuses (a page not served securely) selects it, says
 // which, and keeps its width, so nothing moves.
+// "made-up" is one word to read: a phone's line over a fact must not split it at its hyphen.
+for (const width of [320, 360, 390, 430]) {
+  test(`at ${width} px, the line over a fact keeps "made-up" whole`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto('/');
+    await page.evaluate(() => document.fonts.ready);
+    const lines = await page.locator('.build-lab').evaluateAll((labels) =>
+      labels.flatMap((label) => {
+        const text = label.firstChild;
+        const at = text?.textContent?.indexOf('made-up') ?? -1;
+        if (!text || at < 0) return [];
+        const range = document.createRange();
+        range.setStart(text, at);
+        range.setEnd(text, at + 'made-up'.length);
+        return [new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size];
+      }),
+    );
+    expect(lines).toEqual([1, 1, 1]);
+  });
+}
+
 test('Home closes with the address, a button that copies it without moving, and LinkedIn', async ({
   page,
   context,
@@ -234,7 +260,7 @@ test('Home closes with the address, a button that copies it without moving, and 
   );
   await expect(contact.locator('.contact-address')).toHaveText('hello@ihaveasegway.com');
   const copy = contact.locator('.btn-copy');
-  await expect(copy).toHaveText('Copy the address');
+  await expect(copy).toHaveText('Copy email address');
   await copy.scrollIntoViewIfNeeded();
   const size = async () => {
     const box = await copy.boundingBox();
@@ -255,6 +281,6 @@ test('Home closes with the address, a button that copies it without moving, and 
     );
   }
   expect(await size()).toEqual(before);
-  await expect(copy).toHaveText('Copy the address', { timeout: 5_000 });
+  await expect(copy).toHaveText('Copy email address', { timeout: 5_000 });
   await expect(contact.locator('a.btn')).toHaveText(['LinkedIn']);
 });

@@ -1,7 +1,15 @@
 import { readLink, writeLink } from '../sim/link';
 import { properties, type PropertyId } from './check';
 import { DATABASE, firstUp, LOADS, millis, pageName, PAGES, seconds, type Load } from './core';
-import { replay, type Action, type Config, type Outcome, type Sample, type Sim } from './sim';
+import {
+  replay,
+  type Action,
+  type Config,
+  type Outcome,
+  type Sample,
+  type Sim,
+  type Toggle,
+} from './sim';
 
 // What the Cache Lab says about a run, as text and numbers, never markup: the page stage draws
 // them. Like the Raft Lab's view, it serves twice: at build, to describe the opening run so the
@@ -9,7 +17,7 @@ import { replay, type Action, type Config, type Outcome, type Sample, type Sim }
 
 /**
  * The opening: seed 7 at a busy hour, every mitigation off. The cache is warm, and the menu's entry
- * expires at 3 s: its readers all miss, the database fetches it twenty-odd times at once, its 8
+ * expires at 3 s: its readers all miss, twenty-odd fetches of it pile up on the database, its 8
  * connections fill, and readers start to give up. The browser replays it to take over exactly
  * where the picture stands.
  */
@@ -26,6 +34,18 @@ export const openingRun = (): Sim => replay(OPENING.config, OPENING.actions, OPE
  *  stands at the opening's moment: half a second before the menu expires, so the stampede the
  *  caption tells plays live, its lamps lighting and its line growing. */
 export const REPLAY_FROM = (OPENING.config.menuExpires ?? 0) - 500;
+
+/**
+ * The switches that decide the story the run opens on: the stampede the page tells, or the fix for
+ * it. A run that has told it has nothing more to say about it, so a press of one replays the run
+ * under it, from REPLAY_FROM, where a visitor watches the same expiry come out another way. The load,
+ * the placement and invalidation work from the moment they're chosen, on the run as it stands.
+ */
+export const STORY: readonly Toggle[] = ['coalesce', 'stale', 'early', 'jitter'];
+
+/** Where a run goes back to, in words, for the lines that say it did. */
+export const REPLAY_WORDS = `at ${seconds(REPLAY_FROM)}, before the menu expires`;
+export const AGAIN = `The run plays again from ${seconds(REPLAY_FROM)}, before the menu expires.`;
 
 const SWITCH = [false, true] as const;
 
@@ -83,11 +103,11 @@ export function summary(sim: Sim): string {
   const findings: string[] = [];
   if (herd && herd.size >= 2) {
     const page = pageName(herd.key);
-    const size = `${times(herd.size)} at once`;
+    const size = `${count(herd.size)} fetches`;
     findings.push(
       herd.expired === null
-        ? `at ${(herd.from / 1000).toFixed(1)} s the database fetched ${page} ${size}`
-        : `when ${page} expired at ${(herd.expired / 1000).toFixed(1)} s, the database fetched it ${size}`,
+        ? `at ${(herd.from / 1000).toFixed(1)} s the database had ${size} of ${page} in flight at once`
+        : `when ${page} expired at ${(herd.expired / 1000).toFixed(1)} s, the database had ${size} of it in flight at once`,
     );
   } else findings.push('no page was fetched twice at once');
   findings.push(c.timeout === 0 ? 'no reader timed out' : `${reads(c.timeout)} timed out`);
@@ -131,7 +151,7 @@ export function statusText(sim: Sim): string {
     if (p.held) held.push(CLAUSES[p.id].held);
     else broke.push(CLAUSES[p.id].broke(p.count));
   }
-  if (broke.length === 0) return `All three properties held over ${reads(sim.counts.reads)}.`;
+  if (broke.length === 0) return `All three checks held over ${reads(sim.counts.reads)}.`;
   return `${firstUp(and(broke))}${held.length > 0 ? `; ${and(held)}` : ''}.`;
 }
 
@@ -189,7 +209,7 @@ export function propertyLines(sim: Sim): PropertyLine[] {
     const worst = p.worst ?? 0;
     const broke =
       p.id === 'one-fetch'
-        ? `Broken ${times(p.count)}, at worst ${count(worst)} fetches of one page at once`
+        ? `Broken ${times(p.count)}: at worst ${count(worst)} fetches of one page in flight`
         : p.id === 'no-timeouts'
           ? `Broken: ${reads(p.count)} timed out`
           : `Broken: ${reads(p.count)}, the worst ${millis(worst)} out of date`;
@@ -236,7 +256,7 @@ export function menuWords(sim: Sim): string {
   const at = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
   switch (pageState(sim, 0)) {
     case 'fetching':
-      return flying > 1 ? `Menu, ${count(flying)} fetches at once` : `Menu, being fetched${old}`;
+      return flying > 1 ? `Menu, ${count(flying)} fetches in flight` : `Menu, being fetched${old}`;
     case 'fresh':
       return `Menu, fresh until ${at(entry?.expiresAt ?? 0)}${old}`;
     case 'stale':
@@ -246,9 +266,9 @@ export function menuWords(sim: Sim): string {
   }
 }
 
-/** The menu's longest words, its times and its version at the most digits a run gives them: the
- *  room its words keep beside its lamp (components/cache-lab/picture.ts, roomLamps), so a run whose
- *  menu says more never moves the picture. test/cache-lab.test.ts holds menuWords to it. */
+/** The menu's longest words, its times and its version at the most digits a run gives them. They
+ *  take one line at the narrowest phone, so the line over the nodes never takes a second, however
+ *  long a run goes on (cache-lab.css, .cl-menu-line). test/cache-lab.test.ts holds menuWords to it. */
 export const MENU_ROOM = 'Menu, fresh until 888.8 s, still version 88';
 
 /** Fetches waiting in line for a connection. */

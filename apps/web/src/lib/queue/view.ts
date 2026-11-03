@@ -109,6 +109,10 @@ export const SEEDS_IN_CI = 2_000;
 
 export const seconds = (ms: number): string => `${(ms / 1000).toFixed(3)} s`;
 
+/** "143 events", for the clock, as every lab's says it. */
+export const eventsWords = (sim: Sim): string =>
+  `${sim.events.toLocaleString('en-US')} ${sim.events === 1 ? 'event' : 'events'}`;
+
 /** A time to a tenth of a second, for the history strip's ends. */
 export const tenths = (ms: number): string => `${(ms / 1000).toFixed(1)} s`;
 
@@ -170,7 +174,7 @@ export function statusText(sim: Sim): string {
 }
 
 /** The first order the idempotency key kept from printing twice: done, printed once, and sent
- *  again after that ticket, so a later delivery found it in the done set. A done order's last
+ *  again after that ticket, so a later delivery found it in the record. A done order's last
  *  delivery has run its ticket step, so that is the delivery that skipped. */
 function skippedOrder(sim: Sim): Job | undefined {
   return sim.jobs.find(
@@ -202,7 +206,7 @@ function story(sim: Sim): string | null {
         : `worker ${b.worker + 1} printed it a second time`;
     told.push({
       at: twice.at,
-      text: `Order ${job.id} was printed ${times}: worker ${a.worker + 1} crashed after printing its ticket and before its ack left, so the broker sent it again and ${again}.`,
+      text: `Order ${job.id} was printed ${times}: worker ${a.worker + 1} crashed after printing its ticket and before its acknowledgement left, so the broker sent it again and ${again}.`,
     });
   }
   const lost = sim.tallies['no-loss'].first;
@@ -238,7 +242,7 @@ function story(sim: Sim): string | null {
   if (!kept) return null;
   const printer = (kept.effects[0] as Effect).worker + 1;
   const sent = kept.delivered.length === 2 ? 'twice' : `${kept.delivered.length} times`;
-  return `Order ${kept.id} was sent ${sent} and printed once: worker ${printer} crashed after printing its ticket and before its ack left, so the broker sent it again, and worker ${kept.worker + 1} found it in the done set and skipped the ticket.`;
+  return `Order ${kept.id} was sent ${sent} and printed once: worker ${printer} crashed after printing its ticket and before its acknowledgement left, so the broker sent it again, and worker ${kept.worker + 1} found it in the record and skipped the ticket.`;
 }
 
 function totals(sim: Sim): string {
@@ -346,6 +350,36 @@ export const SETTINGS = {
   handling: { values: ['requeue', 'dead-letter'], opening: 'requeue' },
 } as const;
 
+/**
+ * The setting that decides the story the run opens on: order 18 prints twice, or the key stops it. A
+ * run that has told that story has nothing more to say about it, so a choice of this one replays the
+ * run under it, from REPLAY_FROM, where a visitor watches the same crash come out the other way.
+ * Every other setting works from the moment it's chosen, on the run as it stands: a rush fills the
+ * queue, and acknowledging before the work lets go of what the workers hold, for the next crash to
+ * lose. Replayed, that next crash wouldn't be the visitor's: at 2.4 s worker 2 happens to hold nothing.
+ */
+export const STORY: readonly (keyof typeof SETTINGS)[] = ['key'];
+
+const CRASHING = `worker ${(OPENING.actions[0]?.worker ?? 0) + 1}`;
+
+/** Where a run goes back to, in words, for the lines that say it did. */
+export const REPLAY_WORDS = `at ${seconds(REPLAY_FROM)}, before ${CRASHING}'s crash`;
+export const AGAIN = `The run plays again from ${seconds(REPLAY_FROM)}, before ${CRASHING}'s crash.`;
+
+/**
+ * Why the clock stops once nothing is left to happen. The queue has drained, or orders wait with no
+ * worker up to take them and none on the way. The clock can't tell those apart, and the words must:
+ * "nothing is left" beside "13 waiting" is false, and more orders wouldn't carry that run on.
+ */
+export function stopWords(sim: Sim): string {
+  const n = sim.ready.length;
+  const [why, next] =
+    n === 0
+      ? ['Nothing is left in the queue or in flight', 'take orders']
+      : [`${n} ${n === 1 ? 'order waits' : 'orders wait'} and no worker is up`, 'restart a worker'];
+  return `${why}, so the clock stops here. Run plays the run again from ${seconds(REPLAY_FROM)}, or ${next} to carry on.`;
+}
+
 /** The link to a run's start: its seed, and each setting not the opening's (#seed-28&key=on). */
 export const linkTo = (sim: Sim): string => writeLink(sim.seed, sim, SETTINGS);
 
@@ -370,12 +404,12 @@ export function openLink(hash: string, until: number = OPENING.until): Sim | nul
 export const startOver = (sim: Sim, until: number = OPENING.until): Sim =>
   openLink(linkTo(sim), until) as Sim;
 
-/** A property's words beside its lamp: "Holds", or "Broken" and what broke it, counted. Until the
- *  page knows whether the queue drains, the words say when it will. */
+/** A check's words beside its lamp, in the same form in every lab: "Held", or "Broken" and what
+ *  broke it, counted. Until the page knows whether the queue drains, the words say when it will. */
 export function propertyWords(sim: Sim, p: PropertyState): string {
   if (p.held) {
     const check = p.id === 'drains' ? drainCheck(sim) : null;
-    return check === null ? 'Holds' : `Holds; checked ${check}`;
+    return check === null ? 'Held' : `Held so far; checked ${check}`;
   }
   const n = p.count;
   const orders = `${n} ${n === 1 ? 'order' : 'orders'}`;

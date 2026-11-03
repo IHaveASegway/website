@@ -89,18 +89,17 @@ export function countOf<T>(list: readonly T[], test: (item: T) => boolean): numb
 
 /**
  * The job graph each day's run follows, one task after another: a sensor that waits for the day's
- * export file, then extract, convert, load and check. The middle three are the E, T and L of every
- * batch pipeline. The T goes by a synonym here: Tailwind reads every word under src/ as a possible
- * class name, and its usual name is also a utility's.
+ * export file, then extract, transform, load and check. The middle three are the E, T and L of
+ * every batch pipeline.
  */
-export const TASKS = ['wait', 'extract', 'convert', 'load', 'check'] as const;
+export const TASKS = ['wait', 'extract', 'transform', 'load', 'check'] as const;
 export type TaskName = (typeof TASKS)[number];
 
 /** How a line names each task: the first one is a sensor, not a step that does work. */
 export const TASK_WORD: Record<TaskName, string> = {
   wait: 'sensor',
   extract: 'extract',
-  convert: 'convert',
+  transform: 'transform',
   load: 'load',
   check: 'check',
 };
@@ -108,7 +107,7 @@ export const TASK_WORD: Record<TaskName, string> = {
 /** How long an attempt of each task takes, in whole minutes, both bounds included. */
 export const DURATION = {
   extract: [4, 9],
-  convert: [3, 7],
+  transform: [3, 7],
   load: [5, 12],
   check: [1, 2],
 } as const satisfies Record<Exclude<TaskName, 'wait'>, readonly [number, number]>;

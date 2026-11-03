@@ -76,8 +76,8 @@ const backoff = `${BACKOFF.slice(0, -1).join(', ')} and ${BACKOFF.at(-1)} ms`;
         runs of crashes, restarts and slow spells, acknowledging after the work with the key on. In
         every one no order is lost or printed twice, and once orders stop and the pool grows to{' '}
         {MAX_WORKERS} workers, the queue drains within {DRAIN_WITHIN / 1000} s. The same runs with
-        the key off, or acknowledging first, break a property in some of them, and so do a broker
-        and workers broken on purpose.
+        the key off, or acknowledging first, fail a check in some of them, and so do a broker and
+        workers broken on purpose.
       </p>
     </LabWriteUp>
   </article>

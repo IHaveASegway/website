@@ -1,0 +1,29 @@
+---
+import '../../styles/lab-controls.css';
+
+interface Props {
+  /** The lab's prefix: its app finds the list by it, as data-qu-lines. */
+  short: 'qu' | 'cl' | 'bf';
+  /** The run's last lines, oldest first, each with its time as the lab writes it. */
+  lines: readonly { readonly at: string; readonly text: string }[];
+}
+
+// A lab's event log, the same box in every lab (lab-controls.css, .lab-log), a part of the desk of its
+// own. The app adds to the list (lib/lab/event-log.ts). The box opens on its newest line with no
+// script at all, and it can't be focused away from by a run: it holds no control.
+const { short, lines } = Astro.props;
+const list = { [`data-${short}-lines`]: '' };
+---
+
+<h2 class="lab-heading" id={`${short}-events`}>
+  What happened
+</h2>
+<div class="lab-log" role="log" aria-live="off" aria-labelledby={`${short}-events`} tabindex="0">
+  <ol class="lab-log-list" {...list}>
+    {lines.map((line) => (
+      <li>
+        <span class="lab-log-at">{line.at}</span> {line.text}
+      </li>
+    ))}
+  </ol>
+</div>

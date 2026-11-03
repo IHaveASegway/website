@@ -1,20 +1,20 @@
 import { NODES, owners, type Placement } from '../../lib/cache/core';
 import type { Sim } from '../../lib/cache/sim';
-import { MENU_ROOM, menuWords, pageState, pagesOn, type Bucket } from '../../lib/cache/view';
+import { pageState, pagesOn, type Bucket } from '../../lib/cache/view';
 
 // The Cache Lab's picture as markup, the one piece of it that is not plain text: the build writes
 // it into the page for the opening run (CacheLab.astro), and the browser writes the same markup as
 // the run moves (app.ts), so the page the app takes over is the page the build drew. The words come
 // from lib/cache/view.ts; the shapes and their places are here.
 
-/** A node's lamps, one a page it holds, in page order: the menu first where it lives, with its
- *  words beside its lamp, since it is the page every stampede is about. */
+/** A node's lamps, one a page it holds, in page order: the menu first where it lives, a size larger,
+ *  since it is the page every stampede is about. Its words stand over the nodes, with a lamp that
+ *  says the same (CacheLab.astro, .cl-menu-line). */
 export function pageLamps(sim: Sim, node: number): string {
   return pagesOn(sim, node)
-    .map((key) =>
-      key === 0
-        ? `<span class="cl-menu"><span class="cl-lamp cl-menu-lamp" data-state="${pageState(sim, 0)}"></span><span class="cl-menu-words" data-cl-menu>${menuWords(sim)}</span></span>`
-        : `<span class="cl-lamp" data-state="${pageState(sim, key)}"></span>`,
+    .map(
+      (key) =>
+        `<span class="cl-lamp${key === 0 ? ' cl-menu-lamp' : ''}" data-state="${pageState(sim, key)}"></span>`,
     )
     .join('');
 }
@@ -33,15 +33,18 @@ export const ROOM: number = (() => {
   return most;
 })();
 
-/** A node's room: the menu with its longest words and ROOM lamps in all, laid out as a node's
- *  lamps are and never shown, stacked under them (cache-lab.css, .cl-room). The box is then as
- *  tall from the first paint as a run's lamps and the menu's words can make it, so the nodes keep
- *  one height under a running demo, and when a node is lost. Losing a second node can give one
- *  node more lamps than this, up to all 120; then the box gets taller, at that press. */
+/** A node's room: the menu and ROOM lamps in all, laid out as a node's lamps are and never shown,
+ *  stacked under them (cache-lab.css, .cl-room). The box is then as tall from the first paint as a
+ *  run's lamps can make it, so the nodes keep one height under a running demo, and when a node is
+ *  lost. */
 export function roomLamps(): string {
-  const lamps = '<span class="cl-lamp"></span>'.repeat(ROOM - 1);
-  return `<span class="cl-menu"><span class="cl-lamp cl-menu-lamp"></span><span>${MENU_ROOM}</span></span>${lamps}`;
+  return `<span class="cl-lamp cl-menu-lamp"></span>${'<span class="cl-lamp"></span>'.repeat(ROOM - 1)}`;
 }
+
+/** Whether a node holds more pages than its room, as it can once a second node is lost, up to all
+ *  120: its lamps are then drawn smaller, in the same room, so the picture keeps its height (until
+ *  2026-11-02 each loss made it taller, by up to 196 px on a phone, at that press). */
+export const crowded = (sim: Sim, node: number): boolean => pagesOn(sim, node).length > ROOM;
 
 /** The outcome strip's four lanes, top to bottom, as their labels name them. Reads still waiting
  *  are drawn hollow in the fresh fetch's lane: what they will get is not known yet. */

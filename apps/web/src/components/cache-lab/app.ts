@@ -1,4 +1,6 @@
+import { eventLog } from '../../lib/lab/event-log';
 import { runOnLanding } from '../../lib/lab/landing-run';
+import { speaker, startsOver, type Say } from '../../lib/lab/said';
 import { NODES, PAGES, seconds, type Load, type Placement } from '../../lib/cache/core';
 import {
   flush,
@@ -10,11 +12,11 @@ import {
   setPlacement,
   setToggle,
   write,
-  type Line,
   type Sim,
   type Toggle,
 } from '../../lib/cache/sim';
 import {
+  AGAIN,
   clockWords,
   linkTo,
   mapWords,
@@ -29,29 +31,37 @@ import {
   propertyLines,
   readersWords,
   REPLAY_FROM,
+  REPLAY_WORDS,
+  STORY,
   stripWords,
   summary,
   waiting,
   whereWords,
 } from '../../lib/cache/view';
-import { pageLamps, stripEnds, stripPaths } from './picture';
+import { crowded, pageLamps, stripEnds, stripPaths } from './picture';
 
 // The Cache Lab in the browser: the simulation, run in virtual time and drawn on every frame while
-// it runs. It opens paused, on the same opening the build drew, and moves only when the visitor
-// presses Run, which Pause stops (SC 2.2.2); a hidden tab pauses it too. The opening's picture
-// tells a stampede that has already happened, so Run on a run still standing untouched at that
-// moment plays it again from half a second before the menu expires, as Start over does: the
-// visitor watches it happen. With reduced motion, Run advances half a second of the chosen speed
-// twice a second, so the picture changes in still steps. Every action lands between
-// two moments of the run, never inside one: the frames and Next event move the clock with
-// runUntil, which stops only there (lib/cache/sim.ts), so an action is the one a replay of the
-// same run would take. A link to a run (lib/sim/link.ts) opens it, paused at the opening's moment,
-// on load or when followed on the page; Start over writes the link to the run it plays.
+// it runs. It takes over the same opening the build drew. A visitor who didn't ask for less motion
+// lands on it running (ADR 0030); otherwise it moves only when they press Run, which Pause stops
+// (SC 2.2.2), and a hidden tab pauses it too.
+//
+// The controls mean what they mean in every lab (docs/lab.md, "The controls"). The opening's picture
+// tells a stampede that has already happened, so Run on a run still standing at that moment, with
+// nothing done since but a choice of settings, plays it again from half a second before the menu
+// expires. Start over goes back there too and writes the link to the run it plays, and so does a
+// press of a switch against the stampede (view.ts, STORY): the visitor watches the same expiry come
+// out another way. With reduced motion, Run advances half a second of the chosen speed twice a
+// second, so the picture changes in still steps. Every action lands between two moments of the run,
+// never inside one: the frames and Next event move the clock with runUntil, which stops only there
+// (lib/cache/sim.ts), so an action is the one a replay of the same run would take. A link to a run
+// (lib/sim/link.ts) opens it, paused at the opening's moment, on load or when followed on the page.
 
 const FRAME_CAP = 100; // real ms: a frame after a long pause does not leap ahead
 const EVENTS_PER_FRAME = 4_000;
 const STILL_EVERY = 500; // real ms between steps under reduced motion
 const TOGGLES: readonly Toggle[] = ['coalesce', 'stale', 'early', 'jitter', 'invalidate'];
+/** What a recorded action is when it only chose a setting: the run stands where it did. */
+const CHOOSES = new Set(['toggle', 'load', 'placement']);
 
 /** A broken invariant, the one thing that stops a run: a bug in the simulation, said where it
  *  happened. The properties' lamps say everything else, so the status line's sentence does not
@@ -65,7 +75,6 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   const run = $<HTMLButtonElement>('[data-cl-run]');
   const lines = $<HTMLOListElement>('[data-cl-lines]');
   const strip = $('[data-cl-strip]');
-  const said = $('[data-cl-said]');
   const text = (element: Element | null | undefined, value: string) => {
     if (element && element.textContent !== value) element.textContent = value;
   };
@@ -82,9 +91,17 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   let last = 0;
   let frame = 0;
   let timer = 0;
-  // What the page shows: the last line of the event log, which node held each page when its lamps
-  // were last laid out, and each page's lamp and state since.
-  let shownLines: Line | undefined = linked ? undefined : sim.lines.at(-1);
+  // The build wrote the opening's last lines; a link's run writes its own.
+  const log = eventLog(lines, 'lab-log-at', seconds, linked ? undefined : sim.lines.at(-1));
+  if (linked) log.clear();
+  const tell = speaker(root, $('[data-cl-said]'));
+  /** While the run is the one a visitor landed on, nobody's choice yet, it says nothing. */
+  let landing = false;
+  const say: Say = (words, control, short) => {
+    if (!landing) tell(words, control, short);
+  };
+  // What the page shows: which node held each page when its lamps were last laid out, and each
+  // page's lamp and state since.
   let shownOwners: readonly number[] = [];
   let lamps: (Element | undefined)[] = [];
   const shownState: string[] = [];
@@ -98,6 +115,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
         const box = $(`[data-cl-pages="${id}"]`);
         if (!box) continue;
         box.innerHTML = pageLamps(sim, id);
+        box.toggleAttribute('data-crowded', crowded(sim, id));
         const found = box.querySelectorAll('.cl-lamp');
         pagesOn(sim, id).forEach((key, i) => {
           lamps[key] = found[i];
@@ -112,6 +130,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       shownState[key] = state;
     }
     text($('[data-cl-menu]'), menuWords(sim));
+    attribute($('[data-cl-menu-lamp]'), 'data-state', pageState(sim, 0));
   }
 
   /** Everything the page shows of the run, changed only where it changed. */
@@ -123,7 +142,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
         attribute($(`[data-cl-${part}="${id}"]`), 'data-up', String(up));
       text($(`[data-cl-node="${id}"] [data-cl-node-words]`), nodeWords(sim, id));
       const button = $(`[data-cl-lose="${id}"]`);
-      const words = `${up ? 'Lose' : 'Restore'} node ${id + 1}`;
+      const words = `${up ? 'Lose' : 'Restart'} node ${id + 1}`;
       text(button, words);
       attribute(button, 'aria-label', `${words}, now ${up ? `up, ${nodeWords(sim, id)}` : 'down'}`);
     }
@@ -162,36 +181,8 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       const choice = $<HTMLInputElement>(`input[name="${name}"][value="${value}"]`);
       if (choice && !choice.checked) choice.checked = true;
     }
-    drawLines();
+    log.draw(sim.lines);
   }
-
-  /** The event log: new lines appended, the oldest dropped past 60. */
-  function drawLines(): void {
-    if (!lines) return;
-    const from = shownLines ? sim.lines.indexOf(shownLines) + 1 : 0;
-    // The newest line stays in view while the reader is at the log's end, as an emptied log is. A
-    // reader who has scrolled back to read is left there, not pulled down again by the next frame:
-    // on a phone a finger on the log would otherwise fight every draw.
-    const box = lines.parentElement;
-    const following = box && box.scrollHeight - box.scrollTop - box.clientHeight < 2;
-    if (shownLines && from === 0) lines.replaceChildren();
-    const first = from === 0 ? Math.max(0, sim.lines.length - 60) : from;
-    for (const line of sim.lines.slice(first)) {
-      const item = document.createElement('li');
-      const at = document.createElement('span');
-      at.className = 'cl-at';
-      at.textContent = seconds(line.at);
-      item.append(at, ` ${line.text}`);
-      lines.append(item);
-    }
-    while (lines.children.length > 60) lines.firstElementChild?.remove();
-    if (box && following && sim.lines.length > first) box.scrollTop = box.scrollHeight;
-    shownLines = sim.lines.at(-1);
-  }
-
-  const say = (words: string) => {
-    if (said) said.textContent = words;
-  };
 
   function pause(): void {
     playing = false;
@@ -240,26 +231,44 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   /** Shows another run from its start, its own event log and all. */
   function show(next: Sim): void {
     sim = next;
-    shownLines = undefined;
-    lines?.replaceChildren();
+    log.clear();
     draw();
   }
 
-  /** The run again from REPLAY_FROM, the one its link names (Start over keeps the seed and the
-   *  settings), drawn, and said where it stands: the clock, and the menu about to expire. */
+  /** The run again from REPLAY_FROM, the one its link names: the seed and the settings stay. */
   function begin(): void {
     show(openLink(linkTo(sim), REPLAY_FROM) as Sim);
-    say(`${clockWords(sim)}. ${menuWords(sim)}.`);
+  }
+
+  /** Whether the run stands where the picture told it, with nothing done since but a choice of
+   *  settings: then Run plays what the picture told, under those settings, as it happens. */
+  const untouched = () =>
+    sim.now === OPENING.until && sim.actions.every((action) => CHOOSES.has(action.kind));
+
+  /** Back to REPLAY_FROM under the settings as they stand, playing on if it was playing, with the
+   *  address naming the run, so a reload or the link shared opens it. Says nothing: it says what it
+   *  did, in the words of the press that called it. */
+  function replay(): boolean {
+    const wasPlaying = playing;
+    pause();
+    begin();
+    history.replaceState(null, '', linkTo(sim));
+    if (wasPlaying) play();
+    return wasPlaying;
   }
 
   function press(control: Element): void {
+    const before = sim.lines.at(-1);
     const value = control instanceof HTMLInputElement ? control.value : '';
     if (control.matches('[data-cl-run]')) {
       if (playing) pause();
-      else {
-        // Still the moment the picture tells, untouched: play the stampede it told, as it happens.
-        if (sim.now === OPENING.until && sim.actions.length === 0) begin();
+      else if (untouched()) {
+        begin();
         play();
+        say(AGAIN, control);
+      } else {
+        play();
+        say('', control);
       }
       return;
     } else if (control.matches('[data-cl-step]')) {
@@ -267,16 +276,17 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       // replay puts it.
       runUntil(sim, nextTime(sim));
     } else if (control.matches('[data-cl-reset]')) {
-      const wasPlaying = playing;
-      pause();
-      begin();
-      // The address names this run, switches and all, so a reload or the link shared opens it.
-      history.replaceState(null, '', linkTo(sim));
-      if (wasPlaying) play();
+      say(startsOver('run', 'these settings', REPLAY_WORDS, replay()), control);
       return;
     } else if (control.matches('[data-cl-toggle]')) {
       const toggle = control.getAttribute('data-cl-toggle') as Toggle;
       setToggle(sim, toggle, !sim[toggle]);
+      if (STORY.includes(toggle)) {
+        const line = sim.lines.at(-1)?.text ?? '';
+        const started = startsOver('run', 'it', REPLAY_WORDS, replay());
+        say(`${line}. ${started}`, control, `${line.split(':')[0]}. ${started}`);
+        return;
+      }
     } else if (control.matches('[data-cl-write]')) {
       write(sim, 0);
     } else if (control.matches('[data-cl-flush]')) {
@@ -291,9 +301,9 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       setPlacement(sim, value as Placement);
     } else return;
     const latest = sim.lines.at(-1);
-    if (latest && latest !== shownLines) say(latest.text);
+    if (latest && latest !== before) say(latest.text, control);
     // A moment the log does not tell, as most are: where the run stands now, so the press is heard.
-    else if (control.matches('[data-cl-step]')) say(whereWords(sim));
+    else if (control.matches('[data-cl-step]')) say(whereWords(sim), control);
     draw();
   }
 
@@ -323,18 +333,14 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     }
   });
 
-  if (linked) lines?.replaceChildren();
   draw();
-  // The newest line in view, as each line the run adds keeps it: the build wrote the log's oldest
-  // first, and a page that kept them has added none.
-  const box = lines?.parentElement;
-  if (box) box.scrollTop = box.scrollHeight;
   for (const control of queued) press(control);
   // The run a visitor lands on plays the stampede the picture told, as Run does, and again.
-  return () =>
+  return () => {
+    landing = true;
     runOnLanding(root, {
       play: () => {
-        if (sim.now === OPENING.until && sim.actions.length === 0) begin();
+        if (untouched()) begin();
         play();
       },
       pause,
@@ -344,5 +350,9 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
         begin();
         play();
       },
+      taken: () => {
+        landing = false;
+      },
     });
+  };
 }

@@ -27,7 +27,7 @@ The veil is the design's one trick. Moving a mask would repaint the window on ev
 
 **One choice, one button.** Since the field runs on every page, every page's top bar holds the pause button (SC 2.2.2). `scripts/field.js` is the one owner of the choice: it marks the page (`data-motion`) unless the visitor asked for less motion or to save data, and CSS, a lab's run and the Route Lab's vans all read the mark. The press lasts for the tab.
 
-**A lab is running when you land.** Once the page is marked, its simulation loads and plays, which reverses ADR 0020's load on intent for arrival only. It plays only while the demo is on the screen and the tab is showing. Its live regions say nothing until the visitor's first press, and from that press the demo is theirs. Its own Pause stops that demo and nothing else, so the next lab still lands running. A link to a run still opens paused.
+**A lab is running when you land.** Once the page is marked, its simulation loads and plays, which reverses ADR 0020's load on intent for arrival only. It plays only while the demo is on the screen and the tab is showing. Its live regions say nothing until the visitor's first press, and neither do the lines on the screen that say what a press did, and from that press the demo is theirs. Its own Pause stops that demo and nothing else, so the next lab still lands running. A link to a run still opens paused.
 
 **The Route Lab's vans.** It has no simulation to run, and its solver is 350 KB, so its sketch is its plans: a dot for each van drives the route already drawn, on one clock across both maps, so the better plan is visibly home first. SMIL's `animateMotion` follows the drawn path by reference, so it needs no script to run and no copy of the route, and it sits on a layer of its own so a moving dot repaints nothing of the map.
 
@@ -47,7 +47,7 @@ The veil is the design's one trick. Moving a mask would repaint the window on ev
 
 | Option | Weight on arrival | Truth |
 |---|---|---|
-| Run the real simulation (chosen) | 8 to 13 KB, after the page has settled | It's the thing itself, so it can't disagree with the page |
+| Run the real simulation (chosen) | 8 to 14 KB, after the page has settled | It's the thing itself, so it can't disagree with the page |
 | A CSS loop of the picture, as Home's Orbit does | None | Looks right, and would be a drawing of a demo sitting on top of the demo |
 | Keep load on intent, with a louder Run button | None | Doesn't answer him: a page that needs a press still reads as stopped |
 
