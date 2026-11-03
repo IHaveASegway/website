@@ -1,6 +1,6 @@
 ---
 title: Stampede a cache
-summary: Hundreds of readers ask for a made-up bakery's menu when its cache entry expires. Coalesce, serve stale, refresh early or jitter, and watch the database.
+summary: A made-up bakery’s menu expires while 300 readers a second are on its site. Coalesce, serve stale, refresh early or jitter, and watch the database.
 lifecycle: live
 runtime:
   kind: browser
@@ -16,17 +16,17 @@ That last part is the stampede. At 300 reads a second, an expired menu sends doz
 
 ## Three things to try
 
-**Let the menu expire.** The first run does it: the entry expires at 3.0 s, the database fetches the menu 23 times at once, and two readers time out. Turn on coalescing and serving stale, and start over. One reader fetches; the others wait for that fetch or take the old copy, and nobody times out.
+**Let the menu expire.** The first run does it: the entry expires at 3.0 s, 23 fetches of the menu pile up on the database's eight connections, and two readers time out. Turn on coalescing and serving stale, and start over. One reader fetches; the others wait for that fetch or take the old copy, and nobody times out.
 
 **Flush every node at the morning rush.** Choose the morning's 600 reads a second and flush with nothing turned on. Every page misses at once: within a second more than 250 fetches wait for the database's eight connections, and for about three seconds readers give up. The pages fetched again together expire together eight seconds later, so the overload comes back in waves, about every ten seconds, and does not die out. Turn on jitter and early refresh before you flush, and the expiries spread out: no second wave forms.
 
-**Lose a node.** The pages live on four cache nodes. With modulo placement, losing one moves about three quarters of the pages to a new node, empty, so they all miss at once. On the hash circle, only the lost node's quarter moves.
+**Lose a node.** The pages live on four cache nodes. With modulo placement, losing one moves about three quarters of the pages to a new node, empty, so they all miss at once. On the hash circle, which is consistent hashing, only the lost node's quarter moves.
 
 Then write to the menu with invalidation off, and count the readers who get the old version until it expires.
 
 ## How to read it
 
-Readers enter on the left and fan in to the four cache nodes. A node's small dots are the pages it holds, and their shape says fresh, expired, missing or being fetched. The database's eight dots are its connections; a lit dot is a fetch running, and the count beside them is the line waiting. Under the picture, each moment's reads are drawn by what they got: the cache, a stale copy, a fresh fetch, or a timeout, and a hollow bar is reads still waiting. The three properties under it are checked after every event.
+Readers enter on the left and fan in to the four cache nodes. A node's small dots are the pages it holds, and their shape says fresh, expired, missing or being fetched. The database's eight dots are its connections; a lit dot is a fetch running, and the count beside them is the line waiting. Under the picture, each moment's reads are drawn by what they got: the cache, a stale copy, a fresh fetch, or a timeout, and a hollow bar is reads still waiting. The three checks under it watch the whole run. With serving stale on, a page can be up to 4 s past its expiry.
 
 ## Credits
 
