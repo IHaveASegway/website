@@ -410,7 +410,7 @@ describe('the check', () => {
 
 describe('loads', () => {
   test.each(['append', 'overwrite'] as const)(
-    '%s: a load that fails part way, then succeeds on its retry',
+    '%s: a load that fails partway, then succeeds on its retry',
     (mode) => {
       const sim = backfill({ ...quiet, mode }, (s) => failNextLoad(s, 2));
       const [failed, retry] = attemptsOf(sim, 2, 'load') as [Attempt, Attempt];

@@ -284,7 +284,7 @@ function poke(sim: Sim, run: Run, task: Task, attempt: Attempt): void {
 
 /**
  * What a load attempt leaves in the report as it ends. An append's rows are in as soon as each is
- * written, so a load that fails part way leaves its share behind, and a retry or a rerun appends
+ * written, so a load that fails partway leaves its share behind, and a retry or a rerun appends
  * the whole day again. An overwrite replaces the partition in one atomic step: all of it, or, if
  * the attempt fails, nothing at all. The test-only `nonAtomicOverwrite` deletes first, as a step
  * of its own, and a failure then leaves the partition empty.
@@ -339,7 +339,7 @@ function failedLoad(sim: Sim, run: Run, attempt: Attempt, write: Write | null): 
     return `${name}'s load fails after appending ${count(attempt.wrote)} of its ${count(sim.source[run.day] ?? 0)} rows${under}, and they stay in the report`;
   if (write)
     return `${name}'s load deletes the ${count(write.deleted)} rows of ${dayText(p)} and then fails before inserting any`;
-  return `${name}'s load fails part way, and as its overwrite is one atomic step, the report is as it was`;
+  return `${name}'s load fails partway, and as its overwrite is one atomic step, the report is as it was`;
 }
 
 /** A run's check: the report's count for the run's own day against the source's, read as the
@@ -393,7 +393,7 @@ function complete(sim: Sim, run: Run, task: Task, attempt: Attempt): void {
     say(sim, `${what}; it is retried in ${minutesText(wait)}`);
   } else {
     task.state = 'failed';
-    say(sim, `${what}; that was its last attempt, so the task fails`);
+    say(sim, `${what}; that was its last attempt, so the step fails`);
   }
 }
 
@@ -469,7 +469,7 @@ const waitingRun = (sim: Sim): Run | undefined => sim.runs.find((r) => r.state =
  * The scheduler's loop, until nothing more can move at this minute. Each pass lets runs in while
  * there is room, oldest day first, then moves each running run's tasks, then gives free warehouse
  * slots to waiting loads. Runs are let in before the pass over the runs, not as it reaches each
- * one: a run that finishes part way through the pass would otherwise hand its slot to the next
+ * one: a run that finishes partway through the pass would otherwise hand its slot to the next
  * day after it, ahead of an earlier day that a clear had sent back to the queue.
  */
 function dispatch(sim: Sim): void {
@@ -609,13 +609,13 @@ export function clear(sim: Sim, day: number): void {
   settle(sim);
 }
 
-/** Makes the next load attempt for a day fail part way, after writing part of its rows. Each call
+/** Makes the next load attempt for a day fail partway, after writing part of its rows. Each call
  *  adds one more such failure. */
 export function failNextLoad(sim: Sim, day: number): void {
   if (!isDay(day)) return;
   record(sim, { kind: 'fail-next-load', day });
   sim.failNext[day] = (sim.failNext[day] ?? 0) + 1;
-  say(sim, `${weekday(day)}'s next load attempt will fail part way through`);
+  say(sim, `${weekday(day)}'s next load attempt will fail partway through`);
 }
 
 /**

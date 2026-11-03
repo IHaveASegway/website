@@ -98,7 +98,7 @@ test('without JavaScript, the page is the opening run: Wednesday counted twice, 
   // A cross for each failed attempt: Wednesday's first load, and its check.
   await expect(page.locator('.bf-strip-x')).toHaveCount(2);
   await expect(page.locator('[data-bf-lines] li').first()).toHaveText(
-    '00:00 Wednesday’s next load attempt will fail part way through',
+    '00:00 Wednesday’s next load attempt will fail partway through',
   );
   for (const control of await page.locator('.bf-controls, .lab-clock').all())
     await expect(control).toBeHidden();
@@ -246,7 +246,7 @@ test('watch Wednesday count twice; then overwrite the day and start over, and ev
     'Every run has finished, and all 7 succeeded. Every day’s total matches the source: 2,012 orders in all.',
   );
   await expect(page.locator('[data-bf-lines]')).toContainText(
-    'Wednesday’s load fails part way, and as its overwrite is one atomic step, the report is as it was',
+    'Wednesday’s load fails partway, and as its overwrite is one atomic step, the report is as it was',
   );
   await expect(page.locator('[data-bf-week-report]')).toHaveText('2,012');
   await expect(page.locator('[data-bf-week-source]')).toHaveText('2,012');
@@ -359,7 +359,7 @@ test('the buttons for one day say which day they act on', async ({ page }) => {
   // A press that can change nothing yet says what would.
   await page.getByRole('button', { name: 'Fail Thursday’s next load' }).click();
   await expect(page.locator('[data-bf-said]')).toHaveText(
-    'Thursday’s next load attempt will fail part way through. Thursday has loaded already, so this fails its load when the week plays again, or after a clear.',
+    'Thursday’s next load attempt will fail partway through. Thursday has loaded already, so this fails its load when the week plays again, or after a clear.',
   );
 });
 
@@ -371,11 +371,11 @@ test("fail Monday's next load on the finished week, then Run: the week plays aga
   await page.goto(BACKFILL);
   await page.getByRole('button', { name: 'Fail Monday’s next load' }).click();
   await expect(page.locator('[data-bf-lines]')).toContainText(
-    '02:10 Monday’s next load attempt will fail part way through',
+    '02:10 Monday’s next load attempt will fail partway through',
   );
   await runToTheEnd(page);
   await expect(page.locator('[data-bf-lines]')).toContainText(
-    '00:00 Monday’s next load attempt will fail part way through',
+    '00:00 Monday’s next load attempt will fail partway through',
   );
   await expect(page.locator('[data-bf-lines]')).toContainText(
     'Monday’s load fails after appending',
@@ -398,12 +398,12 @@ test('a choice of how a load writes, with a failure set, starts the week over wi
   await page.getByRole('button', { name: 'Fail Monday’s next load' }).click();
   await page.getByRole('radio', { name: 'Overwrite the day' }).check();
   await expect(page.locator('[data-bf-lines]')).toContainText(
-    '00:00 Monday’s next load attempt will fail part way through',
+    '00:00 Monday’s next load attempt will fail partway through',
   );
   await runToTheEnd(page);
   // An overwrite that fails leaves nothing behind, so the retry makes the day right.
   await expect(page.locator('[data-bf-lines]')).toContainText(
-    'Monday’s load fails part way, and as its overwrite is one atomic step, the report is as it was',
+    'Monday’s load fails partway, and as its overwrite is one atomic step, the report is as it was',
   );
   await expect(day(page, 0).locator('[data-bf-run-word]')).toHaveText('done');
 });
@@ -450,7 +450,7 @@ test('a link to a week opens it: #seed-12 draws that seed’s week, every column
   await page.goto(`${BACKFILL}#seed-12`);
   await expect(page.locator('[data-bf-seed]')).toHaveText('12');
   await expect(page.locator('[data-bf-lines] li').first()).toHaveText(
-    '00:00 Wednesday’s next load attempt will fail part way through',
+    '00:00 Wednesday’s next load attempt will fail partway through',
   );
   // Seed 12's own week, not the build's seed 9: its sources, its totals and its clock.
   const sources = ['220', '161', '303', '404', '182', '143', '335'];

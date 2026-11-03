@@ -271,7 +271,7 @@ const another = (group: string) =>
 
 /** The longest words a line under the controls says, each at or near the room it holds at. */
 const LONGEST_SAID = [
-  'Wednesday’s next load will fail part way. Wednesday has loaded already, so this fails its load when the week plays again, or after a clear.',
+  'Wednesday’s next load will fail partway. Wednesday has loaded already, so this fails its load when the week plays again, or after a clear.',
   'Loads now file under the clock’s day. The week starts over under it, at 00:00, before the job is switched on. Press Run to watch it.',
   'Stale-while-revalidate is off. The run starts over under it, at 2.500 s, before the menu expires. Press Run to watch it.',
   'Worker 1 crashes holding orders 26, 27, 28 and 7 more, after order 26’s ticket printed and before its acknowledgement left.',

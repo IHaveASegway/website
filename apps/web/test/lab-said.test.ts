@@ -155,7 +155,7 @@ describe('what a run says fits the room its line keeps', () => {
       ...Object.values(STORY_WORDS).map(
         (words) => `${words}. ${startsOver('week', 'it', BACKFILL_WORDS, false)}`,
       ),
-      "Wednesday's next load will fail part way. Wednesday has loaded already, so this fails its load when the week plays again, or after a clear.",
+      "Wednesday's next load will fail partway. Wednesday has loaded already, so this fails its load when the week plays again, or after a clear.",
       "Wednesday's file is 5 hours late, so the week goes back to before the job is switched on. Press Run to watch it.",
     ];
     // Why a queue's clock stops, drained or with no worker up, at the most orders a run has waiting.

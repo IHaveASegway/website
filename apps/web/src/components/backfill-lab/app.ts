@@ -358,7 +358,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     } else if (name === 'bf-runs') setMaxActiveRuns(sim, Number(value));
     else if (control.matches('[data-bf-fail]')) {
       failNextLoad(sim, day);
-      short = `${weekday(day)}'s next load will fail part way.${hint(control)}`;
+      short = `${weekday(day)}'s next load will fail partway.${hint(control)}`;
     } else if (control.matches('[data-bf-late]')) {
       const hours = LATE_BY / 60;
       const week = holdFile(sim, day);

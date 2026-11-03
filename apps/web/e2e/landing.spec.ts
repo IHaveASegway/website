@@ -204,7 +204,7 @@ const FIXES = [
     link: '#seed-9&mode=overwrite',
     words:
       'Loads now overwrite their day. The week starts over under it, at 00:00, before the job is switched on.',
-    log: 'Wednesday’s load fails part way, and as its overwrite is one atomic step, the report is as it was',
+    log: 'Wednesday’s load fails partway, and as its overwrite is one atomic step, the report is as it was',
   },
 ] as const;
 

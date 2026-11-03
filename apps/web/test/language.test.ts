@@ -25,6 +25,7 @@ export const RETIRED: readonly (readonly [RegExp, string])[] = [
   [/\bfield notes?\b/i, 'essays'],
   [/\bcolour\b/i, 'US English: color'],
   [/\bdemos?\b/i, 'lab, for the page'],
+  [/\bpart way\b/i, 'partway, one word'],
 ];
 
 /** Words only a lab with its own vocabulary keeps: "safety properties" is Raft's, and the others
