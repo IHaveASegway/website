@@ -23,8 +23,9 @@ import {
 // test/budgets.test.ts holds it to the eager budget every page has.
 //
 // And every page has a fourth, once (design-system.md, "The command menu"): the command menu's
-// module, the bundle Astro builds from components/Palette.astro's script (src/scripts/palette.js),
-// from /_astro/ and never inline, after the theme script and in <body>.
+// module, the bundle Astro builds from components/Palette.astro's script (src/scripts/palette.js,
+// with the field's few lines beside it, src/scripts/field.js), from /_astro/ and never inline,
+// after the theme script and in <body>.
 //
 // Each simulated lab (ADR 0020, ADR 0026), the Raft Lab at /lab/raft/ and its siblings, loads its
 // own module the same way, on its page only: the bundle of its component's script

@@ -1,3 +1,4 @@
+import { runOnLanding } from '../../lib/lab/landing-run';
 import {
   TASKS,
   WEEK_END,
@@ -61,7 +62,7 @@ const EVENTS_PER_FRAME = 2_000;
 const STILL_EVERY = 500; // real ms between still steps
 const LINES_SHOWN = 60;
 
-export function start(root: HTMLElement, queued: readonly Element[]): void {
+export function start(root: HTMLElement, queued: readonly Element[]): () => void {
   const $ = <T extends Element>(selector: string, from: ParentNode = root) =>
     from.querySelector<T>(selector);
   const radios = (name: string) => [
@@ -398,4 +399,16 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
   const box = lines?.parentElement;
   if (box) box.scrollTop = box.scrollHeight;
   for (const control of queued) press(control);
+  // The week a visitor lands on plays as Run plays it, and again from the switch.
+  const replay = () => {
+    if (run) press(run);
+  };
+  return () =>
+    runOnLanding(root, {
+      play: replay,
+      pause,
+      playing: () => playing,
+      finished: over,
+      again: replay,
+    });
 }

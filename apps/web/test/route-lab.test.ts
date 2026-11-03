@@ -316,7 +316,7 @@ describe('the markup both the build and the browser draw', () => {
     const markup = placesMarkup(data, plan);
     // Each van's casing draws its stops twice, on purpose; every other place is one mark.
     const marks = markup.replace(/<path class="rl-stop-casing[^"]*"[^>]*>/g, '');
-    expect([...marks.matchAll(/M(-?\d+) (-?\d+)h0/g)]).toHaveLength(n);
+    expect([...marks.matchAll(/M(-?\d+) (-?\d+)h\.01/g)]).toHaveLength(n);
     expect(markup).toContain('class="rl-stop van-a rl-big"');
     expect(markup).not.toContain('van-b');
     expect(markup).toContain('class="rl-stop van-c rl-big rl-round"');

@@ -7,6 +7,23 @@ import { isNoindex } from '../src/lib/noindex.mjs';
 // What the site must serve. The e2e specs and the production smoke read these, so a change to a
 // route or a header is one edit here, in the same pull request as the change itself.
 
+/** The page's animations running by the clock now: one tied to the scroll stands still until the
+ *  visitor scrolls (styles/field.css), and a paused one stands still, so "nothing moves" counts
+ *  neither. */
+export const clockAnimations = (page: { evaluate<T>(work: () => T): Promise<T> }) =>
+  page.evaluate(
+    () =>
+      document
+        .getAnimations()
+        .filter((a) => a.timeline === document.timeline && a.playState === 'running').length,
+  );
+
+/** A visitor who pressed the top bar's Pause earlier in this tab: nothing on the page moves by
+ *  itself, and a lab stands as the build drew it until they press Run (lib/motion.ts). The checks of
+ *  a lab's controls start here, and landing.spec.ts checks the run a visitor lands on. */
+export const handsOn = (page: { addInitScript(script: () => void): Promise<unknown> }) =>
+  page.addInitScript(() => sessionStorage.setItem('motion', 'paused'));
+
 /** The one public origin. Canonical links, the sitemap and every redirect name it. */
 export const ORIGIN = 'https://ihaveasegway.com';
 

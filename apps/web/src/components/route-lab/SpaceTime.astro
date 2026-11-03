@@ -142,7 +142,7 @@ const name = (label: string, back: number) =>
               t.stops.map(([u, v]) => (
                 <path
                   class={`rl-stop van-${t.van}${t.round ? ' rl-round' : ''}`}
-                  d={`M${u} ${v}h0`}
+                  d={`M${u} ${v}h.01`}
                 />
               )),
             )}

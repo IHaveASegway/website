@@ -49,7 +49,7 @@ test('on a phone Tab meets the desk’s controls in the order the screen shows t
   await page.locator('input[name="rl-view"]:checked').focus();
   const tops: number[] = [];
   const names: string[] = [];
-  for (let k = 0; k < 4; k++) {
+  for (let k = 0; k < 5; k++) {
     if (k > 0) await page.keyboard.press('Tab');
     const focused = page.locator(':focus');
     names.push(await focused.evaluate((e) => (e as HTMLInputElement).name || e.textContent || ''));
@@ -60,7 +60,13 @@ test('on a phone Tab meets the desk’s controls in the order the screen shows t
       ),
     );
   }
-  expect(names.map((n) => n.trim())).toEqual(['rl-view', 'rl-day', 'rl-vans', 'Surprise me']);
+  expect(names.map((n) => n.trim())).toEqual([
+    'rl-view',
+    'Pause',
+    'rl-day',
+    'rl-vans',
+    'Surprise me',
+  ]);
   // Each is on the row of the one before, or under it.
   tops.forEach((top, k) => expect(top).toBeGreaterThanOrEqual(tops[k - 1] ?? top));
 });

@@ -2,12 +2,13 @@ import { expect, test, type Page } from '@playwright/test';
 
 // Reduced motion (docs/design/overhaul.md, "Motion"): under prefers-reduced-motion: reduce nothing
 // moves. The state still changes (a card's edge and title change at once); only the movement is
-// gone. With no preference, what moves is the list below: Home's drawing, its requests, vans,
-// heartbeats and stampede once the motion module has marked the page, and its parts lifting as the
-// page scrolls; the 2 px sweep along a post's row; and the followed title's handoff to the next
-// page (ADR 0027; until then Home's scene and the board's day). A card does not move (ADR 0027): its
-// sign under the pointer is a state, with no transition. Text never animates: no
-// title rises, no rule draws itself, no tag decodes, no arrow nudges.
+// gone. With no preference, what moves is the list below: the field behind every page and the signal
+// on Home's facts, by their own clocks, once the page has been marked (ADR 0030); the charge at the
+// window's top, tied to the scroll; the lines that open a section and run down What I build and the
+// marks along it, once, as a visitor first reaches them; Home's drawing; the 2 px sweep along a
+// post's row; and the followed title's handoff to the next page (ADR 0027; until then Home's scene
+// and the board's day). A card does not move (ADR 0027): its sign under the pointer is a state, with
+// no transition. Text never animates: no title rises, no tag decodes, no arrow nudges.
 //
 // The check reads the computed motion of every element and pseudo-element rather than waiting
 // for a transition to run: whether a busy machine gets a 220 ms transition started in time is a
@@ -138,13 +139,15 @@ test('a card with nothing to activate does not react to the pointer; one with a 
   expect(await sign(page)).not.toBe(atRest);
 });
 
-/** What Home would move with no preference (ADR 0028): each post's sweep; the cluster's plane,
- *  which rises as the page scrolls where the browser has scroll timelines; and, once the motion
- *  module has marked the page, the ring's turn, the heartbeats and their answers, and the leader's
- *  halo. Until ADR 0028 the scan found the isometric drawing's lifts, requests, vans, heartbeats,
- *  stampede, fetch and nightly run; until ADR 0027 Home's board, its bands and its day; until ADR
- *  0025 also the Raft Lab's election, each section's self-drawing rule, the rising titles, a card
- *  link's nudging arrow and the closing address's arrow. In document order. */
+/** What Home would move with no preference (ADR 0030, ADR 0028): each post's sweep; the charge at
+ *  the window's top and the cluster's plane, tied to the scroll where the browser has scroll
+ *  timelines; the line that opens a section, the current through each row of What I build and the
+ *  row's mark, once each; and, once the page is marked, the field's patch and current, the signal on
+ *  each fact's line, the ring's turn, the heartbeats and their answers, and the leader's halo. Until
+ *  ADR 0028 the scan found the isometric drawing's lifts, requests, vans, heartbeats, stampede, fetch
+ *  and nightly run; until ADR 0027 Home's board, its bands and its day; until ADR 0025 also the Raft
+ *  Lab's election, the rising titles, a card link's nudging arrow and the closing address's arrow.
+ *  In document order. */
 const expectedMotion = (page: Page) =>
   page.evaluate(() => {
     const live = 'motion' in document.documentElement.dataset;
@@ -154,6 +157,13 @@ const expectedMotion = (page: Page) =>
     return [...document.querySelectorAll('*')].flatMap((element) => {
       if (element.matches('.post-list > li'))
         return [`${element.getAttribute('class') ? name(element) : 'li'}::before`];
+      if (live && element.matches('.field')) return [`${name(element)}::before`];
+      if (live && element.matches('.field-run, .field-across')) return [name(element)];
+      if (scrolls && element.matches('.field-charge')) return [name(element)];
+      if (element.matches('.frame .section')) return [`${name(element)}::before`];
+      if (element.matches('.build')) return [`${name(element)}::before`];
+      if (element.matches('.build-lead')) return [`${name(element)}::before`];
+      if (live && element.matches('.build-evidence')) return [`${name(element)}::before`];
       if (scrolls && element.matches('figure.orbit .orbit-plane')) return [name(element)];
       if (
         live &&

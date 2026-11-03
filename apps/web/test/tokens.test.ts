@@ -1,5 +1,6 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import {
+  blend,
   differenceCiede2000,
   differenceEuclidean,
   filterDeficiencyDeuter,
@@ -57,6 +58,10 @@ const DECORATIVE = [
   'iso-left',
   'iso-right',
   'iso-grid',
+  // The field behind every page (field.css), held to the text it lies under by its own test below.
+  'grid-line',
+  'field-line',
+  'field-light',
 ];
 /** Pairs a design must never draw; each is listed with its reason (none yet). */
 const FORBIDDEN: [string, string][] = [];
@@ -223,6 +228,21 @@ for (const [themeName, colors] of Object.entries(themes)) {
           expect(wcagContrast(get(name), get(surface))).toBeGreaterThanOrEqual(3);
         });
       }
+    }
+
+    // The field lies under the page's text (field.css). At its brightest, where a lit line and the
+    // grid cross in the patch's light, every text token still reaches 4.5:1. Axe can't read a
+    // gradient, so the claim is held here.
+    for (const name of TEXT) {
+      test(`${name} on the field's brightest point reaches 4.5:1`, () => {
+        const brightest = blend([
+          get('background'),
+          get('field-light'),
+          get('field-line'),
+          get('grid-line'),
+        ]);
+        expect(wcagContrast(get(name), brightest)).toBeGreaterThanOrEqual(4.5);
+      });
     }
 
     for (const surface of LINE_SURFACES) {
@@ -602,11 +622,17 @@ describe('motion lives only under prefers-reduced-motion: no-preference', () => 
       // simulated lab's ships none (support/labs.ts): its demo moves in JavaScript, only while the
       // visitor runs it, and stands still under reduced motion (ADR 0020, ADR 0026). Since
       // ADR 0027 the labs' lines are gone from the pages, and the labs' chrome, a lab's head,
-      // its desk, its write-up and the glyph, moves nothing either; a lab's card moves only its
-      // glyph's solids down onto their tile, tied to the scroll (styles/lab-cards.css).
+      // its desk and its write-up move nothing either; a lab's card moves only its glyph's solids
+      // down onto their tile, tied to the scroll (styles/lab-cards.css). Since ADR 0030 the glyph
+      // has a spark on each wire, under the demo's Pause or the top bar's button.
       const sheet = read(file);
       if (sheet.includes('.rl-map'))
         expect(found.map((m) => m.what)).toEqual(['transition:opacity .22s ease-out']);
+      else if (sheet.includes('.iso-spark'))
+        expect(found.map((m) => m.what)).toEqual([
+          'animation:2.6s linear infinite iso-spark',
+          'animation-play-state:paused',
+        ]);
       else if (SIMULATED_LABS.some((lab) => sheet.includes(`.${lab.map}`)))
         expect(found).toEqual([]);
       // The Lab index's card sheet is found by its plate, which only it draws: Home's sheet styles

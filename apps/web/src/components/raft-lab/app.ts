@@ -1,3 +1,4 @@
+import { runOnLanding } from '../../lib/lab/landing-run';
 import {
   crash,
   heal,
@@ -54,7 +55,7 @@ export function fresh(seed: number, loss: number): Sim {
   return sim;
 }
 
-export function start(root: HTMLElement, queued: readonly Element[]): void {
+export function start(root: HTMLElement, queued: readonly Element[]): () => void {
   const $ = <T extends Element>(selector: string) => root.querySelector<T>(selector);
   const still = matchMedia('(prefers-reduced-motion: reduce)');
   const map = $<SVGSVGElement>('[data-rf-map]');
@@ -306,4 +307,13 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
 
   draw();
   for (const control of queued) press(control);
+  // The run a visitor lands on goes on from the moment the picture tells.
+  return () =>
+    runOnLanding(root, {
+      play,
+      pause,
+      playing: () => playing,
+      finished: () => Boolean(sim.violation),
+      again: () => undefined,
+    });
 }

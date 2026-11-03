@@ -36,6 +36,42 @@ if (root) {
   for (const part of root.querySelectorAll('[data-rl-nojs]')) part.setAttribute('hidden', '');
   const status = root.querySelector('[data-rl-status]');
 
+  // The vans drive when a visitor lands (ADR 0030), by the page's own markup: no script runs them,
+  // this only holds them, on a button, or while the maps are off the screen.
+  const maps = root.querySelector('.rl-maps');
+  const buttons = root.querySelectorAll<HTMLButtonElement>('[data-rl-drive]');
+  // Still until the chrome's module says the page may move (scripts/field.js), and for good if it
+  // never does.
+  let wanted = false;
+  let shown = true;
+  const drive = () => {
+    for (const layer of root.querySelectorAll<SVGSVGElement>('[data-rl-fleet]')) {
+      if (wanted && shown) layer.unpauseAnimations();
+      else layer.pauseAnimations();
+    }
+    for (const button of buttons) {
+      button.textContent = wanted ? 'Pause' : 'Run';
+      button.setAttribute('aria-label', wanted ? 'Pause the vans' : 'Run the vans');
+      button.dataset['lamp'] = wanted ? 'on' : 'off';
+    }
+  };
+  drive();
+  for (const button of buttons)
+    button.addEventListener('click', () => {
+      wanted = !wanted;
+      drive();
+    });
+  // The top bar's button reaches the vans too, as it does a lab's run.
+  document.addEventListener('motionchange', (event) => {
+    wanted = !(event as CustomEvent<{ paused: boolean }>).detail.paused;
+    drive();
+  });
+  if (maps)
+    new IntersectionObserver(([entry]) => {
+      shown = entry?.isIntersecting ?? true;
+      drive();
+    }).observe(maps);
+
   // What the visitor changes before the rest has loaded, in order, so nothing is lost: a control,
   // or the surprise. Which map a phone shows is not a change to the plan.
   const queued: Element[] = [];

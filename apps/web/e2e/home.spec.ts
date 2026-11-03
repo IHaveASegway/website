@@ -156,11 +156,12 @@ test.describe("Home's live picture", () => {
     expect(await picture(page).boundingBox()).toEqual(running);
   });
 
-  test('no other page has the picture or the motion button', async ({ page }) => {
+  // Every page holds the button, since the field behind every page runs by itself (ADR 0030).
+  test('no other page has the picture, and every page has the motion button', async ({ page }) => {
     for (const path of pages().filter((p) => p !== '/')) {
       await page.goto(path);
       await expect(picture(page), path).toHaveCount(0);
-      await expect(toggle(page), path).toHaveCount(0);
+      await expect(toggle(page), path).toHaveCount(1);
     }
   });
 });

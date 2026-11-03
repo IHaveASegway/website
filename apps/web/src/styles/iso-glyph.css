@@ -23,6 +23,35 @@
   vector-effect: non-scaling-stroke;
 }
 
+/* A spark running along each wire while the page is marked (scripts/field.js), under the top bar's
+   button (ADR 0030). Scaled strokes, since a dash and a non-scaling stroke don't agree on what a
+   path's length is. */
+.iso-glyph .iso-spark {
+  display: none;
+  stroke: var(--foreground);
+  stroke-width: 2.5px;
+  stroke-dasharray: 5 95;
+  stroke-dashoffset: 100;
+  vector-effect: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-motion] .iso-glyph .iso-spark {
+    display: inline;
+    animation: iso-spark 2.6s linear infinite;
+  }
+
+  :root[data-motion='paused'] .iso-glyph .iso-spark {
+    animation-play-state: paused;
+  }
+
+  @keyframes iso-spark {
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+}
+
 .iso-glyph .iso-mesh {
   stroke: var(--iso-grid);
   stroke-width: 1px;

@@ -22,6 +22,8 @@ import {
   planLine,
   roomText,
   routesMarkup,
+  vansMarkup,
+  type Which,
   savedText,
   tableMarkup,
   tipLines,
@@ -137,19 +139,31 @@ export async function start(root: HTMLElement, queued: Element[], nearest: Neare
     null;
   let settle: number | undefined;
 
-  function draw(
-    which: 'before' | 'after',
-    plan: Plan,
-    measured: Measured,
-    count: number,
-    n: number,
-  ) {
+  /** The plan each map shows, once this module has drawn one: both maps' vans keep one clock. */
+  const onMap: Partial<Record<Which, { plan: Plan; measured: Measured }>> = {};
+
+  /** Redraws the vans on both maps, from the start of their day. */
+  function drive() {
+    const longest = Math.max(onMap.before?.measured.back ?? 0, onMap.after?.measured.back ?? 0);
+    for (const which of ['before', 'after'] as const) {
+      const shown = onMap[which];
+      const fig = figure(which);
+      const layer = fig ? $<SVGSVGElement>('[data-rl-fleet]', fig) : null;
+      if (!layer) continue;
+      if (shown) layer.innerHTML = vansMarkup(shown.plan, shown.measured, longest, which);
+      layer.setCurrentTime(0);
+    }
+  }
+
+  function draw(which: Which, plan: Plan, measured: Measured, count: number, n: number) {
     const fig = figure(which);
     if (!fig) return;
     const routes = $('[data-rl-routes]', fig);
     const places = $('[data-rl-places]', fig);
-    if (routes) routes.innerHTML = routesMarkup(leg, plan);
+    if (routes) routes.innerHTML = routesMarkup(leg, plan, which);
     if (places) places.innerHTML = placesMarkup(data, plan);
+    onMap[which] = { plan, measured };
+    drive();
     text($('[data-rl-time]', fig), formatDuration(measured.drive));
     text($('[data-rl-line]', fig), planLine(plan, measured));
     text($('[data-rl-back]', fig), backLine(measured));

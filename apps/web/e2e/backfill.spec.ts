@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { clockAnimations, handsOn } from './expected';
 
 // The Backfill Lab in a browser (ADR 0026, as ADR 0020 for the Raft Lab): without JavaScript the
 // page is the opening run the build drew, with no control; with it, nothing moves or loads until
@@ -12,6 +13,8 @@ import { expect, test, type Page } from '@playwright/test';
 // and on a laptop; and the page meets axe after a run, since script redrew it.
 
 const BACKFILL = '/lab/backfill/';
+
+test.beforeEach(({ page }) => handsOn(page));
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 const MINUS = '−';
 const OPENING_SUMMARY =
@@ -111,7 +114,7 @@ test('nothing loads or moves before intent; Run plays, Pause stops, with no poli
   await page.goto(BACKFILL);
   await page.waitForTimeout(300);
   expect(app).toEqual([]);
-  expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
+  expect(await clockAnimations(page)).toBe(0);
 
   await rewind(page);
   expect(app).toHaveLength(1);
@@ -122,7 +125,7 @@ test('nothing loads or moves before intent; Run plays, Pause stops, with no poli
   const paused = await minutes(page);
   await page.waitForTimeout(400);
   expect(await minutes(page)).toBe(paused);
-  expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
+  expect(await clockAnimations(page)).toBe(0);
   expect(await violations()).toEqual([]);
 });
 
@@ -389,7 +392,7 @@ test('under reduce, Run moves the clock in still steps of 3 minutes, every one o
   expect(times.slice(1).map((t, i) => t - (times[i] as number))).toEqual(
     Array.from({ length: times.length - 1 }, () => 3),
   );
-  expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
+  expect(await clockAnimations(page)).toBe(0);
 });
 
 test("a link to a week opens it: #seed-12 draws that seed's week, every column of it, where its last event stands, and Start over keeps it", async ({

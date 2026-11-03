@@ -1,0 +1,322 @@
+/*
+  The field (ADR 0030): what stands behind every page, so no page is a flat sheet once its first
+  screen has gone. A grid fixed to the window, which the page scrolls over; a patch of it lit, which
+  wanders; and current running along its lines. The patch and the current run on their own clocks
+  and a scroll has nothing to do with them: tying them to the scroll, and fading them with it, made
+  every turn of a wheel read as the page reloading (Joseph, 2026-11-02). It holds nothing to read,
+  takes no pointer and moves only by transform, so it costs the page no layout. It runs while the
+  page is marked (scripts/field.js), so the top bar's button pauses it (SC 2.2.2). Every colour is a
+  token.
+*/
+
+.field {
+  --cell: clamp(4rem, 6vw, 6rem);
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: -1;
+  /* The large viewport: the layer keeps its size as a phone's toolbars come and go. */
+  block-size: 100lvh;
+  overflow: clip;
+  contain: strict;
+  background-image:
+    linear-gradient(var(--field-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--field-line) 1px, transparent 1px),
+    linear-gradient(var(--field-light), var(--field-light));
+  background-size:
+    var(--cell) var(--cell),
+    var(--cell) var(--cell),
+    auto;
+  pointer-events: none;
+}
+
+/* A long read: the same field, quieter behind its column, by its colours: an opacity over the whole
+   layer would have the phone composite it again on every frame of a scroll. */
+.field[data-calm] {
+  --field-line: var(--field-calm-line);
+  --field-light: var(--field-calm-light);
+  --grid-line: var(--field-calm-grid);
+}
+
+/* The veil hides the lit grid but for one soft hole, and moving the veil moves the light: a transform
+   on one layer, where moving a mask would repaint the window on every frame. */
+.field::before {
+  content: '';
+  position: absolute;
+  inset: -36lvh -36vw;
+  background-image: radial-gradient(
+    circle 52vmax at center,
+    transparent 0%,
+    var(--field-veil-near) 38%,
+    var(--field-veil-far) 70%,
+    var(--background) 100%
+  );
+  translate: 20vw -14lvh;
+}
+
+/* The grid everywhere, over the veil, so the page is never bare outside the patch. */
+.field::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: var(--cell) var(--cell);
+}
+
+/* Current: each runs on a line of the grid, wherever the window puts that line. Out of sight until
+   it moves, so a browser with no scroll timelines shows only the grid and the patch. */
+.field-run {
+  position: absolute;
+  inset-block-start: 0;
+  z-index: 1;
+  inline-size: 1px;
+  block-size: 34lvh;
+  background-image: linear-gradient(to bottom, transparent, var(--primary));
+  translate: 0 -100%;
+}
+
+.field-across {
+  position: absolute;
+  inset-inline-start: 0;
+  z-index: 1;
+  inline-size: 34vw;
+  block-size: 1px;
+  background-image: linear-gradient(to right, transparent, var(--primary));
+  translate: -100% 0;
+}
+
+/* Dimmer than the lines of the page itself: these run while someone reads. */
+.field-run,
+.field-across {
+  opacity: 0.7;
+}
+
+/* A long read keeps two of them, quieter. */
+.field[data-calm] > :is(.field-run, .field-across) {
+  opacity: 0.35;
+}
+
+.field[data-calm] > :is(.field-run:nth-child(3), .field-run:nth-child(4), .field-across) {
+  display: none;
+}
+
+.field-run::after,
+.field-across::after {
+  content: '';
+  position: absolute;
+  inline-size: 3px;
+  block-size: 3px;
+  border-radius: 50%;
+  background-color: var(--primary);
+  box-shadow: 0 0 0.5rem 0.0625rem var(--primary);
+}
+
+.field-run::after {
+  inset-block-end: -1px;
+  inset-inline-start: -1px;
+}
+
+.field-across::after {
+  inset-block-start: -1px;
+  inset-inline-end: -1px;
+}
+
+.field-run:nth-child(1) {
+  inset-inline-start: round(down, 20vw, var(--cell));
+}
+
+.field-run:nth-child(2) {
+  inset-inline-start: round(down, 82vw, var(--cell));
+}
+
+.field-run:nth-child(3) {
+  inset-inline-start: round(down, 46vw, var(--cell));
+}
+
+.field-run:nth-child(4) {
+  inset-inline-start: round(down, 64vw, var(--cell));
+}
+
+.field-run:nth-child(5) {
+  inset-inline-start: round(down, 32vw, var(--cell));
+}
+
+.field-across:nth-child(6) {
+  inset-block-start: round(down, 30lvh, var(--cell));
+}
+
+.field-across:nth-child(7) {
+  inset-block-start: round(down, 72lvh, var(--cell));
+}
+
+/* The charge: a line across the top of the window that says how far down the page you are, so the one
+   thing here tied to the scroll. It's 2 px, so it covers nothing that can take focus, and with
+   nothing to scroll it isn't there. */
+.field-charge {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: 30;
+  block-size: 2px;
+  background-color: var(--primary);
+  box-shadow: 0 0 0.5rem var(--primary);
+  transform-origin: left;
+  scale: 0 1;
+  pointer-events: none;
+}
+
+/* Every section opens on a line that carries the current, lit from its left. It sweeps across once,
+   when a visitor first reaches the section, and stays (scripts/field.js, data-lit). With no script,
+   or under reduced motion, it stands lit. */
+.section {
+  position: relative;
+}
+
+.section::before {
+  content: '';
+  position: absolute;
+  inset-block-start: calc(var(--section-pad) * 0.45);
+  inset-inline: 0;
+  block-size: 1px;
+  background-image: linear-gradient(to right, var(--primary), var(--border) 45%, transparent);
+  transform-origin: left;
+  pointer-events: none;
+}
+
+@media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+  .section:not([data-lit])::before {
+    scale: 0 1;
+  }
+
+  .section::before {
+    transition: scale 1.4s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* The patch wanders, and each line of current runs on a clock of its own: prime numbers of seconds,
+     so they never fall into step. A line crosses the window in the first quarter of its time. The
+     patch moves in steps, about 8 a second: it's a soft edge going 12 px a second, so the eye can't
+     tell, and the phone recomposites the whole window 8 times a second for it, not 120. */
+  :root[data-motion] .field::before {
+    animation: field-drift 73s steps(200) infinite alternate;
+  }
+
+  :root[data-motion] .field > .field-run {
+    animation: field-down 13s linear infinite;
+  }
+
+  :root[data-motion] .field > .field-across {
+    animation: field-across 23s linear infinite;
+  }
+
+  :root[data-motion] .field > .field-run:nth-child(2) {
+    animation-duration: 17s;
+    animation-delay: -5s;
+  }
+
+  :root[data-motion] .field > .field-run:nth-child(3) {
+    animation-duration: 19s;
+    animation-delay: -11s;
+  }
+
+  :root[data-motion] .field > .field-run:nth-child(4) {
+    animation-duration: 29s;
+    animation-delay: -3s;
+  }
+
+  :root[data-motion] .field > .field-run:nth-child(5) {
+    animation-duration: 31s;
+    animation-delay: -17s;
+  }
+
+  :root[data-motion] .field > .field-across:nth-child(7) {
+    animation-duration: 37s;
+    animation-delay: -19s;
+  }
+
+  :root[data-motion='paused'] .field::before,
+  :root[data-motion='paused'] .field > :is(.field-run, .field-across) {
+    animation-play-state: paused;
+  }
+
+  @keyframes field-drift {
+    0% {
+      translate: 20vw -14lvh;
+    }
+
+    34% {
+      translate: -24vw 6lvh;
+    }
+
+    68% {
+      translate: 22vw 16lvh;
+    }
+
+    100% {
+      translate: -10vw 26lvh;
+    }
+  }
+
+  @keyframes field-down {
+    0% {
+      translate: 0 -100%;
+    }
+
+    24%,
+    100% {
+      translate: 0 100lvh;
+    }
+  }
+
+  @keyframes field-across {
+    0% {
+      translate: -100% 0;
+    }
+
+    24%,
+    100% {
+      translate: 100vw 0;
+    }
+  }
+
+  /* The name stands in a rule of its own, as the longhands' would otherwise be folded by the build's
+     minifier into an animation shorthand, which cannot hold a timeline and is dropped whole. */
+  @supports (animation-timeline: scroll()) {
+    .field-charge {
+      animation-timing-function: linear;
+      animation-fill-mode: both;
+      animation-timeline: scroll(root block);
+    }
+
+    :root .field-charge {
+      animation-name: field-charge;
+    }
+
+    @keyframes field-charge {
+      from {
+        scale: 0 1;
+      }
+
+      to {
+        scale: 1 1;
+      }
+    }
+  }
+}
+
+/* More contrast, a Windows contrast theme or paper: the page alone. */
+@media (prefers-contrast: more), (forced-colors: active), print {
+  .field,
+  .field-charge {
+    display: none;
+  }
+}
+
+@media print {
+  .section::before {
+    display: none;
+  }
+}

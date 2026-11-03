@@ -1,3 +1,4 @@
+import { runOnLanding } from '../../lib/lab/landing-run';
 import { properties } from '../../lib/queue/check';
 import { valueOf, word } from '../../lib/sim/link';
 import {
@@ -73,7 +74,7 @@ const setting = (group: string): keyof typeof SETTINGS | null => {
   return Object.hasOwn(SETTINGS, name) ? (name as keyof typeof SETTINGS) : null;
 };
 
-export function start(root: HTMLElement, queued: readonly Element[]): void {
+export function start(root: HTMLElement, queued: readonly Element[]): () => void {
   const $ = <T extends Element>(selector: string) => root.querySelector<T>(selector);
   const still = matchMedia('(prefers-reduced-motion: reduce)');
   const maps = [...root.querySelectorAll<SVGSVGElement>('[data-qu-map]')];
@@ -372,4 +373,18 @@ export function start(root: HTMLElement, queued: readonly Element[]): void {
     press(control);
   }
   draw();
+  // The run a visitor lands on plays the crash the picture told, as Run does, and again.
+  return () =>
+    runOnLanding(root, {
+      play: () => {
+        if (told && sim.actions.length === OPENING.actions.length) begin(true);
+        else play();
+      },
+      pause,
+      playing: () => playing,
+      finished: () =>
+        Boolean(sim.violation) ||
+        !Number.isFinite(Math.min(nextTime(sim), ahead[0]?.at ?? Infinity)),
+      again: () => begin(true),
+    });
 }

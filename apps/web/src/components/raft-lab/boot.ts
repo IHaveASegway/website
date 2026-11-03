@@ -2,7 +2,9 @@
 // (ADR 0020; within the 5 KB of eager JavaScript every page has). The picture is the opening run,
 // drawn at build; the simulation loads on intent, a focus inside the demo, a mouse over it, or a
 // press, and a press made before it arrives is kept and played once it has. A touch that only
-// scrolls the page loads nothing.
+// scrolls the page loads nothing, but a visitor who lands here gets the demo running (below).
+
+import { whenMoving } from '../../lib/lab/when-moving';
 
 const UNLOADED = 'The demo did not load. Press any control to try again.';
 
@@ -14,9 +16,12 @@ if (root) {
   let ready = false;
   let failed = false;
   let started: Promise<void> | undefined;
+  let arrive: (() => void) | undefined;
   const start = () => {
     started ??= import('./app')
-      .then((app) => app.start(root, queued))
+      .then((app) => {
+        arrive = app.start(root, queued);
+      })
       .then(() => {
         ready = true;
         failed = false;
@@ -55,4 +60,13 @@ if (root) {
   addEventListener('hashchange', () => {
     if (linked() && !failed) start();
   });
+  // Unless they asked otherwise, a visitor lands on the demo running (ADR 0030): once the page has
+  // settled the simulation loads and plays, and a press made before then is theirs to play instead.
+  if (!linked())
+    whenMoving(() => {
+      start();
+      void started?.then(() => {
+        if (queued.length === 0) arrive?.();
+      });
+    });
 }
