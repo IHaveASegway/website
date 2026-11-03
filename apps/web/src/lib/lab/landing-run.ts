@@ -31,7 +31,7 @@ export function runOnLanding(root: HTMLElement, run: LandingRun): void {
 
   let begun = false;
   let shown = false;
-  let held = 0;
+  let held: ReturnType<typeof setTimeout> | undefined;
 
   const look = () => {
     const paused = document.documentElement.dataset['motion'] === 'paused';
@@ -40,7 +40,7 @@ export function runOnLanding(root: HTMLElement, run: LandingRun): void {
       // The end of a run stands only while it's wanted: going round unseen, or under the top bar's
       // Pause, would change the picture while nothing is meant to move.
       clearTimeout(held);
-      held = 0;
+      held = undefined;
       if (run.playing()) run.pause();
       return;
     }
@@ -50,14 +50,14 @@ export function runOnLanding(root: HTMLElement, run: LandingRun): void {
     } else if (!run.finished()) {
       if (!run.playing()) run.play();
     } else if (!held) {
-      held = window.setTimeout(() => {
-        held = 0;
+      held = setTimeout(() => {
+        held = undefined;
         run.again();
       }, HOLD);
     }
   };
 
-  const every = window.setInterval(look, LOOK);
+  const every = setInterval(look, LOOK);
   const seen = new IntersectionObserver(([entry]) => {
     shown = entry?.isIntersecting ?? false;
     look();

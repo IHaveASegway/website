@@ -74,7 +74,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   const $ = <T extends Element>(selector: string) => root.querySelector<T>(selector);
   const still = matchMedia('(prefers-reduced-motion: reduce)');
   const run = $<HTMLButtonElement>('[data-cl-run]');
-  const lines = $<HTMLOListElement>('[data-cl-lines]');
+  const lines = $('[data-cl-lines]') as HTMLElement;
   const strip = $('[data-cl-strip]');
   const text = (element: Element | null | undefined, value: string) => {
     const words = curled(value);
@@ -92,7 +92,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   let playing = false;
   let last = 0;
   let frame = 0;
-  let timer = 0;
+  let timer: ReturnType<typeof setInterval> | undefined;
   // The build wrote the opening's last lines; a link's run writes its own.
   const log = eventLog(lines, 'lab-log-at', seconds, linked ? undefined : sim.lines.at(-1));
   if (linked) log.clear();
@@ -216,7 +216,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     text(run, 'Pause');
     attribute(run, 'data-lamp', 'on');
     if (still.matches) {
-      timer = window.setInterval(() => {
+      timer = setInterval(() => {
         runUntil(sim, sim.now + STILL_EVERY * speed(), EVENTS_PER_FRAME);
         draw();
         if (sim.violation) {
@@ -261,7 +261,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
 
   function press(control: Element): void {
     const before = sim.lines.at(-1);
-    const value = control instanceof HTMLInputElement ? control.value : '';
+    const { value } = control as HTMLInputElement; // a button's is empty
     if (control.matches('[data-cl-run]')) {
       if (playing) pause();
       else if (untouched()) {
@@ -310,8 +310,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   }
 
   root.addEventListener('click', (event) => {
-    const target = event.target instanceof Element ? event.target : null;
-    const control = target?.closest('button');
+    const control = (event.target as Element).closest('button');
     if (control) press(control);
   });
   root.addEventListener('change', (event) => {

@@ -90,7 +90,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   const still = matchMedia('(prefers-reduced-motion: reduce)');
   const maps = [...root.querySelectorAll<SVGSVGElement>('[data-qu-map]')];
   const run = $<HTMLButtonElement>('[data-qu-run]');
-  const lines = $<HTMLOListElement>('[data-qu-lines]');
+  const lines = $('[data-qu-lines]') as HTMLElement;
   const chart = $<SVGSVGElement>('[data-qu-strip]');
   const curve = $<SVGPolylineElement>('[data-qu-strip-line]');
   const ticks = $<SVGGElement>('[data-qu-crashes]');
@@ -116,7 +116,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   /** Virtual ms with the fraction the frames have run: the core moves in whole ones. */
   let clock = sim.now;
   let frame = 0;
-  let timer = 0;
+  let timer: ReturnType<typeof setInterval> | undefined;
   const shownMaps = new Map<SVGSVGElement, string>();
   /** The layout the page shows (queue-lab.css): the other one is not drawn until it shows. */
   let showing = maps.filter((map) => map.getClientRects().length > 0);
@@ -263,7 +263,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     text(run, 'Pause');
     attribute(run, 'data-lamp', 'on');
     if (still.matches) {
-      timer = window.setInterval(() => {
+      timer = setInterval(() => {
         advance(STILL_EVERY * speed);
         draw();
         stopped();
@@ -354,8 +354,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   }
 
   root.addEventListener('click', (event) => {
-    const target = event.target instanceof Element ? event.target : null;
-    const control = target?.closest('button');
+    const control = (event.target as Element).closest('button');
     if (control) press(control);
   });
   root.addEventListener('change', (event) => {

@@ -75,7 +75,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   const run = $<HTMLButtonElement>('[data-bf-run]');
   const on = $('[data-bf-on]');
   const strip = $('[data-bf-strip]');
-  const lines = $<HTMLOListElement>('[data-bf-lines]');
+  const lines = $('[data-bf-lines]') as HTMLElement;
   const stray = $<HTMLElement>('[data-bf-stray]');
   const rows = [...root.querySelectorAll('[data-bf-day]')];
   const set = (element: Element | null | undefined, value: string) => {
@@ -92,7 +92,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   let last = 0;
   let owed = 0; // virtual minutes the clock is owed, under one
   let frame = 0;
-  let timer = 0;
+  let timer: ReturnType<typeof setInterval> | undefined;
   let speed = Number(chosen('bf-speed') ?? 6);
   let day = Number(chosen('bf-day') ?? 0);
   /** Whether the week stands where the picture told it: opened at the opening's moment, and neither
@@ -239,7 +239,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     mark(run, 'data-lamp', 'on');
     if (still.matches) {
       // Half a second's worth of the chosen speed at a time: 1, 3 or 15 minutes.
-      timer = window.setInterval(() => advance(Math.max(1, Math.round(speed / 2))), STILL_EVERY);
+      timer = setInterval(() => advance(Math.max(1, Math.round(speed / 2))), STILL_EVERY);
     } else {
       last = performance.now();
       frame = requestAnimationFrame(tick);
@@ -292,8 +292,8 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
 
   function press(control: Element): void {
     const before = sim.lines.at(-1);
-    const value = control instanceof HTMLInputElement ? control.value : '';
-    const name = control instanceof HTMLInputElement ? control.name : '';
+    // A button's are empty.
+    const { value, name } = control as HTMLInputElement;
     let words = '';
     let short: string | undefined;
     if (control.matches('[data-bf-run]')) {
@@ -383,8 +383,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   }
 
   root.addEventListener('click', (event) => {
-    const target = event.target instanceof Element ? event.target : null;
-    const control = target?.closest('button');
+    const control = (event.target as Element).closest('button');
     if (control) press(control);
   });
   root.addEventListener('change', (event) => {

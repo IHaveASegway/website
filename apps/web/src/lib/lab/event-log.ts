@@ -28,23 +28,22 @@ export interface EventLog<L extends Line> {
 }
 
 export function eventLog<L extends Line>(
-  list: HTMLElement | null,
+  list: HTMLElement,
   atClass: string,
   time: (at: number) => string,
   /** The last line the build wrote, when the page's log is already this run's. */
   written?: L,
 ): EventLog<L> {
   let shown = written;
-  const box = list?.parentElement;
+  const box = list.parentElement as HTMLElement;
   const clear = () => {
-    list?.replaceChildren();
+    list.replaceChildren();
     shown = undefined;
-    if (box) box.scrollTop = 0;
+    box.scrollTop = 0;
   };
   return {
     clear,
     draw(lines) {
-      if (!list || !box) return;
       const last = lines.at(-1);
       if (last === shown) return;
       const from = shown ? lines.indexOf(shown) + 1 : 0;
