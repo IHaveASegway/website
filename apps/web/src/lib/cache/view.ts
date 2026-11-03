@@ -131,7 +131,7 @@ export function statusText(sim: Sim): string {
     if (p.held) held.push(CLAUSES[p.id].held);
     else broke.push(CLAUSES[p.id].broke(p.count));
   }
-  if (broke.length === 0) return `All three properties held over ${reads(sim.counts.reads)}.`;
+  if (broke.length === 0) return `All three checks held over ${reads(sim.counts.reads)}.`;
   return `${firstUp(and(broke))}${held.length > 0 ? `; ${and(held)}` : ''}.`;
 }
 

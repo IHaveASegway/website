@@ -38,7 +38,7 @@ const { entry } = Astro.props;
 const { name } = (await loadProfile()).basics;
 const { Content, headings } = await render(await labEntry(entry));
 const lead =
-  'Three workers take the bakery’s orders from a queue. Crash one, choose when they acknowledge, and watch every order end up printed once, twice, or not at all.';
+  'Three workers take a made-up bakery’s orders from a queue. Crash one, choose when they acknowledge, and watch every order end up printed once, twice, or not at all.';
 // How it is built, in figures from the core itself, so none is typed here.
 const opening = openingRun();
 const ms = (range: readonly [number, number]) => `${range[0]} to ${range[1]} ms`;
@@ -76,8 +76,8 @@ const backoff = `${BACKOFF.slice(0, -1).join(', ')} and ${BACKOFF.at(-1)} ms`;
         runs of crashes, restarts and slow spells, acknowledging after the work with the key on. In
         every one no order is lost or printed twice, and once orders stop and the pool grows to{' '}
         {MAX_WORKERS} workers, the queue drains within {DRAIN_WITHIN / 1000} s. The same runs with
-        the key off, or acknowledging first, break a property in some of them, and so do a broker
-        and workers broken on purpose.
+        the key off, or acknowledging first, fail a check in some of them, and so do a broker and
+        workers broken on purpose.
       </p>
     </LabWriteUp>
   </article>

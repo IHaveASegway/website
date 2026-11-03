@@ -283,7 +283,7 @@ export function statusText(sim: Sim): string {
       : [],
   );
   if (broken.length === 0)
-    return `All three properties held over ${events}: every checked day's total matched the source, no task started before its upstream succeeded, and no limit was passed.`;
+    return `All three checks held over ${events}: every checked day's total matched the source, no task started before its upstream succeeded, and no limit was passed.`;
   const held = all.flatMap((p) => (p.held ? [SHORT[p.id]] : []));
   const tail = held.length > 0 ? `; ${joinAnd(held)} held` : '';
   return `${upperFirst(broken.join('; '))}${tail}, over ${events}.`;

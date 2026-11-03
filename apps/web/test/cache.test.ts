@@ -660,7 +660,7 @@ describe('the opening the page draws', () => {
     expect(sim.fetchesOf[0]).toBe(1);
     expect(sim.counts.timeout).toBe(0);
     expect(statusText(sim)).toBe(
-      `All three properties held over ${sim.counts.reads.toLocaleString('en-US')} reads.`,
+      `All three checks held over ${sim.counts.reads.toLocaleString('en-US')} reads.`,
     );
   });
 });

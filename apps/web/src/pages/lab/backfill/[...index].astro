@@ -38,13 +38,13 @@ const { entry } = Astro.props;
 const { name } = (await loadProfile()).basics;
 const { Content, headings } = await render(await labEntry(entry));
 const lead =
-  'A nightly job counts the bakery’s orders, one run per day. Backfill the week, fail a load, rerun a day, and check every total against the source.';
+  'A nightly job counts a made-up bakery’s orders, one run per day. Backfill the week, which runs the job over days already gone, then fail a load, rerun a day, and check every total against the source.';
 // How it is built, in the model's own figures, so none is typed here. Each paragraph is one string:
 // a figure that a formatter moves to the start of a line would lose the space before it.
 const opening = openingRun();
 const built = [
   `The job graph is one TypeScript module: five steps for each day, from a sensor that waits for the export file to the check, a scheduler that lets runs in oldest day first, ${MAX_ACTIVE_RUNS} at a time unless you choose otherwise, and ${LOAD_SLOTS} warehouse slots that every load shares. An extract or a load fails on its own ${Math.round(FAIL_RATE * 100)}% of the time, and each gets ${ATTEMPTS} attempts, ${BACKOFF[0]} and then ${BACKOFF[1]} minutes apart. Time, the export files and every failure belong to a simulator around it: virtual time in minutes, one seeded random stream, and your presses recorded where they happened. The same seed and the same presses give the same week. That is how the page opens with a picture the build drew, ${count(opening.events)} events after the job was switched on, and how your browser then takes over at the same minute.`,
-  `After every event, a checker tests the three properties, and that no row appears or vanishes without a write. The same simulator runs ${count(SEEDS_IN_CI)} seeded weeks of failed loads, late files, reruns and changed limits in the site's tests. With overwrite and the run's own day, every property holds. With append, a retry or a rerun counts a day twice, and with the clock's day a week's rows land on one date. Three deliberately broken schedulers prove those runs can find a real bug: one that starts a step before the one it needs has succeeded, one that runs a third load beside the warehouse's ${LOAD_SLOTS}, and one whose overwrite deletes a day in one step and inserts its rows in another.`,
+  `A checker runs the three checks as the week goes, and after every event makes sure no row appears or vanishes without a write. The same simulator runs ${count(SEEDS_IN_CI)} seeded weeks of failed loads, late files, reruns and changed limits in the site's tests. With overwrite and the run's own day, every check holds. With append, a retry or a rerun counts a day twice, and with the clock's day a week's rows land on one date. Three deliberately broken schedulers prove those runs can find a real bug: one that starts a step before the one it needs has succeeded, one that runs a third load beside the warehouse's ${LOAD_SLOTS}, and one whose overwrite deletes a day in one step and inserts its rows in another.`,
 ];
 ---
 
