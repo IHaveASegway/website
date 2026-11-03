@@ -1,0 +1,37 @@
+---
+interface Props {
+  /** Which copy: the one under the workers, from 64rem, or the one in the settings, below it. */
+  at: 'workers' | 'settings';
+}
+
+// The Queue Lab's New orders: Stop taking orders and a poison order, whose effect is all in the
+// picture. From 64rem the group stands in the picture's own controls, so it's pressed with the picture
+// in view; on a phone it stays in the settings, after Load. Two copies, one shown at a width
+// (queue-lab.css), as the picture has a wide and a narrow drawing. One copy moved by CSS would keep
+// its place in the tab order and speak on the line of the part it stayed in, each hundreds of pixels
+// from where it stands: here each copy is in the part it's seen in, so Tab meets the controls in the
+// order they're seen, and a press speaks on the line beside it (lib/lab/said.ts). The whole of the
+// settings moved up would do that too, and take the caption, the strip and the checks 225 px further
+// from the picture.
+//
+// The poison button's plain meaning stands beside it, where the row has the room, and under it on a
+// phone. In the button, "Send a poison order, one that always fails" is 266 px wide, and at 320 px its
+// row is 250 px, so it would take two lines there.
+const { at } = Astro.props;
+const name = `qu-new-${at}`;
+---
+
+<div class:list={['lab-group', name]} role="group" aria-labelledby={name}>
+  <p class="lab-group-name" id={name}>
+    New orders
+  </p>
+  <div class="lab-row">
+    <button type="button" class="btn qu-producer" data-qu-producer>
+      Stop taking orders
+    </button>
+    <button type="button" class="btn" data-qu-poison>
+      Send a poison order
+    </button>
+    <p class="qu-note">A poison order is one that always fails.</p>
+  </div>
+</div>

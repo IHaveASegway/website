@@ -4,6 +4,7 @@ import EventLog from '../lab/EventLog.astro';
 import NoScript from '../lab/NoScript.astro';
 import Said from '../lab/Said.astro';
 import Time from '../lab/Time.astro';
+import NewOrders from './NewOrders.astro';
 import { LINES_SHOWN } from '../../lib/lab/event-log';
 import { properties } from '../../lib/queue/check';
 import { LOADS, MAX_WORKERS } from '../../lib/queue/sim';
@@ -35,10 +36,11 @@ import '../../styles/queue-lab.css';
 //
 // The picture's own controls come right under it, before any words: Time, the idempotency key and
 // the workers' Crash and Slow, so a visitor sees what a press does as they press it, on a phone too
-// (a 390 by 664 screen holds the picture and all of them). Nothing pins: the picture scrolls with the
-// page, and covers nothing. Then what the run says, the caption, the key, the history strip and the
-// checks; then the settings a run is tried under, and the event log, each under a rule from bezel to
-// bezel. Each part of the controls says what its presses did (lib/lab/said.ts). The key names each
+// (a 390 by 664 screen holds the picture and all of them), and from 64rem New orders, whose effect is
+// all in the picture (NewOrders.astro). Nothing pins: the picture scrolls with the page, and covers
+// nothing. Then what the run says, the caption, the key, the history strip and the checks; then the
+// settings a run is tried under, and the event log, each under a rule from bezel to bezel. Each part
+// of the controls says what its presses did (lib/lab/said.ts). The key names each
 // mark a run can draw that the write-up's key does not, in the picture's own classes: it shows only
 // where script runs, since only a run draws those marks, and assistive technology skips it, since
 // the caption and the log say the same in words.
@@ -147,6 +149,7 @@ if (pool.length > MAX_WORKERS) throw new Error('queue lab: more workers than the
           ))}
         </div>
       </div>
+      <NewOrders at="workers" />
       <Said words="Turn the key on or off, and the run starts over under it, before the same crash." />
       <p class="lab-sr" role="status" data-qu-said></p>
     </div>
@@ -275,19 +278,7 @@ if (pool.length > MAX_WORKERS) throw new Error('queue lab: more workers than the
         <span data-qu-capacity>{capacityWords(sim)}</span>
       </p>
     </div>
-    <div class="lab-group" role="group" aria-labelledby="qu-new">
-      <p class="lab-group-name" id="qu-new">
-        New orders
-      </p>
-      <div class="lab-row">
-        <button type="button" class="btn qu-producer" data-qu-producer>
-          Stop taking orders
-        </button>
-        <button type="button" class="btn" data-qu-poison>
-          Publish a poison order
-        </button>
-      </div>
-    </div>
+    <NewOrders at="settings" />
     <Choice
       legend="When an order fails"
       name="qu-handling"

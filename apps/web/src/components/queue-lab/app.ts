@@ -170,7 +170,9 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
         w.slow ? `Normal speed for worker ${n}` : `Slow down worker ${n}`,
       );
     }
-    text($('[data-qu-producer]'), sim.producing ? 'Stop taking orders' : 'Take orders');
+    // Both copies (NewOrders.astro), so the one a change of width shows says the same.
+    for (const button of root.querySelectorAll('[data-qu-producer]'))
+      text(button, sim.producing ? 'Stop taking orders' : 'Take orders');
     // The choices follow the run: Start over and a link to a run set them too. Each group is a
     // setting (view.ts, SETTINGS) and names its values as a link does, but for the speed.
     for (const radio of root.querySelectorAll<HTMLInputElement>('input[type="radio"]')) {

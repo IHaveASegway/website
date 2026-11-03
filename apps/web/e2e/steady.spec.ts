@@ -305,9 +305,9 @@ const FLOWS: Record<keyof typeof LABS, Press[]> = {
     { what: 'a load', selector: another('qu-load'), by: 'tap' },
     { what: 'a worker crashed', selector: '[data-qu-crash="0"]', by: 'key' },
     { what: 'the key on', selector: 'label:has(input[name="qu-key"][value="on"])', by: 'tap' },
-    { what: 'a poison order', selector: '[data-qu-poison]', by: 'tap', ms: 500 },
-    { what: 'no more orders', selector: '[data-qu-producer]', by: 'tap', ms: 500 },
-    { what: 'orders again', selector: '[data-qu-producer]', by: 'tap', ms: 500 },
+    { what: 'a poison order', selector: '[data-qu-poison]:visible', by: 'tap', ms: 500 },
+    { what: 'no more orders', selector: '[data-qu-producer]:visible', by: 'tap', ms: 500 },
+    { what: 'orders again', selector: '[data-qu-producer]:visible', by: 'tap', ms: 500 },
     { what: 'a choice of prefetch', selector: another('qu-prefetch'), by: 'tap', ms: 500 },
     { what: 'a worker slowed', selector: '[data-qu-slow="1"]', by: 'tap', ms: 500 },
   ],
@@ -506,7 +506,9 @@ for (const [name, lab] of Object.entries(LABS)) {
       parts.flatMap((part) => {
         const line = part.querySelector('[data-said]')?.getBoundingClientRect();
         if (!line) return ['a part with no line'];
+        // A control can have a copy for another width (components/queue-lab/NewOrders.astro).
         return [...part.querySelectorAll('button, label')].flatMap((control) => {
+          if (control.getClientRects().length === 0) return [];
           const box = control.getBoundingClientRect();
           return Math.max(line.bottom, box.bottom) - Math.min(line.top, box.top) > innerHeight
             ? [control.textContent?.trim() ?? '']
@@ -1048,7 +1050,7 @@ test('the queue lab: Stop taking orders and Take orders move nothing, at any wid
   await open(page, LABS.queue.path);
   for (const width of WRAPPING_WIDTHS) {
     await page.setViewportSize({ width, height: 800 });
-    const producer = page.locator('[data-qu-producer]');
+    const producer = page.locator('[data-qu-producer]:visible');
     await stand(page, producer);
     const moves = await movesAround(
       page,
@@ -1066,31 +1068,6 @@ test('the queue lab: Stop taking orders and Take orders move nothing, at any wid
   }
 });
 
-// The top bar on an iPhone, in WebKit, at the widths phones have: one row, 56 px, so the first screen
-// doesn't lose 32 px to a second row with half of it empty (e2e/top-bar.spec.ts holds every width in
-// Chromium). 320 is an iPhone SE of the first generation, 375 a 13 mini or a later SE, 390 an iPhone
-// 14, and 360 most Androids.
-for (const width of [320, 360, 375, 390]) {
-  test(`at ${width} px the top bar is one row, 56 px tall`, async ({ page }) => {
-    await page.emulateMedia({ reducedMotion: 'no-preference' });
-    await page.setViewportSize({ width, height: 664 });
-    await page.goto('/lab/');
-    await page.waitForFunction(() => 'palette' in document.documentElement.dataset);
-    const bar = await page.evaluate(() => {
-      const tile = document.querySelector('.wordmark-tile') as Element;
-      const box = (document.querySelector('.site-header') as Element).getBoundingClientRect();
-      return {
-        height: Math.round(box.height),
-        tools: [...document.querySelectorAll('.search-open, .motion-toggle, .theme-toggle')].map(
-          (tool) => Math.round(tool.getBoundingClientRect().height),
-        ),
-        tile: tile.getBoundingClientRect().left,
-        wide: document.documentElement.scrollWidth,
-      };
-    });
-    expect(bar).toEqual({ height: 56, tools: [44, 44, 44], tile: 18, wide: width });
-  });
-}
 // A clock says "random seed 7", and a run adds digits to it as it goes. Under 24rem it has a line of its
 // own and keeps two (lab-controls.css), and from there it shares a line with its group's name, so the
 // width at risk is the one where it only just fits: until 2026-11-03 a longer line wrapped at 375 px mid-run,
@@ -1136,3 +1113,28 @@ for (const width of [375, 400, 402]) {
   });
 }
 
+// The top bar on an iPhone, in WebKit, at the widths phones have: one row, 56 px, so the first screen
+// doesn't lose 32 px to a second row with half of it empty (e2e/top-bar.spec.ts holds every width in
+// Chromium). 320 is an iPhone SE of the first generation, 375 a 13 mini or a later SE, 390 an iPhone
+// 14, and 360 most Androids.
+for (const width of [320, 360, 375, 390]) {
+  test(`at ${width} px the top bar is one row, 56 px tall`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.setViewportSize({ width, height: 664 });
+    await page.goto('/lab/');
+    await page.waitForFunction(() => 'palette' in document.documentElement.dataset);
+    const bar = await page.evaluate(() => {
+      const tile = document.querySelector('.wordmark-tile') as Element;
+      const box = (document.querySelector('.site-header') as Element).getBoundingClientRect();
+      return {
+        height: Math.round(box.height),
+        tools: [...document.querySelectorAll('.search-open, .motion-toggle, .theme-toggle')].map(
+          (tool) => Math.round(tool.getBoundingClientRect().height),
+        ),
+        tile: tile.getBoundingClientRect().left,
+        wide: document.documentElement.scrollWidth,
+      };
+    });
+    expect(bar).toEqual({ height: 56, tools: [44, 44, 44], tile: 18, wide: width });
+  });
+}

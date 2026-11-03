@@ -209,7 +209,7 @@ test('a queue that has drained stops the clock, says why, and Run plays the run 
   const run = page.locator('[data-qu-run]');
   await page.locator('label:has(input[name="qu-speed"][value="5"])').click();
   await page.locator('[data-qu-crash="1"]').click(); // worker 2, down at the opening, comes back
-  await page.locator('[data-qu-producer]').click();
+  await page.locator('[data-qu-producer]:visible').click();
   await run.click();
   await expect(page.locator('[data-said]').first()).toHaveText(
     /^Nothing is left in the queue or in flight, so the clock stops here\. .* or take orders, then Run, to carry on\.$/,
@@ -220,10 +220,10 @@ test('a queue that has drained stops the clock, says why, and Run plays the run 
   await page.waitForTimeout(300);
   await expect(page.locator('[data-qu-clock]')).toHaveText(stopped ?? '');
   // Taking orders moves no clock on a run that stands, and says what will. Then back to where it was.
-  await page.locator('[data-qu-producer]').click();
-  await expect(page.locator('[data-said]').last()).toHaveText(/ Press Run to watch it\.$/);
+  await page.locator('[data-qu-producer]:visible').click();
+  await expect(page.locator('[data-said]').first()).toHaveText(/ Press Run to watch it\.$/);
   await expect(run).toHaveText('Run');
-  await page.locator('[data-qu-producer]').click();
+  await page.locator('[data-qu-producer]:visible').click();
   await run.click();
   await expect(run).toHaveText('Pause');
   await expect(page.locator('[data-said]').first()).toHaveText(
@@ -241,7 +241,7 @@ test('with every worker down and orders waiting, the clock stops, says so, and a
   const run = page.locator('[data-qu-run]');
   const clock = page.locator('[data-qu-clock]');
   await page.locator('label:has(input[name="qu-speed"][value="5"])').click();
-  await page.locator('[data-qu-producer]').click();
+  await page.locator('[data-qu-producer]:visible').click();
   await page.locator('[data-qu-crash="0"]').click(); // worker 2 is down at the opening
   await page.locator('[data-qu-crash="2"]').click();
   await run.click();
