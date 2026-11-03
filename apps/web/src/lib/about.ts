@@ -1,5 +1,5 @@
 import { z } from 'astro/zod';
-import { asDay } from './posts';
+import { asDay, typeset } from './posts';
 
 // /about/ (content.md, "About"): who Joseph is and how he works, then his résumé. Two sources, one
 // owner each: src/content/about.md holds the bio, his words, and profile.json holds every fact the
@@ -52,7 +52,10 @@ const plain = (text: string, where: string): string => {
   const flat = text.replace(/\s+/g, ' ').trim();
   if (UNREAD.test(flat))
     throw new Error(`about.md: Home reads plain text only, and ${where} holds markup: "${flat}"`);
-  return flat;
+  // The Markdown pipeline's smart quotes never see this text, as they never see a post's front
+  // matter, so it gets the same typographer: until 2026-11-02 the hero's "I've" sat in a typewriter
+  // mark beside a post's curly ones.
+  return typeset(flat);
 };
 
 /**
@@ -99,7 +102,7 @@ export function aboutParts(body: string): AboutParts {
 export const ABOUT_HEADINGS = {
   build: 'What I build',
   how: 'How I work',
-  toward: "What I'm working toward",
+  toward: 'What I’m working toward',
 } as const;
 
 /** The section under a heading, or undefined when the bio has none by that name. */

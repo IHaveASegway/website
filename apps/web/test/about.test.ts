@@ -81,6 +81,7 @@ test('the bio renders exactly where its entry is, as named blocks in its own wor
 test('the essay and the Lab the bio names open their pages, as the labs do', () => {
   if (fixtureBuild) return;
   const bio = /<section class="bio"[\s\S]*?<\/section>/.exec(page)?.[0] ?? '';
+  expect(bio).not.toMatch(/&#39;|&#x27;|'/);
   expect(bio).toContain('<a href="/writing/you-will-be-missed/">essay</a>');
   expect(bio).toContain('<a href="/lab/">The Lab</a>');
 });
@@ -102,7 +103,7 @@ describe('aboutParts: Home reads the bio it does not own', () => {
     expect(parts.sections.map((s) => s.heading)).toEqual([
       'What I build',
       'How I work',
-      "What I'm working toward",
+      'What I’m working toward',
     ]);
     const build = sectionOf(parts, ABOUT_HEADINGS.build);
     const how = sectionOf(parts, ABOUT_HEADINGS.how);
@@ -147,6 +148,19 @@ describe('aboutParts: Home reads the bio it does not own', () => {
             { lead: 'One.', text: 'Two three.' },
             { lead: 'Four.', text: 'Five.' },
           ],
+          paragraphs: [],
+        },
+      ],
+    });
+  });
+
+  test('known answers: the bio takes the typographer a post gets, in every part', () => {
+    expect(aboutParts("It's Joseph's.\n\n### What I'm at\n\n- **I've one.** It's two.\n")).toEqual({
+      lede: ['It’s Joseph’s.'],
+      sections: [
+        {
+          heading: 'What I’m at',
+          principles: [{ lead: 'I’ve one.', text: 'It’s two.' }],
           paragraphs: [],
         },
       ],
