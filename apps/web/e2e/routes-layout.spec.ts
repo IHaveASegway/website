@@ -319,6 +319,90 @@ test('each map draws its names over its routes and stops, the bakery’s and the
   }
 });
 
+// The vans' Pause stands on the map (ADR 0030), and a tap on a map is how a place is ordered, so it
+// must keep off every place on the map, at any width, whichever day has made it a stop: it is
+// measured at a stop's largest mark. Until 2026-11-02 it covered Juanita Beach at every phone's width:
+// a stop on Across the lake and Every order at once, its number under the button at 320 px.
+
+/** The places under a map's Pause, at their largest mark. */
+const placesUnderPause = (page: Page) =>
+  page.evaluate(() => {
+    const found: { place: string; plan: string }[] = [];
+    for (const figure of document.querySelectorAll<HTMLElement>('[data-rl-plan]')) {
+      if (!figure.checkVisibility()) continue;
+      const button = figure.querySelector('[data-rl-drive]')?.getBoundingClientRect();
+      const ctm = figure.querySelector<SVGSVGElement>('svg[data-rl-map]')?.getScreenCTM();
+      if (!button || !ctm) continue;
+      // The largest mark on a map: a numbered stop's casing, 21 px across (route-lab.css, .rl-big).
+      const half = 10.5;
+      for (const box of document.querySelectorAll<HTMLInputElement>('input[name="rl-order"]')) {
+        const at = new DOMPoint(Number(box.dataset['x']), Number(box.dataset['y'])).matrixTransform(
+          ctm,
+        );
+        const across = Math.min(button.right, at.x + half) - Math.max(button.left, at.x - half);
+        const down = Math.min(button.bottom, at.y + half) - Math.max(button.top, at.y - half);
+        if (across > 0 && down > 0)
+          found.push({
+            place: box.closest('label')?.querySelector('.rl-order-place')?.textContent ?? '',
+            plan: figure.dataset['rlPlan'] ?? '',
+          });
+      }
+    }
+    return found;
+  });
+
+const WIDTHS = [320, 360, 375, 390, 414, 430, 479, 480, 600, 768, 1023, 1024, 1280, 1440, 2560];
+for (const width of WIDTHS) {
+  test(`at ${width} px the vans’ Pause covers no place on the map`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(ROUTE_LAB);
+    await expect(page.locator('[data-rl-drive]:visible').first()).toBeVisible();
+    expect(await placesUnderPause(page)).toEqual([]);
+  });
+}
+
+test('known answer: in the corner it stood in until 2026-11-02, the Pause covers Juanita Beach', async ({
+  page,
+}) => {
+  await page.setViewportSize(FIRST_SCREEN);
+  await page.goto(ROUTE_LAB);
+  await page.locator('[data-rl-plan="after"] [data-rl-drive]').evaluate((button: HTMLElement) => {
+    // Through the CSSOM: the page's policy refuses a <style> element.
+    button.style.setProperty('inset-block', '0.5rem auto');
+    button.style.setProperty('inset-inline-end', '0.5rem');
+  });
+  expect((await placesUnderPause(page)).map(({ place }) => place)).toEqual(['Juanita Beach']);
+});
+
+// The dots read in both themes (ADR 0030): each is the lit lamp on a ring of ink, whatever its van,
+// which `test/tokens.test.ts` holds to 3:1 on every fill of the map.
+for (const colorScheme of ['light', 'dark'] as const) {
+  test(`each van is the lit lamp on a ring of ink, ${colorScheme}`, async ({ page }) => {
+    await page.emulateMedia({ colorScheme });
+    await page.goto(ROUTE_LAB);
+    const dots = await page.evaluate(() => {
+      const probe = document.createElement('i');
+      document.getElementById('route-lab')?.append(probe);
+      const resolve = (token: string) => {
+        probe.style.color = `var(${token})`;
+        return getComputedStyle(probe).color;
+      };
+      const [lamp, ink] = [resolve('--primary'), resolve('--foreground')];
+      probe.remove();
+      const strokes = (selector: string) => [
+        ...new Set(
+          [...document.querySelectorAll(`[data-rl-fleet] ${selector}`)].map(
+            (e) => getComputedStyle(e).stroke,
+          ),
+        ),
+      ];
+      return { lamp, ink, cores: strokes('.rl-van'), rings: strokes('.rl-van-casing') };
+    });
+    expect(dots.cores).toEqual([dots.lamp]);
+    expect(dots.rings).toEqual([dots.ink]);
+  });
+}
+
 test('on a laptop no name covers a stop on the opening day', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(ROUTE_LAB);

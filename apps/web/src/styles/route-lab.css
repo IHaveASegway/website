@@ -535,6 +535,7 @@
   height: 100%;
   pointer-events: none;
   will-change: transform;
+  forced-color-adjust: none;
 }
 
 @media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
@@ -550,7 +551,11 @@
   vector-effect: non-scaling-stroke;
 }
 
+/* Each dot is the lit lamp on a ring of ink, in both themes, and the route under it says which van
+   it is. In its van's colour, by day a dark core on the dark ring read as a smudge beside the van's
+   own dark stops and route. */
 .rl-van {
+  stroke: var(--primary);
   stroke-width: 11px;
 }
 
@@ -563,15 +568,24 @@
   opacity: 0.4;
 }
 
-/* The button that pauses them, in the map's corner, which keeps the map and its controls on one
-   screen on a phone. It takes the room of no other part of the desk. */
+/* The button that pauses them, in the map's corner, so it takes the room of no other part of the
+   desk. The north-east corner holds no place from 30rem. Below that a map is too small to keep the
+   button off Juanita Beach there, which it covered at every phone's width until 2026-11-02, so it
+   stands in the south-east corner, which holds none, narrower, to keep off Kubota Garden at 320 px
+   (e2e/routes-layout.spec.ts). The top bar's Pause reaches the vans from the first screen. */
 .rl-drive {
   position: absolute;
   inset-block-start: 0.5rem;
   inset-inline-end: 0.5rem;
-  min-block-size: 2.75rem;
-  padding-inline: 0.75rem;
   background-color: var(--surface-1);
+}
+
+@media (width < 30rem) {
+  .rl-stage .btn.rl-drive {
+    inset-block: auto 0.25rem;
+    inset-inline-end: 0.25rem;
+    padding-inline: 0.5rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -95,8 +95,7 @@ export function vansMarkup(plan: Plan, measured: Measured, longest: number, whic
       const back = measured.vans[van]?.back ?? 0;
       const share = ((back / longest) * ON_THE_ROAD).toFixed(3);
       return (
-        `<g class="van-${vanClass(van)}">` +
-        '<path class="rl-van-casing" d="M0 0h.01"/><path class="rl-van" d="M0 0h.01"/>' +
+        '<g><path class="rl-van-casing" d="M0 0h.01"/><path class="rl-van" d="M0 0h.01"/>' +
         `<animateMotion dur="${DRIVE_LOOP}s" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;${share};1">` +
         `<mpath href="#${routeId(which, van)}"/></animateMotion></g>`
       );
