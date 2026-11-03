@@ -59,7 +59,9 @@ test.describe("Home's opening", () => {
       await page.goto('/');
       const buttons = await page
         .locator('.hero-actions .btn')
-        .evaluateAll((all) => all.map((b) => b.getBoundingClientRect()).map((r) => [r.top, r.width]));
+        .evaluateAll((all) =>
+          all.map((b) => b.getBoundingClientRect()).map((r) => [r.top, r.width]),
+        );
       expect(buttons.length, String(width)).toBe(2);
       expect(buttons[0]?.[0], String(width)).toBe(buttons[1]?.[0]);
       expect(buttons[0]?.[1], String(width)).toBe(buttons[1]?.[1]);

@@ -18,16 +18,14 @@ const sentences = heading.split(/(?<=[.!?])\s+/);
 
 <header class="page-head">
   <h1 id="page-title" class="page-title">
-    {
-      sentences.length > 1
-        ? sentences.map((sentence, i) => (
-            <>
-              {i > 0 && ' '}
-              <span class="title-sentence">{sentence}</span>
-            </>
-          ))
-        : heading
-    }
+    {sentences.length > 1
+      ? sentences.map((sentence, i) => (
+          <>
+            {i > 0 && ' '}
+            <span class="title-sentence">{sentence}</span>
+          </>
+        ))
+      : heading}
   </h1>
   {lead && <p class="page-lead">{lead}</p>}
   <slot />

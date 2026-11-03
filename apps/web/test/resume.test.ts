@@ -39,9 +39,7 @@ const section = (title: string) =>
   elements.find(
     (e) =>
       e.tagName === 'section' &&
-      descendants(e).some(
-        (d) => hasClass(d, 'section-title') && textOf(d) === title,
-      ),
+      descendants(e).some((d) => hasClass(d, 'section-title') && textOf(d) === title),
   );
 const links = (within: Element | undefined) =>
   within === undefined

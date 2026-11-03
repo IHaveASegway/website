@@ -63,7 +63,9 @@ test('on paper the site chrome is gone, the name is at a print size, and links s
     return {
       chrome: shown('.site-header, .skip-link, body > footer, .theme-toggle, .contact'),
       name: parseFloat(getComputedStyle(document.querySelector('.about-name') as Element).fontSize),
-      addresses: linked.map((a) => [a.getAttribute('href'), after(a), a.matches('.card-more')] as const),
+      addresses: linked.map(
+        (a) => [a.getAttribute('href'), after(a), a.matches('.card-more')] as const,
+      ),
       contact: [...document.querySelectorAll('.resume-contact a, .resume-notes a')].map(after),
     };
   });
