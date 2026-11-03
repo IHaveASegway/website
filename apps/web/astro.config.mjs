@@ -134,6 +134,17 @@ const indexable = (page) => {
   return !existsSync(file) || !isNoindex(readFileSync(file, 'utf8'));
 };
 
+// Vite's preload helper asks each browser whether it knows modulepreload, in case a polyfill is
+// coming, and Astro tells it none is. Vite writes that polyfill only into an HTML entry it handles,
+// and Astro's pages aren't one, so none ships either way, and every browser since Safari 17 and
+// Firefox 115 knows the word: one that doesn't skips the link and fetches the chunk when it is
+// imported. The question costs every lab's page 55 B of its 5,000 B of eager JavaScript.
+const preloadWithoutTheQuestion = {
+  name: 'preload-without-the-question',
+  configEnvironment: (name) =>
+    name === 'client' ? { build: { modulePreload: { polyfill: true } } } : undefined,
+};
+
 export default defineConfig({
   site: 'https://ihaveasegway.com',
   // Trailing slashes everywhere, written as <path>/index.html (ADR 0005).
@@ -189,7 +200,7 @@ export default defineConfig({
   // carry frame-ancestors. The page policy is the header pagePolicy writes (above), and a <meta>
   // beside it would be a second owner of the same directives.
   vite: {
-    plugins: [tailwindcss()],
+    plugins: [tailwindcss(), preloadWithoutTheQuestion],
     // No asset becomes a data: URI, which img-src and font-src 'self' would refuse.
     build: { assetsInlineLimit: 0 },
   },
