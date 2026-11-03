@@ -966,18 +966,18 @@ describe('the property sweep', { timeout: 30_000 }, () => {
 describe('the page', () => {
   test('the note under Load says how many workers are up and what they print: two at the opening, below a busy hour', () => {
     const sim = openingRun();
-    expect(capacityWords(sim)).toBe('Two workers are up and print about 6.5.');
+    expect(capacityWords(sim)).toBe('Two workers are up and print about 6.5 a second.');
     restart(sim, 1);
-    expect(capacityWords(sim)).toBe('Three workers are up and print about 9.7.');
+    expect(capacityWords(sim)).toBe('Three workers are up and print about 9.7 a second.');
     // A slow worker prints a tenth as many, and the picture says which one is slow.
     slow(sim, 0, true);
-    expect(capacityWords(sim)).toBe('Three workers are up and print about 6.8.');
+    expect(capacityWords(sim)).toBe('Three workers are up and print about 6.8 a second.');
     slow(sim, 1, true);
     slow(sim, 2, true);
-    expect(capacityWords(sim)).toBe('Three workers are up and print about 1.0.');
+    expect(capacityWords(sim)).toBe('Three workers are up and print about 1.0 a second.');
     crash(sim, 0);
     crash(sim, 1);
-    expect(capacityWords(sim)).toBe('One worker is up and prints about 0.3.');
+    expect(capacityWords(sim)).toBe('One worker is up and prints about 0.3 a second.');
     crash(sim, 2);
     expect(capacityWords(sim)).toBe('No worker is up, so no order is printed.');
   });

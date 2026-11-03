@@ -47,7 +47,10 @@ const sim = openingRun();
 // a link's and a run started over, so the script never rewrites them: a run started over stands
 // before it, and the line says where to look.
 const crashes = OPENING.actions
-  .map((a) => `Every run crashes worker ${a.worker + 1} at ${seconds(a.at)}.`)
+  .map(
+    (a) =>
+      `Every run crashes worker ${a.worker + 1} at ${seconds(a.at)} on purpose, so you can compare settings.`,
+  )
   .join(' ');
 const lines = sim.lines
   .slice(-LINES_SHOWN)
@@ -107,7 +110,7 @@ if (pool.length > MAX_WORKERS) throw new Error('queue lab: more workers than the
         </p>
       </Time>
       <Choice
-        legend="Idempotency key"
+        legend="Idempotency key: skip an order already printed"
         name="qu-key"
         options={SWITCH}
         checked={sim.key ? 'on' : 'off'}
@@ -268,7 +271,7 @@ if (pool.length > MAX_WORKERS) throw new Error('queue lab: more workers than the
     <div class="qu-load">
       <Choice legend="Load" name="qu-load" options={LOAD_NAMES} checked={sim.load} />
       <p class="qu-note">
-        {LOADS.calm}, {LOADS.busy} and {LOADS.rush} orders a second.{' '}
+        Calm is {LOADS.calm} orders a second, Busy {LOADS.busy} and Rush {LOADS.rush}.{' '}
         <span data-qu-capacity>{capacityWords(sim)}</span>
       </p>
     </div>

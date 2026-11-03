@@ -411,7 +411,7 @@ export function capacityWords(sim: Sim): string {
   const rate = up.reduce((sum, w) => sum + 1_000 / (mean * (w.slow ? SLOWDOWN : 1)), 0);
   const n = up.length;
   if (n === 0) return 'No worker is up, so no order is printed.';
-  return `${COUNTS[n]} ${n === 1 ? 'worker is up and prints' : 'workers are up and print'} about ${rate.toFixed(1)}.`;
+  return `${COUNTS[n]} ${n === 1 ? 'worker is up and prints' : 'workers are up and print'} about ${rate.toFixed(1)} a second.`;
 }
 
 /** How many orders wait in the queue, and how long the oldest of them has waited. */

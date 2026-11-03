@@ -231,7 +231,9 @@ test('Run on the untouched opening plays worker 2’s crash as it happens, and N
   page,
 }) => {
   await page.goto(QUEUE);
-  await expect(crashLine(page)).toHaveText('Every run crashes worker 2 at 2.400 s.');
+  await expect(crashLine(page)).toHaveText(
+    'Every run crashes worker 2 at 2.400 s on purpose, so you can compare settings.',
+  );
   // A speed is no action: the run still stands untouched. Slow gives the eye time to see it.
   await page.getByRole('radio', { name: 'Slow' }).check();
   await page.getByRole('button', { name: 'Run' }).click();
@@ -428,9 +430,9 @@ test('and a rush: with three workers up, 14 orders a second outrun them, and the
   await page.goto(QUEUE);
   // The note under the loads says what the workers up print: two after the opening's crash.
   const capacity = page.locator('[data-qu-capacity]');
-  await expect(capacity).toHaveText('Two workers are up and print about 6.5.');
+  await expect(capacity).toHaveText('Two workers are up and print about 6.5 a second.');
   await page.getByRole('button', { name: 'Restart worker 2' }).click();
-  await expect(capacity).toHaveText('Three workers are up and print about 9.7.');
+  await expect(capacity).toHaveText('Three workers are up and print about 9.7 a second.');
   await page.getByRole('radio', { name: 'Rush' }).check();
   const waiting = async () =>
     Number(/^(\d+) waiting/.exec((await page.locator('[data-qu-wait]').textContent()) ?? '')?.[1]);
