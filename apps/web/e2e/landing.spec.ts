@@ -431,40 +431,97 @@ test.describe('the Raft Lab’s landing run', () => {
     expect(await madeSinceTheOpening(page)).toHaveLength(1);
   });
 
-  // A first press ends the story: nothing happens by itself after it. A press that writes or crashes
-  // writes its own line, and that's the one line there is. Start over is the one press that asks for
-  // the run again, and has tests of its own below.
-  const FIRST_PRESSES: [string, (page: Page) => Promise<unknown>, RegExp[]][] = [
+  /** The whole of the story, once: the crash, the restart and the write, with nothing left over. */
+  async function toldOnce(page: Page): Promise<void> {
+    await expect(summary(page)).toHaveText('Server 3 leads term 2, 4 entries committed.');
+    await expect(up(page)).toHaveCount(5);
+    const said = await madeSinceTheOpening(page);
+    expect(said).toHaveLength(3);
+    expect(said[0]).toMatch(/Server 1 crashes/);
+    expect(said[1]).toMatch(/Server 1 restarts/);
+    expect(said[2]).toMatch(/Server 3 takes write 4/);
+  }
+
+  // Time's controls play the run and don't change it, so the story carries on through them, as the
+  // other labs' runs carry on with their failure. Until 2026-11-03 each of these dropped it, and a
+  // visitor who pressed Pause and then Run got heartbeats. From the first press it's theirs, so it
+  // doesn't go round: it stands on what the story left.
+  const PLAYS_THE_RUN: [string, (page: Page) => Promise<unknown>][] = [
     [
       'Pause, then Run',
       async (page) => {
         await run(page, lab).click();
         await run(page, lab).click();
       },
-      [],
     ],
-    ['a speed', (page) => page.getByRole('radio', { name: 'Slow' }).check(), []],
-    // It fires no input, since it's the speed already chosen, and it's as much a press as any.
-    [
-      'the speed already chosen',
-      (page) => page.locator('label', { hasText: 'Steady' }).click(),
-      [],
-    ],
-    ['Next event', (page) => page.getByRole('button', { name: 'Next event' }).click(), []],
+    ['a speed', (page) => page.getByRole('radio', { name: 'Quick' }).check()],
+    // It fires no input, since it's the speed already chosen.
+    ['the speed already chosen', (page) => page.locator('label', { hasText: 'Steady' }).click()],
+    ['Next event', (page) => page.getByRole('button', { name: 'Next event' }).click()],
+  ];
+  for (const [what, press] of PLAYS_THE_RUN) {
+    test(`the story carries on after ${what}, once`, async ({ page }) => {
+      await land(page);
+      await press(page);
+      if ((await run(page, lab).textContent()) === 'Run') await run(page, lab).click();
+      await expect(run(page, lab)).toHaveText('Pause');
+      await page.clock.runFor(30_000);
+      await toldOnce(page);
+      await page.clock.runFor(30_000);
+      await toldOnce(page);
+      expect(new URL(page.url()).hash).toBe('');
+    });
+  }
+
+  test('Next event stops on the story’s crash, which is a moment of the run, and keeps the rest', async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await open(page);
+    const next = page.getByRole('button', { name: 'Next event' });
+    const leader = page.locator('[data-rf-node="0"]');
+    for (let i = 0; i < 100 && (await leader.getAttribute('data-up')) === 'true'; i++)
+      await next.click();
+    await expect(leader).toHaveAttribute('data-up', 'false');
+    await expect(clock(page, lab)).toHaveText('Virtual time 1.500 s');
+    await expect(page.locator('[data-said]')).toHaveText(/^Server 1 crashes\./);
+    await run(page, lab).click();
+    await page.clock.runFor(30_000);
+    await toldOnce(page);
+  });
+
+  // A press that changes the run: nothing happens by itself after it, as a crash that came now would
+  // be the page breaking something they were using. What it writes is the one line there is.
+  const CHANGES_THE_RUN: [string, (page: Page) => Promise<unknown>, RegExp[]][] = [
     [
       'a write',
       (page) => page.getByRole('button', { name: 'Send a write' }).click(),
       [/Server 1 takes write 4/],
     ],
-    ['the loss slider', (page) => page.locator('[data-rf-loss]').fill('0'), []],
+    ['the loss slider', (page) => page.locator('[data-rf-loss]').fill('10'), []],
+    [
+      'a server’s Crash',
+      (page) => page.getByRole('button', { name: 'Crash server 5' }).click(),
+      [/Server 5 crashes/],
+    ],
     [
       'a tap on a server in the picture',
       (page) => page.locator('[data-rf-node="4"] .rf-name').click(),
       [/Server 5 crashes/],
     ],
+    [
+      'Cut off the leader',
+      (page) => page.getByRole('button', { name: 'Cut off the leader' }).click(),
+      [],
+    ],
+    [
+      'the split',
+      (page) => page.getByRole('button', { name: 'Split two servers from three' }).click(),
+      [],
+    ],
   ];
-  for (const [what, press, made] of FIRST_PRESSES) {
-    test(`a first press makes it theirs: after ${what}, nothing happens by itself`, async ({
+  for (const [what, press, made] of CHANGES_THE_RUN) {
+    test(`a press that changes the run drops the story: after ${what}, nothing happens by itself`, async ({
       page,
     }) => {
       await land(page);
@@ -479,22 +536,44 @@ test.describe('the Raft Lab’s landing run', () => {
     });
   }
 
-  test('a press once the story has begun keeps what happened and stops the rest', async ({
+  test('a press that changes the run once the story has begun keeps what happened and stops the rest', async ({
     page,
   }) => {
     await land(page);
     await page.clock.runFor(2_500);
     await expect(up(page)).toHaveCount(4);
-    await run(page, lab).click();
-    await run(page, lab).click();
+    await page.locator('[data-rf-loss]').fill('5');
     await page.clock.runFor(30_000);
-    // Server 1 stays down: bringing it back was the page's to do, and the demo is theirs now.
+    // Server 1 stays down: bringing it back was the page's to do, and the run is theirs now.
     await expect(up(page)).toHaveCount(4);
     const said = await madeSinceTheOpening(page);
     expect(said).toHaveLength(1);
     expect(said[0]).toMatch(/Server 1 crashes/);
     // The cluster it leaves goes on by Raft's own rules, with a leader of its own.
     await expect(summary(page)).toHaveText(/^Server [2-5] leads term \d+, 3 entries committed/);
+  });
+
+  test('a restart of the server the story crashed is a press like any other: its write never comes', async ({
+    page,
+  }) => {
+    await land(page);
+    await page.clock.runFor(2_500);
+    await page.getByRole('button', { name: 'Restart server 1' }).click();
+    await expect(up(page)).toHaveCount(5);
+    await page.clock.runFor(30_000);
+    const said = await madeSinceTheOpening(page);
+    expect(said).toHaveLength(2);
+    expect(said[1]).toMatch(/Server 1 restarts/);
+  });
+
+  // Heal is the press this can't test on the landing's own run: there's no split to heal until a press
+  // made one, and that already dropped the story. On a whole network it says why, and changes nothing.
+  test('a heal with nothing to heal changes nothing, so the story carries on', async ({ page }) => {
+    await land(page);
+    await page.getByRole('button', { name: 'Heal the network' }).click();
+    await expect(page.locator('[data-said]')).toHaveText('The network is already whole.');
+    await page.clock.runFor(30_000);
+    await toldOnce(page);
   });
 
   // A visitor who watched the election and pressed Start over got heartbeats and nothing else, so the
@@ -528,7 +607,25 @@ test.describe('the Raft Lab’s landing run', () => {
     await expect(up(page)).toHaveCount(4);
   });
 
-  test('any other press after Start over drops what is left of the story', async ({ page }) => {
+  test('Start over tells it again after Pause, Run and Next event, which changed nothing', async ({
+    page,
+  }) => {
+    await land(page);
+    await page.clock.runFor(2_500);
+    await expect(up(page)).toHaveCount(4);
+    await run(page, lab).click();
+    await page.getByRole('button', { name: 'Next event' }).click();
+    await run(page, lab).click();
+    await page.getByRole('button', { name: 'Start over' }).click();
+    await expect(summary(page)).toHaveText('Server 1 leads term 1, 3 entries committed.');
+    await expect(run(page, lab)).toHaveText('Pause');
+    await page.clock.runFor(30_000);
+    await toldOnce(page);
+  });
+
+  test('a press that changes the run after Start over drops what is left of the story', async ({
+    page,
+  }) => {
     await land(page);
     await page.getByRole('button', { name: 'Start over' }).click();
     await page.clock.runFor(1_000);
@@ -540,7 +637,7 @@ test.describe('the Raft Lab’s landing run', () => {
     expect(said[0]).toMatch(/Server 1 takes write 4/);
   });
 
-  test('Start over after any other press goes back to the opening with nothing ahead', async ({
+  test('Start over after a press that changed the run goes back to the opening with nothing ahead', async ({
     page,
   }) => {
     await land(page);
@@ -596,18 +693,34 @@ test.describe('the Raft Lab’s landing run', () => {
     expect(await madeSinceTheOpening(page)).toEqual([]);
   });
 
-  test('under reduced motion, Run has no story either', async ({ page }) => {
+  // Until 2026-11-03 a visitor who asked for less motion, or to save data, got heartbeats from Run, the
+  // one press that plays the other labs' failure for them.
+  test('under reduced motion, Run as a first press plays the story, once', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await open(page);
     await expect(run(page, lab)).toHaveText('Run');
     await run(page, lab).click();
     await expect(run(page, lab)).toHaveText('Pause');
-    await page.clock.runFor(30_000);
-    await expect(up(page)).toHaveCount(5);
-    expect(await madeSinceTheOpening(page)).toEqual([]);
+    await page.clock.runFor(60_000);
+    await toldOnce(page);
+    expect(new URL(page.url()).hash).toBe('');
   });
 
-  test('a visitor who pressed while the top bar’s Pause held the landing back gets no story from its Play', async ({
+  test('saving data, Run as a first press plays the story, once', async ({ page }) => {
+    await page.addInitScript(() =>
+      Object.defineProperty(navigator, 'connection', { value: { saveData: true } }),
+    );
+    await open(page);
+    await expect(run(page, lab)).toHaveText('Run');
+    await run(page, lab).click();
+    await expect(run(page, lab)).toHaveText('Pause');
+    await page.clock.runFor(30_000);
+    await toldOnce(page);
+    await page.clock.runFor(30_000);
+    await toldOnce(page);
+  });
+
+  test('under the top bar’s Pause, Run plays the story, and the bar’s Play starts no landing over it', async ({
     page,
   }) => {
     await page.addInitScript(() => sessionStorage.setItem('motion', 'paused'));
@@ -617,8 +730,9 @@ test.describe('the Raft Lab’s landing run', () => {
     await expect(run(page, lab)).toHaveText('Pause');
     await page.locator('[data-motion-toggle]').click();
     await page.clock.runFor(30_000);
-    await expect(up(page)).toHaveCount(5);
-    expect(await madeSinceTheOpening(page)).toEqual([]);
+    await toldOnce(page);
+    await page.clock.runFor(30_000);
+    await toldOnce(page);
   });
 
   test('the top bar’s Pause holds the story, which is no press, and its Play picks it up', async ({
@@ -686,9 +800,9 @@ test.describe('the Raft Lab’s landing run', () => {
   });
 
   // For about 4 s of every 26 the story has no leader, and Cut off the leader has nothing to cut off.
-  // Until 2026-11-02 only a screen reader heard why, and the button looked dead. It's a press like
-  // any other, so what's left of the story goes with it, and the cluster elects on by its own rules.
-  test('Cut off the leader while the story has none says why on the screen, and the run is theirs', async ({
+  // Until 2026-11-02 only a screen reader heard why, and the button looked dead. It changes nothing, so
+  // the story carries on.
+  test('Cut off the leader while the story has none says why on the screen, and the story carries on', async ({
     page,
   }) => {
     await land(page);
@@ -701,27 +815,65 @@ test.describe('the Raft Lab’s landing run', () => {
     await expect(line).toHaveText('There is no leader to cut off right now.');
     await expect(line).toBeVisible();
     await page.clock.runFor(30_000);
-    await expect(up(page)).toHaveCount(4);
-    expect(await madeSinceTheOpening(page)).toHaveLength(1);
-    await expect(summary(page)).toHaveText(/^Server [2-5] leads term \d+, 3 entries committed/);
+    await toldOnce(page);
   });
 
-  // Until 2026-11-03 a stood run's line said "Press Run to watch it", and a press of Run drops the story,
-  // so there was nothing to watch. Now it promises nothing, and Run says why it's quiet.
-  test('Start over on the run they landed on says the crash is ahead, and on a stood run promises none', async ({
+  // Start over's line says what's ahead, and on a stood run asks for the press that plays it, as the
+  // other labs' lines do. Until 2026-11-03 it could only promise nothing here, as a press of Run dropped
+  // the story.
+  test('Start over says the crash is ahead, and where the run stands, that Run plays it', async ({
     page,
   }) => {
     await land(page);
     const line = page.locator('[data-said]');
+    const resting = await line.getAttribute('data-said');
     await page.getByRole('button', { name: 'Start over' }).click();
     await expect(line).toHaveText(
       'The run starts over under these settings, at 1.400 s, before the leader crashes.',
     );
     await run(page, lab).click();
     await page.getByRole('button', { name: 'Start over' }).click();
+    await expect(line).toHaveText(
+      'The run starts over under these settings, at 1.400 s, before the leader crashes. Press Run to watch it.',
+    );
+    await run(page, lab).click();
+    await expect(line).toHaveText(resting ?? '');
+    await page.clock.runFor(2_500);
+    await expect(up(page)).toHaveCount(4);
+  });
+
+  // "Nothing is scheduled" is why heartbeats alone don't read as a page that stopped, so it's true only
+  // where the story has gone: a press changed the run, the story is over, or a link opened another run.
+  test('Run says nothing is scheduled only where nothing is', async ({ page }) => {
+    const words = 'Nothing is scheduled: press something below to break it.';
+    const line = page.locator('[data-said]');
+    await land(page);
+    // With the story ahead, Pause and Run say nothing of the kind.
+    await run(page, lab).click();
+    await run(page, lab).click();
+    await expect(run(page, lab)).toHaveText('Pause');
+    await expect(line).not.toHaveText(words);
+    // With it over, they do.
+    await page.clock.runFor(30_000);
+    await toldOnce(page);
+    await run(page, lab).click();
+    await run(page, lab).click();
+    await expect(line).toHaveText(words);
+    // On a run a press changed, Start over asks for no crash, and Run says it.
+    await page.getByRole('button', { name: 'Send a write' }).click();
+    await page.getByRole('button', { name: 'Start over' }).click();
     await expect(line).toHaveText('The run starts over under these settings, at 1.400 s.');
     await run(page, lab).click();
-    await expect(line).toHaveText('Nothing is scheduled: press something below to break it.');
+    await run(page, lab).click();
+    await expect(line).toHaveText(words);
+  });
+
+  test('on a link’s run, Run says nothing is scheduled', async ({ page }) => {
+    await open(page, `${lab.path}#seed-7`);
+    await run(page, lab).click();
+    await expect(page.locator('[data-said]')).toHaveText(
+      'Nothing is scheduled: press something below to break it.',
+    );
   });
 });
 

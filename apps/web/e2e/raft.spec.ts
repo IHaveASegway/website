@@ -754,6 +754,10 @@ test('Start over shows the same run again from the same opening: what the presse
       await page.locator('[data-rf-flights]').innerHTML(),
     ];
   };
+  // A press that changes the run takes the story with it (e2e/landing.spec.ts holds that), so this is
+  // the run with nothing ahead, and so is the one Start over shows.
+  await page.getByRole('button', { name: 'Send a write' }).click();
+  await page.getByRole('button', { name: 'Start over' }).click();
   const seen = await forty();
   await page.getByRole('button', { name: 'Send a write' }).click();
   await page.locator('[data-rf-toggle="0"]').click();
