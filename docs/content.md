@@ -305,7 +305,7 @@ Joseph's register: short declarative sentences; numbers over adjectives; named s
 - Name the system. "SQLite through modernc.org/sqlite", not "a lightweight database".
 - First person for owned work. Say what you did, not what "we" did, unless there was a we.
 - Conclusion first. If the opening paragraph only warms up, cut it.
-- ISO dates (2026-10-22), US English, sentence-case headings, link text that says where it goes.
+- Dates in US English, one form everywhere a person reads one: Nov 2, 2026, and in a lab's week, which has no year, Monday, October 19. The ISO day (2026-11-02) is for machines: a `<time>`'s `datetime`, the feed, structured data, and these docs. Sentence-case headings, link text that says where it goes.
 - No emojis. No exclamation marks.
 
 Banned, because each claims a quality instead of showing it: "seamless", "robust", "blazing", "leverage", "cutting-edge", and their cousins "world-class", "best-in-class", "game-changing", "revolutionary", "next-generation", "synergy", "passionate", "rockstar", "ninja". The pull-request template asks for a pass over this list. A prose linter such as Vale can enforce it later, if the list keeps getting broken.

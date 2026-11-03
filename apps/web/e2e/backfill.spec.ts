@@ -53,7 +53,7 @@ async function startOver(page: Page): Promise<void> {
   await expect(page.locator('[data-bf-said]')).toHaveText(
     'The week starts over under these settings, at 00:00, before the job is switched on. Press Run to watch it.',
   );
-  await expect(page.locator('[data-bf-clock]')).toHaveText('00:00 on Monday 26 October');
+  await expect(page.locator('[data-bf-clock]')).toHaveText('00:00 on Monday, October 26');
 }
 
 /** Make Monday's file late on a week whose Monday has found it: the week goes back to before the
@@ -63,7 +63,7 @@ async function rewind(page: Page): Promise<void> {
   await expect(page.getByRole('button', { name: 'Switch the job on' })).not.toHaveAttribute(
     'aria-disabled',
   );
-  await expect(page.locator('[data-bf-clock]')).toHaveText('00:00 on Monday 26 October');
+  await expect(page.locator('[data-bf-clock]')).toHaveText('00:00 on Monday, October 26');
 }
 
 /** Run, at the quickest speed, until every run has finished and the run stops by itself. */
@@ -193,7 +193,7 @@ test('with the job off, Next event and Run switch it on first, so the clock neve
   const on = page.getByRole('button', { name: 'Job on since 00:00' });
   await expect(on).toHaveAttribute('aria-disabled', 'true');
   await expect(on).not.toHaveAttribute('aria-pressed');
-  await expect(page.locator('[data-bf-clock]')).toHaveText('00:00 on Monday 26 October');
+  await expect(page.locator('[data-bf-clock]')).toHaveText('00:00 on Monday, October 26');
   await expect(page.locator('[data-bf-said]')).toHaveText(
     /^The job graph is switched on with catch-up, which creates all 7 days' runs at once; 3 may run at a time\./,
   );
@@ -249,11 +249,11 @@ test('watch Wednesday count twice; then overwrite the day and start over, and ev
   await expect(page.locator('[data-bf-diff]:not(:empty)')).toHaveCount(0);
   await expect(page.locator(`[data-bf-step="${CHECK}"][data-lamp="filled"]`)).toHaveCount(7);
   await expect(page.locator('[data-bf-check][data-lamp="filled"]')).toHaveCount(3);
-  await expect(page.locator('[data-bf-clock]')).toHaveText('02:10 on Monday 26 October');
+  await expect(page.locator('[data-bf-clock]')).toHaveText('02:10 on Monday, October 26');
   await expect(page.locator('[data-bf-events]')).toHaveText('44 events');
 });
 
-test("write to today: every day's orders land on Monday 26 October, and every check fails", async ({
+test("write to today: every day's orders land on Monday, October 26, and every check fails", async ({
   page,
 }) => {
   await page.goto(BACKFILL);
@@ -263,7 +263,7 @@ test("write to today: every day's orders land on Monday 26 October, and every ch
   await runToTheEnd(page);
   // Every check finds its day empty and fails, and every run with it.
   await expect(summary(page)).toHaveText(
-    "Every run has finished, and all 7 failed. 7 days show no orders in the report, because their rows were filed under Monday 26 October, the clock's day.",
+    "Every run has finished, and all 7 failed. 7 days show no orders in the report, because their rows were filed under Monday, October 26, the clock's day.",
   );
   await expect(page.locator('[data-bf-run-word]')).toHaveText(
     Array.from({ length: 7 }, () => 'failed'),
@@ -289,7 +289,7 @@ test("rerun a finished day: with append Tuesday's total doubles; with overwrite 
   await page.getByRole('radio', { name: 'Tuesday' }).check();
   await page.getByRole('button', { name: 'Clear Tuesday and rerun it' }).click();
   await expect(page.locator('[data-bf-said]')).toHaveText(
-    "Tuesday 20 October is cleared, and its run starts again from extract. Tuesday's run starts.",
+    "Tuesday, October 20 is cleared, and its run starts again from extract. Tuesday's run starts.",
   );
   // A run slot is free, so the rerun starts at once, from extract: the sensor keeps its file.
   await expect(tuesday.locator('[data-bf-run-word]')).toHaveText('running');
@@ -323,7 +323,7 @@ test("then Monday's file five hours late with one run at a time: the week waits 
   // file late there and one run at a time, and Run switches the job on and plays it.
   await rewind(page);
   await expect(page.locator('[data-bf-said]')).toHaveText(
-    "Monday's sensor has found its file already, so the week goes back to before the job is switched on. Monday's export file is held back 5 hours: it lands at 05:00 on Monday 26 October. Press Run to backfill the week.",
+    "Monday's sensor has found its file already, so the week goes back to before the job is switched on. Monday's export file is held back 5 hours: it lands at 05:00 on Monday, October 26. Press Run to backfill the week.",
   );
   await expect(page.getByRole('radio', { name: '1 run at once' })).toBeChecked();
   await page.getByRole('radio', { name: 'Quick' }).check();
@@ -416,7 +416,7 @@ test("a link to a week opens it: #seed-12 draws that seed's week, every column o
       "Wednesday's report holds 415 orders and the source 303",
     );
     // Its week ends at 01:19, and the clock stands there, as a played week stops.
-    await expect(page.locator('[data-bf-clock]')).toHaveText('01:19 on Monday 26 October');
+    await expect(page.locator('[data-bf-clock]')).toHaveText('01:19 on Monday, October 26');
     await expect(page.locator('[data-bf-lines] li').last()).toHaveText(
       '01:19 Every run has finished: 4 succeeded and 3 failed',
     );
@@ -461,7 +461,7 @@ test('Start over writes the link to its week, the seed and each setting changed,
   // switch, and played, it is the same week.
   await expect(page.getByRole('radio', { name: 'Overwrite the day' })).toBeChecked();
   await expect(page.getByRole('radio', { name: '1 run at once' })).toBeChecked();
-  await expect(page.locator('[data-bf-clock]')).toHaveText('02:10 on Monday 26 October');
+  await expect(page.locator('[data-bf-clock]')).toHaveText('02:10 on Monday, October 26');
   await startOver(page);
   await runToTheEnd(page);
   expect(await shown(page)).toEqual(played);
@@ -551,7 +551,7 @@ test('the opening’s week has happened, so Run plays it again from the switch, 
   expect(await shown(page)).toEqual(opening);
   // Next event on a finished week takes it back to the switch too, one step at a time.
   await page.getByRole('button', { name: 'Next event' }).click();
-  await expect(page.locator('[data-bf-clock]')).toHaveText('00:00 on Monday 26 October');
+  await expect(page.locator('[data-bf-clock]')).toHaveText('00:00 on Monday, October 26');
   await expect(page.locator('[data-bf-said]')).toHaveText(
     /^The week plays again from the switch\. /,
   );

@@ -1,5 +1,5 @@
 ---
-import { isoDay, KIND_LABELS, minutesWords, postPath, shortDay, type Post } from '../lib/posts';
+import { isoDay, KIND_LABELS, minutesWords, postPath, wordDay, type Post } from '../lib/posts';
 import '../styles/post-list.css';
 
 interface Props {
@@ -22,7 +22,7 @@ const Title = level === 2 ? 'h2' : 'h3';
   {posts.map((post) => (
     <li class="post-row">
       <p class="post-date">
-        <time datetime={isoDay(post.published)}>{shortDay(post.published)}</time>
+        <time datetime={isoDay(post.published)}>{wordDay(post.published)}</time>
       </p>
       <div class="post-main">
         <Title class="post-title">

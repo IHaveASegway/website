@@ -281,31 +281,15 @@ export const KIND_LABELS: Readonly<Record<Post['kind'], string>> = {
 /** A day as machines read it: YYYY-MM-DD, in a <time>'s datetime, the feed and structured data. */
 export const isoDay = (date: Date): string => date.toISOString().slice(0, 10);
 
-const MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-] as const;
+const MONTHS = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ');
 
-/** A day as a reader reads it (ADR 0025): "25 October 2026", the day of the UTC date a post is
- *  dated by. The months are spelled out here, not by Intl, so the words never depend on the build
- *  machine's locale. */
+/** A day as a reader reads it, on every page: "Nov 2, 2026", US English, the month first and cut to
+ *  three letters, which every English month is known by (content.md, "Voice"). The day of the UTC
+ *  date a post is dated by. The months are written here, not by Intl, so the words never depend on
+ *  the build machine's locale. Until 2026-11-02 lists said "2 Nov 2026" and a post's register "2
+ *  November 2026". */
 export const wordDay = (date: Date): string =>
-  `${date.getUTCDate()} ${MONTHS[date.getUTCMonth()] ?? ''} ${date.getUTCFullYear()}`;
-
-/** A day in a list's date column: "25 Oct 2026", the month cut to its first three letters, which
- *  every English month name is still known by, so the column stays one width a row. */
-export const shortDay = (date: Date): string =>
-  `${date.getUTCDate()} ${(MONTHS[date.getUTCMonth()] ?? '').slice(0, 3)} ${date.getUTCFullYear()}`;
+  `${MONTHS[date.getUTCMonth()] ?? ''} ${date.getUTCDate()}, ${date.getUTCFullYear()}`;
 
 /** A post's reading time in words: "12 min read". */
 export const minutesWords = (minutes: number): string => `${minutes} min read`;
