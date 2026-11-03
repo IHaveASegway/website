@@ -292,6 +292,29 @@ test('from 64rem the properties share the first screen with the picture they des
   expect(last && map && last.x).toBeGreaterThan((map?.x ?? 0) + (map?.width ?? 0));
 });
 
+// The name's column is laid out by hand, each row a grid of its own, so it has to hold the longest name
+// where it's set widest. Until 2026-11-02 two names took a second line in CI's image, which sets these
+// faces wider than a Mac does, and the two rows pushed the controls down 37 px.
+for (const [width, height] of [
+  [1440, 900],
+  [1024, 768],
+  [390, 664],
+  [320, 568],
+] as const) {
+  test(`at ${width} px wide, each safety property's name keeps one line`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto(RAFT);
+    await page.evaluate(() => document.fonts.ready);
+    const lines = await page.locator('.rf-prop-name').evaluateAll((names) =>
+      names.map((name) => {
+        const style = getComputedStyle(name);
+        return Math.round(name.getBoundingClientRect().height / parseFloat(style.lineHeight));
+      }),
+    );
+    expect(lines).toEqual([1, 1, 1, 1, 1]);
+  });
+}
+
 // Run under the fold was the desk's first impression on a laptop: a picture and a list, and nothing
 // to press. Until 2026-11-02 it stood at 900 of 900, once the properties came to stand beside the
 // picture. Measured from the top of the page, not the picture's: that test passed all along.

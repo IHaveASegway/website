@@ -48,14 +48,15 @@ import '../../styles/raft-lab.css';
 //
 // The controls come straight after the picture, before the logs, so on a phone the picture and Time
 // share one screen, and the network's first buttons most of the picture: a press and what it does are
-// seen together. From 64rem the logs and the safety properties stand beside the
-// picture, the controls under them, and how to read it all under those (raft-lab.css), since the
-// properties are what the lead tells a visitor to watch. Only the controls and the two boxes that
-// scroll take focus, in that order, so the tab order is the same either way. Time is the one group every lab has (components/lab/Time.astro):
-// the clock, Run, Next event, Start over and Speed. What a press did, or why it did nothing, is said
-// on the line under it, over the network's buttons (lib/lab/said.ts): the other labs' stands under all
-// of a part's controls, but here that is 385 px below Cut off the leader, off the screen for a thumb
-// on that button with Run in view, and this way every control is within a screen of it, at 320 px too.
+// seen together. From 64rem the logs and the safety properties stand beside the picture, the controls
+// under them, and how to read it all under those (raft-lab.css), since the properties are what the
+// lead tells a visitor to watch. Only the controls and the two boxes that scroll take focus, in that
+// order, so the tab order is the same either way. Time is the one group every lab has
+// (components/lab/Time.astro): the clock, Run, Next event, Start over and Speed. What a press did, or
+// why it did nothing, is said on the line under it, over the network's buttons (lib/lab/said.ts). The
+// other labs' stands under all of a part's controls, but here that is about 400 px below Cut off the
+// leader, off the screen for a thumb on that button with Run in view. This way every control is within
+// a screen of it, at 320 px too.
 //
 // The key names each mark on the wire, in the picture's own classes. Assistive technology skips it,
 // as it does the Queue Lab's: the picture is one image, named by its caption, and the marks it holds

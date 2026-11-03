@@ -542,7 +542,8 @@
    it where they fit. A lamp each, filled while it holds and crossed once it breaks, as a property is
    on every desk (design-system.md, "Lamps: one meaning per mark"), then its name, Held or Broken, and
    what it promises. The promise takes a line of its own until there's room beside the name. The
-   name's column is as wide as the longest name, so the words beside it stand in a line. */
+   name's column is as wide as the longest name where a browser sets it widest, as CI's Linux image
+   does, so the words beside it stand in a line and no name takes a second. */
 .rf-props-head {
   display: flex;
   flex-wrap: wrap;
@@ -569,7 +570,7 @@
 
 .rf-prop {
   display: grid;
-  grid-template-columns: 0.875rem 8rem minmax(0, 1fr);
+  grid-template-columns: 0.875rem 8.75rem minmax(0, 1fr);
   column-gap: 0.625rem;
   align-items: baseline;
   font-family: var(--font-label);
@@ -646,7 +647,7 @@
 
 @media (width >= 75rem) {
   .rf-prop {
-    grid-template-columns: 0.875rem 8rem 3rem minmax(0, 1fr);
+    grid-template-columns: 0.875rem 8.75rem 3rem minmax(0, 1fr);
   }
 
   .rf-prop-promise {
