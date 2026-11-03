@@ -337,14 +337,33 @@ export const startOver = (sim: Sim): Sim => openLink(linkTo(sim)) as Sim;
 /**
  * The week as it stood before the job was switched on: the minute the week ends, the job off,
  * under the visitor's settings, with every failed load and late file set before the switch,
- * Wednesday's failed load from the opening among them.
+ * Wednesday's failed load from the opening among them, and every failed load the visitor set after
+ * it that no load has spent yet. Until 2026-11-02 those went: Fail Monday's next load on a finished
+ * week, then Run, and the week played with Monday succeeding, right after the log said it wouldn't.
  */
 export function beforeSwitch(sim: Sim): Sim {
   const switched = sim.actions.findIndex((a) => a.kind === 'start');
+  const upTo = switched < 0 ? sim.actions.length : switched;
   const setUp = sim.actions
-    .slice(0, switched < 0 ? sim.actions.length : switched)
+    .slice(0, upTo)
     .filter((a) => a.kind === 'fail-next-load' || a.kind === 'late-file');
-  return replay(settingsOf(sim), setUp, WEEK_END);
+  // A failure set after the switch, on a day whose earlier ones were spent first. Each goes before
+  // the switch now, as if it had been set there.
+  const pressed = sim.actions
+    .slice(upTo)
+    .flatMap((a) => (a.kind === 'fail-next-load' ? [a.day] : []));
+  const unspent = Array.from({ length: DAYS }, (_, day) =>
+    Array.from(
+      {
+        length: Math.min(
+          countOf(pressed, (d) => d === day),
+          sim.failNext[day] ?? 0,
+        ),
+      },
+      (): Action => ({ at: WEEK_END, steps: 0, kind: 'fail-next-load', day }),
+    ),
+  ).flat();
+  return replay(settingsOf(sim), [...setUp, ...unspent], WEEK_END);
 }
 
 /**

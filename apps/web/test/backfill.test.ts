@@ -1055,6 +1055,36 @@ describe('what the page draws, and the three things to try', () => {
     expect(back.actions.map((a) => a.kind)).toEqual(['fail-next-load', 'late-file']);
   });
 
+  // The lead promises "fail a load". Until 2026-11-02 a failure set after the switch went with the
+  // old week: fail Monday's next load on the finished opening, press Run, and Monday succeeded, right
+  // after the log said it wouldn't.
+  test('a failed load set after the switch and not yet spent carries back to before it, as many as are left', () => {
+    const sim = openingRun();
+    failNextLoad(sim, 0);
+    const back = beforeSwitch(sim);
+    expect(back.on).toBe(false);
+    expect(back.now).toBe(WEEK_END);
+    expect(back.failNext).toEqual([1, 0, 1, 0, 0, 0, 0]);
+    start(back);
+    runUntil(back, Infinity);
+    expect(boardView(back).days[0]).toMatchObject({ run: 'failed', difference: '+46' });
+    expect(back.lines.some((line) => /Monday's load fails after appending/.test(line.text))).toBe(
+      true,
+    );
+    // Wednesday's own, from the opening, is spent in the opening's week and set again before the
+    // switch; pressed again on top of it, it counts once more, as it would have had it not been spent.
+    const twice = openingRun();
+    failNextLoad(twice, 2);
+    expect(beforeSwitch(twice).failNext).toEqual([0, 0, 2, 0, 0, 0, 0]);
+    // A failure already spent stays spent: that week's first load took it.
+    const spent = beforeSwitch(openingRun());
+    start(spent);
+    failNextLoad(spent, 0);
+    runUntil(spent, Infinity);
+    expect(spent.failNext).toEqual([0, 0, 0, 0, 0, 0, 0]);
+    expect(beforeSwitch(spent).failNext).toEqual([0, 0, 1, 0, 0, 0, 0]);
+  });
+
   test('watch Wednesday count twice: 96 of 179 rows, then all 179, and a check that finds 275; overwrite the day and start over, and every day matches: 2,012 orders', () => {
     const opening = openingRun();
     const wednesday = boardView(opening).days[2];
