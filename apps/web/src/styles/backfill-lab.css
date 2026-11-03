@@ -251,11 +251,19 @@
   line-height: var(--text-label--line-height);
 }
 
+/* Rows filed under a day after the week, in the week's row, in the room its two lines of totals
+   take anyway: at the narrowest phones three lines, which it keeps. */
 .bf-note {
   color: var(--muted-foreground);
   font-size: var(--text-label);
-  line-height: 1.25rem;
-  text-align: center;
+  line-height: var(--text-label--line-height);
+  padding-inline: 0.5rem;
+}
+
+@media (width < 24rem) {
+  .bf-note {
+    block-size: 3lh;
+  }
 }
 
 .bf-week > * {

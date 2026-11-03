@@ -158,29 +158,24 @@ const KEY = [
             ))}
           </tbody>
           <tfoot>
-            <tr class="bf-stray" data-bf-stray hidden={board.stray === null}>
-              <th scope="row" class="bf-day">
-                <span class="bf-day-name" aria-hidden="true" data-bf-stray-short>
-                  {board.stray?.short}
-                </span>
-                <span class="bf-sr" data-bf-stray-long>
-                  {board.stray?.long}
-                </span>
-                <span class="bf-run">after the week</span>
-              </th>
-              <td class="bf-note" colspan="5">
-                Filed here by the clock
-              </td>
-              <td class="bf-num" data-bf-stray-rows>
-                {board.stray?.rows}
-              </td>
-              <td class="bf-num" />
-            </tr>
             <tr class="bf-week">
               <th scope="row" class="bf-day">
                 <span class="bf-day-name">Week</span>
               </th>
-              <td colspan="5" />
+              <td colspan="5" class="bf-note">
+                {/* Rows filed under a day after the week, the clock's day, in the room this row has
+                    anyway, so a run that writes them moves nothing mid-week. */}
+                <span data-bf-stray hidden={board.stray === null}>
+                  <span data-bf-stray-rows>{board.stray?.rows}</span> rows filed under{' '}
+                  <span aria-hidden="true" data-bf-stray-short>
+                    {board.stray?.short}
+                  </span>
+                  <span class="bf-sr" data-bf-stray-long>
+                    {board.stray?.long}
+                  </span>
+                  , by the clock
+                </span>
+              </td>
               <td class="bf-num">
                 <span data-bf-week-report>{board.week.report}</span>
                 <span class="bf-diff" data-bf-week-diff>

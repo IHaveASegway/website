@@ -74,7 +74,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   const on = $('[data-bf-on]');
   const strip = $('[data-bf-strip]');
   const lines = $<HTMLOListElement>('[data-bf-lines]');
-  const stray = $<HTMLTableRowElement>('[data-bf-stray]');
+  const stray = $<HTMLElement>('[data-bf-stray]');
   const said = $('[data-bf-said]');
   const rows = [...root.querySelectorAll('[data-bf-day]')];
   const set = (element: Element | null | undefined, value: string) => {
