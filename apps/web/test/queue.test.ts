@@ -51,6 +51,7 @@ import {
   SETTINGS,
   startOver,
   statusText,
+  stopWords,
   strip,
   stripWords,
   summary,
@@ -1108,6 +1109,34 @@ describe('the page', () => {
     expect(statusText(drained)).toBe(
       'No order was lost and the queue drains, but 1 order was printed twice.',
     );
+  });
+
+  // The clock stops once nothing is left to happen, which it can't tell apart: a drained queue, or
+  // orders waiting with no worker up. The words have to, since they stand beside "13 waiting".
+  test('why the clock stops: the queue has drained, or orders wait with no worker up', () => {
+    const drained = openingRun();
+    stopProducer(drained);
+    runUntil(drained, 40_000);
+    expect(nextTime(drained)).toBe(Infinity);
+    expect(waitWords(drained)).toBe('None waiting');
+    expect(stopWords(drained)).toBe(
+      'Nothing is left in the queue or in flight, so the clock stops here. Run plays the run again from 1.500 s, or take orders to carry on.',
+    );
+
+    const down = openingRun();
+    stopProducer(down);
+    crash(down, 0);
+    crash(down, 2);
+    runUntil(down, 40_000);
+    expect(nextTime(down)).toBe(Infinity);
+    expect(waitWords(down)).toMatch(/^13 waiting,/);
+    expect(stopWords(down)).toBe(
+      '13 orders wait and no worker is up, so the clock stops here. Run plays the run again from 1.500 s, or restart a worker to carry on.',
+    );
+    expect(stopWords({ ...down, ready: [18] })).toMatch(/^1 order waits and no worker is up,/);
+    // A worker back, and the run has something to happen again.
+    restart(down, 0);
+    expect(nextTime(down)).toBeLessThan(Infinity);
   });
 
   test('the strip: the orders waiting over the first 30 s, on a scale of 20, with worker 2’s crash at 2.4 s', () => {

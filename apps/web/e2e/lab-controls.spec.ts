@@ -149,6 +149,35 @@ test('a queue that has drained stops the clock, says why, and Run plays the run 
   await expect(page.getByRole('button', { name: 'Stop taking orders' })).toBeVisible();
 });
 
+// The same stop, but the queue hasn't drained: every worker is down, and the orders wait. "Nothing is
+// left" beside "13 waiting" would be false, and what carries this run on is a worker, not more orders.
+test('with every worker down and orders waiting, the clock stops, says so, and a restart carries on', async ({
+  page,
+}) => {
+  await page.goto('/lab/queue/');
+  const run = page.locator('[data-qu-run]');
+  const clock = page.locator('[data-qu-clock]');
+  await page.locator('label:has(input[name="qu-speed"][value="5"])').click();
+  await page.locator('[data-qu-producer]').click();
+  await page.locator('[data-qu-crash="0"]').click(); // worker 2 is down at the opening
+  await page.locator('[data-qu-crash="2"]').click();
+  await run.click();
+  const line = page.locator('[data-said]').first();
+  await expect(line).toHaveText(
+    /^\d+ orders wait and no worker is up, so the clock stops here\. Run plays the run again from 1\.500 s, or restart a worker to carry on\.$/,
+    { timeout: 20_000 },
+  );
+  await expect(run).toHaveText('Run');
+  await expect(page.locator('[data-qu-wait]')).toHaveText(/^\d+ waiting/);
+  const stopped = Number(/[\d.]+/.exec((await clock.textContent()) ?? '')?.[0]);
+  await page.locator('[data-qu-crash="0"]').click();
+  await run.click();
+  await expect(run).toHaveText('Pause');
+  await expect
+    .poll(async () => Number(/[\d.]+/.exec((await clock.textContent()) ?? '')?.[0]))
+    .toBeGreaterThan(stopped);
+});
+
 test('Run on a run standing where the picture told it, with only a setting chosen, plays the story under that setting', async ({
   page,
 }) => {

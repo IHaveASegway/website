@@ -28,7 +28,7 @@ import {
   stopProducer,
   runUntil as runQueue,
 } from '../src/lib/queue/sim';
-import { OPENING as QUEUE, REPLAY_WORDS as QUEUE_WORDS } from '../src/lib/queue/view';
+import { OPENING as QUEUE, REPLAY_WORDS as QUEUE_WORDS, stopWords } from '../src/lib/queue/view';
 import { REPLAY_WORDS as CACHE_WORDS } from '../src/lib/cache/view';
 import { REPLAY_WORDS as BACKFILL_WORDS, STORY_WORDS } from '../src/lib/backfill/view';
 
@@ -119,6 +119,11 @@ describe('what a run says fits the room its line keeps', () => {
       "Wednesday's next load will fail part way. Wednesday has loaded already, so this fails its load when the week plays again, or after a clear.",
       "Wednesday's file is 5 hours late, so the week goes back to before the job is switched on. Press Run to watch it.",
     ];
+    // Why a queue's clock stops, drained or with no worker up, at the most orders a run has waiting.
+    const stopped = createSim({ ...QUEUE.config });
+    said.push(stopWords(stopped));
+    stopped.ready.push(...Array.from({ length: 999 }, (_, id) => id));
+    said.push(stopWords(stopped));
     expect(said.filter((words) => words.length > SAID_ROOM)).toEqual([]);
   });
 

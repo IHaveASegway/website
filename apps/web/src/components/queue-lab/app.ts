@@ -37,6 +37,7 @@ import {
   SETTINGS,
   startOver,
   statusText,
+  stopWords,
   STORY,
   STRIP,
   strip,
@@ -221,7 +222,8 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     told = false;
   }
 
-  /** Whether nothing is left to happen: the queue has drained with no order coming. */
+  /** Whether nothing is left to happen: no order is coming, and the queue has drained or no worker
+   *  is up to take what waits. */
   const over = () =>
     !sim.violation && !Number.isFinite(Math.min(nextTime(sim), ahead[0]?.at ?? Infinity));
 
@@ -237,9 +239,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       return true;
     }
     if (over()) {
-      say(
-        `Nothing is left in the queue or in flight, so the clock stops here. Run plays the run again from ${seconds(REPLAY_FROM)}, or take orders to carry on.`,
-      );
+      say(stopWords(sim));
       pause();
       return true;
     }

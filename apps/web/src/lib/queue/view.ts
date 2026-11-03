@@ -366,6 +366,20 @@ const CRASHING = `worker ${(OPENING.actions[0]?.worker ?? 0) + 1}`;
 export const REPLAY_WORDS = `at ${seconds(REPLAY_FROM)}, before ${CRASHING}'s crash`;
 export const AGAIN = `The run plays again from ${seconds(REPLAY_FROM)}, before ${CRASHING}'s crash.`;
 
+/**
+ * Why the clock stops once nothing is left to happen. The queue has drained, or orders wait with no
+ * worker up to take them and none on the way. The clock can't tell those apart, and the words must:
+ * "nothing is left" beside "13 waiting" is false, and more orders wouldn't carry that run on.
+ */
+export function stopWords(sim: Sim): string {
+  const n = sim.ready.length;
+  const [why, next] =
+    n === 0
+      ? ['Nothing is left in the queue or in flight', 'take orders']
+      : [`${n} ${n === 1 ? 'order waits' : 'orders wait'} and no worker is up`, 'restart a worker'];
+  return `${why}, so the clock stops here. Run plays the run again from ${seconds(REPLAY_FROM)}, or ${next} to carry on.`;
+}
+
 /** The link to a run's start: its seed, and each setting not the opening's (#seed-28&key=on). */
 export const linkTo = (sim: Sim): string => writeLink(sim.seed, sim, SETTINGS);
 
