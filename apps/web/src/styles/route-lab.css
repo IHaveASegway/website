@@ -1342,6 +1342,24 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Below 64rem the plan's line has a row of its own, and it keeps its room when it says nothing, so
+   what it says moves nothing under it, where the list of places, which changes the plan, stands.
+   Empty it has no baseline to share with the plan's name, and sitting on that one it would stand
+   6 px taller than the row. */
+.rl-cube-back {
+  min-block-size: 1lh;
+}
+
+.rl-cube-back:empty {
+  align-self: flex-start;
+}
+
+@media (width < 64rem) {
+  .rl-cube-back {
+    flex-basis: 100%;
+  }
+}
+
 /* The stage holds the picture, then the canvas in its place: a drag sideways turns the cube, and a
    swipe up or down still scrolls the page (touch-action), so the cube never holds the page. */
 .rl-cube-stage {

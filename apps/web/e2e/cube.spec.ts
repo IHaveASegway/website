@@ -1,14 +1,15 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { ROUTE_LAB } from './expected';
+import { ROUTE_LAB, SOLVER } from './expected';
 
 // The space-time cube on the Route Lab (ADR 0019), in a real WebGL context (SwiftShader in headless
-// Chromium): without JavaScript it is two pictures drawn at build; three.js loads only on intent
+// Chromium): without JavaScript it is two pictures drawn at build; the pictures and the words over
+// them follow the plan on show, with no three.js and no WebGL; three.js loads only on intent
 // at the cube, never on a scroll, a finger's included; the canvas takes the picture's place with
 // the first plans, its marks where the picture drew them and nothing below moving; Tab reaches
 // each cube from the first paint, in order, with the focus ring on it; a drag or a key turns both; the slider moves through the day and is named for what it sets; Play runs,
 // pauses, stops at the end, and steps under reduced motion; a plan change compiles no new GPU
-// program; a lost context brings the pictures back for good; without WebGL nothing changes.
+// program; a lost context brings the pictures back for good; without WebGL the pictures stay.
 
 const NBSP = ' ';
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
@@ -57,6 +58,149 @@ test('without JavaScript the cube is two pictures with names, and no control sho
   for (const frame of await frames(page).all()) await expect(frame).not.toHaveAttribute('tabindex');
   await context.close();
 });
+
+// A quiet Tuesday, 8 orders and one van, as both plans draw it: dealt in turn back after 3 h 40 min,
+// VROOM back after 2 h 48 min, on a time axis of 4 hours. The opening day says 2 h 53 and 2 h 20.
+const quiet = async (page: Page) => {
+  const backs = cube(page).locator('[data-rl-cube-back]');
+  await expect(backs.first()).toHaveText(`Last van back after 3${NBSP}h 40${NBSP}min`, {
+    timeout: 20_000,
+  });
+  await expect(backs.last()).toHaveText(`Last van back after 2${NBSP}h 48${NBSP}min`, {
+    timeout: 20_000,
+  });
+  const pictures = page.locator('svg[data-rl-cube-picture]');
+  for (const picture of await pictures.all()) {
+    await expect(picture.locator('.rl-route')).toHaveCount(1);
+    await expect(picture.locator('.rl-stop')).toHaveCount(8);
+    await expect(picture.locator('.rl-cube-hour')).toHaveText(['1 h', '2 h', '3 h', '4 h']);
+  }
+  await expect(pictures.first().locator('title')).toHaveText(
+    /^As the orders came in, in time: .* back after 3\u00a0h 40\u00a0min\.$/,
+  );
+  await expect(pictures.last().locator('title')).toHaveText(
+    /^Planned by VROOM, in time: .* back after 2\u00a0h 48\u00a0min\.$/,
+  );
+  await expect(slider(page)).toHaveAttribute('max', String(4 * 3600));
+};
+
+/** Chooses a day from the page itself: with no pointer anywhere, and none near the cube. A real tap
+ *  and a scroll fire a mouse's pointerover on the cube in WebKit, which loads the scene and hides
+ *  the case this is for: a finger that never touches the cube. */
+const chooseDay = (page: Page, day: string) =>
+  page
+    .locator(`input[name="rl-day"][value="${day}"]`)
+    .evaluate((radio: HTMLInputElement) => radio.click());
+
+test('on a finger’s change of day the cube’s pictures and words follow the maps, with no three.js', async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    hasTouch: true,
+    isMobile: true,
+    viewport: { width: 390, height: 664 },
+  });
+  const page = await context.newPage();
+  const asked: string[] = [];
+  page.on('request', (r) => asked.push(new URL(r.url()).pathname));
+  await page.goto(ROUTE_LAB);
+  await chooseDay(page, 'quiet');
+  await quiet(page);
+  await expect(page.locator('[data-rl-plan="after"] [data-rl-back]')).toHaveText(
+    `Last van back after 2${NBSP}h 48${NBSP}min`,
+  );
+  await expect(canvases(page)).toHaveCount(0);
+  await expect(cube(page).locator('[data-rl-cube-plan="after"] svg')).toBeVisible();
+  expect(asked.filter(isCube)).toEqual([]);
+  await context.close();
+});
+
+test('while VROOM plans, the words over its cube say the plan on show is for the previous orders', async ({
+  page,
+  context,
+}) => {
+  let hold = true;
+  await context.route(`**${SOLVER}vroom-worker.mjs`, async (route) => {
+    while (hold) await new Promise((resolve) => setTimeout(resolve, 50));
+    await route.continue();
+  });
+  await page.goto(ROUTE_LAB);
+  await chooseDay(page, 'quiet');
+  const backs = cube(page).locator('[data-rl-cube-back]');
+  await expect(backs.first()).toHaveText(`Last van back after 3${NBSP}h 40${NBSP}min`);
+  await expect(backs.last()).toHaveText('For the previous orders');
+  // VROOM's picture still draws the plan it says it does: three vans, for the opening day's orders.
+  const pictures = page.locator('svg[data-rl-cube-picture]');
+  await expect(pictures.last().locator('.rl-route')).toHaveCount(3);
+  await expect(pictures.last().locator('title')).toHaveText(
+    /^Planned by VROOM, for the previous orders, in time: /,
+  );
+  hold = false;
+  await quiet(page);
+});
+
+test('back on the opening day the pictures are what the build drew, to the byte', async ({
+  page,
+}) => {
+  await page.goto(ROUTE_LAB);
+  const drawn = () =>
+    page.evaluate(() =>
+      [
+        ...document.querySelectorAll(
+          '[data-rl-cube-day], [data-rl-cube-back], [data-rl-cube] title',
+        ),
+      ]
+        .map((node) => node.innerHTML)
+        .join('\n'),
+    );
+  const built = await drawn();
+  await chooseDay(page, 'quiet');
+  await quiet(page);
+  expect(await drawn()).not.toBe(built);
+  await chooseDay(page, 'busy');
+  await expect.poll(drawn, { timeout: 20_000 }).toBe(built);
+});
+
+test('a day that takes all of 24 hours says every third hour on the pillar, and marks every one', async ({
+  page,
+}) => {
+  await page.goto(ROUTE_LAB);
+  await chooseDay(page, 'everything');
+  await page
+    .locator('input[name="rl-vans"][value="1"]')
+    .evaluate((radio: HTMLInputElement) => radio.click());
+  const picture = page.locator('svg[data-rl-cube-picture]').first();
+  await expect(picture.locator('.rl-cube-hour')).toHaveText(
+    [3, 6, 9, 12, 15, 18, 21, 24].map((h) => `${h} h`),
+    { timeout: 20_000 },
+  );
+  await expect(picture.locator('.rl-cube-tick')).toHaveCount(24);
+  await expect(slider(page)).toHaveAttribute('max', String(24 * 3600));
+});
+
+for (const scene of [false, true]) {
+  test(`with no orders the cube says nothing of a day, as the maps do, ${scene ? 'in the scene' : 'in its picture'}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(ROUTE_LAB);
+    if (scene) await turnOn(page);
+    await page.evaluate(() => {
+      for (const box of document.querySelectorAll<HTMLInputElement>(
+        'input[name="rl-order"]:checked',
+      ))
+        box.click();
+    });
+    const backs = cube(page).locator('[data-rl-cube-back]');
+    await expect(backs).toHaveText(['', ''], { timeout: 20_000 });
+    await expect(page.locator('[data-rl-back]')).toHaveText(['', '']);
+    await expect(page.locator('svg[data-rl-cube-picture]').first().locator('title')).toHaveText(
+      /No van leaves\.$/,
+    );
+    await expect(page.locator('svg[data-rl-cube-picture] .rl-route')).toHaveCount(0);
+    if (scene) await expect(frames(page).first()).toHaveAccessibleName(/No van leaves\.$/);
+  });
+}
 
 test('a scroll loads no three.js; a mouse over the cube does, and nothing below it moves', async ({
   page,
@@ -358,7 +502,7 @@ test('on a phone one cube shows, the one the map switch chooses, and it draws wh
     .toBeGreaterThan(0);
 });
 
-test('a lost WebGL context brings the pictures back, and a later change leaves them', async ({
+test('a lost WebGL context brings the pictures back, on the plan on show, for good', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -366,6 +510,7 @@ test('a lost WebGL context brings the pictures back, and a later change leaves t
   await turnOn(page);
   await page.check('input[name="rl-day"][value="quiet"]');
   await expect(page.locator('[data-rl-status]')).toHaveText(/Planned in/, { timeout: 20_000 });
+  await quiet(page);
   await canvases(page)
     .first()
     .evaluate((c: HTMLCanvasElement) => {
@@ -380,16 +525,39 @@ test('a lost WebGL context brings the pictures back, and a later change leaves t
     await expect(frame).not.toHaveAttribute('tabindex');
     await expect(frame).not.toHaveAttribute('role');
   }
-  // The captions say the build's day again, the day the pictures show.
+  // The pictures and the words over them are the day on the maps: they followed it under the canvas
+  // (until 2026-11-02 they went back to the opening day, under another day's maps).
+  await quiet(page);
+  // The scene listens no more, so another change and a theme change bring no canvas back; the
+  // pictures go on following the maps.
   const backs = cube(page).locator('[data-rl-cube-back]');
-  await expect(backs.first()).toHaveText(`Last van back after 2${NBSP}h 53${NBSP}min`);
-  // Nothing listens any more: another change and a theme change bring nothing back.
   await page.check('input[name="rl-day"][value="busy"]');
   await page.emulateMedia({ colorScheme: 'light' });
   await page.waitForTimeout(300);
   await expect(canvases(page)).toHaveCount(0);
   await expect(cube(page).locator('[data-rl-cube-marks]').first()).toBeHidden();
   await expect(backs.first()).toHaveText(`Last van back after 2${NBSP}h 53${NBSP}min`);
+  await expect(pictures.first().locator('.rl-route')).toHaveCount(3);
+});
+
+test('without WebGL the pictures and their words follow the plan, the same as with it', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const original = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, kind: string) {
+      if (/webgl/.test(kind)) return null;
+      return (original as (k: string) => RenderingContext | null).call(this, kind);
+    } as typeof original;
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(ROUTE_LAB);
+  // The mouse over the cube tries the scene, which this browser cannot draw.
+  await cube(page).locator('[data-rl-cube-stage]').first().hover();
+  await expect(page.locator('[data-rl-cube-controls]').first()).toBeHidden();
+  await chooseDay(page, 'quiet');
+  await quiet(page);
+  await expect(canvases(page)).toHaveCount(0);
 });
 
 test('without WebGL the pictures stay, the cube’s controls hide, and focus is not lost', async ({

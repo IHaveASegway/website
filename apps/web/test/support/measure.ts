@@ -87,10 +87,14 @@ const SIMULATED = Object.fromEntries(
  * writing fixtures) still holds them, and they still belong to the feature.
  *
  * The space-time cube (ADR 0019) is a part of the Route Lab with a budget of its own: its chunk,
- * which holds three.js, and every chunk only it reaches. It loads only on intent at the cube, so
- * it counts in neither the lab's lazy JavaScript nor its first solve, and those keep their
- * meaning: a solver that grew would still fail them. Its own ceiling, the first view with the app,
- * the route data and the cube, is what a visitor who turns the cube has fetched.
+ * which holds three.js, its still picture's, and every chunk only they reach. Three.js loads only
+ * on intent at the cube, so it counts in neither the lab's lazy JavaScript nor its first solve, and
+ * those keep their meaning: a solver that grew would still fail them. The picture's chunk loads on
+ * the first change, so a first solve counts it as well (test/budgets.test.ts). Since 2026-11-02 it
+ * and the geometry it shares with the scene are here: they moved over from the scene's chunk when
+ * the picture came to follow the plan, and in the lab's lazy JavaScript they took it 1,245 B over.
+ * The cube's own ceiling, the first view with the app, the route data and the cube, is what a
+ * visitor who turns the cube has fetched.
  *
  * So does each simulated lab (ADR 0020, ADR 0026; support/labs.ts): every chunk its module can
  * load, and the first view of its page with them. Its row in that table makes its feature here.
@@ -110,7 +114,7 @@ export const FEATURES = {
     firstView: 160_000,
     firstSolve: 600_000,
     cube: {
-      entry: /^_astro\/cube\.[\w-]+\.js$/,
+      entry: /^_astro\/(?:cube|still)\.[\w-]+\.js$/,
       lazyJavaScript: 150_000,
       firstCube: 400_000,
     },
@@ -123,13 +127,13 @@ export const FEATURES = {
  *  of its own on intent, and its first view is all a visitor fetches, within 150 KB. */
 export const HOME = { page: 'index.html', firstView: 150_000 } as const;
 
-/** The cube's files: its chunk, and every chunk it reaches that the app does not reach without
- *  passing through the cube. A chunk the app and the cube share is the app's. */
+/** The cube's files: its chunks, and every chunk they import or can load that the app does not
+ *  reach without passing through the cube. A chunk the app and the cube share is the app's. */
 export function cubeFiles(): string[] {
   const entries = files.filter((f) => FEATURES['route-lab'].cube.entry.test(f));
   const app = files.filter((f) => FEATURES['route-lab'].entry.test(f));
   const viaApp = reachableFromExcept(app, entries);
-  return [...entries, ...reachableFrom(entries).filter((f) => !viaApp.includes(f))];
+  return [...staticClosure(entries), ...reachableFrom(entries)].filter((f) => !viaApp.includes(f));
 }
 
 /** What some scripts reach without passing through any of `skip`. */

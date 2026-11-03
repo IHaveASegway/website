@@ -28,6 +28,15 @@ export const vanClass = (van: number): string => vanName(van).toLowerCase();
 /** Which of a day's two plans a map draws. */
 export type Which = 'before' | 'after';
 
+/** What each plan is called, on its map, its table and its cube. */
+export const PLAN_NAMES: Readonly<Record<Which, string>> = {
+  before: 'As the orders came in',
+  after: 'Planned by VROOM',
+};
+
+/** What a plan's figures say while VROOM has not answered the orders as they stand. */
+export const PREVIOUS = 'For the previous orders';
+
 /** The id of a van's route on a map, which the van's dot follows. */
 const routeId = (which: Which, van: number): string => `rl-${which}-${vanClass(van)}`;
 
@@ -39,7 +48,7 @@ export const casedRoute = (van: number): boolean => van === 0;
  *  shape are the ones whose colors stay apart under every color-vision deficiency
  *  (test/tokens.test.ts). Routes also differ by dash pattern. */
 export const isRound = (van: number): boolean => van === 1 || van === 2;
-const shape = (van: number) => (isRound(van) ? ' rl-round' : '');
+export const shape = (van: number): string => (isRound(van) ? ' rl-round' : '');
 
 const ESCAPES: Readonly<Record<string, string>> = {
   '&': '&amp;',
@@ -181,8 +190,8 @@ export function planLine(plan: Plan, measured: Measured): string {
 
 /** When the plan's day is done: "Last van back after 2 h 53 min", handing over every order
  *  included; nothing when no van leaves. */
-export const backLine = (measured: Measured): string =>
-  measured.back > 0 ? `Last van back after ${formatDuration(measured.back)}` : '';
+export const backLine = ({ back }: Pick<Measured, 'back'>): string =>
+  back > 0 ? `Last van back after ${formatDuration(back)}` : '';
 
 /** When the last van is back in each plan, in a sentence: what a second or third van buys,
  *  which total driving alone does not show. */

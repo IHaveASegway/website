@@ -16,6 +16,8 @@ import {
   mapTitle,
   placesMarkup,
   planLine,
+  PLAN_NAMES,
+  PREVIOUS,
   roomText,
   routesMarkup,
   savedText,
@@ -50,8 +52,8 @@ const fills = [...isochrones.within.keys()].reverse();
 // The later of the two plans' last van back: the clock both maps' vans keep.
 const longest = Math.max(before.measured.back, after.measured.back);
 const plans = [
-  { which: 'before', label: 'As the orders came in', short: 'As they came in', ...before },
-  { which: 'after', label: 'Planned by VROOM', short: 'VROOM’s plan', ...after },
+  { which: 'before', short: 'As they came in', ...before },
+  { which: 'after', short: 'VROOM’s plan', ...after },
 ] as const;
 const vans = [0, 1, 2, 3].map((van) => ({
   letter: vanClass(van),
@@ -151,7 +153,7 @@ const bands = bandsSentence(
     {plans.map((plan) => (
       <figure class="rl-figure" data-rl-plan={plan.which}>
         <figcaption class="rl-head">
-          <span class="label">{plan.label}</span>
+          <span class="label">{PLAN_NAMES[plan.which]}</span>
           <span class="rl-time" data-rl-time>
             {formatDuration(plan.measured.drive)}
           </span>
@@ -163,7 +165,7 @@ const bands = bandsSentence(
           </span>
           {plan.which === 'after' && (
             <span class="rl-note" data-rl-note data-rl-off>
-              For the previous orders
+              {PREVIOUS}
             </span>
           )}
         </figcaption>
@@ -356,7 +358,7 @@ const bands = bandsSentence(
       {plans.map((plan) => (
         <div
           data-rl-table={plan.which}
-          set:html={tableMarkup(routeData, plan.measured, plan.label)}
+          set:html={tableMarkup(routeData, plan.measured, PLAN_NAMES[plan.which])}
         />
       ))}
     </div>
