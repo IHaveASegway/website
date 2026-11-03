@@ -788,7 +788,9 @@ test('Start over writes the loss into its link, and a reload opens the same run,
   const entries = await page.evaluate(() => history.length);
   await page.getByRole('button', { name: 'Start over' }).click();
   await expect(page.locator('[data-rf-seed]')).toHaveText('7');
-  expect(new URL(page.url()).hash).toBe('#seed-7&loss=30');
+  // A press that comes before the lab has loaded waits for it (the app's queued presses), so the
+  // address changes when the lab arrives, and the seed above already read 7 before the press.
+  await expect.poll(() => new URL(page.url()).hash).toBe('#seed-7&loss=30');
   expect(await page.evaluate(() => history.length)).toBe(entries);
   const before = await forty();
   await page.reload();
