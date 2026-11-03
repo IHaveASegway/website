@@ -206,7 +206,20 @@ const latest = writingRow(area.published, work);
             </p>
             {where?.fact && (
               <div class="build-evidence">
-                <p class="build-lab">{factSource(where.slug, where.name)}</p>
+                <p class="build-lab">
+                  {factSource(where.slug, where.name)
+                    .split('made-up')
+                    .map((part, i) =>
+                      i === 0 ? (
+                        part
+                      ) : (
+                        <>
+                          <span class="build-word">made-up</span>
+                          {part}
+                        </>
+                      ),
+                    )}
+                </p>
                 <p class="build-fact">{where.fact}</p>
               </div>
             )}

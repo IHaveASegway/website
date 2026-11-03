@@ -310,26 +310,24 @@ test("Home's writing rows: the day, the title as the row's link, its summary, it
 // The address works with no mail app (components/home/Contact.astro; scripts/copy.js): pressed, the
 // button copies it, or where the clipboard refuses (a page not served securely) selects it, says
 // which, and keeps its width, so nothing moves.
-// "made-up" is one word to read: a phone's line over a fact must not split it at its hyphen.
-for (const width of [320, 360, 390, 430]) {
-  test(`at ${width} px, the line over a fact keeps "made-up" whole`, async ({ page }) => {
+// "made-up" is one word to read: the line over a fact must not split it at its hyphen. Phones, and the
+// widths from 1,024 to 1,112 px where the third column split it until 2026-11-03: four widths saw none.
+test('at every width the line over a fact keeps "made-up" whole', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate(() => document.fonts.ready);
+  for (const width of [320, 360, 390, 430, 1024, 1040, 1056, 1072, 1088, 1104, 1112]) {
     await page.setViewportSize({ width, height: 844 });
-    await page.goto('/');
-    await page.evaluate(() => document.fonts.ready);
     const lines = await page.locator('.build-lab').evaluateAll((labels) =>
       labels.flatMap((label) => {
-        const text = label.firstChild;
-        const at = text?.textContent?.indexOf('made-up') ?? -1;
-        if (!text || at < 0) return [];
-        const range = document.createRange();
-        range.setStart(text, at);
-        range.setEnd(text, at + 'made-up'.length);
-        return [new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size];
+        const word = [...label.querySelectorAll('span')].find(
+          (span) => span.textContent === 'made-up',
+        );
+        return word ? [new Set([...word.getClientRects()].map((r) => Math.round(r.top))).size] : [];
       }),
     );
-    expect(lines).toEqual([1, 1, 1]);
-  });
-}
+    expect(lines, `at ${width} px`).toEqual([1, 1, 1]);
+  }
+});
 
 test('Home closes with the address, a button that copies it without moving, and LinkedIn', async ({
   page,
