@@ -72,7 +72,7 @@ test('VROOM plans every order at once in a module worker, with no policy violati
   await expect(status(page)).toHaveText(
     /^Every order at once: 63 orders, 4 vans\. Planned in .* VROOM needed 3 of your 4 vans\.$/,
   );
-  const saved = `VROOM saves 13${NBSP}h 27${NBSP}min of driving and 419.6${NBSP}mi, 66% less.`;
+  const saved = `VROOM saves 13${NBSP}h 27${NBSP}min of driving, 66% less, and 419.6${NBSP}mi.`;
   await expect(page.locator('[data-rl-saved]')).toHaveText(saved);
   // Assistive technology hears the change, what VROOM saved, when the last vans are back, and the
   // solve: the one status region says it all at once.
@@ -263,7 +263,7 @@ test('without JavaScript the page is both plans, worked out at build, and no con
     `3${NBSP}h 12${NBSP}min`,
   );
   await expect(page.locator('[data-rl-saved]')).toHaveText(
-    `VROOM saves 2${NBSP}h 22${NBSP}min of driving and 74.0${NBSP}mi, 43% less.`,
+    `VROOM saves 2${NBSP}h 22${NBSP}min of driving, 43% less, and 74.0${NBSP}mi.`,
   );
   await expect(page.locator('.rl-caption')).toBeVisible();
   await expect(page.locator('.rl-table')).toHaveCount(2);

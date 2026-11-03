@@ -217,18 +217,25 @@ export function bandsSentence(minutes: readonly number[], lines: readonly number
   return `Shaded bands show driving time from the bakery, ${range}${at}.`;
 }
 
-/** The headline under the controls: what VROOM saves against the order the orders came in. One
- *  order is one route in both plans, so there is no order to beat. */
+/** The headline by the controls: what VROOM saves against the order the orders came in, as a
+ *  reader can check it against the two plans' figures. Each is the difference of the totals as the
+ *  page shows them: whole minutes and tenths of a mile, each rounded before subtracting. The percent
+ *  is the time's, so it stands beside the time: until 2026-11-02 it closed the sentence, after the
+ *  miles, which had fallen by another share. Miles are said only when they fall, since VROOM
+ *  shortens the driving time and can drive a little farther to do it. A percent that rounds to
+ *  nothing is left out. One order is one route in both plans, so there is no order to beat. */
 export function savedText(before: Measured, after: Measured): string {
   if (before.vans.reduce((stops, van) => stops + van.stops.length, 0) === 1)
     return 'With one order, both plans are the same route.';
-  // The difference of the totals as the page shows them, so the headline and the two big figures
-  // agree: whole minutes and tenths of a mile, each rounded before subtracting.
-  const time = (Math.round(before.drive / 60) - Math.round(after.drive / 60)) * 60;
-  if (time < 60) return 'These orders came in an order VROOM could not beat.';
+  const [from, to] = [Math.round(before.drive / 60), Math.round(after.drive / 60)];
+  if (from - to < 1) return 'These orders came in an order VROOM could not beat.';
   const tenths = (metres: number) => Math.round(metres / 160.9344);
-  const metres = Math.max(0, tenths(before.metres) - tenths(after.metres)) * 160.9344;
-  return `VROOM saves ${formatDuration(time)} of driving and ${formatMiles(metres)}, ${percentLess(before.drive, after.drive)}% less.`;
+  const fewer = tenths(before.metres) - tenths(after.metres);
+  const miles = formatMiles(fewer * 160.9344);
+  const time = formatDuration((from - to) * 60);
+  const percent = percentLess(from, to);
+  if (percent === 0) return `VROOM saves ${time} of driving${fewer > 0 ? ` and ${miles}` : ''}.`;
+  return `VROOM saves ${time} of driving, ${percent}% less${fewer > 0 ? `, and ${miles}` : ''}.`;
 }
 
 /** Why the vans hold what they hold: a share of the day's boxes, so changing the vans changes it.
