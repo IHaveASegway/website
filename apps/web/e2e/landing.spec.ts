@@ -232,6 +232,9 @@ for (const lab of FIXES) {
         await expect(each).toBeVisible();
         await expect(each).not.toHaveAttribute('data-spoke');
         expect(await each.textContent()).toBe(await each.getAttribute('data-said'));
+        // A screen reader can read what a sighted visitor reads here. It's the only place that says
+        // what these controls do before they're pressed.
+        expect(await each.evaluate((line) => line.closest('[aria-hidden="true"]'))).toBeNull();
       }
     });
 
@@ -245,6 +248,8 @@ for (const lab of FIXES) {
       await page.goto(lab.path);
       await expect(line(page)).toHaveText(words);
       await expect(line(page)).toBeVisible();
+      // Every line says it: a visitor at the settings on a phone is a thousand pixels from the first.
+      await expect(page.locator('[data-said]').last()).toHaveText(words);
       await expect(page.locator(`[data-${lab.short}-said]`)).toHaveText(words);
       const run = page.locator(`[data-${lab.short}-run]`);
       const standing = await clockOf(page).textContent();

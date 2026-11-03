@@ -5,11 +5,11 @@
 
 const UNLOADED = 'The lab did not load. Press any control to try again.';
 
-/** Says the app did not load, in the live region and the first line on the screen. */
+/** Says the app did not load, in the live region and every line on the screen: on a phone a line
+ *  under Run is over a thousand pixels from the settings, and any control there is as dead. */
 export function sayUnloaded(root: Element, live: Element | null): void {
   if (live) live.textContent = UNLOADED;
-  const line = root.querySelector('[data-said]');
-  if (line) {
+  for (const line of root.querySelectorAll('[data-said]')) {
     line.textContent = UNLOADED;
     line.setAttribute('data-spoke', '');
   }

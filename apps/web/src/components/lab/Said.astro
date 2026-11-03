@@ -7,11 +7,12 @@ interface Props {
 }
 
 // The line under a part of a lab's controls that says what its presses did (lib/lab/said.ts). It
-// keeps its room from the first paint. Assistive technology hears the whole of each press from one
-// live region elsewhere, so this one is hidden from it.
+// keeps its room from the first paint. It isn't live, since a screen reader hears the whole of each
+// press from one live region elsewhere, but it's there to read, as the Route Lab's line is: until a
+// press it's the only place that says what these controls do.
 const { words } = Astro.props;
 ---
 
-<p class="lab-said" aria-hidden="true" data-said={words}>
+<p class="lab-said" data-said={words}>
   {words}
 </p>

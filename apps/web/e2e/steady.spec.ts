@@ -453,6 +453,10 @@ for (const [name, lab] of Object.entries(LABS).filter(([name]) => name !== 'raft
     await run.tap();
     await expect(said).toHaveText(words);
     await expect(run).toHaveText('Run');
+    // A press far down the desk has its words beside it too, not a thousand pixels up the page.
+    const far = page.locator('[data-part]').last().locator('button').last();
+    await far.tap();
+    await expect(page.locator('[data-said]').last()).toHaveText(words);
     await page.unroute(lab.path);
     await page.unroute('**/_astro/app.*.js');
     await run.tap();
