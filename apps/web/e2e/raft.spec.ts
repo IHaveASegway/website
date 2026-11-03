@@ -498,7 +498,7 @@ test('the key names each mark on the wire in the picture’s own marks, and what
     .locator('.rf-key .rf-m')
     .evaluateAll((marks) => marks.map((m) => m.getAttribute('data-kind')));
   expect(kinds.sort()).toEqual(['ack', 'beat', 'entries', 'no', 'vote', 'yes']);
-  await expect(page.locator('.rf-key')).toContainText('Network split');
+  await expect(page.locator('.rf-key')).toContainText('Network partition');
   await expect(page.locator('.rf-gloss')).toHaveText(
     'A term is a numbered stretch of time with at most one leader.',
   );

@@ -30,7 +30,7 @@ Orders enter on the left and wait in the queue. Each worker's row holds the orde
 
 ## Credits
 
-The model is the acknowledgement, prefetch and dead-lettering of the AMQP 0-9-1 protocol, described here without any one broker's details. Idempotency keys: Brandur Leach, [Implementing Stripe-like Idempotency Keys in Postgres](https://brandur.org/idempotency-keys) (2017), where an API server keeps them for its clients; the worker here keeps them for itself. The queue grows under load because orders arrive faster than workers print them. Little's law ties the line to the wait: on average, the number of orders waiting is the rate they arrive times how long each waits (John D. C. Little, 1961).
+The model is the acknowledgement, prefetch and dead-lettering of the AMQP 0-9-1 protocol, described here without any one broker's details. Idempotency keys: Brandur Leach, [Implementing Stripe-like Idempotency Keys in Postgres](https://brandur.org/idempotency-keys) (2017), where an API server keeps them for its clients; a worker keeping them for itself is the idempotent consumer pattern. The queue grows under load because orders arrive faster than workers print them. Little's law ties the line to the wait: on average, the number of orders waiting is the rate they arrive times how long each waits (John D. C. Little, 1961).
 
 ## What it costs
 

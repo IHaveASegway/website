@@ -10,7 +10,7 @@ firewall_reviewed: 2026-11-02
 
 ## What a cache promises
 
-A cache keeps a copy of what the database would say, close to the reader, for a while. Most of the bakery's 120 pages are quick to build, and one, the menu, is asked for far more than the rest and takes 420 ms. A cache entry carries an expiry time. Until it passes, readers get the copy in a millisecond. When it passes, the next reader gets a cache miss, meaning no fresh copy, and goes to the database, and so does every reader who arrives before the new copy is back.
+A cache keeps a copy of what the database would say, close to the reader, for a while. Most of the bakery's 120 pages are quick to build, and one, the menu, is asked for far more than the rest and takes 420 ms. A cache entry carries a time to live, its TTL, and expires when that runs out. Until then, readers get the copy in a millisecond. When it expires, the next reader gets a cache miss, meaning no fresh copy, and goes to the database, and so does every reader who arrives before the new copy is back.
 
 That last part is the stampede. At 300 reads a second, an expired menu sends dozens of readers to the database at once. Its eight connections fill, the rest wait in line, and readers who wait a second give up. A fetch still in line when its last reader leaves is dropped; one already running finishes.
 

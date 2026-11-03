@@ -159,7 +159,7 @@ describe('what a page says of itself', () => {
       'lab/raft/index.html',
       'Each row is one server’s own view of the log, and each dot is one entry, with its term under it. A filled dot is committed: a majority holds it, and it can never be lost. A hollow dot means its server hasn’t heard that the entry is committed, and it may never be.',
     ],
-    ['lab/raft/index.html', 'Network split: no message crosses it'],
+    ['lab/raft/index.html', 'Network partition: no message crosses it'],
     [
       'lab/raft/index.html',
       'This is a deterministic simulation: the simulator controls time, the network and every random choice, with virtual time and one seeded random stream, and it records your button presses at the moment they happen.',

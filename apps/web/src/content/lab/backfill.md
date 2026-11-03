@@ -10,7 +10,7 @@ firewall_reviewed: 2026-11-02
 
 ## What a backfill promises
 
-A backfill runs a job over days that have already passed. The bakery's report counts each day's orders. A job runs once per day of data: it waits for that day's export file, extracts it, transforms it, loads it into the report and checks the report's count against the source. Each run works on one fixed day of data, whenever it actually runs. That is what makes a backfill possible: switch the job on with catch-up at the end of the week, and it runs all seven days, three at a time.
+A backfill runs a job over days that have already passed. The bakery's report counts each day's orders. A job runs once per day of data: it waits for that day's export file, extracts it, transforms it, loads it into the report and checks the report's count against the source. Each run works on one fixed day of data, its logical date, whenever it actually runs. That is what makes a backfill possible: switch the job on with catch-up at the end of the week, and it runs all seven days, three at a time.
 
 It also means every day can run more than once. A load fails halfway and retries, someone clears a day to rerun it after a fix, a backfill overlaps a day that already ran. A run that adds its rows each time counts that day twice. A run that replaces its day's rows in one step can run any number of times and leave the same report. That second kind is idempotent, and it is the only kind a backfill is safe with.
 

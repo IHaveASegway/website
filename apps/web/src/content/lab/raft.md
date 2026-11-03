@@ -20,7 +20,7 @@ Left alone, the run you land on crashes its leader to show an election, then sta
 
 **Cut off the leader.** With the run going, press Cut off the leader. The others stop hearing its heartbeats; one of them times out, wins a new term and leads. The old leader still thinks it leads. Send a write: the old leader takes it, but can never commit it, since it cannot reach a majority.
 
-**Split two servers from three.** The leader and one neighbor end up on the small side. Writes sent to it pile up uncommitted, while the three on the other side elect a leader of their own.
+**Split two servers from three.** This is a network partition: the leader and one neighbor end up on the small side. Writes sent to it pile up uncommitted, while the three on the other side elect a leader of their own.
 
 **Heal the network.** The old leader hears the newer term and steps down. Its uncommitted entries stay until the new leader sends one of its own: send a write, and they are dropped and replaced. The “What happened” list says how many, and marks a write as gone once a different entry is committed in its place. That's correct: those entries were never committed.
 
