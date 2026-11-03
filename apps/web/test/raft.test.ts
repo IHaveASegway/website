@@ -793,11 +793,39 @@ describe('the caption never contradicts the picture', () => {
           broken.push(`seed ${seed} at ${sim.now}: ${words}`);
         if (named.behind.length > 0 && !/ still think(s it leads| they lead) /.test(words))
           broken.push(`seed ${seed} at ${sim.now}: ${words}`);
+        // "Behind" means it: on an older term than whoever is named, or than the term "No leader"
+        // names, so the two halves of the sentence can't disagree.
+        const newest = named.leader?.term ?? currentTerm(sim);
+        if (named.behind.some((s) => s.term >= newest))
+          broken.push(`seed ${seed} at ${sim.now}: ${words}`);
       }
     }
     expect(broken).toEqual([]);
     // The sweep did reach the states the sentence is for.
     expect(behind).toBeGreaterThan(100);
+  });
+
+  // A newer term beside a leader on the small side is a message or two from reaching it. Counting it
+  // early said "No leader in term 2" and "Server 1 still thinks it leads term 2" in one breath, and with
+  // no side able to elect, named a leader of term 2 over one of term 3 it called behind.
+  test('known answer: a newer term on a leader’s own small side changes nothing until it hears', () => {
+    const sim = openingRun();
+    split(sim, [1, 1, 0, 0, 0]);
+    Object.assign(sim.servers[1] as Server, { role: 'candidate', term: 2 });
+    expect(leaderOf(sim)?.id).toBe(0);
+    expect(summary(sim)).toBe('Server 1 leads term 1, 3 entries committed, the network is split.');
+  });
+
+  test('known answer: with no side able to elect, the newest leader is named and the older is behind', () => {
+    const sim = openingRun();
+    split(sim, [1, 1, 0, 0, 0]);
+    crash(sim, 4);
+    Object.assign(sim.servers[0] as Server, { role: 'leader', term: 3 });
+    Object.assign(sim.servers[1] as Server, { role: 'candidate', term: 4 });
+    Object.assign(sim.servers[2] as Server, { role: 'leader', term: 2 });
+    expect(summary(sim)).toBe(
+      'Server 1 leads term 3, 3 entries committed, 1 server down, the network is split. Server 3 still thinks it leads term 2.',
+    );
   });
 
   test('with no side able to elect, the highest term anywhere is the term, and a leader there leads it', () => {

@@ -395,23 +395,18 @@ export function currentTerm(sim: Sim): number {
   );
 }
 
-/** Who leads, and who only thinks so. A leader is overtaken once a higher term reaches it or a
- *  majority has moved on without it: until then it's the leader, cut off or not, and it stays one
- *  beside a lone server whose term has climbed past its own, committing writes all the while. Every
- *  other leader that's up is behind, and will think it leads until it hears otherwise, which a leader
- *  cut off from the rest can't. */
+/** Who leads, and who only thinks so. A leader is overtaken once the side with a majority has moved
+ *  to a newer term without it. Until then it's the leader, cut off or not: it stays one beside a lone
+ *  server whose term has climbed past its own, committing writes all the while. A newer term on its
+ *  own side reaches it within a message or two, and then it steps down. Every other leader that's up
+ *  is behind, on an older term than whoever is named, and will think it leads until it hears
+ *  otherwise, which a leader cut off from the rest can't. */
 export function leaders(sim: Sim): { leader: Server | null; behind: Server[] } {
   const side = electingSide(sim);
   const up = sim.servers.filter((s) => s.up);
   const all = up.filter((s) => s.role === 'leader');
   const [leader = null] = all
-    .filter(
-      (s) =>
-        !up.some(
-          (x) =>
-            x.term > s.term && (sim.groups[x.id] === sim.groups[s.id] || sim.groups[x.id] === side),
-        ),
-    )
+    .filter((s) => !up.some((x) => x.term > s.term && sim.groups[x.id] === side))
     .sort((a, b) => b.term - a.term);
   return { leader, behind: all.filter((s) => s !== leader) };
 }
