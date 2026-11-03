@@ -332,6 +332,20 @@ const PHONES = [
   { phone: 'a 320 px phone', viewport: { width: 320, height: 568 } },
 ];
 
+// The Route Lab's first screen on the iPhone itself, in WebKit, at the viewport the project gives it,
+// 390 by 664, with no size set by hand: routes-layout.spec.ts holds the same in Chromium, and a check
+// on any other height can pass on what a phone doesn't show.
+test('the route lab’s first screen on an iPhone 14 holds its map switch and half its map', async ({
+  page,
+}) => {
+  expect(page.viewportSize()).toEqual({ width: 390, height: 664 });
+  await page.goto(ROUTE_LAB);
+  await page.evaluate(() => document.fonts.ready);
+  await expect(page.locator('.rl-view')).toBeInViewport({ ratio: 1 });
+  await expect(page.locator('svg[data-rl-map] >> visible=true')).toBeInViewport({ ratio: 0.5 });
+  await expect(page.locator('[data-rl-saved]')).not.toBeInViewport();
+});
+
 for (const { phone, viewport } of PHONES) {
   test.describe(`on ${phone}, a lab moves nothing on the screen, and the focus stays put`, () => {
     if (viewport) test.use({ viewport });
@@ -403,6 +417,9 @@ for (const { phone, viewport } of PHONES) {
         { what: 'Surprise, the first touch', selector: '[data-rl-surprise]', by: 'tap' },
         { what: 'the vans', selector: another('rl-vans'), by: 'tap' },
         { what: 'a tap on the map', selector: 'svg[data-rl-map] >> visible=true', by: 'tap' },
+        { what: 'a day', selector: another('rl-day'), by: 'tap' },
+        { what: 'the other map', selector: another('rl-view'), by: 'tap', ms: 500 },
+        { what: 'back to the first', selector: another('rl-view'), by: 'tap', ms: 500 },
       ]);
       // A tap on a cube that shows only in part: the page stays where the finger left it.
       const stage = page.locator('[data-rl-cube-stage] >> visible=true').first();

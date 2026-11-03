@@ -135,17 +135,6 @@ const bands = bandsSentence(
     </defs>
   </svg>
 
-  <div class="rl-readout" data-rl-readout>
-    <p class="rl-saved" data-rl-saved>
-      {savedText(before.measured, after.measured)}
-    </p>
-    <p class="rl-capacity" data-rl-capacity>
-      {roomText(routeData, day.orders, day.vans, capacity)}
-    </p>
-    <p class="rl-status" data-rl-status data-rl-js></p>
-    <p class="rl-say" role="status" data-rl-say></p>
-  </div>
-
   <fieldset class="rl-view" data-rl-js>
     <legend class="rl-say">Which map</legend>
     <div class="rl-chips">
@@ -261,10 +250,21 @@ const bands = bandsSentence(
   </div>
 
   <p class="rl-hint" data-rl-js>
-    Tap a place on a map, or tick it in the list below, to add or remove its order. VROOM plans
-    again each time.
+    Tap a place on a map, or check it in the list below, to add or remove its order. VROOM plans
+    again each time.{' '}
     <span class="rl-hint-vans">Each moving dot is a van, both maps on one clock.</span>
   </p>
+
+  <div class="rl-readout" data-rl-readout>
+    <p class="rl-saved" data-rl-saved>
+      {savedText(before.measured, after.measured)}
+    </p>
+    <p class="rl-capacity" data-rl-capacity>
+      {roomText(routeData, day.orders, day.vans, capacity)}
+    </p>
+    <p class="rl-status" data-rl-status data-rl-js></p>
+    <p class="rl-say" role="status" data-rl-say></p>
+  </div>
 
   <p class="rl-caption" data-rl-nojs>
     Both plans for a busy Saturday, worked out in advance by the same solver. With JavaScript on,

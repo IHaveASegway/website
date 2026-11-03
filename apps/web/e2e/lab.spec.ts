@@ -451,8 +451,9 @@ test('a chosen day or number of vans is a lit lamp, the others hollow, and no co
 });
 
 // The readout holds its height (route-lab.css) before the first change and for each answer in a
-// run of changes, so VROOM's answer never moves the maps: on a phone the room line keeps two lines
-// and the status line three, and wider each keeps one. Before 2026-10-25 the status line grew from
+// run of changes, so VROOM's answer never moves the maps: from 64rem, where it stands over them,
+// the room line and the status line keep a line each. Below that it stands under the controls, and
+// e2e/routes-layout.spec.ts holds what stands under it. Before 2026-10-25 the status line grew from
 // nothing on the first change, and on a phone both took one line or more by the day, so the maps
 // moved by 22 px or 44 px on most changes.
 for (const width of [390, 1440]) {

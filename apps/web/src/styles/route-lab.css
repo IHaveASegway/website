@@ -45,13 +45,16 @@
 
 /* Controls: the day, the vans and a surprise. Without JavaScript they stay hidden (the hidden
    attribute in the markup), so no control ever does nothing. Every change plans again: there is
-   no button to press. Where one map shows at a time they come straight after it, so the map and
-   what changes it share one screen, 390 by 844 included (e2e/routes-layout.spec.ts): the readout
-   heads the desk, then the map switch, the map and the controls, over a rule from bezel to bezel.
-   Until 2026-10-31 they headed the desk there too, and a phone's first screen held seven
-   controls and no map. From 64rem, where both maps and the readout fit beside and under them, the
-   controls head the desk again. The markup puts them after the maps, so the order of Tab is the
-   order a phone shows; beside a laptop's maps no stop for Tab lies between. */
+   no button to press. Where one map shows at a time the desk opens on the picture, as the other
+   labs' do: the map switch, the map and its figures, then the controls, over a rule from bezel to
+   bezel, then the hint and the readout, the words last, so what a change does sits on both sides
+   of what changes it. Half the map is on an iPhone's first screen, 390 by 664, and the switch and
+   the controls share the 844 px its whole screen has (e2e/routes-layout.spec.ts). Until
+   2026-10-31 the controls headed the desk there too, and a first screen held seven controls and
+   no map; until 2026-11-02 the readout did, with its reserved lines standing empty, and a first
+   screen held words, a blank gap and a switch. From 64rem, where both maps fit side by side, the
+   controls head the desk again, then the readout. The markup puts them after the maps, so the
+   order of Tab is the order a phone shows. */
 .rl-controls {
   display: grid;
   gap: 1.25rem;
@@ -61,8 +64,12 @@
 }
 
 @media (width >= 64rem) {
-  .rl-controls {
+  .rl-controls,
+  .rl-readout {
     order: -1;
+  }
+
+  .rl-controls {
     grid-template-columns: repeat(12, minmax(0, 1fr));
     column-gap: var(--gutter);
     align-items: start;
@@ -214,9 +221,11 @@
   padding-inline: 0.875rem;
 }
 
-/* The line under the readout holds its height whatever it says, so VROOM's answer never moves the
-   maps under the reader: one line, before the first change too; on a phone, three, the most a
-   change and its answer take there. The room line above does the same with two. */
+/* The line under the readout holds its height whatever it says, so VROOM's answer never moves what
+   stands below it, or the maps under the reader from 64rem: the most a change and its answer take
+   at each width, before the first change too, one line from 64rem, two below it and three on a
+   phone. It is the readout's last line, so what it holds empty runs into the space before the
+   legend, under the fold. */
 .rl-status {
   min-block-size: 1lh;
   margin: 0;
@@ -226,7 +235,13 @@
   line-height: var(--text-label--line-height);
 }
 
-@media (width < 48rem) {
+@media (width < 64rem) {
+  .rl-status {
+    min-block-size: 2lh;
+  }
+}
+
+@media (width < 30rem) {
   .rl-status {
     min-block-size: 3lh;
   }
@@ -284,15 +299,18 @@
   text-wrap: balance;
 }
 
-/* What VROOM saves keeps the three lines its longest sentence takes below 24rem, so a new plan's
-   numbers never move the maps under it; from there it takes the same lines whatever it says. */
-@media (width < 24rem) {
+/* What VROOM saves keeps the two lines its longest sentence takes below 36rem, so a shorter one
+   never moves what stands below it; from there every sentence takes one. */
+@media (width < 36rem) {
   .rl-saved {
-    min-block-size: 3lh;
+    min-block-size: 2lh;
   }
 }
 
+/* The room line keeps its line when it has nothing to say, with no orders, and on a phone the two
+   it takes on some days, so a change of day moves nothing (the status line does the same). */
 .rl-capacity {
+  min-block-size: 1lh;
   margin: 0;
   color: var(--muted-foreground);
   font-family: var(--font-label);
@@ -301,9 +319,7 @@
   line-height: var(--text-label--line-height);
 }
 
-/* On a phone the room line takes one line or two, by the day: it keeps two, so a change of day does
-   not move the maps (the status line below does the same). */
-@media (width < 48rem) {
+@media (width < 30rem) {
   .rl-capacity {
     min-block-size: 2lh;
   }
@@ -354,10 +370,24 @@
   }
 }
 
-/* The switch names the map under it, so it sits close above it, as a tab sits on its page. */
-@media (width < 64rem) {
+/* The switch names the map under it, so it sits close above it, as a tab sits on its page. On a
+   phone it is two tabs across the map's width, one row at 320 px too, where the two as drawn run a
+   few pixels over and a second row took 52 px from the first screen; a larger text size stacks
+   them. */
+@media screen and (scripting: enabled) and (width < 64rem) {
   .rl-view + .rl-maps {
     margin-block-start: -0.75rem;
+  }
+}
+
+@media (width < 48rem) {
+  .rl-view .rl-chips {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 7rem), 1fr));
+  }
+
+  .rl-view .rl-chip {
+    padding-inline: 0.625rem 0.5rem;
   }
 }
 
@@ -391,10 +421,19 @@
   flex-basis: 100%;
 }
 
-/* On a phone, where one map shows at a time, its name and its time share a line. */
+/* Where one map shows at a time, its name and its time share a line. The map comes first and its
+   figures stand under it: over it they pushed it 65 px further off a phone's first screen. Where
+   both stack, without script and on paper, the figures stay over their map, or they read as the
+   name of the next. */
 @media (width < 64rem) {
   .rl-head .label {
     flex-basis: auto;
+  }
+}
+
+@media screen and (scripting: enabled) and (width < 64rem) {
+  .rl-stage {
+    order: -1;
   }
 }
 
@@ -416,28 +455,43 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The note shows only while VROOM's plan is for the previous orders, in the place of the line that
+   says when that plan's last van is back, and shorter, so it moves nothing. */
 .rl-note {
   color: var(--muted-foreground);
 }
 
-/* The note shows only while VROOM's plan is for the previous orders. */
-.rl-note[data-rl-off] {
+.rl-note[data-rl-off],
+.rl-figure[data-rl-stale] .rl-back {
   display: none;
 }
 
-/* Below 24rem the plan's words wrap by their numbers, onto two lines or three, and the note adds
-   another: there each part takes a line of its own, and the note keeps its line while the plan is
-   fresh, unseen, so a new plan never moves the map under the heading (steady.spec.ts). */
-@media (width < 24rem) {
-  .rl-line,
-  .rl-back,
+/* The figures take the same rows whatever they say, so what stands under them stays put (a new
+   plan, the other map, no orders at all, when the line above says nothing and keeps its room):
+   one row from 36rem, where all of them fit one; below it two, with the last line and the note on
+   the second, where some days' words would fit one and some would not. */
+.rl-back {
+  min-block-size: 1lh;
+}
+
+@media (width < 36rem) {
+  .rl-back:empty,
   .rl-note {
     flex-basis: 100%;
   }
+}
 
-  .rl-note[data-rl-off] {
-    display: inline;
-    visibility: hidden;
+@media (29rem <= width < 36rem) {
+  .rl-back {
+    flex-basis: 100%;
+  }
+}
+
+/* Below 24rem the plan's words wrap by their numbers, so each part takes a line of its own. */
+@media (width < 24rem) {
+  .rl-line,
+  .rl-back {
+    flex-basis: 100%;
   }
 }
 
@@ -1189,15 +1243,6 @@
   border-radius: 50%;
 }
 
-@media print {
-  .rl-controls,
-  .rl-view,
-  .rl-status,
-  .rl-orders {
-    display: none;
-  }
-}
-
 /* The same day, in time: the space-time cube (ADR 0019). Two pictures side by side on one scale
    from 64rem, one on a phone, where the map switch above chooses it, so the maps and the cubes
    always show the same plan. With JavaScript and WebGL a canvas takes each picture's place at the
@@ -1448,4 +1493,23 @@
 
 [class^='rl-'] .label {
   font-family: var(--font-label);
+}
+
+/* On paper no control and no van, and the headline heads the desk, over the two maps. */
+@media print {
+  .rl-controls,
+  .rl-view,
+  .rl-status,
+  .rl-orders,
+  .rl-drive,
+  .rl-fleet,
+  .rl-hint,
+  .rl-cube-controls,
+  .rl-cube-hint {
+    display: none;
+  }
+
+  .rl-readout {
+    order: -1;
+  }
 }

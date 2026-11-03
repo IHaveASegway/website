@@ -204,9 +204,7 @@ export async function start(root: HTMLElement, queued: Element[], nearest: Neare
     else if (isFresh) text($('[data-rl-saved]'), savedText(measured, solved.measured));
     else if (broken || stalled)
       text($('[data-rl-saved]'), 'VROOM’s plan on the map is for the previous orders.');
-    const room = $<HTMLElement>('[data-rl-capacity]');
-    text(room, roomText(data, orders, vans, capacity));
-    if (room) room.hidden = orders.length === 0;
+    text($('[data-rl-capacity]'), roomText(data, orders, vans, capacity));
     emit();
   }
 

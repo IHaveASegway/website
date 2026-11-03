@@ -1,11 +1,18 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { ROUTE_LAB } from './expected';
+import { ROUTE_LAB, SOLVER } from './expected';
 
 // The Route Lab's desk as a visitor uses it (review of 2026-10-31, LAB-1): the cause and its effect
-// on one screen. Where one map shows at a time, the map switch, the map and the controls that
-// change it fit one 390 by 844 screen together, the map starts on the first screen, and Tab meets
-// the controls in the order the screen shows them. From 64rem the controls head the desk, over the
-// readout and both maps, as before.
+// on one screen. Where one map shows at a time, half the map is on the first screen of an iPhone 14
+// with Safari's bars up, 390 by 664, the map switch, the map and the controls that change it fit
+// the 844 px of its whole screen, and Tab meets the controls in the order the screen shows them.
+// From 64rem the controls head the desk, over the readout and both maps, as before.
+//
+// Until 2026-11-02 the first-screen check ran at 844, which no visitor's Safari shows, and asked for
+// 100 px of map, so it passed with 6 px of map on the phone (labs-m4). 844 stays for what it means,
+// the whole screen: nothing else here reads it as what a visitor first sees.
+
+/** What Safari shows of the page on an iPhone 14, its bars up: the phone project's viewport. */
+const FIRST_SCREEN = { width: 390, height: 664 };
 
 /** A visible element's top and bottom on the page, not the screen. */
 const span = (locator: Locator) =>
@@ -16,7 +23,31 @@ const span = (locator: Locator) =>
 
 const visibleMap = (page: Page) => page.locator('svg[data-rl-map]:visible');
 
-test('on a 390 by 844 phone the map switch, the map and the day and van controls share one screen', async ({
+test('an iPhone’s first screen, 390 by 664, holds the map switch and half the map, and no words over them', async ({
+  page,
+}) => {
+  await page.setViewportSize(FIRST_SCREEN);
+  await page.goto(ROUTE_LAB);
+  await expect(visibleMap(page)).toHaveCount(1);
+  const desk = await span(page.locator('#route-lab'));
+  const view = await span(page.locator('.rl-view'));
+  const map = await span(visibleMap(page));
+  // The desk opens on the switch and the map, as the other labs' open on their picture: 21 px in.
+  expect(view.top - desk.top).toBeLessThan(25);
+  expect(view.bottom).toBeLessThanOrEqual(map.top);
+  expect(view.bottom).toBeLessThanOrEqual(FIRST_SCREEN.height);
+  expect(FIRST_SCREEN.height - map.top).toBeGreaterThanOrEqual((map.bottom - map.top) / 2);
+  await expect(visibleMap(page)).toBeInViewport({ ratio: 0.5 });
+  // The words come later, the room they hold empty with them: under the map and the controls.
+  const figures = await span(page.locator('[data-rl-plan="after"] .rl-head'));
+  const controls = await span(page.locator('.rl-controls'));
+  const readout = await span(page.locator('.rl-readout'));
+  expect(map.bottom).toBeLessThanOrEqual(figures.top);
+  expect(figures.bottom).toBeLessThanOrEqual(controls.top);
+  expect(controls.bottom).toBeLessThanOrEqual(readout.top);
+});
+
+test('on a phone’s whole screen, 390 by 844, the map switch, the map and the day and van controls fit together', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -37,14 +68,53 @@ test('on a 390 by 844 phone the map switch, the map and the day and van controls
     await expect(page.locator(part)).toBeInViewport({ ratio: 1 });
   }
   await expect(visibleMap(page)).toBeInViewport({ ratio: 1 });
-  // And the first screen, before any scroll, already shows the top of the map.
-  expect(map.top).toBeLessThan(844 - 100);
+});
+
+test('without script the maps stack, each under its own figures, the first on the first screen', async ({
+  browser,
+}) => {
+  const context = await browser.newContext({ javaScriptEnabled: false, viewport: FIRST_SCREEN });
+  const page = await context.newPage();
+  await page.goto(ROUTE_LAB);
+  const maps = await page.locator('svg[data-rl-map]').all();
+  expect(maps).toHaveLength(2);
+  for (const which of ['before', 'after']) {
+    const figure = page.locator(`[data-rl-plan="${which}"]`);
+    const head = await span(figure.locator('.rl-head'));
+    const map = await span(figure.locator('svg[data-rl-map]'));
+    expect(head.bottom).toBeLessThanOrEqual(map.top);
+  }
+  const first = await span(page.locator('[data-rl-plan="before"] svg[data-rl-map]'));
+  expect(first.top).toBeLessThan(FIRST_SCREEN.height);
+  await context.close();
+});
+
+test('on paper the headline leads, each map’s figures stand over it, and no van or control shows', async ({
+  page,
+}) => {
+  await page.goto(ROUTE_LAB);
+  await page.emulateMedia({ media: 'print' });
+  const readout = await span(page.locator('.rl-readout'));
+  const head = await span(page.locator('[data-rl-plan="before"] .rl-head'));
+  const map = await span(page.locator('[data-rl-plan="before"] svg[data-rl-map]'));
+  expect(readout.bottom).toBeLessThanOrEqual(head.top);
+  expect(head.bottom).toBeLessThanOrEqual(map.top);
+  const shown = await page.evaluate(() =>
+    [
+      ...document.querySelectorAll(
+        '#route-lab [data-rl-drive], #route-lab [data-rl-fleet], #route-lab .rl-hint, #route-lab [data-rl-cube-controls], #route-lab .rl-controls',
+      ),
+    ]
+      .filter((e) => e.checkVisibility())
+      .map((e) => e.getAttribute('class')),
+  );
+  expect(shown).toEqual([]);
 });
 
 test('on a phone Tab meets the desk’s controls in the order the screen shows them', async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+  await page.setViewportSize(FIRST_SCREEN);
   await page.goto(ROUTE_LAB);
   await page.locator('input[name="rl-view"]:checked').focus();
   const tops: number[] = [];
@@ -82,6 +152,95 @@ test('from 64rem the controls head the desk, over the readout and both maps', as
   expect(controls.bottom).toBeLessThanOrEqual(readout.top);
   expect(readout.bottom).toBeLessThanOrEqual(map.top);
 });
+
+// What stands under the map holds still (design-system.md, "Motion"), since the controls that change
+// the plan, and the list of places, stand there: from one plan's words to another's, from map to
+// map, while VROOM has not answered, and with no orders. Each line keeps the room its longest words
+// take at that width (route-lab.css), which is what the first screen's blank gap was for, before it
+// moved under the map; and at 320 px the other map's figures took a line less than VROOM's, which
+// moved everything under them by 22 px at a press of the switch.
+for (const width of [320, 390, 480, 600, 768, 1440]) {
+  test(`at ${width} px what stands under the map stays put, whatever the plan`, async ({
+    page,
+    context,
+  }) => {
+    test.setTimeout(90_000);
+    // The worker's script is held back until the first change has been read, so VROOM's plan is for
+    // the previous orders for as long as that takes.
+    let hold = true;
+    await context.route(`**${SOLVER}vroom-worker.mjs`, async (route) => {
+      while (hold) await new Promise((resolve) => setTimeout(resolve, 50));
+      await route.continue();
+    });
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto(ROUTE_LAB);
+    const after = page.locator('[data-rl-plan="after"]');
+    const tops = () =>
+      page.evaluate(() =>
+        [
+          'svg[data-rl-map]',
+          '.rl-controls',
+          '.rl-legend',
+          '[data-rl-cube-stage]',
+          '.rl-orders',
+        ].map((part) => {
+          const shown = [...document.querySelectorAll(part)].find((e) => e.checkVisibility());
+          return Math.round((shown?.getBoundingClientRect().top ?? 0) + scrollY);
+        }),
+      );
+    const opening = await tops();
+    const steady = async (what: string) => expect(await tops(), what).toEqual(opening);
+    const press = (selector: string) =>
+      page.locator(selector).evaluate((input: HTMLInputElement) => input.click());
+    const answered = async () => {
+      await expect(after).not.toHaveAttribute('data-rl-stale', '', { timeout: 30_000 });
+      // The cube's words follow on the next frame.
+      await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => done(null))));
+    };
+
+    await press('input[name="rl-vans"][value="2"]');
+    await expect(after).toHaveAttribute('data-rl-stale', '');
+    await expect(after.locator('[data-rl-note]')).toBeVisible();
+    await steady('VROOM’s plan for the previous orders');
+    hold = false;
+    for (const day of ['quiet', 'busy', 'libraries', 'lake', 'everything']) {
+      await press(`input[name="rl-day"][value="${day}"]`);
+      await answered();
+      await steady(day);
+      if (width < 1024) {
+        await press('input[name="rl-view"][value="before"]');
+        await steady(`${day}, the other map`);
+        await press('input[name="rl-view"][value="after"]');
+      }
+    }
+    // The longest figures the page writes: every order on one van.
+    await press('input[name="rl-vans"][value="1"]');
+    await answered();
+    await steady('every order on one van');
+    if (width < 1024) {
+      await press('input[name="rl-view"][value="before"]');
+      await steady('every order on one van, the other map');
+    }
+    await page.evaluate(() => {
+      for (const box of document.querySelectorAll<HTMLInputElement>(
+        'input[name="rl-order"]:checked',
+      ))
+        box.click();
+    });
+    await expect(page.locator('[data-rl-saved]')).toHaveText(
+      'Add at least one order to plan a route.',
+    );
+    await answered();
+    await steady('no orders');
+    await press('input[name="rl-order"][value="3"]');
+    await expect(page.locator('[data-rl-saved]')).toHaveText(
+      'With one order, both plans are the same route.',
+      { timeout: 30_000 },
+    );
+    await answered();
+    await steady('one order');
+  });
+}
 
 // The maps' names over their routes and stops (review RTE-2): words are drawn over pictures, never
 // under, and each name keeps off the stops (lib/route-lab/labels.ts), so neither hides the other.
@@ -171,7 +330,7 @@ test('on a phone, on every day, a name covers at most a third of any stop’s ma
   page,
 }) => {
   test.setTimeout(60_000);
-  await page.setViewportSize({ width: 390, height: 844 });
+  await page.setViewportSize(FIRST_SCREEN);
   await page.goto(ROUTE_LAB);
   await page.evaluate(() => document.fonts.ready);
   for (const day of await page.locator('input[name="rl-day"]').all()) {
