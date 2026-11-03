@@ -637,7 +637,7 @@
 }
 
 .btn-copy {
-  min-inline-size: min(12.75rem, 100%);
+  min-inline-size: min(13.75rem, 100%);
 }
 
 /* The address at a section's size, and below 27rem a headline's, so that each side of its @ keeps

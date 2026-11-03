@@ -185,7 +185,12 @@ test("What I build: the bio's five in its order, each lab's row with its fact", 
     const line = await row.getAttribute('data-line');
     if (!line) continue;
     await expect(row.locator(`.build-text a[href="/lab/${line}/"]`)).toHaveCount(1);
-    await expect(row.locator('.build-lab')).toHaveText(/ Lab$/);
+    // Home names the made-up bakery nowhere else, so the line over a fact says what it is about.
+    await expect(row.locator('.build-lab')).toHaveText(
+      line === 'raft' || line === 'routes'
+        ? /^Simulated in the \w+ Lab$/
+        : /^Simulated in the \w+ Lab, with a made-up bakery’s (orders|menu|report)$/,
+    );
     await expect(row.locator('.build-fact')).toHaveText(/\S.*\.$/);
   }
 });
