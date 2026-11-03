@@ -568,6 +568,29 @@
   }
 }
 
+/* A card alone, from a laptop up: at the cards' own width it read as a grid missing its other cards, so
+   it takes the frame, its facts in a column of their own beside its words. */
+@media (width >= 64rem) {
+  #work .cards:has(> .card:only-child) {
+    max-inline-size: none;
+  }
+
+  #work .card:only-child {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: calc(var(--gutter) * 2);
+  }
+
+  #work .card:only-child > :not(.kv) {
+    grid-column: 1;
+  }
+
+  #work .card:only-child > .kv {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    align-self: center;
+  }
+}
+
 /* The last thing they built: the bio's prose, then the repository's record under a hairline. */
 .last-text {
   margin: 0;

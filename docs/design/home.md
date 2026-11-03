@@ -44,6 +44,10 @@ Each of the bio's things is a row between hairlines, in the bio's order:
 
 From 64rem the lead, the words and the fact stand in three columns. "Try all the labs" opens the index: no page says how many there are, since there'll be more (`test/no-lab-count.test.ts`).
 
+## Selected work
+
+Each project whose check is recorded, as a card that opens its repository: stillhere's alone today. From 64rem a card alone takes the frame, its facts in a column beside its words, since at the cards' 44rem it read as a grid missing its other cards. Between them, two or more cards keep the cards' own width.
+
 ## The biggest thing
 
 The bio's The biggest thing I've built, word for word, stands above The last thing I built, whose last sentence points back to it: "The CRM work above is where I do that." Until the review of 2026-11-03 Home printed that sentence with nothing above it, and never said what real users rely on. `test/about.test.ts` holds the section, its words and its place.

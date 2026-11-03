@@ -336,6 +336,31 @@ test('at every width the line over a fact keeps "made-up" whole', async ({ page 
   }
 });
 
+// One card at 44rem read as a grid missing its other cards on a laptop: 704 px of a 1,216 px frame. So
+// from 64rem a card alone takes the frame, its facts in a column of their own beside its words.
+test('from a laptop up, a card alone fills the frame, with its facts beside its words', async ({
+  page,
+}) => {
+  for (const width of [1024, 1440, 2560]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/');
+    const card = page.locator('#work .card');
+    test.skip((await card.count()) !== 1, 'this build has no lone card');
+    const at = await page.evaluate(() => {
+      const box = (selector: string) =>
+        document.querySelector(selector)?.getBoundingClientRect() as DOMRect;
+      return {
+        frame: box('#work').width,
+        card: box('#work .card').width,
+        words: box('#work .card-text').right,
+        facts: box('#work .card .kv').left,
+      };
+    });
+    expect(at.card, String(width)).toBeCloseTo(at.frame, 0);
+    expect(at.facts, String(width)).toBeGreaterThanOrEqual(at.words);
+  }
+});
+
 // Home closes on where to reach out (components/home/Contact.astro; ADR 0031): the bio's last words
 // where the build holds the bio, and LinkedIn to press. No page asks a reader to email: the address
 // stays as plain text in the footer, and on paper in the résumé's head.
