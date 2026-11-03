@@ -51,13 +51,13 @@ const count = (n: number) => n.toLocaleString('en-US');
       <Content />
       <h2 id="how-it-is-built">How it is built</h2>
       <p>
-        The readers, the four nodes and the database are one TypeScript module that runs in virtual
-        time. Every random draw in it, from when a reader arrives to how long a fetch takes, comes
-        from one seeded stream, and your presses are recorded at the moment they happened. The same
-        seed and the same presses give the same run, every time. The page opens on seed{' '}
-        {OPENING.seed} at {OPENING.until / 1000} s, {count(opening.counts.reads)} reads and{' '}
-        {count(opening.events)} events in, drawn before any script runs; your browser replays them
-        and takes over at that moment.
+        The readers, the four nodes and the database are one TypeScript module, a deterministic
+        simulation that runs in virtual time. Every random draw in it, from when a reader arrives to
+        how long a fetch takes, comes from one seeded stream, and your presses are recorded at the
+        moment they happened. The same seed and the same presses give the same run, every time. The
+        page opens on seed {OPENING.seed} at {OPENING.until / 1000} s, {count(opening.counts.reads)}{' '}
+        reads and {count(opening.events)} events in, drawn before any script runs; your browser
+        replays them and takes over at that moment.
       </p>
       <p>
         A checker counts each break of the three checks at the moment it happens. After every event

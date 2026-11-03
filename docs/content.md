@@ -353,6 +353,8 @@ One vocabulary, so nobody has to translate ([ADR 0029](adr/0029-one-voice-one-co
 | checks; safety properties in Raft | properties outside Raft |
 | How to read it | lines and lamps |
 | US English | colour, neighbour |
+| random seed, on a lab's clock | seed alone, which a reader took for poppy seeds or tournament seeding |
+| deterministic simulation, where a lab says how it's built | "a simulator around it", "a picture the build drew" |
 
 ## Firewall classes for copy
 

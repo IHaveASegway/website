@@ -49,11 +49,12 @@ const lead =
       <Content />
       <h2 id="how-it-is-built">How it is built</h2>
       <p>
-        The servers are one TypeScript module that follows Figure 2 of the Raft paper. Time, the
-        network and every random choice belong to a simulator around them: virtual time, one seeded
-        random stream, and your presses recorded at the moment they happened. The same seed and the
-        same presses give the same run, every time. That is how the page opens with a picture the
-        build drew, and how the browser then takes over at the exact same moment.
+        The servers are one TypeScript module that follows Figure 2 of the Raft paper. This is a
+        deterministic simulation: the simulator controls time, the network and every random choice,
+        with virtual time and one seeded random stream, and it records your button presses at the
+        moment they happen. The same seed and the same presses give the same run, every time. That
+        is how the page opens on a picture drawn when the site was built, and how your browser then
+        replays the same run and takes over at that exact moment.
       </p>
       <p>
         After every event, a checker tests the five safety properties of Figure 3. The same
