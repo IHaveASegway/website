@@ -4,10 +4,12 @@ import type { Toggle } from '../../lib/cache/sim';
 import {
   clockWords,
   mapWords,
+  menuWords,
   nodeWords,
   OPENING,
   openingRun,
   outcomeStrip,
+  pageState,
   propertyLines,
   readersWords,
   stripWords,
@@ -99,9 +101,15 @@ const mitigations: { toggle: Toggle; name: string }[] = [
   <div class="cl-stage">
     <figure class="cl-figure">
       <div class="cl-map" role="img" aria-label={mapWords(sim)} data-cl-map>
-        <p class="cl-readers" data-cl-readers>
-          {readersWords(sim)}
-        </p>
+        <div class="cl-map-head">
+          <p class="cl-readers" data-cl-readers>
+            {readersWords(sim)}
+          </p>
+          <p class="cl-menu-line">
+            <span class="cl-lamp cl-menu-lamp" data-cl-menu-lamp data-state={pageState(sim, 0)} />
+            <span data-cl-menu>{menuWords(sim)}</span>
+          </p>
+        </div>
         <svg class="cl-fan" viewBox="0 0 100 400" preserveAspectRatio="none">
           {nodes.map((id) => (
             <g data-cl-fan={id} data-up={String(sim.nodes[id]?.up)}>

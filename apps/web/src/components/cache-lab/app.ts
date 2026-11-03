@@ -34,7 +34,7 @@ import {
   waiting,
   whereWords,
 } from '../../lib/cache/view';
-import { pageLamps, stripEnds, stripPaths } from './picture';
+import { crowded, pageLamps, stripEnds, stripPaths } from './picture';
 
 // The Cache Lab in the browser: the simulation, run in virtual time and drawn on every frame while
 // it runs. It opens paused, on the same opening the build drew, and moves only when the visitor
@@ -98,6 +98,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
         const box = $(`[data-cl-pages="${id}"]`);
         if (!box) continue;
         box.innerHTML = pageLamps(sim, id);
+        box.toggleAttribute('data-crowded', crowded(sim, id));
         const found = box.querySelectorAll('.cl-lamp');
         pagesOn(sim, id).forEach((key, i) => {
           lamps[key] = found[i];
@@ -112,6 +113,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       shownState[key] = state;
     }
     text($('[data-cl-menu]'), menuWords(sim));
+    attribute($('[data-cl-menu-lamp]'), 'data-state', pageState(sim, 0));
   }
 
   /** Everything the page shows of the run, changed only where it changed. */
