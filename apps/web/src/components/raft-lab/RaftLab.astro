@@ -127,6 +127,7 @@ const SPEEDS = [
       speeds={SPEEDS}
       speed="0.05"
       runSays="Nothing is scheduled: press something below to break it."
+      resetSays={`The run starts over under these settings, at ${seconds(sim.now)}`}
     >
       <p class="lab-clock">
         <span data-rf-clock>Virtual time {seconds(sim.now)}</span>,{' '}

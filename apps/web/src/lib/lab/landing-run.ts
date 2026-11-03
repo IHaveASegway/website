@@ -25,8 +25,8 @@ export interface Playing {
  */
 export function heldByThePage(root: Element, run: Playing, still: MediaQueryList): void {
   let held = false;
-  root.addEventListener('click', () => {
-    held = false;
+  root.addEventListener('click', (event) => {
+    if ((event.target as Element).closest(PRESSES)) held = false;
   });
   document.addEventListener('motionchange', (event) => {
     if ((event as CustomEvent<{ paused: boolean }>).detail.paused) {
@@ -56,6 +56,8 @@ export interface LandingRun extends Playing {
   again(): void;
 }
 
+/** What a press lands on: a button, a choice, or a node of the Raft Lab's picture. */
+const PRESSES = 'button, input, label, [data-rf-node]';
 const LOOK = 500; // real ms between looks at the run
 const HOLD = 6_000; // real ms the end of a run stands before it plays again
 
@@ -116,9 +118,8 @@ export function runOnLanding(root: HTMLElement, run: LandingRun): void {
   const followed = () => {
     if (readLink(location.hash, {})) leave();
   };
-  /** A press on anything that acts: a button, a choice, or a node of the Raft Lab's picture. */
   const taken = (event: Event) => {
-    if ((event.target as Element).closest('button, input, label, [data-rf-node]')) leave();
+    if ((event.target as Element).closest(PRESSES)) leave();
   };
   for (const kind of ['click', 'change', 'input'])
     root.addEventListener(kind, taken, { capture: true, signal });

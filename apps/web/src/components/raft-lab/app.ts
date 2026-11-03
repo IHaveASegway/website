@@ -1,6 +1,6 @@
 import { eventLog } from '../../lib/lab/event-log';
 import { heldByThePage, runOnLanding } from '../../lib/lab/landing-run';
-import { speaker, startsOver } from '../../lib/lab/said';
+import { speaker } from '../../lib/lab/said';
 import { address } from '../../lib/sim/link';
 import {
   crash,
@@ -283,8 +283,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       if (wasPlaying) play();
       // Only a run that plays on takes the story with it: a press of Run is a press like any other, so
       // this line asks for none. "Press Run to watch it" promised a crash that a press of Run drops.
-      const where = `at ${seconds(sim.now)}${told && wasPlaying ? ', before the leader crashes' : ''}`;
-      say(startsOver('run', 'these settings', where, true), control);
+      say(`${why}${told && wasPlaying ? ', before the leader crashes' : ''}.`, control);
       return;
     } else if (control === loss) {
       // Before it changes the loss, the run finishes the events due in this millisecond, as any
