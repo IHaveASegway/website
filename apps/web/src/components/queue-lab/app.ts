@@ -353,7 +353,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       if (w) slow(sim, w.id, !w.slow);
     } else return;
     const latest = sim.lines.at(-1);
-    if (latest && latest !== before) say(`${latest.text}.${after}`, control);
+    if (latest && latest !== before) say(after ? `${latest.text}.${after}` : latest.text, control);
     draw();
   }
 
