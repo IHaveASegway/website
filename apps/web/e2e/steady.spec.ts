@@ -570,6 +570,9 @@ test('the route lab that did not load: a press tries again, here in WebKit too',
 test('in a log scrolled back, what a reader is reading stays where it is as the run writes on', async ({
   page,
 }) => {
+  // It waits on the run's own lines, which come when they come, and a shared runner plays the run
+  // more slowly: 10 s reached 298 px of the 400 on CI on 2026-11-03.
+  test.slow();
   await open(page, '/lab/cache/');
   await page.locator('label:has(input[name="cl-speed"][value="2"])').tap();
   const run = page.locator('[data-cl-run]');
@@ -577,7 +580,7 @@ test('in a log scrolled back, what a reader is reading stays where it is as the 
   await expect(run).toHaveText('Pause');
   const log = page.locator('[role="log"]');
   await expect
-    .poll(() => log.evaluate((box) => box.scrollHeight - box.clientHeight), { timeout: 10_000 })
+    .poll(() => log.evaluate((box) => box.scrollHeight - box.clientHeight), { timeout: 40_000 })
     .toBeGreaterThan(400);
   await log.evaluate((box) => {
     box.style.setProperty('overflow-anchor', 'none');

@@ -130,6 +130,16 @@ const captionsOnTheirDrawing = (page: Page) =>
         '.iso-glyph :is(path, circle, ellipse, rect, polygon, line)',
       );
       const touches = [...shapes].some((shape) => {
+        // Only a shape whose box reaches the caption can touch it. Asking every shape about every
+        // pixel of the caption took over 30 s on CI's runner. The margin is for a stroke's width.
+        const near = shape.getBoundingClientRect();
+        if (
+          near.right + 8 < box.left ||
+          near.left - 8 > box.right ||
+          near.bottom + 8 < box.top ||
+          near.top - 8 > box.bottom
+        )
+          return false;
         const { fill, stroke } = getComputedStyle(shape);
         const back = shape.getScreenCTM()?.inverse();
         if (!back) return false;
