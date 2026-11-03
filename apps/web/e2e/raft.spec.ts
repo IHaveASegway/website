@@ -556,7 +556,9 @@ test('why a press did nothing is on the screen: Heal on a whole network, Cut off
 
   // No leader, all five down.
   for (let id = 0; id < 5; id++) await page.locator(`[data-rf-toggle="${id}"]`).click();
-  await expect(line).toHaveText(/^Server 5 crashes\. It keeps its term, its vote and its log on disk\.$/);
+  await expect(line).toHaveText(
+    /^Server 5 crashes\. It keeps its term, its vote and its log on disk\.$/,
+  );
   await page.getByRole('button', { name: 'Cut off the leader' }).click();
   await expect(line).toHaveText('There is no leader to cut off right now.');
   await expect(line).toBeVisible();

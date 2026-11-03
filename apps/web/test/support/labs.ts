@@ -53,6 +53,10 @@ export interface SimulatedLab {
  * in the chunk all four share, so the three's shared chunks, 2,098 B, import it. Measured then: the
  * Raft Lab 8,490 B, the Queue Lab 13,857 B, the Cache Lab 12,482 B, the Backfill Lab 12,989 B. The
  * Cache and Backfill Labs came in over by 23 and 29 B and were trimmed back, with no budget moved.
+ *
+ * Then the Raft Lab took the same controls, the log and the line, and they moved to the chunk all four
+ * share, 1,338 B. It paid for them by trimming (ADR 0020's postscript), with no budget moved. Measured
+ * then: the Raft Lab 8,449 B, the Queue Lab 13,662 B, the Cache Lab 12,310 B, the Backfill Lab 12,790 B.
  */
 export const SIMULATED_LABS = [
   { slug: 'raft', bundle: 'RaftLab', map: 'rf-map', lazyJavaScript: 8_500 },

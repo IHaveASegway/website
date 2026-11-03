@@ -79,13 +79,7 @@ const SPEEDS = [
 
 <div class="rf desk" id="raft-lab">
   <figure class="rf-figure">
-    <svg
-      class="rf-map"
-      viewBox={VIEW_BOX}
-      role="img"
-      aria-labelledby="rf-summary"
-      data-rf-map
-    >
+    <svg class="rf-map" viewBox={VIEW_BOX} role="img" aria-labelledby="rf-summary" data-rf-map>
       <path class="rf-cut" data-rf-cut data-off={cut ? undefined : ''} d={cut ?? 'M0 0'} />
       {sim.servers.map((s) => {
         const { x, y } = place(s.id, sim.servers.length);

@@ -105,10 +105,7 @@ export function check(c: Checker, servers: readonly Server[], now: number): Viol
   // State Machine Safety: no two servers commit or apply different entries at one index.
   for (const s of servers) {
     if (s.commitIndex > s.log.length)
-      return fail(
-        'State Machine Safety',
-        `${serverName(s.id)} no longer holds what it committed`,
-      );
+      return fail('State Machine Safety', `${serverName(s.id)} no longer holds what it committed`);
     for (let k = Math.max(1, c.committed.length); k <= s.commitIndex; k++) {
       c.committed[k] = {
         term: termAt(s, k),

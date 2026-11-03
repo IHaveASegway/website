@@ -69,8 +69,9 @@ for (const [width, height] of [
     expect(looks.length).toBeGreaterThan(8);
     for (const look of looks) expect(look).toEqual({ radius: '4px', joined: true, tall: true });
     // Its lamp stands level with its words: a chip with no note under them had the lamp 4 px low.
-    const off = await page.locator('label.rl-chip:visible:not(:has(.rl-chip-note))').evaluateAll(
-      (chips) =>
+    const off = await page
+      .locator('label.rl-chip:visible:not(:has(.rl-chip-note))')
+      .evaluateAll((chips) =>
         chips.map((chip) => {
           const middle = (part: Element | null) => {
             const box = part?.getBoundingClientRect();
@@ -78,7 +79,7 @@ for (const [width, height] of [
           };
           return Math.abs(middle(chip.querySelector('input')) - middle(chip.querySelector('span')));
         }),
-    );
+      );
     expect(off.length).toBeGreaterThan(3);
     for (const by of off) expect(by).toBeLessThanOrEqual(1);
   });
@@ -117,7 +118,6 @@ for (const lab of LABS) {
     expect(speed.y).toBeGreaterThan(run.y);
     expect(speed.y + speed.height - (run.y + run.height)).toBeLessThan(70);
   });
-
 }
 
 for (const lab of LABS) {

@@ -110,8 +110,7 @@ const round = (n: number) => Math.round(n * 10) / 10;
 const entries = (n: number) => `${n} ${n === 1 ? 'entry' : 'entries'}`;
 
 /** A server's state in words, for its button's name. */
-export const serverState = (s: Server): string =>
-  s.up ? `${s.role}, term ${s.term}` : 'down';
+export const serverState = (s: Server): string => (s.up ? `${s.role}, term ${s.term}` : 'down');
 
 /** How far a follower's or candidate's election timer has run, 0 to 1; a leader's is full. */
 export function timerShare(s: Server, now: number): number {

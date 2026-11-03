@@ -268,7 +268,6 @@ for (const lab of FIXES) {
         expect(await each.evaluate((line) => line.closest('[aria-hidden="true"]'))).toBeNull();
       }
     });
-
   });
 }
 
