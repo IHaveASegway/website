@@ -861,6 +861,27 @@ for (const { phone, viewport } of PHONES) {
       await expect(page.locator('[data-rl-cube] canvas')).toHaveCount(0);
     });
 
+    // The words under the map change most when the last order goes, and they keep their room. All of
+    // the page is watched, with a real tap: on 2026-11-02 QA measured 88 px of move at this press.
+    test('the route lab: the last order goes, and all of the page holds', async ({ page }) => {
+      await open(page, ROUTE_LAB);
+      await page.locator('.rl-orders summary').tap();
+      const orders = page.locator('input[name="rl-order"]:checked');
+      await orders.evaluateAll((boxes) => {
+        for (const box of boxes.slice(1)) (box as HTMLInputElement).click();
+      });
+      await expect(page.locator('[data-rl-saved]')).toHaveText(
+        'With one order, both plans are the same route.',
+        { timeout: 20_000 },
+      );
+      await stand(page, orders.first());
+      const moves = await movesAround(page, () => orders.first().tap(), 800, true);
+      expect(moves).toEqual([]);
+      await expect(page.locator('[data-rl-saved]')).toHaveText(
+        'Add at least one order to plan a route.',
+      );
+    });
+
     test('the route lab: a map, the vans, Surprise and the space-time cube', async ({ page }) => {
       await open(page, ROUTE_LAB);
       const found = await play(page, [
