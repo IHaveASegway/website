@@ -131,7 +131,7 @@ describe("each lab's glyph, from the run its page opens on", () => {
   // lab now has one sentence, so Raft's is the failover the write-up asks for, and the bakery's made up.
   test('a lab has one fact: Raft’s is the failover, and the bakery is made up', async () => {
     expect(await labFact('raft')).toMatch(
-      /^Crash server \d, and server \d takes over in term \d+ after \d+ ms, with all three committed entries kept\.$/,
+      /^Crash server \d, and server \d takes over as leader after \d+ ms, with nothing lost: all three committed entries are still there\.$/,
     );
     expect(await labFact('raft')).not.toMatch(/events/);
     expect(await labFact('routes')).toContain('made-up bakery');
