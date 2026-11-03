@@ -4,7 +4,7 @@ import Choice from './Choice.astro';
 
 interface Props {
   /** The lab's prefix: its app finds each control by it, as data-qu-run. */
-  short: 'qu' | 'cl' | 'bf';
+  short: 'rf' | 'qu' | 'cl' | 'bf';
   /** How fast Run plays: each value is the lab's own unit, and the words the same in every lab. */
   speeds: readonly { readonly value: string; readonly words: string }[];
   /** The speed the page opens at. */

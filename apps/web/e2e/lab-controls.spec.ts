@@ -4,8 +4,7 @@ import { handsOn } from './expected';
 // The same controls on every desk (docs/lab.md, "The controls"; design-system.md). Until 2026-11-02
 // the same control had three looks: radios rounded and joined in two labs, square and separate in a
 // third, square and joined in another, and the clock and Speed stood in a different place in each.
-// On a phone one lab's Speed was 650 px below its Run. The Raft Lab keeps its own markup for now, and
-// is held to the same look from the outside.
+// On a phone one lab's Speed was 650 px below its Run, and another's clock 907 px.
 
 const LABS = [
   { name: 'queue', short: 'qu' },
@@ -41,9 +40,7 @@ for (const lab of LABS) {
   });
 }
 
-const THREE = LABS.filter((lab) => lab.name !== 'raft');
-
-for (const lab of THREE) {
+for (const lab of LABS) {
   /** The Time group's parts in the order the page holds them. */
   const order = (page: Page) =>
     page.locator(`#${lab.name}-lab .lab-time`).evaluate((group) => {
@@ -77,6 +74,11 @@ for (const lab of THREE) {
     expect(speed.y + speed.height - (run.y + run.height)).toBeLessThan(70);
   });
 
+}
+
+const THREE = LABS.filter((lab) => lab.name !== 'raft');
+
+for (const lab of THREE) {
   test(`the ${lab.name} lab's every list of checks has the same heading, and its log the same box`, async ({
     page,
   }) => {

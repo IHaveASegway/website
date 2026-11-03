@@ -16,6 +16,7 @@ import {
 } from '../../lib/raft/sim';
 import {
   cutFence,
+  eventsWords,
   flightsMarkup,
   landingStory,
   linkTo,
@@ -76,7 +77,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   const lossOut = $<HTMLOutputElement>('[data-rf-loss-out]');
   // The speed is the chosen radio's, read on every frame, so a choice made before the app loaded
   // counts too.
-  const speed = () => Number($<HTMLInputElement>('[data-rf-speed]:checked')?.value ?? 0.05);
+  const speed = () => Number($<HTMLInputElement>('[name="rf-speed"]:checked')?.value ?? 0.05);
   const lines = $<HTMLOListElement>('[data-rf-lines]');
   const said = $('[data-rf-said]');
   const text = (element: Element | null, value: string) => {
@@ -162,6 +163,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     }
     text($('[data-rf-status]'), statusText(sim));
     text($('[data-rf-clock]'), `Virtual time ${seconds(sim.now)}`);
+    text($('[data-rf-events]'), eventsWords(sim));
     text($('[data-rf-seed]'), String(sim.seed));
     drawLines();
   }
@@ -312,7 +314,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     if (latest && latest !== shownLines) say(latest.text);
     // An event the log does not tell, as most are: where the run stands now, so the press is heard.
     else if (control.matches('[data-rf-step]'))
-      say(`Virtual time ${seconds(sim.now)}, ${sim.events.toLocaleString('en-US')} events`);
+      say(`Virtual time ${seconds(sim.now)}, ${eventsWords(sim)}`);
     draw();
   }
 

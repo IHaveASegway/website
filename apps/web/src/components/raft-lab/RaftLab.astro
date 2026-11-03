@@ -1,8 +1,10 @@
 ---
+import Time from '../lab/Time.astro';
 import { PROPERTIES } from '../../lib/raft/check';
 import {
   cutFence,
   DIAL_RADIUS,
+  eventsWords,
   flightsMarkup,
   logMarkup,
   LOG_LINES,
@@ -47,8 +49,8 @@ import '../../styles/raft-lab.css';
 // what it does are seen together. From 64rem the logs and the safety properties stand beside the
 // picture, the controls under them, and how to read it all under those (raft-lab.css), since the
 // properties are what the lead tells a visitor to watch. Nothing but the controls takes focus, so the
-// tab order is the same either way. Start over comes before Speed for the same reason: the three
-// time buttons stay on one line on a phone, and the setting follows them.
+// tab order is the same either way. Time is the one group every lab has (components/lab/Time.astro):
+// the clock, Run, Next event, Start over and Speed.
 //
 // The key names each mark on the wire, in the picture's own classes. Assistive technology skips it,
 // as it does the Queue Lab's: the picture is one image, named by its caption, and the marks it holds
@@ -65,7 +67,7 @@ const SPEEDS = [
   { value: '0.025', words: 'Slow' },
   { value: '0.05', words: 'Steady' },
   { value: '0.1', words: 'Quick' },
-] as const;
+];
 ---
 
 <div class="rf desk" id="raft-lab">
@@ -117,64 +119,52 @@ const SPEEDS = [
   </figure>
 
   <div class="rf-controls" data-rf-js>
-    <div class="rf-row" role="group" aria-label="Time">
-      <button type="button" class="btn rf-run" data-lamp="off" data-rf-run>
-        Run
-      </button>
-      <button type="button" class="btn" data-rf-step>
-        Next event
-      </button>
-      <button type="button" class="btn" data-rf-reset>
-        Start over
-      </button>
-      <fieldset class="rf-speed">
-        <legend class="rf-speed-name">Speed</legend>
-        {SPEEDS.map((speed) => (
-          <label class="btn rf-option">
-            <input
-              type="radio"
-              name="rf-speed"
-              value={speed.value}
-              checked={speed.words === 'Steady'}
-              autocomplete="off"
-              data-rf-speed
-            />
-            <span class="rf-lamp" />
-            {speed.words}
-          </label>
-        ))}
-      </fieldset>
-    </div>
-    <div class="rf-row" role="group" aria-label="The network">
-      <button type="button" class="btn" data-rf-write>
-        Send a write
-      </button>
-      <button type="button" class="btn" data-rf-lone>
-        Cut off the leader
-      </button>
-      <button type="button" class="btn" data-rf-split>
-        Split two servers from three
-      </button>
-      <button type="button" class="btn" data-rf-heal>
-        Heal the network
-      </button>
-      <label class="rf-field">
-        <span>Messages lost</span>
-        <input type="range" min="0" max="50" step="5" value="0" data-rf-loss />
-        <output data-rf-loss-out>0%</output>
-      </label>
-    </div>
-    <div class="rf-row" role="group" aria-label="Crash or restart a server">
-      {sim.servers.map((s) => (
-        <button
-          type="button"
-          class="btn rf-toggle"
-          data-rf-toggle={s.id}
-          aria-label={`Crash server ${s.id + 1}, now ${serverState(s)}`}
-        >
-          Crash server {s.id + 1}
+    <Time short="rf" speeds={SPEEDS} speed="0.05">
+      <p class="lab-clock">
+        <span data-rf-clock>Virtual time {seconds(sim.now)}</span>,{' '}
+        <span data-rf-events>{eventsWords(sim)}</span>, seed <span data-rf-seed>{sim.seed}</span>
+      </p>
+    </Time>
+    <div class="lab-group" role="group" aria-labelledby="rf-network">
+      <p class="lab-group-name" id="rf-network">
+        The network
+      </p>
+      <div class="lab-row">
+        <button type="button" class="btn" data-rf-write>
+          Send a write
         </button>
-      ))}
+        <button type="button" class="btn" data-rf-lone>
+          Cut off the leader
+        </button>
+        <button type="button" class="btn" data-rf-split>
+          Split two servers from three
+        </button>
+        <button type="button" class="btn" data-rf-heal>
+          Heal the network
+        </button>
+        <label class="rf-field">
+          <span>Messages lost</span>
+          <input type="range" min="0" max="50" step="5" value="0" data-rf-loss />
+          <output data-rf-loss-out>0%</output>
+        </label>
+      </div>
+    </div>
+    <div class="lab-group" role="group" aria-labelledby="rf-servers">
+      <p class="lab-group-name" id="rf-servers">
+        Crash or restart a server
+      </p>
+      <div class="lab-row">
+        {sim.servers.map((s) => (
+          <button
+            type="button"
+            class="btn rf-toggle"
+            data-rf-toggle={s.id}
+            aria-label={`Crash server ${s.id + 1}, now ${serverState(s)}`}
+          >
+            Crash server {s.id + 1}
+          </button>
+        ))}
+      </div>
     </div>
     <p class="rf-sr" role="status" data-rf-said></p>
   </div>
@@ -276,10 +266,6 @@ const SPEEDS = [
         </li>
       ))}
     </ul>
-    <p class="rf-clock" data-rf-js>
-      <span data-rf-clock>Virtual time {seconds(sim.now)}</span>, seed{' '}
-      <span data-rf-seed>{sim.seed}</span>
-    </p>
     <p class="rf-status" data-rf-status>
       {statusText(sim)}
     </p>

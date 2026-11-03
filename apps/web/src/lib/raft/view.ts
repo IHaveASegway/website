@@ -262,11 +262,14 @@ export const PROMISES: Readonly<Record<Property, string>> = {
  *  line. The status line says when it broke and how. */
 export const propertyWord = (held: boolean): string => (held ? 'Holds' : 'Broken');
 
+/** "249 events", for the clock, as every lab's says it. */
+export const eventsWords = (sim: Sim): string => `${sim.events.toLocaleString('en-US')} events`;
+
 /** The status line: the five properties held, or the one that broke, and where. */
 export function statusText(sim: Sim): string {
   if (sim.violation)
     return `Broken at ${seconds(sim.violation.at)}: ${sim.violation.property}. ${sim.violation.detail}.`;
-  return `All five safety properties held over ${sim.events.toLocaleString('en-US')} events.`;
+  return `All five safety properties held over ${eventsWords(sim)}.`;
 }
 
 export const seconds = (ms: number): string => `${(ms / 1000).toFixed(3)} s`;

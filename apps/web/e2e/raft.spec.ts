@@ -56,8 +56,7 @@ test('without JavaScript, the page is the opening run: five servers, three commi
   await expect(status(page)).toHaveText(HELD);
   await expect(page.locator('.rf-prop-name')).toHaveText(PROPERTIES);
   await expect(page.locator('.rf-prop-word')).toHaveText(PROPERTIES.map(() => 'Holds'));
-  for (const control of await page.locator('.rf-controls, .rf-clock').all())
-    await expect(control).toBeHidden();
+  await expect(page.locator('.rf-controls')).toBeHidden();
   await context.close();
 });
 
@@ -748,7 +747,8 @@ for (const colorScheme of ['light', 'dark'] as const) {
   });
 }
 
-// The speed is a radio group (WAI-ARIA APG, "Radio Group Pattern"): named Speed, a radio a speed,
+// The speed is a radio group (WAI-ARIA APG, "Radio Group Pattern"), the Time group's in every lab
+// (components/lab/Choice.astro): named Speed, a radio a speed,
 // Steady chosen; Tab stops once, on the chosen radio; the arrow keys choose the next, wrapping; the
 // chosen one's lamp is lit and the others' are not; and a run goes at the speed chosen.
 test('the speed is a radio group of lamps that the arrow keys move through, and the run goes at it', async ({
@@ -756,7 +756,7 @@ test('the speed is a radio group of lamps that the arrow keys move through, and 
 }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto(RAFT);
-  const group = page.getByRole('group', { name: 'Speed' });
+  const group = page.getByRole('radiogroup', { name: 'Speed' });
   const radios = group.getByRole('radio');
   await expect(radios).toHaveCount(3);
   const steady = group.getByRole('radio', { name: 'Steady' });
@@ -779,9 +779,9 @@ test('the speed is a radio group of lamps that the arrow keys move through, and 
   await expect(page.getByRole('button', { name: 'Send a write' })).toBeFocused();
 
   const lit = await page.evaluate(() =>
-    [...document.querySelectorAll('.rf-option')].map(
+    [...document.querySelectorAll('.lab-option')].map(
       (option) =>
-        getComputedStyle(option.querySelector('.rf-lamp') as Element).backgroundColor !==
+        getComputedStyle(option.querySelector('.lab-option-lamp') as Element).backgroundColor !==
         'rgba(0, 0, 0, 0)',
     ),
   );

@@ -427,8 +427,7 @@
 }
 
 .rf-legend,
-.rf-status,
-.rf-clock {
+.rf-status {
   margin: 0;
   max-width: var(--measure);
   font-family: var(--font-label);
@@ -622,31 +621,14 @@
   }
 }
 
-.rf-clock {
-  color: var(--muted-foreground);
-  font-variant-numeric: tabular-nums;
-}
-
-/* Controls: time, the network, and a button a server, under a rule from bezel to bezel. */
+/* Controls: the shared groups (lab-controls.css), time, the network, and a button a server, under a
+   rule from bezel to bezel. */
 .rf-controls {
   display: grid;
   gap: 1rem;
   margin-inline: calc(var(--desk-side) * -1);
   padding: 1.25rem var(--desk-side) 0;
   border-top: 1px solid var(--border);
-}
-
-/* Run keeps one width as its words turn to Pause, so the row never shifts under the pointer. Its
-   lamp, lit while the run is on, is global.css's [data-lamp], the one Run every lab shares. */
-.rf-run {
-  min-inline-size: 6.5rem;
-}
-
-.rf-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 0.75rem;
-  align-items: center;
 }
 
 .rf-field {
@@ -682,72 +664,6 @@
     width: auto;
     min-inline-size: 0;
   }
-}
-
-/* The speed is a row of push-buttons, each a native radio, so the arrow keys move between them
-   and Tab enters and leaves the row at the chosen one (WAI-ARIA APG, "Radio Group Pattern"). Its
-   name stands before it in the label face, as the loss slider's does; a floated legend is laid out
-   with the buttons instead of over the border. The buttons share their edges. */
-.rf-speed {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-.rf-speed-name {
-  float: left;
-  margin-inline-end: 0.5rem;
-  padding: 0;
-  font-family: var(--font-label);
-  font-size: var(--text-label);
-  font-weight: var(--text-label--font-weight);
-}
-
-.rf-option {
-  position: relative;
-  padding-inline: 0.75rem;
-}
-
-.rf-option + .rf-option {
-  margin-inline-start: -1px;
-}
-
-/* The chosen speed's button is pressed in, as a pressed push-button is (global.css). */
-.rf-option:has(:checked) {
-  background-color: var(--surface-2);
-}
-
-/* The radio covers its button, edge included, and draws nothing itself, so the one focus ring
-   (global.css) goes around the whole button, as a button's does. The lamp after it is hollow, and
-   lit while its radio is chosen. */
-.rf-option input {
-  position: absolute;
-  inset-block-start: -1px;
-  inset-inline-start: -1px;
-  inline-size: calc(100% + 2px);
-  block-size: calc(100% + 2px);
-  margin: 0;
-  border: 0;
-  appearance: none;
-  background-color: transparent;
-  cursor: pointer;
-}
-
-.rf-lamp {
-  flex: none;
-  inline-size: 0.625rem;
-  block-size: 0.625rem;
-  border: 1.5px solid currentColor;
-  border-radius: 50%;
-}
-
-.rf-option input:checked + .rf-lamp {
-  border-color: var(--primary);
-  background-color: var(--primary);
 }
 
 .rf-field output {
@@ -835,12 +751,6 @@
 
   .rf-prop[data-held='false'] .rf-prop-lamp {
     background-color: Canvas;
-  }
-
-  .rf-option input:checked + .rf-lamp {
-    forced-color-adjust: none;
-    border-color: ButtonText;
-    background-color: ButtonText;
   }
 
   .rf-mark {
