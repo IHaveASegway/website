@@ -430,3 +430,29 @@ for (const { phone, viewport } of PHONES) {
     });
   });
 }
+
+// The top bar on an iPhone, in WebKit, at the widths phones have: one row, 56 px, so the first screen
+// doesn't lose 32 px to a second row with half of it empty (e2e/top-bar.spec.ts holds every width in
+// Chromium). 320 is an iPhone SE of the first generation, 375 a 13 mini or a later SE, 390 an iPhone
+// 14, and 360 most Androids.
+for (const width of [320, 360, 375, 390]) {
+  test(`at ${width} px the top bar is one row, 56 px tall`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.setViewportSize({ width, height: 664 });
+    await page.goto('/lab/');
+    await page.waitForFunction(() => 'palette' in document.documentElement.dataset);
+    const bar = await page.evaluate(() => {
+      const tile = document.querySelector('.wordmark-tile') as Element;
+      const box = (document.querySelector('.site-header') as Element).getBoundingClientRect();
+      return {
+        height: Math.round(box.height),
+        tools: [...document.querySelectorAll('.search-open, .motion-toggle, .theme-toggle')].map(
+          (tool) => Math.round(tool.getBoundingClientRect().height),
+        ),
+        tile: tile.getBoundingClientRect().left,
+        wide: document.documentElement.scrollWidth,
+      };
+    });
+    expect(bar).toEqual({ height: 56, tools: [44, 44, 44], tile: 18, wide: width });
+  });
+}

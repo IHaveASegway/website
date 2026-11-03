@@ -88,13 +88,13 @@ desktop, 56 px, white sheet, hairline under
 │ ◆ Joseph Peterson    Lab   Writing   About             [⌕ Search      ⌘K]  ◐   │
 │                      ═══ (2 px cobalt under the current section)                │
 └────────────────────────────────────────────────────────────────────────────────┘
-phone (390), one row, 56 px
+phone (320 and up), one row, 56 px
 ┌──────────────────────────────────────┐
 │ ◆   Lab  Writing  About      ⌕    ◐  │
 └──────────────────────────────────────┘
 ```
 
-Classes: `.masthead` (the full-width band: `--surface-1`, hairline under), `.skip-link`, `.site-header` (flex row, wraps only when it must), `.wordmark` (`.wordmark-tile`, a cobalt rhombus, the drawing's ground tile; `.wordmark-name`, hidden on screen below 40rem and still read), `.site-nav` (each item one link; `[aria-current]` gets the 2 px cobalt `::after` on the bar's edge), `.header-tools` (`.palette-item` > `.search-open` with `.search-glass`, `.search-word` and `Keys`; `.motion-item` on Home while its scene exists; `ThemeToggle`). Search opens the existing command menu (`components/Palette.astro`); it shows once the script binds it, on every width; its keys only where a fine pointer can hover. Never fixed to the window.
+Classes: `.masthead` (the full-width band: `--surface-1`, hairline under), `.skip-link`, `.site-header` (flex row, wraps only with a larger text size), `.wordmark` (`.wordmark-tile`, a cobalt rhombus, the drawing's ground tile; `.wordmark-name`, hidden on screen below 40rem and still read), `.site-nav` (each item one link; `[aria-current]` gets the 2 px cobalt `::after` on the bar's edge), `.header-tools` (`.palette-item` > `.search-open` with `.search-glass`, `.search-word` and `Keys`; `.motion-item` on Home while its scene exists; `ThemeToggle`). Search opens the existing command menu (`components/Palette.astro`); it shows once the script binds it, on every width; its keys only where a fine pointer can hover. Never fixed to the window.
 
 ### Footer (built): `components/Footer.astro`
 
