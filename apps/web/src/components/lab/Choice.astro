@@ -1,4 +1,6 @@
 ---
+import '../../styles/lab-controls.css';
+
 interface Option {
   readonly value: string;
   /** What the button shows. */
@@ -18,7 +20,7 @@ interface Props {
   inline?: boolean;
 }
 
-// A choice on a lab's desk (lab-page.css, .lab-option), one look and one markup in every lab: a row
+// A choice on a lab's desk (lab-controls.css, .lab-option), one look and one markup in every lab: a row
 // of joined push-buttons, each a native radio that covers its button, so the keyboard's focus is
 // drawn around the whole of it, with a lamp after it that is lit while it is chosen. The arrow keys
 // move between them, as between any radios. Until 2026-11-02 each lab drew its own, in three looks.

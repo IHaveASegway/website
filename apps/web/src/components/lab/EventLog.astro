@@ -1,4 +1,6 @@
 ---
+import '../../styles/lab-controls.css';
+
 interface Props {
   /** The lab's prefix: its app finds the list by it, as data-qu-lines. */
   short: 'qu' | 'cl' | 'bf';
@@ -6,7 +8,7 @@ interface Props {
   lines: readonly { readonly at: string; readonly text: string }[];
 }
 
-// A lab's event log, the same box in every lab (lab-page.css, .lab-log), a part of the desk of its
+// A lab's event log, the same box in every lab (lab-controls.css, .lab-log), a part of the desk of its
 // own. The app adds to the list (lib/lab/event-log.ts). The box opens on its newest line with no
 // script at all, and it can't be focused away from by a run: it holds no control.
 const { short, lines } = Astro.props;

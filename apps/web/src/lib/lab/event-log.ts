@@ -1,5 +1,5 @@
 // A lab's event log in the browser, the one way all of them write it. New lines go on the end, and
-// the oldest drop past LINES_SHOWN. The box itself (lab-page.css, .lab-log) stands on its end with no
+// the oldest drop past LINES_SHOWN. The box itself (lab-controls.css, .lab-log) stands on its end with no
 // script, flex-direction: column-reverse, so a reader at the end stays there as lines come, and the
 // log opens on its newest line from the first paint. Until 2026-11-02 each app worked that out on
 // every frame, and a log opened on its oldest lines, then jumped at the first hover or press.

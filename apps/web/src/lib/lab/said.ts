@@ -7,7 +7,7 @@
 // only a screen reader, and sighted visitors got buttons that looked dead.
 
 /** The most characters the line on the screen says, which its room holds at the narrowest phone
- *  (lab-page.css, .lab-said; e2e/steady.spec.ts). */
+ *  (lab-controls.css, .lab-said; e2e/steady.spec.ts). */
 export const SAID_ROOM = 140;
 
 /** As many whole sentences as the line has room for, and at least one: the event log has the rest.

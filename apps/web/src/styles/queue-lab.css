@@ -430,7 +430,7 @@
   color: var(--foreground);
 }
 
-/* The controls: the shared groups (lab-page.css). The picture's own, under it: Time, the key and the
+/* The controls: the shared groups (lab-controls.css). The picture's own, under it: Time, the key and the
    workers, in groups that flow on as the desk allows, one under another on a phone. The settings,
    after the checks, under a rule from bezel to bezel. Each part ends in the line that says what its
    presses did, which keeps its room whether or not it has anything to say. */
@@ -501,7 +501,7 @@
   min-inline-size: 6.5rem;
 }
 
-/* The event log (lab-page.css), a part of the desk of its own, under a rule from bezel to bezel. */
+/* The event log (lab-controls.css), a part of the desk of its own, under a rule from bezel to bezel. */
 .qu-events {
   display: grid;
   gap: 0.75rem;

@@ -543,7 +543,7 @@
   flex: none;
 }
 
-/* The controls (lab-page.css), in rows. The first part plays the week, with the choice that fixes
+/* The controls (lab-controls.css), in rows. The first part plays the week, with the choice that fixes
    it, how a load writes; the second holds the settings and the faults, which a visitor reaches for
    later. Each ends in the line that says what its presses did, which keeps its room whether or not
    it has anything to say. */
@@ -593,7 +593,7 @@
   background-color: transparent;
 }
 
-/* The event log (lab-page.css). A line's time is short here, so its column is narrower. */
+/* The event log (lab-controls.css). A line's time is short here, so its column is narrower. */
 .bf-events {
   display: grid;
   gap: 0.75rem;

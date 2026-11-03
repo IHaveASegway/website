@@ -115,7 +115,7 @@ Label face, `--text-ui`, 44 px tall, 4 px corners. Primary: cobalt fill, white t
 
 ### A lab's controls (built): `.lab-time`, `.lab-option`, `.lab-said`, `.lab-log`
 
-One set on every simulated lab's desk, in `styles/lab-page.css`, from `components/lab/`: the Time group in one order, clock, Run, Next event, Start over, Speed; a choice among a few as joined push-buttons with a control's 4 px corners, each a native radio with a lamp; a line under each part of the controls that says what its last press did, with its room kept; and the event log, a box of one size that stands on its end. What each control means is in [lab.md](../lab.md#the-controls).
+One set on every simulated lab's desk, in `styles/lab-controls.css`, from `components/lab/`: the Time group in one order, clock, Run, Next event, Start over, Speed; a choice among a few as joined push-buttons with a control's 4 px corners, each a native radio with a lamp; a line under each part of the controls that says what its last press did, with its room kept; and the event log, a box of one size that stands on its end. What each control means is in [lab.md](../lab.md#the-controls).
 
 ### Cards (built): `.cards`, `.card`, `.card-title`, `.card-text`, `.card-more`
 

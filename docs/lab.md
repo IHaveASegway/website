@@ -511,7 +511,7 @@ Assumptions: 10 ms of active time per handler run (an RPC, an upgrade, a frame, 
 
 ## The controls
 
-Every lab that runs a simulation means the same by the same control, and stands them in the same order: `components/lab/Time.astro`, `Choice.astro`, `Said.astro` and `EventLog.astro`, styled once in `styles/lab-page.css`; `e2e/lab-controls.spec.ts` holds it. The Queue, Cache and Backfill Labs do this since 2026-11-02. Until then one press meant different things from lab to lab, and turning a fix on looked like it did nothing.
+Every lab that runs a simulation means the same by the same control, and stands them in the same order: `components/lab/Time.astro`, `Choice.astro`, `Said.astro` and `EventLog.astro`, styled once in `styles/lab-controls.css`; `e2e/lab-controls.spec.ts` holds it. The Queue, Cache and Backfill Labs do this since 2026-11-02. Until then one press meant different things from lab to lab, and turning a fix on looked like it did nothing.
 
 | Control | What it does |
 |---|---|
