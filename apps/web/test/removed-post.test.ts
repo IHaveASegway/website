@@ -17,7 +17,7 @@ export const traces = (name: string, text: string): string[] =>
   });
 
 describe('the removed post leaves nothing in the build', () => {
-  test('the redirects hold its two 301s, and nothing is served that names it', () => {
+  test('the redirects hold its 301s, and nothing is served that names it', () => {
     expect(read('_redirects')).toMatch(GONE);
     const served = files.filter((file) => file !== '_redirects');
     const texts = new Set(textFiles);
