@@ -22,7 +22,6 @@ import { LAB_NAMES, labNamedIn, labPath } from '../lib/lab';
 import { factSource, labFact } from '../lib/lab-facts';
 import { inWords } from '../lib/lines';
 import { homeCard } from '../lib/og';
-import { postPath } from '../lib/posts';
 import { checkedProfiles, homeDescription, roleLine } from '../lib/profile';
 import { SEEDS_IN_CI as QUEUE_SEEDS } from '../lib/queue/view';
 import { openingServers } from '../lib/orbit';
@@ -55,8 +54,8 @@ const build = bio && sectionOf(bio, ABOUT_HEADINGS.tryIt);
 const last = bio && sectionOf(bio, ABOUT_HEADINGS.last);
 const idea = bio && sectionOf(bio, ABOUT_HEADINGS.idea);
 
-// The opening's first sentence is said as the statement; the rest of the opening follows it at a
-// lead's size, word for word.
+// The opening's first sentence is said as the statement, with one sentence of Home's own that says
+// what the page is for; the rest of the opening follows it at a lead's size, word for word.
 const opening = bio?.lede ?? [];
 const statement = opening[0] === undefined ? undefined : openingSentence(opening[0]);
 const rest = [
@@ -64,28 +63,12 @@ const rest = [
   ...opening.slice(1),
 ].filter(Boolean);
 
-// The labs this build writes, by slug. The bio's names for them link to them; in the opening, the
-// kinds of system it names do, each underlined in its lab's colour.
+// The labs this build writes, by slug. The bio's names for them link to them.
 const demo = new Map(lab.entries.map((entry) => [entry.slug, entry]));
 const names = LAB_NAMES.flatMap(({ slug, name: words }) => {
   const entry = demo.get(slug);
   return entry ? [{ name: words, href: labPath(entry) }] : [];
 });
-const KINDS = [
-  { words: 'queues', slug: 'queue' },
-  { words: 'data pipelines', slug: 'backfill' },
-  { words: 'caches', slug: 'cache' },
-  { words: 'clusters', slug: 'raft' },
-] as const;
-const kinds = KINDS.flatMap(({ words, slug }) => {
-  const entry = demo.get(slug);
-  return entry ? [{ name: words, href: labPath(entry) }] : [];
-});
-const lineOf = new Map(lab.entries.map((entry) => [labPath(entry), entry.slug]));
-
-// The essay the bio's last thing he builds points to, linked where this build lists it.
-const essay = area.published.find((post) => post.slug === 'coding-by-hand');
-const reads = essay ? [{ name: 'essay', href: postPath(essay) }] : [];
 
 // The things a visitor can try: each the bio lists, with the lab its words name and that lab's fact
 // (lib/lab-facts.ts, the sentences the Lab index's cards read too).
@@ -159,19 +142,7 @@ const latest = writingRow(area.published, work);
       <h1 id="name" class="hero-name">
         {name}
       </h1>
-      {statement && (
-        <p class="hero-statement">
-          {withLinks(statement, kinds).map((run) =>
-            typeof run === 'string' ? (
-              run
-            ) : (
-              <a href={run.href} data-line={lineOf.get(run.href)}>
-                {run.text}
-              </a>
-            ),
-          )}
-        </p>
-      )}
+      {statement && <p class="hero-statement">{statement} Here are a few things you can break.</p>}
       {rest.map((paragraph) => (
         <p class="hero-more">{paragraph}</p>
       ))}
@@ -199,7 +170,7 @@ const latest = writingRow(area.published, work);
           <li class="build" data-line={where?.slug}>
             <h3 class="build-lead">{principle.lead}</h3>
             <p class="build-text">
-              {withLinks(principle.text, [...names, ...reads]).map((run) =>
+              {withLinks(principle.text, names).map((run) =>
                 typeof run === 'string' ? run : <a href={run.href}>{run.text}</a>,
               )}
             </p>

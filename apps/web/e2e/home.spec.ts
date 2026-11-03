@@ -53,25 +53,24 @@ test.describe("Home's opening", () => {
     });
   }
 
-  test("the statement's kinds of system each open their lab, underlined in the accent", async ({
+  // What Joseph does, and what the page is for (ADR 0031). The second sentence is Home's own, and the
+  // first is the bio's, so it's the one /about/ opens with. Until 2026-11-03 the statement linked its
+  // kinds of system to their labs.
+  test("the statement says the bio's first sentence, then what the page is for, with no link", async ({
     page,
   }) => {
     await page.goto('/');
-    const links = page.locator('.hero-statement a[data-line]');
-    test.skip((await links.count()) === 0, 'this build writes no lab');
-    for (const link of await links.all()) {
-      const line = (await link.getAttribute('data-line')) ?? '';
-      await expect(link).toHaveAttribute('href', `/lab/${line}/`);
-      const [underline, colour] = await link.evaluate((a) => {
-        const probe = document.createElement('span');
-        probe.style.color = 'var(--primary)';
-        a.append(probe);
-        const value = getComputedStyle(probe).color;
-        probe.remove();
-        return [getComputedStyle(a).textDecorationColor, value];
-      });
-      expect(underline, line).toBe(colour);
-    }
+    const statement = page.locator('.hero-statement');
+    test.skip((await statement.count()) === 0, 'this build has no bio');
+    await expect(statement).toHaveText(
+      'I take an idea and build the entire system. Here are a few things you can break.',
+    );
+    await expect(statement.locator('a')).toHaveCount(0);
+    await page.goto('/about/');
+    await expect(page.locator('.bio-lede')).toContainText(
+      'I take an idea and build the entire system.',
+    );
+    await expect(page.locator('.bio-lede')).not.toContainText('things you can break');
   });
 });
 

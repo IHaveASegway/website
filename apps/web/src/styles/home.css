@@ -41,9 +41,7 @@
   overflow-wrap: break-word;
 }
 
-/* The bio's opening, the statement. The kinds of system it names are its links, each underlined in
-   the accent (ADR 0029: the labs' colours appear where they are explained, in What I build), thick
-   enough to read as a mark and not as a hairline (SC 1.4.1 holds through the underline). */
+/* The bio's opening, the statement. */
 .hero-statement {
   margin: 0 0 1.25rem;
   max-inline-size: 30em;
@@ -51,20 +49,6 @@
   line-height: var(--text-statement--line-height);
   letter-spacing: -0.01em;
   text-wrap: pretty;
-}
-
-.hero-statement a[data-line] {
-  text-decoration-color: var(--primary);
-  text-decoration-thickness: 0.1em;
-  text-underline-offset: 0.18em;
-  text-decoration-skip-ink: none;
-}
-
-@media (hover: hover) {
-  .hero-statement a[data-line]:hover {
-    color: inherit;
-    text-decoration-thickness: 0.24em;
-  }
 }
 
 .hero-more {

@@ -1633,7 +1633,6 @@
     .post-title a,
     .card-more,
     .section-more,
-    .hero-statement a,
     .build-text a,
     .build-more a
   )::after {
@@ -1657,7 +1656,6 @@
       .post-title a,
       .card-more,
       .section-more,
-      .hero-statement a,
       .build-text a,
       .build-more a
     )[href^='/']::after {
