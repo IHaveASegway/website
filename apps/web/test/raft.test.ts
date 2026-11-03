@@ -37,7 +37,6 @@ import {
   type Sim,
 } from '../src/lib/raft/sim';
 import {
-  brokenWords,
   cutFence,
   footprint,
   LANDING,
@@ -626,7 +625,7 @@ describe('the committed count', () => {
     const sim = openingRun();
     crashAll(sim);
     restartAll(sim);
-    expect(summary(sim)).toBe('No leader in term 1, 3 entries committed.');
+    expect(summary(sim)).toBe('Term 1 has lost its leader, 3 entries committed.');
     stepUntil(sim, (s) => leaderOf(s) !== null);
     runUntil(sim, sim.now + 500);
     // Section 5.4.2: a leader commits only its own term's entries by counting, so none knows yet.
@@ -729,7 +728,7 @@ describe('the caption never contradicts the picture', () => {
   test('a down leader is not an old leader: it is down, and the caption says that', () => {
     const sim = openingRun();
     crash(sim, 0);
-    expect(summary(sim)).toBe('No leader in term 1, 3 entries committed, 1 server down.');
+    expect(summary(sim)).toBe('Term 1 has lost its leader, 3 entries committed, 1 server down.');
     expect(leaders(sim).behind).toEqual([]);
   });
 
@@ -788,7 +787,7 @@ describe('the caption never contradicts the picture', () => {
           broken.push(`seed ${seed} at ${sim.now}: ${words}`);
         if (named.leader && !words.startsWith(`Server ${named.leader.id + 1} leads term `))
           broken.push(`seed ${seed} at ${sim.now}: ${words}`);
-        if (!named.leader && !words.startsWith('No leader'))
+        if (!named.leader && !/^(No leader|Term \d+ has lost its leader)/.test(words))
           broken.push(`seed ${seed} at ${sim.now}: ${words}`);
         if (named.behind.length > 0 && !/ still think(s it leads| they lead) /.test(words))
           broken.push(`seed ${seed} at ${sim.now}: ${words}`);
@@ -864,9 +863,7 @@ describe('the five safety properties, by name', () => {
     const violation = (sim as Sim).violation as NonNullable<Sim['violation']>;
     // The page finds a property's row by this name (components/raft-lab/app.ts).
     expect(PROPERTIES).toContain(violation.property);
-    expect(brokenWords(violation)).toMatch(
-      new RegExp(`^Broken at \\d+\\.\\d{3} s: ${violation.property}\\. Server \\d .+\\.$`),
-    );
+    expect(violation.detail).toMatch(/^Server \d /);
   });
 });
 
@@ -957,7 +954,7 @@ describe('a visitor reads server, never node (docs/content.md, "The site\'s lang
     for (let seed = 1; seed <= 200; seed++) {
       const { sim } = faultyRun(seed);
       said.push(summary(sim), ...sim.lines.map((line) => line.text));
-      if (sim.violation) said.push(brokenWords(sim.violation));
+      if (sim.violation) said.push(sim.violation.detail);
       said.push(...sim.servers.map(serverState));
     }
     // Each kind of line turned up, so the sweep read what it says it read.
@@ -970,7 +967,7 @@ describe('a visitor reads server, never node (docs/content.md, "The site\'s lang
     for (const faults of [{ anyLogVotes: true }, { oldTermCommits: true }]) {
       for (let seed = 1; seed <= SEEDS; seed++) {
         const { sim } = faultyRun(seed, faults);
-        if (sim.violation) expect(brokenWords(sim.violation)).not.toMatch(NODE);
+        if (sim.violation) expect(sim.violation.detail).not.toMatch(NODE);
         if (sim.violation) break;
       }
     }

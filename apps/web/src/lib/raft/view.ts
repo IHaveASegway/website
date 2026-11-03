@@ -259,8 +259,10 @@ export const seconds = (ms: number): string => `${(ms / 1000).toFixed(3)} s`;
 /**
  * A one-line summary of the cluster, for the picture's name. A leader cut off from the rest is still
  * drawn as a leader, since that's what it thinks it is, so the words say so as well, and the caption
- * never contradicts the picture above it. The committed count is the run's high-water mark, not what
- * the servers remember now, so a crash can't take it down.
+ * never contradicts the picture above it. A term that had a leader and has it no more says so: "no
+ * leader in term 1", right after "Server 1 leads term 1", read as false to the readers this page is
+ * for. "No leader" is for a term nobody has won yet. The committed count is the run's high-water
+ * mark, not what the servers remember now, so a crash can't take it down.
  */
 export function summary(sim: Sim): string {
   const { leader, behind } = leaders(sim);
@@ -271,7 +273,9 @@ export function summary(sim: Sim): string {
     leader
       ? `${serverName(leader.id)} leads term ${leader.term}`
       : term > 0
-        ? `No leader in term ${term}`
+        ? sim.checker.leaders.has(term)
+          ? `Term ${term} has lost its leader`
+          : `No leader in term ${term}`
         : 'No leader',
     `${entries(committed)} committed`,
   ];

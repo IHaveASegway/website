@@ -351,7 +351,7 @@ test.describe('the Raft Lab’s landing run', () => {
     await expect(summary(page)).toHaveText('Server 1 leads term 1, 3 entries committed.');
     await page.clock.runFor(2_100);
     await expect(summary(page)).toHaveText(
-      'No leader in term 1, 3 entries committed, 1 server down.',
+      'Term 1 has lost its leader, 3 entries committed, 1 server down.',
     );
     await expect(page.locator('[data-rf-node="0"]')).toHaveAttribute('data-up', 'false');
     await page.clock.runFor(3_100);
@@ -652,7 +652,7 @@ test.describe('the Raft Lab’s landing run', () => {
     await land(page);
     await page.clock.runFor(2_100);
     await expect(summary(page)).toHaveText(
-      'No leader in term 1, 3 entries committed, 1 server down.',
+      'Term 1 has lost its leader, 3 entries committed, 1 server down.',
     );
     await page.getByRole('button', { name: 'Cut off the leader' }).click();
     const line = page.locator('[data-said]');
@@ -664,7 +664,9 @@ test.describe('the Raft Lab’s landing run', () => {
     await expect(summary(page)).toHaveText(/^Server [2-5] leads term \d+, 3 entries committed/);
   });
 
-  test('Start over on the run they landed on says the crash is ahead, and on a stood run asks for Run', async ({
+  // Until 2026-11-03 a stood run's line said "Press Run to watch it", and a press of Run drops the story,
+  // so there was nothing to watch. Now it promises nothing, and Run says why it's quiet.
+  test('Start over on the run they landed on says the crash is ahead, and on a stood run promises none', async ({
     page,
   }) => {
     await land(page);
@@ -675,9 +677,9 @@ test.describe('the Raft Lab’s landing run', () => {
     );
     await run(page, lab).click();
     await page.getByRole('button', { name: 'Start over' }).click();
-    await expect(line).toHaveText(
-      'The run starts over under these settings, at 1.400 s. Press Run to watch it.',
-    );
+    await expect(line).toHaveText('The run starts over under these settings, at 1.400 s.');
+    await run(page, lab).click();
+    await expect(line).toHaveText('Nothing is scheduled: press something below to break it.');
   });
 });
 

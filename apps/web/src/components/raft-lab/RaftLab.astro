@@ -120,7 +120,12 @@ const SPEEDS = [
   </figure>
 
   <div class="rf-controls" data-rf-js data-part>
-    <Time short="rf" speeds={SPEEDS} speed="0.05">
+    <Time
+      short="rf"
+      speeds={SPEEDS}
+      speed="0.05"
+      runSays="Nothing is scheduled: press something below to break it."
+    >
       <p class="lab-clock">
         <span data-rf-clock>Virtual time {seconds(sim.now)}</span>,{' '}
         <span data-rf-events>{eventsWords(sim)}</span>, seed <span data-rf-seed>{sim.seed}</span>
@@ -135,13 +140,23 @@ const SPEEDS = [
         <button type="button" class="btn" data-rf-write>
           Send a write
         </button>
-        <button type="button" class="btn" data-rf-lone>
+        <button
+          type="button"
+          class="btn"
+          data-rf-lone
+          data-why="There is no leader to cut off right now."
+        >
           Cut off the leader
         </button>
         <button type="button" class="btn" data-rf-split>
           Split two servers from three
         </button>
-        <button type="button" class="btn" data-rf-heal>
+        <button
+          type="button"
+          class="btn"
+          data-rf-heal
+          data-why="The network is already whole."
+        >
           Heal the network
         </button>
         <label class="rf-field">

@@ -361,11 +361,11 @@ for (const width of [384, 768, 1024, 1440]) {
     };
     await hold(
       summary(page),
-      'No leader in term 123, 1000 entries committed, 2 servers down, the network is split. Servers 1 and 3 and 4 still think they lead older terms.',
+      'Term 123 has lost its leader, 1000 entries committed, 2 servers down, the network is split. Servers 1 and 3 and 4 still think they lead older terms.',
     );
     await hold(
       page.locator('[data-said]'),
-      'The run starts over under these settings, at 1.400 s, before the leader crashes. Press Run to watch it.',
+      'The run starts over under these settings, at 1.400 s, before the leader crashes.',
     );
   });
 }
@@ -583,15 +583,12 @@ test('why a press did nothing is on the screen: Heal on a whole network, Cut off
   await expect(line).toHaveText('There is no leader to cut off right now.');
   await expect(line).toBeVisible();
 
-  // Start over says where it went, and what it waits for.
+  // Start over says where it went, and asks for no press: a press of Run brings no crash here.
   await page.getByRole('button', { name: 'Start over' }).click();
-  await expect(line).toHaveText(
-    'The run starts over under these settings, at 1.400 s. Press Run to watch it.',
-  );
-  // Run has nothing to say, so the line goes back to what these controls do.
+  await expect(line).toHaveText('The run starts over under these settings, at 1.400 s.');
+  // Run says there's nothing to wait for, so heartbeats alone don't read as a page that stopped.
   await page.getByRole('button', { name: 'Run', exact: true }).click();
-  await expect(line).not.toHaveAttribute('data-spoke');
-  await expect(line).toHaveText('The network and the servers below change the run as it stands.');
+  await expect(line).toHaveText('Nothing is scheduled: press something below to break it.');
   await page.getByRole('button', { name: 'Pause' }).click();
 
   await page.locator('[data-rf-loss]').fill('30');

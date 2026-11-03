@@ -252,8 +252,9 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       told = false;
       ahead = [];
     }
-    /** What the press says when the log has nothing to tell of it. */
-    let why = '';
+    /** What the press says when the log has nothing to tell of it: words that never change stand on
+     *  the control, in the page, so a browser never loads them. */
+    let why = control.getAttribute('data-why') ?? '';
     const node = control.closest('[data-rf-node], [data-rf-toggle]');
     const id = node?.getAttribute('data-rf-node') ?? node?.getAttribute('data-rf-toggle');
     if (id !== null && id !== undefined) {
@@ -264,7 +265,9 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       if (playing) pause();
       else {
         play();
-        say('', control);
+        // The other labs' Run plays their story. This one has dropped what's left of it, so there may
+        // be nothing to watch, and the page says why rather than look stopped (reduced motion, a link).
+        say(why, control);
       }
       return;
     } else if (control.matches('[data-rf-step]')) {
@@ -274,12 +277,10 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       write(sim);
     } else if (control.matches('[data-rf-lone]')) {
       if (leaderOf(sim)) cutOff(0);
-      else why = 'There is no leader to cut off right now.';
     } else if (control.matches('[data-rf-split]')) {
       cutOff(1);
     } else if (control.matches('[data-rf-heal]')) {
       heal(sim);
-      why = 'The network is already whole.';
     } else if (reset) {
       const wasPlaying = playing;
       open(fresh(sim.seed, lost()));
@@ -287,9 +288,10 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       // The address names the run, its loss and all, so a reload or the link shared opens it.
       writeLink(linkTo(sim.seed, percent()));
       if (wasPlaying) play();
-      // Only a run that plays on takes the story with it: a press of Run is a press like any other.
+      // Only a run that plays on takes the story with it: a press of Run is a press like any other, so
+      // this line asks for none. "Press Run to watch it" promised a crash that a press of Run drops.
       const where = `at ${seconds(sim.now)}${told && wasPlaying ? ', before the leader crashes' : ''}`;
-      say(startsOver('run', 'these settings', where, wasPlaying), control);
+      say(startsOver('run', 'these settings', where, true), control);
       return;
     } else if (control === loss) {
       // Before it changes the loss, the run finishes the events due in this millisecond, as any

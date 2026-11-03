@@ -142,7 +142,8 @@ describe('what a run says fits the room its line keeps', () => {
 
   test('the words a lab writes for a press of its own', () => {
     const said = [
-      startsOver('run', 'these settings', 'at 1.400 s, before the leader crashes', false),
+      startsOver('run', 'these settings', 'at 1.400 s, before the leader crashes', true),
+      'Nothing is scheduled: press something below to break it.',
       'There is no leader to cut off right now.',
       'The network is already whole.',
       'From here, 50% of messages are lost.',
