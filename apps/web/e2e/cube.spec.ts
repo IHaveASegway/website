@@ -495,6 +495,30 @@ test('under reduced motion Play steps half an hour a second instead of gliding',
   expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
 });
 
+// The scene takes over from the picture at the same angle, so the picture draws what the scene does:
+// until 2026-11-03 the band edges went from dotted to thin under a mouse, and Van C's line from a
+// string of round dots to fine ones.
+test('the still picture draws the band edges and the dashes as the scene does', async ({
+  page,
+}) => {
+  await page.goto(ROUTE_LAB);
+  const picture = page.locator('svg[data-rl-cube-picture]').first();
+  const look = await picture.evaluate((svg) => {
+    const route = svg.querySelector('.rl-route.van-c') as Element;
+    const style = getComputedStyle(svg);
+    return {
+      edge: style.getPropertyValue('--rl-contour-dash').trim(),
+      cap: getComputedStyle(route).strokeLinecap,
+    };
+  });
+  expect(look).toEqual({ edge: 'none', cap: 'butt' });
+  // The maps keep their dots.
+  const map = page.locator('svg[data-rl-map]').first();
+  expect(
+    await map.evaluate((svg) => getComputedStyle(svg).getPropertyValue('--rl-contour-dash').trim()),
+  ).toBe('');
+});
+
 // One button, one meaning (ADR 0030). Until 2026-11-03 the slider ran on under the top bar's Pause.
 test('the top bar’s Pause stops the day playing, and its Play starts only what it stopped', async ({
   page,

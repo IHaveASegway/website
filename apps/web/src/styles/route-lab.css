@@ -53,8 +53,10 @@
    2026-10-31 the controls headed the desk there too, and a first screen held seven controls and
    no map; until 2026-11-02 the readout did, with its reserved lines standing empty, and a first
    screen held words, a blank gap and a switch. From 64rem, where both maps fit side by side, the
-   controls head the desk again, then the readout. The markup puts them after the maps, so the
-   order of Tab is the order a phone shows. */
+   controls head the desk again with the line that says what they did, and the maps come straight
+   under them: until 2026-11-03 the headline and each map's figures stood over them too, so a laptop
+   opened on chips and numbers with 8 to 32% of a map, where the other labs show nearly all of their
+   picture. The markup puts them after the maps, so the order of Tab is the order a phone shows. */
 .rl-controls {
   display: grid;
   gap: 1.25rem;
@@ -64,12 +66,8 @@
 }
 
 @media (width >= 64rem) {
-  .rl-controls,
-  .rl-readout {
-    order: -1;
-  }
-
   .rl-controls {
+    order: -1;
     grid-template-columns: repeat(12, minmax(0, 1fr));
     column-gap: var(--gutter);
     align-items: start;
@@ -253,6 +251,22 @@
   }
 }
 
+/* From 64rem it follows the controls, in the space between their rule and the maps, so it costs the
+   maps little of the first screen and every press is said beside the controls it came from. Its track
+   takes no height, and the maps come up over the second gap, or both of the desk's gaps would stand
+   around one line. */
+@media screen and (scripting: enabled) and (width >= 64rem) {
+  .rl-status {
+    order: -1;
+    align-self: start;
+    margin-block-start: -1.25rem;
+  }
+
+  .rl-maps {
+    margin-block-start: -1.3125rem;
+  }
+}
+
 @media (width < 30rem) {
   .rl-status {
     min-block-size: 3lh;
@@ -428,16 +442,16 @@
 }
 
 /* Where one map shows at a time, its name and its time share a line. The map comes first and its
-   figures stand under it: over it they pushed it 65 px further off a phone's first screen. Where
-   both stack, without script and on paper, the figures stay over their map, or they read as the
-   name of the next. */
+   figures stand under it, at every width where script runs: over it they pushed it 65 px further off a
+   phone's first screen, and on a laptop off the first screen altogether. Without script and on paper,
+   where the maps stack, the figures stay over their map, or they read as the name of the next. */
 @media (width < 64rem) {
   .rl-head .label {
     flex-basis: auto;
   }
 }
 
-@media screen and (scripting: enabled) and (width < 64rem) {
+@media screen and (scripting: enabled) {
   .rl-stage {
     order: -1;
   }
@@ -708,8 +722,9 @@
 .rl-contour {
   fill: none;
   stroke: var(--map-contour);
-  stroke-width: 2px;
-  stroke-dasharray: 0 4px;
+  stroke-width: var(--rl-contour-width, 2px);
+  stroke-dasharray: var(--rl-contour-dash, 0 4px);
+  stroke-opacity: var(--rl-contour-opacity, 1);
   stroke-linecap: round;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
@@ -1390,6 +1405,33 @@
   display: block;
   width: 100%;
   height: auto;
+}
+
+/* The picture is what a canvas takes over from, at the same angle, so it draws what the scene does.
+   The scene's floor is a texture, where the band edges' dots run together into a thin, dim line, and
+   its dashed lines have no caps and run shorter, by map units (space-time.ts, VAN_DASHES): until
+   2026-11-03 Van C's line and the edges visibly changed under a mouse. What's inside the <use> takes its
+   look through these properties, since no selector reaches it. The dashes are the scene's at 1,440 px. */
+.rl-cube-picture {
+  --rl-contour-width: 1px;
+  --rl-contour-dash: none;
+  --rl-contour-opacity: 0.55;
+}
+
+.rl-cube-picture .rl-route {
+  stroke-linecap: butt;
+}
+
+.rl-cube-picture .rl-route.van-b {
+  stroke-dasharray: 8px 3px;
+}
+
+.rl-cube-picture .rl-route.van-c {
+  stroke-dasharray: 1px 3px;
+}
+
+.rl-cube-picture .rl-route.van-d {
+  stroke-dasharray: 4px 4px;
 }
 
 /* The browser's own [hidden] rule reaches HTML elements only, not an SVG root. */

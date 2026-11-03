@@ -143,17 +143,64 @@ test('on a phone Tab meets the desk’s controls in the order the screen shows t
   tops.forEach((top, k) => expect(top).toBeGreaterThanOrEqual(tops[k - 1] ?? top));
 });
 
-test('from 64rem the controls head the desk, over the readout and both maps', async ({ page }) => {
+// A laptop opened on chips and numbers with a strip of map under them until 2026-11-03: 8% of it at
+// 1,280 by 720 and 32% at 1,440 by 900, where the other labs show nearly all of their picture.
+test('from 64rem the controls head the desk, the maps come straight under them, then their figures and the headline', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(ROUTE_LAB);
   await expect(page.locator('.rl-view')).toBeHidden();
   await expect(visibleMap(page)).toHaveCount(2);
   const controls = await span(page.locator('.rl-controls'));
-  const readout = await span(page.locator('.rl-readout'));
+  const status = await span(page.locator('.rl-status'));
   const map = await span(visibleMap(page).first());
-  expect(controls.bottom).toBeLessThanOrEqual(readout.top);
-  expect(readout.bottom).toBeLessThanOrEqual(map.top);
+  const figures = await span(page.locator('[data-rl-plan="before"] .rl-head'));
+  const readout = await span(page.locator('.rl-readout'));
+  expect(controls.bottom).toBeLessThanOrEqual(status.top);
+  expect(status.bottom).toBeLessThanOrEqual(map.top);
+  expect(map.bottom).toBeLessThanOrEqual(figures.top);
+  expect(figures.bottom).toBeLessThanOrEqual(readout.top);
 });
+
+for (const [width, height, share] of [
+  [1280, 720, 0.3],
+  [1366, 768, 0.35],
+  [1440, 900, 0.55],
+  [1920, 1080, 0.8],
+] as const) {
+  test(`at ${width} by ${height}, ${Math.round(share * 100)}% of the first map is on the first screen`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto(ROUTE_LAB);
+    await page.evaluate(() => document.fonts.ready);
+    await expect(visibleMap(page).first()).toBeInViewport({ ratio: share });
+  });
+}
+
+// Each plan has one name on a page: until 2026-11-03 the switch called them "As they came in" and
+// "VROOM's plan", over figures that said "As the orders came in" and "Planned by VROOM".
+for (const width of [320, 390]) {
+  test(`at ${width} px the map switch calls each plan what its figures do, and takes the room of one row`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto(ROUTE_LAB);
+    await expect(page.locator('.rl-view .rl-chip-name')).toHaveText([
+      'As the orders came in',
+      'Planned by VROOM',
+    ]);
+    await expect(page.locator('[data-rl-plan] .rl-head .label')).toHaveText([
+      'As the orders came in',
+      'Planned by VROOM',
+    ]);
+    const tops = await page
+      .locator('.rl-view .rl-chip')
+      .evaluateAll((chips) => chips.map((chip) => chip.getBoundingClientRect().top));
+    expect(new Set(tops).size).toBe(1);
+  });
+}
 
 // What stands under the map holds still (design-system.md, "Motion"), since the controls that change
 // the plan, and the list of places, stand there: from one plan's words to another's, from map to
@@ -161,7 +208,7 @@ test('from 64rem the controls head the desk, over the readout and both maps', as
 // take at that width (route-lab.css), which is what the first screen's blank gap was for, before it
 // moved under the map; and at 320 px the other map's figures took a line less than VROOM's, which
 // moved everything under them by 22 px at a press of the switch.
-for (const width of [320, 390, 480, 600, 768, 1440]) {
+for (const width of [320, 390, 480, 600, 768, 1024, 1440]) {
   test(`at ${width} px what stands under the map stays put, whatever the plan`, async ({
     page,
     context,

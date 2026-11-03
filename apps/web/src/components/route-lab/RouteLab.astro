@@ -52,8 +52,8 @@ const fills = [...isochrones.within.keys()].reverse();
 // The later of the two plans' last van back: the clock both maps' vans keep.
 const longest = Math.max(before.measured.back, after.measured.back);
 const plans = [
-  { which: 'before', short: 'As they came in', ...before },
-  { which: 'after', short: 'VROOM’s plan', ...after },
+  { which: 'before', ...before },
+  { which: 'after', ...after },
 ] as const;
 const vans = [0, 1, 2, 3].map((van) => ({
   letter: vanClass(van),
@@ -143,7 +143,7 @@ const bands = bandsSentence(
       {plans.map((plan) => (
         <label class="rl-chip">
           <input type="radio" name="rl-view" value={plan.which} checked={plan.which === 'after'} />
-          <span class="rl-chip-name">{plan.short}</span>
+          <span class="rl-chip-name">{PLAN_NAMES[plan.which]}</span>
         </label>
       ))}
     </div>
@@ -251,6 +251,9 @@ const bands = bandsSentence(
     </div>
   </div>
 
+  <p class="rl-status" data-rl-status data-said data-rl-js></p>
+  <p class="rl-say" role="status" data-rl-say></p>
+
   <p class="rl-hint" data-rl-js>
     Tap a place on a map, or check it in the list below, to add or remove its order. VROOM plans
     again each time.{' '}
@@ -264,8 +267,6 @@ const bands = bandsSentence(
     <p class="rl-capacity" data-rl-capacity>
       {roomText(routeData, day.orders, day.vans, capacity)}
     </p>
-    <p class="rl-status" data-rl-status data-said data-rl-js></p>
-    <p class="rl-say" role="status" data-rl-say></p>
   </div>
 
   <noscript class="rl-caption">
