@@ -1,6 +1,7 @@
 import { eventLog } from '../../lib/lab/event-log';
 import { runOnLanding } from '../../lib/lab/landing-run';
 import { speaker, startsOver, type Say } from '../../lib/lab/said';
+import { address } from '../../lib/sim/link';
 import { NODES, PAGES, seconds, type Load, type Placement } from '../../lib/cache/core';
 import {
   flush,
@@ -254,7 +255,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     const wasPlaying = playing;
     pause();
     begin();
-    history.replaceState(null, '', linkTo(sim));
+    writeLink(linkTo(sim));
     if (wasPlaying) play();
     return wasPlaying;
   }
@@ -319,13 +320,15 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && playing) pause();
   });
-  // A link to a run followed on this page opens that run, paused, as loading it would.
-  addEventListener('hashchange', () => {
+  // A link to another run followed on this page opens that run, paused, as loading it would.
+  const writeLink = address(() => {
     const next = openLink(location.hash);
-    if (!next) return;
-    pause();
-    show(next);
-    say(summary(sim));
+    if (next) {
+      pause();
+      show(next);
+      say(summary(sim));
+    }
+    return next;
   });
   still.addEventListener('change', () => {
     if (playing) {

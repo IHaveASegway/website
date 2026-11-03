@@ -256,6 +256,36 @@ test('with every worker down and orders waiting, the clock stops, says so, and a
     .toBeGreaterThan(stopped);
 });
 
+// Reading a section and coming back is an ordinary thing to do. Until 2026-11-03 a contents link and
+// then the browser's Back read as a link followed, and took the visitor's run back to its opening.
+for (const lab of LABS) {
+  test(`the ${lab.name} lab: a contents link and Back leave the run where it was, and another run's link still opens`, async ({
+    page,
+  }) => {
+    await page.goto(`/lab/${lab.name}/`);
+    const clock = page.locator(`[data-${lab.short}-clock]`);
+    await page.locator(`[data-${lab.short}-reset]`).click();
+    await expect(page).toHaveURL(/#seed-\d+/);
+    const own = new URL(page.url()).hash;
+    for (let i = 0; i < 3; i++) await page.locator(`button[data-${lab.short}-step]`).click();
+    const stands = await clock.textContent();
+    await page.locator('.lab-contents a').first().click();
+    await expect(page).not.toHaveURL(/#seed-/);
+    await page.goBack();
+    await expect(page).toHaveURL(new RegExp(`${own}$`));
+    await expect(clock).toHaveText(stands ?? '');
+    // Nothing waited to open it: a beat later it still stands where it stood.
+    await page.waitForTimeout(100);
+    await expect(clock).toHaveText(stands ?? '');
+
+    await page.evaluate(() => {
+      location.hash = '#seed-8';
+    });
+    await expect(page.locator('.lab-clock').first()).toContainText('seed 8');
+    await expect(clock).not.toHaveText(stands ?? '');
+  });
+}
+
 test('Run on a run standing where the picture told it, with only a setting chosen, plays the story under that setting', async ({
   page,
 }) => {

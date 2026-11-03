@@ -2,7 +2,7 @@ import { eventLog } from '../../lib/lab/event-log';
 import { runOnLanding } from '../../lib/lab/landing-run';
 import { speaker, startsOver, type Say } from '../../lib/lab/said';
 import { properties } from '../../lib/queue/check';
-import { valueOf, word } from '../../lib/sim/link';
+import { address, valueOf, word } from '../../lib/sim/link';
 import {
   crash,
   nextTime,
@@ -301,7 +301,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
         const line = sim.lines.at(-1)?.text ?? '';
         const wasPlaying = playing;
         begin(wasPlaying);
-        history.replaceState(null, '', linkTo(sim));
+        writeLink(linkTo(sim));
         const started = startsOver('run', 'it', REPLAY_WORDS, wasPlaying);
         say(`${line}. ${started}`, control, `${line.split(':')[0]}. ${started}`);
         return;
@@ -332,7 +332,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       const wasPlaying = playing;
       begin(wasPlaying);
       // The address names the run, settings and all, so a reload or the link shared opens it.
-      history.replaceState(null, '', linkTo(sim));
+      writeLink(linkTo(sim));
       say(startsOver('run', 'these settings', REPLAY_WORDS, wasPlaying), control);
       return;
     } else if (control.matches('[data-qu-producer]')) {
@@ -363,14 +363,15 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && playing) pause();
   });
-  // A link to a run followed on this page opens that run, paused, as loading it would.
-  addEventListener('hashchange', () => {
+  // A link to another run followed on this page opens that run, paused, as loading it would.
+  const writeLink = address(() => {
     const next = openLink(location.hash);
     if (next) {
       open(next, [], false);
       told = true;
       say(summary(sim));
     }
+    return next;
   });
   still.addEventListener('change', () => {
     if (playing) {

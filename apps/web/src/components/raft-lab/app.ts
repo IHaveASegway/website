@@ -1,6 +1,7 @@
 import { eventLog } from '../../lib/lab/event-log';
 import { runOnLanding } from '../../lib/lab/landing-run';
 import { speaker, startsOver, type Say } from '../../lib/lab/said';
+import { address } from '../../lib/sim/link';
 import {
   crash,
   heal,
@@ -285,7 +286,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       open(fresh(sim.seed, lost()));
       if (told) tell();
       // The address names the run, its loss and all, so a reload or the link shared opens it.
-      history.replaceState(null, '', linkTo(sim.seed, percent()));
+      writeLink(linkTo(sim.seed, percent()));
       if (wasPlaying) play();
       // Only a run that plays on takes the story with it: a press of Run is a press like any other.
       const where = `at ${seconds(sim.now)}${told && wasPlaying ? ', before the leader crashes' : ''}`;
@@ -314,15 +315,17 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && playing) pause();
   });
-  // A link to a run followed on this page opens that run's opening, paused, as loading it would.
-  addEventListener('hashchange', () => {
+  // A link to another run followed on this page opens that run's opening, paused, as loading it would.
+  const writeLink = address(() => {
     const link = readRun(location.hash);
-    if (!link) return;
-    theirs = true;
-    told = false;
-    showLoss(link.loss);
-    open(fresh(link.seed, link.loss / 100));
-    say(summary(sim));
+    if (link) {
+      theirs = true;
+      told = false;
+      showLoss(link.loss);
+      open(fresh(link.seed, link.loss / 100));
+      say(summary(sim));
+    }
+    return link;
   });
   still.addEventListener('change', () => {
     if (playing) {

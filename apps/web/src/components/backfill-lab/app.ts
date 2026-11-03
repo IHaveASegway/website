@@ -1,6 +1,7 @@
 import { eventLog } from '../../lib/lab/event-log';
 import { runOnLanding } from '../../lib/lab/landing-run';
 import { speaker, startsOver, type Say } from '../../lib/lab/said';
+import { address } from '../../lib/sim/link';
 import { TASKS, weekday, when, type Mode, type PartitionKey } from '../../lib/backfill/core';
 import {
   clear,
@@ -328,7 +329,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     } else if (control.matches('[data-bf-reset]')) {
       const wasPlaying = sendBack(fromTheSwitch(sim), control);
       // The address names the week, settings and all, so a reload or the link shared opens it.
-      history.replaceState(null, '', linkTo(sim));
+      writeLink(linkTo(sim));
       draw();
       say(startsOver('week', 'these settings', REPLAY_WORDS, wasPlaying), control);
       return;
@@ -346,7 +347,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       else setPartition(sim, value as PartitionKey);
       const line = sim.lines.at(-1)?.text ?? '';
       const wasPlaying = sendBack(beforeSwitch(sim), control);
-      history.replaceState(null, '', linkTo(sim));
+      writeLink(linkTo(sim));
       const started = startsOver('week', 'it', REPLAY_WORDS, wasPlaying);
       draw();
       say(
@@ -392,14 +393,16 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && playing) pause();
   });
-  // A link to a week followed on this page opens that week, paused, as loading it would.
-  addEventListener('hashchange', () => {
+  // A link to another week followed on this page opens that week, paused, as loading it would.
+  const writeLink = address(() => {
     const next = openLink(location.hash);
-    if (!next) return;
-    show(next);
-    told = true;
-    draw();
-    say(summary(sim));
+    if (next) {
+      show(next);
+      told = true;
+      draw();
+      say(summary(sim));
+    }
+    return next;
   });
   still.addEventListener('change', () => {
     if (playing) {
