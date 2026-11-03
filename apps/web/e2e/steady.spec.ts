@@ -94,8 +94,11 @@ async function steady(page: Page): Promise<void> {
           w.top = box.top;
         }
         // A control that holds its height but not its place along the row, in the labs on one set
-        // of controls so far.
-        if (Math.abs(box.left - w.left) > 1 && w.el.closest('.lab-row, .cl-node-buttons')) {
+        // of controls so far, a choice beside the row too.
+        if (
+          Math.abs(box.left - w.left) > 1 &&
+          w.el.closest('.lab-row, .lab-choice, .cl-node-buttons')
+        ) {
           found.push(`${name(w.el)} moved ${Math.round(box.left - w.left)} px sideways`);
           w.left = box.left;
         }
@@ -1110,6 +1113,36 @@ for (const width of [375, 400, 402]) {
         expect(grown).toBeLessThanOrEqual(0.5);
       });
     }
+  });
+}
+
+// The Time group's clock has no say in its width (lab-controls.css), so on a desk it moves nothing beside
+// it. Until 2026-11-03 the Queue Lab's did: at 1,056 px its key dropped a row and 682 px left, and all
+// under it 88 px, as the clock reached 10 s with nobody touching anything. Here the run itself plays
+// past that, in WebKit; e2e/queue.spec.ts sweeps the desk widths in Chromium with the clock's longest words.
+for (const width of [1046, 1056]) {
+  test(`at ${width} px a Queue Lab run plays past 10 s and moves nothing`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await open(page, LABS.queue.path);
+    const clock = page.locator('[data-qu-clock]');
+    await page.locator('label:has(input[name="qu-speed"])', { hasText: 'Quick' }).tap();
+    const moves = await movesAround(
+      page,
+      async () => {
+        await page.locator('[data-qu-run]').tap();
+        await expect
+          .poll(
+            async () => parseFloat(/[\d.]+/.exec((await clock.textContent()) ?? '')?.[0] ?? '0'),
+            {
+              timeout: 20_000,
+            },
+          )
+          .toBeGreaterThan(10.2);
+      },
+      100,
+      true,
+    );
+    expect(moves).toEqual([]);
   });
 }
 

@@ -786,6 +786,62 @@ test('a poison order or a stop on a run that plays says what it did, and asks fo
   await expect(line).toHaveText('Orders stop: no new ones arrive.');
 });
 
+// The clock gains a digit as a run plays, and the Time group's width is its buttons' (lab-controls.css),
+// so nothing beside the clock can move. Until 2026-11-03 the group followed the clock's words here: the
+// key slid up to 35 px at every desk width, under the pointer as it was pressed, and from 1,044 to
+// 1,079 px it dropped a row and took all under it down 88 px, mid-run, with nobody touching anything.
+test('as the clock’s words grow, the key and all under it hold their place, at every width from a tablet up', async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  await page.goto(QUEUE);
+  await page.evaluate(() => document.fonts.ready);
+  const widths = [768, 900, 1000, 1023, 1920, 2560];
+  for (let width = 1024; width <= 1100; width += 2) widths.push(width);
+  for (const width of [1280, 1366, 1440, 1680]) widths.push(width);
+  for (const width of widths) {
+    await page.setViewportSize({ width, height: 900 });
+    const moved = await page.evaluate(() => {
+      const say = (selector: string, words: string) => {
+        const element = document.querySelector(selector) as Element;
+        const was = element.textContent;
+        element.textContent = words;
+        return () => {
+          element.textContent = was;
+        };
+      };
+      const places = () =>
+        [
+          ...document.querySelectorAll(
+            '.qu-controls .lab-choice, .qu-controls .lab-group, .qu-controls .btn, .qu-controls > .lab-said, .qu-summary',
+          ),
+        ]
+          .filter((element) => element.checkVisibility())
+          .map((element) => {
+            const box = element.getBoundingClientRect();
+            return { name: element.className, left: box.left, top: box.top };
+          });
+      const before = places();
+      const undo = [
+        say('[data-qu-clock]', 'Virtual time 999.999 s'),
+        say('[data-qu-events]', '99,999 events'),
+        say('[data-qu-seed]', '999999'),
+      ];
+      const after = places();
+      for (const back of undo) back();
+      return after.flatMap((place, i) => {
+        const was = before[i];
+        if (!was) return [];
+        const by = [Math.round(place.left - was.left), Math.round(place.top - was.top)];
+        return Math.abs(by[0] ?? 0) > 1 || Math.abs(by[1] ?? 0) > 1
+          ? [`${place.name} moved ${by}`]
+          : [];
+      });
+    });
+    expect(moved, `at ${width} px`).toEqual([]);
+  }
+});
+
 // One copy shows at a width, and the two say the same, so a window made narrower can't show the words
 // the run had before.
 test('the copy a change of width shows says what the run says', async ({ page }) => {
