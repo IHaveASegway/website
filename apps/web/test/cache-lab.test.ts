@@ -59,7 +59,7 @@ describe('the properties beside their lamps', () => {
         id: 'one-fetch',
         name: 'One fetch of a page at a time',
         held: false,
-        words: 'Broken 40 times, at worst 23 fetches of one page at once',
+        words: 'Broken 40 times: at worst 23 fetches of one page in flight',
       },
       {
         id: 'no-timeouts',
@@ -116,10 +116,10 @@ describe('the nodes and their pages', () => {
     // The herd: every reader who misses fetches it, and the line forms behind the pool.
     const herd = at(3_300);
     expect(pageState(herd, 0)).toBe('fetching');
-    expect(menuWords(herd)).toBe('Menu, 19 fetches at once');
+    expect(menuWords(herd)).toBe('Menu, 19 fetches in flight');
     expect(waiting(herd)).toBe(13);
     // Its herd still in flight after the first fetch stored it again: still being fetched.
-    expect(menuWords(at(3_500))).toBe('Menu, 19 fetches at once');
+    expect(menuWords(at(3_500))).toBe('Menu, 19 fetches in flight');
     // By the opening's moment, every fetch of it has come back.
     const opening = openingRun();
     expect(pageState(opening, 0)).toBe('fresh');
@@ -254,7 +254,7 @@ test('the picture is named by what its parts show, not by the caption’s accoun
   const herd = at(3_300);
   loseNode(herd, 1);
   expect(mapWords(herd)).toMatch(
-    /^Readers, 300 a second, four cache nodes, node 2 down, and the database\. The nodes’ pages: \d+ fresh, \d+ expired, \d+ missing and \d+ being fetched\. Menu, 19 fetches at once\. The database: 8 of 8 connections busy and 13 fetches waiting\.$/,
+    /^Readers, 300 a second, four cache nodes, node 2 down, and the database\. The nodes’ pages: \d+ fresh, \d+ expired, \d+ missing and \d+ being fetched\. Menu, 19 fetches in flight\. The database: 8 of 8 connections busy and 13 fetches waiting\.$/,
   );
 });
 

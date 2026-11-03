@@ -669,7 +669,7 @@ describe('the view', () => {
   test('the summary and the status line say the story in numbers', () => {
     const sim = openingRun();
     expect(summary(sim)).toMatch(
-      /^1,\d{3} reads in 5\.0 s, \d+\.\d% from the cache\. When the menu expired at 3\.0 s, the database fetched it \d+ times at once and \d+ reads timed out\.$/,
+      /^1,\d{3} reads in 5\.0 s, \d+\.\d% from the cache\. When the menu expired at 3\.0 s, the database had \d+ fetches of it in flight at once and \d+ reads timed out\.$/,
     );
     // Each broken property says what happened, in numbers; each held one says what did not.
     expect(statusText(sim)).toMatch(

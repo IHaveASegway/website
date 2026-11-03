@@ -286,8 +286,8 @@ export function cacheLine(sim: CacheSim): CacheLine {
   const fetched =
     herd && herd.size >= 2
       ? herd.expired === null
-        ? `The database fetched ${pageName(herd.key)} ${times(herd.size)} at once`
-        : `When ${pageName(herd.key)} expired at ${(herd.expired / 1000).toFixed(1)} s, the database fetched it ${times(herd.size)} at once`
+        ? `The database had ${count(herd.size)} fetches of ${pageName(herd.key)} in flight at once`
+        : `When ${pageName(herd.key)} expired at ${(herd.expired / 1000).toFixed(1)} s, the database had ${count(herd.size)} fetches of it in flight at once`
       : 'No page was fetched twice at once';
   const gave =
     timeouts === 0
@@ -302,7 +302,8 @@ export function cacheLine(sim: CacheSim): CacheLine {
 
 /**
  * The Cache line's one fact on the Lab index: the opening's expiry again, with coalescing, which
- * the lab entry turns on first: the database's fetches of the expired page, with it and without.
+ * the lab entry turns on first: how often the database is asked for the expired page, with it and
+ * without. A cache fetches and a database answers, so the sentence never has the database fetch.
  * Refused for an opening with no expiry's herd to compare.
  */
 export function cacheFact(opening: CacheSim, coalesced: CacheSim): string {
@@ -311,11 +312,11 @@ export function cacheFact(opening: CacheSim, coalesced: CacheSim): string {
   const at = (herd.expired / 1000).toFixed(1);
   const once = coalesced.fetchesOf[herd.key] ?? 0;
   const without = opening.fetchesOf[herd.key] ?? 0;
-  return `${firstUp(`when ${page} expires at ${at} s`)}, coalescing means the database fetches it ${times(once)} instead of ${times(without)}.`;
+  return `${firstUp(`when ${page} expires at ${at} s`)}, coalescing means the database is asked for it ${times(once)} instead of ${times(without)}.`;
 }
 
 /** The Cache line's fix on the board, after the stampede its describer tells: "With coalescing,
- *  the database fetches it once, and no read times out." From the same runs as the index's fact. */
+ *  the database is asked for it once, and no read times out." From the same runs as the index's fact. */
 export function cacheFix(opening: CacheSim, coalesced: CacheSim): string {
   const once = coalesced.fetchesOf[herdAtExpiry(opening).key] ?? 0;
   const timeouts = coalesced.counts.timeout;
@@ -323,7 +324,7 @@ export function cacheFix(opening: CacheSim, coalesced: CacheSim): string {
     timeouts === 0
       ? 'no read times out'
       : `${count(timeouts)} ${timeouts === 1 ? 'read times' : 'reads time'} out`;
-  return `With coalescing, the database fetches it ${times(once)}, and ${gave}.`;
+  return `With coalescing, the database is asked for it ${times(once)}, and ${gave}.`;
 }
 
 /** The opening's herd at an expiry, which the cache's fact and fix compare; refused when there is

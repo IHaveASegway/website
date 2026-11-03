@@ -9,7 +9,7 @@ import { replay, type Action, type Config, type Outcome, type Sample, type Sim }
 
 /**
  * The opening: seed 7 at a busy hour, every mitigation off. The cache is warm, and the menu's entry
- * expires at 3 s: its readers all miss, the database fetches it twenty-odd times at once, its 8
+ * expires at 3 s: its readers all miss, twenty-odd fetches of it pile up on the database, its 8
  * connections fill, and readers start to give up. The browser replays it to take over exactly
  * where the picture stands.
  */
@@ -83,11 +83,11 @@ export function summary(sim: Sim): string {
   const findings: string[] = [];
   if (herd && herd.size >= 2) {
     const page = pageName(herd.key);
-    const size = `${times(herd.size)} at once`;
+    const size = `${count(herd.size)} fetches`;
     findings.push(
       herd.expired === null
-        ? `at ${(herd.from / 1000).toFixed(1)} s the database fetched ${page} ${size}`
-        : `when ${page} expired at ${(herd.expired / 1000).toFixed(1)} s, the database fetched it ${size}`,
+        ? `at ${(herd.from / 1000).toFixed(1)} s the database had ${size} of ${page} in flight at once`
+        : `when ${page} expired at ${(herd.expired / 1000).toFixed(1)} s, the database had ${size} of it in flight at once`,
     );
   } else findings.push('no page was fetched twice at once');
   findings.push(c.timeout === 0 ? 'no reader timed out' : `${reads(c.timeout)} timed out`);
@@ -189,7 +189,7 @@ export function propertyLines(sim: Sim): PropertyLine[] {
     const worst = p.worst ?? 0;
     const broke =
       p.id === 'one-fetch'
-        ? `Broken ${times(p.count)}, at worst ${count(worst)} fetches of one page at once`
+        ? `Broken ${times(p.count)}: at worst ${count(worst)} fetches of one page in flight`
         : p.id === 'no-timeouts'
           ? `Broken: ${reads(p.count)} timed out`
           : `Broken: ${reads(p.count)}, the worst ${millis(worst)} out of date`;
@@ -236,7 +236,7 @@ export function menuWords(sim: Sim): string {
   const at = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
   switch (pageState(sim, 0)) {
     case 'fetching':
-      return flying > 1 ? `Menu, ${count(flying)} fetches at once` : `Menu, being fetched${old}`;
+      return flying > 1 ? `Menu, ${count(flying)} fetches in flight` : `Menu, being fetched${old}`;
     case 'fresh':
       return `Menu, fresh until ${at(entry?.expiresAt ?? 0)}${old}`;
     case 'stale':

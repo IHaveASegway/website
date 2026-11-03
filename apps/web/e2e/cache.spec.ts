@@ -17,7 +17,7 @@ const CACHE = '/lab/cache/';
 test.beforeEach(({ page }) => handsOn(page));
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 const OPENING =
-  '1,500 reads in 5.0 s, 94.3% from the cache. When the menu expired at 3.0 s, the database fetched it 23 times at once and 2 reads timed out.';
+  '1,500 reads in 5.0 s, 94.3% from the cache. When the menu expired at 3.0 s, the database had 23 fetches of it in flight at once and 2 reads timed out.';
 const TAMED =
   '1,515 reads in 5.0 s, 99.9% from the cache. No page was fetched twice at once and no reader timed out.';
 /** The picture's own name at the opening: what its parts show, not the caption's account. */
@@ -77,7 +77,7 @@ test('without JavaScript, the page is the opening run: the menu’s stampede tol
   await expect(page.locator('.cl-conn')).toHaveCount(8);
   await expect(waiting(page)).toHaveText('0');
   await expect(words(page, 'one-fetch')).toHaveText(
-    'Broken 40 times, at worst 23 fetches of one page at once',
+    'Broken 40 times: at worst 23 fetches of one page in flight',
   );
   await expect(words(page, 'no-timeouts')).toHaveText('Broken: 2 reads timed out');
   await expect(words(page, 'fresh')).toHaveText('Held');
@@ -184,14 +184,14 @@ test('let the menu expire: the first run plays it, 23 fetches at once and two ti
   const herd = await seconds(page);
   expect(herd).toBeGreaterThan(3);
   expect(herd).toBeLessThan(4.5);
-  await expect(page.locator('[data-cl-menu]')).toHaveText(/^Menu, \d+ fetches at once$/);
+  await expect(page.locator('[data-cl-menu]')).toHaveText(/^Menu, \d+ fetches in flight$/);
   await runUntil(page, () =>
     /Virtual time ([5-9]|\d\d)\./.test(
       document.querySelector('[data-cl-clock]')?.textContent ?? '',
     ),
   );
   await expect(summary(page)).toHaveText(
-    /When the menu expired at 3\.0 s, the database fetched it 23 times at once and 2 reads timed out\.$/,
+    /When the menu expired at 3\.0 s, the database had 23 fetches of it in flight at once and 2 reads timed out\.$/,
   );
 
   // Turn on coalescing and serving stale, and start over: the same seed, from the same moment.
