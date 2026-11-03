@@ -249,7 +249,7 @@ test("stillhere's record: its check, its limits first, and figures the repositor
   const stillhere = profile.projects.find((p) => p.name === 'stillhere');
   expect(stillhere?.checked).toEqual({
     date: '2026-11-03',
-    sha: 'cd5f2f70522de055b9eabe03ffdebf4265ea82c5',
+    sha: '6adb3ad5c696243d3a057fa6291513354cb93a8a',
   });
   expect(stillhere?.measured).toBe('2026-11-03');
   expect(stillhere?.tag).toBe('Pre-release');

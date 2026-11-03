@@ -122,7 +122,7 @@ Selected work (row 4). A project's line is its `description` in `profile.json`, 
 |---|---|---|---|---|
 | This site | removed | — | — | removed on 2026-10-24: a card about the site is the site describing itself ([design-system.md](design-system.md#nothing-on-the-page-describes-the-site)) |
 | A teardown of an old project | removed | — | — | removed on 2026-11-03, on Joseph's decision: the post left the site and its URL answers with a 301 to `/writing/` ([ADR 0005](adr/0005-url-scheme.md), postscript) |
-| stillhere | The bio's words for it: "Change analytics for git and GitHub. It shows what landed, what lasted and who knows the code, and every number traces back to its commits. It's pre-release, and it doesn't measure a person's value." Its limits are in its line, since Home shows no tag | its published failed metric first, verdict first: "Main metric failed: AUC 0.42, size alone 0.82", which is `durable@1` in `docs/validation.md` · 15 decision records · 181 tests, counting subtests (`measured` 2026-11-03) | its repository on GitHub | on since 2026-11-03: its check is recorded at `cd5f2f7` and its hold is lifted. Joseph accepted the commit identities outside the allowed list and the scan's hits as they are, on 2026-11-03 |
+| stillhere | The bio's words for it: "Change analytics for git and GitHub. It shows what landed, what lasted and who knows the code, and every number traces back to its commits. It's pre-release, and it doesn't measure a person's value." Its limits are in its line, since Home shows no tag | its published failed metric first, verdict first: "Main metric failed: AUC 0.42, size alone 0.82", which is `durable@1` in `docs/validation.md` · 15 decision records · 181 tests, counting subtests (`measured` 2026-11-03) | its repository on GitHub | on since 2026-11-03: its check is recorded at `6adb3ad` and its hold is lifted. Joseph accepted the commit identities outside the allowed list and the scan's hits as they are, on 2026-11-03 |
 | gitops | "One git command across every repository in a directory. A TUI for people, a CLI for scripts." | signed checksums · CI on Linux, macOS and Windows | its repository on GitHub, once public again | held: private since 2026-10-23. Joseph's plan: clean its history, make it public, then turn its card on |
 
 How I work (row 5), as it stood before 2026-10-24. Should a plain list of these lines return, each line links to evidence that exists when it ships, and a line without evidence stays off the page.
@@ -391,7 +391,7 @@ Of owned work, the site features three things and nothing else, besides the post
 
 **Card → repo only.** stillhere's card links to its repository, so its README is the page a reader lands on, and the README carries the pitch: what it does, its limits statement, and the public numbers below. The tables below are the brief for that README pass, in stillhere's own repository. Its card turned on without it on 2026-11-03, and the pass is still to come.
 
-Change analytics for git and GitHub: what landed, what lasted, who knows the code. Every number traces back to its commits. Apache-2.0, pre-release (no tagged release at `cd5f2f7`, the commit the check read on 2026-11-03).
+Change analytics for git and GitHub: what landed, what lasted, who knows the code. Every number traces back to its commits. Apache-2.0, pre-release (no tagged release at `6adb3ad`, the commit the check read on 2026-11-03).
 
 What it shows a hiring manager:
 
@@ -406,7 +406,7 @@ What it shows a hiring manager:
 | Measurement validity | Blinded labels, AUC with intervals, Krippendorff's alpha, and a failing metric published as such |
 | Measuring before building | Profiling put git at 97% of CPU and commit-graph filters gave 2.85×, so the blame cache was deferred |
 
-Publishable numbers (measured 2026-10-22; re-measure at publish time). The card's three were counted again on 2026-11-03 from a clone at `cd5f2f7`: `go test -json` passes 181 tests and subtests, of 20 top-level test functions, `docs/adr/` holds 15 records, and `docs/validation.md` publishes the failed metric. The others in this table weren't counted again, because the card doesn't show them:
+Publishable numbers (measured 2026-10-22; re-measure at publish time). The card's three were counted again on 2026-11-03 from a clone at `6adb3ad`: `go test -json` passes 181 tests and subtests, of 20 top-level test functions, `docs/adr/` holds 15 records, and `docs/validation.md` publishes the failed metric. The others in this table weren't counted again, because the card doesn't show them:
 
 | Number | Where it comes from |
 |---|---|
@@ -479,7 +479,7 @@ A card renders on Home when three things hold, each in a reviewed pull request:
 
 `projectCards()` in `src/lib/profile.ts` owns the rule. `test/project-cards.test.ts` checks that Home shows exactly the cards it returns, then the featured posts' cards, on the real build (stillhere's alone today) and on a fixture build where a made-up project, checked and held by nothing, renders its card and its link.
 
-stillhere's card turned on this way on 2026-11-03. Its record and the GitHub profile's each carry `checked: {date: 2026-11-03, sha: cd5f2f7…}`: a profile has no commit of its own, so its record names the commit the check read. The check is recorded because Joseph accepted stillhere's commit identities outside the allowed list and the scan's hits as they are, on 2026-11-03. That acceptance names stillhere alone: the profile's line of the checklist and the account's other public repositories are still open ([roadmap.md](roadmap.md#pr-4-about-and-now)), and the profile's record stands because no repository can be linked without it. The GitHub link then appears wherever `checkedProfiles()` renders: Home's opening, beside LinkedIn, the footer, the command menu's Links, `sameAs` and the `WebSite`'s `alternateName` in the JSON-LD, `/llms.txt`, and the résumé's addresses on paper. The Route Lab's credit links VROOM's own repository, under an exact-URL exception in `test/readiness.test.ts`: it reaches no account of Joseph's.
+stillhere's card turned on this way on 2026-11-03. Its record and the GitHub profile's each carry `checked: {date: 2026-11-03, sha: 6adb3ad…}`: a profile has no commit of its own, so its record names the commit the check read. The check is recorded because Joseph accepted stillhere's commit identities outside the allowed list and the scan's hits as they are, on 2026-11-03. That acceptance names stillhere alone: the profile's line of the checklist and the account's other public repositories are still open ([roadmap.md](roadmap.md#pr-4-about-and-now)), and the profile's record stands because no repository can be linked without it. The GitHub link then appears wherever `checkedProfiles()` renders: Home's opening, beside LinkedIn, the footer, the command menu's Links, `sameAs` and the `WebSite`'s `alternateName` in the JSON-LD, `/llms.txt`, and the résumé's addresses on paper. The Route Lab's credit links VROOM's own repository, under an exact-URL exception in `test/readiness.test.ts`: it reaches no account of Joseph's.
 
 ## Names held off the site
 
