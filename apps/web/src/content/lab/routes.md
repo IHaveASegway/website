@@ -10,7 +10,7 @@ firewall_reviewed: 1970-01-01 # NOT A REVIEW: no person has read this entry. Set
 
 ## What VROOM promises
 
-[VROOM](https://github.com/VROOM-Project/vroom) 1.15.0 is an open-source solver for vehicle routing problems. Give it places to visit, vans that hold so many boxes, and the time to drive between every pair of places, and it looks for the routes with the least total driving. The exact best plan takes far too long to find once there are more than a few stops, so VROOM builds a good plan quickly, then moves and swaps stops between routes until no change cuts the total driving. So it promises a good plan fast, and not always the best one.
+VROOM 1.15.0 is an open-source solver for vehicle routing problems. Give it places to visit, vans that hold so many boxes, and the time to drive between every pair of places, and it looks for the routes with the least total driving. The exact best plan takes far too long to find once there are more than a few stops, so VROOM builds a good plan quickly, then moves and swaps stops between routes until no change cuts the total driving. So it promises a good plan fast, and not always the best one.
 
 It runs in your browser, so planning sends nothing anywhere. The drive times come from [OSRM](https://project-osrm.org/)’s car profile over OpenStreetMap roads, and they assume no traffic.
 
