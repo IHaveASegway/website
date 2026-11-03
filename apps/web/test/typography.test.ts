@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { typesetHtml } from '../src/lib/typeset-html.mjs';
 import { typeset } from '../src/lib/typeset.mjs';
-import { dist, files, html, read } from './support/dist';
+import { app, files, html, read } from './support/dist';
 import { attribute, elementsOf, type Element } from './support/html';
 
 // One kind of apostrophe on a page (lib/typeset.mjs). The Markdown pipeline curls a post's body, and
@@ -136,7 +136,7 @@ describe('known answers: a page typeset once it is written', () => {
 
 test('the build typesets a page with what its source would have left straight', () => {
   // Its own page file still says it straight, so this holds the step and not only the words.
-  const source = readFileSync(join(dist, '..', 'src/pages/about/index.astro'), 'utf8');
+  const source = readFileSync(join(app, 'src/pages/about/index.astro'), 'utf8');
   expect(source).toContain("I'll send a résumé");
   expect(read('about/index.html')).toContain('I\u2019ll send a résumé');
 });

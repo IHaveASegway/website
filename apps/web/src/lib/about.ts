@@ -100,7 +100,7 @@ export function aboutParts(body: string): AboutParts {
 export const ABOUT_HEADINGS = {
   build: 'What I build',
   how: 'How I work',
-  toward: 'What I\u2019m working toward',
+  toward: 'What I’m working toward',
 } as const;
 
 /** The section under a heading, or undefined when the bio has none by that name. */

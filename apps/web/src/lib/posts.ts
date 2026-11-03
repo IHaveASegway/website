@@ -1,6 +1,8 @@
 import { z } from 'astro/zod';
 import { typeset } from './typeset.mjs';
 
+export { typeset };
+
 // Essays and field notes (content.md, "Content model"; roadmap.md, PR 5). This module is pure: the
 // collections' schemas and every rule about what a build writes. The build reads the posts through
 // lib/content.ts and asks this module what to render; the unit tests ask it the same questions with

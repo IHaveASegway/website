@@ -366,6 +366,10 @@ for (const { phone, viewport } of PHONES) {
       (typeof LABS)[keyof typeof LABS],
     ][]) {
       test(`the ${name} lab`, async ({ page }) => {
+        // Eight presses with their waits, each long enough to catch a late move, and the link's: 20
+        // s of it is the check watching. That leaves under 10 s of the default limit for the work
+        // itself, and on a busy machine the queue lab's took more, with nothing having moved.
+        test.setTimeout(60_000);
         await open(page, lab.path);
         expect(await play(page, FLOWS[name])).toEqual([]);
         // A link to a run, followed on the page: the run it names, in the same room.
