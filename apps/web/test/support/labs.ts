@@ -41,7 +41,7 @@ export interface SimulatedLab {
  *
  * Raised on 2026-11-02 for one set of controls in the three labs (docs/lab.md, "The controls"): the
  * line that says what a press did, the shared event log and a setting that replays the run. Measured
- * then, each with its 2,016 B of shared chunks: the Queue Lab 13,796 B, the Cache Lab 12,437 B, the
+ * then, each with its 2,035 B of shared chunks: the Queue Lab 13,796 B, the Cache Lab 12,437 B, the
  * Backfill Lab 12,943 B, against their 13,200, 12,000 and 12,500 B, each rounded up to the next 500 B.
  * ADR 0026 asks for the test-only faults to go first. They are about 118 B of the Queue Lab's app,
  * too little to stay inside any of these, and the build-time constant that would drop them ties the
