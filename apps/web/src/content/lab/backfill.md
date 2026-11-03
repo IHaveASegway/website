@@ -16,9 +16,9 @@ It also means every day can run more than once. A load fails halfway and retries
 
 ## Three things to try
 
-**Watch Wednesday count twice.** The week the page opens on does it: Wednesday's first load fails after writing 96 of its 179 rows, the retry appends all 179, and Wednesday's check finds 275 orders against the source's 179. Switch the load to overwrite the day, start over and run it. Every day matches: 2,012 orders.
+**Watch Wednesday count twice.** The week the page opens on does it: Wednesday's first load fails after writing 96 of its 179 rows, the retry appends all 179, and Wednesday's check finds 275 orders against the source's 179. Switch the load to overwrite the day, and the week starts over. Every day matches: 2,012 orders.
 
-**Write to today.** Make each load write to the day the clock says instead of its run's own day, then start over and run it. Every day's orders land on the same date, and every check fails. If a job uses today's date, you can't backfill it.
+**Write to today.** Make each load write to the day the clock says instead of its run's own day, and the week starts over. Every day's orders land on the same date, and every check fails. If a job uses today's date, you can't backfill it.
 
 **Rerun a finished day.** Clear Tuesday after its run succeeds. With append, Tuesday's total doubles. With overwrite, nothing changes.
 
@@ -34,4 +34,4 @@ Runs that belong to their day of data, and loads that replace a day's rows inste
 
 ## What it costs
 
-Nothing to run. Every file is static, and your browser runs the simulation.
+It costs me nothing to run: the page is just static files, and your browser runs the simulation.

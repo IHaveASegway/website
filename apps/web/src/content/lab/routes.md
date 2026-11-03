@@ -26,12 +26,12 @@ Then choose a quiet Tuesday and go from 2 vans to 3. Each van’s room drops fro
 
 ## How to read it
 
-As the orders came in: the orders are dealt to the vans in turn, like cards, and each van drives its orders in the order they arrived, from the bakery and back. Planned by VROOM: the same orders and the same vans, with the total driving as short as VROOM can make it. Up to 30 orders, each stop on the map carries its number in its van’s run. Every van holds the boxes for 1.3 times its share of the day, so both plans fit, and VROOM still has to balance the loads. So a van’s room changes with the number of vans: the 1.3 does not.
+As the orders came in: the orders are dealt to the vans in turn, like cards, and each van drives its orders in the order they arrived, from the bakery and back. Planned by VROOM: the same orders and the same vans, with the total driving as short as VROOM can make it. With 30 orders or fewer, each stop on the map shows its number in that van’s run. Every van can hold 1.3 times an even split of the day’s boxes, so both plans fit, and VROOM still has to balance the loads. Add a van and each one’s room shrinks.
 
-In VROOM’s plans, one van drives the least, but it is back last. More vans usually finish the day sooner, and each map’s “Last van back” line says when, handing over every order included. VROOM looks for the least total driving, not the earliest finish, so with more vans than the day needs it may leave one at the bakery or give one a short run, and the day can even end later.
+In VROOM’s plans, using one van means the least driving, but that van is back last. More vans usually finish the day sooner, and each map’s “Last van back” line says when, counting the time to hand over each order. VROOM looks for the least total driving, not the earliest finish, so with more vans than the day needs it may leave one at the bakery or give one a short run, and the day can even end later.
 
-Each band is an isochrone: the area a van reaches from the bakery within a set time. The band around the bakery is 5 minutes away, and each band after it adds 5 minutes, up to 30. A line marks where 10 and 20 minutes end on land. A band that reaches far along a road marks a fast road. A gap marks water, a park or a port with no street to drive. The list of places, the tables and the tip over each place give its drive time from the bakery as text.
+Each band is an isochrone: the area a van reaches from the bakery within a set time. The band around the bakery is 5 minutes away, and each band after it adds 5 minutes, up to 30. A line marks where 10 and 20 minutes end on land. A band that reaches far along a road marks a fast road. A gap marks water, a park or a port with no street to drive. If you’d rather read than look at colors, the list of places, the tables and the tip over each place all give its drive time from the bakery.
 
 ## What it costs
 
-Nothing to run. Every file is static, and your browser does the planning.
+It costs me nothing to run: the page is just static files, and your browser does the planning.

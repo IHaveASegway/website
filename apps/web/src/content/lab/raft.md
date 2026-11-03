@@ -1,6 +1,6 @@
 ---
 title: Break a Raft cluster
-summary: Five servers keep one log with Raft. Crash them, split the network and lose messages in your browser, and watch every safety property hold.
+summary: Raft keeps five simulated servers on one log, the ordered list of writes. Crash them, split the network and lose messages, and watch every safety property hold.
 lifecycle: live
 runtime:
   kind: browser
@@ -16,11 +16,13 @@ What it guarantees is safety, whatever the network does: two servers never commi
 
 ## Three things to try
 
-**Cut off the leader.** Press Run, then Cut off the leader. The others stop hearing its heartbeats; one of them times out, wins a new term and leads. The old leader still thinks it leads. Send a write: it takes it, but can never commit it, since it cannot reach a majority.
+Left alone, the run you land on crashes its leader to show an election, then starts over. Any press except Start over ends that, and the cluster is yours.
 
-**Split the network.** The leader and one neighbor end up on the small side, two against three. Writes sent to it pile up uncommitted, while the three on the other side elect a leader of their own.
+**Cut off the leader.** With the run going, press Cut off the leader. The others stop hearing its heartbeats; one of them times out, wins a new term and leads. The old leader still thinks it leads. Send a write: the old leader takes it, but can never commit it, since it cannot reach a majority.
 
-**Heal the network.** The old leader hears the newer term and steps down. Its uncommitted entries stay until the new leader sends one of its own: send a write, and they are dropped and replaced. The event log says how many, and names each write as gone once its place is committed with another entry. That's correct: those entries were never committed.
+**Split two servers from three.** The leader and one neighbor end up on the small side. Writes sent to it pile up uncommitted, while the three on the other side elect a leader of their own.
+
+**Heal the network.** The old leader hears the newer term and steps down. Its uncommitted entries stay until the new leader sends one of its own: send a write, and they are dropped and replaced. The “What happened” list says how many, and marks a write as gone once a different entry is committed in its place. That's correct: those entries were never committed.
 
 Then try crashing two servers at once, or three, and losing a third of all messages.
 
@@ -34,4 +36,4 @@ The algorithm is Diego Ongaro and John Ousterhout's, from [In Search of an Under
 
 ## What it costs
 
-Nothing to run. Every file is static, and your browser runs the simulation.
+It costs me nothing to run: the page is just static files, and your browser runs the simulation.
