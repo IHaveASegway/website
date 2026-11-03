@@ -176,7 +176,7 @@ describe('what a page says of itself', () => {
       'lab/index.html',
       'This is where I practice, in small working models of real systems that run in your browser.',
     ],
-    ['writing/you-will-be-missed/index.html', 'Try the labs: small systems you can break'],
+    ['writing/coding-by-hand/index.html', 'Try the labs: small systems you can break'],
   ];
   const nbsp = (text: string) => text.replace(/\u00a0|&nbsp;/g, ' ');
 

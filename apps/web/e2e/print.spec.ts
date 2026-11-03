@@ -90,7 +90,7 @@ for (const theme of ['dark', 'light'] as const) {
 test('the essay on paper: the footer stays whole, and takes no sheet of its own', async ({
   page,
 }) => {
-  const essay = '/writing/you-will-be-missed/';
+  const essay = '/writing/coding-by-hand/';
   test.skip(!pages().includes(essay), 'no essay in this build');
   await page.goto(essay);
   await page.evaluate(() => document.fonts.ready);

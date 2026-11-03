@@ -4,6 +4,7 @@ import {
   cardTree,
   drawnStrings,
   homeCard,
+  ogAlt,
   ogSvg,
   ogTree,
   OG_SIZE,
@@ -108,12 +109,16 @@ function cardFrom(ogTitle: string, ogAlt: string): OgCard | null {
   // A post's card (ADR 0029): og:title is the title alone, and the alt says who wrote it.
   if (ogAlt.startsWith(`${ogTitle}, by `))
     return { title: ogTitle, label: ogAlt.slice(ogTitle.length + 5), byline: true };
-  // And what its summary says, where the card has room for it.
+  // And what its summary says, where the card has room for it. A title that ends its own sentence
+  // takes no second full stop, and with no summary its byline follows it straight away.
   const by = ogAlt.lastIndexOf(' By ');
-  if (ogAlt.startsWith(`${ogTitle}. `) && by >= 0 && ogAlt.endsWith('.'))
+  const said = /[.!?]$/.test(ogTitle) ? ogTitle : `${ogTitle}.`;
+  if (ogAlt === `${said} By ${ogAlt.slice(by + 4)}` && by >= 0 && said === ogTitle)
+    return { title: ogTitle, label: ogAlt.slice(by + 4, -1), byline: true };
+  if (ogAlt.startsWith(`${said} `) && by >= 0 && ogAlt.endsWith('.'))
     return {
       title: ogTitle,
-      summary: ogAlt.slice(ogTitle.length + 2, by),
+      summary: ogAlt.slice(said.length + 1, by),
       label: ogAlt.slice(by + 4, -1),
       byline: true,
     };
@@ -243,6 +248,16 @@ test('known answers: a card is read back from its two strings, whatever they hol
     label: 'B',
     byline: true,
   });
+  // A title that ends its own sentence takes no second full stop, in the alt or its reading back.
+  const ended = { title: 'A. C.', label: 'B', byline: true };
+  expect(ogAlt({ ...ended, summary: 'It said so.' })).toBe('A. C. It said so. By B.');
+  expect(ogAlt(ended)).toBe('A. C. By B.');
+  expect(ogAlt({ title: 'A', label: 'B', byline: true })).toBe('A, by B');
+  expect(cardFrom('A. C.', 'A. C. It said so. By B.')).toEqual({
+    ...ended,
+    summary: 'It said so.',
+  });
+  expect(cardFrom('A. C.', 'A. C. By B.')).toEqual(ended);
 });
 
 // A post's card, which carries its summary between its title and its byline, so a share has a hook
@@ -308,13 +323,13 @@ describe("a post's card", () => {
 
   // The two posts on the site. The essay's hook fits. The teardown's summary takes three lines at any
   // size a 550 px card can read, and a summary isn't cut to fit, so its card has none.
-  test.runIf(html.includes('writing/you-will-be-missed/index.html'))(
+  test.runIf(html.includes('writing/coding-by-hand/index.html'))(
     'the essay’s card says its hook, and its alt says what the card says',
     () => {
-      const page = read('writing/you-will-be-missed/index.html');
+      const page = read('writing/coding-by-hand/index.html');
       const hook = 'I doubt anyone in the back seat of a driverless Waymo is checking the mirrors.';
       expect(decode(meta(page, 'og:image:alt') ?? '')).toBe(
-        `You will be missed. ${hook} By ${profile.basics.name}.`,
+        `Coding is fun. That won’t save it. ${hook} By ${profile.basics.name}.`,
       );
       expect(summaryLines(hook)).toEqual([
         'I doubt anyone in the back seat of a',
@@ -336,7 +351,7 @@ describe("a post's card", () => {
     },
   );
 
-  test.runIf(html.includes('writing/you-will-be-missed/index.html'))(
+  test.runIf(html.includes('writing/coding-by-hand/index.html'))(
     'the posts this build has include a card with a summary and one without',
     () => {
       expect(posts.some(({ card }) => card.summary)).toBe(true);

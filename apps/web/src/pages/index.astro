@@ -83,7 +83,7 @@ const kinds = KINDS.flatMap(({ words, slug }) => {
 const lineOf = new Map(lab.entries.map((entry) => [labPath(entry), entry.slug]));
 
 // The essay the bio's last thing he builds points to, linked where this build lists it.
-const essay = area.published.find((post) => post.slug === 'you-will-be-missed');
+const essay = area.published.find((post) => post.slug === 'coding-by-hand');
 const reads = essay ? [{ name: 'essay', href: postPath(essay) }] : [];
 
 // What I build: each of the bio's five, with the lab its words name and that lab's fact (lib/lab-facts.ts,

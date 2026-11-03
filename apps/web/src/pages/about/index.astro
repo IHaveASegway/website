@@ -55,7 +55,7 @@ const names = LAB_NAMES.flatMap(({ slug, name: words }) => {
 // The essay the bio's last thing he builds points to, as Home links it, and the Lab its closing
 // names, each once this build writes its page. Until 2026-11-02 only the labs' names were links
 // here, on the page for readers who want more.
-const essay = area.published.find((post) => post.slug === 'you-will-be-missed');
+const essay = area.published.find((post) => post.slug === 'coding-by-hand');
 const reads = essay ? [{ name: 'essay', href: postPath(essay) }] : [];
 const theLab = lab.entries.length > 0 ? [{ name: 'The Lab', href: '/lab/' }] : [];
 const profiles = checkedProfiles(profile);

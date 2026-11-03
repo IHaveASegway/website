@@ -114,9 +114,11 @@ export const ogTitle = (card: OgCard) =>
   card.byline ? card.title : `${card.title} · ${card.label}`; // an ogTitle, for the head
 export const ogAlt = (card: OgCard) => {
   if (!card.byline) return `${card.title}, ${card.label}`;
-  return card.summary
-    ? `${card.title}. ${card.summary} By ${card.label}.`
-    : `${card.title}, by ${card.label}`;
+  // A title that ends its own sentence, as the essay's does, takes no second full stop.
+  const ended = /[.!?]$/.test(card.title);
+  if (card.summary)
+    return `${ended ? card.title : `${card.title}.`} ${card.summary} By ${card.label}.`;
+  return ended ? `${card.title} By ${card.label}.` : `${card.title}, by ${card.label}`;
 };
 
 export interface OgNode {

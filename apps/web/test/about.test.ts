@@ -81,7 +81,7 @@ test('the bio renders exactly where its entry is, as named blocks in its own wor
 test('the essay and the Lab the bio names open their pages, as the labs do', () => {
   if (fixtureBuild) return;
   const bio = /<section class="bio"[\s\S]*?<\/section>/.exec(page)?.[0] ?? '';
-  expect(bio).toContain('<a href="/writing/you-will-be-missed/">essay</a>');
+  expect(bio).toContain('<a href="/writing/coding-by-hand/">essay</a>');
   expect(bio).toContain('<a href="/lab/">The Lab</a>');
 });
 

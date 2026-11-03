@@ -20,3 +20,4 @@
 /lab/cache/
 /lab/backfill/
 /writing/you-will-be-missed/
+/writing/coding-by-hand/
