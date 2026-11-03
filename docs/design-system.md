@@ -197,7 +197,7 @@ The enamel sits five just-noticeable differences from the template's navy, three
 
 ### Map colors
 
-The Route Lab's maps, Home's scene and the Route Lab's link preview share these tokens ([ADR 0016](adr/0016-route-lab-in-the-browser.md); revised 2026-10-30 with ADR 0025). The water is the page itself and the land a raised surface, so a map has no edge where its data stops: each renderer draws the land first, then the water over it in the page's color. A map needs more than one van color, so the Route Lab's own map keeps four; van A is the lab's line. In Home's scene every van is the Route Lab's line, with the van itself a lit lamp, set by overriding the van tokens on the scene, where its script reads them.
+The Route Lab's maps, Home's scene and the Route Lab's link preview share these tokens ([ADR 0016](adr/0016-route-lab-in-the-browser.md); revised 2026-10-30 with ADR 0025). The water is the page itself and the land a raised surface, so a map has no edge where its data stops: each renderer draws the land first, then the water over it in the page's color. The link preview's map leaves its water clear instead, since on a card the page is the field behind it (`lib/route-lab/og-map.ts`; 2026-11-02, when a painted water stood on the field as a panel with a straight edge). A map needs more than one van color, so the Route Lab's own map keeps four; van A is the lab's line. In Home's scene every van is the Route Lab's line, with the van itself a lit lamp, set by overriding the van tokens on the scene, where its script reads them.
 
 | Token | Role | Night | Day |
 |---|---|---|---|

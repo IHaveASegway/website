@@ -150,6 +150,47 @@ test("the Route Lab's card carries its map, which draws no string, at the card's
   expect(demoPicture('another', app)).toBeUndefined();
 });
 
+// The page is the water on every map (design-system.md, "Map colors"), and on a card the page is the
+// field. Painted in the page's colour, the map stood on the field as a flat panel: the grid stopped
+// dead along its straight left edge. The sound runs out across that edge, so a clear water leaves
+// nothing there to see.
+describe("the Route Lab's card has no edge where its map starts", () => {
+  /** How many pixels down a picture's left edge something is drawn. */
+  async function drawnDownItsLeftEdge(png: Buffer): Promise<number> {
+    const { data, info } = await sharp(png)
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    let drawn = 0;
+    for (let y = 0; y < info.height; y += 1)
+      if ((data[y * info.width * info.channels + 3] ?? 0) > 0) drawn += 1;
+    return drawn;
+  }
+
+  test('its water is clear, so the field runs through it, and its land is not', async () => {
+    const picture = await demoPicture('routes', app);
+    if (!picture) throw new Error('the Route Lab has no picture');
+    expect(await drawnDownItsLeftEdge(picture)).toBe(0);
+    const { data, info } = await sharp(picture).raw().toBuffer({ resolveWithObject: true });
+    const pixels = data.length / info.channels;
+    let opaque = 0;
+    for (let at = info.channels - 1; at < data.length; at += info.channels)
+      if (data[at] === 255) opaque += 1;
+    // A map, not a few lines: land and water each take a good part of it.
+    expect(opaque / pixels).toBeGreaterThan(0.3);
+    expect(opaque / pixels).toBeLessThan(0.8);
+  });
+
+  test('known answer: a picture painted to its edge is what this finds', async () => {
+    const painted = await sharp({
+      create: { width: 4, height: 6, channels: 4, background: { r: 9, g: 12, b: 18, alpha: 1 } },
+    })
+      .png()
+      .toBuffer();
+    expect(await drawnDownItsLeftEdge(painted)).toBe(6);
+  });
+});
+
 test("each lab's card carries its line in its own colour", async () => {
   const night = themeColors(tokensCss, 'dark');
   for (const slug of labs) {
