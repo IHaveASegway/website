@@ -240,9 +240,9 @@ export const PROMISES: Readonly<Record<Property, string>> = {
   'State Machine Safety': 'No two servers apply different entries at one index.',
 };
 
-/** A property's word beside its lamp: Holds or Broken, nothing longer, so a row never takes another
- *  line. The status line says when it broke and how. */
-export const propertyWord = (held: boolean): string => (held ? 'Holds' : 'Broken');
+/** A property's word beside its lamp: Held or Broken, the other labs' words, and nothing longer, so a
+ *  row never takes another line. The status line says when it broke and how. */
+export const propertyWord = (held: boolean): string => (held ? 'Held' : 'Broken');
 
 /** "249 events", for the clock, as every lab's says it. */
 export const eventsWords = (sim: Sim): string => `${sim.events.toLocaleString('en-US')} events`;

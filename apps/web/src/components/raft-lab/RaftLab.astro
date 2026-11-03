@@ -259,9 +259,12 @@ const SPEEDS = [
   </div>
 
   <div class="rf-part rf-props-part">
-    <h2 class="lab-heading" id="rf-props">
-      Safety properties, from Figure 3 of the Raft paper
-    </h2>
+    <div class="rf-props-head">
+      <h2 class="lab-heading">Checked as the run goes</h2>
+      <p class="rf-props-source" id="rf-props">
+        Safety properties, from Figure 3 of the Raft paper
+      </p>
+    </div>
     <ul class="rf-props" role="list" aria-labelledby="rf-props">
       {PROPERTIES.map((name) => (
         <li class="rf-prop" data-rf-prop={name} data-held="true">

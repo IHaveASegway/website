@@ -491,10 +491,27 @@
   }
 }
 
-/* The safety properties: a lamp each, filled while it holds and crossed once it breaks, as a property
-   is on every desk (design-system.md, "Lamps: one meaning per mark"), then its name, Holds or Broken,
-   and what it promises. The promise takes a line of its own until there's room beside the name. The
+/* The safety properties: under the heading every lab's checks have, and where these come from, beside
+   it where they fit. A lamp each, filled while it holds and crossed once it breaks, as a property is
+   on every desk (design-system.md, "Lamps: one meaning per mark"), then its name, Held or Broken, and
+   what it promises. The promise takes a line of its own until there's room beside the name. The
    name's column is as wide as the longest name, so the words beside it stand in a line. */
+.rf-props-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.75rem;
+}
+
+.rf-props-source {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  line-height: var(--text-label--line-height);
+}
+
 .rf-props {
   display: grid;
   gap: 0.5rem;

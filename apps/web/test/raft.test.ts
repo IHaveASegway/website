@@ -852,7 +852,7 @@ describe('the five safety properties, by name', () => {
       ['Leader Completeness', 'A committed entry is in the log of every later leader.'],
       ['State Machine Safety', 'No two servers apply different entries at one index.'],
     ]);
-    expect([propertyWord(true), propertyWord(false)]).toEqual(['Holds', 'Broken']);
+    expect([propertyWord(true), propertyWord(false)]).toEqual(['Held', 'Broken']);
   });
 
   test('a broken server: the run names the property as its row names it, and says when and how', () => {

@@ -55,7 +55,7 @@ test('without JavaScript, the page is the opening run: five servers, three commi
   await expect(summary(page)).toHaveText(/^Server \d leads term \d+, 3 entries committed\.$/);
   await expect(status(page)).toHaveText(HELD);
   await expect(page.locator('.rf-prop-name')).toHaveText(PROPERTIES);
-  await expect(page.locator('.rf-prop-word')).toHaveText(PROPERTIES.map(() => 'Holds'));
+  await expect(page.locator('.rf-prop-word')).toHaveText(PROPERTIES.map(() => 'Held'));
   await expect(page.locator('.rf-controls')).toBeHidden();
   await context.close();
 });
@@ -253,7 +253,7 @@ test('the desk names the five safety properties, each with its state', async ({ 
   await expect(page.locator('.rf-prop-name')).toHaveText(PROPERTIES);
   await expect(rows).toHaveCount(5);
   for (const row of await rows.all()) await expect(row).toHaveAttribute('data-held', 'true');
-  await expect(page.locator('[data-rf-prop-word]')).toHaveText(PROPERTIES.map(() => 'Holds'));
+  await expect(page.locator('[data-rf-prop-word]')).toHaveText(PROPERTIES.map(() => 'Held'));
   await expect(page.getByRole('list', { name: /^Safety properties/ })).toBeVisible();
   // The lamp the table gives each state: filled while it holds, crossed once it broke, both in the
   // lab's line. The page's servers never break one, so the mark is set by hand to read it.

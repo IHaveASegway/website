@@ -76,16 +76,18 @@ for (const lab of LABS) {
 
 }
 
-const THREE = LABS.filter((lab) => lab.name !== 'raft');
-
-for (const lab of THREE) {
-  test(`the ${lab.name} lab's list of checks has the same heading`, async ({ page }) => {
-    await page.goto(`/lab/${lab.name}/`);
-    await expect(page.getByRole('heading', { name: 'Checked as the run goes' })).toBeVisible();
-  });
-}
-
 for (const lab of LABS) {
+  test(`the ${lab.name} lab's list of checks has the same heading, and says Held`, async ({
+    page,
+  }) => {
+    await page.goto(`/lab/${lab.name}/`);
+    await expect(
+      page.getByRole('heading', { name: 'Checked as the run goes', exact: true }),
+    ).toBeVisible();
+    await expect(page.locator(`#${lab.name}-lab`)).toContainText('Held');
+    await expect(page.locator(`#${lab.name}-lab`)).not.toContainText('Holds');
+  });
+
   test(`the ${lab.name} lab's log is the same box, its lines in two columns, and opens on its newest with no script`, async ({
     browser,
   }) => {
