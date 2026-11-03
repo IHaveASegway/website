@@ -152,6 +152,32 @@ test('typing filters the rows by subsequence, hides empty groups, and selects th
   await expect(said(page)).toHaveText('No matches');
 });
 
+// The words the site itself uses, in the browser: the same answers test/palette.test.ts reads from
+// the build's rows. Until 2026-11-02 these said no matches, or selected Copy email address through
+// the letters of "address".
+test("the site's own words find their pages, and scattered letters don't take Enter from them", async ({
+  page,
+}) => {
+  await ready(page);
+  await page.keyboard.press('Control+k');
+  for (const [query, row] of [
+    ['essay', 'palette-writing'],
+    ['blog', 'palette-writing'],
+    ['rss', 'palette-writing'],
+    ['labs', 'palette-lab'],
+    ['adr', 'palette-home'],
+  ] as const) {
+    if (row === 'palette-lab' && !pages().includes('/lab/')) continue;
+    await input(page).fill(query);
+    const found = await rows(page);
+    expect(found.active, query).toBe(row);
+    expect(found.shown, query).not.toContain('palette-copy');
+  }
+  // With nothing whole, scattered letters still find a row, as they always did.
+  await input(page).fill('cpy');
+  expect(await rows(page)).toEqual({ shown: ['palette-copy'], active: 'palette-copy' });
+});
+
 test('the arrows move the selection, wrapping at the ends, and Enter goes to the page', async ({
   page,
 }) => {

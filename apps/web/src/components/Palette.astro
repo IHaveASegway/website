@@ -35,11 +35,15 @@ const { profile, generated, demos, posts, print = false } = Astro.props;
 // elsewhere on the page, in the nav, the toggle or the footer: the menu is a shortcut, never the
 // only way in (content.md, "Sitemap and phases"). The page's own text is all it shows: what a
 // visitor types narrows the rows and is never written back (security.md, "Threat model").
+// What a visitor may call a page, beside its name: the site's own words first (essay, lab, ADR), then
+// the words other sites use for the same thing. Home holds the count of decision records, until
+// /colophon/ holds the records. About is where the résumé prints, so from any other page "print" and
+// "pdf" find it, and on /about/ itself they're left to the row that presses Print.
 const KEYWORDS: Readonly<Record<string, string>> = {
-  home: 'start',
-  lab: 'demos',
-  writing: 'posts articles',
-  about: 'bio resume cv experience',
+  home: 'start adr decisions',
+  lab: 'labs demos projects work',
+  writing: 'essays blog rss feed posts articles',
+  about: `bio resume cv experience skills${print ? '' : ' print pdf'}`,
   colophon: 'decisions',
 };
 const pages = [

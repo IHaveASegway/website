@@ -3,12 +3,10 @@
 // the page behind it inert, closes on Esc and returns focus to whatever opened it. Its rows are in
 // the page already (components/Palette.astro), read from the one nav manifest, so this module
 // writes no markup. Focus stays in the input, a combobox, and aria-activedescendant names the
-// selected row; typing filters the rows by subsequence over each label and its keywords, and by the
-// query whole over a demo's or a post's summary, whose many words would let a subsequence find
-// almost anything; it selects the first row that holds the query whole, in its name before in a
-// summary, where there is one. It is one module with no imports, so every page loads one file and
-// nothing more (test/scripts.test.ts, test/budgets.test.ts). The three pure functions are exported
-// for test/palette.test.ts.
+// selected row. Typing ranks the rows (narrowed, below) and selects the best, so Enter does what the
+// words asked. It is one module with no imports, so every page loads one file and nothing more
+// (test/scripts.test.ts, test/budgets.test.ts). The pure functions are exported for
+// test/palette.test.ts.
 
 /** Whether a keydown opens or closes the menu: ⌘K or Ctrl+K, never a bare key (SC 2.1.4), and never
  *  inside a composition, where an input method uses Ctrl+K itself. On a layout whose K key types a
@@ -22,8 +20,14 @@ export function isToggle(event) {
   return key === 'k' || (!/^[a-z]$/.test(key) && event.code === 'KeyK');
 }
 
-/** Text as the menu compares it: lowercase, without accents, so "resume" finds "Résumé". */
-const fold = (text) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+/** Text as the menu compares it: lowercase, without accents, so "resume" finds "Résumé", and with a
+ *  keyboard's apostrophe, so "bakery's" finds "bakery’s". */
+const fold = (text) =>
+  text
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .replace(/[\u2018\u2019]/g, "'")
+    .toLowerCase();
 
 /** Whether every character of the query appears in the text, in order. Spaces in the query are
  *  ignored, so "copy email" finds "Copy email address" as "cpy" does. */
@@ -34,24 +38,52 @@ export function matches(query, text) {
   return found === wanted.length;
 }
 
-/** Whether the query appears in the text as it is typed, its letters together: "bak" in "bakery",
- *  not in "Break". A row found this way is the better match, and Enter goes to the first of them. */
-export function contains(query, text) {
+/**
+ * How well a row answers a query, from 0, not at all, to 4. A row's names are its label and its
+ * keywords, each on its own, or a long title's words. Its title and its summary count only where the
+ * query stands in them whole: across a dozen words a subsequence finds almost anything ("rsm" in
+ * "Four locks, none of them closed").
+ * 4: a name starts with the query, as "essay" does "essays".
+ * 3: a name or the title holds it whole, as "email" does "Copy email address".
+ * 2: the summary holds it whole.
+ * 1: its letters are in a name in order, scattered, as "rsm" in "resume". An empty query is this,
+ * for every row.
+ */
+export function rankOf(query, { names, title = '', summary = '' }) {
   const wanted = fold(query).replace(/\s+/g, ' ').trim();
-  return wanted !== '' && fold(text).includes(wanted);
+  const has = (list, test) => wanted && list.some((text) => test(fold(text).trim()));
+  if (has(names, (name) => name.startsWith(wanted))) return 4;
+  if (has([...names, title], (name) => name.includes(wanted))) return 3;
+  if (has([summary], (text) => text.includes(wanted))) return 2;
+  return names.some((name) => matches(query, name)) ? 1 : 0;
+}
+
+/**
+ * What a query leaves of the rows, in their order, and the one Enter should act on, the first of the
+ * best. Scattered letters are a fallback: once any row holds the query whole they leave the list, so
+ * "rss" never offers "Copy email address" because "address" holds an r and two s's, and "bak" never
+ * "Break".
+ */
+export function narrowed(query, rows) {
+  const ranks = new Map(rows.map((row) => [row, rankOf(query, row)]));
+  const top = Math.max(0, ...ranks.values());
+  return {
+    shown: rows.filter((row) => ranks.get(row) > (top > 1 ? 1 : 0)),
+    active: rows.find((row) => ranks.get(row) === top && top > 0),
+  };
 }
 
 function boot() {
   const dialog = document.querySelector('dialog[data-palette]');
-  if (!(dialog instanceof HTMLDialogElement) || typeof dialog.showModal !== 'function') return;
+  if (!dialog?.showModal) return;
   const input = dialog.querySelector('input');
   const options = [...dialog.querySelectorAll('[role="option"]')];
   const groups = [...dialog.querySelectorAll('[role="group"]')];
   const empty = dialog.querySelector('[data-palette-empty]');
   const note = dialog.querySelector('[data-palette-note]');
   const say = dialog.querySelector('[data-palette-say]');
-  // Two buttons open it, one shown at a time: the rail's search field, and the header row's keys.
-  const openers = [...document.querySelectorAll('[data-palette-open]')];
+  // The top bar's Search opens it.
+  const opener = document.querySelector('[data-palette-open]');
   // Forced colors replace both themes, so the theme entry would change nothing there, as the
   // toggle would; CSS hides it, and narrowing leaves it out of the rows the arrows move through.
   const forced = matchMedia('(forced-colors: active)');
@@ -82,42 +114,28 @@ function boot() {
   };
 
   // What a row is found by, each on its own, so a query's letters cannot be gathered across them:
-  // its label, the value or the names beside it, and its keywords. A demo's or a post's title is
-  // long, so its letters are found word by word, and the title and its summary only whole: across
-  // a dozen words a subsequence finds almost anything ("rsm" in "Four locks, none of them closed").
-  const found = (option) => option.dataset.find !== undefined;
-  const words = (option) => [
-    ...(found(option)
-      ? (option.textContent ?? '').split(/\s+/)
-      : [...option.childNodes].map((node) => node.textContent ?? '')),
-    ...(option.dataset.keys ?? '').split(' '),
-  ];
-  const wholes = (option) =>
-    found(option) ? [option.textContent ?? '', option.dataset.find ?? ''] : words(option);
+  // its label, the value or the names beside it, and its keywords; or a lab's or a post's title, word
+  // by word and whole, and its summary (rankOf).
+  const rowOf = (option) => {
+    const { keys = '', find: summary } = option.dataset;
+    const title = option.textContent;
+    const names = summary ? title.split(/\s+/) : [...option.childNodes].map((n) => n.textContent);
+    return { option, title, summary, names: [...names, ...keys.split(' ')] };
+  };
 
-  // The rows that match, the groups that still hold one, and the first match selected, so Enter
-  // acts at once. The count is said once typing pauses, not on every key.
+  // The rows that answer, the groups that still hold one, and the best one selected, so Enter acts
+  // at once. The count is said once typing pauses, not on every key.
   const narrow = () => {
-    shown = options.filter((option) => {
-      const keep =
-        !(forced.matches && option.dataset.act === 'theme') &&
-        (words(option).some((word) => word.trim() !== '' && matches(input.value, word)) ||
-          wholes(option).some((text) => contains(input.value, text)));
-      option.hidden = !keep;
-      return keep;
-    });
+    const rows = options
+      .filter((option) => !(forced.matches && option.dataset.act === 'theme'))
+      .map(rowOf);
+    const { shown: left, active: best } = narrowed(input.value, rows);
+    shown = left.map((row) => row.option);
+    for (const option of options) option.hidden = !shown.includes(option);
     for (const group of groups) group.hidden = !shown.some((option) => group.contains(option));
     empty.hidden = shown.length > 0;
     note.textContent = '';
-    // The first row that holds the query whole, else the first row: a scattered subsequence ("bak"
-    // in "Break") never takes Enter from a word that starts the same way. A row's own name holds it
-    // before a summary does, so "bak" opens the demo titled for the bakery, not the first demo
-    // whose summary mentions one.
-    const holds = (texts) => texts.some((text) => contains(input.value, text));
-    const whole =
-      shown.find((option) => holds(found(option) ? [option.textContent ?? ''] : words(option))) ??
-      shown.find((option) => holds(wholes(option)));
-    select(whole ?? shown[0]);
+    select(best?.option);
     clearTimeout(timer);
     const count = shown.length === 1 ? '1 result' : `${shown.length} results`;
     timer = setTimeout(() => (say.textContent = shown.length === 0 ? 'No matches' : count), 500);
@@ -139,7 +157,7 @@ function boot() {
   // handler (src/scripts/theme.js) is the only code that reads or writes the stored choice, and the
   // print entry presses the page's Print button, once the menu has closed and left the paper.
   const run = (option, newTab) => {
-    const { href, act } = option.dataset;
+    const { href, act, copy: address } = option.dataset;
     if (href !== undefined) {
       if (newTab) {
         window.open(href, '_blank', 'noopener');
@@ -148,7 +166,6 @@ function boot() {
         location.assign(href);
       }
     } else if (act === 'copy') {
-      const address = option.dataset.copy ?? '';
       const failed = () => tell(`Could not copy. The address is ${address}.`);
       try {
         navigator.clipboard.writeText(address).then(() => tell('Copied'), failed);
@@ -198,8 +215,8 @@ function boot() {
   };
   dialog.addEventListener('pointerdown', (event) => (pressedOutside = outside(event)));
   dialog.addEventListener('click', (event) => {
-    const option = event.target instanceof Element ? event.target.closest('[role="option"]') : null;
-    if (option && !option.hidden) {
+    const option = event.target.closest('[role="option"]');
+    if (option) {
       select(option);
       run(option, event.metaKey || event.ctrlKey);
     } else if (pressedOutside && outside(event)) {
@@ -214,7 +231,7 @@ function boot() {
     if (dialog.open) dialog.close();
     else show();
   });
-  for (const opener of openers) opener.addEventListener('click', show);
+  opener?.addEventListener('click', show);
   // A contrast theme turned on while the menu is open takes the theme entry away at once.
   forced.addEventListener('change', () => dialog.open && narrow());
   // Never restored open: a page the browser keeps for Back comes back as it was before the menu.
@@ -222,19 +239,15 @@ function boot() {
 
   // The Print button (pages/about/index.astro) opens the browser's own print, whose dialog also
   // saves a PDF: the site hosts none (content.md, "Résumé"). Bound here, it shows with the menu.
-  for (const button of document.querySelectorAll('[data-print]')) {
-    button.addEventListener('click', () => print());
-  }
+  document.querySelector('[data-print]')?.addEventListener('click', () => print());
 
-  // The buttons name the keys this keyboard has, then show: until here they hold their place unseen.
+  // The button names the keys this keyboard has, then shows: until here it holds its place unseen.
   // On an Apple keyboard the command key is the drawn one beside the letter (components/Keys.astro).
   const mac = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
-  for (const keys of openers.map((opener) => opener.querySelector('[data-keys]'))) {
-    if (!keys) continue;
-    keys.toggleAttribute('data-mac', mac);
-    const text = keys.querySelector('[data-keys-text]');
-    if (text) text.textContent = mac ? 'K' : 'Ctrl K';
-  }
+  const keys = opener?.querySelector('[data-keys]');
+  keys?.toggleAttribute('data-mac', mac);
+  const text = keys?.querySelector('[data-keys-text]');
+  if (text) text.textContent = mac ? 'K' : 'Ctrl K';
   document.documentElement.dataset.palette = '';
 }
 

@@ -4,7 +4,7 @@ import { isNoindex } from '../src/lib/noindex.mjs';
 import { checkedProfiles } from '../src/lib/profile';
 import { CONTACT_EMAIL } from '../src/lib/site';
 import { THEME_STATES } from '../src/lib/theme';
-import { contains, isToggle, matches } from '../src/scripts/palette.js';
+import { isToggle, matches, narrowed, rankOf } from '../src/scripts/palette.js';
 import { files, html, profile, read } from './support/dist';
 import { importsOf } from './support/measure';
 import { attribute, descendants, elementsOf, hasClass, type Element } from './support/html';
@@ -67,17 +67,64 @@ test('known answers: the filter matches by subsequence, without case or accents'
   expect(matches('lab', 'LinkedIn')).toBe(false);
 });
 
-// Enter goes to the first row that holds the query whole, so "bak" opens the bakery, not the Raft
-// cluster whose "Break a" holds b, a and k in order.
+// Enter goes to the row that holds the query whole, so "bak" opens the bakery, not the Raft cluster
+// whose "Break a" holds b, a and k in order.
 test('known answers: a whole match is the query as typed, its letters together', () => {
   expect(matches('bak', 'Break a Raft cluster')).toBe(true);
-  expect(contains('bak', 'Break a Raft cluster')).toBe(false);
-  expect(contains('bak', 'Plan a bakery’s deliveries')).toBe(true);
-  expect(contains('RAFT', 'Break a Raft cluster')).toBe(true);
-  expect(contains('resume', 'Résumé')).toBe(true);
-  expect(contains('raft  cluster', 'Break a Raft cluster')).toBe(true);
-  expect(contains('', 'Writing')).toBe(false);
-  expect(contains('   ', 'Writing')).toBe(false);
+  expect(rankOf('bak', { names: ['Break', 'a', 'Raft', 'cluster'] })).toBe(1);
+  expect(rankOf('bak', { names: ['Plan a bakery’s deliveries'] })).toBe(3);
+  expect(rankOf('RAFT', { names: ['Break a Raft cluster'] })).toBe(3);
+  expect(rankOf('resume', { names: ['Résumé'] })).toBe(4);
+  expect(rankOf('raft  cluster', { names: ['Break a Raft cluster'] })).toBe(3);
+  expect(rankOf('   ', { names: ['Writing'] })).toBe(1);
+});
+
+// How a row answers: known answers for each rank, and what the rank is for.
+test('known answers: a name that starts with the query beats one that holds it, then a summary, then scattered letters', () => {
+  const row = { names: ['Writing', 'essays', 'Copy email address'], summary: 'A week of reports' };
+  expect(rankOf('essay', row)).toBe(4);
+  expect(rankOf('ESSAYS', row)).toBe(4);
+  expect(rankOf('copy email', row)).toBe(4);
+  expect(rankOf('email', row)).toBe(3);
+  expect(rankOf('reports', row)).toBe(2);
+  expect(rankOf('wrt', row)).toBe(1);
+  expect(rankOf('zzz', row)).toBe(0);
+  expect(rankOf('', row)).toBe(1);
+  // A keyboard's apostrophe finds a typeset one, and an accent counts for nothing.
+  expect(rankOf("bakery's", { names: ['Plan a bakery’s deliveries'] })).toBe(3);
+  expect(rankOf('resume', { names: ['Résumé'] })).toBe(4);
+  // A title and a summary count only whole: their scattered letters find nothing.
+  expect(rankOf('wky', { names: ['Lab'], summary: 'A week of reports' })).toBe(0);
+  const post = { names: ['Four', 'locks,', 'none', 'of', 'them', 'closed'] };
+  expect(rankOf('rsm', { ...post, title: 'Four locks, none of them closed' })).toBe(0);
+  expect(rankOf('none of them', { ...post, title: 'Four locks, none of them closed' })).toBe(3);
+});
+
+test('known answers: scattered letters leave the list once a row holds the query whole', () => {
+  const copy = { id: 'copy', names: ['Copy email address'] };
+  const writing = { id: 'writing', names: ['Writing', 'rss'] };
+  const raft = {
+    id: 'raft',
+    names: ['Break', 'a', 'Raft', 'cluster'],
+    title: 'Break a Raft cluster',
+  };
+  const bakery = { id: 'bakery', names: ['Plan', 'bakery’s', 'deliveries'] };
+  const ids = (found: { shown: { id: string }[]; active?: { id: string } }) => ({
+    shown: found.shown.map((row) => row.id),
+    active: found.active?.id,
+  });
+  // "address" holds an r and two s's, and "Break" a b, an a and a k.
+  expect(ids(narrowed('rss', [copy, writing]))).toEqual({ shown: ['writing'], active: 'writing' });
+  expect(ids(narrowed('bak', [raft, bakery]))).toEqual({ shown: ['bakery'], active: 'bakery' });
+  // With nothing whole, the scattered letters are what's left.
+  expect(ids(narrowed('rss', [copy]))).toEqual({ shown: ['copy'], active: 'copy' });
+  expect(ids(narrowed('cpy', [writing, copy]))).toEqual({ shown: ['copy'], active: 'copy' });
+  expect(ids(narrowed('zzz', [writing, copy]))).toEqual({ shown: [], active: undefined });
+  // An empty query keeps every row and selects the first.
+  expect(ids(narrowed('', [writing, copy]))).toEqual({
+    shown: ['writing', 'copy'],
+    active: 'writing',
+  });
 });
 
 /** A page's menu: its dialog, and its rows by group, as [label, href or action]. */
@@ -131,6 +178,66 @@ function textOf(element: Element, first = false): string {
   walk(element);
   return parts.join('').replace(/\s+/g, ' ').trim();
 }
+
+/** A row as the menu's script reads it from the page. */
+function rowOf(option: Element) {
+  const keys = (attribute(option, 'data-keys') ?? '').split(' ');
+  const find = attribute(option, 'data-find');
+  const base = { id: attribute(option, 'id') ?? '' };
+  if (find !== undefined) {
+    const title = textOf(option);
+    return { ...base, title, summary: find, names: [...title.split(/\s+/), ...keys] };
+  }
+  const parts = option.childNodes.map((child) => {
+    if ('value' in child && typeof child.value === 'string') return child.value;
+    return 'tagName' in child ? textOf(child) : '';
+  });
+  return { ...base, names: [...parts, ...keys] };
+}
+
+// The words a visitor brings, against the rows the build wrote: the site's own words first, and
+// words that once fell to scattered letters. Until 2026-11-02 "essay", "labs" and "blog" said no
+// matches on a site whose nav says Writing and Lab, and "rss" and "adr" selected Copy email address
+// through the letters of "address", so Enter copied it.
+describe('what a visitor types finds the page they mean', () => {
+  const rows = (file: string) => {
+    const dialog = menuOf(read(file)).dialog as Element;
+    return descendants(dialog)
+      .filter((e) => attribute(e, 'role') === 'option')
+      .map(rowOf);
+  };
+  const lab = html.includes('lab/index.html');
+  const writing = html.includes('writing/index.html');
+  const about = html.includes('about/index.html');
+  const pick = (query: string, file = 'index.html') => narrowed(query, rows(file)).active?.id;
+
+  test.runIf(writing)('essay, essays, blog, rss and feed: Writing', () => {
+    for (const query of ['essay', 'essays', 'blog', 'rss', 'feed', 'post', 'article'])
+      expect(pick(query), query).toBe('palette-writing');
+  });
+
+  test.runIf(lab)('labs, lab and demo: Lab', () => {
+    for (const query of ['lab', 'labs', 'demo', 'projects'])
+      expect(pick(query), query).toBe('palette-lab');
+  });
+
+  test('adr: Home, which counts them, never the address', () => {
+    expect(pick('adr')).toBe('palette-home');
+  });
+
+  test('copying the address is still found by its own words', () => {
+    for (const query of ['copy', 'email', 'mail', 'contact', 'cpy'])
+      expect(pick(query), query).toBe('palette-copy');
+  });
+
+  test.runIf(about)('print and pdf: About from another page, its Print row on /about/', () => {
+    for (const query of ['print', 'pdf']) {
+      expect(pick(query), query).toBe('palette-about');
+      expect(pick(query, 'about/index.html'), query).toBe('palette-print');
+    }
+    for (const query of ['resume', 'cv']) expect(pick(query), query).toBe('palette-about');
+  });
+});
 
 // The pages a visitor can reach: a draft (noindex, in a preview only) is built but linked from
 // nowhere, the menu included (lib/posts.ts).
