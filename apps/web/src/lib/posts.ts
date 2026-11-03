@@ -291,6 +291,10 @@ const MONTHS = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ');
 export const wordDay = (date: Date): string =>
   `${MONTHS[date.getUTCMonth()] ?? ''} ${date.getUTCDate()}, ${date.getUTCFullYear()}`;
 
+/** What Writing is, in a search result and a feed reader: the index's lead, and whose it is. */
+export const writingDescription = (name: string): string =>
+  `Essays on software decisions and what they cost, by ${name}.`;
+
 /** A post's reading time in words: "12 min read". */
 export const minutesWords = (minutes: number): string => `${minutes} min read`;
 

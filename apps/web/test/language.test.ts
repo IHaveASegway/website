@@ -58,6 +58,35 @@ describe('the words the site retired stay retired', () => {
   });
 });
 
+// What a search result and a link preview show, which a page's body doesn't. "Lab" is the page's
+// name in the site's language, and until 2026-11-02 /lab/'s description said "Demos by". A lab's
+// write-up is stamped text, so the word is held here in what page code writes, not yet in its body.
+describe("a page's description and its link preview call a lab a lab", () => {
+  /** The strings a page's head gives a search result and a link preview. */
+  const head = (page: string) =>
+    [
+      ...page.matchAll(
+        /<(?:meta (?:name="description"|property="og:(?:title|description)"|property="og:image:alt") content="([^"]*)"|title>([^<]*)<\/title)/g,
+      ),
+    ].flatMap(([, content, title]) => [content ?? title ?? '']);
+  const demo = /\bdemos?\b/i;
+
+  for (const file of html) {
+    test(file, () => {
+      const strings = head(read(file));
+      expect(strings.length).toBeGreaterThan(0);
+      expect(strings.filter((text) => demo.test(text))).toEqual([]);
+    });
+  }
+
+  test('known answers: the head is read, and the old description is what this finds', () => {
+    const page =
+      '<title>Lab</title><meta name="description" content="Demos by Joseph Peterson that run in your browser.">';
+    expect(head(page)).toEqual(['Lab', 'Demos by Joseph Peterson that run in your browser.']);
+    expect(head(page).filter((text) => demo.test(text))).toHaveLength(1);
+  });
+});
+
 test('the content files say the same: a draft does not bring a retired word back', () => {
   const root = join(process.cwd(), 'src/content');
   const entries = readdirSync(root, { recursive: true, encoding: 'utf8' }).filter((file) =>

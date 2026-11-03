@@ -8,7 +8,7 @@
 // the page loads nothing.
 
 const UNLOADED =
-  'The demo did not load, so the maps still show the day it opened with. Change anything to try again.';
+  'The lab did not load, so the maps still show the day it opened with. Change anything to try again.';
 const LOADING = 'Loading the solver…';
 
 /** The order checkbox nearest a point on a map, within 24 px, or null: the map's targets are the
