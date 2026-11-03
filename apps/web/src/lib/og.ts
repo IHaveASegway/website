@@ -3,6 +3,7 @@ import satori from 'satori';
 import sharp from 'sharp';
 import tokensCss from '../styles/tokens.css?raw';
 import type { LabEntry } from './lab';
+import { fieldPicture, OG_SIZE } from './og-field';
 import { SECTION_LABELS, type Post, type Section } from './posts';
 import type { Profile } from './profile';
 import { hex, themeColors } from './tokens';
@@ -11,10 +12,11 @@ import { hex, themeColors } from './tokens';
 // build time from a page's title and label, in the site's tokens. Satori lays the card out and
 // turns its text into paths; sharp rasterizes that SVG. The card takes exactly two strings, and
 // test/og.test.ts checks that they are the page's og:title and og:image:alt, so every word in the
-// picture is also text the build's scans read. A card may also carry a picture with no word in it:
-// the Route Lab's map at the card's right edge (lib/route-lab/og-map.ts), or a lab's line, or the
-// board's lines stacked, across its top (lib/og-lines.ts). A lab's card lights its lamp in the
-// lab's own colour, so a link to it is that lab's before a word is read.
+// picture is also text the build's scans read. Every card stands on the field behind every page
+// (lib/og-field.ts). It may also carry a picture with no word in it: the Route Lab's map at the
+// card's right edge (lib/route-lab/og-map.ts), a lab's line across its top (lib/og-lines.ts), or
+// what its page opens on, Home's cluster or the Lab index's glyphs (lib/og-art.ts). A lab's card
+// lights its lamp in the lab's own colour, so a link to it is that lab's before a word is read.
 
 export interface OgCard {
   readonly title: string;
@@ -23,7 +25,7 @@ export interface OgCard {
   readonly byline?: boolean;
 }
 
-export const OG_SIZE = { width: 1200, height: 630 } as const;
+export { OG_SIZE };
 
 /** The card for Home: the name and the title line. */
 export function homeCard(profile: Profile): OgCard {
@@ -98,11 +100,21 @@ export interface OgPicture {
   readonly height: number;
 }
 
-/** What a card carries besides its two strings: a picture as a PNG, and the lab whose colour,
- *  --line-<slug>, its lamp takes instead of --primary. */
+/** What a card carries besides its two strings: a picture as a PNG; what stands behind its words in
+ *  place of the plain field, a PNG the size of the card; how wide its title may run where that holds
+ *  something at the right; and the lab whose colour, --line-<slug>, its lamp takes instead of
+ *  --primary. */
 export interface OgArt {
   readonly picture?: Buffer | undefined;
+  readonly behind?: Buffer | undefined;
+  readonly titleColumn?: number | undefined;
   readonly line?: string | undefined;
+}
+
+/** What stands behind a card's words, as a data URI, and the title's column it leaves. */
+export interface OgStage {
+  readonly behind?: string | undefined;
+  readonly titleColumn?: number | undefined;
 }
 
 const node = (style: OgNode['props']['style'], ...children: (OgNode | string)[]): OgNode => ({
@@ -121,19 +133,22 @@ export function wordWidth(word: string, size: number): number {
 /** The card as satori's element tree. Colors come in, so the tree holds no literal of its own.
  *  With a picture at the right, the text keeps the left of the card. With one across the top, the
  *  text keeps the rest beneath it: the two are boxes side by side or one over the other, never
- *  layered, so the picture cannot cover a word. */
+ *  layered, so the picture cannot cover a word. What stands behind the words is drawn before them,
+ *  and the title's column keeps them clear of what it holds. */
 export function ogTree(
   card: OgCard,
   colors: Record<'background' | 'foreground' | 'muted' | 'accent', string>,
   picture?: OgPicture,
+  stage: OgStage = {},
 ): OgNode {
   const above = picture?.width === OG_SIZE.width;
   const size = titleSize(card.title);
   // What the title has across: its box, less the padding and a post's inset below.
   const room =
+    stage.titleColumn ??
     (picture && !above ? OG_SIZE.width - picture.width : OG_SIZE.width) -
-    2 * 72 -
-    (!picture && card.byline ? 2 * 56 : 0);
+      2 * 72 -
+      (!picture && card.byline ? 2 * 56 : 0);
   const text = node(
     {
       // Satori sizes boxes as content-box: without border-box, the padding would push the card
@@ -145,7 +160,6 @@ export function ogTree(
       justifyContent: 'flex-end',
       // Under a picture the words need no room above them: the picture's own margin is it.
       padding: above ? '0 72px 72px' : '72px',
-      backgroundColor: colors.background,
       color: colors.foreground,
     },
     node(
@@ -169,6 +183,7 @@ export function ogTree(
           lineHeight: 1.06,
           letterSpacing: letterSpacing(size),
           textWrap: 'balance',
+          ...(stage.titleColumn ? { maxWidth: stage.titleColumn } : {}),
           // A word wider than the line, such as a long identifier, breaks instead of leaving the
           // card. Only then: balancing narrows the box until the line count would rise, and with
           // breaking on, a cut word keeps the count, so it cut one that fit: "Stamped / e a cache".
@@ -194,23 +209,23 @@ export function ogTree(
       ),
     ),
   );
-  if (!picture) return text;
-  const img: OgNode = {
+  const img: OgNode | undefined = picture && {
     type: 'img',
     props: { src: picture.src, width: picture.width, height: picture.height },
   };
-  return above
-    ? node(
-        {
-          width: '100%',
-          height: '100%',
-          flexDirection: 'column',
-          backgroundColor: colors.background,
-        },
-        img,
-        text,
-      )
-    : node({ width: '100%', height: '100%', backgroundColor: colors.background }, text, img);
+  const full = { width: '100%', height: '100%' };
+  const body = !img
+    ? text
+    : above
+      ? node({ ...full, flexDirection: 'column' }, img, text)
+      : node(full, text, img);
+  const page = { ...full, backgroundColor: colors.background };
+  if (!stage.behind) return node(page, body);
+  const back: OgNode = {
+    type: 'img',
+    props: { src: stage.behind, ...OG_SIZE, style: { position: 'absolute', top: 0, left: 0 } },
+  };
+  return node(page, back, node({ ...full, position: 'relative' }, body));
 }
 
 /** Every string the tree draws, in order. */
@@ -286,7 +301,8 @@ export function ogSvg(tree: OgNode, embedFont = true): Promise<string> {
 /** The tree a card draws from, in the night theme's tokens, with its picture, a PNG, and its lab's
  *  colour on the lamp, when it has them. */
 export function cardTree(card: OgCard, art: OgArt = {}): OgNode {
-  const { picture, line } = art;
+  const { picture, behind, titleColumn, line } = art;
+  const uri = (png: Buffer) => `data:image/png;base64,${png.toString('base64')}`;
   const colors = themeColors(tokensCss, 'dark');
   const token = (name: string) => {
     const value = colors.get(name);
@@ -302,15 +318,16 @@ export function cardTree(card: OgCard, art: OgArt = {}): OgNode {
       accent: token(line ? `line-${line}` : 'primary'),
     },
     picture && {
-      src: `data:image/png;base64,${picture.toString('base64')}`,
+      src: uri(picture),
       width: picture.readUInt32BE(16),
       height: picture.readUInt32BE(20),
     },
+    { behind: behind && uri(behind), titleColumn },
   );
 }
 
 /** The card as a PNG, with no metadata chunks (scripts/image-metadata.mjs checks it again). */
 export async function renderOg(card: OgCard, art: OgArt = {}): Promise<Buffer> {
-  const svg = await ogSvg(cardTree(card, art));
+  const svg = await ogSvg(cardTree(card, { ...art, behind: art.behind ?? (await fieldPicture()) }));
   return stripPng(await sharp(Buffer.from(svg)).png({ compressionLevel: 9 }).toBuffer());
 }

@@ -14,7 +14,9 @@ import {
   type OgCard,
   type OgNode,
 } from '../src/lib/og';
-import { boardArt, demoArt, OG_BOARD, OG_LINE } from '../src/lib/og-lines';
+import { clusterBox, homeArt, labIndexArt, OG_GLYPHS } from '../src/lib/og-art';
+import { demoArt, OG_LINE } from '../src/lib/og-lines';
+import { openingServers } from '../src/lib/orbit';
 import { demoPicture } from '../src/lib/route-lab/og-map';
 import tokensCss from '../src/styles/tokens.css?raw';
 import { hex, themeColors } from '../src/lib/tokens';
@@ -35,10 +37,11 @@ const labs = files
   .filter((slug) => slug !== undefined)
   .sort((a, b) => a.localeCompare(b));
 
-/** What a page's card carries besides its strings, as its og.png endpoint draws it: Home and the
- *  Lab index carry the board, a demo its own picture and colour, any other page nothing. */
+/** What a page's card carries besides its strings, as its og.png endpoint draws it: Home its
+ *  cluster, the Lab index its glyphs, a lab its own picture and colour, any other page nothing. */
 async function artFor(file: string): Promise<OgArt> {
-  if (file === 'index.html' || file === 'lab/index.html') return boardArt(labs, app);
+  if (file === 'index.html') return homeArt(labs);
+  if (file === 'lab/index.html') return labIndexArt(labs);
   const demo = /^lab\/([a-z0-9-]+)\/index\.html$/.exec(file)?.[1];
   return demo ? demoArt(demo, app) : {};
 }
@@ -127,8 +130,8 @@ for (const file of previewed) {
       card,
       'og:title and og:image:alt must be "title · label" and "title, label", or a post\'s "title" and "title, by label"',
     ).not.toBeNull();
-    // A demo's card, Home's and the Lab index's also carry a picture, which draws no word
-    // (lib/route-lab/og-map.ts, lib/og-lines.ts).
+    // A lab's card, Home's and the Lab index's also carry a picture, which draws no word
+    // (lib/route-lab/og-map.ts, lib/og-lines.ts, lib/og-art.ts).
     expect((await renderOg(card as OgCard, await artFor(file))).equals(bytes(png))).toBe(true);
     expect(meta(page, 'og:type')).toBe(
       /^(writing|notes)\/[a-z0-9-]+\//.test(file) ? 'article' : 'website',
@@ -146,7 +149,7 @@ test("the Route Lab's card carries its map, which draws no string, at the card's
   expect(demoPicture('another', app)).toBeUndefined();
 });
 
-test("each lab's card carries its line in its own colour, and Home's every line", async () => {
+test("each lab's card carries its line in its own colour", async () => {
   const night = themeColors(tokensCss, 'dark');
   for (const slug of labs) {
     const art = await demoArt(slug, app);
@@ -159,29 +162,17 @@ test("each lab's card carries its line in its own colour, and Home's every line"
     const width = picture.readUInt32BE(16);
     if (slug !== 'routes') expect(width, slug).toBe(OG_LINE.width);
   }
-  const board = (await boardArt(labs, app)).picture;
-  if (labs.length === 0) expect(board).toBeUndefined();
-  else
-    expect([board?.readUInt32BE(16), board?.readUInt32BE(20)]).toEqual([
-      OG_BOARD.width,
-      OG_BOARD.height,
-    ]);
   // A lab's colour differs from --primary, so the lamp is not the plain one by chance.
   for (const slug of labs)
     expect(hex(night.get(`line-${slug}`)!)).not.toBe(hex(night.get('primary')!));
 });
 
-test('a picture across the top leaves the words their room, and draws no string', () => {
+test('a picture across the top draws no string', () => {
   const colors = { background: '', foreground: '', muted: '', accent: '' };
-  for (const box of [OG_LINE, OG_BOARD]) {
+  for (const box of [OG_LINE, OG_GLYPHS]) {
     const tree = ogTree({ title: 'A', label: 'B' }, colors, { src: 'x', ...box });
     expect(drawnStrings(tree)).toEqual(['A', 'B']);
   }
-  // Under a line, the longest title a card draws: three lines at 80 px, the label at 44 px, the
-  // gap between them and the bottom padding (lib/og.ts).
-  expect(OG_LINE.height + 3 * 80 * 0.95 + 28 + 44 * 1.2 + 72).toBeLessThanOrEqual(OG_SIZE.height);
-  // Under the board, Home's name and the Lab index's title, one line at 150 px.
-  expect(OG_BOARD.height + 150 * 0.95 + 28 + 44 * 1.2 + 72).toBeLessThanOrEqual(OG_SIZE.height);
 });
 
 test('known answers: a card is read back from its two strings, whatever they hold', () => {
@@ -244,9 +235,12 @@ function linesOf(runs: readonly TitleRun[]): string[] {
  *  margin. */
 function wrapProblems(title: string, runs: readonly TitleRun[], end: number): string[] {
   const lines = linesOf(runs);
-  const whole = lines.flatMap((line) => line.split(/\s+/));
+  // A line may end at a space, or after a hyphen, where any browser would break it too.
+  const joined = (text: string) => text.replace(/-\s+/g, '-');
   return [
-    ...(whole.join(' ') === title ? [] : [`"${title}" wraps as ${JSON.stringify(lines)}`]),
+    ...(joined(lines.join(' ')) === joined(title)
+      ? []
+      : [`"${title}" wraps as ${JSON.stringify(lines)}`]),
     ...runs
       .filter((run) => run.x + run.width > end + 0.5)
       .map((run) => `"${run.text}" runs past x = ${end}`),
@@ -269,10 +263,88 @@ for (const file of previewed) {
       decode(meta(page, 'og:image:alt') ?? ''),
     ) as OgCard;
     const art = await artFor(file);
-    const runs = titleRuns(await ogSvg(cardTree(card, art), false), titleSize(card.title));
+    const size = titleSize(card.title);
+    const runs = titleRuns(await ogSvg(cardTree(card, art), false), size);
     expect(wrapProblems(card.title, runs, rightEdge(art))).toEqual([]);
+    // Under a picture across the top, its lines, the gap, the label and the margin fit what's left.
+    const across = art.picture?.readUInt32BE(16) === OG_SIZE.width;
+    const above = across ? (art.picture?.readUInt32BE(20) ?? 0) : 0;
+    const words = linesOf(runs).length * size * 1.06 + 28 + 44 * 1.2 + 72;
+    expect(above + words, 'the words fit under the picture').toBeLessThanOrEqual(OG_SIZE.height);
   });
 }
+
+/** How many of a PNG's pixels hold a colour away from the accent: a pixel counts once its strongest
+ *  channel is 40 of 255 over its weakest, which the page's near-black, its white and its greys don't
+ *  reach, and its hue is more than 20 degrees from the accent's. */
+async function offAccent(png: Buffer): Promise<number> {
+  const hueOf = (r: number, g: number, b: number) => {
+    const [top, chroma] = [Math.max(r, g, b), Math.max(r, g, b) - Math.min(r, g, b)];
+    const turn =
+      top === r
+        ? ((g - b) / chroma + 6) % 6
+        : top === g
+          ? (b - r) / chroma + 2
+          : (r - g) / chroma + 4;
+    return turn * 60;
+  };
+  const accent = /^#(..)(..)(..)$/.exec(hex(themeColors(tokensCss, 'dark').get('primary')!)) ?? [];
+  const [r, g, b] = accent.slice(1).map((pair) => Number.parseInt(pair, 16)) as [
+    number,
+    number,
+    number,
+  ];
+  const wanted = hueOf(r, g, b);
+  const { data, info } = await sharp(png).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  let off = 0;
+  for (let at = 0; at < data.length; at += info.channels) {
+    const [red, green, blue] = [data[at] ?? 0, data[at + 1] ?? 0, data[at + 2] ?? 0];
+    if (Math.max(red, green, blue) - Math.min(red, green, blue) < 40) continue;
+    const apart = Math.abs(hueOf(red, green, blue) - wanted);
+    if (Math.min(apart, 360 - apart) > 20) off += 1;
+  }
+  return off;
+}
+
+describe("Home's card looks like the page it opens (ADR 0029)", () => {
+  test("black and white and one accent: no lab's colour on it", async () => {
+    expect(await offAccent(bytes('og.png'))).toBe(0);
+  });
+
+  test('known answer: a colour off the accent is counted, pixel by pixel', async () => {
+    const page = { r: 9, g: 12, b: 18 };
+    const blank = sharp({ create: { width: 10, height: 10, channels: 3, background: page } });
+    expect(await offAccent(await blank.clone().png().toBuffer())).toBe(0);
+    const orange = await sharp({
+      create: { width: 3, height: 2, channels: 3, background: { r: 249, g: 124, b: 61 } },
+    })
+      .png()
+      .toBuffer();
+    const marked = await blank
+      .clone()
+      .composite([{ input: orange, left: 0, top: 0 }])
+      .png()
+      .toBuffer();
+    expect(await offAccent(marked)).toBe(6);
+  });
+
+  // Where a build has the cluster, the card sets the name as the hero does, and clear of it.
+  test.runIf(labs.includes('raft'))(
+    'the name stands in two lines, clear of the cluster',
+    async () => {
+      const card = homeCard(profile);
+      const svg = await ogSvg(cardTree(card, await homeArt(labs)), false);
+      const runs = titleRuns(svg, titleSize(card.title));
+      expect(linesOf(runs)).toEqual(card.title.split(' '));
+      const box = clusterBox(openingServers());
+      expect(Math.max(...runs.map((run) => run.x + run.width))).toBeLessThan(box.left);
+      expect(box.right).toBeLessThan(OG_SIZE.width);
+      expect(box.top).toBeGreaterThan(0);
+      // The label stands at the card's foot, under the cluster: its line starts below it.
+      expect(box.bottom).toBeLessThan(OG_SIZE.height - 72 - 44 * 1.2);
+    },
+  );
+});
 
 describe('known answers: a title wraps between its words, whatever its size', () => {
   const line = { width: OG_LINE.width, height: OG_LINE.height };

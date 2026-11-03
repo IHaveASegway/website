@@ -1,5 +1,12 @@
 ---
 import { inWords } from '../../lib/lines';
+import {
+  ORBIT_BOX,
+  ORBIT_CENTRE as C,
+  ORBIT_RADIUS as R,
+  orbitPlaces,
+  type OrbitServer,
+} from '../../lib/orbit';
 
 // Home's live picture (docs/design/home.md): the Raft Lab's cluster as its page opens, five servers on
 // one ring, laid back in perspective so the ring reads as a plane seen from above. The leader is
@@ -9,33 +16,19 @@ import { inWords } from '../../lib/lines';
 // are. CSS turns the ring slowly and runs the heartbeats once the motion module marks the page
 // (scripts/field.js, data-motion); under reduced motion it is a still picture, and the top bar's
 // button pauses it. Every number a path names is drawn from the ring's centre, so the picture is
-// the same at any size: the SVG scales to its box, which the stylesheet sizes before it paints.
-
-interface Server {
-  readonly id: number;
-  readonly leader: boolean;
-  readonly entries: number;
-}
+// the same at any size: the SVG scales to its box, which the stylesheet sizes before it paints. The
+// geometry is lib/orbit.ts's, which Home's link preview draws too.
 
 interface Props {
-  servers: readonly Server[];
+  servers: readonly OrbitServer[];
   /** The Raft Lab's page, where the cluster can be broken. */
   href: string;
 }
 
 const { servers, href } = Astro.props;
-const C = 200; // the ring's centre, in the drawing's own pixels (a 400 × 400 box)
-const R = 156; // the ring's radius
-const at = (k: number, r = R) => {
-  const a = -Math.PI / 2 + (k * 2 * Math.PI) / servers.length;
-  return [C + r * Math.cos(a), C + r * Math.sin(a)] as const;
-};
 const n = (v: number) => Math.round(v * 100) / 100;
-const place = servers.map((server, k) => ({ server, xy: at(k), k }));
+const place = orbitPlaces(servers);
 const lead = place.find((p) => p.server.leader);
-// A bead per entry, in a row outward from the server along its spoke.
-const beads = (k: number, entries: number) =>
-  Array.from({ length: entries }, (_, i) => at(k, R + 26 + i * 8));
 const leader = lead?.server;
 const count = inWords(servers.length);
 const others = inWords(servers.length - 1);
@@ -47,7 +40,7 @@ const caption = leader
 <figure class="orbit" aria-labelledby="orbit-caption">
   <div class="orbit-stage" aria-hidden="true">
     <div class="orbit-plane">
-      <svg class="orbit-svg" viewBox="0 0 400 400" focusable="false">
+      <svg class="orbit-svg" viewBox={`0 0 ${ORBIT_BOX} ${ORBIT_BOX}`} focusable="false">
         <g class="orbit-spin">
           <circle class="orbit-track" cx={C} cy={C} r={R}></circle>
           <circle class="orbit-floor" cx={C} cy={C} r={R + 6}></circle>
@@ -75,7 +68,7 @@ const caption = leader
               ))}
           {place.map((p) => (
             <g class={p.server.leader ? 'orbit-server orbit-leader' : 'orbit-server'}>
-              {beads(p.k, p.server.entries).map(([x, y]) => (
+              {p.beads.map(([x, y]) => (
                 <circle class="orbit-entry" cx={n(x)} cy={n(y)} r="3" />
               ))}
               {p.server.leader && (

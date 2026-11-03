@@ -1,18 +1,21 @@
 import { describe, expect, test } from 'vitest';
-import { BOARD_SCALE, LINE_SCALE, lineDrawing } from '../src/lib/og-lines';
+import { LINE_SCALE, lineDrawing } from '../src/lib/og-lines';
 import { hex, themeColors } from '../src/lib/tokens';
 import tokensCss from '../src/styles/tokens.css?raw';
 import { app, files } from './support/dist';
 import { attribute, elementsOf } from './support/html';
 
-// One model (lib/line-shapes.ts), drawn by the link previews into a PNG (lib/og-lines.ts): a lab's
-// own card draws its line large, and Home's card draws every line at the board's size. Until
-// ADR 0027 Home's board drew the same lines on the page, and this check held the page's drawing
-// and the card's to each other; the board left Home with ADR 0027, so the check now reads every
-// station back from both of the previews' drawings, the lab's card and Home's, and fails if they
-// disagree on what each station shows: hollow, filled, lit, crossed, down, a lone dot (the Raft
-// leader, a dead letter), or a buffer stop. Until 2026-10-31 the previews kept a hand copy of the
-// board's shapes (5108b71); the shared model removed it.
+// One model (lib/line-shapes.ts), drawn by a lab's link preview into a PNG (lib/og-lines.ts). Until
+// ADR 0027 Home's board drew the same lines on the page, and this check held the page's drawing and
+// the card's to each other. Until 2026-11-02 Home's card stacked every line at a smaller size, and it
+// held the two cards. Now a lab's own card is the one drawing, so this reads every station back at
+// the card's scale and at a small one, and fails if they disagree on what each station shows: hollow,
+// filled, lit, crossed, down, a lone dot (the Raft leader, a dead letter), or a buffer stop. Until
+// 2026-10-31 the previews kept a hand copy of the board's shapes (5108b71); the shared model removed
+// it.
+
+/** A scale the line's marks all still draw at, as Home's card once drew them. */
+const SMALL = 0.55;
 
 /** What a station shows, read from its marks. */
 type State = 'hollow' | 'filled' | 'lit' | 'cross' | 'down' | 'dot' | 'stop';
@@ -148,19 +151,19 @@ const LABS = files
 
 const states = (list: readonly Station[]) => list.map((s) => s.state).sort();
 
-describe("each lab's line on its card and on Home's card", () => {
+describe("each lab's line on its card", () => {
   test('a line for every lab this build writes, on its own card', async () => {
     expect(LABS.length).toBeGreaterThan(0);
     for (const slug of LABS) expect(await lineDrawing(slug, LINE_SCALE, app), slug).toBeDefined();
   });
 
   for (const slug of LABS)
-    test(`${slug}: its own card and Home's card draw the same stations, in the same states`, async () => {
+    test(`${slug}: its line draws the same stations, in the same states, at any scale`, async () => {
       const own = await lineDrawing(slug, LINE_SCALE, app);
-      const home = await lineDrawing(slug, BOARD_SCALE, app);
-      if (!own || !home) throw new Error(`${slug} has no line on a card`);
+      const reduced = await lineDrawing(slug, SMALL, app);
+      if (!own || !reduced) throw new Error(`${slug} has no line on a card`);
       const large = stations(cardMarks(own));
-      const small = stations(cardMarks(home));
+      const small = stations(cardMarks(reduced));
       expect(large.length, `${slug}: the card has stations`).toBeGreaterThan(0);
       expect(states(small), slug).toEqual(states(large));
     });

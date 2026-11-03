@@ -19,7 +19,7 @@ From 64rem the words take a little over half the row, and the cluster stands bes
 
 ## The cluster
 
-The Raft Lab's opening run, drawn at build by `components/home/Orbit.astro`:
+The Raft Lab's opening run, drawn at build by `components/home/Orbit.astro`, from the geometry `lib/orbit.ts` shares with Home's link preview (`lib/og-art.ts`):
 - five servers on a ring, the leader lit, a glow and a halo around it;
 - a wire from the leader to each follower;
 - the log beside each server, a bead an entry.

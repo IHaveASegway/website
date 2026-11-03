@@ -32,8 +32,8 @@ import { homeCard } from '../lib/og';
 import { postPath } from '../lib/posts';
 import { checkedProfiles, homeDescription, roleLine } from '../lib/profile';
 import { SEEDS_IN_CI as QUEUE_SEEDS } from '../lib/queue/view';
-import { leaderOf } from '../lib/raft/sim';
-import { SEEDS_IN_CI as RAFT_SEEDS, openingRun as raftRun } from '../lib/raft/view';
+import { openingServers } from '../lib/orbit';
+import { SEEDS_IN_CI as RAFT_SEEDS } from '../lib/raft/view';
 import { CONTACT_EMAIL } from '../lib/site';
 import { writingRow } from '../lib/work';
 import '../styles/home.css';
@@ -117,13 +117,7 @@ const builds = await Promise.all(
 );
 
 // The live picture: the Raft Lab's opening run, as its page plays it before anyone presses anything.
-const raft = demo.has('raft') ? raftRun() : undefined;
-const leader = raft ? leaderOf(raft) : null;
-const servers = raft?.servers.map((server) => ({
-  id: server.id,
-  leader: server.id === leader?.id,
-  entries: server.log.length,
-}));
+const servers = demo.has('raft') ? openingServers() : undefined;
 const raftEntry = demo.get('raft');
 
 // Selected work (content.md, "Owned work"; lib/work.ts) beyond the labs, which What I build carries:
@@ -198,7 +192,7 @@ const latest = writingRow(area.published, work);
         ))}
       </div>
     </div>
-    {servers && raft && raftEntry && <Orbit servers={servers} href={labPath(raftEntry)} />}
+    {servers && raftEntry && <Orbit servers={servers} href={labPath(raftEntry)} />}
   </section>
 
   {builds.length > 0 && (

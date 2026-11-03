@@ -4,6 +4,9 @@
    or a draft's words never change the stylesheet, and src/content/README.md is the canary. */
 @import 'tailwindcss' source('../');
 @source not '../content';
+/* The link previews draw PNGs at build (lib/og*.ts), so nothing in them is a class: their words are
+   layout values and token names, such as absolute, grid and border. */
+@source not '../lib/og*.ts';
 /* An SVG attribute's name, not a class: the space-time cube's picture lays the map down with it
    (components/route-lab/SpaceTime.astro). */
 @source not inline('transform');

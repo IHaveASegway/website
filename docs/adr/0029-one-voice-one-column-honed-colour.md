@@ -75,6 +75,10 @@ Two-way for colour, tokens and copy: one file each, and a revert restores them. 
 - Fewer than 3 of 5 readers in the 7-second test ([product.md](../product.md)) can say what kind of engineer he is.
 - A recruiter or tech lead says the disclosure that agents wrote the code counts against him.
 
+## Postscript, 2026-11-02: the link cards
+
+A QA pass before the traffic found Home's and the Lab index's link previews still topped with the board's five coloured lines, which ADR 0027 took off the pages and which this record's colour rule rules out for Home. A card is the first thing a stranger sees of a link, so it now looks like what it opens. Home's is the name in two lines beside the cluster, in black and white and the one accent; the Lab index's carries the five glyphs its page lists, each in its own lab's colour, as the page has them. Every card stands on the field behind every page (ADR 0030), so none is a black sheet. A lab's own card keeps its line and its colour. `test/og.test.ts` counts the pixels on Home's card away from the accent, and the door stays two-way: a card is redrawn at the next build, and a preview cache lets go of the old one in days.
+
 ## Further reading
 
 - Eric Evans, *Domain-Driven Design*, chapter 2, "Communication and the Use of Language".
