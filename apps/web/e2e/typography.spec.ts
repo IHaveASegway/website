@@ -53,3 +53,22 @@ test('known answer: a straight mark beside a word is found, and code is left alo
   });
   expect(await straightMarks(page)).toEqual(["it's "]);
 });
+
+// What follows inline code reads as following it: on a ground that hardly showed, the chip's padding
+// read as a stray space, "action . It reads side . So", in an essay about precision.
+test('inline code shows as a chip, with little padding before what follows it', async ({ page }) => {
+  const path = '/writing/trading-bot-teardown/';
+  test.skip(!pages().includes(path), 'this build has no such post');
+  await page.goto(path);
+  const chip = await page.locator('.prose :not(pre) > code').first().evaluate((code) => {
+    const style = getComputedStyle(code);
+    const probe = document.createElement('div');
+    probe.style.setProperty('background-color', 'var(--surface-2)');
+    document.body.append(probe);
+    const surface = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return { padding: parseFloat(style.paddingInlineEnd), ground: style.backgroundColor, surface };
+  });
+  expect(chip.padding).toBeLessThanOrEqual(4);
+  expect(chip.ground).toBe(chip.surface);
+});

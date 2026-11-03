@@ -57,6 +57,9 @@ export interface SimulatedLab {
  * Then the Raft Lab took the same controls, the log and the line, and they moved to the chunk all four
  * share, 1,338 B. It paid for them by trimming (ADR 0020's postscript), with no budget moved. Measured
  * then: the Raft Lab 8,449 B, the Queue Lab 13,662 B, the Cache Lab 12,310 B, the Backfill Lab 12,790 B.
+ *
+ * On 2026-11-03 the top bar's button reached a run that's the visitor's, Back left a run alone, and the
+ * summary line under the checks went, with no budget moved (ADR 0020's and ADR 0030's postscripts).
  */
 export const SIMULATED_LABS = [
   { slug: 'raft', bundle: 'RaftLab', map: 'rf-map', lazyJavaScript: 8_500 },
