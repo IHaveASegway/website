@@ -401,18 +401,43 @@ test('a tap leaves no fill behind: a switch off again, Run after Pause, and the 
 });
 
 // The Cache Lab's lead says to watch the database, and the stampede plays on landing: all of the
-// database stands on the first screen, with the nodes above it. Until 2026-11-02 it ended 845 px down
-// a 664 px screen, so a visitor saw only page dots. Run at the iPhone 14's real height, not 844.
-test('on a phone, the database the Cache Lab says to watch is on the first screen', async ({
+// database stands on the first screen. Until 2026-11-02 it ended 845 px down a 664 px screen, so a
+// visitor saw only page dots. Run at what a phone's bars leave: the iPhone 14's real height, not 844,
+// then the small phones, where the top bar and the title take a second line each.
+for (const [width, height] of [
+  [390, 664],
+  [375, 553],
+  [360, 640],
+  [320, 568],
+] as const) {
+  test(`at ${width} by ${height}, the database the Cache Lab says to watch is on the first screen`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto('/lab/cache/', { waitUntil: 'load' });
+    await page.evaluate(() => document.fonts.ready);
+    const bottom = await page.locator('.cl-db').evaluate((db) => db.getBoundingClientRect().bottom);
+    expect(bottom).toBeLessThanOrEqual(height);
+  });
+}
+
+// However many pages a node holds, its lamps stay in the room its box keeps, so no press makes the
+// map taller. The room is laid out by the width, so a width in between can break what 320 and 390
+// don't: at 360 px, a common phone, all 120 pages took four rows in a room of three and a bit.
+test('one node holding all 120 pages keeps to its room at every width a phone has', async ({
   page,
 }) => {
-  await page.goto('/lab/cache/', { waitUntil: 'load' });
-  await page.evaluate(() => document.fonts.ready);
-  const { bottom, height } = await page
-    .locator('.cl-db')
-    .evaluate((db) => ({ bottom: db.getBoundingClientRect().bottom, height: innerHeight }));
-  expect(height).toBe(664);
-  expect(bottom).toBeLessThanOrEqual(height);
+  await open(page, '/lab/cache/');
+  for (const node of [0, 1, 2]) await page.locator(`[data-cl-lose="${node}"]`).tap();
+  await expect(page.locator('.cl-pages[data-crowded]')).toHaveCount(1);
+  for (let width = 320; width <= 430; width += 5) {
+    await page.setViewportSize({ width, height: 664 });
+    const past = await page.locator('.cl-pages[data-crowded]').evaluate((lamps) => {
+      const end = (box: Element | null) => box?.lastElementChild?.getBoundingClientRect().bottom;
+      return (end(lamps) ?? 0) - (end(lamps.nextElementSibling) ?? 0);
+    });
+    expect(past, `at ${width} px`).toBeLessThanOrEqual(0.5);
+  }
 });
 
 // A press and what it says share a screen, on the smallest screen a phone's bars leave: each part of

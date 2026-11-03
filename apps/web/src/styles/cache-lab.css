@@ -473,11 +473,28 @@
   }
 }
 
+/* Below 24rem the top bar and the title each take a second line, so under the nodes the database
+   would end past the first screen (709 px at 360 by 640, and more on a smaller phone) however small
+   the lamps are drawn. The lines to it are left out here anyway, so it stands over the nodes, right
+   under the menu's words, where the lead says to look. */
+@media (width < 24rem) {
+  .cl-db {
+    grid-row: 2;
+    margin-block: 0 0.25rem;
+  }
+
+  .cl-fan,
+  .cl-nodes {
+    grid-row: 3;
+  }
+}
+
 /* A node holding more than its room, once a second node is lost and up to all 120 pages: its lamps,
    the menu's too, are drawn smaller, so they stay in that room and the picture keeps its height at
-   any width. */
+   any width. With no gap between their rows: from 333 to 362 px all 120 take four rows, where the
+   room is two rows of the usual lamps, and a gap there made the map 12 px taller at the press. */
 .cl-pages[data-crowded] {
-  gap: 0.0625rem;
+  gap: 0 0.0625rem;
 }
 
 .cl-pages[data-crowded] .cl-lamp,
