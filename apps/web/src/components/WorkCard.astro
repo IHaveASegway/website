@@ -1,4 +1,6 @@
 ---
+import { addressText } from '../lib/resume';
+
 interface Props {
   title: string;
   text: string;
@@ -32,7 +34,13 @@ const { title, text, facts, link, line } = Astro.props;
       ))}
     </dl>
   )}
-  <a class="card-more" href={link.href} aria-label={`${link.label}: ${title}`}>
+  {/* On paper a repository's address prints as the résumé's head prints one, with no scheme. */}
+  <a
+    class="card-more"
+    href={link.href}
+    aria-label={`${link.label}: ${title}`}
+    data-address={link.external ? addressText(link.href) : undefined}
+  >
     {link.label}
   </a>
 </article>

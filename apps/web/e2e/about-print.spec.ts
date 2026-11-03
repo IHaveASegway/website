@@ -63,15 +63,20 @@ test('on paper the site chrome is gone, the name is at a print size, and links s
     return {
       chrome: shown('.site-header, .skip-link, body > footer, .theme-toggle, .contact'),
       name: parseFloat(getComputedStyle(document.querySelector('.about-name') as Element).fontSize),
-      addresses: linked.map((a) => [a.getAttribute('href'), after(a)]),
+      addresses: linked.map((a) => [a.getAttribute('href'), after(a), a.matches('.card-more')] as const),
       contact: [...document.querySelectorAll('.resume-contact a, .resume-notes a')].map(after),
     };
   });
   expect(paper.chrome).toBe(0);
   expect(paper.name).toBeLessThanOrEqual(48);
-  for (const [href, content] of paper.addresses) {
-    // A page on the site prints with the domain; a repository with its own address.
-    const address = href?.startsWith('/') ? `ihaveasegway.com${href}` : href;
+  for (const [href, content, card] of paper.addresses) {
+    // A page on the site prints with the domain; a repository with its own address, on a card with no
+    // scheme, as the head's addresses have none.
+    const address = href?.startsWith('/')
+      ? `ihaveasegway.com${href}`
+      : card
+        ? href?.replace(/^https:\/\//, '')
+        : href;
     expect(content, String(href)).toBe(`"${address}"`);
   }
   // The contact list and the notes already show their addresses as their text.

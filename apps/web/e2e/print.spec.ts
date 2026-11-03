@@ -37,6 +37,7 @@ for (const path of ROUTES) {
             href: a.getAttribute('href') ?? '',
             text: a.textContent?.replace(/\s+/g, '') ?? '',
             after: getComputedStyle(a, '::after').content,
+            card: a.matches('.card-more'),
           })),
       };
     }, PRINTS_ELSEWHERE);
@@ -44,10 +45,13 @@ for (const path of ROUTES) {
     // Home's header holds nothing but controls, and /about/'s head carries the name, so neither
     // prints one; every other page prints the name.
     expect(paper.header).toBe(path === '/' || path === '/about/' ? 0 : 1);
-    for (const { href, text, after } of paper.links) {
+    for (const { href, text, after, card } of paper.links) {
+      // A card's repository prints as the résumé's head prints an address, with no scheme.
       const address = href.startsWith('/')
         ? `ihaveasegway.com${href}`
-        : href.replace(/^mailto:/, '');
+        : card
+          ? href.replace(/^https:\/\/(www\.)?/, '')
+          : href.replace(/^mailto:/, '');
       if (href.startsWith('#')) {
         // A link within the page has nowhere to send paper.
         expect(after, href).toBe('none');

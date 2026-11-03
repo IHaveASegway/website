@@ -1664,6 +1664,10 @@
     content: attr(href);
   }
 
+  a.card-more[data-address]::after {
+    content: attr(data-address);
+  }
+
   .prose :not(pre) > code {
     padding: 0;
   }
