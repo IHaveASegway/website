@@ -20,7 +20,7 @@ It also means every day can run more than once. A load fails halfway and retries
 
 **Write to today.** Make each load write to the day the clock says instead of its run's own day, and the week starts over. Every day's orders land on the same date, and every check fails. If a job uses today's date, you can't backfill it.
 
-**Rerun a finished day.** Clear Tuesday after its run succeeds. With append, Tuesday's total doubles. With overwrite, nothing changes.
+**Rerun a finished day.** Clear Tuesday after its run succeeds, then press Run. With append, Tuesday's total doubles. With overwrite, nothing changes.
 
 Then make Monday's file five hours late with one run at a time, and watch the week wait behind it.
 
