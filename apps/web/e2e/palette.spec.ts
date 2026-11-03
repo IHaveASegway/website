@@ -166,6 +166,8 @@ test("the site's own words find their pages, and scattered letters don't take En
     ['adr', 'palette-home'],
     ['adrs', 'palette-home'],
     ['decision records', 'palette-home'],
+    // Home and About feature it, so it's found, on the row that leads to its repository's owner.
+    ['stillhere', 'palette-github'],
   ] as const) {
     if (row === 'palette-lab' && !pages().includes('/lab/')) continue;
     await input(page).fill(query);
