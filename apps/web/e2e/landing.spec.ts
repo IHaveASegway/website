@@ -788,6 +788,15 @@ test.describe('the Route Lab', () => {
     await expect(bar).toHaveAttribute('aria-label', 'Pause motion');
     await expect(drive(page)).toHaveText('Run');
     expect(await paused(page)).toBe(true);
+
+    // Vans started by hand under the bar's Pause are the visitor's, and its Play leaves them driving.
+    await bar.click();
+    await drive(page).click();
+    await expect(drive(page)).toHaveText('Pause');
+    expect(await paused(page)).toBe(false);
+    await bar.click();
+    await expect(drive(page)).toHaveText('Pause');
+    expect(await paused(page)).toBe(false);
   });
 
   test('under reduced motion they and their button are gone', async ({ page }) => {

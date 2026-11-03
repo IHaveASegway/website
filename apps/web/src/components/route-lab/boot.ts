@@ -34,34 +34,33 @@ if (root) {
   // Still until the chrome's module says the page may move (scripts/field.js), and for good if it
   // never does. Its button stops whatever drives, and starts only what it stopped: until 2026-11-03
   // its Play restarted vans the visitor had stopped by hand.
-  let wanted = false;
-  let held = true;
+  let wanted = true;
+  let barred = true;
   let shown = true;
   const drive = () => {
+    const on = wanted && !barred;
     for (const layer of root.querySelectorAll<SVGSVGElement>('[data-rl-fleet]')) {
-      if (wanted && shown) layer.unpauseAnimations();
+      if (on && shown) layer.unpauseAnimations();
       else layer.pauseAnimations();
     }
     for (const button of buttons) {
-      const word = wanted ? 'Pause' : 'Run';
+      const word = on ? 'Pause' : 'Run';
       button.textContent = word;
       button.setAttribute('aria-label', `${word} the vans`);
-      button.dataset['lamp'] = wanted ? 'on' : 'off';
+      button.dataset['lamp'] = on ? 'on' : 'off';
     }
   };
   drive();
+  // A press under the bar's Pause is the visitor's, as it is in a lab: they drive, whatever it says.
   for (const button of buttons)
     button.addEventListener('click', () => {
-      wanted = !wanted;
-      held = false;
+      wanted = barred || !wanted;
+      barred = false;
       drive();
     });
   // The top bar's button reaches the vans too, as it does a lab's run.
   document.addEventListener('motionchange', (event) => {
-    const { paused } = (event as CustomEvent<{ paused: boolean }>).detail;
-    const on = wanted || held;
-    wanted = !paused && on;
-    held = paused && on;
+    barred = (event as CustomEvent<{ paused: boolean }>).detail.paused;
     drive();
   });
   new IntersectionObserver(([entry]) => {
