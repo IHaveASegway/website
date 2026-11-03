@@ -299,7 +299,7 @@ test("known answers: the Fonts API's style passes the allowlist, and any other i
   expect(`${face}${face}:root{--font-jetbrains-mono:"JetBrains Mono-c8b3";}`).toMatch(FONTS_STYLE);
   // A one-word family, as the API writes it today, unquoted, and a name with figures in it.
   expect(`${face}:root{--font-barlow:Barlow-ef665c43;}`).toMatch(FONTS_STYLE);
-  expect(`${face}:root{--font-noto-mono:"Noto Mono-1a2b";}`).toMatch(FONTS_STYLE);
+  expect(`${face}:root{--font-b612-mono:"B612 Mono-1a2b";}`).toMatch(FONTS_STYLE);
   for (const other of [
     'p{color:red}',
     `${face}p{color:red}`,
