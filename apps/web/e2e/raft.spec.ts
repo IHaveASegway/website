@@ -13,6 +13,7 @@ const RAFT = '/lab/raft/';
 test.beforeEach(({ page }) => handsOn(page));
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 const HELD = /^All five safety properties held over [\d,]+ events\.$/;
+const SPLIT = 'Split two servers from three';
 
 const clock = (page: Page) => page.locator('[data-rf-clock]');
 const summary = (page: Page) => page.locator('[data-rf-summary]');
@@ -156,7 +157,7 @@ test('a split network: a fence closes off the smaller side and crosses no server
   await expect.poll(() => fenced(page)).toBe(1);
   await page.getByRole('button', { name: 'Heal the network' }).click();
   await expect.poll(() => fenced(page)).toBe('no fence');
-  await page.getByRole('button', { name: 'Split 2 and 3' }).click();
+  await page.getByRole('button', { name: SPLIT }).click();
   await expect.poll(() => fenced(page)).toBe(2);
 });
 
@@ -168,7 +169,7 @@ for (const width of [390, 320]) {
     await page.getByRole('button', { name: 'Cut off the leader' }).click();
     await expect.poll(() => fenced(page)).toBe(1);
     await page.getByRole('button', { name: 'Heal the network' }).click();
-    await page.getByRole('button', { name: 'Split 2 and 3' }).click();
+    await page.getByRole('button', { name: SPLIT }).click();
     await expect.poll(() => fenced(page)).toBe(2);
   });
 }
@@ -777,7 +778,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
     await page.goto(RAFT);
     await page.getByRole('button', { name: 'Send a write' }).click();
-    await page.getByRole('button', { name: 'Split 2 and 3' }).click();
+    await page.getByRole('button', { name: SPLIT }).click();
     await page.getByRole('button', { name: 'Next event' }).click();
     const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
     expect(results.violations.map((v) => `${v.id}: ${v.nodes.length}`)).toEqual([]);

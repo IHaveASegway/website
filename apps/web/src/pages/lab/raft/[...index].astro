@@ -30,7 +30,7 @@ const { entry } = Astro.props;
 const { name } = (await loadProfile()).basics;
 const { Content, headings } = await render(await labEntry(entry));
 const lead =
-  'Five servers agree on one log with Raft. Crash them, cut the network and lose messages, and watch the five safety properties hold.';
+  'Raft keeps five servers agreed on one log, the ordered list of every write. Crash them, split the network and lose messages, and watch its five safety properties hold.';
 ---
 
 <Base
@@ -57,10 +57,10 @@ const lead =
       </p>
       <p>
         After every event, a checker tests the five safety properties of Figure 3. The same
-        simulator runs {SEEDS_IN_CI.toLocaleString('en-US')} seeded runs of crashes, splits and lost
-        messages in the site's tests, and two deliberately broken servers prove those runs can find
-        a real bug: one that votes without checking the candidate's log, and one that commits an old
-        term's entry by counting copies.
+        simulator runs {SEEDS_IN_CI.toLocaleString('en-US')} seeded runs of crashes, partitions and
+        lost messages in the site's tests, and two deliberately broken servers prove those runs can
+        find a real bug: one that votes without checking the candidate's log, and one that commits
+        an old term's entry by counting copies.
       </p>
     </LabWriteUp>
   </article>
