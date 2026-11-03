@@ -5,7 +5,7 @@ lifecycle: live
 runtime:
   kind: browser
 decisions: ['0026']
-firewall_reviewed: 2026-11-02
+firewall_reviewed: 2026-11-03
 ---
 
 ## What a queue promises

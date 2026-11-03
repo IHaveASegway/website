@@ -1,5 +1,5 @@
 ---
-firewall_reviewed: 2026-11-02
+firewall_reviewed: 2026-11-03
 ---
 
 I take an idea and build the entire system. I love building products consumers can use, easy and simple, with little tech debt, so we can stay flexible and grow quickly for whatever customers and the business demand. At the core of it, I really love solving problems. Lately I've been working out how to get real software out of coding agents.
