@@ -33,6 +33,11 @@ export const OPENING = {
 
 export const openingRun = (): Sim => replay({ seed: OPENING.seed }, OPENING.actions, OPENING.until);
 
+/** How many of a run's lines the event log shows, at build and in the browser, so the two agree. */
+export const LOG_LINES = 60;
+
+
+
 /** The shares of messages lost the page's slider offers, in percent: 0 to 50 in steps of 5. */
 export const LOSSES: readonly number[] = Array.from({ length: 11 }, (_, i) => i * 5);
 

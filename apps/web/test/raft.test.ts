@@ -38,6 +38,7 @@ import {
   cutFence,
   footprint,
   linkTo,
+  LOG_LINES,
   logMarkup,
   logWords,
   LOSSES,
@@ -877,6 +878,18 @@ describe('a visitor reads server, never node (docs/content.md, "The site\'s lang
     expect(words).not.toMatch(NODE);
     expect(names.filter((name) => NODE.test(name))).toEqual([]);
   });
+});
+
+test('the event log opens on the run’s first line at build, as it does in the browser: an election before its win', () => {
+  const sim = openingRun();
+  expect(sim.lines.length).toBeLessThanOrEqual(LOG_LINES);
+  const list = /data-rf-lines[^>]*>([\s\S]*?)<\/ol>/.exec(read('lab/raft/index.html'))?.[1] ?? '';
+  const items = [...list.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/g)].map(([, item]) =>
+    (item ?? '').replace(/<[^>]+>/g, '').trim(),
+  );
+  expect(items).toHaveLength(sim.lines.length);
+  expect(items[0]).toBe('0.151 s Server 1 times out and asks for votes in term 1');
+  expect(items[2]).toBe('0.213 s Server 1 wins term 1 with 3 votes');
 });
 
 describe('the cut', () => {

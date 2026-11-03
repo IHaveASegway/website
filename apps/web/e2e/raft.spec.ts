@@ -432,19 +432,23 @@ test('Next event says where the run stands when the log has nothing to tell', as
   expect(new Set(heard).size).toBe(heard.length);
 });
 
-test('the app writes the event log once: the build’s lines go on as the run’s, and a link’s run shows only its own', async ({
+test('the app writes the event log once: the build’s lines are the run’s, from its first, and a link’s run shows only its own', async ({
   page,
 }) => {
   await page.goto(RAFT);
   const built = await log(page).allTextContents();
-  expect(built).toHaveLength(12);
-  // Intent alone loads the app, which writes the run's log from its first line: 13 lines, each
-  // once, the last 12 of them the build's.
+  // The whole of it, from the first server to stand: the build's last 12 opened on a server winning
+  // an election with no line saying it stood, a line the app then added above them.
+  expect(built).toHaveLength(13);
+  expect(built[0]).toContain('times out and asks for votes in term 1');
+  // Intent alone loads the app, which writes the run's log from its first line: the same 13 lines,
+  // each once.
   await page.locator('[data-rf-map]').hover();
+  await expect(clock(page)).toHaveText('Virtual time 1.400 s');
   await expect(log(page)).toHaveCount(13);
+  await expect.poll(() => log(page).allTextContents()).toEqual(built);
   const lines = await log(page).allTextContents();
   expect(new Set(lines).size).toBe(lines.length);
-  expect(lines.slice(-12)).toEqual(built);
 
   // A link's run writes its own log alone, the same as when the link is followed on the page.
   await page.goto(`${RAFT}#seed-8`);
@@ -530,7 +534,35 @@ test('a link to a run opens it: #seed-8 loads that seed with no other intent, an
   await page.getByRole('button', { name: 'Start over' }).click();
   expect(new URL(page.url()).hash).toBe('#seed-0');
   await page.reload();
-  await expect(page.locator('[data-rf-seed]')).toHaveText('0');
+  await expect(page.locator('[data-rf-seed]')).toHaveText('999999');
+});
+
+test('Start over shows the same run again from the same opening: what the presses made goes, and the seed stays', async ({
+  page,
+}) => {
+  await page.goto(RAFT);
+  await page.locator('[data-rf-map]').hover();
+  await expect(log(page)).toHaveCount(13);
+  const opening = await log(page).allTextContents();
+  /** Forty events on, as a run of this seed goes. */
+  const forty = async () => {
+    for (let i = 0; i < 40; i++) await page.getByRole('button', { name: 'Next event' }).click();
+    return [
+      await clock(page).textContent(),
+      await status(page).textContent(),
+      await page.locator('[data-rf-flights]').innerHTML(),
+    ];
+  };
+  const seen = await forty();
+  await page.getByRole('button', { name: 'Send a write' }).click();
+  await page.locator('[data-rf-toggle="0"]').click();
+  await page.getByRole('button', { name: 'Start over' }).click();
+  await expect(page.locator('[data-rf-seed]')).toHaveText('7');
+  expect(new URL(page.url()).hash).toBe('#seed-7');
+  await expect(clock(page)).toHaveText('Virtual time 1.400 s');
+  await expect(summary(page)).toHaveText('Server 1 leads term 1, 3 entries committed.');
+  expect(await log(page).allTextContents()).toEqual(opening);
+  expect(await forty()).toEqual(seen);
 });
 
 test('Start over writes the loss into its link, and a reload opens the same run, which loses messages too', async ({

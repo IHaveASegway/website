@@ -18,6 +18,7 @@ import {
   flightsMarkup,
   linkTo,
   logMarkup,
+  LOG_LINES,
   logWords,
   nextSeed,
   OPENING,
@@ -97,8 +98,8 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   let shownLines: Line | undefined;
   let shownBroken: string | undefined;
   const shownLogs: string[] = [];
-  // The build wrote the opening's last lines; the run writes its own from the first draw, so none
-  // is written twice, and a link's run shows its own.
+  // The build wrote the opening's lines; the run writes its own from the first draw, so none is
+  // written twice, and a link's run shows its own.
   lines?.replaceChildren();
 
   /** Everything the page shows of the run, changed only where it changed. */
@@ -157,7 +158,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     drawLines();
   }
 
-  /** The event log: new lines appended, the oldest dropped past 60. */
+  /** The event log: new lines appended, the oldest dropped past LOG_LINES. */
   function drawLines(): void {
     if (!lines) return;
     const from = shownLines ? sim.lines.indexOf(shownLines) + 1 : 0;
@@ -167,7 +168,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     const box = lines.parentElement;
     const following = box && box.scrollHeight - box.scrollTop - box.clientHeight < 2;
     if (shownLines && from === 0) lines.replaceChildren();
-    const start = from === 0 ? Math.max(0, sim.lines.length - 60) : from;
+    const start = from === 0 ? Math.max(0, sim.lines.length - LOG_LINES) : from;
     for (const line of sim.lines.slice(start)) {
       const item = document.createElement('li');
       const at = document.createElement('span');
@@ -176,7 +177,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       item.append(at, ` ${line.text}`);
       lines.append(item);
     }
-    while (lines.children.length > 60) lines.firstElementChild?.remove();
+    while (lines.children.length > LOG_LINES) lines.firstElementChild?.remove();
     if (box && following && sim.lines.length > start) box.scrollTop = box.scrollHeight;
     shownLines = sim.lines.at(-1);
   }

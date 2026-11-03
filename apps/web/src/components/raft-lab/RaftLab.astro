@@ -5,6 +5,7 @@ import {
   DIAL_RADIUS,
   flightsMarkup,
   logMarkup,
+  LOG_LINES,
   logWords,
   NODE_RADIUS,
   openingRun,
@@ -56,7 +57,9 @@ import '../../styles/raft-lab.css';
 // aren't read out, so a key to them would name nothing a listener met.
 const sim = openingRun();
 const cut = cutFence(sim.groups);
-const lines = sim.lines.slice(-12);
+// Every line the app would write for this run, so the run's first election is on the page from its
+// first line: the last 12 of them opened on a server winning, with no line saying it stood.
+const lines = sim.lines.slice(-LOG_LINES);
 const dial = DIAL_RADIUS;
 
 // Virtual seconds a real second runs, by name; Steady is the speed the page opens at.
