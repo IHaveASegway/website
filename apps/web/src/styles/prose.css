@@ -232,6 +232,11 @@
     display: none;
   }
 
+  /* The footer follows the last words, with no page's padding between them. */
+  .long-form {
+    padding-block-end: 0;
+  }
+
   .register {
     border: 0;
     padding-top: 0;
