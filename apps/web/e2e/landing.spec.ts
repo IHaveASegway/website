@@ -137,6 +137,129 @@ for (const lab of LABS) {
   });
 }
 
+// The labs that keep the same promises (docs/lab.md, "The controls"): the Raft Lab has its own branch
+// of this work, and its first press to try has no fix to replay.
+const FIXES = [
+  {
+    name: 'queue',
+    path: '/lab/queue/',
+    short: 'qu',
+    fix: 'label:has(input[name="qu-key"][value="on"])',
+    quick: 'label:has(input[name="qu-speed"][value="5"])',
+    back: 'Virtual time 1.',
+    link: '#seed-28&key=on',
+    words:
+      "The idempotency key is on. The run starts over under it, at 1.500 s, before worker 2's crash.",
+    log: '2.873 s Worker 1 finds order 18 in the record and does not print it again',
+  },
+  {
+    name: 'cache',
+    path: '/lab/cache/',
+    short: 'cl',
+    fix: '[data-cl-toggle="coalesce"]',
+    quick: 'label:has(input[name="cl-speed"][value="2"])',
+    back: 'Virtual time 2.',
+    link: '#seed-7&coalesce=on',
+    words: 'Coalescing is on. The run starts over under it, at 2.500 s, before the menu expires.',
+    log: 'its readers miss, and each node sends one fetch for them all',
+  },
+  {
+    name: 'backfill',
+    path: '/lab/backfill/',
+    short: 'bf',
+    fix: 'label:has(input[name="bf-mode"][value="overwrite"])',
+    quick: 'label:has(input[name="bf-speed"][value="30"])',
+    back: '00:00',
+    link: '#seed-9&mode=overwrite',
+    words:
+      'Loads now overwrite their day. The week starts over under it, at 00:00, before the job is switched on.',
+    log: "Wednesday's load fails part way, and as its overwrite is one atomic step, the report is as it was",
+  },
+] as const;
+
+for (const lab of FIXES) {
+  test.describe(`the ${lab.name} lab, as a visitor who lands on it running tries the fix`, () => {
+    const clockOf = (page: Page) => page.locator(`[data-${lab.short}-clock]`);
+    const line = (page: Page) => page.locator('[data-said]').first();
+
+    // Until 2026-11-02 a fix pressed on the run that was already going changed nothing they could
+    // see: the crash or the stampede had been and gone, and the checks stayed Broken beside a lit fix.
+    test('its first press replays the run under the fix, still running, and says so', async ({
+      page,
+    }) => {
+      await page.goto(lab.path);
+      const run = page.locator(`[data-${lab.short}-run]`);
+      await expect(run).toHaveText('Pause');
+      await page.locator(lab.quick).click();
+      await page.locator(lab.fix).click();
+      await expect(line(page)).toHaveText(lab.words);
+      await expect(line(page)).toBeVisible();
+      await expect(run).toHaveText('Pause');
+      expect(new URL(page.url()).hash).toBe(lab.link);
+      await expect(page.locator(`#${lab.name}-lab [data-${lab.short}-lines]`)).toContainText(
+        lab.log,
+        { timeout: 20_000 },
+      );
+    });
+
+    test('Start over goes back to the same moment, and plays on if it was playing', async ({
+      page,
+    }) => {
+      await page.goto(lab.path);
+      const run = page.locator(`[data-${lab.short}-run]`);
+      await expect(run).toHaveText('Pause');
+      await page.locator(`[data-${lab.short}-reset]`).click();
+      await expect(run).toHaveText('Pause');
+      await expect(clockOf(page)).toContainText(lab.back);
+      await expect(line(page)).toHaveText(/ starts over under these settings, at /);
+      // Stood still, it asks for the press it waits for.
+      await run.click();
+      await expect(run).toHaveText('Run');
+      await page.locator(`[data-${lab.short}-reset]`).click();
+      await expect(run).toHaveText('Run');
+      await expect(line(page)).toHaveText(/ Press Run to watch it\.$/);
+    });
+
+    test('until a press, its lines say what their controls do, and never what the run does', async ({
+      page,
+    }) => {
+      await page.goto(lab.path);
+      await expect(page.locator(`[data-${lab.short}-run]`)).toHaveText('Pause');
+      await page.waitForTimeout(600);
+      const lines = page.locator('[data-said]');
+      await expect(lines).toHaveCount(2);
+      for (const each of await lines.all()) {
+        await expect(each).toBeVisible();
+        await expect(each).not.toHaveAttribute('data-spoke');
+        expect(await each.textContent()).toBe(await each.getAttribute('data-said'));
+      }
+    });
+
+    // A dropped connection, or a deploy that retired the hashed file while the page was open. Until
+    // 2026-11-02 the only word of it was in a line a screen reader alone could reach.
+    test('a load that fails says so on the screen, leaves the picture as drawn, and a press tries again', async ({
+      page,
+    }) => {
+      const words = 'The lab did not load. Press any control to try again.';
+      await page.route('**/_astro/app.*.js', (route) => route.abort());
+      await page.goto(lab.path);
+      await expect(line(page)).toHaveText(words);
+      await expect(line(page)).toBeVisible();
+      await expect(page.locator(`[data-${lab.short}-said]`)).toHaveText(words);
+      const run = page.locator(`[data-${lab.short}-run]`);
+      const standing = await clockOf(page).textContent();
+      await page.waitForTimeout(300);
+      await expect(run).toHaveText('Run');
+      await expect(clockOf(page)).toHaveText(standing ?? '');
+
+      await page.unroute('**/_astro/app.*.js');
+      await run.click();
+      await expect(run).toHaveText('Pause');
+      await expect(line(page)).not.toHaveText(words);
+    });
+  });
+}
+
 test.describe('the Route Lab', () => {
   const layers = (page: Page) => page.locator('[data-rl-fleet]');
   const drive = (page: Page) => page.locator('[data-rl-drive]').first();

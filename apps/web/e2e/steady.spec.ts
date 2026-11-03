@@ -14,10 +14,11 @@ import { handsOn, pages, ROUTE_LAB } from './expected';
 // iOS Safari has never shipped scroll anchoring (overflow-anchor is unsupported there), so on a
 // visitor's phone the same growth moves what they read. With it off, a move here is a move there.
 //
-// What it watches: every element on the screen, by its top, every frame. It leaves out what moves
-// by design: the inside of an SVG picture or a canvas (vans, lamps and curves, though not the
-// picture's own box), the field behind the page, and whatever scrolls inside a box of its own, as
-// an event log's lines do.
+// What it watches: every element on the screen, by its top, every frame, and each lab's controls by
+// their left edge too, since a button that changes width sends its neighbour sideways, or a row down,
+// away from the finger. It leaves out what moves by design: the inside of an SVG picture or a canvas
+// (vans, lamps and curves, though not the picture's own box), the field behind the page, and whatever
+// scrolls inside a box of its own, as an event log's lines do.
 // A move of more than 1 px fails, and so does a scroll the test did not make, or a focus the
 // visitor did not put somewhere: on the page's body, or off the screen.
 
@@ -72,7 +73,7 @@ async function steady(page: Page): Promise<void> {
       }
       return false;
     };
-    let watched: { el: Element; top: number }[] = [];
+    let watched: { el: Element; top: number; left: number }[] = [];
     let y = 0;
     let frame = 0;
     const found: string[] = [];
@@ -89,6 +90,12 @@ async function steady(page: Page): Promise<void> {
         if (Math.abs(box.top - w.top) > 1) {
           moved.set(w.el, Math.round(box.top - w.top));
           w.top = box.top;
+        }
+        // A control that holds its height but not its place along the row. Raft's and the Route
+        // Lab's have their own branches of this work, so only the three labs on one set of rules.
+        if (Math.abs(box.left - w.left) > 1 && w.el.closest('.lab-row, .cl-node-buttons')) {
+          found.push(`${name(w.el)} moved ${Math.round(box.left - w.left)} px sideways`);
+          w.left = box.left;
         }
       }
       for (const [el, by] of moved) {
@@ -107,7 +114,7 @@ async function steady(page: Page): Promise<void> {
         for (const el of document.body.querySelectorAll('*')) {
           const box = el.getBoundingClientRect();
           const seen = (whole || (box.bottom > 0 && box.top < innerHeight)) && box.height > 0;
-          if (seen && !exempt(el)) watched.push({ el, top: box.top });
+          if (seen && !exempt(el)) watched.push({ el, top: box.top, left: box.left });
         }
         frame = requestAnimationFrame(look);
       },
@@ -260,6 +267,14 @@ type Press = { what: string; selector: string; by: 'tap' | 'key'; ms?: number };
 const another = (group: string) =>
   `label:has(> input[name="${group}"]:not(:checked)), label:has(input[name="${group}"]:not(:checked))`;
 
+/** The longest words a line under the controls says, each at or near the room it holds at. */
+const LONGEST_SAID = [
+  "Wednesday's next load will fail part way. Wednesday has loaded already, so this fails its load when the week plays again, or after a clear.",
+  "Loads now file under the clock's day. The week starts over under it, at 00:00, before the job is switched on. Press Run to watch it.",
+  'Stale-while-revalidate is off. The run starts over under it, at 2.500 s, before the menu expires. Press Run to watch it.',
+  "Worker 1 crashes holding orders 26, 27, 28 and 7 more, after order 26's ticket printed and before its acknowledgement left.",
+];
+
 const FLOWS: Record<keyof typeof LABS, Press[]> = {
   raft: [
     { what: 'Run, the first touch', selector: 'button[data-rf-run]', by: 'tap' },
@@ -279,6 +294,12 @@ const FLOWS: Record<keyof typeof LABS, Press[]> = {
     { what: 'Start over while it runs', selector: 'button[data-qu-reset]', by: 'tap' },
     { what: 'a load', selector: another('qu-load'), by: 'tap' },
     { what: 'a worker crashed', selector: '[data-qu-crash="0"]', by: 'key' },
+    { what: 'the key on', selector: 'label:has(input[name="qu-key"][value="on"])', by: 'tap' },
+    { what: 'a poison order', selector: '[data-qu-poison]', by: 'tap', ms: 500 },
+    { what: 'no more orders', selector: '[data-qu-producer]', by: 'tap', ms: 500 },
+    { what: 'orders again', selector: '[data-qu-producer]', by: 'tap', ms: 500 },
+    { what: 'a choice of prefetch', selector: another('qu-prefetch'), by: 'tap', ms: 500 },
+    { what: 'a worker slowed', selector: '[data-qu-slow="1"]', by: 'tap', ms: 500 },
   ],
   cache: [
     { what: 'Run, the first touch', selector: 'button[data-cl-run]', by: 'tap' },
@@ -289,6 +310,15 @@ const FLOWS: Record<keyof typeof LABS, Press[]> = {
     { what: 'Start over while it runs', selector: 'button[data-cl-reset]', by: 'tap' },
     { what: 'a switch against a stampede', selector: '[data-cl-toggle="coalesce"]', by: 'tap' },
     { what: 'a node lost', selector: '[data-cl-lose="1"]', by: 'key' },
+    // Each loss put more pages on fewer nodes, and sent the next button away from the finger: until
+    // 2026-11-02 the third moved from (242, 2059) to (35, 2159), and the page grew by 196 px.
+    { what: 'a second node lost', selector: '[data-cl-lose="2"]', by: 'tap', ms: 500 },
+    { what: 'a third node lost', selector: '[data-cl-lose="3"]', by: 'tap', ms: 500 },
+    { what: 'one node restarted', selector: '[data-cl-lose="1"]', by: 'tap', ms: 500 },
+    { what: 'the cache flushed', selector: '[data-cl-flush]', by: 'tap', ms: 500 },
+    { what: 'a write', selector: '[data-cl-write]', by: 'tap', ms: 500 },
+    { what: 'a load', selector: another('cl-load'), by: 'tap', ms: 500 },
+    { what: 'a placement', selector: another('cl-placement'), by: 'tap', ms: 500 },
   ],
   backfill: [
     { what: 'Run, the first touch', selector: 'button[data-bf-run]', by: 'tap' },
@@ -298,6 +328,10 @@ const FLOWS: Record<keyof typeof LABS, Press[]> = {
     { what: 'Run again', selector: 'button[data-bf-run]', by: 'key' },
     { what: 'Start over while it runs', selector: 'button[data-bf-reset]', by: 'tap' },
     { what: 'a way to write', selector: another('bf-mode'), by: 'tap' },
+    { what: 'a failed load', selector: '[data-bf-fail]', by: 'tap', ms: 500 },
+    { what: 'a clear', selector: '[data-bf-clear]', by: 'tap', ms: 500 },
+    { what: 'a late file', selector: '[data-bf-late]', by: 'tap', ms: 500 },
+    { what: 'a limit of runs', selector: another('bf-runs'), by: 'tap', ms: 500 },
   ],
 };
 
@@ -366,6 +400,87 @@ test('a tap leaves no fill behind: a switch off again, Run after Pause, and the 
   expect(await fill(toggle)).toBe(clear);
 });
 
+// The Cache Lab's lead says to watch the database, and the stampede plays on landing: all of the
+// database stands on the first screen, with the nodes above it. Until 2026-11-02 it ended 845 px down
+// a 664 px screen, so a visitor saw only page dots. Run at the iPhone 14's real height, not 844.
+test('on a phone, the database the Cache Lab says to watch is on the first screen', async ({
+  page,
+}) => {
+  await page.goto('/lab/cache/', { waitUntil: 'load' });
+  await page.evaluate(() => document.fonts.ready);
+  const { bottom, height } = await page
+    .locator('.cl-db')
+    .evaluate((db) => ({ bottom: db.getBoundingClientRect().bottom, height: innerHeight }));
+  expect(height).toBe(664);
+  expect(bottom).toBeLessThanOrEqual(height);
+});
+
+// A press and what it says share a screen, on the smallest screen a phone's bars leave: each part of
+// the controls has its own line, because one by Run would be over a thousand pixels from the settings.
+for (const [name, lab] of Object.entries(LABS).filter(([name]) => name !== 'raft')) {
+  test(`the ${name} lab: each control stands within a screen of the line it speaks in`, async ({
+    page,
+  }) => {
+    await open(page, lab.path);
+    const far = await page.locator('[data-part]').evaluateAll((parts) =>
+      parts.flatMap((part) => {
+        const line = part.querySelector('[data-said]')?.getBoundingClientRect();
+        if (!line) return ['a part with no line'];
+        return [...part.querySelectorAll('button, label')].flatMap((control) =>
+          line.bottom - control.getBoundingClientRect().top > innerHeight
+            ? [control.textContent?.trim() ?? '']
+            : [],
+        );
+      }),
+    );
+    expect(far).toEqual([]);
+  });
+}
+
+// A reader who has scrolled back keeps their lines as new ones come, and the log keeps only 60. Until
+// 2026-11-02 the top line slid from 3.3 s to 5.7 s in 5 s of reading. iOS Safari has no scroll
+// anchoring to do it for them, and neither has this WebKit once the page turns it off.
+test('in a log scrolled back, what a reader is reading stays where it is as the run writes on', async ({
+  page,
+}) => {
+  await open(page, '/lab/cache/');
+  await page.locator('label:has(input[name="cl-speed"][value="2"])').tap();
+  const run = page.locator('[data-cl-run]');
+  await run.tap();
+  await expect(run).toHaveText('Pause');
+  const log = page.locator('[role="log"]');
+  await expect
+    .poll(() => log.evaluate((box) => box.scrollHeight - box.clientHeight), { timeout: 10_000 })
+    .toBeGreaterThan(400);
+  await log.evaluate((box) => {
+    box.style.setProperty('overflow-anchor', 'none');
+    box.scrollTop = -200;
+  });
+  const reading = () =>
+    log.evaluate((box) => {
+      const top = box.getBoundingClientRect().top;
+      const line = [...box.querySelectorAll('li')].find(
+        (item) => item.getBoundingClientRect().top >= top,
+      );
+      return {
+        words: line?.textContent,
+        at: Math.round((line?.getBoundingClientRect().top ?? 0) - top),
+      };
+    });
+  const before = await reading();
+  await page.waitForTimeout(1_500);
+  await run.tap();
+  expect(await reading()).toEqual(before);
+  expect(await log.evaluate((box) => box.scrollTop)).toBeLessThan(-200);
+  // Back at its end, it follows the newest line again, with no script to tell it.
+  await log.evaluate((box) => {
+    box.scrollTop = 0;
+  });
+  await run.tap();
+  await page.waitForTimeout(800);
+  expect(await log.evaluate((box) => box.scrollTop)).toBe(0);
+});
+
 /** The phones the labs are pressed on: the project's iPhone 14, and the narrowest the site is
  *  laid out for, 320 px, where an iPhone SE wraps the labs' words onto more lines. */
 const PHONES = [
@@ -407,6 +522,7 @@ for (const { phone, viewport } of PHONES) {
       (typeof LABS)[keyof typeof LABS],
     ][]) {
       test(`the ${name} lab`, async ({ page }) => {
+        test.setTimeout(60_000);
         await open(page, lab.path);
         expect(await play(page, FLOWS[name])).toEqual([]);
         // A link to a run, followed on the page: the run it names, in the same room.
@@ -435,6 +551,49 @@ for (const { phone, viewport } of PHONES) {
         const at = { x: box.x + box.width / 2, y: (viewport?.height ?? 0) - 10 };
         const moves = await movesAround(page, () => page.touchscreen.tap(at.x, at.y), 1_000);
         expect(moves).toEqual([]);
+      });
+    }
+
+    // Filed under the clock's day, a week's rows have somewhere to go that isn't one of its days. Until
+    // 2026-11-02 that was a row of their own, which took 67 px mid-run, with a finger on Pause.
+    test('the backfill lab, its rows landing on the clock’s day mid-run', async ({ page }) => {
+      await open(page, LABS.backfill.path);
+      const run = page.locator('[data-bf-run]');
+      await page.locator(another('bf-partition')).first().tap();
+      await page.locator('label:has(input[name="bf-speed"][value="30"])').tap();
+      await stand(page, run);
+      const moves = await movesAround(
+        page,
+        async () => {
+          await run.tap();
+          await expect(page.locator('[data-bf-stray]')).toBeVisible({ timeout: 15_000 });
+        },
+        500,
+      );
+      expect(moves).toEqual([]);
+    });
+
+    for (const [name, lab] of Object.entries(LABS).filter(([name]) => name !== 'raft')) {
+      // The line under a part of the controls keeps the room its longest words take, so speaking moves
+      // nothing, at the narrowest phone too (lib/lab/said.ts holds the words to SAID_ROOM).
+      test(`the ${name} lab's lines hold their longest words in the room they keep`, async ({
+        page,
+      }) => {
+        await open(page, lab.path);
+        const heights = await page.locator('[data-said]').evaluateAll(
+          (lines, longest) =>
+            lines.flatMap((line) =>
+              longest.map((words) => {
+                line.textContent = '';
+                const empty = line.getBoundingClientRect().height;
+                line.textContent = words;
+                return [empty, line.getBoundingClientRect().height];
+              }),
+            ),
+          LONGEST_SAID,
+        );
+        expect(heights.length).toBe(2 * LONGEST_SAID.length);
+        for (const [empty, full] of heights) expect(full).toBe(empty);
       });
     }
 
