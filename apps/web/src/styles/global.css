@@ -1046,9 +1046,6 @@
     background-color: color-mix(in oklab, var(--background) 70%, transparent);
   }
 
-  /* The base size, 17 px and up, so a phone does not zoom the page when the input takes focus.
-     The input keeps its own focus ring while it has focus, drawn inside it, which the dialog's
-     edge would otherwise clip. */
   .palette-bar {
     display: flex;
     flex: none;
@@ -1056,6 +1053,9 @@
     border-bottom: 1px solid var(--input);
   }
 
+  /* The base size, 17 px and up, so a phone does not zoom the page when the input takes focus.
+     The input keeps its own focus ring while it has focus, drawn inside it, which the dialog's
+     edge would otherwise clip. */
   .palette-input {
     flex: 1 1 auto;
     min-inline-size: 0;
