@@ -22,6 +22,7 @@ import {
   leaderOf,
   leaders,
   nextTime,
+  playTo,
   replay,
   restart,
   runUntil,
@@ -37,6 +38,8 @@ import {
 import {
   cutFence,
   footprint,
+  LANDING,
+  landingStory,
   linkTo,
   LOG_LINES,
   logMarkup,
@@ -837,6 +840,85 @@ describe('the five safety properties, by name', () => {
     expect(statusText(sim as Sim)).toMatch(
       new RegExp(`^Broken at \\d+\\.\\d{3} s: ${violation.property}\\. Server \\d .+\\.$`),
     );
+  });
+});
+
+describe('the run a visitor lands on', () => {
+  /** Plays the story on from the opening in a page's frames, a limit on each. */
+  const played = (limit = Infinity, frame = 16) => {
+    const sim = openingRun();
+    const story = landingStory(sim);
+    const ahead = [...story.actions];
+    while (sim.now < story.ends) playTo(sim, ahead, sim.now + frame, limit);
+    return { sim, ends: story.ends, left: ahead };
+  };
+
+  test('known answers: the leader crashes, another wins a newer term, and all five end on one log', () => {
+    const { sim, left } = played();
+    expect(left).toEqual([]);
+    const lines = sim.lines.slice(openingRun().lines.length);
+    expect(lines.map((line) => `${line.at} ${line.text}`)).toEqual([
+      '1500 Server 1 crashes. It keeps its term, its vote and its log on disk',
+      '1648 Server 3 times out and asks for votes in term 2',
+      '1696 Server 3 wins term 2 with 3 votes',
+      '1900 Server 1 restarts as a follower in term 1, with 3 entries',
+      '2100 Server 3 takes write 4 at index 4 in term 2',
+      '2154 Server 3 commits up to index 4, an entry of term 2',
+      '2155 Write 4 is committed at index 4: it can never be lost',
+    ]);
+    // Past the opening, the logs stay short enough to hold one line on a phone.
+    expect(sim.servers.map((s) => s.log.length)).toEqual([4, 4, 4, 4, 4]);
+    expect(sim.servers.map((s) => s.commitIndex)).toEqual([4, 4, 4, 4, 4]);
+    expect(summary(sim)).toBe('Server 3 leads term 2, 4 entries committed.');
+    expect(sim.violation).toBeNull();
+  });
+
+  test('the story is a run its actions replay, whatever the frames were, and a frame’s budget only delays it', () => {
+    for (const { sim, left } of [played(), played(Infinity, 7), played(2)]) {
+      expect(left).toEqual([]);
+      expect(differences(replay({ seed: OPENING.seed }, sim.actions, sim.now), sim)).toEqual([]);
+      expect(sim.lines).toEqual(played().sim.lines);
+    }
+  });
+
+  test('an action waits for the frame that gets to it, when the budget runs out first', () => {
+    const sim = openingRun();
+    const ahead: Action[] = [{ at: sim.now + 200, kind: 'crash', node: 0 }];
+    playTo(sim, ahead, sim.now + 300, 1);
+    // One event's budget: the clock stands short of the crash, and the crash is still ahead.
+    expect(sim.now).toBeLessThan(OPENING.until + 200);
+    expect(ahead).toHaveLength(1);
+    expect(sim.servers[0]?.up).toBe(true);
+    playTo(sim, ahead, OPENING.until + 300);
+    expect(ahead).toEqual([]);
+    expect(sim.servers[0]?.up).toBe(false);
+  });
+
+  test('it changes nothing the build draws or a link opens: only the landing ever holds it', () => {
+    const { actions } = landingStory(openingRun());
+    expect(actions.map((a) => a.kind)).toEqual(['crash', 'restart', 'write']);
+    expect(actions.map((a) => a.at)).toEqual([
+      OPENING.until + LANDING.crash,
+      OPENING.until + LANDING.restart,
+      OPENING.until + LANDING.write,
+    ]);
+    // The opening has none of it, so the picture, a link's run and Start over have none either.
+    expect(OPENING.actions.every((a) => a.kind === 'write' && a.at < OPENING.until)).toBe(true);
+    expect(differences(fresh(OPENING.seed, 0), openingRun())).toEqual([]);
+    expect(fresh(12, 0).actions).toEqual(OPENING.actions);
+    // A run with no leader to crash has no story to tell.
+    const none = openingRun();
+    none.servers.forEach((s) => crash(none, s.id));
+    expect(landingStory(none)).toEqual({ actions: [], ends: Infinity });
+  });
+
+  test('Start over’s run is the opening again on the same seed and loss, line for line', () => {
+    const seen = fresh(8, 0.3);
+    runUntil(seen, 3_000);
+    const again = fresh(seen.seed, seen.loss);
+    expect(differences(again, fresh(8, 0.3))).toEqual([]);
+    runUntil(again, 3_000);
+    expect(differences(again, seen)).toEqual([]);
   });
 });
 

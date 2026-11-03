@@ -3,19 +3,21 @@ import {
   crash,
   heal,
   leaderOf,
+  playTo,
   replay,
   restart,
-  runUntil,
   setLoss,
   split,
   step,
   write,
+  type Action,
   type Line,
   type Sim,
 } from '../../lib/raft/sim';
 import {
   cutFence,
   flightsMarkup,
+  landingStory,
   linkTo,
   logMarkup,
   LOG_LINES,
@@ -32,13 +34,19 @@ import {
 } from '../../lib/raft/view';
 
 // The Raft Lab in the browser (ADR 0020): the simulation, run in virtual time and drawn on every
-// frame while it runs. It opens paused, on the same opening the build drew, and moves only when
-// the visitor presses Run, which Pause stops (SC 2.2.2); a hidden tab pauses it too. Run says what
-// it does next, Run or Pause, and has no pressed state, as the other labs' Run does. With reduced
-// motion, messages do not glide: each one stands half way along its path, and Run advances in
-// still steps, half a second of the chosen speed twice a second. A link to a run (lib/sim/link.ts)
-// names its seed and the share of messages it loses (#seed-8&loss=30), and opens that run's
-// opening, paused, on load or when followed on the page; Start over writes the link to its run.
+// frame while it runs. It opens paused, on the same opening the build drew, and moves when the
+// visitor presses Run, which Pause stops (SC 2.2.2), or when they land on it (below); a hidden tab
+// pauses it too. Run says what it does next, Run or Pause, and has no pressed state, as the other
+// labs' Run does. With reduced motion, messages do not glide: each one stands half way along its
+// path, and Run advances in still steps, half a second of the chosen speed twice a second. A link to
+// a run (lib/sim/link.ts) names its seed and the share of messages it loses (#seed-8&loss=30), and
+// opens that run's opening, paused, on load or when followed on the page. Start over keeps the seed
+// and the loss, as the other labs do, so the run can be watched again, and writes the link to it.
+//
+// The run a visitor lands on tells a story (lib/raft/view.ts, landingStory): the leader crashes and
+// the others elect a new one. It's the landing's alone: the visitor's first press drops what's left
+// of it, and the demo is theirs. So a press of Run never brings a crash nobody asked for, and
+// neither do Pause and Run, Start over or a link. A visitor who presses gets what their presses make.
 
 const FRAME_CAP = 100; // real ms: a frame after a long pause does not leap ahead
 const EVENTS_PER_FRAME = 4_000;
@@ -90,6 +98,12 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   const linked = readRun(location.hash);
   if (!queued.includes(loss as Element)) showLoss(linked?.loss ?? 0);
   let sim: Sim = fresh(linked?.seed ?? OPENING.seed, (linked?.loss ?? 0) / 100);
+  /** What's left of the story the run a visitor lands on tells, none once the demo is theirs. */
+  let ahead: Action[] = [];
+  /** When that story is over, so the landing run can stand a moment and go round again. */
+  let storyEnds = Infinity;
+  /** Whether the visitor has pressed something or followed a link: from then on no story plays. */
+  let theirs = false;
   let playing = false;
   let last = 0;
   let frame = 0;
@@ -194,11 +208,12 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     draw();
   }
 
-  /** Shows another run from its opening, paused, and says what it shows: Start over's, or a
-   *  link's. */
+  /** Shows another run from its opening, paused, and says what it shows: Start over's, a link's, or
+   *  the landing run going round again. */
   function open(next: Sim): void {
     pause();
     sim = next;
+    ahead = [];
     shownLines = undefined;
     lines?.replaceChildren();
     draw();
@@ -209,7 +224,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     if (!playing) return;
     const elapsed = Math.min(FRAME_CAP, now - last);
     last = now;
-    runUntil(sim, sim.now + elapsed * speed(), EVENTS_PER_FRAME);
+    playTo(sim, ahead, sim.now + elapsed * speed(), EVENTS_PER_FRAME);
     draw();
     if (sim.violation) {
       say(statusText(sim));
@@ -226,7 +241,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     run?.setAttribute('data-lamp', 'on');
     if (still.matches) {
       timer = window.setInterval(() => {
-        runUntil(sim, sim.now + STILL_EVERY * speed(), EVENTS_PER_FRAME);
+        playTo(sim, ahead, sim.now + STILL_EVERY * speed(), EVENTS_PER_FRAME);
         draw();
         if (sim.violation) pause();
       }, STILL_EVERY);
@@ -244,6 +259,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   }
 
   function press(control: Element): void {
+    theirs = true;
     const node = control.closest('[data-rf-node], [data-rf-toggle]');
     const id = node?.getAttribute('data-rf-node') ?? node?.getAttribute('data-rf-toggle');
     if (id !== null && id !== undefined) {
@@ -307,6 +323,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   addEventListener('hashchange', () => {
     const link = readRun(location.hash);
     if (!link) return;
+    theirs = true;
     showLoss(link.loss);
     open(fresh(link.seed, link.loss / 100));
   });
@@ -319,8 +336,19 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
 
   draw();
   for (const control of queued) press(control);
-  // The run a visitor lands on goes on from the moment the picture tells.
-  return () =>
+  /** Starts the story over from where the run stands, its opening. */
+  const tell = () => {
+    const story = landingStory(sim);
+    ahead = story.actions;
+    storyEnds = story.ends;
+  };
+
+  // The run a visitor lands on goes on from the moment the picture tells, with its story ahead. A
+  // visitor who already pressed something, while the top bar's Pause kept the landing waiting, has
+  // their demo already, and nothing here takes it back.
+  return () => {
+    if (theirs) return;
+    tell();
     runOnLanding(root, {
       play,
       pause,
@@ -336,4 +364,5 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
         ahead = [];
       },
     });
+  };
 }

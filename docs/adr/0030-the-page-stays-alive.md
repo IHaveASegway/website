@@ -76,3 +76,14 @@ Two-way. It's about 300 lines of CSS, one component's markup and a return value 
 - WebKit, [bug 312407](https://bugs.webkit.org/show_bug.cgi?id=312407), on when Safari's scroll-driven animations came off the main thread (iOS 26.4).
 - Paul Lewis and Paul Irish, [High Performance Animations](https://web.dev/articles/animations-guide), on why transform and opacity are the cheap ones.
 - W3C, [Understanding SC 2.2.2: Pause, Stop, Hide](https://www.w3.org/WAI/WCAG22/Understanding/pause-stop-hide.html), on what starts by itself.
+
+## Postscript 2026-11-02
+
+The Raft Lab's landing run had no story. A healthy cluster only sends heartbeats, so a visitor watched dots for as long as they stayed, where the Queue Lab's run crashes a worker. So left alone it now crashes its leader 2 s in at the Steady speed; another server wins a newer term about 6 s in; the old one comes back as a follower at 10 s; the new leader commits one write all five hold at 15 s. Then it stands a moment and goes round again, as the other labs' landing runs do. One write and no more, so each log stays on one line on a phone.
+
+It's a script of the same actions a press records (`landingStory` in `lib/raft/view.ts`), played by `playTo` in `lib/raft/sim.ts`, so it's a run its actions replay. Two things differ from the Queue Lab's crash, on purpose:
+
+- **It isn't in the opening.** The build's picture, a link's run and Start over never hold it.
+- **The first press of anything drops what's left of it**, through a new optional `theirs` on `runOnLanding`. A crash that came after a visitor's press would be the page breaking something they were using. So Start over after the story goes back to the opening with nothing ahead, where the Queue Lab's crash comes back, since it's part of that lab's opening. A visitor who wants the election again presses Crash or Cut off the leader, and a visitor who presses Run first, as under reduced motion, starts on heartbeats for the same reason.
+
+`e2e/landing.spec.ts` holds the story, each kind of first press, a link and reduced motion, on Playwright's clock so a press lands exactly when it says. `e2e/steady.spec.ts` holds that nothing moves on a phone through the whole of it and round again. The other labs' runs are unchanged, and no Revisit if condition was met.

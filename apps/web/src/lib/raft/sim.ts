@@ -335,20 +335,42 @@ export function write(sim: Sim): Write | null {
   return w;
 }
 
+/** Takes one recorded action, as the press that made it did. */
+function act(sim: Sim, action: Action): void {
+  if (action.kind === 'crash') crash(sim, action.node);
+  else if (action.kind === 'restart') restart(sim, action.node);
+  else if (action.kind === 'split') split(sim, action.groups);
+  else if (action.kind === 'heal') heal(sim);
+  else if (action.kind === 'loss') setLoss(sim, action.loss);
+  else write(sim);
+}
+
 /** Replays recorded actions on a fresh run of the same seed: the run they came from, exactly. */
 export function replay(config: Config, actions: readonly Action[], until: number): Sim {
   const sim = createSim(config);
   for (const action of actions) {
     runUntil(sim, action.at);
-    if (action.kind === 'crash') crash(sim, action.node);
-    else if (action.kind === 'restart') restart(sim, action.node);
-    else if (action.kind === 'split') split(sim, action.groups);
-    else if (action.kind === 'heal') heal(sim);
-    else if (action.kind === 'loss') setLoss(sim, action.loss);
-    else write(sim);
+    act(sim, action);
   }
   runUntil(sim, until);
   return sim;
+}
+
+/**
+ * Runs a run on to `until`, taking each action still `ahead` at its moment: every event up to that
+ * time first, then the action, as replay does, so a script played a frame at a time is the run its
+ * actions replay. Within `limit` events for each stretch, as a frame's budget; when the budget runs
+ * out first, the run stands where it got to and the action waits for the next frame. Takes what it
+ * plays off `ahead`.
+ */
+export function playTo(sim: Sim, ahead: Action[], until: number, limit = Infinity): void {
+  for (let next = ahead[0]; next && next.at <= until; next = ahead[0]) {
+    runUntil(sim, next.at, limit);
+    if (sim.violation || sim.now < next.at) return;
+    ahead.shift();
+    act(sim, next);
+  }
+  runUntil(sim, until, limit);
 }
 
 /** The side of the network that can elect a leader and commit: one with a majority of the cluster

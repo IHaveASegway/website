@@ -351,6 +351,31 @@ for (const { phone, viewport } of PHONES) {
       });
 
       if (name === 'raft') {
+        // The Raft Lab's landing run tells a story (lib/raft/view.ts, landingStory): the caption, the
+        // logs and the buttons change with it, and it goes round again, under a thumb that hasn't
+        // moved. All of the page is watched, on Playwright's clock, every frame of it.
+        test('the raft lab, through the whole of its landing story and round again', async ({
+          page,
+        }) => {
+          test.slow();
+          await steady(page);
+          const start = Date.UTC(2026, 10, 2);
+          await page.clock.install({ time: start });
+          await page.clock.pauseAt(start + 1_000);
+          await page.goto(lab.path, { waitUntil: 'load' });
+          await page.evaluate(() => document.fonts.ready);
+          await page.clock.runFor(200);
+          await expect(page.locator('[data-rf-run]')).toHaveText('Pause');
+          await page.evaluate(() => window.__steady.watch(true));
+          await page.clock.runFor(27_000);
+          expect(await page.evaluate(() => window.__steady.moves())).toEqual([]);
+          // It did go round: the first telling is over, and the second is under way.
+          await expect(page.locator('[data-rf-summary]')).toHaveText(
+            'Server 1 leads term 1, 3 entries committed.',
+          );
+          await expect(page.locator('[data-rf-log="0"] .rf-cell')).toHaveCount(3);
+        });
+
         // A server's button says Crash, then Restart, and the caption grows as the cluster breaks,
         // over the buttons a thumb is on.
         test('the raft lab, as its cluster breaks and comes back', async ({ page }) => {

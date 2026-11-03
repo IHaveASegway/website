@@ -36,7 +36,34 @@ export const openingRun = (): Sim => replay({ seed: OPENING.seed }, OPENING.acti
 /** How many of a run's lines the event log shows, at build and in the browser, so the two agree. */
 export const LOG_LINES = 60;
 
+/**
+ * What the run a visitor lands on goes on to do if it's left alone (ADR 0030), in virtual ms after
+ * the opening: heartbeats alone tell nothing, so the leader crashes, the others elect a new one, the
+ * old one comes back as a follower and hears it, and the new leader commits a write all five hold.
+ * At Steady the crash comes 2 s in and the new leader 6 s in. On seed 7 a crash at 100 ms has one
+ * server stand and win, where one at 200 ms splits the vote, which is a second story. One write and
+ * no more, so each log stays on one line on a phone and it can go round again with nothing moving.
+ */
+export const LANDING = { crash: 100, restart: 500, write: 700, ends: 1_000 } as const;
 
+/**
+ * That story as a script for this run: the same actions a press records, so playing it is a run
+ * replay rebuilds. It's the landing's alone. It isn't in OPENING, so the build's picture, a link's
+ * run and Start over never hold it, and a press drops what's left of it (app.ts).
+ */
+export function landingStory(sim: Sim): { actions: Action[]; ends: number } {
+  const leader = leaderOf(sim);
+  if (!leader) return { actions: [], ends: Infinity };
+  const { now } = sim;
+  return {
+    actions: [
+      { at: now + LANDING.crash, kind: 'crash', node: leader.id },
+      { at: now + LANDING.restart, kind: 'restart', node: leader.id },
+      { at: now + LANDING.write, kind: 'write' },
+    ],
+    ends: now + LANDING.ends,
+  };
+}
 
 /** The shares of messages lost the page's slider offers, in percent: 0 to 50 in steps of 5. */
 export const LOSSES: readonly number[] = Array.from({ length: 11 }, (_, i) => i * 5);
