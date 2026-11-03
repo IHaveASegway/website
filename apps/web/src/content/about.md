@@ -12,7 +12,7 @@ I didn't type this site's code. Coding agents wrote it, and the first draft of m
 
 ### The biggest thing I've built
 
-About a third of the code in a CRM service with millions of lines. It supports thousands of employees and several hundred thousand customers, with some tables over 500M rows. I work on the platform team, giving engineers the tools to abstract complex systems and implement them easily in our apps, on mobile and on the web.
+About a third of the code in a CRM service with millions of lines. It supports thousands of employees and more than a hundred thousand customers, with some tables over 500M rows. I work on the platform team, giving engineers the tools to abstract complex systems and implement them easily in our apps, on mobile and on the web.
 
 ### Things I built that you can try
 
