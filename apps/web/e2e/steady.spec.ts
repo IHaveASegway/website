@@ -492,7 +492,7 @@ test('at 320 by 568, every control of the raft lab stands within a screen of its
 
 // WebKit keeps a failed import for the life of the page, so "Press any control to try again" has to
 // mean a fresh page there. With no connection yet, the page stays and says so again.
-for (const [name, lab] of Object.entries(LABS).filter(([name]) => name !== 'raft')) {
+for (const [name, lab] of Object.entries(LABS)) {
   test(`the ${name} lab that did not load: a press tries again, here in WebKit too`, async ({
     page,
   }) => {

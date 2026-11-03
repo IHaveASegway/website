@@ -10,7 +10,6 @@ import { whenMoving } from '../../lib/lab/when-moving';
 const root = document.getElementById('cache-lab');
 
 if (root) {
-  const said = root.querySelector('[data-cl-said]');
   const queued: Element[] = [];
   let ready = false;
   let failed = false;
@@ -28,7 +27,7 @@ if (root) {
       .catch(() => {
         started = undefined;
         failed = true;
-        sayUnloaded(root, said);
+        sayUnloaded(root);
       });
   };
 
@@ -46,7 +45,7 @@ if (root) {
     const control = target?.closest('button');
     if (!control) return;
     if (failed) {
-      void tryAgain(root, said);
+      tryAgain(root);
       return;
     }
     queued.push(control);
@@ -55,7 +54,7 @@ if (root) {
   root.addEventListener('change', (event) => {
     if (ready || !(event.target instanceof Element)) return;
     if (failed) {
-      void tryAgain(root, said);
+      tryAgain(root);
       return;
     }
     queued.push(event.target);

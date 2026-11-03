@@ -269,34 +269,38 @@ for (const lab of FIXES) {
       }
     });
 
-    // A dropped connection, or a deploy that retired the hashed file while the page was open. Until
-    // 2026-11-02 the only word of it was in a line a screen reader alone could reach.
-    test('a load that fails says so on the screen, leaves the picture as drawn, and a press tries again', async ({
-      page,
-    }) => {
-      const words = 'The lab did not load. Press any control to try again.';
-      await page.route('**/_astro/app.*.js', (route) => route.abort());
-      await page.goto(lab.path);
-      await expect(line(page)).toHaveText(words);
-      await expect(line(page)).toBeVisible();
-      // Every line says it: a visitor at the settings on a phone is a thousand pixels from the first.
-      await expect(page.locator('[data-said]').last()).toHaveText(words);
-      await expect(page.locator(`[data-${lab.short}-said]`)).toHaveText(words);
-      const run = page.locator(`[data-${lab.short}-run]`);
-      const standing = await clockOf(page).textContent();
-      await page.waitForTimeout(300);
-      await expect(run).toHaveText('Run');
-      await expect(clockOf(page)).toHaveText(standing ?? '');
-
-      // With a connection, a fresh page is the way back: a browser may keep a failed import, as
-      // WebKit does (steady.spec.ts), and a deploy's new file has another name.
-      await page.unroute('**/_astro/app.*.js');
-      await run.click();
-      await expect(run).toHaveText('Pause');
-      await expect(line(page)).not.toHaveText(words);
-    });
   });
 }
+
+for (const lab of LABS) {
+  // A dropped connection, or a deploy that retired the hashed file while the page was open. Until
+  // 2026-11-02 the only word of it was in a line a screen reader alone could reach.
+  test(`the ${lab.name} lab: a load that fails says so on the screen, leaves the picture as drawn, and a press tries again`, async ({
+    page,
+  }) => {
+    const words = 'The lab did not load. Press any control to try again.';
+    const line = page.locator('[data-said]').first();
+    await page.route('**/_astro/app.*.js', (route) => route.abort());
+    await page.goto(lab.path);
+    await expect(line).toHaveText(words);
+    await expect(line).toBeVisible();
+    // Every line says it: a visitor at the settings on a phone is a thousand pixels from the first.
+    await expect(page.locator('[data-said]').last()).toHaveText(words);
+    await expect(page.locator(`[data-${lab.short}-said]`)).toHaveText(words);
+    const standing = await clock(page, lab).textContent();
+    await page.waitForTimeout(300);
+    await expect(run(page, lab)).toHaveText('Run');
+    await expect(clock(page, lab)).toHaveText(standing ?? '');
+
+    // With a connection, a fresh page is the way back: a browser may keep a failed import, as
+    // WebKit does (steady.spec.ts), and a deploy's new file has another name.
+    await page.unroute('**/_astro/app.*.js');
+    await run(page, lab).click();
+    await expect(run(page, lab)).toHaveText('Pause');
+    await expect(line).not.toHaveText(words);
+  });
+}
+
 // Heartbeats alone have no story, so the run a visitor lands on on the Raft Lab crashes its leader
 // and elects another, as the Queue Lab's crashes a worker (lib/raft/view.ts, landingStory). At the
 // Steady speed a real second is 50 virtual ms: the crash comes 2 s in, the new leader about 6 s in,

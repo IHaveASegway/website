@@ -7,9 +7,8 @@ const UNLOADED = 'The lab did not load. Press any control to try again.';
 
 /** Says the app did not load, in the live region and every line on the screen: on a phone a line
  *  under Run is over a thousand pixels from the settings, and any control there is as dead. */
-export function sayUnloaded(root: Element, live: Element | null): void {
-  if (live) live.textContent = UNLOADED;
-  for (const line of root.querySelectorAll('[data-said]')) {
+export function sayUnloaded(root: Element): void {
+  for (const line of root.querySelectorAll('[data-said], [role="status"]')) {
     line.textContent = UNLOADED;
     line.setAttribute('data-spoke', '');
   }
@@ -22,16 +21,14 @@ export function sayUnloaded(root: Element, live: Element | null): void {
  * this fetches the page and its files first (the preload links name them). With no connection that
  * fails, and the page stays and says so again, where a reload would swap it for the browser's error.
  */
-export async function tryAgain(root: Element, live: Element | null): Promise<void> {
+export function tryAgain(root: Element): void {
   const files = [...document.querySelectorAll<HTMLLinkElement>('link[rel="modulepreload"]')];
-  try {
-    await Promise.all(
-      [location.href, ...files.map((file) => file.href)].map((url) =>
-        fetch(url, { cache: 'reload' }),
-      ),
-    );
-    location.reload();
-  } catch {
-    sayUnloaded(root, live);
-  }
+  void Promise.all(
+    [location.href, ...files.map((file) => file.href)].map((url) =>
+      fetch(url, { cache: 'reload' }),
+    ),
+  ).then(
+    () => location.reload(),
+    () => sayUnloaded(root),
+  );
 }
