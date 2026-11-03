@@ -202,6 +202,31 @@ for (const scene of [false, true]) {
   });
 }
 
+test('the hint says what this screen can do: its cubes, and keys where there are keys', async ({
+  browser,
+}) => {
+  const hint = async (options: Parameters<typeof browser.newContext>[0]) => {
+    const context = await browser.newContext(options);
+    const page = await context.newPage();
+    await page.goto(ROUTE_LAB);
+    const shown = (await page.locator('[data-rl-cube-hint]').innerText()).trim();
+    const described = frames(page).locator('visible=true').first();
+    await expect(described).toHaveAccessibleDescription(shown);
+    await context.close();
+    return shown;
+  };
+  // Playwright's `isMobile` needs Chromium's touch emulation for (pointer: coarse).
+  expect(
+    await hint({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 664 } }),
+  ).toBe('Drag the cube sideways to turn it.');
+  expect(await hint({ viewport: { width: 700, height: 900 } })).toBe(
+    'Drag the cube sideways to turn it. Or focus it and use the arrow keys.',
+  );
+  expect(await hint({ viewport: { width: 1440, height: 900 } })).toBe(
+    'Drag a cube sideways to turn both. Or focus one and use the arrow keys.',
+  );
+});
+
 test('a scroll loads no three.js; a mouse over the cube does, and nothing below it moves', async ({
   page,
 }) => {

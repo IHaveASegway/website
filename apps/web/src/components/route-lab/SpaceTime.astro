@@ -141,7 +141,15 @@ const NBSP = '\u00a0';
       Reset the view
     </button>
   </div>
+  {/* It says what this screen can do: one cube below 64rem, and no keys under a finger. */}
   <p class="rl-cube-hint" id="rl-cube-hint" data-rl-cube-hint data-rl-cube-controls data-rl-js>
-    Drag a cube sideways to turn both, or focus one and use the arrow keys.
+    <span class="rl-cube-hint-one">
+      Drag the cube sideways to turn it.{' '}
+      <span class="rl-cube-hint-keys">Or focus it and use the arrow keys.</span>
+    </span>
+    <span class="rl-cube-hint-both">
+      Drag a cube sideways to turn both.{' '}
+      <span class="rl-cube-hint-keys">Or focus one and use the arrow keys.</span>
+    </span>
   </p>
 </section>

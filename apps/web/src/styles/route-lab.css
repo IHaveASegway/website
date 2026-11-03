@@ -1515,6 +1515,28 @@
   line-height: var(--text-label--line-height);
 }
 
+/* The hint says what this screen can do: one cube below 64rem, where both turn together from it,
+   and a finger has no arrow keys. */
+.rl-cube-hint-one {
+  display: none;
+}
+
+@media (width < 64rem) {
+  .rl-cube-hint-one {
+    display: inline;
+  }
+
+  .rl-cube-hint-both {
+    display: none;
+  }
+}
+
+@media (pointer: coarse) {
+  .rl-cube-hint-keys {
+    display: none;
+  }
+}
+
 /* A control in the lab keeps the compact label face and the 44 px height its layout was measured
    with (ADR 0029): only the chrome's buttons moved to the signage face. */
 [class^='rl-'] .btn {
