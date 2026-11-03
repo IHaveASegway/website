@@ -10,13 +10,14 @@ import { hex, themeColors } from './tokens';
 
 // Open Graph images (content.md, "Structured data and link previews"): 1200×630 PNGs drawn at
 // build time from a page's title and label, in the site's tokens. Satori lays the card out and
-// turns its text into paths; sharp rasterizes that SVG. The card takes those two strings, and a post's
-// its summary as well, and test/og.test.ts checks that they are the page's og:title and og:image:alt,
-// so every word in the picture is also text the build's scans read. Every card stands on the field behind every page
-// (lib/og-field.ts). It may also carry a picture with no word in it: the Route Lab's map at the
-// card's right edge (lib/route-lab/og-map.ts), a lab's line across its top (lib/og-lines.ts), or
-// what its page opens on, Home's cluster or the Lab index's glyphs (lib/og-art.ts). A lab's card
-// lights its lamp in the lab's own colour, so a link to it is that lab's before a word is read.
+// turns its text into paths; sharp rasterizes that SVG. The card takes those two strings, and a
+// post's its summary as well, and test/og.test.ts checks that they are the page's og:title and
+// og:image:alt, so every word in the picture is also text the build's scans read. Every card stands
+// on the field behind every page (lib/og-field.ts). It may also carry a picture with no word in it:
+// the Route Lab's map at the card's right edge (lib/route-lab/og-map.ts), a lab's line across its top
+// (lib/og-lines.ts), or what its page opens on, Home's cluster or the Lab index's glyphs
+// (lib/og-art.ts). A lab's card lights its lamp in the lab's own colour, so a link to it is that
+// lab's before a word is read.
 
 export interface OgCard {
   readonly title: string;
