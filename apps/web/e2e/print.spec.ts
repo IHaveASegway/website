@@ -138,13 +138,11 @@ test('inline code has no padding on paper or in forced colors, and keeps it on s
 });
 
 // Home on paper is its words in one column (home.css): a page is narrower than 64rem, so the phone's
-// order applies, and the cluster, a moving picture, is left off, with no gap where it stood; What I
-// build follows the buttons a section's space below. Until ADR 0028 the check held the isometric
+// order applies, and the cluster, a moving picture, is left off, with no gap where it stood; the
+// rows follow the buttons a section's space below. Until ADR 0028 the check held the isometric
 // drawing to its place under the bio's blocks; until 2026-10-30 the scene kept its 18.75rem on
 // paper, a blank gap of 300 px between the buttons and the bio's opening.
-test('Home on paper leaves the cluster off, and What I build follows the buttons', async ({
-  page,
-}) => {
+test('Home on paper leaves the cluster off, and its rows follow the buttons', async ({ page }) => {
   await page.setViewportSize({ width: 816, height: 1056 });
   await page.goto('/');
   await page.emulateMedia({ media: 'print' });

@@ -9,7 +9,7 @@ import { FEATURED_POSTS } from '../src/lib/work';
 import { app, files, fixture, profile, read } from './support/dist';
 
 // Selected work on Home (content.md, "Owned work"; lib/work.ts): an item renders only when the page
-// it opens exists. The demos the lab builds are What I build's, each linked where the bio names it
+// it opens exists. The demos the lab builds are in Home's rows, each linked where the bio names it
 // (ADR 0028; ADR 0016); Selected work holds the rest: a card per project whose check is recorded
 // and whose hold is lifted, linking to its repository, then a card per featured post this build
 // lists, linking to the post. With neither, Home has no Selected work section. This runs on every build vitest.config.ts names, so

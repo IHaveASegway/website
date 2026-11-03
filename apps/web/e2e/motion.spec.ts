@@ -4,7 +4,7 @@ import { expect, test, type Page } from '@playwright/test';
 // moves. The state still changes (a card's edge and title change at once); only the movement is
 // gone. With no preference, what moves is the list below: the field behind every page and the signal
 // on Home's facts, by their own clocks, once the page has been marked (ADR 0030); the charge at the
-// window's top, tied to the scroll; the lines that open a section and run down What I build and the
+// window's top, tied to the scroll; the lines that open a section and run down Home's rows and the
 // marks along it, once, as a visitor first reaches them; Home's drawing; the 2 px sweep along a
 // post's row; and the followed title's handoff to the next page (ADR 0027; until then Home's scene
 // and the board's day). A card does not move (ADR 0027): its sign under the pointer is a state, with
@@ -141,7 +141,7 @@ test('a card with nothing to activate does not react to the pointer; one with a 
 
 /** What Home would move with no preference (ADR 0030, ADR 0028): each post's sweep; the charge at
  *  the window's top and the cluster's plane, tied to the scroll where the browser has scroll
- *  timelines; the line that opens a section, the current through each row of What I build and the
+ *  timelines; the line that opens a section, the current through each of Home's rows and the
  *  row's mark, once each; and, once the page is marked, the field's patch and current, the signal on
  *  each fact's line, the ring's turn, the heartbeats and their answers, and the leader's halo. Until
  *  ADR 0028 the scan found the isometric drawing's lifts, requests, vans, heartbeats, stampede, fetch

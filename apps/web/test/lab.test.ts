@@ -70,7 +70,7 @@ describe('labArea', () => {
     expect(labCards(area).map((c) => c.link.href)).toEqual(['/lab/routes/', '/lab/zeta/']);
   });
 
-  // Easiest to follow first, and What I build's order after that. By slug, a recruiter's first card
+  // Easiest to follow first. By slug, a recruiter's first card
   // on /lab/ was the hardest word on the site, and the Route Lab was last.
   test('known answers: the labs come in the order a visitor meets them, a new one after them', () => {
     const slugs = ['backfill', 'cache', 'beta', 'queue', 'raft', 'alpha', 'routes'];

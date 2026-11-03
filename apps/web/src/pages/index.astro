@@ -93,7 +93,7 @@ const builds = await Promise.all(
 const servers = demo.has('raft') ? openingServers() : undefined;
 const raftEntry = demo.get('raft');
 
-// Selected work (content.md, "Owned work"; lib/work.ts) beyond the labs, which What I build carries:
+// Selected work (content.md, "Owned work"; lib/work.ts) beyond the labs, which its rows carry:
 // each project whose check is recorded and whose hold is lifted, and each featured post.
 const work = await loadSelectedWork();
 const demoPages = new Set(lab.entries.map(labPath));

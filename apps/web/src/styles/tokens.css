@@ -95,7 +95,7 @@
   /* The navigation and buttons: 14px to 15px. */
   --text-ui: clamp(0.875rem, 0.851786rem + 0.095238vw, 0.9375rem);
   --text-ui--line-height: 1.25;
-  /* A block's name (Currently, What I build), a date, a figure's caption, a key, the labels inside
+  /* A block's name (How I got here), a date, a figure's caption, a key, the labels inside
      drawings: 12.5px to 13.5px, in sentence case, untracked, never mono. */
   --text-label: clamp(0.78125rem, 0.758036rem + 0.095238vw, 0.84375rem);
   --text-label--line-height: 1.4;

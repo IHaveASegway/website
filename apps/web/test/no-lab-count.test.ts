@@ -4,8 +4,8 @@ import { read, textFiles } from './support/dist';
 // No page says how many labs there are (ADR 0031): Joseph will keep making more, so a number beside
 // "labs" goes stale the day one ships. Read from what the build wrote, every text file a reader or a
 // crawler can get, the printed sheet's words among them, since paper is the same page. An HTML file is
-// read for its words and for what its tags say outside them: a description, a link preview's alt, a
-// label. On every build vitest.config.ts names.
+// read for its words, its JSON-LD and what its tags say outside them: a description, a link preview's
+// alt, a label. On every build vitest.config.ts names.
 
 const NUMBER = '(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|dozen|\\d+)';
 
@@ -23,7 +23,8 @@ export function wordsOf(file: string, text: string): string {
   if (!file.endsWith('.html')) return text;
   const told = [...text.matchAll(SAID)].map(([, value]) => value);
   return `${text
-    .replace(/<(script|style|svg)\b[\s\S]*?<\/\1>/g, ' ')
+    .replace(/<script\b(?![^>]*application\/ld\+json)[\s\S]*?<\/script>/g, ' ')
+    .replace(/<(style|svg)\b[\s\S]*?<\/\1>/g, ' ')
     .replace(/<[^>]+>/g, ' ')} ${told.join(' ')}`
     .replace(/&nbsp;|&#160;/g, ' ')
     .replace(/\s+/g, ' ');
@@ -47,6 +48,9 @@ describe('no page counts the labs', () => {
     expect(countsIn('a.html', '<meta name="description" content="Six labs in all">')).toEqual([
       'Six labs',
     ]);
+    expect(
+      countsIn('a.html', '<script type="application/ld+json">{"name":"All 5 labs"}</script>'),
+    ).toEqual(['5 labs']);
     expect(countsIn('a.txt', 'labs: 5')).toEqual(['labs: 5']);
     for (const fine of [
       '<p>the first labs were live</p>',
