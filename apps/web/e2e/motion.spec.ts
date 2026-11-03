@@ -281,3 +281,24 @@ test('with no preference, the followed title takes the page title’s name as Ho
   expect(next.name).toBe('page-title');
   expect(title).toBeTruthy();
 });
+
+// Under reduced motion the field's lines of current are out of sight (field.css), and that takes in
+// each one's head: its dot stands 1 px past the line's end, and its glow about 9 px past that. Four dots
+// used to sit along the window's top edge, and two on its left.
+test('under reduced motion no line of current, or its head, shows in the window', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/about/');
+  const ends = await page
+    .locator('.field-run, .field-across')
+    .evaluateAll((lines) =>
+      lines.map((line) =>
+        line.matches('.field-run')
+          ? line.getBoundingClientRect().bottom
+          : line.getBoundingClientRect().right,
+      ),
+    );
+  expect(ends.length).toBeGreaterThan(0);
+  for (const end of ends) expect(end).toBeLessThanOrEqual(-10);
+});
