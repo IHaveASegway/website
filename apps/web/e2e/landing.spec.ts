@@ -137,8 +137,8 @@ for (const lab of LABS) {
   });
 }
 
-// The labs that keep the same promises (docs/lab.md, "The controls"): the Raft Lab has its own branch
-// of this work, and its first press to try has no fix to replay.
+// The labs on one set of controls (docs/lab.md, "The controls"). The Raft Lab's first thing to try is
+// a fault, so it has no fix to replay.
 const FIXES = [
   {
     name: 'queue',

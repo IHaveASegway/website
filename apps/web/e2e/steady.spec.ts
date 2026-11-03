@@ -91,8 +91,8 @@ async function steady(page: Page): Promise<void> {
           moved.set(w.el, Math.round(box.top - w.top));
           w.top = box.top;
         }
-        // A control that holds its height but not its place along the row. Raft's and the Route
-        // Lab's have their own branches of this work, so only the three labs on one set of rules.
+        // A control that holds its height but not its place along the row, in the labs on one set
+        // of controls so far.
         if (Math.abs(box.left - w.left) > 1 && w.el.closest('.lab-row, .cl-node-buttons')) {
           found.push(`${name(w.el)} moved ${Math.round(box.left - w.left)} px sideways`);
           w.left = box.left;
