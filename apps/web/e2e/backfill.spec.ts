@@ -704,7 +704,7 @@ for (const [width, height] of [
 
 // The review of 2026-10-31 (BF-1): at 1,280 px the heads ran together, "Wait for the fileExtract",
 // as a window's width chose where "for the file" went. The board's own width chooses now.
-for (const width of [390, 768, 1024, 1280, 1366, 1440, 1920]) {
+for (const width of [320, 390, 768, 1024, 1280, 1366, 1440, 1920]) {
   test(`at ${width} px, no head of the board touches the next`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto(BACKFILL);

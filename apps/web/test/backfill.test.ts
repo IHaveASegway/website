@@ -313,7 +313,7 @@ describe('retries', () => {
     expect(sim.failNext[2]).toBe(0);
   });
 
-  test('extract and load attempts fail on their own about 8% of the time; convert never fails, and a check only when it finds the totals apart', () => {
+  test('extract and load attempts fail on their own about 8% of the time; transform never fails, and a check only when it finds the totals apart', () => {
     let tries = 0;
     let failures = 0;
     for (let seed = 1; seed <= 300; seed++) {
