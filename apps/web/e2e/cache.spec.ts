@@ -645,6 +645,27 @@ test('at 390 × 664, the map and Time fit one screen, Coalesce misses stands wit
   expect(span - height).toBeLessThanOrEqual((map?.height ?? 0) / 4);
 });
 
+// What each switch does, in the name on its button, so a reader can match them. The line describes the
+// group and doesn't name it: as a name, a screen reader would read all of it out on the way to a switch.
+test('the plain line under the switches describes their group, in the names on their buttons', async ({
+  page,
+}) => {
+  await page.goto(CACHE);
+  const group = page.getByRole('group', { name: 'Against a stampede', exact: true });
+  const names = (await group.getByRole('button').allTextContents()).map((name) => name.trim());
+  expect(names).toEqual([
+    'Coalesce misses',
+    'Serve stale while refreshing',
+    'Refresh early',
+    'Jitter expiry times',
+  ]);
+  const line = page.locator('#cl-mitigations-note');
+  const words = ((await line.textContent()) ?? '').replace(/\s+/g, ' ').trim();
+  for (const name of names) expect(words).toContain(`${name}: `);
+  await expect(group).toHaveAccessibleDescription(words);
+  await expect(line).toBeVisible();
+});
+
 test('on a phone, Tab meets the controls in the order they are seen, top to bottom', async ({
   page,
 }) => {

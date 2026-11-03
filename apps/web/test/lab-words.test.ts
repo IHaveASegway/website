@@ -95,6 +95,119 @@ describe('every write-up has one shape', () => {
   });
 });
 
+// The words the page itself says, outside its entry, as a reader meets them, each with its marks curled.
+// A clarity pass on 2026-11-02 chose these with what each replaces (docs/content.md, "The site's
+// language"), so a later change is a choice, and a figure in one still comes from its run or its solve.
+describe('what a page says of itself', () => {
+  const SAID: readonly (readonly [string, string])[] = [
+    [
+      'lab/backfill/index.html',
+      'This is each day’s steps over time. A hollow bar is a sensor, the step that waits for its file. A filled bar is a step at work, and a cross is an attempt that failed. A dotted track with nothing on it is a run waiting its turn or waiting to retry, and the vertical line is the current time.',
+    ],
+    [
+      'lab/backfill/index.html',
+      'This is a deterministic simulation: the simulator controls time, the export files and every failure, with virtual time in minutes and one seeded random stream, and it records your button presses where they happen.',
+    ],
+    [
+      'lab/backfill/index.html',
+      'That is how the page opens on a picture drawn when the site was built, 44 events after the job was switched on, and how your browser then replays the week and takes over at the same minute.',
+    ],
+    [
+      'lab/cache/index.html',
+      'Hundreds of readers a second hit a made-up bakery’s cache. When the menu’s saved copy expires, its readers stampede to the database. Watch it, then tame it four ways.',
+    ],
+    [
+      'lab/cache/index.html',
+      'The readers, the four nodes and the database are one TypeScript module, a deterministic simulation that runs in virtual time.',
+    ],
+    [
+      'lab/queue/index.html',
+      'Three worker programs take a made-up bakery’s orders. Crash one, choose when they acknowledge, meaning tell the queue an order is done, and watch its oven ticket print once, twice, or not at all.',
+    ],
+    [
+      'lab/queue/index.html',
+      'Every run crashes worker 2 at 2.400 s on purpose, so you can compare settings.',
+    ],
+    ['lab/queue/index.html', 'Idempotency key: skip an order already printed'],
+    [
+      'lab/queue/index.html',
+      'Calm is 5 orders a second, Busy 9 and Rush 14. Two workers are up and print about 6.5 a second.',
+    ],
+    ['lab/queue/index.html', 'A poison order is one that always fails.'],
+    [
+      'lab/queue/index.html',
+      'The broker, the workers and the orders are one TypeScript module, a deterministic simulation run in virtual time.',
+    ],
+    [
+      'lab/raft/index.html',
+      'Each row is one server’s own view of the log, and each dot is one entry, with its term under it. A filled dot is committed: a majority holds it, and it can never be lost. A hollow dot means its server hasn’t heard yet that the entry is committed.',
+    ],
+    ['lab/raft/index.html', 'Network split: no message crosses it'],
+    [
+      'lab/raft/index.html',
+      'This is a deterministic simulation: the simulator controls time, the network and every random choice, with virtual time and one seeded random stream, and it records your button presses at the moment they happen.',
+    ],
+    [
+      'lab/raft/index.html',
+      'That is how the page opens on a picture drawn when the site was built, and how your browser then replays the same run and takes over at that exact moment.',
+    ],
+    [
+      'lab/routes/index.html',
+      'Without JavaScript, the page shows the plans made when the site was built, by running the same WebAssembly in Node.',
+    ],
+    [
+      'lab/index.html',
+      'This is where I practice, in small working models of real systems that run in your browser.',
+    ],
+    ['writing/you-will-be-missed/index.html', 'Try the labs: small systems you can break'],
+  ];
+  const nbsp = (text: string) => text.replace(/\u00a0|&nbsp;/g, ' ');
+
+  for (const [file, sentence] of SAID)
+    test.runIf(html.includes(file))(`${file}: ${sentence.slice(0, 60)}`, () => {
+      expect(nbsp(words(read(file)))).toContain(sentence);
+    });
+
+  test.runIf(html.includes('lab/routes/index.html'))(
+    'the Route Lab’s lead names the baseline by its one name, with its figures from the solve',
+    () => {
+      const page = nbsp(words(read('lab/routes/index.html')));
+      expect(page).toContain(
+        'VROOM, an open-source route optimizer, plans a made-up Seattle bakery’s deliveries in your browser. On a busy Saturday, it cuts 5 h 34 min of driving, as the orders came in, to 3 h 12 min.',
+      );
+      expect(page).toContain(
+        'Each van can carry at most 19 of the 42 boxes, 1.3 times an even split, so VROOM has to balance the loads.',
+      );
+    },
+  );
+
+  // A description is an attribute, which the build's typographer never reads, so its marks are curled
+  // where it's written. Writing's lead, its description and the feed say one thing.
+  test.runIf(html.includes('writing/index.html'))(
+    'Writing says what it is in its lead, its description and its feed, in one form of words',
+    () => {
+      const said =
+        'What I’ve been thinking about. Right now that’s coding agents, and a trading bot I got wrong.';
+      const page = read('writing/index.html');
+      expect(words(page)).toContain(said);
+      expect(page).toContain(`<meta name="description" content="${said}">`);
+      expect(read('rss.xml')).toContain(`<description>${said}</description>`);
+      expect(page + read('rss.xml')).not.toMatch(/software decisions/);
+    },
+  );
+
+  test.runIf(html.includes('lab/index.html'))(
+    'the Lab says the same in its description as in its lead',
+    () => {
+      const said =
+        'This is where I practice, in small working models of real systems that run in your browser. Crash them, change the settings and see what holds.';
+      const page = read('lab/index.html');
+      expect(words(page)).toContain(said);
+      expect(page).toContain(`<meta name="description" content="${said}">`);
+    },
+  );
+});
+
 // The Route Lab's write-up types its figures, where a page's "How it is built" draws them from the
 // code, so this holds each to VROOM's own answer for the same day and vans, from the files the site
 // serves (lib/route-lab/node-solver.ts), the way e2e/queue.spec.ts plays the Queue Lab's.
