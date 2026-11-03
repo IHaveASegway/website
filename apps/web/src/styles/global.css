@@ -1671,7 +1671,7 @@
   /* The footer on paper stays whole, under the page's last words: one column, since the links' printed
      addresses left the name and the email address a column too narrow for them, with no finger's
      target height and little space. As the screen has it, it took the essay a fifth sheet of US Letter
-     holding nothing but the copyright line; at a little more than this it took one of A4. */
+     holding nothing but the copyright line, and the essay now prints no footer (prose.css). */
   .site-foot {
     margin-top: 1rem;
     break-inside: avoid;

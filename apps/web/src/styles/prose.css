@@ -232,9 +232,22 @@
     display: none;
   }
 
-  /* The footer follows the last words, with no page's padding between them. */
+  /* A long read is its own words to the end. Whole, the footer took a sheet of its own at one margin
+     or another, and no control here prints, so it has no address to stand in for
+     (e2e/print.spec.ts). */
+  :root:has(.long-form) .site-foot {
+    display: none;
+  }
+
   .long-form {
     padding-block-end: 0;
+  }
+
+  /* 12 pt, a printed page's own size: at the screen's 14 pt the essay took a sheet more, and its last
+     one held a few lines. */
+  .long-form .prose {
+    font-size: 1rem;
+    line-height: 1.5;
   }
 
   .register {

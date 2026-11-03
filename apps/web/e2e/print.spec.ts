@@ -85,26 +85,46 @@ for (const theme of ['dark', 'light'] as const) {
 }
 
 // The footer on paper stays whole, under the page's last words (global.css). On US Letter the essay's
-// spilled a fifth sheet that held only a rule and the copyright line. Should a later edit fill the last
-// sheet to its foot, the footer may take the next one, whole: then read this count again, not the essay.
-test('the essay on paper: the footer stays whole, and takes no sheet of its own', async ({
+// spilled a fifth sheet that held only a rule and the copyright line.
+test('the footer stays whole on paper', async ({ page }) => {
+  await page.goto('/');
+  await page.emulateMedia({ media: 'print' });
+  await expect(page.locator('.site-foot')).toBeVisible();
+  expect(
+    await page.locator('.site-foot').evaluate((foot) => getComputedStyle(foot).breakInside),
+  ).toBe('avoid');
+});
+
+// A long read on paper is its own words to the end (prose.css). Whole, the footer took a sheet of its
+// own at one margin or another: A4 at 1 cm, about what a print dialog gives by default, on a Mac, and
+// at a quarter inch in CI's image. Nothing a reader presses prints on the essay, so it has no address
+// for the footer to stand in for. Set at 12 pt it takes three sheets of either paper at 1 cm: should a
+// later edit change that, read this count again, not the essay.
+test('the essay on paper: its own words to the end, on three sheets, with no footer', async ({
   page,
 }) => {
   const essay = '/writing/coding-by-hand/';
   test.skip(!pages().includes(essay), 'no essay in this build');
   await page.goto(essay);
   await page.evaluate(() => document.fonts.ready);
+  const margin = '1cm';
   const sheets = async (format: 'Letter' | 'A4') =>
-    ((await page.pdf({ format })).toString('latin1').match(/\/Type\s*\/Page(?!s)/g) ?? []).length;
-  const withIt = [await sheets('Letter'), await sheets('A4')];
+    (
+      (
+        await page.pdf({
+          format,
+          margin: { top: margin, right: margin, bottom: margin, left: margin },
+        })
+      )
+        .toString('latin1')
+        .match(/\/Type\s*\/Page(?!s)/g) ?? []
+    ).length;
+  expect([await sheets('Letter'), await sheets('A4')]).toEqual([3, 3]);
   await page.emulateMedia({ media: 'print' });
-  expect(
-    await page.locator('.site-foot').evaluate((foot) => getComputedStyle(foot).breakInside),
-  ).toBe('avoid');
-  await page.locator('.site-foot').evaluate((foot) => {
-    (foot as HTMLElement).style.display = 'none';
-  });
-  expect(withIt).toEqual([await sheets('Letter'), await sheets('A4')]);
+  await expect(page.locator('.site-foot')).toBeHidden();
+  expect(await page.locator('.prose').evaluate((prose) => getComputedStyle(prose).fontSize)).toBe(
+    '16px',
+  );
 });
 
 test('inline code has no padding on paper or in forced colors, and keeps it on screen', async ({
