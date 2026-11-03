@@ -35,7 +35,7 @@
 
 /* Below 64rem the desk is one column: the map and its caption, the panel's first part, the strip
    and the checks, then the other settings. The first part is right under the map so that on a
-   phone the two fit one screen, and nothing pins: the visitor scrolls the desk as a page. The
+   phone the map and Time fit one screen, and nothing pins: the visitor scrolls the desk as a page. The
    panel's box steps aside so its two parts take places of their own in that column; the settings
    go last by their order, and since the strip and the properties hold nothing that takes focus,
    Tab still meets the controls in the order they are seen. Each part, and the strip after the

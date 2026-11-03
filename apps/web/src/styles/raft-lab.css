@@ -30,11 +30,11 @@
 
 /* Below 64rem the desk is one column in the page's order: the picture, the controls that work it,
    the logs and how to read them, the safety properties, then what happened. The controls come right
-   after the picture so that on a phone both fit one screen; nothing pins, the visitor scrolls the
-   desk as a page. From 64rem the logs and the safety properties stand beside the picture, so the
+   after the picture so that on a phone it and Time fit one screen; nothing pins, the visitor scrolls
+   the desk as a page. From 64rem the logs and the safety properties stand beside the picture, so the
    five names a visitor is told to watch are on the first screen with what they watch; the controls
-   run under them and how to read it all under those. Only the controls take focus, so the tab order
-   is the same either way. */
+   run under them and how to read it all under those. Only the controls and the two boxes that scroll
+   take focus, so the tab order is the same either way. */
 @media (width >= 64rem) {
   .rf {
     grid-template-columns: repeat(12, minmax(0, 1fr));

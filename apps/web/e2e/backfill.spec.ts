@@ -735,11 +735,33 @@ test('the job’s switch says since when the job is on, and Start over makes it 
   ]);
 });
 
+/** From the top of the board to the bottom of the lowest of these parts, whether anything pins, and
+ *  how wide the page is. */
+const spanOf = (page: Page, selectors: readonly string[]) =>
+  page.evaluate((selectors) => {
+    const box = (selector: string) => {
+      const rect = document.querySelector(selector)?.getBoundingClientRect();
+      return rect ? [rect.top + scrollY, rect.bottom + scrollY] : [NaN, NaN];
+    };
+    const parts = ['.bf-board-box', ...selectors].map(box);
+    const pinned = [...document.querySelectorAll('#backfill-lab *')].filter((e) =>
+      ['sticky', 'fixed'].includes(getComputedStyle(e).position),
+    );
+    return {
+      height: Math.max(...parts.map(([, bottom]) => bottom as number)) - (parts[0]?.[0] ?? 0),
+      board: (parts[0]?.[1] ?? 0) - (parts[0]?.[0] ?? 0),
+      pinned: pinned.length,
+      across: document.documentElement.scrollWidth,
+    };
+  }, selectors);
+
+const PLAYS = ['[data-bf-run]', '[data-bf-step]', '[data-bf-reset]', 'input[name="bf-speed"]'];
+const WRITES = 'input[name="bf-mode"][value="overwrite"]';
+
 // The review of 2026-10-31 (LAB-1): on a phone Run stood 1,145 px under the board, and on a laptop
 // under the fold, so a press could not be watched. The board and the controls that play the week
-// fit one screen now, at a phone's size and a laptop's, with nothing pinned to get there.
+// fit one screen now, at a tablet's size and a laptop's, with nothing pinned to get there.
 for (const [width, height] of [
-  [390, 844],
   [768, 1024],
   [1024, 768],
   [1440, 900],
@@ -749,34 +771,30 @@ for (const [width, height] of [
   }) => {
     await page.setViewportSize({ width, height });
     await page.goto(BACKFILL);
-    const span = await page.evaluate(() => {
-      const box = (selector: string) => {
-        const rect = document.querySelector(selector)?.getBoundingClientRect();
-        return rect ? [rect.top + scrollY, rect.bottom + scrollY] : [NaN, NaN];
-      };
-      const parts = [
-        '.bf-board-box',
-        '[data-bf-run]',
-        '[data-bf-step]',
-        '[data-bf-reset]',
-        'input[name="bf-speed"]',
-        'input[name="bf-mode"][value="overwrite"]',
-      ].map(box);
-      const pinned = [...document.querySelectorAll('#backfill-lab *')].filter((e) =>
-        ['sticky', 'fixed'].includes(getComputedStyle(e).position),
-      );
-      return {
-        top: Math.min(...parts.map(([top]) => top as number)),
-        bottom: Math.max(...parts.map(([, bottom]) => bottom as number)),
-        pinned: pinned.length,
-        across: document.documentElement.scrollWidth,
-      };
-    });
-    expect(span.bottom - span.top).toBeLessThanOrEqual(height);
+    const span = await spanOf(page, [...PLAYS, WRITES]);
+    expect(span.height).toBeLessThanOrEqual(height);
     expect(span.pinned).toBe(0);
     expect(span.across).toBe(width);
   });
 }
+
+// On a phone it's what Safari shows of an iPhone 14 with its bars up, the phone project's own viewport.
+// Until 2026-11-02 this read 844, the whole screen, which no page gets (labs-m4). The board and Time
+// fit that. How a load writes doesn't: it's 42 px past it, so reaching it takes at most the board's top
+// quarter off the screen, and the press and most of the board still share one.
+test('at 390 by 664, the board and Time fit one screen, how a load writes stands with most of the board', async ({
+  page,
+}) => {
+  const height = 664;
+  await page.setViewportSize({ width: 390, height });
+  await page.goto(BACKFILL);
+  const span = await spanOf(page, PLAYS);
+  expect(span.height).toBeLessThanOrEqual(height);
+  expect(span.pinned).toBe(0);
+  expect(span.across).toBe(390);
+  const whole = await spanOf(page, [...PLAYS, WRITES]);
+  expect(whole.height - height).toBeLessThanOrEqual(whole.board / 4);
+});
 
 test('at 320 px the whole board fits the desk, the last column too', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });

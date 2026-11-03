@@ -632,9 +632,10 @@ test('a choice shows its focus around its whole push-button, as a button does', 
 // The picture and the controls that try it fit one screen, so a press and what it does are seen
 // together: Run, Next event, Start over, the speeds, the key and each worker's Crash and Slow.
 // Nothing is pinned to the screen to get there: the picture scrolls with the page. On a laptop
-// all of it is on the first screen.
+// all of it is on the first screen. On a phone, what Safari shows of an iPhone 14 with its bars up, the
+// phone project's own viewport: until 2026-11-02 this read 844, the whole screen, which no page gets.
 for (const [width, height] of [
-  [390, 844],
+  [390, 664],
   [1440, 900],
 ] as const) {
   test(`at ${width} by ${height}, the picture and its controls fit one screen, with nothing pinned`, async ({
