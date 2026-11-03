@@ -151,7 +151,7 @@ describe('what a run says fits the room its line keeps', () => {
       startsOver('run', 'these settings', CACHE_WORDS, false),
       startsOver('week', 'these settings', BACKFILL_WORDS, false),
       `The idempotency key is off. ${startsOver('run', 'it', QUEUE_WORDS, false)}`,
-      `Stale-while-revalidate is off. ${startsOver('run', 'it', CACHE_WORDS, false)}`,
+      `Serving stale is off. ${startsOver('run', 'it', CACHE_WORDS, false)}`,
       ...Object.values(STORY_WORDS).map(
         (words) => `${words}. ${startsOver('week', 'it', BACKFILL_WORDS, false)}`,
       ),
