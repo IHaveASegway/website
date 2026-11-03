@@ -174,7 +174,7 @@ test.describe("Home's live picture", () => {
     expect(new Set(logs).size, `logs ${logs.join(', ')}`).toBe(1);
     expect(logs[0]).toBeGreaterThan(0);
     await expect(picture(page).locator('figcaption')).toHaveText(
-      /^A simulation of five servers keeping the same log\. Server \d is the leader in this picture, and its heartbeats keep the other four from starting an election\. Try to break it in the Raft Lab$/,
+      /^A simulation of five servers keeping the same log, the ordered list of every change\. Server \d is the leader in this picture, and its heartbeats tell the other four it’s still up, so they keep following it\. Try to break it in the Raft Lab$/,
     );
     await expect(picture(page).locator('figcaption a')).toHaveAttribute('href', '/lab/raft/');
   });

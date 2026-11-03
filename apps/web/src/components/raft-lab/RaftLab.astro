@@ -213,15 +213,15 @@ const SPEEDS = [
 
   <div class="rf-read">
     <p class="rf-legend">
-      Each dot is one entry, with its term under it, as its server knows it. A filled dot is
-      committed: a majority holds it, and it can never be lost. A hollow dot is one its server has
-      not heard is committed yet. A crash keeps a server’s log but not what it knew was committed,
-      which Raft holds only in memory, so a server shows its whole log hollow until a leader tells
-      it again. If all five crash, no leader knows either: a new leader can’t count an older term’s
-      entries until an entry of its own term commits, so they stay hollow until the next write. The
-      caption counts what was ever committed, so its number doesn’t fall. The number beside a
-      server’s name counts its entries. The rows scroll sideways together, so a row with no dots in
-      view has fallen behind, not lost its log.
+      Each row is one server’s own view of the log, and each dot is one entry, with its term under
+      it. A filled dot is committed: a majority holds it, and it can never be lost. A hollow dot
+      means its server hasn’t heard yet that the entry is committed. A crash keeps a server’s log
+      but not what it knew was committed, which Raft holds only in memory, so a server shows its
+      whole log hollow until a leader tells it again. If all five crash, no leader knows either: a
+      new leader can’t count an older term’s entries until an entry of its own term commits, so they
+      stay hollow until the next write. The caption counts what was ever committed, so its number
+      doesn’t fall. The number beside a server’s name counts its entries. The rows scroll sideways
+      together, so a row with no dots in view has fallen behind, not lost its log.
     </p>
     <ul class="rf-key" role="list" aria-hidden="true">
       <li class="rf-key-wide">
