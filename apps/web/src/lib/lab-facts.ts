@@ -17,10 +17,7 @@ import { routeLabPicture } from './route-lab/picture';
 //
 // One module owns the facts for both places: until the overhaul's branches were merged, Home
 // worked out its own copy of the Queue's, the Cache's and the Backfill's beside this one, the same
-// arithmetic twice. Where the places differ they differ on purpose, and say so below.
-
-/** Where a card stands: Home's Selected work, or the Lab index. */
-export type FactPlace = 'home' | 'index';
+// arithmetic twice. Since 2026-11-02 the two say the same sentence for every lab.
 
 const queue = () =>
   queueFact(replayQueue({ ...QUEUE.config, key: true }, QUEUE.actions, QUEUE.until));
@@ -57,7 +54,7 @@ async function routes(): Promise<string> {
   return `${formatDuration(after.measured.drive)} ${figureWords(day)}, against ${formatDuration(before.measured.drive)} as the orders came in.`;
 }
 
-const FACTS: Record<string, (place: FactPlace) => string | Promise<string>> = {
+const FACTS: Record<string, () => string | Promise<string>> = {
   queue,
   raft: raftFailedOver,
   cache,
@@ -76,11 +73,7 @@ export function factSource(slug: string, name: string): string {
   return `Simulated in the ${name}${about ? `, with a made-up bakery’s ${about}` : ''}`;
 }
 
-/** The fact on the card of the lab with this slug in this place (the Lab index unless named), or
- *  undefined for a lab that has none yet. */
-export async function labFact(
-  slug: string,
-  place: FactPlace = 'index',
-): Promise<string | undefined> {
-  return FACTS[slug]?.(place);
+/** The fact on the card of the lab with this slug, or undefined for a lab that has none yet. */
+export async function labFact(slug: string): Promise<string | undefined> {
+  return FACTS[slug]?.();
 }

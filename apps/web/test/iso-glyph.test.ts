@@ -125,17 +125,11 @@ describe("each lab's glyph, from the run its page opens on", () => {
   });
 
   // One module writes every card's fact, Home's and the Lab index's (lib/lab-facts.ts). Until the
-  // overhaul's merge Home worked out its own copy beside it. The places agree but for the one
-  // sentence each lab has: until 2026-11-02 the Lab index's Raft card said every property held over a
-  // fault-free opening, which read as test evidence and was none, and only Home's Route Lab card said
-  // the bakery is made up. Both places now say the failover the write-up asks for, and the bakery's
-  // made-up on both.
-  test("Home's facts are the Lab index's, and the bakery is made up on both", async () => {
-    for (const slug of LABS) {
-      const [home, index] = [await labFact(slug, 'home'), await labFact(slug, 'index')];
-      expect(home, slug).toMatch(/\S.*\.$/);
-      expect(home, slug).toBe(index);
-    }
+  // overhaul's merge Home worked out its own copy beside it, and until 2026-11-02 the places differed
+  // in two labs: the Lab index's Raft card said every property held over a fault-free opening, which
+  // read as test evidence and was none, and only Home's Route Lab card said the bakery is made up. Each
+  // lab now has one sentence, so Raft's is the failover the write-up asks for, and the bakery's made up.
+  test('a lab has one fact: Raft’s is the failover, and the bakery is made up', async () => {
     expect(await labFact('raft')).toMatch(
       /^Crash server \d, and server \d takes over in term \d+ after \d+ ms, with all three committed entries kept\.$/,
     );

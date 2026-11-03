@@ -102,7 +102,7 @@ const builds = await Promise.all(
               slug: entry.slug,
               name: named.name,
               href: labPath(entry),
-              fact: await labFact(entry.slug, 'home'),
+              fact: await labFact(entry.slug),
             }
           : undefined,
     };
