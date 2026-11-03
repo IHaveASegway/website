@@ -97,7 +97,7 @@ export function check(c: Checker, servers: readonly Server[], now: number): Viol
       if (k > 0 && x.hashes[k] !== y.hashes[k])
         return fail(
           'Log Matching',
-          `${serverName(a)} and ${serverName(b)} agree on the term at index ${k} but not on what comes before`,
+          `${serverName(a)} and ${serverName(b)} differ before index ${k}, where their terms agree`,
         );
     }
   }
@@ -107,7 +107,7 @@ export function check(c: Checker, servers: readonly Server[], now: number): Viol
     if (s.commitIndex > s.log.length)
       return fail(
         'State Machine Safety',
-        `${serverName(s.id)} has committed entries it no longer holds`,
+        `${serverName(s.id)} no longer holds what it committed`,
       );
     for (let k = Math.max(1, c.committed.length); k <= s.commitIndex; k++) {
       c.committed[k] = {
@@ -121,7 +121,7 @@ export function check(c: Checker, servers: readonly Server[], now: number): Viol
     if (top > 0 && c.committed[top]?.hash !== s.hashes[top])
       return fail(
         'State Machine Safety',
-        `${serverName(s.id)} committed a different entry at index ${top} than another server did`,
+        `${serverName(s.id)} holds another entry at index ${top}`,
       );
     const seen = c.checkedApplied[s.id];
     const from = seen?.list === s.applied ? seen.count : 0;
@@ -129,7 +129,7 @@ export function check(c: Checker, servers: readonly Server[], now: number): Viol
       if (s.applied[k - 1] !== c.committed[k]?.write)
         return fail(
           'State Machine Safety',
-          `${serverName(s.id)} applied a different write at index ${k} than another server did`,
+          `${serverName(s.id)} applied another write at index ${k}`,
         );
     }
     c.checkedApplied[s.id] = { list: s.applied, count: s.applied.length };

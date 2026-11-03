@@ -36,14 +36,15 @@ export const startsOver = (what: string, under: string, where: string, playing: 
  *  room; `control` is the press's, whose part of the controls says it, by default the first part. */
 export type Say = (words: string, control?: Element | null, short?: string) => void;
 
-export function speaker(root: Element, live: Element | null): Say {
+export function speaker(root: Element): Say {
   const lines = [...root.querySelectorAll<HTMLElement>('[data-said]')];
+  const live = root.querySelector('[role="status"]') as Element;
   return (words, control, short = shortly(words)) => {
-    if (live) live.textContent = curled(words);
+    live.textContent = curled(words);
     const here = control?.closest('[data-part]')?.querySelector('[data-said]') ?? lines[0];
     for (const line of lines) {
       const spoke = line === here && short !== '';
-      line.textContent = curled(spoke ? short : (line.dataset['said'] ?? ''));
+      line.textContent = curled(spoke ? short : (line.dataset['said'] as string));
       line.toggleAttribute('data-spoke', spoke);
     }
   };

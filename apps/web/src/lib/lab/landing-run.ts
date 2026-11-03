@@ -25,9 +25,9 @@ const LOOK = 500; // real ms between looks at the run
 const HOLD = 6_000; // real ms the end of a run stands before it plays again
 
 export function runOnLanding(root: HTMLElement, run: LandingRun): void {
-  const live = [...root.querySelectorAll('[role="log"], [role="status"], [aria-live]')];
-  const voices = live.map((element) => element.getAttribute('aria-live'));
-  for (const element of live) element.setAttribute('aria-live', 'off');
+  // The one region that speaks: the log's own is off for good.
+  const live = root.querySelector('[role="status"]') as Element;
+  live.setAttribute('aria-live', 'off');
 
   let begun = false;
   let shown = false;
@@ -59,7 +59,7 @@ export function runOnLanding(root: HTMLElement, run: LandingRun): void {
 
   const every = setInterval(look, LOOK);
   const seen = new IntersectionObserver(([entry]) => {
-    shown = entry?.isIntersecting ?? false;
+    shown = Boolean(entry?.isIntersecting);
     look();
   });
   seen.observe(root);
@@ -76,11 +76,7 @@ export function runOnLanding(root: HTMLElement, run: LandingRun): void {
     root.removeEventListener('change', taken, true);
     root.removeEventListener('input', taken, true);
     removeEventListener('hashchange', followed);
-    live.forEach((element, i) => {
-      const voice = voices[i];
-      if (voice) element.setAttribute('aria-live', voice);
-      else element.removeAttribute('aria-live');
-    });
+    live.removeAttribute('aria-live');
     run.taken?.();
   };
   /** A link to a run opens that run, paused, and it's theirs from there. A link to a heading only

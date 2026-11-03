@@ -47,11 +47,10 @@ export type Action =
   | { readonly at: number; readonly kind: 'heal' | 'write' }
   | { readonly at: number; readonly kind: 'loss'; readonly loss: number };
 
-/** A client write: which server took it, where in its log, and what became of it. */
+/** A client write: where in its server's log it went, and what became of it. */
 export interface Write {
   readonly n: number;
   readonly at: number;
-  readonly node: number;
   readonly index: number;
   readonly term: number;
   state: 'pending' | 'committed' | 'lost';
@@ -322,11 +321,11 @@ export function write(sim: Sim): Write | null {
   const index = s ? propose(s, n) : null;
   if (!s || index === null) {
     say(sim, `Write ${n} finds no leader to take it, so nothing is written`);
-    sim.writes.push({ n, at: sim.now, node: -1, index: 0, term: 0, state: 'lost' });
+    sim.writes.push({ n, at: sim.now, index: 0, term: 0, state: 'lost' });
     return null;
   }
   sim.target = s.id;
-  const w: Write = { n, at: sim.now, node: s.id, index, term: s.term, state: 'pending' };
+  const w: Write = { n, at: sim.now, index, term: s.term, state: 'pending' };
   sim.writes.push(w);
   say(sim, `${serverName(s.id)} takes write ${n} at index ${index} in term ${s.term}`);
   settle(sim, []);

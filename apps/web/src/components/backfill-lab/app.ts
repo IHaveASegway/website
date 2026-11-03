@@ -102,7 +102,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   // The build wrote the opening's last lines; a link's week writes its own.
   const log = eventLog(lines, 'lab-log-at', lineTime, linked ? undefined : sim.lines.at(-1));
   if (linked) log.clear();
-  const tell = speaker(root, $('[data-bf-said]'));
+  const tell = speaker(root);
   /** While the week is the one a visitor landed on, nobody's choice yet, it says nothing. */
   let landing = false;
   const say: Say = (words, control, short) => {

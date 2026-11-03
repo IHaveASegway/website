@@ -50,7 +50,7 @@ export function eventLog<L extends Line>(
       if (shown && from === 0) clear();
       const back = box.scrollTop;
       const height = box.scrollHeight;
-      for (const line of lines.slice(from === 0 ? Math.max(0, lines.length - LINES_SHOWN) : from)) {
+      for (const line of lines.slice(from || -LINES_SHOWN)) {
         const item = document.createElement('li');
         const at = document.createElement('span');
         at.className = atClass;

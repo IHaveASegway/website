@@ -1,5 +1,5 @@
 import { readLink, writeLink } from '../sim/link';
-import type { Property } from './check';
+import { serverName, type Property } from './check';
 import type { Server } from './core';
 import {
   committedCount,
@@ -104,6 +104,8 @@ export function place(id: number, size: number): { x: number; y: number } {
 
 const round = (n: number) => Math.round(n * 10) / 10;
 
+const entries = (n: number) => `${n} ${n === 1 ? 'entry' : 'entries'}`;
+
 /** A server's state in words, for its button's name. */
 export const serverState = (s: Server): string =>
   s.up ? `${s.role}, term ${s.term}` : 'down';
@@ -112,8 +114,7 @@ export const serverState = (s: Server): string =>
 export function timerShare(s: Server, now: number): number {
   if (!s.up) return 0;
   if (s.role === 'leader') return 1;
-  const span = s.deadline - s.timerStart;
-  return span > 0 ? Math.max(0, Math.min(1, (now - s.timerStart) / span)) : 0;
+  return (now - s.timerStart) / (s.deadline - s.timerStart);
 }
 
 /** One server's log as a row of cells: filled when that server knows the entry is committed,
@@ -132,9 +133,7 @@ export function logMarkup(s: Server): string {
  *  the server knows is committed, as its lamps draw it, so a server that is down knows of none. */
 export function logWords(s: Server): string {
   if (s.log.length === 0) return 'empty log';
-  const committed =
-    s.commitIndex > 0 ? `, ${s.commitIndex} known committed` : ', none known committed';
-  return `${s.log.length} ${s.log.length === 1 ? 'entry' : 'entries'}${committed}, last of term ${s.log.at(-1)?.term}`;
+  return `${entries(s.log.length)}, ${s.commitIndex || 'none'} known committed, last of term ${s.log.at(-1)?.term}`;
 }
 
 /** Where a message is drawn, `share` of the way from its sender to its receiver. */
@@ -143,7 +142,7 @@ function along(f: Flight, size: number, share: number) {
   const b = place(f.message.to, size);
   const dx = b.x - a.x;
   const dy = b.y - a.y;
-  const length = Math.hypot(dx, dy) || 1;
+  const length = Math.hypot(dx, dy);
   // From one server's edge to the other's, not centre to centre.
   const start = NODE_RADIUS / length;
   const t = start + (1 - 2 * start) * share;
@@ -156,22 +155,23 @@ export function flightsMarkup(sim: Sim, still: boolean): string {
   const size = sim.servers.length;
   return sim.flights
     .map((f) => {
-      const span = f.arrives - f.sent || 1;
-      const share = still ? 0.5 : Math.max(0, Math.min(1, (sim.now - f.sent) / span));
+      const share = still ? 0.5 : (sim.now - f.sent) / (f.arrives - f.sent);
       if (f.lost && share > 0.5) return '';
       const { x, y } = along(f, size, share);
+      const dot = (kind: string, r: number) =>
+        `<circle class="rf-m" data-kind="${kind}" cx="${x}" cy="${y}" r="${r}"/>`;
+      const square = (kind: string, side: number) =>
+        `<rect class="rf-m" data-kind="${kind}" x="${round(x - side / 2)}" y="${round(y - side / 2)}" width="${side}" height="${side}"/>`;
       const m = f.message;
       switch (m.kind) {
         case 'vote':
-          return `<circle class="rf-m" data-kind="vote" cx="${x}" cy="${y}" r="4.5"/>`;
+          return dot('vote', 4.5);
         case 'voted':
-          return `<circle class="rf-m" data-kind="${m.granted ? 'yes' : 'no'}" cx="${x}" cy="${y}" r="3.5"/>`;
+          return dot(m.granted ? 'yes' : 'no', 3.5);
         case 'append':
-          return m.entries.length > 0
-            ? `<rect class="rf-m" data-kind="entries" x="${round(x - 4.5)}" y="${round(y - 4.5)}" width="9" height="9"/>`
-            : `<rect class="rf-m" data-kind="beat" x="${round(x - 3)}" y="${round(y - 3)}" width="6" height="6"/>`;
+          return m.entries.length > 0 ? square('entries', 9) : square('beat', 6);
         case 'appended':
-          return `<circle class="rf-m" data-kind="ack" cx="${x}" cy="${y}" r="2.5"/>`;
+          return dot('ack', 2.5);
       }
     })
     .join('');
@@ -193,20 +193,10 @@ export function footprint(id: number, size: number, pad: number): Point[] {
     const a = (i * Math.PI) / 16;
     points.push([x + dial * Math.cos(a), y + dial * Math.sin(a)]);
   }
-  const half = 33;
-  const top = y + ROLE_BASELINE - 11;
-  const bottom = y + TERM_BASELINE + 5;
-  const corners: [number, number, number][] = [
-    [x - half, top, Math.PI],
-    [x + half, top, -Math.PI / 2],
-    [x + half, bottom, 0],
-    [x - half, bottom, Math.PI / 2],
-  ];
-  for (const [cx, cy, from] of corners)
-    for (let i = 0; i <= 4; i++) {
-      const a = from + (i * Math.PI) / 8;
-      points.push([cx + pad * Math.cos(a), cy + pad * Math.sin(a)]);
-    }
+  const half = 33 + pad;
+  const top = y + ROLE_BASELINE - 11 - pad;
+  const bottom = y + TERM_BASELINE + 5 + pad;
+  points.push([x - half, top], [x + half, top], [x + half, bottom], [x - half, bottom]);
   return points;
 }
 
@@ -228,18 +218,13 @@ function hull(points: readonly Point[]): Point[] {
   return [...half(sorted), ...half(sorted.reverse())];
 }
 
-/** The fence that marks a split network: a dashed line around the smaller side, drawn around what
- *  its servers cover, so it never crosses a server or its text. Null when the network is whole or
- *  the sides are not each one run of the circle. A straight line between the sides cannot do this:
- *  a server's text reaches down beside its neighbors. */
+/** The fence that marks a split network: a dashed line around the side the page cuts off, side 1, a
+ *  server or two neighbors (components/raft-lab/app.ts), drawn around what they cover, so it never
+ *  crosses a server or its text. Null when the network is whole. A straight line between the sides
+ *  cannot do this: a server's text reaches down beside its neighbors. */
 export function cutFence(groups: readonly number[]): string | null {
-  const size = groups.length;
-  let gaps = 0;
-  for (let i = 0; i < size; i++) if (groups[i] !== groups[(i + 1) % size]) gaps++;
-  if (gaps !== 2) return null;
-  const count = (g: number) => groups.filter((x) => x === g).length;
-  const smaller = [...new Set(groups)].sort((a, b) => count(a) - count(b))[0];
-  const points = groups.flatMap((g, id) => (g === smaller ? footprint(id, size, CUT_PAD) : []));
+  if (!groups.includes(1)) return null;
+  const points = groups.flatMap((g, id) => (g ? footprint(id, groups.length, CUT_PAD) : []));
   return `M${hull(points)
     .map(([x, y]) => `${round(x)} ${round(y)}`)
     .join('L')}Z`;
@@ -284,11 +269,11 @@ export function summary(sim: Sim): string {
   const term = currentTerm(sim);
   const parts = [
     leader
-      ? `Server ${leader.id + 1} leads term ${leader.term}`
+      ? `${serverName(leader.id)} leads term ${leader.term}`
       : term > 0
         ? `No leader in term ${term}`
         : 'No leader',
-    `${committed} ${committed === 1 ? 'entry' : 'entries'} committed`,
+    `${entries(committed)} committed`,
   ];
   if (down > 0) parts.push(`${down} ${down === 1 ? 'server' : 'servers'} down`);
   if (new Set(sim.groups).size > 1) parts.push('the network is split');
@@ -297,6 +282,6 @@ export function summary(sim: Sim): string {
     ? ''
     : behind.length > 1
       ? ` Servers ${behind.map((s) => s.id + 1).join(' and ')} still think they lead older terms.`
-      : ` Server ${old.id + 1} still thinks it leads term ${old.term}.`;
+      : ` ${serverName(old.id)} still thinks it leads term ${old.term}.`;
   return `${parts.join(', ')}.${words}`;
 }
