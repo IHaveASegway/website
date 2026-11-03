@@ -134,9 +134,12 @@ describe('known answers: a page typeset once it is written', () => {
   });
 });
 
-test('the build typesets a page with what its source would have left straight', () => {
-  // Its own page file still says it straight, so this holds the step and not only the words.
-  const source = readFileSync(join(app, 'src/pages/about/index.astro'), 'utf8');
-  expect(source).toContain("I'll send a résumé");
-  expect(read('about/index.html')).toContain('I\u2019ll send a résumé');
-});
+test.runIf(html.includes('lab/backfill/index.html'))(
+  'the build typesets a page with what its source would have left straight',
+  () => {
+    // Its own component still says it straight, so this holds the step and not only the words.
+    const source = readFileSync(join(app, 'src/components/backfill-lab/BackfillLab.astro'), 'utf8');
+    expect(source).toContain("each day's steps");
+    expect(read('lab/backfill/index.html')).toContain('each day\u2019s steps');
+  },
+);

@@ -1,9 +1,12 @@
 /*
-  /about/ (pages/about/index.astro; ADR 0029). One column on every screen: the name, the role and
-  the addresses, then the bio, his background and his skills. Section names are the blocks' labels,
-  in the wide face at the label's size in the accent, sentence case: the page's one title is the
-  name. On paper (below) it is the résumé, one US Letter page. Only this page loads this file;
-  every colour is a token from tokens.css.
+  /about/ (pages/about/index.astro; ADR 0031). One column on every screen: the name, the role and
+  where; the opening, its first sentence at the statement's size; then the bio's sections, each
+  opening on the line that carries the current (field.css) under its small label in the wide face in
+  the accent, sentence case: the page's one title is the name. The labs and the open source are rows
+  of an index (global.css), the labs' each under its own line, in its colour; the page stands on the
+  field, so nothing here paints a ground of its own. On paper (below) it is the résumé, one US Letter
+  page. Only this page loads this file, and it moves nothing itself; every colour is a token from
+  tokens.css.
 */
 
 .resume {
@@ -53,29 +56,26 @@
   line-height: var(--text-label--line-height);
 }
 
-.resume-contact {
-  margin-top: 1.75rem;
+/* The addresses are paper's (below): on screen the page closes on where to reach out. */
+.about-head .resume-contact {
+  display: none;
 }
 
 .resume-contact dd {
   font-family: var(--font-sans);
+  overflow-wrap: anywhere;
 }
 
-.resume-contact a,
-.skills a {
+.resume-contact a {
   display: inline-flex;
   align-items: center;
   min-height: 1.5rem;
 }
 
-.resume-contact dd {
-  overflow-wrap: anywhere;
-}
-
 /* Each address stands beside its label while the list is wide enough for the longest one, about
-   25.2em; narrower, on a phone or with a larger text size, the label goes above its address,
-   which then has the list's whole width. Beside a label there, LinkedIn's address took two lines
-   at the default size, and at 32 px every address broke inside a word. */
+   25.2em; narrower, with a larger text size on paper, the label goes above its address, which then
+   has the list's whole width. Beside a label there, LinkedIn's address took two lines at the default
+   size, and at 32 px every address broke inside a word. */
 .about-head {
   container: contact / inline-size;
 }
@@ -91,7 +91,7 @@
   }
 }
 
-/* The Print button, under the addresses. It shows once the command menu's script has bound it
+/* The Print button, under the head's words. It shows once the command menu's script has bound it
    (src/scripts/palette.js), on a phone too, where printing saves or shares a PDF: until then it
    holds its place unseen, and without the script it is not there. */
 .print-item {
@@ -110,16 +110,16 @@
   }
 }
 
-/* The right column: the bio's blocks, then each section, a label over each. */
+/* The column: the bio's blocks, then each section, a label over each. */
 .about-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  margin-top: 3rem;
+  margin-top: 2.5rem;
   overflow-wrap: break-word;
 }
 
 .block-label {
-  margin: 0 0 0.875rem;
+  margin: 0 0 1.125rem;
   color: var(--primary);
   font-family: var(--font-wide);
   font-size: var(--text-label);
@@ -130,10 +130,10 @@
 .bio {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  row-gap: 3rem;
 }
 
-.bio-block > p {
+.bio-block > p,
+.skills-tools {
   margin: 0;
   max-inline-size: var(--measure);
   text-wrap: pretty;
@@ -143,66 +143,101 @@
   margin-top: 1rem;
 }
 
+/* The opening: its first sentence is Home's statement, on a line of its own at the statement's size;
+   the rest of the paragraph follows at a lead's. On paper it is one paragraph, the summary. */
 .bio-lede {
+  color: var(--muted-foreground);
   font-size: var(--text-lead);
   line-height: var(--text-lead--line-height);
 }
 
-.bio-items {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  row-gap: 1.5rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+.bio-first {
+  display: block;
+  margin-block-end: 1rem;
+  color: var(--foreground);
+  font-size: var(--text-statement);
+  line-height: var(--text-statement--line-height);
+  letter-spacing: -0.01em;
 }
 
-.bio-items > li {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  row-gap: 0.375rem;
-  max-inline-size: var(--measure);
+/* The proof the page leans on, and what its section opens with, a step up from the prose around. */
+.bio-biggest > .bio-text,
+.bio-last > .bio-text:first-of-type {
+  font-size: var(--text-lead);
+  line-height: var(--text-lead--line-height);
+}
+
+.bio-text {
+  color: var(--foreground);
+}
+
+/* The rows: the labs' and the open source's, rows of an index (global.css): a hairline over each,
+   the whole row its title's link, the 2 px sweep along its top in its lab's colour. The bold line at a
+   heading's size, its words, and a lab's line over them both. */
+.post-list.bio-rows {
+  margin: 0;
+  border-block-end: 1px solid var(--border);
+}
+
+.bio-rows + .bio-text {
+  margin-top: 1.5rem;
+}
+
+.post-list > .bio-row {
+  max-inline-size: none;
+  padding-block: 1.75rem;
+  border-block-start: 1px solid var(--border);
+}
+
+.bio-row::before {
+  top: -1px;
+}
+
+.lab-line {
+  display: block;
+  order: -1;
+  inline-size: 100%;
+  block-size: auto;
+  margin-block-end: 1rem;
+}
+
+/* The tracks meet cleanly at this size, where a card's butt ends would show a notch at each bend. */
+.lab-line :is(line, path) {
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .bio-item-lead {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--text-headline);
-  font-weight: 600;
-  line-height: var(--text-headline--line-height);
   letter-spacing: -0.005em;
-  text-wrap: balance;
 }
 
 .bio-item-text {
   margin: 0;
+  max-inline-size: var(--measure);
   color: var(--muted-foreground);
   text-wrap: pretty;
 }
 
-.about-section {
-  padding-top: 4rem;
+@media (hover: hover) {
+  .bio-row:has(a):hover .bio-item-lead > a {
+    color: var(--primary);
+  }
 }
 
 .print-only {
   display: none;
 }
 
+/* The tools: one small line, in the wide face a label is set in. */
 .skills-tools {
-  margin: 0 0 1.5rem;
-  max-inline-size: var(--measure);
-  font-size: var(--text-lead);
-  line-height: var(--text-lead--line-height);
-  text-wrap: pretty;
-}
-
-.skills-note {
-  margin: 0 0 0.75rem;
   color: var(--muted-foreground);
+  font-family: var(--font-wide);
+  font-size: var(--text-ui);
+  font-weight: 500;
+  line-height: 1.5;
 }
 
-/* The roles and the skills. A role puts its years beside its title from 48rem, as a key beside its
-   value; a skill puts the pages that show it beside its name, a hairline over each row. */
+/* The roles, on paper: a role puts its years beside its title, as a key beside its value. */
 .roles {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -251,52 +286,9 @@
   margin-top: 1.25rem;
 }
 
-/* The address in the notes, with its full stop, is one box: it moves whole to the next line when
-   it does not fit after the words before it, and breaks after its "@" only when it alone is wider
-   than the line, and inside a part only as a last resort, as the footer's. */
-.resume-email {
-  display: inline-block;
-  overflow-wrap: anywhere;
-}
-
-.skills {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  margin: 0;
-  border-block-end: 1px solid var(--border);
-}
-
-.skills > div {
-  display: grid;
-  row-gap: 0.25rem;
-  padding-block: 0.75rem;
-  border-block-start: 1px solid var(--border);
-}
-
-/* A skill's name lists what it holds, so left to itself a line break strands the last of them:
-   "Message brokers: RabbitMQ, LavinMQ, / SQS". Balanced, as a title is, it keeps some company. */
-.skills dt {
-  font-family: var(--font-wide);
-  font-size: var(--text-ui);
-  font-weight: 600;
-  line-height: var(--text-ui--line-height);
-  text-wrap: balance;
-}
-
-.skills dd {
-  margin: 0;
-  color: var(--muted-foreground);
-}
-
 @media (width >= 48rem) {
   .roles > li {
     grid-template-columns: 9rem minmax(0, 1fr);
-    column-gap: var(--gutter);
-    align-items: baseline;
-  }
-
-  .skills > div {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     column-gap: var(--gutter);
     align-items: baseline;
   }
@@ -328,18 +320,15 @@
 
 @media (width >= 48rem) {
   .resume {
-    padding-block: 3.5rem 2.5rem;
-  }
-
-  .about-section {
-    padding-top: 5rem;
+    padding-block: 3.5rem 0;
   }
 }
 
-/* One column on screen, centred like a long read (ADR 0029); paper lays the résumé out on its own
-   (below). */
+/* One column on screen, centred like a long read (ADR 0029), and the close on it, under the article;
+   paper lays the résumé out on its own (below). */
 @media screen {
-  .resume {
+  .resume,
+  .resume + .contact {
     max-inline-size: 46rem;
     margin-inline: auto;
   }
@@ -361,7 +350,7 @@
     page: resume;
   }
 
-  :root:has(.resume) :is(.masthead, .site-header, .skip-link, body > footer) {
+  :root:has(.resume) :is(.masthead, .site-header, .skip-link, body > footer, .contact) {
     display: none;
   }
 
@@ -388,8 +377,9 @@
     row-gap: 0;
   }
 
+  /* One line beside the addresses at the default text size: on two it took a sheet's last 40 px. */
   .about-name {
-    font-size: 2.5rem;
+    font-size: 2.125rem;
     line-height: 1;
   }
 
@@ -402,7 +392,8 @@
     font-size: 0.8125rem;
   }
 
-  .resume-contact {
+  .about-head .resume-contact {
+    display: grid;
     grid-column: 2;
     grid-row: 1;
     align-self: end;
@@ -426,7 +417,7 @@
       grid-template-columns: minmax(0, 1fr);
     }
 
-    .resume-contact {
+    .about-head .resume-contact {
       grid-column: 1;
       grid-row: auto;
       margin-top: 0.75rem;
@@ -437,36 +428,34 @@
     margin: 0;
   }
 
-  /* Sections closer on paper than on screen: Linux sets the skills and the writing a line longer
+  /* Sections closer on paper than on screen: Linux sets the tools and the writing a line longer
      each than macOS does, and the sheet must hold either (e2e/about-print.spec.ts). */
-  .resume :is(.bio, .about-section) {
+  .resume :is(.bio-block, .about-section) {
     padding-top: 0.5rem;
     break-inside: avoid;
   }
 
-  /* Paper gets no Print button and no way round the page, and of the bio only its opening, the
-     summary a printed résumé opens with, without its label: what Joseph builds and how he works
-     are the web edition's, so the page stays one sheet whatever the profile holds
-     (e2e/about-print.spec.ts). Nor does it get what only the screen may say: the offer of the full
-     résumé, which on paper would ask its reader for the sheet in their hand. */
+  /* Paper gets no Print button and no way round the page, and of the bio its opening, the summary a
+     printed résumé opens with, without a label, and the biggest thing, its strongest proof: the rest
+     is the web edition's, so the page stays one sheet whatever the profile holds
+     (e2e/about-print.spec.ts). The agents line prints over Selected work, so nobody reads built as
+     typed, and the skills' names don't print at all: the tools line is the sheet's one list of what
+     Joseph has worked with. */
   .resume .print-only {
     display: block;
   }
 
-  .resume .skills-note {
-    display: none;
-  }
-
   .resume .skills-tools {
-    margin-bottom: 0.25rem;
     max-inline-size: none;
+    color: inherit;
+    font-family: inherit;
     font-size: 0.8125rem;
+    font-weight: inherit;
     line-height: 1.3;
   }
 
-  .resume :is(.print-item, .screen-only),
-  .bio-block:not(.bio-now),
-  .bio-now .block-label {
+  .resume .print-item,
+  .bio-block:not(.bio-now, .bio-biggest) {
     display: none;
   }
 
@@ -474,10 +463,22 @@
      sets these lines a little wider than macOS and wraps more of them, and at 1.4 the sheet that
      held on macOS with 34 px to spare ran 10 to 20 px onto a second page on Linux, the Writing
      section with it (e2e/about-print.spec.ts, in CI's Linux image). */
-  .bio-now > p {
+  .bio-now > p,
+  .bio-biggest > .bio-text,
+  .resume .work-note {
     max-width: none;
+    margin-block: 0 0.25rem;
+    color: inherit;
     font-size: 0.875rem;
     line-height: 1.3;
+  }
+
+  .bio-first {
+    display: inline;
+    margin: 0;
+    font-size: inherit;
+    line-height: inherit;
+    letter-spacing: normal;
   }
 
   .resume .block-label {
@@ -492,10 +493,11 @@
     row-gap: 0;
   }
 
-  /* Selected work on paper: two cards a row, on the page's one left edge. */
+  /* Selected work on paper: two a row, on the page's one left edge. A sheet has no use for a card's
+     edge: it frames nothing a reader can press, and its padding is a line of words a row. */
   .resume .cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: 1.5rem;
+    gap: 0.5rem 1.5rem;
     max-inline-size: none;
   }
 
@@ -508,7 +510,9 @@
   .resume .card {
     grid-template-columns: minmax(0, 1fr);
     row-gap: 0;
-    padding-block: 0.1875rem 0.25rem;
+    padding: 0;
+    border: 0;
+    background: none;
     break-inside: avoid;
   }
 
@@ -556,40 +560,11 @@
     letter-spacing: 0;
   }
 
-  /* On paper the skills are one line of names, a comma after each but the last: the pages that show
-     each are the web edition's. */
-  .resume .skills {
-    display: flex;
-    flex-wrap: wrap;
-    row-gap: 0.125rem;
-    border: 0;
-  }
-
-  /* The comma is this row's own ::after, so it sits against the name with no gutter, at the name's
-     size. The screen's two columns would leave a gutter between them with the second one hidden. */
-  .resume .skills > div {
-    display: flex;
-    column-gap: 0;
-    padding: 0;
-    border: 0;
-    font-size: 0.8125rem;
-    line-height: 1.3;
-  }
-
-  .resume .skills > div:not(:last-child)::after {
-    padding-inline-end: 0.375rem;
-    content: ',';
-  }
-
   .resume .card .kv {
     row-gap: 0;
   }
 
-  .resume .skills dd {
-    display: none;
-  }
-
-  .resume :is(.skills dt, .card-text, .card-more, .post-summary, .resume-notes, .kv dd) {
+  .resume :is(.card-text, .card-more, .post-summary, .resume-notes, .kv dd) {
     font-size: 0.8125rem;
     line-height: 1.3;
   }

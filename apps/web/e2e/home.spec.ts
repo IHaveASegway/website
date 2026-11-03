@@ -1,10 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
 import { pages } from './expected';
 
-// Home (docs/design/home.md; ADR 0028): Joseph's words at the size of a statement, each kind of
-// system they name a link to the lab that runs one; beside them the one live thing on the page, the
-// Raft Lab's cluster as its page opens; What I build, each with the lab where it breaks and one fact
-// from its build; the dated writing; How I work; and the address, which a visitor can copy. Until
+// Home (docs/design/home.md; ADR 0028, ADR 0031): Joseph's words at the size of a statement; beside
+// them the one live thing on the page, the Raft Lab's cluster as its page opens; the things to try,
+// each with the lab where it breaks and one fact from its build; the dated writing; the last thing
+// built; and where to reach out. Until
 // ADR 0028 Home drew the five labs as one isometric system beside named bio blocks, with a stats row
 // and an activity calendar, in the layout of a page Joseph had named as a reference: what the
 // checks held for that drawing, that it moves only as asked, pauses on request (SC 2.2.2), holds
@@ -250,17 +250,15 @@ test.describe("Home's live picture", () => {
   });
 });
 
-// What I build: the bio's five, in its order, each with the lab its words name, that lab's colour
+// The things to try: the bio's five, in its order, each with the lab its words name, that lab's colour
 // and one fact from its build (lib/lab-facts.ts). The labs the bio names are the cards' labs on the
 // Lab index, so each fact here is the one a visitor finds there.
-test("What I build: the bio's five in its order, each lab's row with its fact", async ({
+test("Things to try: the bio's five in its order, each lab's row with its fact", async ({
   page,
 }) => {
   await page.goto('/about/');
-  const leads = await page
-    .locator('.bio-block:has(> h2:text-is("What I build")) .bio-item-lead')
-    .allInnerTexts();
-  expect(leads.length, "/about/'s What I build").toBeGreaterThan(0);
+  const leads = await page.locator('.bio-row[data-line] .bio-item-lead').allInnerTexts();
+  expect(leads.length, "/about/'s rows").toBeGreaterThan(0);
   await page.goto('/');
   const rows = page.locator('#build .build');
   test.skip((await rows.count()) === 0, 'this build has no bio');

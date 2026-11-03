@@ -94,9 +94,10 @@ describe('labArea', () => {
   });
 });
 
-// One order wherever the labs are listed, and one name for each, so nobody has to translate between
-// pages: Home's rows, /lab/'s cards, the command menu, and /lab/'s link preview, whose glyphs read
-// the same list. Home's rows come from the bio, so Home holds the bio's order to this one.
+// One order wherever the labs are listed as an index, and one name for each, so nobody has to
+// translate between pages: /lab/'s cards, the command menu, and /lab/'s link preview, whose glyphs read
+// the same list. Home's rows and /about/'s are the bio's, in the order Joseph tells them: until
+// 2026-11-03 Home held the bio's order to this one, and the bio now leads with the Cache Lab.
 describe.runIf(files.includes('lab/index.html'))('the labs as this build lists them', () => {
   const order = LAB_NAMES.map((lab) => lab.slug);
   const cards = elementsOf(read('lab/index.html')).filter((e) => hasClass(e, 'lab-card'));
@@ -107,13 +108,13 @@ describe.runIf(files.includes('lab/index.html'))('the labs as this build lists t
     for (const { name } of LAB_NAMES) expect(page).toContain(`<p class="lab-name">${name}</p>`);
   });
 
-  test("Home's What I build goes in that order, and the menu lists them in it", () => {
+  test("Home's rows go in the bio's order, each lab once, and the menu lists them in the labs' own", () => {
     const page = read('index.html');
     const builds = elementsOf(page)
       .filter((e) => hasClass(e, 'build') && attribute(e, 'data-line') !== undefined)
       .map((e) => attribute(e, 'data-line') as string);
-    expect(builds.length).toBeGreaterThan(0);
-    expect(builds).toEqual(order.filter((slug) => builds.includes(slug)));
+    expect(builds).toEqual(['cache', 'queue', 'backfill', 'routes', 'raft']);
+    expect([...builds].sort()).toEqual([...order].sort());
     const menu = elementsOf(page)
       .filter((e) => attribute(e, 'role') === 'option')
       .map((e) => /^palette-lab-(.+)$/.exec(attribute(e, 'id') ?? '')?.[1])

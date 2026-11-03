@@ -1,0 +1,27 @@
+---
+import { lineOnPage } from '../lib/og-lines';
+
+interface Props {
+  /** The lab whose line it draws, which names its colour too. */
+  slug: string;
+}
+
+// A lab's line on a page (ADR 0025; /about/'s rows): the drawing on the lab's own link card, from the
+// same model and at the same scale (lib/line-shapes.ts, lib/og-lines.ts). A picture beside words that
+// say the same, so assistive technology skips it. Astro's root is the working directory
+// (lib/route-lab/node-solver.ts). The Route Lab's card holds its map, so its line is the one drawing
+// here that its card doesn't carry; the model and the family are the same.
+const { slug } = Astro.props;
+const line = await lineOnPage(slug, process.cwd());
+---
+
+{line && (
+  <svg
+    class="lab-line"
+    data-line={slug}
+    viewBox={`0 0 ${line.width} ${line.height}`}
+    aria-hidden="true"
+    focusable="false"
+    set:html={line.shapes}
+  />
+)}

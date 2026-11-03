@@ -659,9 +659,9 @@ describe('motion lives only under prefers-reduced-motion: no-preference', () => 
       // .iso-glyph, cut from the drawing, and moves with the drawing.
       else if (/\.(iso-mesh|lab-write|lab-head|desk)\b/.test(sheet)) expect(found).toEqual([]);
       // The sheets a component or a page owns since ADR 0027 (post-list.css, prose.css, about.css,
-      // not-found.css) ship none either: the row's sweep is the sheet every page links, and the
-      // rest stands still.
-      else if (/\.(post-row|long-form-body|about-head|missing-piece)\b/.test(sheet))
+      // not-found.css, contact.css) ship none either: the row's sweep is the sheet every page links,
+      // and the rest stands still.
+      else if (/\.(post-row|long-form-body|about-head|missing-piece|contact-words)\b/.test(sheet))
         expect(found).toEqual([]);
       else expect(found.length).toBeGreaterThanOrEqual(2);
     });

@@ -1,7 +1,8 @@
 /*
   Home (docs/design/home.md; ADR 0028): Joseph's words at the size of a statement beside the one live
-  thing on the page, the Raft Lab's cluster; then What I build, each thing with the lab where it
-  breaks; the latest writing; How I work and the repository's record; and the address. Only Home
+  thing on the page, the Raft Lab's cluster; then the things they built that a visitor can try, each
+  with the lab where it breaks; the latest writing; the last thing they built and the repository's
+  record; and where to reach out. Only Home
   links this file, so no other page carries its bytes (test/budgets.test.ts). Every colour is a
   token from tokens.css, or a mix of two. It is not in a cascade layer, as the lab pages' own
   stylesheets are not, so where it restyles a component of global.css it wins.
@@ -358,7 +359,7 @@
   font-weight: 500;
 }
 
-/* What I build: a row for each, between hairlines. Its lead carries the lab's colour as a mark
+/* The things to try: a row for each, between hairlines. Its lead carries the lab's colour as a mark
    before it; its words follow, then the lab and one fact from its build. One column below 64rem;
    from it the lead, the words and the fact stand in three columns. */
 .build-list {
@@ -583,27 +584,20 @@
   }
 }
 
-/* How I work: the bio's principles, each its lead over its words, two columns from 64rem; then the
-   repository's record under a hairline. */
-.principles-list {
-  display: grid;
-  gap: 2rem var(--gutter);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.principle-lead {
-  margin: 0 0 0.5rem;
-  font-family: var(--font-display);
-  font-size: var(--text-headline);
-  font-weight: 600;
-  line-height: var(--text-headline--line-height);
-}
-
-.principle-text {
+/* The last thing they built: the bio's prose, then the repository's record under a hairline. */
+.last-text {
   margin: 0;
   max-inline-size: var(--measure);
+  text-wrap: pretty;
+}
+
+.last-text + .last-text {
+  margin-top: 1rem;
+}
+
+.last-text:first-of-type {
+  font-size: var(--text-lead);
+  line-height: var(--text-lead--line-height);
 }
 
 .record {
@@ -614,13 +608,6 @@
   color: var(--muted-foreground);
   font-size: var(--text-ui);
   line-height: 1.5;
-}
-
-@media (width >= 64rem) {
-  .principles-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: calc(var(--gutter) * 2);
-  }
 }
 
 /* Contact: the address at a title's size in the wide face, breaking only after its @, with its
@@ -646,13 +633,6 @@
 .contact-address *::selection {
   background-color: transparent;
   color: var(--primary);
-}
-
-.contact-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 1.5rem;
 }
 
 .btn-copy {

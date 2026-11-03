@@ -1,8 +1,10 @@
 ---
+import Contact from '../../components/home/Contact.astro';
+import LabLine from '../../components/LabLine.astro';
 import PostList from '../../components/PostList.astro';
 import WorkCard from '../../components/WorkCard.astro';
 import Base from '../../layouts/Base.astro';
-import { ABOUT_PATH, aboutParts, withLinks } from '../../lib/about';
+import { ABOUT_HEADINGS, ABOUT_PATH, aboutParts, sectionOf, withLinks } from '../../lib/about';
 import {
   loadAbout,
   loadLabArea,
@@ -11,34 +13,42 @@ import {
   loadWritingArea,
 } from '../../lib/content';
 import { profilePageGraph, serialize } from '../../lib/jsonld';
-import { LAB_NAMES, labPath } from '../../lib/lab';
-import { labelOf, navAll } from '../../lib/nav';
+import { labNamedIn, labPath } from '../../lib/lab';
+import { labelOf } from '../../lib/nav';
 import { aboutCard } from '../../lib/og';
-import { areaRoutes, postPath, SECTION_LABELS } from '../../lib/posts';
+import { postPath } from '../../lib/posts';
 import { checkedProfiles, locationLine } from '../../lib/profile';
-import { addressText, evidencePages, roleYears, shownSkills } from '../../lib/resume';
+import { addressText, roleYears } from '../../lib/resume';
 import { CONTACT_EMAIL, ORIGIN } from '../../lib/site';
 import { writingRow } from '../../lib/work';
 import '../../styles/about.css';
 
-// /about/ (ADR 0029): who Joseph is, what he has worked with and how to reach him, one column on
-// every screen, since 2026-10-28 in /resume/'s place (public/_redirects). The head is the name, the
-// role and the addresses; then the bio, his background and his skills. On screen the labs and the
-// writing stay on Home and their indexes, and on paper they print, since a sheet has no links.
-//
-// The bio is src/content/about.md, his words, laid out here and never changed: its opening, then
-// each of its sections under its own heading, and the labs it names linked where they stand, as
-// Home links them. Everything after it is generated from profile.json and from what this
-// build already renders; nothing is copied from a résumé file, which names the employer and is
-// never committed. A section renders only when its source exists (lib/resume.ts): the bio where its
-// entry is (the fixture builds hold none), the roles once Joseph adds them (Q8), a skill once every
-// page it names is built, and Selected work and Writing as Home has them. On paper it is one US
-// Letter page (about.css, "The résumé on paper"; e2e/about-print.spec.ts), and the Print button
-// saves it as a PDF in the visitor's own browser: the site hosts no PDF (content.md, Q9).
+// /about/ (ADR 0031): what Joseph builds and has built, one column on every screen, since 2026-10-28
+// in /resume/'s place (public/_redirects). On screen: the head (name, role, where, Print), the opening
+// in plain words, how they got here, the biggest thing, the labs and the open source as rows, the last
+// thing, what came from them, the tools, and the close, every word from src/content/about.md, laid out
+// here and never changed. On paper it is the résumé, one US Letter page (about.css, "The résumé on
+// paper"; e2e/about-print.spec.ts): the head with the addresses, the opening as the summary, the
+// biggest thing, Background, the tools, the agents line over Selected work, and Writing. Each part
+// renders only when its source exists (lib/resume.ts): the bio where its entry is (the fixture builds
+// hold none), the roles once Joseph adds them (Q8), and Selected work and Writing as Home has them.
+// Nothing is copied from a résumé file, which names the employer and is never committed. The Print
+// button saves it as a PDF in the visitor's own browser: the site hosts no PDF (content.md, Q9).
 const profile = await loadProfile();
 const { name, label } = profile.basics;
 const bioEntry = await loadAbout();
 const bio = bioEntry?.body === undefined ? undefined : aboutParts(bioEntry.body);
+const part = (heading: string) => (bio ? sectionOf(bio, heading) : undefined);
+const story = part(ABOUT_HEADINGS.story);
+const biggest = part(ABOUT_HEADINGS.biggest);
+const tryIt = part(ABOUT_HEADINGS.tryIt);
+const source = part(ABOUT_HEADINGS.source);
+const last = part(ABOUT_HEADINGS.last);
+const mine = part(ABOUT_HEADINGS.mine);
+const idea = part(ABOUT_HEADINGS.idea);
+// The opening's first sentence is Home's statement; here it leads the same paragraph.
+const opening = bio?.lede[0];
+const first = opening?.match(/^.+?[.!?](?=\s)/)?.[0];
 const area = await loadWritingArea();
 const lab = await loadLabArea();
 const cards = await loadSelectedWork();
@@ -46,27 +56,34 @@ const latest = writingRow(area.published, cards);
 // A card that opens a lab draws in that lab's line (ADR 0025): found by the page it opens, so the
 // colour cannot drift from the page's own. The card's edge stays the page's (ADR 0027).
 const lines = new Map(lab.entries.map((entry) => [labPath(entry), entry.slug]));
-// The labs the bio names, linked at their first mention, once the build writes their pages.
 const demo = new Map(lab.entries.map((entry) => [entry.slug, entry]));
-const names = LAB_NAMES.flatMap(({ slug, name: words }) => {
-  const entry = demo.get(slug);
-  return entry ? [{ name: words, href: labPath(entry) }] : [];
+// The labs' rows: each item the bio lists, with the lab its words name. The whole row is its link.
+const rows = (tryIt?.principles ?? []).map((item) => {
+  const named = labNamedIn(item.text, demo);
+  const entry = named && demo.get(named.slug);
+  return { item, slug: named?.slug, href: entry && labPath(entry) };
 });
-// The essay the bio's last thing he builds points to, as Home links it, and the Lab its closing
-// names, each once this build writes its page. Until 2026-11-02 only the labs' names were links
-// here, on the page for readers who want more.
+// The open source row. The bio's words are plain text (lib/about.ts), so the link comes from the
+// record's own check (lib/profile.ts, projectCards, through Selected work): "name: what it is", the
+// name a link once its repository may be linked.
+const sources = (source?.paragraphs ?? []).map((paragraph) => {
+  const at = paragraph.indexOf(': ');
+  const project = paragraph.slice(0, at);
+  return {
+    project,
+    words: paragraph.slice(at + 2),
+    href: cards.find((card) => card.title === project)?.link.href,
+  };
+});
+// What the prose names, linked where it stands: the essay, as Home links it, and the Lab, each once
+// this build writes its page.
 const essay = area.published.find((post) => post.slug === 'coding-by-hand');
-const reads = essay ? [{ name: 'essay', href: postPath(essay) }] : [];
-const theLab = lab.entries.length > 0 ? [{ name: 'The Lab', href: '/lab/' }] : [];
+const named = [
+  ...(lab.entries.length > 0 ? [{ name: 'The Lab', href: '/lab/' }] : []),
+  ...(essay ? [{ name: 'essay', href: postPath(essay) }] : []),
+];
 const profiles = checkedProfiles(profile);
 const linkedIn = profiles.find((p) => p.network === 'LinkedIn');
-// The pages a skill may name: Selected work's, the listed posts, and the other pages this build
-// writes, the manifest's and the section indexes, each by its own title.
-const pages = [
-  ...navAll(areaRoutes(area)),
-  ...area.sections.map((s) => ({ href: `/${s}/`, label: SECTION_LABELS[s] })),
-];
-const skills = shownSkills(profile.skills, evidencePages(cards, area.published, pages));
 const title = labelOf('about');
 // The address may break after its "@" when a larger text size leaves it no room on one line, as
 // the footer's does, and inside a part only when that part alone is wider than the screen.
@@ -75,7 +92,7 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
 
 <Base
   title={`${name} · ${title}`}
-  description={`${name}, senior software engineer: what he builds, how he works and his skills. ${locationLine(profile)}.`}
+  description="What Joseph Peterson has built, what you can break, and where to reach out."
   path={ABOUT_PATH}
   og={aboutCard(profile, title)}
   jsonLd={serialize(profilePageGraph(profile, ABOUT_PATH))}
@@ -90,6 +107,8 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
         <p class="about-role">{label}</p>
         <p class="about-where">{locationLine(profile)}</p>
       </div>
+      {/* The addresses are paper's: a sheet has no links to press, and on screen the page closes on
+          where to reach out. */}
       <dl class="kv resume-contact">
         <dt>Email</dt>
         <dd>
@@ -121,114 +140,140 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
     <div class="about-body">
       {bio && (
         <section class="bio" id="now" aria-label="About me">
-          {bio.lede.length > 0 && (
+          {opening && (
             <div class="bio-block bio-now">
-              {bio.lede.map((paragraph) => (
-                <p class="bio-lede">{paragraph}</p>
+              <p class="bio-lede">
+                {first ? (
+                  <>
+                    <span class="bio-first">{first}</span> {opening.slice(first.length).trim()}
+                  </>
+                ) : (
+                  opening
+                )}
+              </p>
+            </div>
+          )}
+          {story && (
+            <div class="section bio-block">
+              <h2 class="block-label">{story.heading}</h2>
+              {story.paragraphs.map((paragraph) => (
+                <p class="bio-text">{paragraph}</p>
               ))}
             </div>
           )}
-          {bio.sections.map((section) => (
-            <div class="bio-block">
-              <h2 class="block-label">{section.heading}</h2>
-              {section.principles.length > 0 && (
-                <ul class="bio-items" role="list">
-                  {section.principles.map((principle) => (
-                    <li>
-                      <h3 class="bio-item-lead">{principle.lead}</h3>
-                      <p class="bio-item-text">
-                        {withLinks(principle.text, [...names, ...reads]).map((run) =>
-                          typeof run === 'string' ? run : <a href={run.href}>{run.text}</a>,
-                        )}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {section.paragraphs.map((paragraph) => (
+          {biggest && (
+            <div class="section bio-block bio-biggest">
+              <h2 class="block-label">{biggest.heading}</h2>
+              {biggest.paragraphs.map((paragraph) => (
+                <p class="bio-text">{paragraph}</p>
+              ))}
+            </div>
+          )}
+          {tryIt && (
+            <div class="section bio-block">
+              <h2 class="block-label">{tryIt.heading}</h2>
+              <ul class="post-list bio-rows" role="list">
+                {rows.map(({ item, slug, href }) => (
+                  <li class="bio-row" data-line={slug}>
+                    <h3 class="post-title bio-item-lead">
+                      {href ? <a href={href}>{item.lead}</a> : item.lead}
+                    </h3>
+                    <p class="bio-item-text">{item.text}</p>
+                    {slug && <LabLine slug={slug} />}
+                  </li>
+                ))}
+              </ul>
+              {tryIt.paragraphs.map((paragraph) => (
+                <p class="bio-text">{paragraph}</p>
+              ))}
+            </div>
+          )}
+          {source && (
+            <div class="section bio-block">
+              <h2 class="block-label">{source.heading}</h2>
+              <ul class="post-list bio-rows" role="list">
+                {sources.map(({ project, words, href }) => (
+                  <li class="bio-row">
+                    <h3 class="post-title bio-item-lead">
+                      {href ? <a href={href}>{project}</a> : project}:
+                    </h3>
+                    <p class="bio-item-text">{words}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {last && (
+            <div class="section bio-block bio-last">
+              <h2 class="block-label">{last.heading}</h2>
+              {last.paragraphs.map((paragraph) => (
+                <p class="bio-text">{paragraph}</p>
+              ))}
+            </div>
+          )}
+          {mine && (
+            <div class="section bio-block">
+              <h2 class="block-label">{mine.heading}</h2>
+              {mine.paragraphs.map((paragraph) => (
                 <p class="bio-text">
-                  {withLinks(paragraph, [...names, ...theLab]).map((run) =>
+                  {withLinks(paragraph, named).map((run) =>
                     typeof run === 'string' ? run : <a href={run.href}>{run.text}</a>,
                   )}
                 </p>
               ))}
             </div>
-          ))}
+          )}
         </section>
       )}
 
-      {/* The offer of the full résumé is the screen's: on paper the page is the résumé, and a sheet
-          that tells its reader to ask for the résumé sends them round in a circle. So the offer
-          never prints, and on paper the section holds the roles and where the history is, and is
-          left off the sheet when it has neither (content.md, Q8). */}
-      <section
-        class:list={['about-section', { 'screen-only': profile.work.length === 0 && !linkedIn }]}
-        id="experience"
-        aria-labelledby="experience-title"
-      >
-        <h2 id="experience-title" class="block-label">
-          Background
-        </h2>
-        {profile.work.length > 0 && (
-          <ol class="roles" role="list">
-            {profile.work.map((role) => (
-              <li>
-                <p class="role-years">{roleYears(role)}</p>
-                <h3 class="role-title">{role.position}</h3>
-              </li>
-            ))}
-          </ol>
-        )}
-        <div class="resume-notes">
-          {profile.basics.summary && <p>{profile.basics.summary}</p>}
-          {linkedIn && (
-            <p>
-              My full work history is on <a href={linkedIn.url}>LinkedIn</a>.
-            </p>
-          )}
-          <p class="screen-only">
-            I'll send a résumé if you email me:{' '}
-            <span class="resume-email">
-              <a href={`mailto:${CONTACT_EMAIL}`}>
-                {mailbox}@<wbr />
-                {domain}
-              </a>
-              .
-            </span>
-          </p>
-        </div>
-      </section>
-
-      {skills.length > 0 && (
-        <section class="about-section" id="skills" aria-labelledby="skills-title">
-          <h2 id="skills-title" class="block-label">
-            Skills
+      {/* Paper's alone (content.md, "Résumé"): where the history is, since the screen tells it in the
+          bio's own words. A section renders only with something to print. */}
+      {(profile.work.length > 0 || profile.basics.summary || linkedIn) && (
+        <section
+          class="section about-section print-only"
+          id="experience"
+          aria-labelledby="experience-title"
+        >
+          <h2 id="experience-title" class="block-label">
+            Background
           </h2>
-          {profile.tools && <p class="skills-tools">{profile.tools}</p>}
-          <p class="skills-note">What you can see working here:</p>
-          <dl class="skills">
-            {skills.map((skill) => (
-              <div>
-                <dt>{skill.name}</dt>
-                <dd>
-                  {skill.evidence.map((page, i) => (
-                    <>
-                      {i > 0 && ', '}
-                      <a href={page.href}>{page.title}</a>
-                    </>
-                  ))}
-                </dd>
-              </div>
-            ))}
-          </dl>
+          {profile.work.length > 0 && (
+            <ol class="roles" role="list">
+              {profile.work.map((role) => (
+                <li>
+                  <p class="role-years">{roleYears(role)}</p>
+                  <h3 class="role-title">{role.position}</h3>
+                </li>
+              ))}
+            </ol>
+          )}
+          <div class="resume-notes">
+            {profile.basics.summary && <p>{profile.basics.summary}</p>}
+            {linkedIn && (
+              <p>
+                My full work history is on <a href={linkedIn.url}>LinkedIn</a>.
+              </p>
+            )}
+          </div>
+        </section>
+      )}
+
+      {profile.tools && (
+        <section class="section about-section" id="tools" aria-labelledby="tools-title">
+          <h2 id="tools-title" class="block-label">
+            {ABOUT_HEADINGS.tools}
+          </h2>
+          <p class="skills-tools">{profile.tools}</p>
         </section>
       )}
 
       {cards.length > 0 && (
-        <section class="about-section print-only" id="work" aria-labelledby="work-title">
+        <section class="section about-section print-only" id="work" aria-labelledby="work-title">
           <h2 id="work-title" class="block-label">
             Selected work
           </h2>
+          {/* Paper names who wrote what before it lists it, so nobody reads built as typed. */}
+          {story?.paragraphs[1] && <p class="work-note">{story.paragraphs[1]}</p>}
           <div class="cards">
             {cards.map((card) => (
               <WorkCard
@@ -244,7 +289,11 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
       )}
 
       {latest.length > 0 && (
-        <section class="about-section print-only" id="writing" aria-labelledby="writing-title">
+        <section
+          class="section about-section print-only"
+          id="writing"
+          aria-labelledby="writing-title"
+        >
           <h2 id="writing-title" class="block-label">
             Writing
           </h2>
@@ -258,4 +307,5 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
       )}
     </div>
   </article>
+  {idea && <Contact heading={idea.heading} words={idea.paragraphs} linkedIn={linkedIn} />}
 </Base>

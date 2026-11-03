@@ -267,10 +267,14 @@ function token(name: string): string {
 /** Whether a lab has its own colour, --line-<slug>, for its card's lamp. */
 const hasColor = (slug: string) => night().has(`line-${slug}`);
 
-async function strip(slug: string, u: number, app: string) {
+async function strip(slug: string, u: number, app: string, inks?: Ink) {
   const draw = DRAWERS[slug];
   if (!draw) return undefined;
-  const ink = { line: token(`line-${slug}`), ground: token('background'), now: token('primary') };
+  const ink = inks ?? {
+    line: token(`line-${slug}`),
+    ground: token('background'),
+    now: token('primary'),
+  };
   return draw({ ink, u, at: (percent) => (percent / 100) * OG_SIZE.width }, app);
 }
 
@@ -288,6 +292,16 @@ export async function lineDrawing(
 ): Promise<string | undefined> {
   const drawn = await strip(slug, scale, app);
   return drawn && svg({ width: OG_SIZE.width, height: drawn.height }, drawn.shapes);
+}
+
+/** One lab's line as a page draws it, for /about/'s rows (components/LabLine.astro): a card's shapes
+ *  at a card's scale, so the row shows the drawing a link to the lab unfurls with, in the page's
+ *  tokens in place of the night theme's values, so it follows the theme. Its colour is --line, which
+ *  data-line sets (global.css). The page holds these as SVG markup, and nothing in them is text. */
+export async function lineOnPage(slug: string, app: string) {
+  const ink = { line: 'var(--line)', ground: 'var(--background)', now: 'var(--primary)' };
+  const drawn = await strip(slug, LINE_SCALE, app, ink);
+  return drawn && { width: OG_SIZE.width, height: drawn.height, shapes: drawn.shapes.join('') };
 }
 
 /** One lab's line across a card, centred in its strip, or none for a lab without a line. */

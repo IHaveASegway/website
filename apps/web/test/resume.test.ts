@@ -2,19 +2,16 @@ import type { DefaultTreeAdapterTypes } from 'parse5';
 import { describe, expect, test } from 'vitest';
 import { decodeReferences } from '../src/lib/held-names';
 import { isNoindex } from '../src/lib/noindex.mjs';
-import type { Post } from '../src/lib/posts';
 import { checkedProfiles } from '../src/lib/profile';
 import { ABOUT_PATH } from '../src/lib/about';
-import { addressText, evidencePages, roleYears, shownSkills } from '../src/lib/resume';
+import { addressText, roleYears } from '../src/lib/resume';
 import { CONTACT_EMAIL, ORIGIN } from '../src/lib/site';
-import type { WorkCard } from '../src/lib/work';
 import { files, html, profile, read } from './support/dist';
 import { attribute, descendants, elementsOf, hasClass, type Element } from './support/html';
 
 // The résumé, on /about/ since 2026-10-28 (content.md, "Résumé"; lib/resume.ts), on every build
-// vitest.config.ts names: the real
-// one, whose profile holds no role or skill yet, and the fixture builds, whose profile fixture holds
-// ten roles and twelve skills, the schema's limits. Each section must show exactly what its source
+// vitest.config.ts names: the real one, whose profile holds no role yet, and the fixture builds,
+// whose profile fixture holds ten roles, the schema's limit. Each section must show exactly what its source
 // holds, and nothing when it holds nothing: no placeholder, no empty heading. Expected values are
 // worked out from profile.json and from the build's own pages, not from the page's own code.
 
@@ -111,34 +108,21 @@ describe('/about/, the résumé', () => {
     ).toEqual([
       ...(profile.basics.summary ? [profile.basics.summary] : []),
       ...(linkedIn ? ['My full work history is on LinkedIn.'] : []),
-      `I’ll send a résumé if you email me: ${CONTACT_EMAIL}.`,
     ]);
-    expect(links(notes)).toEqual([
-      ...(linkedIn ? [{ href: linkedIn.url, text: 'LinkedIn' }] : []),
-      { href: `mailto:${CONTACT_EMAIL}`, text: CONTACT_EMAIL },
-    ]);
+    expect(links(notes)).toEqual(linkedIn ? [{ href: linkedIn.url, text: 'LinkedIn' }] : []);
   });
 
-  test('a skill shows exactly when every page it names is listed in this build, each linked by its own title', () => {
-    const expected = profile.skills
-      .filter((skill) => skill.evidence.every(lists))
-      .map((skill) => ({
-        name: skill.name,
-        evidence: skill.evidence.map((href) => ({ href, text: headingOf(href) })),
-      }));
-    const skills = section('Skills');
-    expect(skills !== undefined, 'the section renders exactly when a skill does').toBe(
-      expected.length > 0,
-    );
-    const rows = skills
-      ? descendants(skills).filter((e) => e.tagName === 'div' && e.parentNode?.nodeName === 'dl')
-      : [];
-    expect(
-      rows.map((row) => ({
-        name: textOf(descendants(row).find((e) => e.tagName === 'dt')),
-        evidence: links(descendants(row).find((e) => e.tagName === 'dd')),
-      })),
-    ).toEqual(expected);
+  // Background and Selected work are paper's since 2026-11-03: the screen tells the same in the bio's
+  // words. The skills' names print nowhere: they listed what the labs show as if Joseph had typed it,
+  // so the tools line is the page's one list of what they've worked with.
+  test('Background is on paper only, and no skill names print or show', () => {
+    const experience = section('Background') as Element;
+    expect(hasClass(experience, 'print-only')).toBe(true);
+    expect(section('Skills')).toBeUndefined();
+    expect(byClass('skills')).toEqual([]);
+    // A name that lists what it holds: a lone word, TypeScript say, is the tools line's too.
+    for (const skill of profile.skills.filter(({ name }) => name.includes(':')))
+      expect(page, skill.name).not.toContain(skill.name);
   });
 
   /** A section's cards, by title and link, in page order. */
@@ -159,7 +143,7 @@ describe('/about/, the résumé', () => {
       : byClass('post-title', descendants(within)).map((t) => links(t)[0]?.href);
 
   // One list feeds both (lib/content.ts). The résumé shows every item as a card; Home carries the
-  // labs in What I build and links each (ADR 0028), and shows the rest as cards in Selected work.
+  // labs in its rows and links each (ADR 0028), and shows the rest as cards in Selected work.
   test("Selected work is Home's: its labs are the ones Home links, its other cards Home's, item for item", () => {
     const isLab = (href: string | null | undefined) => /^\/lab\/[a-z0-9-]+\/$/.test(href ?? '');
     const cards = cardsOf(section('Selected work'));
@@ -197,74 +181,10 @@ describe('/about/, the résumé', () => {
 });
 
 // Known answers on lib/resume.ts, with inputs of their own.
-const post = (slug: string, title: string): Post => ({
-  section: 'writing',
-  slug,
-  title,
-  summary: 's',
-  published: new Date('2026-10-20T00:00:00Z'),
-  updated: null,
-  draft: false,
-  tags: [],
-  kind: 'essay',
-  source: null,
-  minutes: 1,
-});
-const card = (href: string, title: string): WorkCard => ({
-  title,
-  text: 't',
-  facts: [],
-  link: { href, label: 'Try it', external: !href.startsWith('/') },
-});
-
 test("known answers: a role's years", () => {
   expect(roleYears({ startDate: '2019', endDate: '2024' })).toBe('2019–2024');
   expect(roleYears({ startDate: '2021' })).toBe('Since 2021');
   expect(roleYears({ startDate: '2013', endDate: '2013' })).toBe('2013');
-});
-
-test('known answers: evidence pages are pages on this site, titled by their own titles', () => {
-  const targets = evidencePages(
-    [card('/lab/routes/', 'Plan the routes'), card('https://github.com/x/y', 'y')],
-    [post('a-post', 'A post')],
-    [
-      { href: '/writing/', label: 'Writing' },
-      { href: '/rss.xml', label: 'RSS' },
-      { href: '/about/', label: 'About' },
-      { href: '/', label: 'Home' },
-    ],
-  );
-  expect([...targets]).toEqual([
-    ['/lab/routes/', 'Plan the routes'],
-    ['/writing/a-post/', 'A post'],
-    ['/writing/', 'Writing'],
-  ]);
-});
-
-test('known answers: a skill shows only with every page it names, in profile order', () => {
-  const targets = new Map([
-    ['/lab/routes/', 'Plan the routes'],
-    ['/writing/a-post/', 'A post'],
-  ]);
-  const skills = shownSkills(
-    [
-      { name: 'Both', evidence: ['/lab/routes/', '/writing/a-post/'] },
-      { name: 'Half', evidence: ['/lab/routes/', '/writing/not-built/'] },
-      { name: 'None', evidence: ['/lab/nowhere/'] },
-      { name: 'One', evidence: ['/writing/a-post/'] },
-    ],
-    targets,
-  );
-  expect(skills).toEqual([
-    {
-      name: 'Both',
-      evidence: [
-        { href: '/lab/routes/', title: 'Plan the routes' },
-        { href: '/writing/a-post/', title: 'A post' },
-      ],
-    },
-    { name: 'One', evidence: [{ href: '/writing/a-post/', title: 'A post' }] },
-  ]);
 });
 
 test('known answers: an address as text', () => {

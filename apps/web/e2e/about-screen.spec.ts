@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 
-// /about/ on screen (2026-10-31 visitor review): Selected work's lab cards name their labs' lines,
-// so whatever a card draws of its lab draws in the lab's colour (ADR 0025), while the card's own
-// edge stays the page's (ADR 0027: a lab's colour lives inside its drawings, never the chrome); and
-// the bio's headings take a step of the scale, not a size and face of their own.
+// /about/ on screen (2026-10-31 visitor review; ADR 0031): Selected work's lab cards, which print,
+// name their labs' lines, so whatever a card draws of its lab draws in the lab's colour (ADR 0025),
+// while the card's own edge stays the page's (ADR 0027: a lab's colour lives inside its drawings, never
+// the chrome); and the bio's headings take a step of the scale, not a size and face of their own.
 
 /** Each lab card's link, its line, its edge's colour, and the colour its lab's line resolves to. */
 const labCards = (page: import('@playwright/test').Page) =>
@@ -135,58 +135,67 @@ test('/about/ is one column on every screen, the head over the body', async ({ p
   }
 });
 
-// A skill's name lists what it holds, and left to itself a line break strands the last of them:
-// "Message brokers: RabbitMQ, LavinMQ, / SQS", from 768 px up and on an iPhone 14. Each name that
-// takes two lines keeps two words or more on its last.
-const strandedNames = (page: import('@playwright/test').Page) =>
-  page.locator('.skills dt').evaluateAll((names) =>
-    names.flatMap((name) => {
-      const text = name.firstChild as Text;
-      const rows = new Map<number, string[]>();
-      for (const word of (text.data ?? '').matchAll(/\S+/g)) {
-        const range = document.createRange();
-        range.setStart(text, word.index);
-        range.setEnd(text, word.index + word[0].length);
-        const top = Math.round(range.getBoundingClientRect().top);
-        rows.set(top, [...(rows.get(top) ?? []), word[0]]);
-      }
-      const lines = [...rows.values()];
-      return lines.length > 1 && lines.at(-1)?.length === 1 ? [text.data] : [];
-    }),
-  );
-
-for (const width of [320, 360, 390, 768, 1024, 1440, 2560]) {
-  test(`at ${width} px no skill's name leaves a word alone on its last line`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 900 });
-    await page.goto('/about/');
-    await page.evaluate(() => document.fonts.ready);
-    expect(await strandedNames(page)).toEqual([]);
-  });
-}
-
-// The known answer: the same reading on a name set in a column too narrow for it, left to wrap as it
-// likes, finds the word it strands.
-test('known answer: a name left to wrap by itself strands its last word, and this finds it', async ({
+// The labs' rows (ADR 0031): each row is its lab's link from edge to edge, by a press anywhere on it;
+// its line stands over its words, in its lab's colour, across the column, in either theme.
+test('each lab row is a link across the column, under its own line in its own colour', async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 1024, height: 900 });
+  for (const width of [320, 390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/about/');
+    const rows = await page.locator('.bio-row[data-line]').evaluateAll((all) =>
+      all.map((row) => {
+        const box = row.getBoundingClientRect();
+        const line = row.querySelector('.lab-line') as SVGElement;
+        const lead = row.querySelector('.bio-item-lead') as Element;
+        const link = lead.querySelector('a') as HTMLAnchorElement;
+        const cover = getComputedStyle(link, '::before');
+        const stroke = line.querySelector('line');
+        return {
+          slug: row.getAttribute('data-line'),
+          href: link.getAttribute('href'),
+          covers: cover.position === 'absolute' && cover.top === '0px' && cover.left === '0px',
+          across: Math.abs(line.getBoundingClientRect().width - box.width) <= 1,
+          over: line.getBoundingClientRect().bottom <= lead.getBoundingClientRect().top,
+          drawn: stroke ? getComputedStyle(stroke).stroke : '',
+          own: getComputedStyle(line).getPropertyValue(`--line-${row.getAttribute('data-line')}`),
+        };
+      }),
+    );
+    expect(rows.map((row) => row.slug)).toEqual(['cache', 'queue', 'backfill', 'routes', 'raft']);
+    for (const row of rows) {
+      expect(row.href, String(width)).toBe(`/lab/${row.slug}/`);
+      expect(row.covers, String(width)).toBe(true);
+      expect(row.across, String(width)).toBe(true);
+      expect(row.over, String(width)).toBe(true);
+    }
+    // Five labs, five colours: none fell back to another's or to nothing.
+    expect(new Set(rows.map((row) => row.drawn)).size).toBe(rows.length);
+    expect(await page.locator('.resume-contact').isVisible()).toBe(false);
+  }
+});
+
+// The page never goes flat below its first screen (ADR 0030, ADR 0031): the field stands behind every
+// block, nothing paints a ground over it, and each section opens on a line that lights once reached.
+test('below the first screen the field carries on behind the column, and each section opens on a line', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/about/');
-  const stranded = await page
-    .locator('.skills dt')
-    .first()
-    .evaluate((name) => {
-      name.textContent = 'Message brokers: RabbitMQ, LavinMQ, SQS';
-      (name as HTMLElement).style.setProperty('text-wrap', 'wrap');
-      const words = name.textContent.split(' ').slice(0, -1).join(' ');
-      const measure = document.createRange();
-      (name.firstChild as Text).data = words;
-      measure.selectNodeContents(name);
-      const wide = measure.getBoundingClientRect().width;
-      (name.firstChild as Text).data = 'Message brokers: RabbitMQ, LavinMQ, SQS';
-      // Just wide enough for all but the last word.
-      (name as HTMLElement).style.setProperty('inline-size', `${Math.ceil(wide) + 2}px`);
-      return true;
-    });
-  expect(stranded).toBe(true);
-  expect(await strandedNames(page)).toEqual(['Message brokers: RabbitMQ, LavinMQ, SQS']);
+  const painted = await page.evaluate(() =>
+    [...document.querySelectorAll('.about-body, .about-body *')]
+      .filter((e) => e.checkVisibility() && !e.closest('svg'))
+      .filter((e) => {
+        const ground = getComputedStyle(e).backgroundColor;
+        return ground !== 'rgba(0, 0, 0, 0)' && ground !== 'transparent';
+      })
+      .map((e) => e.getAttribute('class')),
+  );
+  expect(painted).toEqual([]);
+  await expect(page.locator('.field')).toBeAttached();
+  const sections = page.locator('.about-body .section:visible');
+  expect(await sections.count()).toBeGreaterThan(5);
+  const last = sections.last();
+  await last.scrollIntoViewIfNeeded();
+  await expect(last).toHaveAttribute('data-lit', '');
 });

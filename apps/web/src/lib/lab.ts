@@ -69,11 +69,11 @@ export interface LabArea {
   readonly visible: boolean;
 }
 
-/** Each lab's short name, the one Home and About call it by, in the order a visitor meets the labs:
- *  easiest to follow first. The Route Lab's map asks for no jargon at all. The rest go as What I
- *  build goes, so Home and /lab/ tell them in one order: the queue, the cache, the backfill, and
- *  Raft, the deepest. Until 2026-11-02 they sorted by slug, so a recruiter's first card on /lab/ was
- *  "Backfill", the hardest word on the site, and the Route Lab came last. */
+/** Each lab's short name, the one Home and About call it by, in the order /lab/ and the menu list
+ *  the labs: easiest to follow first. The Route Lab's map asks for no jargon at all. Then the queue,
+ *  the cache, the backfill, and Raft, the deepest. Until 2026-11-02 they sorted by slug, so a
+ *  recruiter's first card on /lab/ was "Backfill", the hardest word on the site, and the Route Lab
+ *  came last. Home and About tell them in the bio's own order (src/content/about.md). */
 export const LAB_NAMES = [
   { slug: 'routes', name: 'Route Lab' },
   { slug: 'queue', name: 'Queue Lab' },
@@ -81,6 +81,10 @@ export const LAB_NAMES = [
   { slug: 'backfill', name: 'Backfill Lab' },
   { slug: 'raft', name: 'Raft Lab' },
 ] as const;
+
+/** The first lab a sentence names by its short name, among those this build writes. */
+export const labNamedIn = (text: string, built: ReadonlyMap<string, LabEntry>) =>
+  LAB_NAMES.find(({ name, slug }) => text.includes(name) && built.has(slug));
 
 /** A lab's short name, or undefined for a lab that has none yet. */
 export const labName = (slug: string): string | undefined =>

@@ -171,27 +171,6 @@ test('Home’s closing address breaks only after its @, from 320 to 1440 px', as
   }
 });
 
-// How I work reads as a section with five points under it: its title a step larger than each
-// point's lead (design-system.md, "Type scale"). Until 2026-10-30 the leads were the title's size.
-test('How I work’s title is larger than each of its leads, at 390 and 1440 px', async ({
-  page,
-}) => {
-  for (const width of [390, 1440]) {
-    await page.setViewportSize({ width, height: 900 });
-    await open(page, '/');
-    const sizes = await page.evaluate(() => ({
-      title: Number.parseFloat(
-        getComputedStyle(document.querySelector('#how-title') ?? document.body).fontSize,
-      ),
-      leads: [...document.querySelectorAll('.principle-lead')].map((lead) =>
-        Number.parseFloat(getComputedStyle(lead).fontSize),
-      ),
-    }));
-    test.skip(sizes.leads.length === 0, 'Home has no How I work here');
-    for (const lead of sizes.leads) expect(lead, `${width}`).toBeLessThan(sizes.title);
-  }
-});
-
 test('known answers: the layout checks count lines, read widths and find a line off the edge', async ({
   page,
 }) => {

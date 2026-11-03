@@ -2,9 +2,9 @@ import { z } from 'astro/zod';
 import { asDay } from './posts';
 import { typeset } from './typeset.mjs';
 
-// /about/ (content.md, "About"): who Joseph is and how he works, then his résumé. Two sources, one
-// owner each: src/content/about.md holds the bio, his words, and profile.json holds every fact the
-// résumé shows (lib/resume.ts). The page is built by every build, as the résumé it replaced was
+// /about/ (content.md, "About"): what Joseph builds and has built, then their résumé on paper. Two
+// sources, one owner each: src/content/about.md holds the bio, their words, and profile.json holds
+// every fact the résumé shows (lib/resume.ts). The page is built by every build, as the résumé it replaced was
 // (2026-10-28; /resume/ now answers with a 301 to it, public/_redirects); the bio renders only
 // where its entry exists, so the fixture builds, which hold none, still draw the résumé. The entry
 // carries no title, lead or description: the nav names the page, and the profile states the facts.
@@ -24,7 +24,7 @@ export type About = z.infer<typeof aboutSchema>;
  *  ledger and gives it a 301). */
 export const ABOUT_PATH = '/about/';
 
-/** A principle in the bio's list: its bold opening sentence, and what follows it. */
+/** An item in one of the bio's lists: its bold opening sentence, and what follows it. */
 export interface Principle {
   readonly lead: string;
   readonly text: string;
@@ -94,13 +94,18 @@ export function aboutParts(body: string): AboutParts {
   return { lede, sections };
 }
 
-/** The bio's three headings, in its order. Home finds each section it shows by its heading, not by
- *  its place or its shape: "What I build" is a list of bold leads too, and a section moved or added
- *  must not slide into How I work's place. test/about.test.ts holds the bio to these three. */
+/** The bio's headings, in its order. /about/ and Home find each section they show by its heading,
+ *  not by its place or its shape, so a section moved or added can't slide into another's place.
+ *  test/about.test.ts holds the bio to these. */
 export const ABOUT_HEADINGS = {
-  build: 'What I build',
-  how: 'How I work',
-  toward: 'What I’m working toward',
+  story: 'How I got here',
+  biggest: 'The biggest thing I’ve built',
+  tryIt: 'Things I built that you can try',
+  source: 'Open source',
+  last: 'The last thing I built',
+  mine: 'What came from me',
+  tools: 'What I’ve worked with',
+  idea: 'If you’ve got an idea',
 } as const;
 
 /** The section under a heading, or undefined when the bio has none by that name. */
@@ -109,9 +114,9 @@ export function sectionOf(parts: AboutParts, heading: string): AboutSection | un
 }
 
 /** The first sentence of a paragraph: Home's hero says the bio's opening sentence (content.md,
- *  "Home page"), what Joseph builds, and /about/ says the whole opening. The bio's opening grew to
- *  two sentences on 2026-10-31; both at once ran the hero past the first screen at 1440 × 900 and
- *  let the fallback face wrap it a line longer than the web face on a 390 px phone (e2e/fold.spec.ts).
+ *  "Home page"), and /about/ says the whole opening. The bio's opening grew to two sentences on
+ *  2026-10-31; both at once ran the hero past the first screen at 1440 × 900 and let the fallback
+ *  face wrap it a line longer than the web face on a 390 px phone (e2e/fold.spec.ts).
  *  A sentence ends at a full stop, question or exclamation mark followed by a space and a capital;
  *  a paragraph with no such end is one sentence. */
 export function openingSentence(paragraph: string): string {
