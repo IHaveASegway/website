@@ -1,7 +1,15 @@
 import { readLink, writeLink } from '../sim/link';
 import { properties, type PropertyId } from './check';
 import { DATABASE, firstUp, LOADS, millis, pageName, PAGES, seconds, type Load } from './core';
-import { replay, type Action, type Config, type Outcome, type Sample, type Sim } from './sim';
+import {
+  replay,
+  type Action,
+  type Config,
+  type Outcome,
+  type Sample,
+  type Sim,
+  type Toggle,
+} from './sim';
 
 // What the Cache Lab says about a run, as text and numbers, never markup: the page stage draws
 // them. Like the Raft Lab's view, it serves twice: at build, to describe the opening run so the
@@ -26,6 +34,18 @@ export const openingRun = (): Sim => replay(OPENING.config, OPENING.actions, OPE
  *  stands at the opening's moment: half a second before the menu expires, so the stampede the
  *  caption tells plays live, its lamps lighting and its line growing. */
 export const REPLAY_FROM = (OPENING.config.menuExpires ?? 0) - 500;
+
+/**
+ * The switches that decide the story the run opens on: the stampede the page tells, or the fix for
+ * it. A run that has told it has nothing more to say about it, so a press of one replays the run
+ * under it, from REPLAY_FROM, where a visitor watches the same expiry come out another way. The load,
+ * the placement and invalidation work from the moment they're chosen, on the run as it stands.
+ */
+export const STORY: readonly Toggle[] = ['coalesce', 'stale', 'early', 'jitter'];
+
+/** Where a run goes back to, in words, for the lines that say it did. */
+export const REPLAY_WORDS = `at ${seconds(REPLAY_FROM)}, before the menu expires`;
+export const AGAIN = `The run plays again from ${seconds(REPLAY_FROM)}, before the menu expires.`;
 
 const SWITCH = [false, true] as const;
 

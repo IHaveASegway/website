@@ -194,18 +194,24 @@ test('let the menu expire: the first run plays it, 23 fetches at once and two ti
     /When the menu expired at 3\.0 s, the database had 23 fetches of it in flight at once and 2 reads timed out\.$/,
   );
 
-  // Turn on coalescing and serving stale, and start over: the same seed, from the same moment.
-  await press(page, 'Coalesce misses');
-  await press(page, 'Serve stale while refreshing');
-  // A switch alone writes nothing: the link names how a run starts.
-  expect(new URL(page.url()).hash).toBe('');
+  // Turn on coalescing and serving stale: each replays the run under it, the same seed from the same
+  // moment, so the switch shows what it does. Until 2026-11-02 it took Start over to see it, and Run
+  // carried on past the stampede with the switch lit, and the checks still Broken.
   const first = await page.evaluate(() => history.length);
+  await press(page, 'Coalesce misses');
+  await expect(said(page)).toHaveText(
+    'Coalescing is on: readers that miss the same page on one node wait on one fetch. The run starts over under it, at 2.500 s, before the menu expires. Press Run to watch it.',
+  );
+  await press(page, 'Serve stale while refreshing');
+  await expect(clock(page)).toHaveText('Virtual time 2.500 s, 780 events, seed 7');
+  // The link names the run, written with history.replaceState: no new entry in the history.
+  expect(new URL(page.url()).hash).toBe('#seed-7&coalesce=on&stale=on');
+  expect(await page.evaluate(() => history.length)).toBe(first);
   await press(page, 'Start over');
   await expect(clock(page)).toHaveText('Virtual time 2.500 s, 780 events, seed 7');
-  // Start over writes the link with history.replaceState: no new entry in the history.
   expect(await page.evaluate(() => history.length)).toBe(first);
   await expect(said(page)).toHaveText(
-    'Virtual time 2.500 s, 780 events, seed 7. Menu, fresh until 3.0 s.',
+    'The run starts over under these settings, at 2.500 s, before the menu expires. Press Run to watch it.',
   );
   const restarted = [await summary(page).textContent(), await waiting(page).textContent()];
   await runUntil(page, () =>
@@ -560,7 +566,7 @@ test('on a phone, the line waiting stands beside the database’s lamps, and a l
   // Every line's words, wrapped or not, start right of its time.
   const under = await page.locator('[data-cl-lines] li').evaluateAll((items) =>
     items.flatMap((item) => {
-      const at = item.querySelector('.cl-at')?.getBoundingClientRect();
+      const at = item.querySelector('.lab-log-at')?.getBoundingClientRect();
       const words = [...item.childNodes].find(
         (node) => node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').trim() !== '',
       );

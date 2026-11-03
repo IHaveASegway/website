@@ -1,6 +1,6 @@
 /*
   The Cache Lab (/lab/cache/): readers fanning in to four cache nodes, the database behind them, the
-  last 2 s of reads by what they got, the three properties, the controls and the event log. Only
+  last 2 s of reads by what they got, the three checks, the controls and the event log. Only
   that page links this file. Every colour is a token from tokens.css, and the lab's own is its
   line, var(--line), which data-line='cache' sets (global.css). State the browser sets is an
   attribute (data-*), never a class, so every class here is one a built page carries
@@ -34,7 +34,7 @@
 }
 
 /* Below 64rem the desk is one column: the map and its caption, the panel's first part, the strip
-   and the properties, then the other settings. The first part is right under the map so that on a
+   and the checks, then the other settings. The first part is right under the map so that on a
    phone the two fit one screen, and nothing pins: the visitor scrolls the desk as a page. The
    panel's box steps aside so its two parts take places of their own in that column; the settings
    go last by their order, and since the strip and the properties hold nothing that takes focus,
@@ -59,8 +59,8 @@
   }
 }
 
-/* From 64rem, with the controls, the picture, the strip and the properties under it take the
-   left, and the panel the right, its first part on top. */
+/* From 64rem, with the controls, the picture, the strip and the checks under it take the left, and
+   the panel the right, its first part on top. */
 @media (scripting: enabled) and (width >= 64rem) {
   .cl-stage {
     grid-template-columns: minmax(0, 1.7fr) minmax(16rem, 1fr);
@@ -71,12 +71,12 @@
 
   .cl-figure,
   .cl-strip,
-  .cl-props {
+  .cl-checks {
     grid-column: 1;
   }
 
   /* The panel stands beside all three and runs on past them, into a last row of its own, so the
-     properties sit right under the strip however tall the panel is. */
+     checks sit right under the strip however tall the panel is. */
   .cl-panel {
     grid-column: 2;
     grid-row: 1 / -1;
@@ -603,9 +603,13 @@
   }
 }
 
-/* The properties, under the strip: a lamp each, filled while it holds and crossed once it breaks,
-   with its name and in words how often and how badly. From 48rem each is one row: lamp, name, and
-   the words in a column of their own, so the three names line up. */
+/* The checks, under the strip and their heading: a lamp each, filled while it holds and crossed once
+   it breaks, with its name and in words how often and how badly. From 48rem each is one row: lamp,
+   name, and the words in a column of their own, so the three names line up. */
+.cl-checks {
+  gap: 0.75rem;
+}
+
 .cl-props {
   display: grid;
   gap: 0.625rem;
@@ -668,7 +672,7 @@
   line-height: var(--text-ui--line-height);
 }
 
-/* A property's words take one line or two, by its count: each keeps two. */
+/* A check's words take one line or two, by its count: each keeps two. */
 .cl-prop-words {
   min-block-size: 2lh;
   color: var(--muted-foreground);
@@ -679,8 +683,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* The panel: the push-buttons by what they work on, the clock beside Time. A choice among a few is
-   a native radio inside a push-button, its lamp lit while it is the one chosen. */
+/* The panel: the controls (lab-page.css), by what they work on. Each part ends in the line that says
+   what its presses did, which keeps its room whether or not it has anything to say. */
 .cl-panel,
 .cl-deck,
 .cl-settings {
@@ -690,146 +694,28 @@
   min-width: 0;
 }
 
-/* The Time group's name with the clock beside it, so the clock that Next event moves sits on the
-   line over the button. Where the two do not always fit one line, below 24rem and in the panel's
-   column from 64rem, the clock takes a line of its own and keeps two, the most a long run's clock
-   takes there, so a clock that grows a digit never moves the buttons under it. */
-.cl-group-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0 0.75rem;
-}
-
-@media (width < 24rem) or (width >= 64rem) {
-  .cl-clock {
-    flex-basis: 100%;
+/* Three lines is the most a line's words take in the panel's column; below that the desk is wider. */
+@media (48rem <= width < 64rem) {
+  .cl-panel .lab-said {
     min-block-size: 2lh;
   }
 }
 
-.cl-clock {
-  margin: 0;
-  color: var(--muted-foreground);
-  font-family: var(--font-label);
-  font-size: var(--text-label);
-  font-weight: var(--text-label--font-weight);
-  line-height: var(--text-label--line-height);
-  font-variant-numeric: tabular-nums;
-}
-
-.cl-group {
+/* The node buttons stand in a grid, so one whose words change from Lose to Restart keeps its place,
+   and the next button stays under the finger (until 2026-11-02 they wrapped by their words: losing
+   node 3 sent the next one from the right edge to the left and a row down). */
+.cl-node-buttons {
   display: grid;
-  gap: 0.5rem;
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-.cl-group-name {
-  margin: 0;
-  padding: 0;
-  color: var(--muted-foreground);
-  font-family: var(--font-label);
-  font-size: var(--text-label);
-  font-weight: var(--text-label--font-weight);
-  line-height: var(--text-label--line-height);
-}
-
-/* A fieldset's legend stands outside its grid, so its gap to the buttons is its own. */
-legend.cl-group-name {
-  margin-bottom: 0.5rem;
-}
-
-.cl-row {
-  display: flex;
-  flex-wrap: wrap;
+  grid-template-columns: repeat(auto-fill, minmax(min(7.25rem, 100%), 1fr));
   gap: 0.5rem;
 }
 
-/* Run keeps one width, its lamp and all, as its words turn to Pause, so the row never shifts
-   under the pointer. */
-.cl-run {
-  min-inline-size: 6.5rem;
+.cl-flush {
+  grid-column: 1 / -1;
+  justify-self: start;
 }
 
-/* The choices of one radio group stand edge to edge, one push-button of several parts. */
-.cl-segments {
-  gap: 0;
-}
-
-.cl-segments > .cl-choice + .cl-choice {
-  margin-inline-start: -1px;
-}
-
-.cl-choice {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-height: 2.75rem;
-  padding: 0.375rem 1rem;
-  border: 1px solid var(--input);
-  color: var(--foreground);
-  font-family: var(--font-label);
-  font-size: var(--text-ui);
-  font-weight: 500;
-  line-height: var(--text-ui--line-height);
-}
-
-.cl-choice:has(input:checked) {
-  background-color: var(--surface-2);
-}
-
-@media (hover: hover) {
-  .cl-choice:hover {
-    background-color: var(--surface-2);
-  }
-}
-
-/* The radio itself covers its push-button, unseen, so a press anywhere on it chooses, and its
-   focus ring, the site's own, goes round the whole button. The lamp before the words is drawn:
-   hollow, and lit while chosen, the button pressed in, raised, as a pressed button's is
-   (global.css). */
-.cl-choice input {
-  position: absolute;
-  inset: 0;
-  margin: 0;
-  appearance: none;
-  background-color: transparent;
-  cursor: pointer;
-}
-
-.cl-choice::before {
-  content: '';
-  flex: none;
-  inline-size: 0.625rem;
-  block-size: 0.625rem;
-  border: 1.5px solid currentColor;
-  border-radius: 50%;
-}
-
-.cl-choice:has(input:checked)::before {
-  border-color: var(--primary);
-  background-color: var(--primary);
-}
-
-/* Read by assistive technology, unseen on screen: what the last press did. */
-.cl-sr {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  border-width: 0;
-  white-space: nowrap;
-}
-
-/* The event log: the newest line last, in a describer's window, raised, that scrolls; a part of
-   the desk of its own, under a rule from bezel to bezel. */
+/* The event log (lab-page.css), a part of the desk of its own, under a rule from bezel to bezel. */
 .cl-events {
   display: grid;
   gap: 0.75rem;
@@ -838,51 +724,12 @@ legend.cl-group-name {
   border-block-start: 1px solid var(--border);
 }
 
-.cl-heading {
-  margin: 0;
-  font-family: var(--font-label);
-  font-size: var(--text-ui);
-  font-weight: 500;
-}
-
-/* The log's box is one size whatever it holds, before the run's first line and after its sixtieth,
-   so a run that empties it, or fills it, moves nothing under it (steady.spec.ts). */
-.cl-lines {
-  block-size: 16rem;
-  padding: 0.75rem 1rem;
-  overflow-y: auto;
-  background-color: var(--surface-2);
-  font-size: var(--text-label);
-  line-height: var(--text-label--line-height);
-}
-
-.cl-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* A line of the log: its time, then its words in a column of their own, so a line that wraps
-   runs on under its words and the times stay one column. */
-.cl-list > li {
-  display: grid;
-  grid-template-columns: 5.5rem minmax(0, 1fr);
-}
-
-.cl-at {
-  color: var(--muted-foreground);
-  font-family: var(--font-label);
-  font-size: var(--text-label);
-  font-variant-numeric: tabular-nums;
-}
-
 /* Forced colours (a Windows contrast theme) replace fills with the visitor's background. The lamps
    keep their shapes in the visitor's own text and highlight colours: filled, half, hollow, a dot
    in its rim, and a connection lit. */
 @media (forced-colors: active) {
   .cl-lamp,
-  .cl-wait-key,
-  .cl-choice::before {
+  .cl-wait-key {
     forced-color-adjust: none;
   }
 
@@ -905,13 +752,5 @@ legend.cl-group-name {
 
   .cl-lamp[data-state='busy'] {
     background-color: Highlight;
-  }
-
-  .cl-choice::before {
-    border-color: ButtonText;
-  }
-
-  .cl-choice:has(input:checked)::before {
-    background-color: ButtonText;
   }
 }
