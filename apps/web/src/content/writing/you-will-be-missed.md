@@ -46,8 +46,7 @@ lines shipped to prod, and a lot fewer changes requested by people.
 
 I don't want to read too much into that. Part of it is probably just people getting tired of reviewing.
 [DORA's latest report](https://cloud.google.com/blog/products/ai-machine-learning/announcing-the-2025-dora-report) ties
-more AI use to less stable delivery. And every test on this site was green the night I opened it on my iPhone and
-watched it jump around under my thumb.
+more AI use to less stable delivery. And every test on this site was green, but on my phone the site was still unusable.
 
 So I still think we should trust but verify.
 
