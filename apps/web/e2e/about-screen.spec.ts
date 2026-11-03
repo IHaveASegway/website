@@ -194,6 +194,27 @@ test('each row says it is a link at rest: its bold line is underlined in the acc
   }
 });
 
+// The open source row is one of the bio's sentences, set as a title and its words. Laid out that way
+// it has no colon left hanging and starts its words on a capital, and the list's closing rule doesn't
+// stack on the next section's lit line, 26 px under it on a phone.
+test('the open source row reads as a title and its words, with no rule stacked under it', async ({
+  page,
+}) => {
+  await page.goto('/about/');
+  const row = page.locator('.bio-row:not([data-line])');
+  await expect(row.locator('.bio-item-lead')).toHaveText('stillhere');
+  await expect(row.locator('.bio-item-text')).toHaveText(/^Change analytics/);
+  const rule = await row.evaluate(
+    (li) => getComputedStyle(li.parentElement as Element).borderBlockEndStyle,
+  );
+  expect(rule).toBe('none');
+  // The labs' list has words under it, so it keeps its rule.
+  const labs = page.locator('.bio-row[data-line]').first();
+  expect(
+    await labs.evaluate((li) => getComputedStyle(li.parentElement as Element).borderBlockEndStyle),
+  ).toBe('solid');
+});
+
 // The page never goes flat below its first screen (ADR 0030, ADR 0031): the field stands behind every
 // block, nothing paints a ground over it, and each section opens on a line that lights once reached.
 test('below the first screen the field carries on behind the column, and each section opens on a line', async ({

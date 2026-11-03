@@ -69,12 +69,14 @@ test('the bio renders exactly where its entry is, as named blocks in its own wor
   // The opening, the paragraph that prints, as the entry has it.
   expect(texts(bio ?? '', 'p', 'bio-lede')).toEqual([decode(parts.lede[0] ?? '')]);
   // Every bold line and every sentence after it, word for word; the open source row is one sentence
-  // the code composes, its name at the heading's size.
+  // the code lays out, its name at the heading's size, without the colon that joined the two, and its
+  // words on a capital.
   const items = here.flatMap((section) => section.principles);
   const source = sectionOf(parts, ABOUT_HEADINGS.source)?.paragraphs ?? [];
   const row = (paragraph: string) => {
     const at = paragraph.indexOf(': ');
-    return { lead: paragraph.slice(0, at + 1), text: paragraph.slice(at + 2) };
+    const words = paragraph.slice(at + 2);
+    return { lead: paragraph.slice(0, at), text: words.charAt(0).toUpperCase() + words.slice(1) };
   };
   expect(texts(bio ?? '', 'h3', 'bio-item-lead')).toEqual(
     [...items.map((p) => p.lead), ...source.map((p) => row(p).lead)].map(decode),
@@ -137,9 +139,7 @@ test('stillhere’s row links its name to its repository, from the checked recor
   const record = profile.projects.find((p) => p.name === 'stillhere');
   expect(record?.checked).toBeDefined();
   const row = /<li class="bio-row">([\s\S]*?)<\/li>/.exec(page)?.[1] ?? '';
-  expect(/<h3[^>]*>([\s\S]*?)<\/h3>/.exec(row)?.[1]).toBe(
-    `<a href="${record?.url}">stillhere</a>:`,
-  );
+  expect(/<h3[^>]*>([\s\S]*?)<\/h3>/.exec(row)?.[1]).toBe(`<a href="${record?.url}">stillhere</a>`);
   expect(row.match(/<a\b/g)).toHaveLength(1);
 });
 

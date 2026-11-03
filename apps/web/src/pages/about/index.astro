@@ -71,14 +71,16 @@ const rows = (tryIt?.principles ?? []).map((item) => {
   return { item, slug: named?.slug, href: entry && labPath(entry) };
 });
 // The open source row. The bio's words are plain text (lib/about.ts), so the link comes from the
-// record's own check (lib/profile.ts, projectCards, through Selected work): "name: what it is", the
-// name a link once its repository may be linked.
+// record's own check (lib/profile.ts, projectCards, through Selected work): the bio says "name: what
+// it is", and the row sets the name as its title and the rest as its words, which then start a line
+// of their own, on a capital. The name is a link once its repository may be linked.
 const sources = (source?.paragraphs ?? []).map((paragraph) => {
   const at = paragraph.indexOf(': ');
   const project = paragraph.slice(0, at);
+  const words = paragraph.slice(at + 2);
   return {
     project,
-    words: paragraph.slice(at + 2),
+    words: words.charAt(0).toUpperCase() + words.slice(1),
     href: cards.find((card) => card.title === project)?.link.href,
   };
 });
@@ -202,7 +204,7 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
                 {sources.map(({ project, words, href }) => (
                   <li class="bio-row">
                     <h3 class="post-title bio-item-lead">
-                      {href ? <a href={href}>{project}</a> : project}:
+                      {href ? <a href={href}>{project}</a> : project}
                     </h3>
                     <p class="bio-item-text">{words}</p>
                   </li>
