@@ -609,8 +609,7 @@ const reach = (page: Page, names: string[]) =>
 
 // The first thing to try is to let the menu expire, then coalesce misses and start over: those
 // buttons sit by the map, so a press and the picture share one screen. Serve stale comes on the
-// next line; on Linux the map's labels set wider, the menu's words take a line of their own, and
-// the map grows by 70 px, so only the first switch is held to the screen.
+// next line, so only the first switch is held to the screen.
 for (const [width, height] of [
   [390, 844],
   [1440, 900],

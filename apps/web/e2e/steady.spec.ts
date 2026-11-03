@@ -15,7 +15,7 @@ import { handsOn, pages, ROUTE_LAB } from './expected';
 // visitor's phone the same growth moves what they read. With it off, a move here is a move there.
 //
 // What it watches: every element on the screen, by its top, every frame, and each lab's controls by
-// their left edge too, since a button that changes width sends its neighbour sideways, or a row down,
+// their left edge too, since a button that changes width sends its neighbor sideways, or a row down,
 // away from the finger. It leaves out what moves by design: the inside of an SVG picture or a canvas
 // (vans, lamps and curves, though not the picture's own box), the field behind the page, and whatever
 // scrolls inside a box of its own, as an event log's lines do.
@@ -363,7 +363,7 @@ async function play(page: Page, presses: readonly Press[]): Promise<string[]> {
 const fill = (control: Locator) => control.evaluate((el) => getComputedStyle(el).backgroundColor);
 
 // A touch screen keeps :hover on what was last tapped (test/hover.test.ts): until 2026-11-02 a switch
-// tapped on and off still looked half on, a paused Run looked pressed, and a grey tile stayed behind
+// tapped on and off still looked half on, a paused Run looked pressed, and a gray tile stayed behind
 // the theme icon.
 test('a tap leaves no fill behind: a switch off again, Run after Pause, and the theme button', async ({
   page,
@@ -423,7 +423,7 @@ for (const [width, height] of [
 
 // However many pages a node holds, its lamps stay in the room its box keeps, so no press makes the
 // map taller. The room is laid out by the width, so a width in between can break what 320 and 390
-// don't: at 360 px, a common phone, all 120 pages took four rows in a room of three and a bit.
+// don't: at 360 px, a common phone, all 120 pages took four rows, 3 px past the room.
 test('one node holding all 120 pages keeps to its room at every width a phone has', async ({
   page,
 }) => {

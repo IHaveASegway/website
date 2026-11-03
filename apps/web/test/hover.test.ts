@@ -6,7 +6,7 @@ import { app, files, read } from './support/dist';
 // A hover style lives under @media (hover: hover). A touch screen keeps :hover on whatever was last
 // tapped until the next tap elsewhere, so an unguarded fill stays behind on a phone. It did until
 // 2026-11-02: a switch tapped on and off again still looked half on, a paused Run looked pressed, and
-// a grey tile stayed behind the theme icon. This reads what ships as well as what is written, so a
+// a gray tile stayed behind the theme icon. This reads what ships as well as what is written, so a
 // utility class or a plugin can't slip one past. e2e/steady.spec.ts holds the same on a phone.
 
 /** Every selector with :hover in it that no (hover: hover) query guards, with the at-rules around. */

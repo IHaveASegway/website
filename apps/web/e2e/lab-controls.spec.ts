@@ -27,7 +27,7 @@ for (const lab of LABS) {
         const box = option.getBoundingClientRect();
         return {
           radius: getComputedStyle(option).borderTopLeftRadius,
-          // On one line, a button's edge lies over its neighbour's.
+          // On one line, a button's edge lies over its neighbor's.
           joined:
             !next ||
             next.getBoundingClientRect().top !== box.top ||

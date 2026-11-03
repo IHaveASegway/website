@@ -1,7 +1,7 @@
 /*
   The controls on a simulated lab's desk, one set in every lab that has moved to them
   (docs/lab.md, "The controls"; components/lab/). A sheet of its own, which those components link, so
-  a lab's page that draws none of them, as the Route Lab's, doesn't pay for them. Every colour is a
+  a lab's page that draws none of them, as the Route Lab's, doesn't pay for them. Every color is a
   token from tokens.css. It moves nothing, so it declares no transition and no animation.
 */
 
@@ -88,7 +88,7 @@
   column-gap: 0.5rem;
 }
 
-/* Each button draws over its neighbour's edge, and the row steps in by as much, so a row that wraps
+/* Each button draws over its neighbor's edge, and the row steps in by as much, so a row that wraps
    starts level with the one over it. */
 .lab-options {
   display: flex;
@@ -223,7 +223,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Forced colours (Windows contrast themes) replace fills with the visitor's background: a chosen
+/* Forced colors (Windows contrast themes) replace fills with the visitor's background: a chosen
    lamp stays lit, in their palette. */
 @media (forced-colors: active) {
   .lab-option input:checked + .lab-option-lamp {
