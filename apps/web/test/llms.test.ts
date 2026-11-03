@@ -58,11 +58,14 @@ describe('/llms.txt', () => {
     expect(text).not.toMatch(/[ \t]$/m);
   });
 
-  test('Contact is the address and the checked profiles, as the footer has them', () => {
+  // LinkedIn is how people reach Joseph (ADR 0031), so an answer built from this file should lead with
+  // it, and the address stays last, as the footer's plain text.
+  test('Contact is the checked profiles, LinkedIn first, and then the address', () => {
     expect(sections.get('Contact')).toEqual([
-      `mailto:${CONTACT_EMAIL}`,
       ...checkedProfiles(profile).map((p) => p.url),
+      `mailto:${CONTACT_EMAIL}`,
     ]);
+    expect(sections.get('Contact')?.[0]).toMatch(/linkedin\.com/);
   });
 
   test('every page the sitemap lists is here, and every link on the site is a page it lists', () => {

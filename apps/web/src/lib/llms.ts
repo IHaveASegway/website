@@ -57,9 +57,10 @@ export function llmsText({ profile, pages, area, lab, projects }: LlmsSources): 
     '',
     `> ${homeDescription(profile)}`,
     '',
+    // LinkedIn is how people reach Joseph (ADR 0031): it leads, and the address comes last.
     ...section('Contact', [
-      item('Email', `mailto:${CONTACT_EMAIL}`),
       ...checkedProfiles(profile).map((p) => item(p.network, p.url)),
+      item('Email', `mailto:${CONTACT_EMAIL}`),
     ]),
     ...section(
       'Pages',
