@@ -263,7 +263,10 @@ const KEY = [
         <Time short="bf" speeds={SPEEDS} speed="6">
           <p class="lab-clock">
             <span data-bf-clock>{when(sim.now)}</span>,{' '}
-            <span data-bf-events>{eventsText(sim)}</span>, seed <span data-bf-seed>{sim.seed}</span>
+            <span data-bf-events>{eventsText(sim)}</span>,{' '}
+            <span class="lab-seed">
+              random seed <span data-bf-seed>{sim.seed}</span>
+            </span>
           </p>
         </Time>
         <div class="bf-row" role="group" aria-label="Its loads">

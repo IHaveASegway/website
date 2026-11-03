@@ -203,12 +203,12 @@ test('let the menu expire: the first run plays it, 23 fetches at once and two ti
     'Coalescing is on: readers that miss the same page on one node wait on one fetch. The run starts over under it, at 2.500 s, before the menu expires. Press Run to watch it.',
   );
   await press(page, 'Serve stale while refreshing');
-  await expect(clock(page)).toHaveText('Virtual time 2.500 s, 780 events, seed 7');
+  await expect(clock(page)).toHaveText('Virtual time 2.500 s, 780 events, random seed 7');
   // The link names the run, written with history.replaceState: no new entry in the history.
   expect(new URL(page.url()).hash).toBe('#seed-7&coalesce=on&stale=on');
   expect(await page.evaluate(() => history.length)).toBe(first);
   await press(page, 'Start over');
-  await expect(clock(page)).toHaveText('Virtual time 2.500 s, 780 events, seed 7');
+  await expect(clock(page)).toHaveText('Virtual time 2.500 s, 780 events, random seed 7');
   expect(await page.evaluate(() => history.length)).toBe(first);
   await expect(said(page)).toHaveText(
     'The run starts over under these settings, at 2.500 s, before the menu expires. Press Run to watch it.',
@@ -235,7 +235,7 @@ test('let the menu expire: the first run plays it, 23 fetches at once and two ti
   // at the picture's moment: the tamed run, not the opening.
   expect(new URL(page.url()).hash).toBe('#seed-7&coalesce=on&stale=on');
   await page.reload();
-  await expect(clock(page)).toHaveText('Virtual time 5.000 s, 1,613 events, seed 7');
+  await expect(clock(page)).toHaveText('Virtual time 5.000 s, 1,613 events, random seed 7');
   await expect(summary(page)).toHaveText(TAMED);
   for (const name of ['Coalesce misses', 'Serve stale while refreshing'])
     await expect(page.getByRole('button', { name, exact: true })).toHaveAttribute(
@@ -245,7 +245,7 @@ test('let the menu expire: the first run plays it, 23 fetches at once and two ti
   // It is the run Start over played: started over again, it stands where that one stood.
   const entries = await page.evaluate(() => history.length);
   await press(page, 'Start over');
-  await expect(clock(page)).toHaveText('Virtual time 2.500 s, 780 events, seed 7');
+  await expect(clock(page)).toHaveText('Virtual time 2.500 s, 780 events, random seed 7');
   // The address names the run and replaces itself: no new entry in the history.
   expect(await page.evaluate(() => history.length)).toBe(entries);
   expect([await summary(page).textContent(), await waiting(page).textContent()]).toEqual(restarted);
@@ -378,7 +378,7 @@ test('under reduce, Run advances in still steps of half a second of the chosen s
   await page.goto(CACHE);
   // Run plays the stampede from 2.5 s, in still steps.
   await press(page, 'Run');
-  await expect(clock(page)).toHaveText('Virtual time 2.500 s, 789 events, seed 7');
+  await expect(clock(page)).toHaveText('Virtual time 2.500 s, 789 events, random seed 7');
   await press(page, 'Pause');
   // Every time the clock shows, as it changes: a step the test did not sample cannot hide.
   await page.evaluate(() => {
@@ -426,7 +426,7 @@ test('Next event says where the run stands when the log has nothing to tell, and
   page,
 }) => {
   await page.goto(CACHE);
-  await expect(clock(page)).toHaveText('Virtual time 5.000 s, 1,704 events, seed 7');
+  await expect(clock(page)).toHaveText('Virtual time 5.000 s, 1,704 events, random seed 7');
   const heard: string[] = [];
   for (let i = 0; i < 5; i++) {
     await press(page, 'Next event');
@@ -438,7 +438,7 @@ test('Next event says where the run stands when the log has nothing to tell, and
   expect(new Set(heard).size).toBe(heard.length);
   const last = heard.at(-1) ?? '';
   expect(last).toMatch(/^Virtual time 5\.\d{3} s, 1,7\d\d events$/);
-  await expect(clock(page)).toHaveText(`${last}, seed 7`);
+  await expect(clock(page)).toHaveText(`${last}, random seed 7`);
 });
 
 test('a link to a run opens it: #seed-8 loads that seed with no other intent, and Start over plays it from 2.5 s', async ({
@@ -447,9 +447,9 @@ test('a link to a run opens it: #seed-8 loads that seed with no other intent, an
   await page.goto(`${CACHE}#seed-8`);
   await expect(summary(page)).not.toHaveText(OPENING);
   await expect(summary(page)).toHaveText(/When the menu expired at 3\.0 s/);
-  await expect(clock(page)).toHaveText('Virtual time 5.000 s, 1,702 events, seed 8');
+  await expect(clock(page)).toHaveText('Virtual time 5.000 s, 1,702 events, random seed 8');
   await press(page, 'Start over');
-  await expect(clock(page)).toHaveText('Virtual time 2.500 s, 813 events, seed 8');
+  await expect(clock(page)).toHaveText('Virtual time 2.500 s, 813 events, random seed 8');
   expect(new URL(page.url()).hash).toBe('#seed-8');
 });
 
@@ -463,7 +463,7 @@ test('a link followed before the app has loaded loads it, and opens that run wit
   expect(app).toEqual([]);
   // The boot script hears the link and loads the app, which opens the run the link names.
   await page.evaluate(() => (location.hash = '#seed-9&load=morning'));
-  await expect(clock(page)).toHaveText('Virtual time 5.000 s, 3,167 events, seed 9');
+  await expect(clock(page)).toHaveText('Virtual time 5.000 s, 3,167 events, random seed 9');
   await expect(page.getByRole('radio', { name: 'Morning rush', exact: true })).toBeChecked();
   expect(app).toHaveLength(1);
 });
@@ -479,7 +479,7 @@ test('a link names a run’s switches, load and placement; followed on the page 
   await expect.poll(() => seconds(page)).toBeGreaterThan(2.6);
   const open = (hash: string) => page.evaluate((link) => (location.hash = link), hash);
   await open('#seed-9&load=morning&placement=modulo&invalidate=off');
-  await expect(clock(page)).toHaveText('Virtual time 5.000 s, 3,167 events, seed 9');
+  await expect(clock(page)).toHaveText('Virtual time 5.000 s, 3,167 events, random seed 9');
   await expect(page.getByRole('button', { name: 'Run', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Coalesce misses' })).toHaveAttribute(
     'aria-pressed',
@@ -502,12 +502,12 @@ test('a link names a run’s switches, load and placement; followed on the page 
     await page.locator('[data-cl-map]').getAttribute('aria-label'),
   ];
   await open('#seed-12&load=morning&coalesce=on');
-  await expect(page.locator('[data-cl-clock]')).toHaveText(/, seed 12$/);
+  await expect(page.locator('[data-cl-clock]')).toHaveText(/, random seed 12$/);
   await expect(page.getByRole('radio', { name: 'Morning rush', exact: true })).toBeChecked();
   await open('#seed-9&load=rush&coalesce=yes&colour=red');
   await expect(page.locator('[data-cl-readers]')).toHaveText('Readers, 300 a second');
   await expect(page.locator('[data-cl-clock]')).toHaveText(
-    'Virtual time 5.000 s, 1,658 events, seed 9',
+    'Virtual time 5.000 s, 1,658 events, random seed 9',
   );
   await expect(page.getByRole('button', { name: 'Coalesce misses' })).toHaveAttribute(
     'aria-pressed',

@@ -97,7 +97,10 @@ if (pool.length > MAX_WORKERS) throw new Error('queue lab: more workers than the
       >
         <p class="lab-clock">
           <span data-qu-clock>Virtual time {seconds(sim.now)}</span>,{' '}
-          <span data-qu-events>{eventsWords(sim)}</span>, seed <span data-qu-seed>{sim.seed}</span>
+          <span data-qu-events>{eventsWords(sim)}</span>,{' '}
+          <span class="lab-seed">
+            random seed <span data-qu-seed>{sim.seed}</span>
+          </span>
         </p>
         <p class="lab-clock qu-ahead" data-qu-ahead>
           {crashes}

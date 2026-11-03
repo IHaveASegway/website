@@ -133,7 +133,10 @@ const SPEEDS = [
     >
       <p class="lab-clock">
         <span data-rf-clock>Virtual time {seconds(sim.now)}</span>,{' '}
-        <span data-rf-events>{eventsWords(sim)}</span>, seed <span data-rf-seed>{sim.seed}</span>
+        <span data-rf-events>{eventsWords(sim)}</span>,{' '}
+        <span class="lab-seed">
+          random seed <span data-rf-seed>{sim.seed}</span>
+        </span>
       </p>
     </Time>
     <Said words="The network and the servers below change the run as it stands." />

@@ -56,11 +56,16 @@
 }
 
 /* At the narrowest phones a long run's clock takes a line of its own and keeps two, so a clock that
-   grows a digit never moves the buttons under it. */
+   grows a digit never moves the buttons under it, and its random seed takes the second, so a digit
+   never sends the seed from one line to the other. */
 @media (width < 24rem) {
   .lab-clock {
     flex-basis: 100%;
     min-block-size: 2lh;
+  }
+
+  .lab-seed {
+    display: block;
   }
 }
 

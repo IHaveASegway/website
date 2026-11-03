@@ -105,7 +105,7 @@ for (const lab of LABS) {
     await expect(page.getByRole('radiogroup', { name: 'Speed' })).toBeVisible();
     // The clock counts its events as every lab's does, and names its seed.
     await expect(page.locator(`#${lab.name}-lab .lab-time .lab-clock`).first()).toHaveText(
-      /, [\d,]+ events, seed \d+$/,
+      /, [\d,]+ events, random seed \d+$/,
     );
   });
 

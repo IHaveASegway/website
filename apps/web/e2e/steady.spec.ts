@@ -1068,3 +1068,48 @@ for (const width of [320, 360, 375, 390]) {
     expect(bar).toEqual({ height: 56, tools: [44, 44, 44], tile: 18, wide: width });
   });
 }
+// A clock says "random seed 7", and a run adds digits to it as it goes. Under 24rem it has a line of its
+// own and keeps two (lab-controls.css), and from there it shares a line with its group's name, so the
+// width at risk is the one where it only just fits: until 2026-11-03 a longer line wrapped at 375 px mid-run,
+// and at 400 and 402 px, and Run jumped 18 px under the thumb.
+const LONGEST_CLOCK = {
+  raft: 'Virtual time 999.999 s, 99,999 events, random seed 999999',
+  queue: 'Virtual time 999.999 s, 99,999 events, random seed 999999',
+  cache: 'Virtual time 999.999 s, 99,999 events, random seed 999999',
+  backfill: '05:00 on Tuesday, October 27, 999 events, random seed 999',
+} as const;
+
+for (const width of [375, 400, 402]) {
+  test.describe(`at ${width} px`, () => {
+    test.use({ viewport: { width, height: 664 } });
+    for (const [name, lab] of Object.entries(LABS) as [
+      keyof typeof LABS,
+      (typeof LABS)[keyof typeof LABS],
+    ][]) {
+      test(`the ${name} lab's clock moves nothing as a run plays, and keeps the room of its longest words`, async ({
+        page,
+      }) => {
+        await open(page, lab.path);
+        const run = page.locator(`[data-${lab.short}-run]`);
+        await page
+          .locator(`label:has(input[name="${lab.short}-speed"])`, { hasText: 'Quick' })
+          .tap();
+        await stand(page, run);
+        expect(await movesAround(page, () => run.tap(), AFTER_PRESS_MS)).toEqual([]);
+        await run.tap();
+        await expect(run).toHaveText('Run');
+        const grown = await page
+          .locator('.lab-clock')
+          .first()
+          .evaluate((clock, words) => {
+            const row = clock.closest('.lab-time')?.querySelector('.lab-row') as Element;
+            const before = row.getBoundingClientRect().top;
+            clock.textContent = words;
+            return row.getBoundingClientRect().top - before;
+          }, LONGEST_CLOCK[name]);
+        expect(grown).toBeLessThanOrEqual(0.5);
+      });
+    }
+  });
+}
+
