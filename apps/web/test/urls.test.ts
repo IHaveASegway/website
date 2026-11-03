@@ -281,6 +281,15 @@ describe.skipIf(fixtureBuild)('a URL once published never leaves without a 301',
     expect(ledger.filter((url) => !indexable.includes(url) && !covered(url))).toEqual([]);
   });
 
+  // A rule matches its exact path, and a page's own URL answers without its slash too, with a redirect
+  // to the slash. So a page that moved needs both, or an old link without the slash starts to 404.
+  test('a moved page answers without its trailing slash too, at the same new address', () => {
+    const moved = new Map(redirects.map(([from = '', to = '']) => [from, to]));
+    const pagesMoved = [...moved.keys()].filter((from) => from.endsWith('/'));
+    expect(pagesMoved.length).toBeGreaterThan(0);
+    for (const from of pagesMoved) expect(moved.get(from.slice(0, -1)), from).toBe(moved.get(from));
+  });
+
   test('every redirect states its status, since the default is a temporary 302', () => {
     for (const [from, to, status] of redirects) {
       expect(status, `${from} -> ${to}`).toMatch(/^(301|302|303|307|308)$/);

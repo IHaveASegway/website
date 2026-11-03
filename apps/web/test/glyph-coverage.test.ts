@@ -64,7 +64,7 @@ export function textByFace(page: string): Record<Face, string> {
   // The body closes its own column (layouts/Prose.astro, .long-form-body), then the page goes on to
   // a note's source, More writing, or the article's end.
   const body =
-    /<div class="prose">([\s\S]*?)<\/div><\/div>(?=<aside class="post-close"|<ul class="post-links">|<section class="section more-writing"|<\/article>)/.exec(
+    /<div class="prose">([\s\S]*?)<\/div><\/div>(?=<aside class="post-close"|<ul class="post-links|<section class="section more-writing"|<\/article>)/.exec(
       page,
     )?.[1];
   const lost = [

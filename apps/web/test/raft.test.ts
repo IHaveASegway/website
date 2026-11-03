@@ -52,6 +52,7 @@ import {
   readRun,
   SEEDS_IN_CI,
   serverState,
+  STORY_ENDS,
   VIEW_BOX,
   summary,
 } from '../src/lib/raft/view';
@@ -867,14 +868,43 @@ describe('the five safety properties, by name', () => {
   });
 });
 
+// The key says a hollow dot's server hasn't heard that the entry is committed, "and it may never be":
+// until 2026-11-03 it said only "hasn't heard yet", which a cut-off leader's write, the write-up's first
+// step, makes false.
+describe('a hollow dot', () => {
+  const FENCE = [
+    ...OPENING.actions,
+    { at: OPENING.until, kind: 'split', groups: [1, 0, 0, 0, 0] },
+    { at: OPENING.until, kind: 'write' },
+  ] as const;
+
+  test('may never be committed: a cut-off leader’s write shows hollow, and the heal drops it', () => {
+    const cut = replay({ seed: OPENING.seed }, FENCE, OPENING.until);
+    const leader = cut.servers[0];
+    expect(leader?.log).toHaveLength(4);
+    expect(logMarkup(leader as Server).match(/data-done/g)).toHaveLength(3);
+    const healed = replay(
+      { seed: OPENING.seed },
+      [
+        ...FENCE,
+        { at: OPENING.until + 1_500, kind: 'heal' },
+        { at: OPENING.until + 2_000, kind: 'write' },
+      ],
+      OPENING.until + 3_000,
+    );
+    expect(healed.lines.map((line) => line.text)).toContain(
+      'Write 4 is gone: it was never committed, and index 4 is committed with another entry',
+    );
+  });
+});
+
 describe('the run a visitor lands on', () => {
   /** Plays the story on from the opening in a page's frames, a limit on each. */
   const played = (limit = Infinity, frame = 16) => {
     const sim = openingRun();
-    const story = landingStory(sim);
-    const ahead = [...story.actions];
-    while (sim.now < story.ends) playTo(sim, ahead, sim.now + frame, limit);
-    return { sim, ends: story.ends, left: ahead };
+    const ahead = landingStory();
+    while (sim.now < STORY_ENDS) playTo(sim, ahead, sim.now + frame, limit);
+    return { sim, left: ahead };
   };
 
   test('known answers: the leader crashes, another wins a newer term, and all five end on one log', () => {
@@ -919,7 +949,7 @@ describe('the run a visitor lands on', () => {
   });
 
   test('it changes nothing the build draws or a link opens: only the landing ever holds it', () => {
-    const { actions } = landingStory(openingRun());
+    const actions = landingStory();
     expect(actions.map((a) => a.kind)).toEqual(['crash', 'restart', 'write']);
     expect(actions.map((a) => a.at)).toEqual([
       OPENING.until + LANDING.crash,
@@ -930,10 +960,11 @@ describe('the run a visitor lands on', () => {
     expect(OPENING.actions.every((a) => a.kind === 'write' && a.at < OPENING.until)).toBe(true);
     expect(differences(fresh(OPENING.seed, 0), openingRun())).toEqual([]);
     expect(fresh(12, 0).actions).toEqual(OPENING.actions);
-    // A run with no leader to crash has no story to tell.
-    const none = openingRun();
-    none.servers.forEach((s) => crash(none, s.id));
-    expect(landingStory(none)).toEqual({ actions: [], ends: Infinity });
+    // It's told only from this opening, and it crashes the server that leads it.
+    expect(leaderOf(openingRun())?.id).toBe(0);
+    expect(actions.flatMap((a) => (a.kind === 'crash' ? [a.node] : []))).toEqual([0]);
+    // Playing it takes off what it has played, so each telling gets a list of its own.
+    expect(landingStory()).not.toBe(actions);
   });
 
   test('Start over’s run is the opening again on the same seed and loss, line for line', () => {

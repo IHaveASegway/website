@@ -32,8 +32,8 @@ import {
 } from '../src/lib/lines';
 import { replay as replayQueue } from '../src/lib/queue/sim';
 import { OPENING as QUEUE, openingRun as queueOpening } from '../src/lib/queue/view';
-import { replay as replayRaft } from '../src/lib/raft/sim';
-import { OPENING as RAFT, openingRun } from '../src/lib/raft/view';
+import { leaderOf, replay as replayRaft } from '../src/lib/raft/sim';
+import { landingStory, OPENING as RAFT, openingRun, STORY_ENDS } from '../src/lib/raft/view';
 import type { RouteData } from '../src/lib/route-lab/data';
 import type { Day } from '../src/lib/route-lab/days';
 import { dayLine, NBSP } from '../src/lib/route-lab/format';
@@ -176,9 +176,45 @@ describe('the Raft line', () => {
     replayRaft({ seed: RAFT.seed }, [...RAFT.actions, { at: until, kind: 'crash', node }], until);
 
   test("the board's fix: crash the leader, and another leads the next term with every entry kept", () => {
+    // Which server wins depends on the moment: this is a crash where the opening stands.
     expect(raftFailover(openingRun(), crashedAt(RAFT.until, 0))).toBe(
-      'Crash server 1, and server 5 takes over in term 2 after 221 ms, with all three committed entries kept.',
+      'Crash server 1, and server 5 takes over as leader after 221 ms, with nothing lost: all three committed entries are still there.',
     );
+  });
+
+  // The card's fact is the crash the page goes on to show: a visitor reads it, opens the lab, and the
+  // run they land on crashes the same server and elects the one the card names, as fast as it says.
+  // Until 2026-11-03 the card said server 5 after 221 ms, over a page that showed server 3 after 196.
+  test("the card's fact is the crash the run a visitor lands on plays: the same server, the same time", async () => {
+    expect(await labFact('raft')).toBe(
+      'Crash server 1, and server 3 takes over as leader after 196 ms, with nothing lost: all three committed entries are still there.',
+    );
+    const [crash] = landingStory();
+    const story = replayRaft({ seed: RAFT.seed }, [...RAFT.actions, ...landingStory()], STORY_ENDS);
+    const won = story.lines.find((line) => line.text.includes('wins term 2'));
+    expect(won?.text).toMatch(/^Server 3 wins term 2/);
+    expect(Math.round((won?.at ?? 0) - (crash?.at ?? 0))).toBe(196);
+  });
+
+  // "Nothing lost" says more than "its committed entries kept": Raft may drop an entry it never
+  // committed, so a leader cut off with a write the others never saw refuses the sentence.
+  test('a failover that drops an entry the old leader held is refused: the words say nothing was lost', () => {
+    const fence = [
+      ...RAFT.actions,
+      { at: RAFT.until, kind: 'split', groups: [1, 0, 0, 0, 0] },
+      { at: RAFT.until, kind: 'write' },
+    ] as const;
+    const opening = replayRaft({ seed: RAFT.seed }, fence, RAFT.until);
+    const old = leaderOf(opening);
+    expect(old?.id).toBe(0);
+    expect(old?.log.length).toBe(4);
+    expect(old?.commitIndex).toBe(3);
+    const crashed = replayRaft(
+      { seed: RAFT.seed },
+      [...fence, { at: RAFT.until, kind: 'crash', node: 0 }],
+      RAFT.until,
+    );
+    expect(() => raftFailover(opening, crashed)).toThrow(/lost an entry/);
   });
 
   test('a failover that is not one is refused: the leader still up, or no leader within the bound', () => {
@@ -224,7 +260,7 @@ describe('the Queue line', () => {
   test("the index's fact: the same crash with the idempotency key prints order 18 once", () => {
     const keyed = replayQueue({ ...QUEUE.config, key: true }, QUEUE.actions, QUEUE.until);
     expect(queueFact(keyed)).toBe(
-      'With an idempotency key, worker 2 crashes and order 18’s oven ticket still prints once. 25 orders done in 4 s, none lost or printed twice.',
+      'Worker 2 crashes and order 18 is sent again. Workers check its id, the idempotency key, before printing, so its oven ticket prints once. 25 orders done in 4 s, none lost or printed twice.',
     );
     // The opening itself printed order 18 twice, so it cannot be the fact.
     expect(() => queueFact(queueOpening())).toThrow(/doubled/);
@@ -259,7 +295,7 @@ describe('the Cache line', () => {
   test("the index's fact: with coalescing the database is asked for the menu once instead of 23 times", () => {
     const coalesced = replayCache({ ...CACHE.config, coalesce: true }, CACHE.actions, CACHE.until);
     expect(cacheFact(cacheOpening(), coalesced)).toBe(
-      'When the menu expires at 3.0 s, coalescing means the database is asked for it once instead of 23 times.',
+      'When the menu expires at 3.0 s, coalescing lets one reader fetch it while the rest wait, so the database is asked for it once instead of 23 times.',
     );
     // With no herd at an expiry there is nothing to compare.
     expect(() => cacheFact(coalesced, coalesced)).toThrow(/herd/);
@@ -337,7 +373,7 @@ describe('the Backfill line', () => {
   test("the index's fact: loads that overwrite their day count the week once", () => {
     const appended = backfillOpening();
     expect(backfillFact(appended, backfillOpening('overwrite'))).toBe(
-      'When each load overwrites its day, the week’s report counts 2,012 orders, matching the source, instead of 2,108.',
+      'When each run replaces its day’s rows instead of adding to them, the week’s report counts 2,012 orders, the right total, instead of 2,108.',
     );
     // The appended week does not match its source, so it cannot be the fact.
     expect(() => backfillFact(appended, appended)).toThrow(/match/);

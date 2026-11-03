@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 
-// /about/ on screen (2026-10-31 visitor review): Selected work's lab cards name their labs' lines,
-// so whatever a card draws of its lab draws in the lab's colour (ADR 0025), while the card's own
-// edge stays the page's (ADR 0027: a lab's colour lives inside its drawings, never the chrome); and
-// the bio's headings take a step of the scale, not a size and face of their own.
+// /about/ on screen (2026-10-31 visitor review; ADR 0031): Selected work's lab cards, which print,
+// name their labs' lines, so whatever a card draws of its lab draws in the lab's colour (ADR 0025),
+// while the card's own edge stays the page's (ADR 0027: a lab's colour lives inside its drawings, never
+// the chrome); and the bio's headings take a step of the scale, not a size and face of their own.
 
 /** Each lab card's link, its line, its edge's colour, and the colour its lab's line resolves to. */
 const labCards = (page: import('@playwright/test').Page) =>
@@ -53,55 +53,47 @@ test('known answer: lab cards without their line resolve no colour', async ({ pa
   expect(new Set(cards.map((card) => card.resolved))).toEqual(new Set(['']));
 });
 
-// The bio as named blocks (ADR 0027, after syntaqx's Currently and Previously): each block's name,
-// and each section's name on the page, is a label in the wide face at the label's size, in the
-// accent, sentence case, the way Home names its bio blocks; each item's lead takes a card title's
-// size and face, one step of the scale. Until 2026-10-31 the bio's headings were display titles.
-// The fixture builds hold no bio, so there the leads are not read.
-test("the page's sections are named by wide labels in the accent, and the bio's leads by a card title's type", async ({
+// The page's sections are named as its close is, by section titles (ADR 0031): at 12.5 px over two
+// screens of prose, then 28 px at the close, the page's rhythm fell away a third of the way from its
+// end, and the same heading read 28 px on Home. Each item's lead takes a card title's size and face,
+// one step of the scale. The fixture builds hold no bio, so there the leads are not read.
+test("the page's sections are named by section titles, as its close is, and the bio's leads by a card title's type", async ({
   page,
 }) => {
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/about/');
     const type = await page.evaluate(() => {
-      const probe = document.createElement('span');
-      probe.style.cssText =
-        'color: var(--primary); font-family: var(--font-wide); font-size: var(--text-label)';
-      document.body.append(probe);
-      const want = getComputedStyle(probe);
-      const accent = { color: want.color, family: want.fontFamily, size: want.fontSize };
-      probe.remove();
       const of = (e: Element) => {
+        const s = getComputedStyle(e);
+        return {
+          family: s.fontFamily,
+          size: s.fontSize,
+          weight: s.fontWeight,
+          height: s.lineHeight,
+          color: s.color,
+          case: s.textTransform,
+        };
+      };
+      const line = (e: Element) => {
         const s = getComputedStyle(e);
         return `${s.fontSize} ${s.fontFamily} ${s.fontWeight} ${s.lineHeight}`;
       };
+      const close = document.querySelector('.contact .section-title');
       const card = document.querySelector('.card-title');
       return {
-        accent,
-        labels: [...document.querySelectorAll('.resume h2')].map((h) => {
-          const s = getComputedStyle(h);
-          return {
-            text: h.textContent?.trim(),
-            color: s.color,
-            family: s.fontFamily,
-            size: s.fontSize,
-            case: s.textTransform,
-          };
-        }),
-        leads: [...document.querySelectorAll('.bio-item-lead')].map(of),
-        headline: card ? of(card) : null,
+        close: close ? of(close) : null,
+        titles: [...document.querySelectorAll('.resume h2')]
+          .filter((h) => h.checkVisibility())
+          .map((h) => ({ text: h.textContent?.trim(), ...of(h) })),
+        leads: [...document.querySelectorAll('.bio-item-lead')].map(line),
+        headline: card ? line(card) : null,
       };
     });
-    expect(type.labels.length).toBeGreaterThan(0);
-    for (const label of type.labels) {
-      expect(label, String(width)).toEqual({
-        text: label.text,
-        color: type.accent.color,
-        family: type.accent.family,
-        size: type.accent.size,
-        case: 'none',
-      });
+    expect(type.close).not.toBeNull();
+    expect(type.titles.length).toBeGreaterThan(5);
+    for (const title of type.titles) {
+      expect(title, String(width)).toEqual({ text: title.text, ...type.close });
     }
     expect(type.headline).not.toBeNull();
     for (const lead of type.leads) expect(lead, String(width)).toBe(type.headline);
@@ -135,58 +127,131 @@ test('/about/ is one column on every screen, the head over the body', async ({ p
   }
 });
 
-// A skill's name lists what it holds, and left to itself a line break strands the last of them:
-// "Message brokers: RabbitMQ, LavinMQ, / SQS", from 768 px up and on an iPhone 14. Each name that
-// takes two lines keeps two words or more on its last.
-const strandedNames = (page: import('@playwright/test').Page) =>
-  page.locator('.skills dt').evaluateAll((names) =>
-    names.flatMap((name) => {
-      const text = name.firstChild as Text;
-      const rows = new Map<number, string[]>();
-      for (const word of (text.data ?? '').matchAll(/\S+/g)) {
-        const range = document.createRange();
-        range.setStart(text, word.index);
-        range.setEnd(text, word.index + word[0].length);
-        const top = Math.round(range.getBoundingClientRect().top);
-        rows.set(top, [...(rows.get(top) ?? []), word[0]]);
-      }
-      const lines = [...rows.values()];
-      return lines.length > 1 && lines.at(-1)?.length === 1 ? [text.data] : [];
-    }),
-  );
-
-for (const width of [320, 360, 390, 768, 1024, 1440, 2560]) {
-  test(`at ${width} px no skill's name leaves a word alone on its last line`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 900 });
-    await page.goto('/about/');
-    await page.evaluate(() => document.fonts.ready);
-    expect(await strandedNames(page)).toEqual([]);
-  });
-}
-
-// The known answer: the same reading on a name set in a column too narrow for it, left to wrap as it
-// likes, finds the word it strands.
-test('known answer: a name left to wrap by itself strands its last word, and this finds it', async ({
+// The labs' rows (ADR 0031): each row is its lab's link from edge to edge, by a press anywhere on it;
+// its line stands over its words, in its lab's colour, across the column, in either theme.
+test('each lab row is a link across the column, under its own line in its own colour', async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 1024, height: 900 });
+  for (const width of [320, 390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/about/');
+    const rows = await page.locator('.bio-row[data-line]').evaluateAll((all) =>
+      all.map((row) => {
+        const box = row.getBoundingClientRect();
+        const line = row.querySelector('.lab-line') as SVGElement;
+        const lead = row.querySelector('.bio-item-lead') as Element;
+        const link = lead.querySelector('a') as HTMLAnchorElement;
+        const cover = getComputedStyle(link, '::before');
+        const stroke = line.querySelector('line');
+        return {
+          slug: row.getAttribute('data-line'),
+          href: link.getAttribute('href'),
+          covers: cover.position === 'absolute' && cover.top === '0px' && cover.left === '0px',
+          across: Math.abs(line.getBoundingClientRect().width - box.width) <= 1,
+          over: line.getBoundingClientRect().bottom <= lead.getBoundingClientRect().top,
+          drawn: stroke ? getComputedStyle(stroke).stroke : '',
+          own: getComputedStyle(line).getPropertyValue(`--line-${row.getAttribute('data-line')}`),
+        };
+      }),
+    );
+    expect(rows.map((row) => row.slug)).toEqual(['cache', 'queue', 'backfill', 'routes', 'raft']);
+    for (const row of rows) {
+      expect(row.href, String(width)).toBe(`/lab/${row.slug}/`);
+      expect(row.covers, String(width)).toBe(true);
+      expect(row.across, String(width)).toBe(true);
+      expect(row.over, String(width)).toBe(true);
+    }
+    // Five labs, five colours: none fell back to another's or to nothing.
+    expect(new Set(rows.map((row) => row.drawn)).size).toBe(rows.length);
+    expect(await page.locator('.resume-contact').isVisible()).toBe(false);
+  }
+});
+
+// People reach Joseph on LinkedIn (ADR 0031), so About's first screen offers it, as Home's does, and
+// doesn't leave that to a button 7 screens down. It's a control, so it stays off paper.
+test("/about/'s head offers LinkedIn in the first screen, and paper leaves it off", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 664 });
   await page.goto('/about/');
-  const stranded = await page
-    .locator('.skills dt')
-    .first()
-    .evaluate((name) => {
-      name.textContent = 'Message brokers: RabbitMQ, LavinMQ, SQS';
-      (name as HTMLElement).style.setProperty('text-wrap', 'wrap');
-      const words = name.textContent.split(' ').slice(0, -1).join(' ');
-      const measure = document.createRange();
-      (name.firstChild as Text).data = words;
-      measure.selectNodeContents(name);
-      const wide = measure.getBoundingClientRect().width;
-      (name.firstChild as Text).data = 'Message brokers: RabbitMQ, LavinMQ, SQS';
-      // Just wide enough for all but the last word.
-      (name as HTMLElement).style.setProperty('inline-size', `${Math.ceil(wide) + 2}px`);
-      return true;
-    });
-  expect(stranded).toBe(true);
-  expect(await strandedNames(page)).toEqual(['Message brokers: RabbitMQ, LavinMQ, SQS']);
+  const button = page.locator('.about-head a.btn-primary');
+  await expect(button).toHaveText('LinkedIn');
+  await expect(button).toHaveAttribute('href', /^https:\/\/www\.linkedin\.com\/in\//);
+  const box = await button.boundingBox();
+  expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(664);
+  await page.emulateMedia({ media: 'print' });
+  await expect(button).toBeHidden();
+});
+
+// A phone has no hover, so a row says it opens something before anyone touches it: its bold line is
+// underlined at rest, in the accent, as every other link on the page is (SC 1.4.1). On 2026-11-03 no
+// row showed it, and the drawings read as decoration.
+test('each row says it is a link at rest: its bold line is underlined in the accent', async ({
+  page,
+}) => {
+  await page.goto('/about/');
+  const accent = await page.evaluate(() => {
+    const probe = document.createElement('span');
+    probe.style.color = 'var(--primary)';
+    document.body.append(probe);
+    const color = getComputedStyle(probe).color;
+    probe.remove();
+    return color;
+  });
+  const leads = await page.locator('.bio-item-lead > a').evaluateAll((all) =>
+    all.map((a) => {
+      const s = getComputedStyle(a);
+      return { text: a.textContent, line: s.textDecorationLine, color: s.textDecorationColor };
+    }),
+  );
+  expect(leads.length).toBeGreaterThan(0);
+  for (const lead of leads) {
+    expect(lead, lead.text ?? '').toEqual({ text: lead.text, line: 'underline', color: accent });
+  }
+});
+
+// The open source row is one of the bio's sentences, set as a title and its words. Laid out that way
+// it has no colon left hanging and starts its words on a capital, and the list's closing rule doesn't
+// stack on the next section's lit line, 26 px under it on a phone.
+test('the open source row reads as a title and its words, with no rule stacked under it', async ({
+  page,
+}) => {
+  await page.goto('/about/');
+  const row = page.locator('.bio-row:not([data-line])');
+  await expect(row.locator('.bio-item-lead')).toHaveText('stillhere');
+  await expect(row.locator('.bio-item-text')).toHaveText(/^Change analytics/);
+  const rule = await row.evaluate(
+    (li) => getComputedStyle(li.parentElement as Element).borderBlockEndStyle,
+  );
+  expect(rule).toBe('none');
+  // The labs' list has words under it, so it keeps its rule.
+  const labs = page.locator('.bio-row[data-line]').first();
+  expect(
+    await labs.evaluate((li) => getComputedStyle(li.parentElement as Element).borderBlockEndStyle),
+  ).toBe('solid');
+});
+
+// The page never goes flat below its first screen (ADR 0030, ADR 0031): the field stands behind every
+// block, nothing paints a ground over it, and each section opens on a line that lights once reached.
+test('below the first screen the field carries on behind the column, and each section opens on a line', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/about/');
+  const painted = await page.evaluate(() =>
+    [...document.querySelectorAll('.about-body, .about-body *')]
+      .filter((e) => e.checkVisibility() && !e.closest('svg'))
+      .filter((e) => {
+        const ground = getComputedStyle(e).backgroundColor;
+        return ground !== 'rgba(0, 0, 0, 0)' && ground !== 'transparent';
+      })
+      .map((e) => e.getAttribute('class')),
+  );
+  expect(painted).toEqual([]);
+  await expect(page.locator('.field')).toBeAttached();
+  const sections = page.locator('.about-body .section:visible');
+  expect(await sections.count()).toBeGreaterThan(5);
+  const last = sections.last();
+  await last.scrollIntoViewIfNeeded();
+  await expect(last).toHaveAttribute('data-lit', '');
 });

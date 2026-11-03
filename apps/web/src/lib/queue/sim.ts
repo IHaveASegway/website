@@ -802,8 +802,8 @@ function drainDue(sim: Sim): void {
   const stuck = left.find((id) => jobOf(sim, id).poison) ?? (left[0] as number);
   const n = left.length;
   const still = `${n} ${n === 1 ? 'order was' : 'orders were'} still queued or in flight`;
-  tally(sim, 'drains', stuck, `${still} 30 s after the producer stopped`);
-  say(sim, `30 s after the producer stopped, ${still}: the queue does not drain`);
+  tally(sim, 'drains', stuck, `${still} 30 s after orders stopped`);
+  say(sim, `30 s after orders stopped, ${still}: the queue does not drain`);
 }
 
 /** An event is stale when what it was planned for has gone: the producer's schedule changed, the
@@ -1028,7 +1028,7 @@ export function poison(sim: Sim): Job {
   catchUp(sim);
   record(sim, { at: sim.now, kind: 'poison' });
   const job = publish(sim, true);
-  say(sim, `Order ${job.id} is published, and it is poison: it fails on every try`);
+  say(sim, `Order ${job.id} comes in, and it is poison: it fails on every try`);
   dispatch(sim);
   settle(sim);
   return job;
@@ -1200,7 +1200,7 @@ export function stopProducer(sim: Sim): void {
   record(sim, { at: sim.now, kind: 'stop' });
   sim.producing = false;
   sim.gen += 1;
-  say(sim, 'The producer stops: no new orders arrive');
+  say(sim, 'Orders stop: no new ones arrive');
   settle(sim);
 }
 
@@ -1211,7 +1211,7 @@ export function startProducer(sim: Sim): void {
   sim.producing = true;
   sim.gen += 1;
   planArrival(sim);
-  say(sim, `The producer starts again, at about ${LOADS[sim.load]} orders a second`);
+  say(sim, `Orders start again, at about ${LOADS[sim.load]} a second`);
   settle(sim);
 }
 

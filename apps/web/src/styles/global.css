@@ -1207,10 +1207,10 @@
   }
 
   /* A long title wraps in its own column: left to the row's wrapping, on a 360 px phone it fell under
-     the lamp, out of line with every row around it. The row still wraps for the address, and where
-     a larger text size leaves a column too narrow for a whole word. */
+     the lamp, out of line with every row around it. The row still wraps where a larger text size
+     leaves a column too narrow for a whole word. */
   @media (width >= 18rem) {
-    .palette-option:not(:has(.palette-value)) {
+    .palette-option {
       flex-wrap: nowrap;
     }
   }
@@ -1242,14 +1242,6 @@
       forced-color-adjust: none;
       background-color: Highlight;
     }
-  }
-
-  .palette-value {
-    margin-inline-start: auto;
-    color: var(--muted-foreground);
-    font-size: var(--text-label);
-    line-height: var(--text-label--line-height);
-    overflow-wrap: anywhere;
   }
 
   .palette-theme {
@@ -1633,8 +1625,6 @@
     .post-title a,
     .card-more,
     .section-more,
-    .principle-text a,
-    .hero-statement a,
     .build-text a,
     .build-more a
   )::after {
@@ -1658,8 +1648,6 @@
       .post-title a,
       .card-more,
       .section-more,
-      .principle-text a,
-      .hero-statement a,
       .build-text a,
       .build-more a
     )[href^='/']::after {
@@ -1676,8 +1664,48 @@
     content: attr(href);
   }
 
+  a.card-more[data-address]::after {
+    content: attr(data-address);
+  }
+
   .prose :not(pre) > code {
     padding: 0;
+  }
+
+  /* The footer on paper stays whole, under the page's last words: one column, since the links' printed
+     addresses left the name and the email address a column too narrow for them, with no finger's
+     target height and little space. As the screen has it, it took the essay a fifth sheet of US Letter
+     holding nothing but the copyright line, and the essay now prints no footer (prose.css). */
+  .site-foot {
+    margin-top: 1rem;
+    break-inside: avoid;
+  }
+
+  .site-footer {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.25rem;
+    padding-block: 0.75rem 0;
+  }
+
+  /* Who it is, in one line while it fits: on three, it was the difference on A4. */
+  .footer-who {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 1rem;
+  }
+
+  .footer-role {
+    margin-block-end: 0;
+  }
+
+  .footer-email,
+  .footer-links a {
+    min-height: 0;
+  }
+
+  .fine-print {
+    padding-top: 0.5rem;
   }
 }
 

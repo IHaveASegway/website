@@ -207,7 +207,7 @@ export function roleLine(profile: Profile): string {
 /** "Joseph Peterson, Senior Software Engineer. Remote, US.": Home's description, for search
  *  results and link previews, and the summary line of /llms.txt. */
 export function homeDescription(profile: Profile): string {
-  return `${profile.basics.name} is a senior software engineer (remote, US) who builds queues, data pipelines, caches and clusters, and writes about working with coding agents.`;
+  return `${profile.basics.name} is a senior software engineer (remote, US) who takes an idea and builds the entire system, and writes about working with coding agents.`;
 }
 
 /** Every URL a record holds, checked or not, with the network it is on: the readiness test's list

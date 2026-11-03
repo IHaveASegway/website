@@ -246,8 +246,12 @@ export function savedText(before: Measured, after: Measured): string {
   return `VROOM saves ${time} of driving, ${percent}% less${fewer > 0 ? `, and ${miles}` : ''}.`;
 }
 
-/** Why the vans hold what they hold: a share of the day's boxes, so changing the vans changes it.
- *  Nothing when there is no order, and no share when there is one: one van takes it. */
+/** Why the vans hold what they hold: an even split of the day's boxes and a margin, so changing the
+ *  vans changes it. Nothing when there is no order, and no split when there is one: one van takes it.
+ *  Only where that margin sets the limit does the line say so: the other limits have reasons of their
+ *  own. What the margin does is keep any one van from taking every box. It doesn't even out the loads:
+ *  VROOM's busy Saturday is 19, 18 and 5 boxes. Two orders of one box on two vans round up to room for
+ *  both, so there the line claims no more than the arithmetic. */
 export function roomText(
   data: RouteData,
   orders: readonly number[],
@@ -260,13 +264,11 @@ export function roomText(
   if (orders.length === 1) return `One order: one van takes its ${all}.`;
   if (vans === 1) return `One van takes all ${all}.`;
   const share = shareCapacity(data, orders, vans);
-  const why =
-    capacity > share
-      ? 'room for every order, dealt in turn'
-      : capacity > Math.ceil((boxes / vans) * SHARE)
-        ? 'the largest order'
-        : `${SHARE} times its share`;
-  return `Each van takes at most ${capacity} of the ${all}: ${why}.`;
+  const most = `Each van can carry at most ${capacity} of the ${all}`;
+  if (capacity > share) return `${most}: room for every order, dealt in turn.`;
+  if (capacity > Math.ceil((boxes / vans) * SHARE)) return `${most}: the largest order.`;
+  const split = `${most}, ${SHARE} times an even split`;
+  return capacity < boxes ? `${split}, so VROOM can’t put them all on one van.` : `${split}.`;
 }
 
 /** The tip over a place on a map, line by line: its name, its order, and where it falls in this

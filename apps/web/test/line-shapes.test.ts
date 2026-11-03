@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { LINE_SCALE, lineDrawing } from '../src/lib/og-lines';
+import { LINE_SCALE, lineDrawing, lineOnPage } from '../src/lib/og-lines';
 import { hex, themeColors } from '../src/lib/tokens';
 import tokensCss from '../src/styles/tokens.css?raw';
 import { app, files } from './support/dist';
@@ -202,4 +202,27 @@ test('known answers: marks at one place read as one station', () => {
   expect(states([...hollow(10), ...stations([mark('lit', 30)])])).toEqual(['hollow', 'lit']);
   expect(states(hollow(10))).not.toEqual(states(stations([mark('lit', 10)])));
   expect(crossCentre('M10 20l6 6m0 -6l-6 6')).toEqual([13, 23]);
+});
+
+// /about/'s rows draw a lab's line on the page (components/LabLine.astro): the shapes on the lab's
+// link card, at the card's scale, in the page's tokens rather than the night theme's values, so it
+// follows the theme. The Route Lab's card holds a map, and the same model draws its line here.
+describe('a page draws the shapes a card draws, in the page’s tokens', () => {
+  const shapes = (svg: string) =>
+    svg.replace(/<\/?svg\b[^>]*>/g, '').replace(/\b(fill|stroke)="[^"]*"/g, '$1');
+
+  test.each(['routes', 'raft', 'queue', 'cache', 'backfill'])('%s', async (slug) => {
+    const [card, page] = await Promise.all([
+      lineDrawing(slug, LINE_SCALE, app),
+      lineOnPage(slug, app),
+    ]);
+    expect(page?.shapes).toBeTruthy();
+    expect(shapes(page?.shapes ?? '')).toBe(shapes(card ?? ''));
+    expect(page?.shapes).toContain('var(--line)');
+    expect(page?.shapes).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+  });
+
+  test('known answer: a lab with no line draws none', async () => {
+    expect(await lineOnPage('no-such-lab', app)).toBeUndefined();
+  });
 });

@@ -35,10 +35,10 @@ function post(slug: string, over: Partial<Post> = {}): Post {
   };
 }
 
-const teardown: FeaturedPost = {
+const featured: FeaturedPost = {
   section: 'writing',
-  slug: 'trading-bot-teardown',
-  label: 'Read the teardown',
+  slug: 'a-postmortem',
+  label: 'Read the postmortem',
 };
 const project: ProjectCard = {
   title: 'a-project',
@@ -58,7 +58,7 @@ const card = (href: string, external = false): WorkCard => ({
 });
 
 describe('the featured posts', () => {
-  test('no post is featured: posts are listed under Writing, the teardown with them (ADR 0023)', () => {
+  test('no post is featured: posts are listed under Writing (ADR 0023)', () => {
     expect(FEATURED_POSTS).toEqual([]);
   });
 });
@@ -66,21 +66,21 @@ describe('the featured posts', () => {
 describe('postCards: a card per featured post that is published', () => {
   test('a published post gets a card in its own words: its title, summary and kind, linking to its page', () => {
     const published = [
-      post('trading-bot-teardown', {
-        title: 'What the trading bot taught me',
+      post('a-postmortem', {
+        title: 'What the outage taught me',
         summary: 'A postmortem.',
         kind: 'postmortem',
       }),
     ];
-    expect(postCards([teardown], published)).toEqual([
+    expect(postCards([featured], published)).toEqual([
       {
-        title: 'What the trading bot taught me',
+        title: 'What the outage taught me',
         text: 'A postmortem.',
         tag: 'Postmortem',
         facts: [],
         link: {
-          href: '/writing/trading-bot-teardown/',
-          label: 'Read the teardown',
+          href: '/writing/a-postmortem/',
+          label: 'Read the postmortem',
           external: false,
         },
       },
@@ -88,11 +88,11 @@ describe('postCards: a card per featured post that is published', () => {
   });
 
   test('a draft, a post not written yet, or one in the other section gets none', () => {
-    expect(postCards([teardown], [post('trading-bot-teardown', { draft: true })])).toEqual([]);
-    expect(postCards([teardown], [post('another-post')])).toEqual([]);
-    expect(postCards([teardown], [])).toEqual([]);
+    expect(postCards([featured], [post('a-postmortem', { draft: true })])).toEqual([]);
+    expect(postCards([featured], [post('another-post')])).toEqual([]);
+    expect(postCards([featured], [])).toEqual([]);
     expect(
-      postCards([teardown], [post('trading-bot-teardown', { section: 'notes', kind: 'note' })]),
+      postCards([featured], [post('a-postmortem', { section: 'notes', kind: 'note' })]),
     ).toEqual([]);
   });
 });
@@ -125,7 +125,7 @@ describe('withTargets: the rule every card meets', () => {
 });
 
 describe("selectedWork: Home's cards, from the projects and the build's posts", () => {
-  const teardownPost = post('trading-bot-teardown', { kind: 'postmortem' });
+  const postmortem = post('a-postmortem', { kind: 'postmortem' });
   const noLab = labArea([]);
   const demo: LabEntry = {
     slug: 'routes',
@@ -140,18 +140,18 @@ describe("selectedWork: Home's cards, from the projects and the build's posts", 
   });
 
   test('a published post gets no card: Writing lists it (ADR 0023)', () => {
-    const cards = selectedWork([project], writingArea([post('other'), teardownPost], false), noLab);
+    const cards = selectedWork([project], writingArea([post('other'), postmortem], false), noLab);
     expect(cards.map((c) => c.link.href)).toEqual(['https://github.com/IHaveASegway/a-project']);
   });
 
-  test('a draft teardown gets no card, even in a preview that builds its page', () => {
-    const draft = post('trading-bot-teardown', { draft: true });
+  test('a draft gets no card, even in a preview that builds its page', () => {
+    const draft = post('a-postmortem', { draft: true });
     expect(selectedWork([], writingArea([post('other'), draft], true), noLab)).toEqual([]);
     expect(selectedWork([], writingArea([draft], true), noLab)).toEqual([]);
   });
 
   test('a live demo gets the first card, linking to its page in the lab, with the tag Lab', () => {
-    const cards = selectedWork([project], writingArea([teardownPost], false), labArea([demo]));
+    const cards = selectedWork([project], writingArea([postmortem], false), labArea([demo]));
     expect(cards.map((c) => c.link.href)).toEqual([
       '/lab/routes/',
       'https://github.com/IHaveASegway/a-project',
@@ -167,7 +167,7 @@ describe("selectedWork: Home's cards, from the projects and the build's posts", 
   });
 
   test('the preview and production builds of the same posts show the same cards', () => {
-    const posts = [teardownPost, post('draft', { draft: true })];
+    const posts = [postmortem, post('draft', { draft: true })];
     expect(selectedWork([project], writingArea(posts, true), noLab)).toEqual(
       selectedWork([project], writingArea(posts, false), noLab),
     );
@@ -191,10 +191,7 @@ describe("writingRow: Home's Writing row never repeats a card", () => {
 
   test('when the only post is a card, the row lists nothing', () => {
     expect(
-      writingRow(
-        [post('trading-bot-teardown')],
-        postCards([teardown], [post('trading-bot-teardown')]),
-      ),
+      writingRow([post('a-postmortem')], postCards([featured], [post('a-postmortem')])),
     ).toEqual([]);
   });
 

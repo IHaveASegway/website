@@ -242,7 +242,7 @@ test('the lines: three readers join into one at each node, and each node runs on
 test('the labels say the load and the clock', () => {
   const sim = openingRun();
   expect(readersWords(sim)).toBe('Readers, 300 a second');
-  expect(clockWords(sim)).toBe('Virtual time 5.000 s, 1,704 events, seed 7');
+  expect(clockWords(sim)).toBe('Virtual time 5.000 s, 1,704 events, random seed 7');
 });
 
 test('where a run stands reads differently at each moment Next event reaches, two in one millisecond too', () => {
@@ -291,7 +291,7 @@ test('Start over, and the first Run, play from half a second before the menu exp
   expect(REPLAY_FROM).toBe(2_500);
   const before = at(REPLAY_FROM);
   expect(menuWords(before)).toBe('Menu, fresh until 3.0 s');
-  expect(clockWords(before)).toBe('Virtual time 2.500 s, 789 events, seed 7');
+  expect(clockWords(before)).toBe('Virtual time 2.500 s, 789 events, random seed 7');
   // Played on, the same run reaches the opening's moment: the same events, the same caption.
   expect(summary(replay(OPENING.config, [], OPENING.until))).toBe(summary(openingRun()));
 });

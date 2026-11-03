@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { wcagContrast } from 'culori';
-import { NOT_FOUND_PAGE, pages } from './expected';
+import { NOT_FOUND_PAGE, ON_WRITING_FIXTURE, pages } from './expected';
 
 // Every page on paper (global.css, "Every page on paper"; design-system.md, "Print"): no control,
 // each link's address printed after it, hairlines a printer keeps whatever the screen showed, and
@@ -37,6 +37,7 @@ for (const path of ROUTES) {
             href: a.getAttribute('href') ?? '',
             text: a.textContent?.replace(/\s+/g, '') ?? '',
             after: getComputedStyle(a, '::after').content,
+            card: a.matches('.card-more'),
           })),
       };
     }, PRINTS_ELSEWHERE);
@@ -44,10 +45,13 @@ for (const path of ROUTES) {
     // Home's header holds nothing but controls, and /about/'s head carries the name, so neither
     // prints one; every other page prints the name.
     expect(paper.header).toBe(path === '/' || path === '/about/' ? 0 : 1);
-    for (const { href, text, after } of paper.links) {
+    for (const { href, text, after, card } of paper.links) {
+      // A card's repository prints as the résumé's head prints an address, with no scheme.
       const address = href.startsWith('/')
         ? `ihaveasegway.com${href}`
-        : href.replace(/^mailto:/, '');
+        : card
+          ? href.replace(/^https:\/\/(www\.)?/, '')
+          : href.replace(/^mailto:/, '');
       if (href.startsWith('#')) {
         // A link within the page has nowhere to send paper.
         expect(after, href).toBe('none');
@@ -84,11 +88,56 @@ for (const theme of ['dark', 'light'] as const) {
   });
 }
 
+// The footer on paper stays whole, under the page's last words (global.css). On US Letter the essay's
+// spilled a fifth sheet that held only a rule and the copyright line.
+test('the footer stays whole on paper', async ({ page }) => {
+  await page.goto('/');
+  await page.emulateMedia({ media: 'print' });
+  await expect(page.locator('.site-foot')).toBeVisible();
+  expect(
+    await page.locator('.site-foot').evaluate((foot) => getComputedStyle(foot).breakInside),
+  ).toBe('avoid');
+});
+
+// A long read on paper is its own words to the end (prose.css). Whole, the footer took a sheet of its
+// own at one margin or another: A4 at 1 cm, about what a print dialog gives by default, on a Mac, and
+// at a quarter inch in CI's image. Nothing a reader presses prints on the essay, so it has no address
+// for the footer to stand in for. Set at 12 pt it takes three sheets of either paper at 1 cm: should a
+// later edit change that, read this count again, not the essay.
+test('the essay on paper: its own words to the end, on three sheets, with no footer', async ({
+  page,
+}) => {
+  const essay = '/writing/coding-by-hand/';
+  test.skip(!pages().includes(essay), 'no essay in this build');
+  await page.goto(essay);
+  await page.evaluate(() => document.fonts.ready);
+  const margin = '1cm';
+  const sheets = async (format: 'Letter' | 'A4') =>
+    (
+      (
+        await page.pdf({
+          format,
+          margin: { top: margin, right: margin, bottom: margin, left: margin },
+        })
+      )
+        .toString('latin1')
+        .match(/\/Type\s*\/Page(?!s)/g) ?? []
+    ).length;
+  expect([await sheets('Letter'), await sheets('A4')]).toEqual([3, 3]);
+  await page.emulateMedia({ media: 'print' });
+  await expect(page.locator('.site-foot')).toBeHidden();
+  expect(await page.locator('.prose').evaluate((prose) => getComputedStyle(prose).fontSize)).toBe(
+    '16px',
+  );
+});
+
 test('inline code has no padding on paper or in forced colors, and keeps it on screen', async ({
   page,
 }) => {
+  // The writing fixture's posts hold code by design. The site's one post holds none since 2026-11-03,
+  // and the rule is the stylesheet's, the same on both.
+  test.skip(!ON_WRITING_FIXTURE, 'no post on the site holds code');
   const posts = pages().filter((path) => /^\/(writing|notes)\/[^/]+\/$/.test(path));
-  test.skip(posts.length === 0, 'no post in this build');
   /** The padding of each piece of inline code on the page, in the media emulated now. */
   const paddings = () =>
     page.evaluate(() =>
@@ -108,18 +157,16 @@ test('inline code has no padding on paper or in forced colors, and keeps it on s
     await page.emulateMedia({ media: 'screen', forcedColors: 'active' });
     for (const padding of await paddings()) expect(padding, post).toBe('0px');
   }
-  // Every build with a post has one with inline code, so this check always has something to read.
+  // The fixture's posts have inline code, so this check always has something to read.
   expect(seen).toBeGreaterThan(0);
 });
 
 // Home on paper is its words in one column (home.css): a page is narrower than 64rem, so the phone's
-// order applies, and the cluster, a moving picture, is left off, with no gap where it stood; What I
-// build follows the buttons a section's space below. Until ADR 0028 the check held the isometric
+// order applies, and the cluster, a moving picture, is left off, with no gap where it stood; the
+// rows follow the buttons a section's space below. Until ADR 0028 the check held the isometric
 // drawing to its place under the bio's blocks; until 2026-10-30 the scene kept its 18.75rem on
 // paper, a blank gap of 300 px between the buttons and the bio's opening.
-test('Home on paper leaves the cluster off, and What I build follows the buttons', async ({
-  page,
-}) => {
+test('Home on paper leaves the cluster off, and its rows follow the buttons', async ({ page }) => {
   await page.setViewportSize({ width: 816, height: 1056 });
   await page.goto('/');
   await page.emulateMedia({ media: 'print' });

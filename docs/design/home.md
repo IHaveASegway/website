@@ -4,7 +4,7 @@ The page's design, as built ([ADR 0028](../adr/0028-home-is-his-own.md)). The pa
 
 ## Who it is for
 
-Someone deciding in under a minute whether to hire or work with Joseph. Home's job is to say, in his words, what he builds, and to show it working.
+Someone deciding in under a minute whether to hire or work with Joseph. Home's job is to say, in their words, what they build, and to show it working.
 
 ## The opening
 
@@ -12,9 +12,9 @@ On a phone, the opening is one column:
 
 1. The role, in the wide face, muted.
 2. The name, in Archivo Expanded, in its own case (`--text-name`, 32 to 72 px).
-3. The statement: the bio's first sentence (`--text-statement`, 22 to 30 px). Its kinds of system (queues, data pipelines, caches, clusters) are links to their labs, underlined in each lab's colour.
+3. The statement: the bio's first sentence and one of Home's own, "Here are a few things you can break." (`--text-statement`, 22 to 30 px), with no link in it since 2026-11-03 ([ADR 0031](../adr/0031-about-leads-with-what-joseph-builds.md)).
 4. The rest of the bio's opening, at a lead's size, muted.
-5. The two buttons, Email and LinkedIn, each one width at every screen width.
+5. The checked profiles' buttons, LinkedIn leading as the primary and then GitHub, each one width at every screen width, side by side down to 320 px, and stacked as two equal bars only at a larger text size. They end inside the first screen Safari shows on an iPhone from the 13 up, 390×664 and 393×659 (`e2e/fold.spec.ts`), and past it on a 13 mini (375×629) and at 320×568, where the opening's words alone take the room.
 
 From 64rem the words take a little over half the row, and the cluster stands beside them. The name stands in two lines there and one on a phone.
 
@@ -34,33 +34,35 @@ The SVG lies back in perspective, `rotateX(58deg)`, in a stage that keeps a 16 t
 
 As the opening scrolls away, the plane rises to `rotateX(28deg)`, tied to the scroll. Under reduced motion nothing runs, and the top bar's button pauses everything. The caption names the leader and its term, and links to the Raft Lab.
 
-## What I build
+## Things I built that you can try
 
-Each of the bio's five things is a row between hairlines:
+Each of the bio's things is a row between hairlines, in the bio's order:
 
 - its lead in the wide face, after a dot in its lab's colour;
 - its words;
 - the lab's name and one fact from its build (`lib/lab-facts.ts`), under a 2 px rule in the lab's colour.
 
-From 64rem the lead, the words and the fact stand in three columns. A row with no lab, such as the agents line, which points to the essay, has the accent's dot and no fact. "All five labs" opens the index.
+From 64rem the lead, the words and the fact stand in three columns. "Try all the labs" opens the index: no page says how many there are, since there'll be more (`test/no-lab-count.test.ts`).
+
+## Selected work
+
+Each project whose check is recorded, as a card that opens its repository: stillhere's alone today. From 64rem a card alone takes the frame, its facts in a column beside its words, since at the cards' 44rem it read as a grid missing its other cards. Between them, two or more cards keep the cards' own width.
+
+## The biggest thing
+
+The bio's The biggest thing I've built, word for word, stands above The last thing I built, whose last sentence points back to it: "The CRM work above is where I do that." Until the review of 2026-11-03 Home printed that sentence with nothing above it, and never said what real users rely on. `test/about.test.ts` holds the section, its words and its place.
 
 ## The record
 
-How I work ends, under a hairline, with one sentence. It counts the decision records, the tests and the seeded runs on every pull request, each at build from its source. It is a sentence, not a row of figures: the stats row and the heatmap were the reference's signature. It's where the site says "decision records (ADRs)", once, for the tech lead who looks for the term, after the bio's plainer "written down". It says "tests written" because it counts declarations: a loop that runs one test across every page counts once, so CI's total is about nine times larger, and a reader who opens CI should find the words true.
+The last thing I built, the bio's prose in the place How I work held until 2026-11-03, ends, under a hairline, with one sentence. It counts the decision records, the tests and the seeded runs on every pull request, each at build from its source. It is a sentence, not a row of figures: the stats row and the heatmap were the reference's signature. It's where the site says "decision records (ADRs)", once, for the tech lead who looks for the term, in plain words. It says "tests written" because it counts declarations: a loop that runs one test across every page counts once, so CI's total is about nine times larger, and a reader who opens CI should find the words true.
 
 ## Contact
 
-`components/home/Contact.astro` shows the address at a title's size in the wide face:
-
-- a section's size below 64rem, and a headline's below 27rem;
-- it breaks only after its @;
-- its underline is unbroken under the letters that hang below the line.
-
-Under the address, a button copies it (`scripts/copy.js`). Where the clipboard refuses, the button selects the address instead, and either way it says what it did without changing width. LinkedIn follows.
+`components/home/Contact.astro`, on Home and `/about/`, closes the page: the bio's last heading at a section's size, its words at a lead's, and LinkedIn to press, in the primary button. LinkedIn is how people reach Joseph, and no page asks a reader to email ([ADR 0031](../adr/0031-about-leads-with-what-joseph-builds.md)). Until 2026-11-03 this was the address at a title's size, with a button that copied it. A build with no bio says "Contact" over the button.
 
 ## Type
 
-Home speaks in the wide face: the name, the section titles, the leads, the writing's titles and the address. The wide face counts as a label to `test/tells.test.ts`, so none of it is tracked. The condensed display face does not appear on Home.
+Home speaks in the wide face: the name, the section titles, the leads and the writing's titles. The wide face counts as a label to `test/tells.test.ts`, so none of it is tracked. The condensed display face does not appear on Home.
 
 ## For builders
 

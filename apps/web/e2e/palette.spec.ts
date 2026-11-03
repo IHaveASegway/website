@@ -1,6 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { CONTACT_EMAIL } from '../src/lib/site';
 import { NOT_FOUND_PAGE, pages } from './expected';
 
 // The command menu (design-system.md, "The command menu"; components/Palette.astro and
@@ -15,7 +14,6 @@ const input = (page: Page) => page.getByRole('combobox', { name: 'Find a page or
 const opener = (page: Page) =>
   page.getByRole('button', { name: /^Search(( Ctrl)? K)?$/ }).filter({ visible: true });
 const said = (page: Page) => page.locator('[data-palette-say]');
-const note = (page: Page) => page.locator('[data-palette-note]');
 
 /** A page whose menu is bound: its script has run, and its button shows. */
 async function ready(page: Page, path = '/'): Promise<void> {
@@ -133,7 +131,7 @@ test('typing filters the rows by subsequence, hides empty groups, and selects th
   await expect
     .poll(() => rows(page))
     .toEqual({
-      shown: expect.arrayContaining(['palette-home', 'palette-copy', 'palette-theme']),
+      shown: expect.arrayContaining(['palette-home', 'palette-linkedin', 'palette-theme']),
       active: 'palette-home',
     });
   // Opening says nothing: not the count either, once the pause before it has passed.
@@ -168,16 +166,17 @@ test("the site's own words find their pages, and scattered letters don't take En
     ['adr', 'palette-home'],
     ['adrs', 'palette-home'],
     ['decision records', 'palette-home'],
+    // Home and About feature it, so it's found, on the row that leads to its repository's owner.
+    ['stillhere', 'palette-github'],
   ] as const) {
     if (row === 'palette-lab' && !pages().includes('/lab/')) continue;
     await input(page).fill(query);
     const found = await rows(page);
     expect(found.active, query).toBe(row);
-    expect(found.shown, query).not.toContain('palette-copy');
   }
   // With nothing whole, scattered letters still find a row, as they always did.
-  await input(page).fill('cpy');
-  expect(await rows(page)).toEqual({ shown: ['palette-copy'], active: 'palette-copy' });
+  await input(page).fill('lnkd');
+  expect(await rows(page)).toEqual({ shown: ['palette-linkedin'], active: 'palette-linkedin' });
 });
 
 // A wheel or a finger on the backdrop scrolled the page behind the menu. A modal dialog makes a page
@@ -243,34 +242,6 @@ test('a click on a row goes there, and a click on the backdrop closes the menu',
   await page.keyboard.press('Control+k');
   await page.getByRole('option', { name: 'Writing' }).click();
   await expect(page).toHaveURL(/\/writing\/$/);
-});
-
-test('Copy email address copies it and says so; the menu stays open', async ({ page, context }) => {
-  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-  await ready(page);
-  await page.keyboard.press('Control+k');
-  await page.keyboard.type('copy');
-  await page.keyboard.press('Enter');
-  await expect(note(page)).toHaveText('Copied');
-  await expect(said(page)).toHaveText('Copied');
-  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(CONTACT_EMAIL);
-  await expect(input(page)).toBeFocused();
-  // By pointer, and focus goes back to the input.
-  await page.getByRole('option', { name: /^Copy email address/ }).click();
-  await expect(input(page)).toBeFocused();
-});
-
-test('when the browser refuses the copy, the line shows the address to copy by hand', async ({
-  page,
-}) => {
-  await page.addInitScript(() => {
-    navigator.clipboard.writeText = () => Promise.reject(new DOMException('no', 'NotAllowedError'));
-  });
-  await ready(page);
-  await page.keyboard.press('Control+k');
-  await page.keyboard.type('copy');
-  await page.keyboard.press('Enter');
-  await expect(note(page)).toHaveText(`Could not copy. The address is ${CONTACT_EMAIL}.`);
 });
 
 test('the theme entry presses the toggle, and its name follows the toggle’s', async ({ page }) => {

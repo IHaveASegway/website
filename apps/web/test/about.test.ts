@@ -10,7 +10,7 @@ import {
   withLinks,
 } from '../src/lib/about';
 import { LAB_NAMES } from '../src/lib/lab';
-import { fixture, read } from './support/dist';
+import { fixture, profile, read } from './support/dist';
 
 // /about/ (lib/about.ts): the bio, Joseph's words from src/content/about.md, then the résumé, which
 // test/resume.test.ts checks. Every build writes the page; the bio is there exactly where its entry
@@ -30,9 +30,10 @@ test('the entry carries the review stamp and no other field', () => {
   expect(keys).toEqual(['firewall_reviewed']);
 });
 
-// /about/ lays the bio out as named blocks (ADR 0027, after syntaqx's Currently and Previously): its
-// opening, then each of its sections under its own heading, the words as about.md has
-// them. Until 2026-10-31 it rendered the Markdown whole, under "About me".
+// /about/ lays the bio out as named blocks (ADR 0031): its opening, then each of its sections under
+// its own heading, the words as about.md has them; the tools and the close stand after the résumé's
+// paper-only sections, so the close is the last thing on the screen. Until 2026-10-31 it rendered the
+// Markdown whole, under "About me".
 const decode = (text: string) =>
   text
     .replace(/<[^>]+>/g, '')
@@ -42,8 +43,18 @@ const decode = (text: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-test('the bio renders exactly where its entry is, as named blocks in its own words, before Experience', () => {
-  const bio = /<section class="bio"[\s\S]*?<\/section>/.exec(page)?.[0];
+/** The text of each element with this class, in page order. */
+const texts = (html: string, tag: string, name: string) =>
+  [
+    ...html.matchAll(
+      new RegExp(`<${tag} class="[^"]*\\b${name}\\b[^"]*">([\\s\\S]*?)</${tag}>`, 'g'),
+    ),
+  ].map(([, text = '']) => decode(text));
+
+const bioOf = () => /<section class="bio"[\s\S]*?<\/section>/.exec(page)?.[0];
+
+test('the bio renders exactly where its entry is, as named blocks in its own words, before Background', () => {
+  const bio = bioOf();
   if (fixtureBuild) {
     expect(bio).toBeUndefined();
     return;
@@ -51,37 +62,131 @@ test('the bio renders exactly where its entry is, as named blocks in its own wor
   expect(bio).toBeDefined();
   expect(bio).toContain('aria-label="About me"');
   const parts = aboutParts(body);
+  const later: string[] = [ABOUT_HEADINGS.tools, ABOUT_HEADINGS.idea];
+  const here = parts.sections.filter((section) => !later.includes(section.heading));
   // A block a part: the opening with no label, then the bio's own headings, each over its block.
-  const labels = [...(bio ?? '').matchAll(/<h2 class="block-label">([\s\S]*?)<\/h2>/g)].map(
-    ([, text = '']) => decode(text),
-  );
-  expect(labels).toEqual(parts.sections.map((section) => decode(section.heading)));
+  expect(texts(bio ?? '', 'h2', 'section-title')).toEqual(here.map((s) => decode(s.heading)));
   // The opening, the paragraph that prints, as the entry has it.
-  const first = /<p class="bio-lede">([\s\S]*?)<\/p>/.exec(bio ?? '')?.[1] ?? '';
-  expect(decode(first)).toBe(decode(parts.lede[0] ?? ''));
-  // Every lead and every sentence after it, word for word, the lab names linked inside them.
-  const leads = [...(bio ?? '').matchAll(/<h3 class="bio-item-lead">([\s\S]*?)<\/h3>/g)].map(
-    ([, text = '']) => decode(text),
+  expect(texts(bio ?? '', 'p', 'bio-lede')).toEqual([decode(parts.lede[0] ?? '')]);
+  // Every bold line and every sentence after it, word for word; the open source row is one sentence
+  // the code lays out, its name at the heading's size, without the colon that joined the two, and its
+  // words on a capital.
+  const items = here.flatMap((section) => section.principles);
+  const source = sectionOf(parts, ABOUT_HEADINGS.source)?.paragraphs ?? [];
+  const row = (paragraph: string) => {
+    const at = paragraph.indexOf(': ');
+    const words = paragraph.slice(at + 2);
+    return { lead: paragraph.slice(0, at), text: words.charAt(0).toUpperCase() + words.slice(1) };
+  };
+  expect(texts(bio ?? '', 'h3', 'bio-item-lead')).toEqual(
+    [...items.map((p) => p.lead), ...source.map((p) => row(p).lead)].map(decode),
   );
-  const texts = [...(bio ?? '').matchAll(/<p class="bio-item-text">([\s\S]*?)<\/p>/g)].map(
-    ([, text = '']) => decode(text),
+  expect(texts(bio ?? '', 'p', 'bio-item-text')).toEqual(
+    [...items.map((p) => p.text), ...source.map((p) => row(p).text)].map(decode),
   );
-  const principles = parts.sections.flatMap((section) => section.principles);
-  expect(leads).toEqual(principles.map((p) => decode(p.lead)));
-  expect(texts).toEqual(principles.map((p) => decode(p.text)));
-  const paragraphs = [...(bio ?? '').matchAll(/<p class="bio-text">([\s\S]*?)<\/p>/g)].map(
-    ([, text = '']) => decode(text),
+  // Every other paragraph, in order, with what it names linked inside it.
+  expect(texts(bio ?? '', 'p', 'bio-text')).toEqual(
+    here
+      .filter((section) => section.heading !== ABOUT_HEADINGS.source)
+      .flatMap((s) => s.paragraphs)
+      .map(decode),
   );
-  expect(paragraphs).toEqual(parts.sections.flatMap((s) => s.paragraphs).map(decode));
   expect(page.indexOf('class="bio"')).toBeLessThan(page.indexOf('id="experience-title"'));
+});
+
+test('the tools line says what profile.json says, under its heading, and the close comes last', () => {
+  if (fixtureBuild) return;
+  const parts = aboutParts(body);
+  const tools = sectionOf(parts, ABOUT_HEADINGS.tools);
+  expect(tools?.paragraphs).toEqual([profile.tools]);
+  expect(decode(/<h2 id="tools-title"[^>]*>([\s\S]*?)<\/h2>/.exec(page)?.[1] ?? '')).toBe(
+    decode(tools?.heading ?? ''),
+  );
+  expect(texts(page, 'p', 'skills-tools')).toEqual([decode(profile.tools ?? '')]);
+  // The close: the bio's last section, the last thing on the page before the footer.
+  const idea = sectionOf(parts, ABOUT_HEADINGS.idea);
+  const close = /<section class="section contact"[\s\S]*?<\/section>/.exec(page)?.[0] ?? '';
+  expect(decode(/<h2[^>]*>([\s\S]*?)<\/h2>/.exec(close)?.[1] ?? '')).toBe(
+    decode(idea?.heading ?? ''),
+  );
+  expect(texts(close, 'p', 'contact-words')).toEqual(idea?.paragraphs.map(decode));
+  expect(page.indexOf('class="section contact"')).toBeGreaterThan(
+    page.indexOf('id="writing-title"'),
+  );
+  expect(page.indexOf('class="section contact"')).toBeLessThan(page.indexOf('<footer'));
+});
+
+// The last thing built says what it can't show and points up to the work that does, "The CRM work
+// above". So wherever a page renders that section, the biggest thing stands above it, word for word.
+test('Home says the biggest thing above the last thing, which points back to it', () => {
+  if (fixtureBuild) return;
+  const parts = aboutParts(body);
+  const biggest = sectionOf(parts, ABOUT_HEADINGS.biggest);
+  expect(sectionOf(parts, ABOUT_HEADINGS.last)?.paragraphs.join(' ')).toContain('CRM work above');
+  const home = read('index.html');
+  const section = /<section class="section" id="biggest"[\s\S]*?<\/section>/.exec(home)?.[0] ?? '';
+  expect(decode(/<h2[^>]*>([\s\S]*?)<\/h2>/.exec(section)?.[1] ?? '')).toBe(
+    decode(biggest?.heading ?? ''),
+  );
+  expect(texts(section, 'p', 'last-text')).toEqual(biggest?.paragraphs.map(decode));
+  expect(home.indexOf('id="biggest"')).toBeLessThan(home.indexOf('id="last"'));
+});
+
+// The open source row's name links to its repository, from the record's own check (lib/profile.ts,
+// projectCards): about.md holds no link, since Home reads it as plain text.
+test('stillhere’s row links its name to its repository, from the checked record', () => {
+  if (fixtureBuild) return;
+  const record = profile.projects.find((p) => p.name === 'stillhere');
+  expect(record?.checked).toBeDefined();
+  const row = /<li class="bio-row">([\s\S]*?)<\/li>/.exec(page)?.[1] ?? '';
+  expect(/<h3[^>]*>([\s\S]*?)<\/h3>/.exec(row)?.[1]).toBe(`<a href="${record?.url}">stillhere</a>`);
+  expect(row.match(/<a\b/g)).toHaveLength(1);
+});
+
+// A card stands alone on Home and on paper, so it says what the project is, in the bio's own words:
+// its line used to start at "What landed", which only made sense beside the bio's sentence.
+test('stillhere’s card says what the bio says of it', () => {
+  if (fixtureBuild) return;
+  const [sentence = ''] = sectionOf(aboutParts(body), ABOUT_HEADINGS.source)?.paragraphs ?? [];
+  const words = sentence.slice(sentence.indexOf(': ') + 2);
+  expect(profile.projects.find((p) => p.name === 'stillhere')?.description).toBe(
+    words.charAt(0).toUpperCase() + words.slice(1),
+  );
+});
+
+// The labs' rows (ADR 0031): the whole row is a link to its lab, by the bold line, and each stands
+// under its lab's own line from its link card, not the isometric glyph: Joseph asked for no isometric
+// drawing beside the bio.
+test('each lab the bio lists is a row: its link, its bold line and its own line in its colour', () => {
+  if (fixtureBuild) return;
+  const rows = [
+    ...page.matchAll(/<li class="bio-row"[^>]*data-line="([a-z]+)"[^>]*>([\s\S]*?)<\/li>/g),
+  ];
+  const items = sectionOf(aboutParts(body), ABOUT_HEADINGS.tryIt)?.principles ?? [];
+  expect(rows.map(([, slug]) => slug)).toEqual(['cache', 'queue', 'backfill', 'routes', 'raft']);
+  rows.forEach(([, slug, row = ''], i) => {
+    expect([...row.matchAll(/<a\b[^>]*href="([^"]*)"/g)].map(([, href]) => href)).toEqual([
+      `/lab/${slug}/`,
+    ]);
+    expect(decode(/<h3[^>]*>([\s\S]*?)<\/h3>/.exec(row)?.[1] ?? '')).toBe(
+      decode(items[i]?.lead ?? ''),
+    );
+    expect(row).toMatch(
+      new RegExp(`<svg class="lab-line" data-line="${slug}"[^>]*aria-hidden="true"`),
+    );
+    // Drawn from the page's tokens, so it follows the theme, and it holds no word.
+    expect(row).toContain('var(--line)');
+    expect(/<svg[\s\S]*<\/svg>/.exec(row)?.[0]).not.toMatch(/<text\b/);
+  });
+  expect(page).not.toContain('iso-glyph');
 });
 
 // The bio names the essay and the Lab, and until 2026-11-02 only Home linked the essay: this is the
 // page for readers who want more, so each opens its page here too.
 test('the essay and the Lab the bio names open their pages, as the labs do', () => {
   if (fixtureBuild) return;
-  const bio = /<section class="bio"[\s\S]*?<\/section>/.exec(page)?.[0] ?? '';
-  expect(bio).toContain('<a href="/writing/you-will-be-missed/">essay</a>');
+  const bio = bioOf() ?? '';
+  expect(bio).toContain('<a href="/writing/coding-by-hand/">essay</a>');
   expect(bio).toContain('<a href="/lab/">The Lab</a>');
 });
 
@@ -90,37 +195,42 @@ test('the page has one Print button, and no PDF is written for it', () => {
   expect(page).not.toMatch(/href="[^"]*\.pdf"/);
 });
 
-// Home tells the bio in parts (ADR 0023): its opening, the principles under How I work, and what
-// Joseph is working toward, read by aboutParts from the same file /about/ renders whole.
+// Home tells the bio in parts (ADR 0023, ADR 0031): its opening, the things to try and the last thing
+// built, read by aboutParts from the same file /about/ renders whole.
 describe('aboutParts: Home reads the bio it does not own', () => {
-  test('the real bio: an opening, then What I build, How I work and what comes next', () => {
+  test('the real bio: an opening, then its sections, in the order the page tells them', () => {
     const parts = aboutParts(body);
     expect(parts.lede).toHaveLength(1);
-    expect(parts.lede[0]).toMatch(/^I build the backend systems/);
-    // Home finds its parts by these headings, so the bio keeps them, in this order.
+    expect(parts.lede[0]).toMatch(/^I take an idea and build the entire system\./);
+    // Home and /about/ find their parts by these headings, so the bio keeps them, in this order.
     expect(parts.sections.map((s) => s.heading)).toEqual(Object.values(ABOUT_HEADINGS));
     expect(parts.sections.map((s) => s.heading)).toEqual([
-      'What I build',
-      'How I work',
-      'What I’m working toward',
+      'How I got here',
+      'The biggest thing I’ve built',
+      'Things I built that you can try',
+      'Open source',
+      'The last thing I built',
+      'What came from me',
+      'What I’ve worked with',
+      'If you’ve got an idea',
     ]);
-    const build = sectionOf(parts, ABOUT_HEADINGS.build);
-    const how = sectionOf(parts, ABOUT_HEADINGS.how);
-    const toward = sectionOf(parts, ABOUT_HEADINGS.toward);
-    expect(build?.principles).toHaveLength(5);
-    expect(build?.principles[0]?.lead).toBe('Message queues.');
-    expect(how?.principles).toHaveLength(6);
-    expect(how?.principles[0]?.lead).toBe('I write down the reasoning first.');
-    expect(how?.paragraphs).toEqual([]);
-    expect(toward?.principles).toEqual([]);
-    expect(toward?.paragraphs).toHaveLength(1);
+    const tryIt = sectionOf(parts, ABOUT_HEADINGS.tryIt);
+    expect(tryIt?.principles).toHaveLength(5);
+    expect(tryIt?.principles[0]?.lead).toBe(
+      'Everyone wants the menu right when its saved copy runs out.',
+    );
+    expect(tryIt?.paragraphs).toHaveLength(1);
+    // The paragraph that prints over Selected work, by its place in the section.
+    expect(sectionOf(parts, ABOUT_HEADINGS.story)?.paragraphs[1]).toMatch(
+      /^I didn’t type this site’s code\./,
+    );
+    // Only the labs' section is a list.
+    expect(parts.sections.filter((s) => s.principles.length > 0)).toEqual([tryIt]);
   });
 
   test("openingSentence: Home's hero says the opening's first sentence, /about/ the whole", () => {
     const opening = aboutParts(body).lede[0] ?? '';
-    expect(openingSentence(opening)).toBe(
-      'I build the backend systems other software runs on: queues, data pipelines, caches and the clusters under them.',
-    );
+    expect(openingSentence(opening)).toBe('I take an idea and build the entire system.');
     expect(opening.startsWith(openingSentence(opening))).toBe(true);
     // Known answers: the first of several, a lone sentence whole, no end at a lower-case word or
     // inside a number.
@@ -147,6 +257,19 @@ describe('aboutParts: Home reads the bio it does not own', () => {
             { lead: 'One.', text: 'Two three.' },
             { lead: 'Four.', text: 'Five.' },
           ],
+          paragraphs: [],
+        },
+      ],
+    });
+  });
+
+  test('known answers: the bio takes the typographer a post gets, in every part', () => {
+    expect(aboutParts("It's Joseph's.\n\n### What I'm at\n\n- **I've one.** It's two.\n")).toEqual({
+      lede: ['It’s Joseph’s.'],
+      sections: [
+        {
+          heading: 'What I’m at',
+          principles: [{ lead: 'I’ve one.', text: 'It’s two.' }],
           paragraphs: [],
         },
       ],

@@ -60,6 +60,10 @@ export interface SimulatedLab {
  *
  * On 2026-11-03 the top bar's button reached a run that's the visitor's, Back left a run alone, and the
  * summary line under the checks went, with no budget moved (ADR 0020's and ADR 0030's postscripts).
+ *
+ * Then the Raft Lab's story carried on through Pause and Run, which took it to 8,524 B. A fixed script
+ * from the one opening that tells it, with no case for a run with no leader, paid that back: 8,482 B,
+ * with no budget moved (ADR 0030's last postscript).
  */
 export const SIMULATED_LABS = [
   { slug: 'raft', bundle: 'RaftLab', map: 'rf-map', lazyJavaScript: 8_500 },

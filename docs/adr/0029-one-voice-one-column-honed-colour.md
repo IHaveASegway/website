@@ -81,7 +81,7 @@ A QA pass before the traffic found Home's and the Lab index's link previews stil
 
 ## Postscript, 2026-11-02: the code face
 
-B612 Mono read `order_data.update(message)` as `order_data. update[message]`: its parentheses look square and its period leaves a gap. On the teardown, a page about reading that exact line, that's a different and wrong Python expression, and it isn't a matter of taste. Code is now set in JetBrains Mono's Regular, cut through `scripts/fonts/cut.py` and `fonts.lock.json` as the reading face was: 8,436 B against 12,084 B, fetched only on a page with code, so no budget moves. Source Code Pro drew as well and looked lighter beside the serif. It also reserves "Source", so it would have needed a name of its own, and JetBrains Mono reserves nothing. Its ligatures stay out: code shows the characters it was written in. The door is two-way, one lock entry and one token. Rendered side by side on 2026-11-02 in Chromium and WebKit.
+B612 Mono's parentheses look square and its period leaves a gap, so a method call read as a different and wrong Python expression, and that isn't a matter of taste. Code is now set in JetBrains Mono's Regular, cut through `scripts/fonts/cut.py` and `fonts.lock.json` as the reading face was: 8,436 B against 12,084 B, fetched only on a page with code, so no budget moves. Source Code Pro drew as well and looked lighter beside the serif. It also reserves "Source", so it would have needed a name of its own, and JetBrains Mono reserves nothing. Its ligatures stay out: code shows the characters it was written in. The door is two-way, one lock entry and one token. Rendered side by side on 2026-11-02 in Chromium and WebKit.
 
 ## Further reading
 

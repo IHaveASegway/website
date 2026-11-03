@@ -204,7 +204,10 @@ for (const file of posts) {
     });
 
     test('headline, description, url, image and dates are the ones the page shows', () => {
-      expect(node['headline']).toBe(first(page, /<h1[^>]*>([^<]*)<\/h1>/));
+      // The words of the title, which may stand in spans of a sentence each (components/PageHead.astro).
+      expect(node['headline']).toBe(
+        first(page, /<h1[^>]*>([\s\S]*?)<\/h1>/).replace(/<[^>]+>/g, ''),
+      );
       expect(node['description']).toBe(first(page, /<meta name="description" content="([^"]*)">/));
       expect(node['url']).toBe(first(page, /<link rel="canonical" href="([^"]*)">/));
       expect(node['image']).toBe(first(page, /<meta property="og:image" content="([^"]*)">/));

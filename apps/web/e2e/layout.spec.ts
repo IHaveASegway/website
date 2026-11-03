@@ -6,9 +6,9 @@ import { NOT_FOUND_PAGE, pages } from './expected';
 // wide at 600, 767, 768 and 1024 px; at 1024 to 1100 px the title broke onto a second line in
 // columns 9 to 12; and on a phone the copyright alone stood flush right under lines that start at
 // the frame's edge. The hero checks run with the web fonts and without them, which are a little
-// wider. Since ADR 0025 the buttons are the address's and LinkedIn's, of two widths: each keeps its
-// own at every screen width. Since ADR 0027 they stand under the role, which is set in the wide
-// face: one line from 390 px, and at 320 px no more than two.
+// wider. Since ADR 0025 each button keeps its own width at every screen width; since ADR 0031 they
+// are the checked profiles', LinkedIn's leading. Since ADR 0027 they stand under the role, which is
+// set in the wide face: one line from 390 px, and at 320 px no more than two.
 
 type Fonts = 'loaded' | 'blocked';
 const FONTS: readonly Fonts[] = ['loaded', 'blocked'];
@@ -138,59 +138,6 @@ for (const width of [768, 1440, 2560]) {
 
 // The bar's height and row, and the frame's place on a wide screen, are e2e/top-bar.spec.ts's
 // since ADR 0027 replaced the rail with one bar at every width.
-
-// Home's closing address never breaks inside a word (components/home/Contact.astro): it stands on
-// one line where its column holds it, and where it does not, it breaks after its @ and nowhere
-// else, "hello@" over "ihaveasegway.com". Until 2026-10-30 it broke wherever the column ended,
-// "hello@ihaveasegway.co" over "m". Since ADR 0028 it is set in the wide face, which a phone's
-// column holds only broken after its @.
-test('Home’s closing address breaks only after its @, from 320 to 1440 px', async ({ page }) => {
-  for (const width of [320, 375, 390, 414, 431, 432, 768, 1440]) {
-    await page.setViewportSize({ width, height: 800 });
-    await open(page, '/');
-    const parts = await page.evaluate(() => {
-      const address = document.querySelector('.contact-address');
-      if (!address) return null;
-      const lines = (node: Node) => {
-        const range = document.createRange();
-        range.selectNodeContents(node);
-        return new Set(
-          [...range.getClientRects()].filter((r) => r.width).map((r) => Math.round(r.top)),
-        ).size;
-      };
-      const texts = [...address.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE);
-      return { whole: lines(address), parts: texts.map(lines) };
-    });
-    test.skip(parts === null, 'Home has no closing address here');
-    expect(
-      parts?.parts.every((n) => n === 1),
-      `${width}: each side of the @ on one line`,
-    ).toBe(true);
-    expect(parts?.whole, `${width}`).toBeLessThanOrEqual(2);
-    if (width >= 768) expect(parts?.whole, `${width}`).toBe(1);
-  }
-});
-
-// How I work reads as a section with five points under it: its title a step larger than each
-// point's lead (design-system.md, "Type scale"). Until 2026-10-30 the leads were the title's size.
-test('How I work’s title is larger than each of its leads, at 390 and 1440 px', async ({
-  page,
-}) => {
-  for (const width of [390, 1440]) {
-    await page.setViewportSize({ width, height: 900 });
-    await open(page, '/');
-    const sizes = await page.evaluate(() => ({
-      title: Number.parseFloat(
-        getComputedStyle(document.querySelector('#how-title') ?? document.body).fontSize,
-      ),
-      leads: [...document.querySelectorAll('.principle-lead')].map((lead) =>
-        Number.parseFloat(getComputedStyle(lead).fontSize),
-      ),
-    }));
-    test.skip(sizes.leads.length === 0, 'Home has no How I work here');
-    for (const lead of sizes.leads) expect(lead, `${width}`).toBeLessThan(sizes.title);
-  }
-});
 
 test('known answers: the layout checks count lines, read widths and find a line off the edge', async ({
   page,

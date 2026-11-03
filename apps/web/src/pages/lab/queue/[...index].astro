@@ -38,7 +38,7 @@ const { entry } = Astro.props;
 const { name } = (await loadProfile()).basics;
 const { Content, headings } = await render(await labEntry(entry));
 const lead =
-  'Three workers take the bakery’s orders from a queue. Crash one, choose when they acknowledge, and watch every order end up printed once, twice, or not at all.';
+  'Three worker programs take a made-up bakery’s orders and tell the queue when each is done. Crash one, choose when they say so, and watch an oven ticket print once, twice, or not at all.';
 // How it is built, in figures from the core itself, so none is typed here.
 const opening = openingRun();
 const ms = (range: readonly [number, number]) => `${range[0]} to ${range[1]} ms`;
@@ -61,13 +61,14 @@ const backoff = `${BACKOFF.slice(0, -1).join(', ')} and ${BACKOFF.at(-1)} ms`;
       <Content />
       <h2 id="how-it-is-built">How it is built</h2>
       <p>
-        The broker, the workers and the orders are one TypeScript module, run in virtual time. A
-        message takes {ms(LATENCY)} each way, a worker spends {ms(WRAP_UP)} between printing a
-        ticket and sending its acknowledgement, and with dead-lettering a failing order waits{' '}
-        {backoff} between tries. Every random choice comes from one seeded stream, and your presses
-        are recorded at the moment they happened, so the same seed and the same presses give the
-        same run. That is how the page opens with a picture drawn in advance, {opening.events}{' '}
-        events into the first run, and how your browser then takes over at that exact moment.
+        The broker, the workers and the orders are one TypeScript module, a deterministic simulation
+        run in virtual time. A message takes {ms(LATENCY)} each way, a worker spends {ms(WRAP_UP)}{' '}
+        between printing a ticket and sending its acknowledgement, and with dead-lettering a failing
+        order waits {backoff} between tries. Every random choice comes from one seeded stream, and
+        the simulation records your button presses at the moment they happen, so the same seed and
+        the same presses give the same run. That is how the page opens on a picture drawn when the
+        site was built, {opening.events} events into the first run, and how your browser then
+        replays the same run and takes over at that exact moment.
       </p>
       <p>
         After every event, a checker finds every order in exactly one place: the queue, the wire, a

@@ -334,7 +334,9 @@
 }
 
 /* The room line keeps its line when it has nothing to say, with no orders, and on a phone the two
-   it takes on some days, so a change of day moves nothing (the status line does the same). */
+   or three it takes on some days, so a change of day moves nothing (the status line does the same).
+   Half a pixel over, so what's under it stands the same whether the words fill the room or don't:
+   1/64 px of rounding between the two was enough to move it. */
 .rl-capacity {
   min-block-size: 1lh;
   margin: 0;
@@ -345,9 +347,15 @@
   line-height: var(--text-label--line-height);
 }
 
-@media (width < 30rem) {
+@media (width < 40rem) {
   .rl-capacity {
-    min-block-size: 2lh;
+    min-block-size: calc(2lh + 0.5px);
+  }
+}
+
+@media (width < 24rem) {
+  .rl-capacity {
+    min-block-size: calc(3lh + 0.5px);
   }
 }
 

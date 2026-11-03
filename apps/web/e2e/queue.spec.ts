@@ -231,7 +231,9 @@ test('Run on the untouched opening plays worker 2’s crash as it happens, and N
   page,
 }) => {
   await page.goto(QUEUE);
-  await expect(crashLine(page)).toHaveText('Every run crashes worker 2 at 2.400 s.');
+  await expect(crashLine(page)).toHaveText(
+    'Every run crashes worker 2 at 2.400 s, to compare settings.',
+  );
   // A speed is no action: the run still stands untouched. Slow gives the eye time to see it.
   await page.getByRole('radio', { name: 'Slow' }).check();
   await page.getByRole('button', { name: 'Run' }).click();
@@ -341,7 +343,7 @@ test('the third: a poison order, then no more orders: under requeue the queue ne
 }) => {
   test.setTimeout(60_000);
   await page.goto(QUEUE);
-  await page.getByRole('button', { name: 'Publish a poison order' }).click();
+  await page.getByRole('button', { name: 'Send a poison order' }).click();
   await expect(map(page).locator('.qu-order[data-poison]')).toHaveAttribute('data-order', '39');
   await page.getByRole('button', { name: 'Stop taking orders' }).click();
   await expect(page.getByRole('button', { name: 'Take orders' })).toBeVisible();
@@ -352,10 +354,10 @@ test('the third: a poison order, then no more orders: under requeue the queue ne
     async () => (await property(page, 'drains').getAttribute('data-held')) === 'false',
   );
   await expect(summary(page)).toHaveText(
-    /^The queue did not drain: 1 order was still queued or in flight 30 s after the producer stopped, while poison order 39 kept failing and going back to the head of the queue\./,
+    /^The queue did not drain: 1 order was still queued or in flight 30 s after orders stopped, while poison order 39 kept failing and going back to the head of the queue\./,
   );
   await expect(log(page)).toContainText(
-    '34.000 s 30 s after the producer stopped, 1 order was still queued or in flight: the queue does not drain',
+    '34.000 s 30 s after orders stopped, 1 order was still queued or in flight: the queue does not drain',
   );
 
   // The same, with dead-lettering: four tries, 200, 400 and 800 ms apart, then the siding.
@@ -365,8 +367,15 @@ test('the third: a poison order, then no more orders: under requeue the queue ne
   await page.getByRole('button', { name: 'Start over' }).click();
   await expect(clock(page)).toHaveText(STARTED_OVER);
   await page.getByRole('radio', { name: 'Dead-letter after four tries' }).check();
-  await page.getByRole('button', { name: 'Publish a poison order' }).click();
+  await page.getByRole('button', { name: 'Send a poison order' }).click();
+  // The run stands where Start over left it, and each press says only Run can show what it set going.
+  // Until 2026-11-03 these two overwrote "Press Run to watch it", and the clock stood with no word why.
+  const line = page.locator('.qu-controls [data-said]');
+  await expect(line).toHaveText(
+    'Order 14 comes in, and it is poison: it fails on every try. Press Run to watch it.',
+  );
   await page.getByRole('button', { name: 'Stop taking orders' }).click();
+  await expect(line).toHaveText('Orders stop: no new ones arrive. Press Run to watch it.');
   await runUntil(page, async () => ((await log(page).textContent()) ?? '').includes('it drained'));
   for (const line of [
     '1.993 s Order 14 fails on worker 1, try 1, and waits 200 ms before the next',
@@ -388,7 +397,7 @@ test('while orders still come, a poison order under requeue fails over and over:
   page,
 }) => {
   await page.goto(QUEUE);
-  await page.getByRole('button', { name: 'Publish a poison order' }).click();
+  await page.getByRole('button', { name: 'Send a poison order' }).click();
   await runUntil(page, async () =>
     /^Poison order 39 has failed [2-9]/.test((await summary(page).textContent()) ?? ''),
   );
@@ -426,11 +435,11 @@ test('and a rush: with three workers up, 14 orders a second outrun them, and the
 }) => {
   test.setTimeout(60_000);
   await page.goto(QUEUE);
-  // The note under the loads says what the workers up print: two after the opening's crash.
+  // The note under the loads says what the workers up can print: two after the opening's crash.
   const capacity = page.locator('[data-qu-capacity]');
-  await expect(capacity).toHaveText('Two workers are up and print about 6.5.');
+  await expect(capacity).toHaveText('Two workers up can print about 6.5 a second.');
   await page.getByRole('button', { name: 'Restart worker 2' }).click();
-  await expect(capacity).toHaveText('Three workers are up and print about 9.7.');
+  await expect(capacity).toHaveText('Three workers up can print about 9.7 a second.');
   await page.getByRole('radio', { name: 'Rush' }).check();
   const waiting = async () =>
     Number(/^(\d+) waiting/.exec((await page.locator('[data-qu-wait]').textContent()) ?? '')?.[1]);
@@ -670,7 +679,7 @@ for (const [width, height] of [
     const bottom = Math.max(...boxes.map((b) => b.y + b.height));
     expect(bottom - top).toBeLessThanOrEqual(height);
     if (width >= 1024) expect(bottom).toBeLessThanOrEqual(height);
-    // The secondary settings come after the properties.
+    // The other settings come after the controls.
     const settings = await box(page.locator('.qu-settings'));
     expect(settings.y).toBeGreaterThan(bottom);
     const pinned = await page
@@ -683,6 +692,214 @@ for (const [width, height] of [
     expect(pinned).toBe(false);
   });
 }
+
+// New orders' effect is all in the picture, and watching it is the point. Until 2026-11-03 Stop taking
+// orders and the poison button stood 776 px under the picture's bottom edge at 1,440 by 900, by QA's
+// measure, so it was off the screen as they were pressed. From the desk layout they're in the picture's
+// own controls, so a scroll that brings them up leaves all of the picture on the screen, and a press
+// speaks beside them.
+for (const [width, height] of [
+  [1440, 900],
+  [1280, 800],
+] as const) {
+  test(`at ${width} by ${height}, Stop taking orders and the poison button press with the picture in view`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto(QUEUE);
+    await page.evaluate(() => document.fonts.ready);
+    const picture = page.locator('.qu-map').filter({ visible: true });
+    const stop = page.getByRole('button', { name: 'Stop taking orders' });
+    const poison = page.getByRole('button', { name: 'Send a poison order' });
+    for (const button of [stop, poison]) {
+      // Scrolled no further than it takes to bring the button up.
+      await button.evaluate((el) =>
+        window.scrollBy({
+          top: el.getBoundingClientRect().bottom - innerHeight + 8,
+          behavior: 'instant',
+        }),
+      );
+      await expect(button).toBeInViewport({ ratio: 1 });
+      await expect(picture).toBeInViewport({ ratio: 1 });
+    }
+    // A press speaks on the line under them, with the picture and the buttons still on the screen.
+    await stop.click();
+    const line = page.locator('.qu-controls [data-said]');
+    await expect(line).toHaveAttribute('data-spoke');
+    await expect(line).toBeInViewport({ ratio: 1 });
+    await expect(picture).toBeInViewport({ ratio: 1 });
+    await expect(page.locator('.qu-settings [data-said]')).not.toHaveAttribute('data-spoke');
+    // And Tab meets them where they stand: after the last worker's Slow, before the settings.
+    await page.locator('[data-qu-slow="2"]').focus();
+    await page.keyboard.press('Tab');
+    await expect(page.getByRole('button', { name: 'Take orders' })).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(poison).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(page.getByRole('radio', { name: 'After the work' })).toBeFocused();
+  });
+}
+
+// A phone keeps its order: the picture's own controls fit one screen with the picture (above), and New
+// orders stands in the settings, after Load and before what happens when an order fails.
+for (const width of [390, 768]) {
+  test(`at ${width} px, New orders stands in the settings, in the order it always has`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(QUEUE);
+    const shown = await page
+      .locator('.qu-settings > *')
+      .evaluateAll((parts) =>
+        parts
+          .filter((part) => part.getClientRects().length > 0)
+          .map((part) => part.querySelector('.lab-group-name')?.textContent?.trim() ?? 'its line'),
+      );
+    expect(shown).toEqual([
+      'When a worker acknowledges',
+      'Prefetch: orders each worker may hold',
+      'Load',
+      'New orders',
+      'When an order fails',
+      'its line',
+    ]);
+    await expect(page.getByRole('group', { name: 'New orders' })).toHaveCount(1);
+    await expect(page.locator('.qu-controls [data-qu-producer]')).toBeHidden();
+    // A press there speaks on the settings' own line, beside it.
+    await page.getByRole('button', { name: 'Stop taking orders' }).click();
+    await expect(page.locator('.qu-settings [data-said]')).toHaveAttribute('data-spoke');
+  });
+}
+
+// On a run that plays, there's nothing to ask for: the press shows at once.
+test('a poison order or a stop on a run that plays says what it did, and asks for no Run', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto(QUEUE);
+  await page.getByRole('button', { name: 'Run' }).click();
+  await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
+  const line = page.locator('.qu-controls [data-said]');
+  await page.getByRole('button', { name: 'Send a poison order' }).click();
+  await expect(line).toHaveText(/^Order \d+ comes in, and it is poison: it fails on every try\.$/);
+  await page.getByRole('button', { name: 'Stop taking orders' }).click();
+  await expect(line).toHaveText('Orders stop: no new ones arrive.');
+});
+
+// The clock gains a digit as a run plays, and the Time group's width is its buttons' (lab-controls.css),
+// so nothing beside the clock can move. Until 2026-11-03 the group followed the clock's words here: the
+// key slid up to 35 px at every desk width, under the pointer as it was pressed, and from 1,044 to
+// 1,079 px it dropped a row and took all under it down 88 px, mid-run, with nobody touching anything.
+test('as the clock’s words grow, the key and all under it hold their place, at every width from a tablet up', async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  await page.goto(QUEUE);
+  await page.evaluate(() => document.fonts.ready);
+  const widths = [768, 900, 1000, 1023, 1920, 2560];
+  for (let width = 1024; width <= 1100; width += 2) widths.push(width);
+  for (const width of [1280, 1366, 1440, 1680]) widths.push(width);
+  for (const width of widths) {
+    await page.setViewportSize({ width, height: 900 });
+    const moved = await page.evaluate(() => {
+      const say = (selector: string, words: string) => {
+        const element = document.querySelector(selector) as Element;
+        const was = element.textContent;
+        element.textContent = words;
+        return () => {
+          element.textContent = was;
+        };
+      };
+      const places = () =>
+        [
+          ...document.querySelectorAll(
+            '.qu-controls .lab-choice, .qu-controls .lab-group, .qu-controls .btn, .qu-controls > .lab-said, .qu-summary',
+          ),
+        ]
+          .filter((element) => element.checkVisibility())
+          .map((element) => {
+            const box = element.getBoundingClientRect();
+            return { name: element.className, left: box.left, top: box.top };
+          });
+      const before = places();
+      const undo = [
+        say('[data-qu-clock]', 'Virtual time 999.999 s'),
+        say('[data-qu-events]', '99,999 events'),
+        say('[data-qu-seed]', '999999'),
+      ];
+      const after = places();
+      for (const back of undo) back();
+      return after.flatMap((place, i) => {
+        const was = before[i];
+        if (!was) return [];
+        const by = [Math.round(place.left - was.left), Math.round(place.top - was.top)];
+        return Math.abs(by[0] ?? 0) > 1 || Math.abs(by[1] ?? 0) > 1
+          ? [`${place.name} moved ${by}`]
+          : [];
+      });
+    });
+    expect(moved, `at ${width} px`).toEqual([]);
+  }
+});
+
+// A press that hides the button that holds focus is one thing; a change of width is another, and focus
+// on a copy that stops showing would fall to the page, the next Tab far from where the visitor was.
+test('a change of width takes focus to the same New orders button in the copy now showing', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(QUEUE);
+  const poison = page.getByRole('button', { name: 'Send a poison order' });
+  // The app listens for the width once it has arrived, and on a real network that can be after the
+  // width changes. The build draws what the app would, so nothing says it's here until a press it
+  // keeps and plays on arrival moves the clock.
+  const clock = page.locator('[data-qu-clock]');
+  const drawn = (await clock.textContent()) ?? '';
+  await page.getByRole('button', { name: 'Next event' }).click();
+  await expect(clock).not.toHaveText(drawn, { timeout: 15_000 });
+  await poison.focus();
+  await page.setViewportSize({ width: 1000, height: 900 });
+  await expect(page.locator('.qu-new-settings [data-qu-poison]')).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('radio', { name: 'Requeue it' })).toBeFocused();
+  await page.getByRole('button', { name: 'Stop taking orders' }).focus();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(page.locator('.qu-new-workers [data-qu-producer]')).toBeFocused();
+});
+
+// One copy shows at a width, and the two say the same, so a window made narrower can't show the words
+// the run had before.
+test('the copy a change of width shows says what the run says', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto(QUEUE);
+  await page.getByRole('button', { name: 'Stop taking orders' }).click();
+  await expect(page.getByRole('button', { name: 'Take orders' })).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 664 });
+  await expect(page.getByRole('button', { name: 'Take orders' })).toHaveCount(1);
+  await expect(page.locator('.qu-settings [data-qu-producer]')).toBeVisible();
+});
+
+// "Send a poison order, one that always fails" is 266 px wide, and at 320 px its row is 250 px, so the
+// button keeps the words the write-up names it by, on one line, and the plain line says what poison is.
+test('the poison button keeps one line at 320 px, and the plain line beside it says what it means', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto(QUEUE);
+  await page.evaluate(() => document.fonts.ready);
+  const poison = page.getByRole('button', { name: 'Send a poison order' });
+  await expect(poison).toHaveText('Send a poison order');
+  expect((await poison.boundingBox())?.height).toBe(44);
+  await expect(page.locator('.qu-new-settings .qu-note')).toHaveText(
+    'A poison order is one that always fails.',
+  );
+  // On a desk it stands beside the button, on its row.
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const button = await poison.boundingBox();
+  const beside = await page.locator('.qu-new-workers .qu-note').boundingBox();
+  expect(beside?.x).toBeGreaterThan((button?.x ?? 0) + (button?.width ?? 0));
+  expect(beside?.y).toBeLessThan((button?.y ?? 0) + (button?.height ?? 0));
+});
 
 test('on a large screen the picture fills the desk', async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1440 });
@@ -698,7 +915,7 @@ for (const width of [1024, 1280, 1440, 1920]) {
   test(`at ${width} px, orders stopped stands clear of the queue`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto(QUEUE);
-    await page.locator('[data-qu-producer]').click();
+    await page.locator('[data-qu-producer]:visible').click();
     const labels = map(page).locator('text', { hasText: /^(Orders|stopped)$/ });
     await expect(labels).toHaveText(['Orders', 'stopped']);
     const queue = await map(page).locator('.qu-tank').boundingBox();
@@ -707,7 +924,7 @@ for (const width of [1024, 1280, 1440, 1920]) {
       expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(queue?.x ?? 0);
     }
     // Taking orders again, it's the one word it was.
-    await page.locator('[data-qu-producer]').click();
+    await page.locator('[data-qu-producer]:visible').click();
     await expect(labels).toHaveText(['Orders']);
   });
 }
@@ -757,7 +974,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
     await page.goto(QUEUE);
     await page.getByRole('radio', { name: 'Before the work' }).check();
-    await page.getByRole('button', { name: 'Publish a poison order' }).click();
+    await page.getByRole('button', { name: 'Send a poison order' }).click();
     await page.getByRole('button', { name: 'Next event' }).click();
     await page.getByRole('button', { name: 'Crash worker 3' }).click();
     const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();

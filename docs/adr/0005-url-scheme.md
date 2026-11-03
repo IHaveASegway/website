@@ -96,3 +96,7 @@ Writing now renders from the first published post, not the third: `MIN_POSTS` in
 ## Postscript 2026-10-25
 
 `/resume/` now builds: the résumé as Q9 (a), a page generated from `profile.json`, on Joseph's direction of 2026-10-25 ([content.md](../content.md#résumé), [product.md](../product.md#decided)). It is a page file, so every build writes it, and the header links it; its URL joins `apps/web/published-urls.txt` in the same change, so once deployed it keeps its address for good. The PDF path, `/resume/joseph-peterson-resume.pdf`, stays reserved and unused: no PDF is hosted until Q9 (b). The URL scheme is unchanged, and no Revisit if condition was met.
+
+## Postscript 2026-11-03
+
+A published post can be removed, and its URL is still a promise: it answers with a 301 to its section's index, its `og.png` to the index's, and its line stays in `apps/web/published-urls.txt`, which stays append-only. A post that's replaced by another answers with a 301 to the new one instead, with no chain. [ADR 0031](0031-about-leads-with-what-joseph-builds.md) has the first removal and the reasoning.

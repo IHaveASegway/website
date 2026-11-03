@@ -401,8 +401,9 @@ const COUNTS = ['No', 'One', 'Two', 'Three', 'Four', 'Five'] as const;
 /**
  * What the workers up can print, said beside the loads: about 3.2 orders a second each, from the
  * service time's mean (a log-normal's is its median times e^(spread² / 2)), and a tenth of that
- * while slow; the picture says which are. A worker leaving takes no new order, so it is not
- * counted. The opening has worker 2 down, so two print about 6.5, below a busy hour's 9 a second:
+ * while slow; the picture says which are. It's what they can print, not what they are printing: at a
+ * calm hour's 5 a second, two or three up print 5. A worker leaving takes no new order, so it is not
+ * counted. The opening has worker 2 down, so two can print about 6.5, below a busy hour's 9 a second:
  * the queue grows until it is back.
  */
 export function capacityWords(sim: Sim): string {
@@ -411,7 +412,7 @@ export function capacityWords(sim: Sim): string {
   const rate = up.reduce((sum, w) => sum + 1_000 / (mean * (w.slow ? SLOWDOWN : 1)), 0);
   const n = up.length;
   if (n === 0) return 'No worker is up, so no order is printed.';
-  return `${COUNTS[n]} ${n === 1 ? 'worker is up and prints' : 'workers are up and print'} about ${rate.toFixed(1)}.`;
+  return `${COUNTS[n]} ${n === 1 ? 'worker' : 'workers'} up can print about ${rate.toFixed(1)} a second.`;
 }
 
 /** How many orders wait in the queue, and how long the oldest of them has waited. */

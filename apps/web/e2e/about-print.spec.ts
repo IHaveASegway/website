@@ -3,8 +3,8 @@ import { pages } from './expected';
 
 // /about/ on paper, the résumé (content.md, "Résumé"): one US Letter page, with nothing of the
 // site's own chrome on it and every link's address printed after it. It runs on the site and on the
-// writing fixture, whose profile holds ten roles and twelve skills, the schema's limits, and a card
-// and posts, so the one-page rule holds for any profile the schema admits, not only today's. The
+// writing fixture, whose profile holds ten roles, the schema's limit, and a card and posts, so the
+// one-page rule holds for any profile the schema admits, not only today's. The
 // site hosts no PDF: this prints the page in the browser and reads the result, as a visitor's Print
 // button does. (At /resume/ until 2026-10-28; the file was resume.spec.ts.)
 
@@ -61,17 +61,24 @@ test('on paper the site chrome is gone, the name is at a print size, and links s
       ),
     ];
     return {
-      chrome: shown('.site-header, .skip-link, body > footer, .theme-toggle, .skills dd'),
+      chrome: shown('.site-header, .skip-link, body > footer, .theme-toggle, .contact'),
       name: parseFloat(getComputedStyle(document.querySelector('.about-name') as Element).fontSize),
-      addresses: linked.map((a) => [a.getAttribute('href'), after(a)]),
+      addresses: linked.map(
+        (a) => [a.getAttribute('href'), after(a), a.matches('.card-more')] as const,
+      ),
       contact: [...document.querySelectorAll('.resume-contact a, .resume-notes a')].map(after),
     };
   });
   expect(paper.chrome).toBe(0);
   expect(paper.name).toBeLessThanOrEqual(48);
-  for (const [href, content] of paper.addresses) {
-    // A page on the site prints with the domain; a repository with its own address.
-    const address = href?.startsWith('/') ? `ihaveasegway.com${href}` : href;
+  for (const [href, content, card] of paper.addresses) {
+    // A page on the site prints with the domain; a repository with its own address, on a card with no
+    // scheme, as the head's addresses have none.
+    const address = href?.startsWith('/')
+      ? `ihaveasegway.com${href}`
+      : card
+        ? href?.replace(/^https:\/\//, '')
+        : href;
     expect(content, String(href)).toBe(`"${address}"`);
   }
   // The contact list and the notes already show their addresses as their text.
@@ -80,36 +87,22 @@ test('on paper the site chrome is gone, the name is at a print size, and links s
 
 // The sheet as Chromium lays it out for a Letter page: its media queries see the page's 816 px, so the
 // screen's rules from 48rem apply on paper though the column is 720 px. A viewport under 48rem would
-// pass what print gets wrong, as it did until 2026-11-02: every skill's comma stood a gutter away
-// from it, the skills' paragraph drew at 17 px over 13 px text, and with no role to line up with,
-// Selected work started 128 px in from its own heading.
+// pass what print gets wrong, as it did until 2026-11-02: the tools' paragraph drew at 17 px over
+// 13 px text, and with no role to line up with, Selected work started 128 px in from its own heading.
 const AS_LETTER = { width: 816, height: 1056 };
 
-/** How the skills and the cards stand on paper. */
+/** How the tools and the cards stand on paper. */
 const sheet = (page: Page) =>
   page.evaluate(() => {
-    const px = (element: Element, name: 'fontSize') => parseFloat(getComputedStyle(element)[name]);
-    const rows = [...document.querySelectorAll('.resume .skills > div')];
+    const px = (element: Element) => parseFloat(getComputedStyle(element).fontSize);
     const cards = document.querySelector('.resume .cards');
     const title = document.querySelector('#work-title');
     const first = cards?.firstElementChild;
+    const tools = document.querySelector('.skills-tools');
     return {
-      // What a row holds past its name: a comma, and the space after it. A whole em would be a
-      // gutter, not a comma's width.
-      afterName: rows.map((row) => {
-        const name = row.querySelector('dt') as Element;
-        const size = px(name, 'fontSize');
-        return (row.getBoundingClientRect().right - name.getBoundingClientRect().right) / size;
-      }),
-      sizes: rows.map((row) => {
-        const comma = getComputedStyle(row, '::after').fontSize;
-        return parseFloat(comma) / px(row.querySelector('dt') as Element, 'fontSize');
-      }),
-      tools: (() => {
-        const tools = document.querySelector('.skills-tools');
-        return tools ? px(tools, 'fontSize') : null;
-      })(),
-      body: px(document.querySelector('.resume .skills dt') as Element, 'fontSize'),
+      tools: tools ? px(tools) : null,
+      body: px(document.querySelector('.resume .resume-notes') as Element),
+      skills: document.querySelectorAll('.skills dt').length,
       cardInset:
         first && title
           ? first.getBoundingClientRect().left - title.getBoundingClientRect().left
@@ -118,7 +111,7 @@ const sheet = (page: Page) =>
     };
   });
 
-test('on paper each skill keeps its comma, its text is one size, and the cards stand where they should', async ({
+test('on paper the tools are the text size, no skill names print, and the cards stand where they should', async ({
   page,
 }) => {
   await page.setViewportSize(AS_LETTER);
@@ -126,21 +119,15 @@ test('on paper each skill keeps its comma, its text is one size, and the cards s
   await page.emulateMedia({ media: 'print' });
   await page.evaluate(() => document.fonts.ready);
   const paper = await sheet(page);
-  expect(paper.afterName.length).toBeGreaterThan(0);
-  // The last has no comma; every other holds the comma's width and the space after it.
-  expect(paper.afterName.at(-1)).toBeCloseTo(0);
-  for (const room of paper.afterName.slice(0, -1)) expect(room).toBeLessThan(0.9);
-  for (const size of paper.sizes) expect(size).toBeCloseTo(1);
+  expect(paper.skills).toBe(0);
   if (paper.tools !== null) expect(paper.tools).toBe(paper.body);
   // On the page's left edge, or past the years' gutter where roles print beside it.
   if (paper.cardInset !== null) expect(paper.cardInset).toBe(paper.roles ? 128 : 0);
 });
 
-// The known answer: the same reading on the rules the sheet shipped with. Each of the three is
-// reported, so a reading that saw nothing would not pass the sheet.
-test('known answer: the old rules read as a comma a gutter away, large skills and indented cards', async ({
-  page,
-}) => {
+// The known answer: the same reading on the rules the sheet shipped with. Each is reported, so a
+// reading that saw nothing would not pass the sheet.
+test('known answer: the old rules read as large tools and indented cards', async ({ page }) => {
   test.skip(!pages().includes('/lab/'), 'this build has no card to indent');
   await page.setViewportSize(AS_LETTER);
   await page.goto(RESUME);
@@ -148,7 +135,6 @@ test('known answer: the old rules read as a comma a gutter away, large skills an
   await page.evaluate(() => {
     const old = new CSSStyleSheet();
     old.replaceSync(`@media print {
-      .resume .skills > div { column-gap: 2rem; font-size: inherit; line-height: inherit; }
       .resume .skills-tools { font-size: 1.1rem; }
       .resume .cards { padding-inline-start: 8rem; }
     }`);
@@ -156,7 +142,6 @@ test('known answer: the old rules read as a comma a gutter away, large skills an
   });
   await page.emulateMedia({ media: 'print' });
   const paper = await sheet(page);
-  expect(paper.afterName[0]).toBeGreaterThan(2);
   expect(paper.tools).toBeGreaterThan(paper.body);
   expect(paper.cardInset).toBe(128);
 });
@@ -184,61 +169,24 @@ test('on paper Writing is each post in one line, with its address', async ({ pag
   expect(writing.more).toBe(0);
 });
 
-// A printed résumé never asks its reader for the résumé (2026-10-31): the sheet in their hand is
-// it. The screen offers the full résumé; paper drops the offer, and drops the Experience section
-// too when nothing is left in it to print. Read as the printed
-// text, so whatever hides the line, or fails to, is what the check sees.
-const ASKS = /send a résumé/i;
-
-/** The résumé's text as the page lays it out, and its Experience section's and that title's. */
-const onPaper = (page: Page) =>
-  page.evaluate(() => {
-    const resume = document.querySelector('.resume') as HTMLElement;
-    const experience = document.querySelector<HTMLElement>('[aria-labelledby="experience-title"]');
-    const title = document.querySelector<HTMLElement>('#experience-title');
-    const printed = (e: HTMLElement | null) => (e?.checkVisibility() ? e.innerText.trim() : '');
-    return {
-      text: resume.innerText,
-      experience: printed(experience),
-      title: printed(title),
-    };
-  });
-
-test('on paper the résumé never asks for the résumé, and Experience prints only what it holds', async ({
+// Background is the sheet's (2026-11-03), never only its title on paper: a heading over nothing reads
+// as a gap. Read as the printed text, so whatever hides a line, or fails to, is what the check sees.
+test('on paper Background prints what it holds, and on screen it does not show', async ({
   page,
 }) => {
   await page.goto(RESUME);
+  const printed = () =>
+    page.evaluate(() => {
+      const section = document.querySelector<HTMLElement>('[aria-labelledby="experience-title"]');
+      const title = document.querySelector<HTMLElement>('#experience-title');
+      const said = (e: HTMLElement | null) => (e?.checkVisibility() ? e.innerText.trim() : '');
+      return { section: said(section), title: said(title) };
+    });
+  expect((await printed()).section).toBe('');
   await page.emulateMedia({ media: 'print' });
-  const paper = await onPaper(page);
-  expect(paper.text).not.toMatch(ASKS);
-  // A section is never only its title on paper: a heading over nothing reads as a gap.
-  if (paper.experience !== '') expect(paper.experience.length).toBeGreaterThan(paper.title.length);
-});
-
-// The known answer: the same reading finds the offer where it does show, on screen, so a check
-// that read nothing would not pass the paper.
-test('known answer: on screen the same reading finds the offer of the full résumé', async ({
-  page,
-}) => {
-  await page.goto(RESUME);
-  expect((await onPaper(page)).text).toMatch(ASKS);
-});
-
-// The Experience section on paper with no role and no LinkedIn profile, as a profile without either
-// would build it: the class the page sets then hides the whole section, title and all.
-test('known answer: an Experience section with nothing to print is left off the sheet', async ({
-  page,
-}) => {
-  await page.goto(RESUME);
-  await page.evaluate(() => {
-    const section = document.querySelector('[aria-labelledby="experience-title"]');
-    if (!section) throw new Error('the résumé has no Experience section');
-    section.querySelector('.roles')?.remove();
-    section.querySelector('.resume-notes')?.remove();
-    section.classList.add('screen-only');
-  });
-  await page.emulateMedia({ media: 'print' });
-  expect((await onPaper(page)).experience).toBe('');
+  const paper = await printed();
+  expect(paper.title).toBe('Background');
+  expect(paper.section.length).toBeGreaterThan(paper.title.length);
 });
 
 // A larger default text size scales the printed type with it. The addresses stand beside the name
@@ -278,11 +226,12 @@ for (const size of [16, 20, 24, 32]) {
   });
 }
 
-// On a phone the contact list puts each label above its address (global.css, the contact
-// container), so an address has the list's whole width. Beside its label, LinkedIn's address took
-// two lines at 390 px and the default size, and at 32 px the web address broke as "ihaveasegw / ay.com".
+// Too narrow for an address beside its label, the contact list puts each label above its address
+// (about.css, the contact container), so an address has the list's whole width. Beside its label,
+// LinkedIn's address took two lines at 390 px and the default size, and at 32 px the web address broke
+// as "ihaveasegw / ay.com". The addresses are paper's since 2026-11-03, so this reads them on paper.
 for (const size of [16, 32]) {
-  test(`at 390 px and ${size} px default text the résumé's addresses keep their words`, async ({
+  test(`at 390 px and ${size} px default text the résumé's addresses keep their words on paper`, async ({
     page,
   }) => {
     const devtools = await page.context().newCDPSession(page);
@@ -291,6 +240,7 @@ for (const size of [16, 32]) {
     });
     await page.setViewportSize({ width: 390, height: 900 });
     await page.goto(RESUME);
+    await page.emulateMedia({ media: 'print' });
     await page.evaluate(() => document.fonts.ready);
     const lines = await page.evaluate(() =>
       [...document.querySelectorAll('.resume-contact dd a')].map((link) => {
@@ -313,7 +263,7 @@ for (const size of [16, 32]) {
         return { text: text.replace(/\s+/g, ''), rows: [...rows.values()] };
       }),
     );
-    // By address, not by place: the writing fixture lists GitHub between Web and LinkedIn.
+    // By address, not by place: a checked GitHub profile stands among them.
     const find = (start: string) => lines.find((address) => address.text.startsWith(start));
     const [email, web, linkedIn] = ['hello@', 'ihaveasegway.com', 'linkedin.com'].map(find);
     expect([email, web, linkedIn].every(Boolean), JSON.stringify(lines)).toBe(true);
@@ -341,28 +291,39 @@ test('on screen the header links About, marked as the current page there, and no
   await expect(page.locator('.site-nav a[href="/about/"]')).toHaveAttribute('aria-current', 'page');
 });
 
-// The bio prints its first paragraph, the summary a printed résumé opens with, and nothing else of
-// it: the page stays one sheet whatever the profile holds (global.css, "The résumé on paper"). The
-// fixture builds hold no bio, so there the check has nothing to read.
-test('on paper the bio keeps its opening only, and the Print button and the way round are gone', async ({
+// The bio prints its first paragraph, the summary a printed résumé opens with, and the biggest thing,
+// its strongest proof, and nothing else of it, so the page stays one sheet whatever the profile holds
+// (about.css, "The résumé on paper"). The agents line prints over Selected work, so nobody reads built
+// as typed. The fixture builds hold no bio, so there the check has nothing to read.
+test('on paper the bio keeps its opening and its biggest thing, and the Print button and the way round are gone', async ({
   page,
 }) => {
   await page.goto(RESUME);
   await page.emulateMedia({ media: 'print' });
   const paper = await page.evaluate(() => ({
-    // Each of the bio's paragraphs and items, in page order (about/index.astro's blocks).
-    bio: [...document.querySelectorAll('.bio :is(p, li, h2)')].map((e) => e.checkVisibility()),
-    opening: document.querySelector('.bio-lede')?.checkVisibility() ?? null,
+    // Each of the bio's paragraphs, items and labels that prints, in page order.
+    bio: [...document.querySelectorAll('.bio :is(p, li, h2)')]
+      .filter((e) => e.checkVisibility())
+      .map((e) => (e as HTMLElement).innerText.trim().replace(/\s+/g, ' ')),
+    note: document.querySelector<HTMLElement>('.work-note')?.innerText.trim() ?? null,
+    noteBeforeCards: (() => {
+      const note = document.querySelector('.work-note');
+      const cards = document.querySelector('.resume .cards');
+      return note && cards
+        ? (note.compareDocumentPosition(cards) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+        : null;
+    })(),
     button: [...document.querySelectorAll('[data-print]')].map((e) => e.checkVisibility()),
-    hidden: ['.skills-note'].map((s) => document.querySelector(s)?.checkVisibility() ?? false),
   }));
   if (paper.bio.length > 0) {
-    // The opening alone, as a printed résumé opens.
-    expect(paper.opening).toBe(true);
-    expect(paper.bio.filter(Boolean)).toHaveLength(1);
+    expect(paper.bio).toHaveLength(3);
+    expect(paper.bio[0]).toMatch(/^I take an idea and build the entire system\. I love building/);
+    expect(paper.bio[1]).toBe('The biggest thing I’ve built');
+    expect(paper.bio[2]).toMatch(/^About a third of the code in a CRM service/);
+    expect(paper.note).toMatch(/^I didn’t type this site’s code\. Coding agents wrote it/);
+    expect(paper.noteBeforeCards).toBe(true);
   }
   expect(paper.button).toEqual([false]);
-  expect(paper.hidden).toEqual([false]);
 });
 
 // The Print button opens the browser's own print, whose dialog saves a PDF (content.md, "Résumé"):

@@ -1,10 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
 import { pages } from './expected';
 
-// Home (docs/design/home.md; ADR 0028): Joseph's words at the size of a statement, each kind of
-// system they name a link to the lab that runs one; beside them the one live thing on the page, the
-// Raft Lab's cluster as its page opens; What I build, each with the lab where it breaks and one fact
-// from its build; the dated writing; How I work; and the address, which a visitor can copy. Until
+// Home (docs/design/home.md; ADR 0028, ADR 0031): Joseph's words at the size of a statement; beside
+// them the one live thing on the page, the Raft Lab's cluster as its page opens; the things to try,
+// each with the lab where it breaks and one fact from its build; the dated writing; the last thing
+// built; and where to reach out. Until
 // ADR 0028 Home drew the five labs as one isometric system beside named bio blocks, with a stats row
 // and an activity calendar, in the layout of a page Joseph had named as a reference: what the
 // checks held for that drawing, that it moves only as asked, pauses on request (SC 2.2.2), holds
@@ -28,7 +28,7 @@ const animationStates = (page: Page) =>
 
 test.describe("Home's opening", () => {
   for (const width of [320, 390, 1440]) {
-    test(`at ${width} px the role, then the name in its own case, the statement and both ways to reach him`, async ({
+    test(`at ${width} px the role, then the name in its own case, the statement and LinkedIn leading`, async ({
       page,
     }) => {
       await page.setViewportSize({ width, height: 900 });
@@ -45,33 +45,47 @@ test.describe("Home's opening", () => {
       );
       expect(lines, 'lines of the name').toBe(2);
       expect(lines).toBeLessThanOrEqual(2);
-      await expect(page.locator('.hero-actions .btn-email')).toHaveAttribute(
-        'href',
-        'mailto:hello@ihaveasegway.com',
-      );
-      await expect(page.locator('.hero-actions .btn').last()).toHaveText('LinkedIn');
+      // LinkedIn is how people reach Joseph (ADR 0031): it leads, and nothing here asks for an email.
+      await expect(page.locator('.hero-actions .btn').first()).toHaveText('LinkedIn');
+      await expect(page.locator('.hero-actions .btn-primary')).toHaveText('LinkedIn');
+      await expect(page.locator('.hero-actions a[href^="mailto:"]')).toHaveCount(0);
     });
   }
 
-  test("the statement's kinds of system each open their lab, underlined in the accent", async ({
+  // Stacked, they'd cost a narrow phone's first screen a whole button's height.
+  test('the buttons share one row, at one width, down to 320 px', async ({ page }) => {
+    for (const width of [320, 375, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto('/');
+      const buttons = await page
+        .locator('.hero-actions .btn')
+        .evaluateAll((all) =>
+          all.map((b) => b.getBoundingClientRect()).map((r) => [r.top, r.width]),
+        );
+      expect(buttons.length, String(width)).toBe(2);
+      expect(buttons[0]?.[0], String(width)).toBe(buttons[1]?.[0]);
+      expect(buttons[0]?.[1], String(width)).toBe(buttons[1]?.[1]);
+    }
+  });
+
+  // What Joseph does, and what the page is for (ADR 0031). The second sentence is Home's own, and the
+  // first is the bio's, so it's the one /about/ opens with. Until 2026-11-03 the statement linked its
+  // kinds of system to their labs.
+  test("the statement says the bio's first sentence, then what the page is for, with no link", async ({
     page,
   }) => {
     await page.goto('/');
-    const links = page.locator('.hero-statement a[data-line]');
-    test.skip((await links.count()) === 0, 'this build writes no lab');
-    for (const link of await links.all()) {
-      const line = (await link.getAttribute('data-line')) ?? '';
-      await expect(link).toHaveAttribute('href', `/lab/${line}/`);
-      const [underline, colour] = await link.evaluate((a) => {
-        const probe = document.createElement('span');
-        probe.style.color = 'var(--primary)';
-        a.append(probe);
-        const value = getComputedStyle(probe).color;
-        probe.remove();
-        return [getComputedStyle(a).textDecorationColor, value];
-      });
-      expect(underline, line).toBe(colour);
-    }
+    const statement = page.locator('.hero-statement');
+    test.skip((await statement.count()) === 0, 'this build has no bio');
+    await expect(statement).toHaveText(
+      'I take an idea and build the entire system. Here are a few things you can break.',
+    );
+    await expect(statement.locator('a')).toHaveCount(0);
+    await page.goto('/about/');
+    await expect(page.locator('.bio-lede')).toContainText(
+      'I take an idea and build the entire system.',
+    );
+    await expect(page.locator('.bio-lede')).not.toContainText('things you can break');
   });
 });
 
@@ -174,7 +188,7 @@ test.describe("Home's live picture", () => {
     expect(new Set(logs).size, `logs ${logs.join(', ')}`).toBe(1);
     expect(logs[0]).toBeGreaterThan(0);
     await expect(picture(page).locator('figcaption')).toHaveText(
-      /^A simulation of five servers keeping the same log\. Server \d is the leader in this picture, and its heartbeats keep the other four from starting an election\. Try to break it in the Raft Lab$/,
+      /^A simulation of five servers keeping the same log, the ordered list of every write\. Server \d is the leader in this picture, and its heartbeats tell the other four it’s up, so they keep following it\. Try to break it in the Raft Lab$/,
     );
     await expect(picture(page).locator('figcaption a')).toHaveAttribute('href', '/lab/raft/');
   });
@@ -250,17 +264,15 @@ test.describe("Home's live picture", () => {
   });
 });
 
-// What I build: the bio's five, in its order, each with the lab its words name, that lab's colour
+// The things to try: the bio's five, in its order, each with the lab its words name, that lab's colour
 // and one fact from its build (lib/lab-facts.ts). The labs the bio names are the cards' labs on the
 // Lab index, so each fact here is the one a visitor finds there.
-test("What I build: the bio's five in its order, each lab's row with its fact", async ({
+test("Things to try: the bio's five in its order, each lab's row with its fact", async ({
   page,
 }) => {
   await page.goto('/about/');
-  const leads = await page
-    .locator('.bio-block:has(> h2:text-is("What I build")) .bio-item-lead')
-    .allInnerTexts();
-  expect(leads.length, "/about/'s What I build").toBeGreaterThan(0);
+  const leads = await page.locator('.bio-row[data-line] .bio-item-lead').allInnerTexts();
+  expect(leads.length, "/about/'s rows").toBeGreaterThan(0);
   await page.goto('/');
   const rows = page.locator('#build .build');
   test.skip((await rows.count()) === 0, 'this build has no bio');
@@ -307,9 +319,6 @@ test("Home's writing rows: the day, the title as the row's link, its summary, it
   }
 });
 
-// The address works with no mail app (components/home/Contact.astro; scripts/copy.js): pressed, the
-// button copies it, or where the clipboard refuses (a page not served securely) selects it, says
-// which, and keeps its width, so nothing moves.
 // "made-up" is one word to read: the line over a fact must not split it at its hyphen. Phones, and the
 // widths from 1,024 to 1,112 px where the third column split it until 2026-11-03: four widths saw none.
 test('at every width the line over a fact keeps "made-up" whole', async ({ page }) => {
@@ -329,40 +338,56 @@ test('at every width the line over a fact keeps "made-up" whole', async ({ page 
   }
 });
 
-test('Home closes with the address, a button that copies it without moving, and LinkedIn', async ({
+// One card at 44rem read as a grid missing its other cards on a laptop: 704 px of a 1,216 px frame. So
+// from 64rem a card alone takes the frame, its facts in a column of their own beside its words.
+test('from a laptop up, a card alone fills the frame, with its facts beside its words', async ({
   page,
-  context,
 }) => {
-  await context.grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => undefined);
-  await page.goto('/');
-  const contact = page.locator('#contact');
-  await expect(contact.locator('.contact-address')).toHaveAttribute(
-    'href',
-    'mailto:hello@ihaveasegway.com',
-  );
-  await expect(contact.locator('.contact-address')).toHaveText('hello@ihaveasegway.com');
-  const copy = contact.locator('.btn-copy');
-  await expect(copy).toHaveText('Copy email address');
-  await copy.scrollIntoViewIfNeeded();
-  const size = async () => {
-    const box = await copy.boundingBox();
-    return { width: box?.width, height: box?.height };
-  };
-  const before = await size();
-  await copy.click();
-  const secure = await page.evaluate(() => isSecureContext && 'clipboard' in navigator);
-  if (secure) {
-    await expect(copy).toHaveText('Copied');
-    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
-      'hello@ihaveasegway.com',
-    );
-  } else {
-    await expect(copy).toHaveText('Selected above');
-    expect(await page.evaluate(() => getSelection()?.toString().replace(/\s/g, ''))).toBe(
-      'hello@ihaveasegway.com',
-    );
+  for (const width of [1024, 1440, 2560]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/');
+    const card = page.locator('#work .card');
+    test.skip((await card.count()) !== 1, 'this build has no lone card');
+    const at = await page.evaluate(() => {
+      const box = (selector: string) =>
+        document.querySelector(selector)?.getBoundingClientRect() as DOMRect;
+      return {
+        frame: box('#work').width,
+        card: box('#work .card').width,
+        words: box('#work .card-text').right,
+        facts: box('#work .card .kv').left,
+      };
+    });
+    expect(at.card, String(width)).toBeCloseTo(at.frame, 0);
+    expect(at.facts, String(width)).toBeGreaterThanOrEqual(at.words);
   }
-  expect(await size()).toEqual(before);
-  await expect(copy).toHaveText('Copy email address', { timeout: 5_000 });
-  await expect(contact.locator('a.btn')).toHaveText(['LinkedIn']);
+});
+
+// Home closes on where to reach out (components/home/Contact.astro; ADR 0031): the bio's last words
+// where the build holds the bio, and LinkedIn to press. No page asks a reader to email: the address
+// stays as plain text in the footer, and on paper in the résumé's head.
+test('Home and /about/ close on LinkedIn, and no page asks for an email', async ({ page }) => {
+  const reached = await page.request.get('/');
+  expect(reached.ok()).toBe(true);
+  for (const path of ['/', '/about/']) {
+    await page.goto(path);
+    const contact = page.locator('#contact');
+    if (path === '/about/' && (await contact.count()) === 0) continue;
+    await expect(contact.locator('a.btn')).toHaveText(['LinkedIn']);
+    await expect(contact.locator('a.btn')).toHaveAttribute(
+      'href',
+      /^https:\/\/www\.linkedin\.com\/in\//,
+    );
+    await expect(contact.locator('a[href^="mailto:"], button')).toHaveCount(0);
+  }
+  for (const path of pages()) {
+    await page.goto(path);
+    // The address, where it stands, is the footer's: nothing else on screen offers it.
+    const offered = await page
+      .locator('a[href^="mailto:"]:visible')
+      .evaluateAll((links) => links.filter((a) => !a.closest('.site-foot')).length);
+    expect(offered, path).toBe(0);
+    await expect(page.getByText(/\bemail me\b/i), path).toHaveCount(0);
+    await expect(page.locator('[data-copy-address], .btn-copy'), path).toHaveCount(0);
+  }
 });

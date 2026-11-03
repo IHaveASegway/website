@@ -148,7 +148,7 @@ function largeTextFaults(): Fault[] {
   }
 
   for (const heading of document.querySelectorAll(
-    '.hero-name, .nameplate, .about-name, .wordmark',
+    '.hero-name, .nameplate, .about-name, .wordmark, .section-title',
   )) {
     for (const text of texts(heading)) {
       for (const word of text.data.matchAll(/\S+/g)) {

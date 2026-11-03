@@ -12,10 +12,11 @@ Joseph Peterson's personal site: name, title, proof and contact inside a 7-secon
 
 ## Why
 
-**Who needs it.** Joseph is a senior backend and platform engineer, training to become a software architect. Two kinds of visitor need something a LinkedIn profile and a résumé cannot give them:
+**Who needs it.** Joseph takes an idea and builds the entire system ([ADR 0031](adr/0031-about-leads-with-what-joseph-builds.md)). Becoming a software architect stays Joseph's goal, off the page by their call on 2026-11-03. Three kinds of visitor need something a LinkedIn profile and a résumé cannot give them:
 
-1. Recruiters, who need his name, title, one proof point and a way to reach him inside a scan of about 7 seconds.
-2. Hiring managers and engineers for senior and architect roles, who need depth: owned work they can check in its repository, the decisions behind it (ADRs), demos, and writing.
+1. Recruiters, who need Joseph's name, title, one proof point and a way to reach out inside a scan of about 7 seconds.
+2. Hiring managers and tech leads for senior roles, who need depth: owned work they can check in its repository, the decisions behind it (ADRs), demos, and writing.
+3. Anyone offering freelance work, who needs to see what Joseph has built and where to reach out.
 
 **Where they come from.** Mostly from links Joseph hands out: the résumé, LinkedIn, GitHub, and posts shared in Slack and on LinkedIn. Not from name search: "Joseph Peterson" is a crowded name. The site's job is to convert those links. It is not an SEO project.
 
@@ -32,7 +33,8 @@ Joseph Peterson's personal site: name, title, proof and contact inside a 7-secon
 | Who | What they need | Time they give it | What answers it |
 |---|---|---|---|
 | Recruiter | Name, title, one proof point, how to reach him | About 7 seconds, mostly on the first screen | Home rows 1–3, visible without scrolling at 390×844 and 1440×900: hero, status line, at a glance ([content.md](content.md)) |
-| Hiring manager, senior or architect role | Evidence of judgment: the problem, the options, the decision, the result | Minutes, usually after a recruiter's screen | Project cards on Home that link to the repositories, whose READMEs and ADRs show the problem, the options and the decision; essays; "How I work" on Home |
+| Hiring manager or tech lead, senior role | Evidence of judgment: the problem, the options, the decision, the result | Minutes, usually after a recruiter's screen | Project cards on Home that link to the repositories, whose READMEs and ADRs show the problem, the options and the decision; essays; the labs' rows and "The last thing I built" on Home |
+| Someone offering freelance work | What Joseph has built, and where to reach out | Minutes | `/about/`, which closes on LinkedIn |
 | Engineer evaluating his work | Something to check: source, decisions, a demo that works or says why it does not | As long as the material holds them | Public repos, selected ADRs rendered at `/colophon/decisions/<nnnn-slug>/` ([ADR 0001](adr/0001-record-architecture-decisions.md)), `/writing/` and `/notes/`, the lab (Phase 4) |
 | Joseph | A place to practice architecture under real constraints, material for conversations about his work, a writing habit | ≤2 h/month of upkeep plus 8–10 h/month of writing (Q23) | This repository: docs/, the ADRs, the pipeline, `/now/` |
 
@@ -113,7 +115,7 @@ What already solves "a portfolio site", and what each option gets right:
 | Bartosz Ciechanowski, [ciechanow.ski](https://ciechanow.ski/) | Long essays in which the interactive parts are the explanation | A lab demo explains one idea and ships with its write-up |
 | Will Larson, [lethain.com](https://lethain.com/) | Curated ways in (popular posts, tags, RSS); writing as long-lived documents ([Being visible](https://lethain.com/being-visible/), 2020) | Selected work on Home; the ADRs as the long-lived documents |
 
-**Why build anyway.** If the only goal were the 7-second scan, a hosted builder and a LinkedIn link would do. The second goal decides it: for a senior or architect role, the site is itself evidence of how Joseph builds. A builder shows taste in templates. This site shows a system: content as code, pages that run no code, a deploy that waits for a content check, decisions written down with their doors and revisit triggers, and a cost model with a $0 ceiling.
+**Why build anyway.** If the only goal were the 7-second scan, a hosted builder and a LinkedIn link would do. The second goal decides it: for a senior role, the site is itself evidence of how Joseph builds. A builder shows taste in templates. This site shows a system: content as code, pages that run no code, a deploy that waits for a content check, decisions written down with their doors and revisit triggers, and a cost model with a $0 ceiling.
 
 It is composed, not invented. Astro builds the pages; an assets-only Worker serves them; GitHub Actions gates and deploys them; gitleaks runs the firewall rules; Cloudflare Web Analytics counts visits; Email Routing receives mail. Bespoke code is limited to glue: the firewall check (about 80 lines of shell), a zone audit script, and a few small vanilla modules for effects ([stack.md](stack.md)). The weaker design in either direction: fully hosted, which trades evolvability and control for time to launch and leaves someone else holding the off switch; or fully bespoke (a home-made generator or deploy system), which trades operability for months of upkeep that prove nothing a reviewer cares about.
 
@@ -200,7 +202,7 @@ None left: Q1 and Q2 were decided on 2026-10-22 ([Decided](#decided)).
 
 | # | Question | Options | Recommendation, and why | Door | Blocks · by |
 |---|---|---|---|---|---|
-| Q10 · Q-projects | Which work is featured? | (a) stillhere and gitops, plus one line for the upstream contribution to capacitor. (b) Other repositories as well | (a). Owned, checkable work, linked only after its readiness checks, with exact credit (gitops has outside contributions; capacitor is someone else's project). Partly answered on 2026-10-23: owned work shows as cards that link to the repositories, not case studies. stillhere's card waits on its readiness check and the GitHub profile's. gitops is private, so it stays off the site until it is public again. Still open: the capacitor line | Two-way | the project cards and the capacitor line in PR 4 · before PR 4 |
+| Q10 · Q-projects | Which work is featured? | (a) stillhere and gitops, plus one line for the upstream contribution to capacitor. (b) Other repositories as well | (a). Owned, checkable work, linked only after its readiness checks, with exact credit (gitops has outside contributions; capacitor is someone else's project). Partly answered on 2026-10-23: owned work shows as cards that link to the repositories, not case studies. stillhere's card turned on on 2026-11-03, with its check and the GitHub profile's recorded. gitops is private, so it stays off the site until it is public again. Still open: the capacitor line | Two-way | the project cards and the capacitor line in PR 4 · before PR 4 |
 
 ### Blocking PR 6 and later
 

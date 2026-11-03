@@ -1,7 +1,8 @@
 /*
   Home (docs/design/home.md; ADR 0028): Joseph's words at the size of a statement beside the one live
-  thing on the page, the Raft Lab's cluster; then What I build, each thing with the lab where it
-  breaks; the latest writing; How I work and the repository's record; and the address. Only Home
+  thing on the page, the Raft Lab's cluster; then the things they built that a visitor can try, each
+  with the lab where it breaks; the latest writing; the last thing they built and the repository's
+  record; and where to reach out. Only Home
   links this file, so no other page carries its bytes (test/budgets.test.ts). Every colour is a
   token from tokens.css, or a mix of two. It is not in a cascade layer, as the lab pages' own
   stylesheets are not, so where it restyles a component of global.css it wins.
@@ -21,7 +22,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   row-gap: 2.5rem;
-  padding-block: 2.75rem 0.5rem;
+  padding-block: 1.5rem 0.5rem;
 }
 
 .hero-role {
@@ -40,9 +41,7 @@
   overflow-wrap: break-word;
 }
 
-/* The bio's opening, the statement. The kinds of system it names are its links, each underlined in
-   the accent (ADR 0029: the labs' colours appear where they are explained, in What I build), thick
-   enough to read as a mark and not as a hairline (SC 1.4.1 holds through the underline). */
+/* The bio's opening, the statement. */
 .hero-statement {
   margin: 0 0 1.25rem;
   max-inline-size: 30em;
@@ -50,20 +49,6 @@
   line-height: var(--text-statement--line-height);
   letter-spacing: -0.01em;
   text-wrap: pretty;
-}
-
-.hero-statement a[data-line] {
-  text-decoration-color: var(--primary);
-  text-decoration-thickness: 0.1em;
-  text-underline-offset: 0.18em;
-  text-decoration-skip-ink: none;
-}
-
-@media (hover: hover) {
-  .hero-statement a[data-line]:hover {
-    color: inherit;
-    text-decoration-thickness: 0.24em;
-  }
 }
 
 .hero-more {
@@ -80,10 +65,10 @@
   gap: 0.5rem;
 }
 
-/* The buttons, both one width at every screen width: side by side from 390 px, and stacked as two
-   equal bars on a narrower phone. */
+/* The buttons, both one width at every screen width, the most a 320 px screen's row holds side by side.
+   They stack as two equal bars only when a larger text size leaves no room for both. */
 .hero-actions .btn {
-  min-inline-size: min(10.75rem, 100%);
+  min-inline-size: min(8.625rem, 100%);
   text-align: center;
 }
 
@@ -328,9 +313,8 @@
   }
 }
 
-/* The display face is wide enough that at twice the text size on a 320 px screen one word can
-   outrun the column ("Selected", by 5 px on Linux): it breaks there rather than scroll the page
-   sideways (SC 1.4.10). */
+/* The wide face at twice the text size on a 320 px screen: --text-section stops at 15.5vw, which keeps
+   "Selected" whole there, and a longer word breaks rather than scroll the page sideways (SC 1.4.10). */
 .section-title {
   overflow-wrap: break-word;
 }
@@ -358,7 +342,7 @@
   font-weight: 500;
 }
 
-/* What I build: a row for each, between hairlines. Its lead carries the lab's colour as a mark
+/* The things to try: a row for each, between hairlines. Its lead carries the lab's colour as a mark
    before it; its words follow, then the lab and one fact from its build. One column below 64rem;
    from it the lead, the words and the fact stand in three columns. */
 .build-list {
@@ -583,27 +567,43 @@
   }
 }
 
-/* How I work: the bio's principles, each its lead over its words, two columns from 64rem; then the
-   repository's record under a hairline. */
-.principles-list {
-  display: grid;
-  gap: 2rem var(--gutter);
-  margin: 0;
-  padding: 0;
-  list-style: none;
+/* A card alone, from a laptop up: at the cards' own width it read as a grid missing its other cards, so
+   it takes the frame, its facts in a column of their own beside its words. */
+@media (width >= 64rem) {
+  #work .cards:has(> .card:only-child) {
+    max-inline-size: none;
+  }
+
+  #work .card:only-child {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: calc(var(--gutter) * 2);
+  }
+
+  #work .card:only-child > :not(.kv) {
+    grid-column: 1;
+  }
+
+  #work .card:only-child > .kv {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    align-self: center;
+  }
 }
 
-.principle-lead {
-  margin: 0 0 0.5rem;
-  font-family: var(--font-display);
-  font-size: var(--text-headline);
-  font-weight: 600;
-  line-height: var(--text-headline--line-height);
-}
-
-.principle-text {
+/* The last thing they built: the bio's prose, then the repository's record under a hairline. */
+.last-text {
   margin: 0;
   max-inline-size: var(--measure);
+  text-wrap: pretty;
+}
+
+.last-text + .last-text {
+  margin-top: 1rem;
+}
+
+.last-text:first-of-type {
+  font-size: var(--text-lead);
+  line-height: var(--text-lead--line-height);
 }
 
 .record {
@@ -616,61 +616,9 @@
   line-height: 1.5;
 }
 
-@media (width >= 64rem) {
-  .principles-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: calc(var(--gutter) * 2);
-  }
-}
-
-/* Contact: the address at a title's size in the wide face, breaking only after its @, with its
-   underline unbroken under the letters that hang below it; then a button that copies it, for a
-   computer with no mail app, and LinkedIn. The button keeps the width of its longest words, so
-   what it says when pressed moves nothing (scripts/copy.js). */
-.contact-line {
-  margin: 0;
-}
-
-.contact-address {
-  display: inline-block;
-  max-inline-size: 100%;
-  padding-block: 0.2em; /* a target of 24 px or more at a headline's size (SC 2.5.8) */
-  font: 600 var(--text-section) / 1.1 var(--font-display);
-  text-decoration-thickness: 0.05em;
-  text-underline-offset: 0.14em;
-  text-decoration-skip-ink: none;
-  overflow-wrap: anywhere;
-}
-
-.contact-address::selection,
-.contact-address *::selection {
-  background-color: transparent;
-  color: var(--primary);
-}
-
-.contact-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 1.5rem;
-}
-
-.btn-copy {
-  min-inline-size: min(13.75rem, 100%);
-}
-
-/* The address at a section's size, and below 27rem a headline's, so that each side of its @ keeps
-   to one line and only the @ breaks it (e2e/layout.spec.ts). */
-@media (width < 27rem) {
-  .contact-address {
-    font-size: var(--text-headline);
-  }
-}
-
-/* On paper the cluster, a moving picture, is left off, and the copy button with it. */
+/* On paper the cluster, a moving picture, is left off. */
 @media print {
-  .orbit,
-  .btn-copy {
+  .orbit {
     display: none;
   }
 }

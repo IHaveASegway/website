@@ -146,12 +146,13 @@ export function raftLine(sim: Sim): RaftLine {
 export const RAFT_RECOVERY = 5_000;
 
 /**
- * The Raft line's fix on the board: the opening's leader crashed where the run stands, and Raft
- * electing another, so the board shows what the protocol does about the failure it is built for:
- * "Crash server 1, and server 5 leads term 2 after 221 ms, with all three committed entries kept."
- * `crashed` is the opening replayed with that crash as its last action; this plays it on, event by
- * event, until another server leads. Refused when none leads within RAFT_RECOVERY, when a property
- * broke, or when the new leader's log lost a committed entry, since the sentence says none did.
+ * The Raft line's fix on the board: a leader crashed, and Raft electing another, so the board shows
+ * what the protocol does about the failure it is built for: "Crash server 1, and server 3 takes over
+ * as leader after 196 ms, with nothing lost: all three committed entries are still there." `opening`
+ * is the run at the crash's moment, and `crashed` is the same run with that crash as its last action;
+ * this plays it on, event by event, until another server leads. Refused when none leads
+ * within RAFT_RECOVERY, when a property broke, or when the new leader's log lacks any entry the old
+ * leader held, committed or not, since the sentence says nothing was lost.
  */
 export function raftFailover(opening: Sim, crashed: Sim): string {
   const old = leaderOf(opening);
@@ -163,16 +164,19 @@ export function raftFailover(opening: Sim, crashed: Sim): string {
     next = leaderOf(crashed);
   if (!next || next.id === old.id)
     throw new Error(`lines: no server led within ${RAFT_RECOVERY} ms of the leader's crash`);
+  // hashes[i] fingerprints entries 1..i, so this compares all the old leader held, its uncommitted
+  // tail too: Raft may drop an entry it never committed, and "nothing lost" would then be false.
+  const held = old.log.length;
+  if (crashed.violation || next.hashes[held] !== old.hashes[held])
+    throw new Error('lines: the Raft failover lost an entry or broke a property');
   const committed = old.commitIndex;
-  if (crashed.violation || next.hashes[committed] !== old.hashes[committed])
-    throw new Error('lines: the Raft failover lost a committed entry or broke a property');
   const kept =
     committed === 0
-      ? 'nothing committed lost'
+      ? 'no entry was committed yet'
       : committed === 1
-        ? 'its committed entry kept'
-        : `all ${inWords(committed)} committed entries kept`;
-  return `Crash server ${old.id + 1}, and server ${next.id + 1} takes over in term ${next.term} after ${Math.round(crashed.now - from)} ms, with ${kept}.`;
+        ? 'its one committed entry is still there'
+        : `all ${inWords(committed)} committed entries are still there`;
+  return `Crash server ${old.id + 1}, and server ${next.id + 1} takes over as leader after ${Math.round(crashed.now - from)} ms, with nothing lost: ${kept}.`;
 }
 
 /**
@@ -246,7 +250,7 @@ export function queueFact(keyed: QueueSim): string {
   const kept = keptOnce(keyed);
   const crashed = (kept.effects[0]?.worker ?? 0) + 1;
   const seconds = Math.round(keyed.now / 1000);
-  return `With an idempotency key, worker ${crashed} crashes and order ${kept.id}’s oven ticket still prints once. ${firstUp(orders(keyed.doneCount))} done in ${seconds} s, none lost or printed twice.`;
+  return `Worker ${crashed} crashes and order ${kept.id} is sent again. Workers check its id, the idempotency key, before printing, so its oven ticket prints once. ${firstUp(orders(keyed.doneCount))} done in ${seconds} s, none lost or printed twice.`;
 }
 
 /** The Queue line's fix on the board, after the crash its describer tells: "With an idempotency
@@ -307,7 +311,7 @@ export function cacheFact(opening: CacheSim, coalesced: CacheSim): string {
   const at = (herd.expired / 1000).toFixed(1);
   const once = coalesced.fetchesOf[herd.key] ?? 0;
   const without = opening.fetchesOf[herd.key] ?? 0;
-  return `${firstUp(`when ${page} expires at ${at} s`)}, coalescing means the database is asked for it ${times(once)} instead of ${times(without)}.`;
+  return `${firstUp(`when ${page} expires at ${at} s`)}, coalescing lets one reader fetch it while the rest wait, so the database is asked for it ${times(once)} instead of ${times(without)}.`;
 }
 
 /** The Cache line's fix on the board, after the stampede its describer tells: "With coalescing,
@@ -399,7 +403,7 @@ export function backfillLine(sim: BackfillSim): BackfillLine {
 export function backfillFact(appended: BackfillSim, overwritten: BackfillSim): string {
   const sum = (numbers: readonly number[]) => numbers.reduce((total, n) => total + n, 0);
   matchedWeek(overwritten);
-  return `When each load overwrites its day, the week’s report counts ${orders(sum(overwritten.report))}, matching the source, instead of ${count(sum(appended.report))}.`;
+  return `When each run replaces its day’s rows instead of adding to them, the week’s report counts ${orders(sum(overwritten.report))}, the right total, instead of ${count(sum(appended.report))}.`;
 }
 
 /** The Backfill line's fix on the board, after the failed check its describer tells: "Loads that

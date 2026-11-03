@@ -9,7 +9,7 @@ import { FEATURED_POSTS } from '../src/lib/work';
 import { app, files, fixture, profile, read } from './support/dist';
 
 // Selected work on Home (content.md, "Owned work"; lib/work.ts): an item renders only when the page
-// it opens exists. The demos the lab builds are What I build's, each linked where the bio names it
+// it opens exists. The demos the lab builds are in Home's rows, each linked where the bio names it
 // (ADR 0028; ADR 0016); Selected work holds the rest: a card per project whose check is recorded
 // and whose hold is lifted, linking to its repository, then a card per featured post this build
 // lists, linking to the post. With neither, Home has no Selected work section. This runs on every build vitest.config.ts names, so
@@ -73,7 +73,7 @@ test('Home renders exactly the cards whose page exists: checked, unheld projects
 });
 
 // Every demo the lab lists is a link on Home (ADR 0028; until then a card, ADR 0027, and before it a
-// line on the board, ADR 0025): the bio names four of them, and "All five labs" opens the index.
+// line on the board, ADR 0025): the bio names each of them, and "Try all the labs" opens the index.
 test('Home links each demo this build lists', () => {
   for (const href of demos) expect(home, href).toContain(`href="${href}"`);
 });
@@ -112,10 +112,13 @@ test('a project card links only to its own repository, says so in words, and dra
 // Only the projects are pinned here. Whether a post's card renders follows from the build's own
 // pages, which the tests above already hold Home to, so publishing a featured post turns its card
 // on without a change to this file.
+const STILLHERE = { title: 'stillhere', href: 'https://github.com/IHaveASegway/stillhere' };
+
 test.runIf(fixture === undefined)(
-  'today, as profile.json and the hold list stand, no project card renders and no fixture project leaks',
+  'today, as profile.json and the hold list stand, stillhere alone renders, and no fixture project leaks',
   () => {
-    expect(projects).toEqual([]);
+    expect(projects.map((c) => c.title)).toEqual(['stillhere']);
+    expect(homeCards()).toEqual([STILLHERE]);
     expect(home).not.toContain('fixture-project');
   },
 );
@@ -123,8 +126,9 @@ test.runIf(fixture === undefined)(
 test.runIf(fixture?.includes('fixture-many') === true)(
   'known answer: the profile fixture renders its made-up project, linked to its repository',
   () => {
-    expect(projects.map((c) => c.title)).toEqual(['fixture-project']);
+    expect(projects.map((c) => c.title)).toEqual(['stillhere', 'fixture-project']);
     expect(homeCards()).toEqual([
+      STILLHERE,
       { title: 'fixture-project', href: 'https://github.com/IHaveASegway/fixture-project' },
     ]);
   },

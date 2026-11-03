@@ -214,9 +214,10 @@ Phase 3 · estimate: about 2 focused days, re-estimated on 2026-10-23 when the c
 Owned work is cards, not pages (Joseph, 2026-10-23). stillhere's card links to its repository, whose README carries its story, and gitops stays off the site until it is public again ([content.md](content.md#owned-work)). Q-projects stays open for the capacitor line.
 
 **Done when:**
-- [ ] stillhere's repository and the GitHub profile have passed the [readiness checklist](content.md#repo-readiness-checklist): firewall scans of the tree, history and pull request text, and the commit identities checked. Every number on the card comes from a public source.
-- [ ] stillhere's README leads with what it does, its limits statement and its public numbers ([content.md](content.md#stillhere-lead)), in a pull request in its own repository.
-- [ ] stillhere's card renders on Home with its link, and `test/project-cards.test.ts` passes on the real build.
+- [x] stillhere's check against the [readiness checklist](content.md#repo-readiness-checklist) is recorded, on an acceptance rather than a pass: on 2026-11-03 Joseph accepted its commit identities outside the allowed list and the scan's hits as they are. Every number on the card comes from a public source.
+- [ ] The GitHub profile passes its line of the checklist, and so does each of the account's other public repositories. The profile's `checked` record stands because a repository can't be linked without it, and Joseph's acceptance names stillhere alone, so this stays open on their account.
+- [ ] stillhere's README leads with what it does, its limits statement and its public numbers ([content.md](content.md#stillhere-lead)), in a pull request in its own repository. It doesn't yet hold the public numbers, so a reader checking the card's figure opens `docs/validation.md`.
+- [x] stillhere's card renders on Home with its link, and `test/project-cards.test.ts` passes on the real build.
 - [ ] Credit is exact: other people's contributions are named as theirs.
 - [x] `/about/` is generated from `profile.json`, which has no employer field, and carries ProfilePage and Person JSON-LD without `worksFor` ([ADR 0004](adr/0004-content-as-code.md)): since 2026-10-28 it holds the résumé, under the bio in `about.md`.
 - [x] The résumé line follows Q-resume: a LinkedIn link and "Full résumé on request", on `/resume/` from 2026-10-25 (Q9 (a), as a page) and on `/about/` since 2026-10-28, with `/resume/` a 301. A Print button saves the page as a PDF in the visitor's browser; no résumé PDF is hosted or committed.

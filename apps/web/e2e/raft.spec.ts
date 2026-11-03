@@ -498,7 +498,7 @@ test('the key names each mark on the wire in the picture’s own marks, and what
     .locator('.rf-key .rf-m')
     .evaluateAll((marks) => marks.map((m) => m.getAttribute('data-kind')));
   expect(kinds.sort()).toEqual(['ack', 'beat', 'entries', 'no', 'vote', 'yes']);
-  await expect(page.locator('.rf-key')).toContainText('Network split');
+  await expect(page.locator('.rf-key')).toContainText('Network partition');
   await expect(page.locator('.rf-gloss')).toHaveText(
     'A term is a numbered stretch of time with at most one leader.',
   );
@@ -754,6 +754,10 @@ test('Start over shows the same run again from the same opening: what the presse
       await page.locator('[data-rf-flights]').innerHTML(),
     ];
   };
+  // A press that changes the run takes the story with it (e2e/landing.spec.ts holds that), so this is
+  // the run with nothing ahead, and so is the one Start over shows.
+  await page.getByRole('button', { name: 'Send a write' }).click();
+  await page.getByRole('button', { name: 'Start over' }).click();
   const seen = await forty();
   await page.getByRole('button', { name: 'Send a write' }).click();
   await page.locator('[data-rf-toggle="0"]').click();

@@ -577,7 +577,7 @@ test('a link followed before the app has loaded loads it, and opens that week wi
   expect(app).toHaveLength(1);
 });
 
-test('the opening’s week has happened, so Run plays it again from the switch, and Next event steps it from there', async ({
+test('the opening’s week has happened, so Run plays it again from 00:00, and Next event steps it from there', async ({
   page,
 }) => {
   await page.goto(BACKFILL);
@@ -587,7 +587,7 @@ test('the opening’s week has happened, so Run plays it again from the switch, 
   await page.getByRole('button', { name: 'Run', exact: true }).click();
   // Back at the switch, said, and on the clock: the week plays as the entry tells it.
   await expect(page.locator('[data-bf-said]')).toHaveText(
-    /^The week plays again from the switch\. The job is switched on with catch-up/,
+    /^The week plays again from 00:00, before the job is switched on\. The job is switched on with catch-up/,
   );
   expect(await minutes(page)).toBeLessThan(60);
   await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
@@ -600,11 +600,14 @@ test('the opening’s week has happened, so Run plays it again from the switch, 
   await expect(summary(page)).toHaveText(OPENING_SUMMARY, { timeout: 20_000 });
   await expect(page.getByRole('button', { name: 'Run', exact: true })).toBeVisible();
   expect(await shown(page)).toEqual(opening);
+  await expect(page.locator('[data-bf-said]')).toHaveText(
+    'Every run has finished. Run plays the week again from 00:00, or clear a day, then Run, to rerun it.',
+  );
   // Next event on a finished week takes it back to the switch too, one step at a time.
   await page.getByRole('button', { name: 'Next event' }).click();
   await expect(page.locator('[data-bf-clock]')).toHaveText('00:00 on Monday, October 26');
   await expect(page.locator('[data-bf-said]')).toHaveText(
-    /^The week plays again from the switch\. /,
+    /^The week plays again from 00:00, before the job is switched on\. /,
   );
   await expect(page.locator('[data-bf-events]')).toHaveText('0 events');
 });

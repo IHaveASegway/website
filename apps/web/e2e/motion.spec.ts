@@ -4,7 +4,7 @@ import { expect, test, type Page } from '@playwright/test';
 // moves. The state still changes (a card's edge and title change at once); only the movement is
 // gone. With no preference, what moves is the list below: the field behind every page and the signal
 // on Home's facts, by their own clocks, once the page has been marked (ADR 0030); the charge at the
-// window's top, tied to the scroll; the lines that open a section and run down What I build and the
+// window's top, tied to the scroll; the lines that open a section and run down Home's rows and the
 // marks along it, once, as a visitor first reaches them; Home's drawing; the 2 px sweep along a
 // post's row; and the followed title's handoff to the next page (ADR 0027; until then Home's scene
 // and the board's day). A card does not move (ADR 0027): its sign under the pointer is a state, with
@@ -141,7 +141,7 @@ test('a card with nothing to activate does not react to the pointer; one with a 
 
 /** What Home would move with no preference (ADR 0030, ADR 0028): each post's sweep; the charge at
  *  the window's top and the cluster's plane, tied to the scroll where the browser has scroll
- *  timelines; the line that opens a section, the current through each row of What I build and the
+ *  timelines; the line that opens a section, the current through each of Home's rows and the
  *  row's mark, once each; and, once the page is marked, the field's patch and current, the signal on
  *  each fact's line, the ring's turn, the heartbeats and their answers, and the leader's halo. Until
  *  ADR 0028 the scan found the isometric drawing's lifts, requests, vans, heartbeats, stampede, fetch
@@ -224,7 +224,7 @@ test('a lab followed from the index arrives with its transition, however often, 
     addEventListener('pagereveal', (event) =>
       sessionStorage.setItem(
         'revealed',
-        String(Boolean((event as Event & { viewTransition?: unknown }).viewTransition)),
+        `${location.pathname} ${Boolean((event as Event & { viewTransition?: unknown }).viewTransition)}`,
       ),
     ),
   );
@@ -235,8 +235,11 @@ test('a lab followed from the index arrives with its transition, however often, 
       await page.goto('/lab/');
       await page.locator(`a[href="/lab/${slug}/"]`).first().click();
       await page.waitForURL(`**/lab/${slug}/`);
-      await page.waitForLoadState('load');
-      expect(await page.evaluate(() => sessionStorage.getItem('revealed')), slug).toBe('true');
+      // The event comes with the page's first frame, which can follow load, so until then
+      // this reads what the index left. Hence the path, and the wait.
+      await expect
+        .poll(() => page.evaluate(() => sessionStorage.getItem('revealed')))
+        .toBe(`/lab/${slug}/ true`);
     }
   }
   expect(errors).toEqual([]);
@@ -277,4 +280,25 @@ test('with no preference, the followed title takes the page title’s name as Ho
   }));
   expect(next.name).toBe('page-title');
   expect(title).toBeTruthy();
+});
+
+// Under reduced motion the field's lines of current are out of sight (field.css), and that takes in
+// each one's head: its dot stands 1 px past the line's end, and its glow about 9 px past that. Four dots
+// used to sit along the window's top edge, and two on its left.
+test('under reduced motion no line of current, or its head, shows in the window', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/about/');
+  const ends = await page
+    .locator('.field-run, .field-across')
+    .evaluateAll((lines) =>
+      lines.map((line) =>
+        line.matches('.field-run')
+          ? line.getBoundingClientRect().bottom
+          : line.getBoundingClientRect().right,
+      ),
+    );
+  expect(ends.length).toBeGreaterThan(0);
+  for (const end of ends) expect(end).toBeLessThanOrEqual(-10);
 });

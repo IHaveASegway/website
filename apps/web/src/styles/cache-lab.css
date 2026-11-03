@@ -634,6 +634,18 @@
   min-width: 0;
 }
 
+/* What each switch against a stampede does, in a plain line under them, by the names on the buttons.
+   It describes the group and doesn't name it (CacheLab.astro: aria-describedby). */
+.cl-note {
+  margin: 0;
+  max-inline-size: var(--measure);
+  color: var(--muted-foreground);
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  line-height: var(--text-label--line-height);
+}
+
 /* Three lines is the most a line's words take in the panel's column; below that the desk is wider. */
 @media (48rem <= width < 64rem) {
   .cl-panel .lab-said {

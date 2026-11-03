@@ -25,14 +25,14 @@ const lab = await loadLabArea();
 
 <Base
   title={`Lab · ${name}`}
-  description={`Small working models of real systems by ${name}, running in your browser. Crash them, change the settings and see what holds.`}
+  description="Each lab explains one part of the software it takes to run a business at scale, safely and with good performance. Crash them, change the settings and see what holds."
   path="/lab/"
   og={labIndexCard(profile)}
 >
   <section class="page lab-index" aria-labelledby="page-title">
     <PageHead
       heading="Lab"
-      lead="Small working models of real systems, running in your browser. Crash them, change the settings and see what holds. Most use the same made-up bakery, so you can follow along without knowing the jargon."
+      lead="Each lab explains one part of the software it takes to run a business at scale, safely and with good performance. Crash them, change the settings and see what holds. Most use the same made-up bakery, and the end goal is to tie them all together into that bakery’s working software."
     />
     <ul class="lab-cards" role="list">
       {lab.entries.map((entry) => (

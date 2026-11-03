@@ -1,0 +1,24 @@
+/*
+  How a page closes (components/home/Contact.astro; docs/design/home.md, "Contact"): on Home and
+  /about/, where to reach out, under a section's title, at a lead's size, then what to press. Only
+  the pages that close this way load this. It moves nothing, and every colour is a token.
+*/
+
+.contact-words {
+  margin: 0;
+  max-inline-size: var(--measure);
+  font-size: var(--text-lead);
+  line-height: var(--text-lead--line-height);
+  text-wrap: pretty;
+}
+
+.contact-words + .contact-words {
+  margin-top: 1rem;
+}
+
+.contact-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+}

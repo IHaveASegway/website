@@ -176,7 +176,12 @@ const mitigations: { toggle: Toggle; name: string }[] = [
           </p>
         </Time>
 
-        <div class="lab-group" role="group" aria-labelledby="cl-mitigations">
+        <div
+          class="lab-group"
+          role="group"
+          aria-labelledby="cl-mitigations"
+          aria-describedby="cl-mitigations-note"
+        >
           <p class="lab-group-name" id="cl-mitigations">
             Against a stampede
           </p>
@@ -192,6 +197,12 @@ const mitigations: { toggle: Toggle; name: string }[] = [
               </button>
             ))}
           </div>
+          <p class="cl-note" id="cl-mitigations-note">
+            Coalesce misses: one reader fetches a fresh copy and the rest wait for it. Serve stale
+            while refreshing: readers get the old copy while one fetch gets a fresh one. Refresh
+            early: a busy page gets fetched before it expires. Jitter expiry times: pages fetched
+            together expire apart, which shows after a flush.
+          </p>
         </div>
         <Said words="Press a switch against the stampede, and the run starts over under it, before the same expiry." />
       </div>

@@ -6,7 +6,7 @@
 // 2.2.2), and the choice lasts for the tab (sessionStorage key "motion"), as the theme's does. Each
 // change fires "motionchange" on the document, with { paused }.
 //
-// And once for each section and each row of What I build, this says the visitor has reached it
+// And once for each section and each of Home's rows, this says the visitor has reached it
 // (data-lit): its line carries the current from then on, however they scroll after that.
 
 const KEY = 'motion';

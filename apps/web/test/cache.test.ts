@@ -415,6 +415,33 @@ describe('jitter', () => {
     return { lifetimes, spread: Math.max(...expiries) - Math.min(...expiries) };
   }
 
+  // What the line under the switches says of jitter (CacheLab.astro): that pages fetched together expire
+  // apart, which shows after a flush, and not that it tames the menu's stampede. One entry expiring has
+  // nothing to spread: across these seeds jitter alone leaves it about where it was, and seed 8 worse.
+  test('jitter alone: it doesn’t tame the menu’s stampede, and the waves after a flush shrink', () => {
+    const menu = (seed: number, jitter: boolean) =>
+      replay({ ...OPENING.config, seed, jitter }, [], 8_000).counts.timeout;
+    expect(menu(7, true)).toBe(menu(7, false));
+    expect(menu(8, true)).toBeGreaterThan(menu(8, false));
+    /** Reads that timed out once the flush's own overload was over, in the waves that follow. */
+    const later = (seed: number, config: Partial<Config>) => {
+      const sim = createSim({ ...OPENING.config, load: 'morning', seed, ...config });
+      runUntil(sim, 5_000);
+      flush(sim);
+      runUntil(sim, 13_000);
+      const before = sim.counts.timeout;
+      runUntil(sim, 45_000);
+      return sim.counts.timeout - before;
+    };
+    const across = (config: Partial<Config>) =>
+      Array.from({ length: 12 }, (_, i) => later(i + 1, config)).reduce((sum, n) => sum + n, 0);
+    const none = across({});
+    expect(none).toBeGreaterThan(0);
+    expect(across({ jitter: true })).toBeLessThan(none * 0.75);
+    // With early refresh as well, as the write-up asks, no second wave forms.
+    expect(across({ jitter: true, early: true })).toBeLessThan(none * 0.02);
+  });
+
   test('the known answer: pages fetched together expire together, unless jitter spreads them', () => {
     const together = refilled({});
     expect(together.lifetimes.length).toBeGreaterThan(15);

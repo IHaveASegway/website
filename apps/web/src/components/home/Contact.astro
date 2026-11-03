@@ -1,45 +1,34 @@
 ---
-import { CONTACT_EMAIL } from '../../lib/site';
+import '../../styles/contact.css';
 
-// Home's closing (docs/design/home.md, "Contact"): the address at a title's size, then a button that
-// copies it and LinkedIn. A mailto link opens nothing on a computer with no mail app set up, so the
-// address is there to read and to copy as well as to press (scripts/copy.js).
+// How a page closes (docs/design/home.md, "Contact"; ADR 0031): where to reach out, on Home and
+// /about/. LinkedIn is how people reach Joseph, so the one thing to press is that, and no page asks a
+// reader to email.
 
 interface Props {
+  /** The title over it: the bio's closing section's, where the build holds the bio. */
+  heading?: string | undefined;
+  /** That section's words, each a paragraph. */
+  words?: readonly string[] | undefined;
   /** LinkedIn, when the profile's link to it is checked (lib/profile.ts). */
   linkedIn?: { readonly url: string; readonly network: string } | undefined;
 }
 
-const { linkedIn } = Astro.props;
-// The address may break after its "@", and only there.
-const [mailbox, domain] = CONTACT_EMAIL.split('@');
+const { heading = 'Contact', words = [], linkedIn } = Astro.props;
 ---
 
 <section class="section contact" id="contact" aria-labelledby="contact-title">
   <h2 class="section-title" id="contact-title">
-    Contact
+    {heading}
   </h2>
-  <p class="contact-line">
-    {/* A phone breaks the address after its @, never inside a word (a <wbr>, unseen and unread). */}
-    <a class="contact-address" href={`mailto:${CONTACT_EMAIL}`}>
-      {mailbox}@<wbr />
-      {domain}
-    </a>
-  </p>
-  <div class="contact-actions">
-    <button class="btn btn-copy" type="button" data-copy-address={CONTACT_EMAIL}>
-      <span class="copy-label" aria-live="polite">
-        Copy email address
-      </span>
-    </button>
-    {linkedIn && (
-      <a class="btn" href={linkedIn.url}>
+  {words.map((paragraph) => (
+    <p class="contact-words">{paragraph}</p>
+  ))}
+  {linkedIn && (
+    <div class="contact-actions">
+      <a class="btn btn-primary" href={linkedIn.url}>
         {linkedIn.network}
       </a>
-    )}
-  </div>
+    </div>
+  )}
 </section>
-
-<script>
-  import '../../scripts/copy.js';
-</script>

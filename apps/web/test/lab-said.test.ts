@@ -142,7 +142,7 @@ describe('what a run says fits the room its line keeps', () => {
 
   test('the words a lab writes for a press of its own', () => {
     const said = [
-      'The run starts over under these settings, at 1.400 s, before the leader crashes.',
+      'The run starts over under these settings, at 1.400 s, before the leader crashes. Press Run to watch it.',
       'Nothing is scheduled: press something below to break it.',
       'There is no leader to cut off right now.',
       'The network is already whole.',
@@ -158,6 +158,11 @@ describe('what a run says fits the room its line keeps', () => {
       ),
       "Wednesday's next load will fail partway. Wednesday has loaded already, so this fails its load when the week plays again, or after a clear.",
       "Wednesday's file is 5 hours late, so the week goes back to before the job is switched on. Press Run to watch it.",
+      'Every run has finished. Run plays the week again from 00:00, or clear a day, then Run, to rerun it.',
+      'The week plays again from 00:00, before the job is switched on.',
+      'Order 14 comes in, and it is poison: it fails on every try. Press Run to watch it.',
+      'Orders stop: no new ones arrive. Press Run to watch it.',
+      'Orders start again, at about 14 a second. Press Run to watch it.',
     ];
     // Why a queue's clock stops, drained or with no worker up, at the most orders a run has waiting.
     const stopped = createSim({ ...QUEUE.config });

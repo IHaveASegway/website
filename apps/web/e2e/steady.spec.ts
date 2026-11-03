@@ -94,8 +94,11 @@ async function steady(page: Page): Promise<void> {
           w.top = box.top;
         }
         // A control that holds its height but not its place along the row, in the labs on one set
-        // of controls so far.
-        if (Math.abs(box.left - w.left) > 1 && w.el.closest('.lab-row, .cl-node-buttons')) {
+        // of controls so far, a choice beside the row too.
+        if (
+          Math.abs(box.left - w.left) > 1 &&
+          w.el.closest('.lab-row, .lab-choice, .cl-node-buttons')
+        ) {
           found.push(`${name(w.el)} moved ${Math.round(box.left - w.left)} px sideways`);
           w.left = box.left;
         }
@@ -276,7 +279,7 @@ const LONGEST_SAID = [
   'Serving stale is off. The run starts over under it, at 2.500 s, before the menu expires. Press Run to watch it.',
   'Worker 1 crashes holding orders 26, 27, 28 and 7 more, after order 26’s ticket printed and before its acknowledgement left.',
   'Nothing is left in the queue or in flight, so the clock stops here. Run plays it again from 1.500 s, or take orders, then Run, to carry on.',
-  'Every run has finished, so the clock stops here. Run plays the week again from the switch, or clear a day, then Run, to rerun it.',
+  'Every run has finished. Run plays the week again from 00:00, or clear a day, then Run, to rerun it.',
 ];
 
 const FLOWS: Record<keyof typeof LABS, Press[]> = {
@@ -305,9 +308,9 @@ const FLOWS: Record<keyof typeof LABS, Press[]> = {
     { what: 'a load', selector: another('qu-load'), by: 'tap' },
     { what: 'a worker crashed', selector: '[data-qu-crash="0"]', by: 'key' },
     { what: 'the key on', selector: 'label:has(input[name="qu-key"][value="on"])', by: 'tap' },
-    { what: 'a poison order', selector: '[data-qu-poison]', by: 'tap', ms: 500 },
-    { what: 'no more orders', selector: '[data-qu-producer]', by: 'tap', ms: 500 },
-    { what: 'orders again', selector: '[data-qu-producer]', by: 'tap', ms: 500 },
+    { what: 'a poison order', selector: '[data-qu-poison]:visible', by: 'tap', ms: 500 },
+    { what: 'no more orders', selector: '[data-qu-producer]:visible', by: 'tap', ms: 500 },
+    { what: 'orders again', selector: '[data-qu-producer]:visible', by: 'tap', ms: 500 },
     { what: 'a choice of prefetch', selector: another('qu-prefetch'), by: 'tap', ms: 500 },
     { what: 'a worker slowed', selector: '[data-qu-slow="1"]', by: 'tap', ms: 500 },
   ],
@@ -431,6 +434,29 @@ for (const [width, height] of [
   });
 }
 
+// The Route Lab's room line says why the vans hold what they hold, at its longest on the day with every
+// order. Its room is laid out by the width, so a width in between can break what 320 and 390 don't.
+test('the route lab’s room line keeps the room of its longest words at every width a phone has', async ({
+  page,
+}) => {
+  await open(page, ROUTE_LAB);
+  const line = page.locator('[data-rl-capacity]');
+  for (let width = 320; width <= 660; width += 5) {
+    await page.setViewportSize({ width, height: 664 });
+    const grown = await line.evaluate((p) => {
+      const words = p.textContent;
+      p.textContent = '';
+      const before = p.getBoundingClientRect().height;
+      p.textContent =
+        'Each van can carry at most 123 of the 456 boxes, 1.3 times an even split, so VROOM can’t put them all on one van.';
+      const after = p.getBoundingClientRect().height;
+      p.textContent = words;
+      return after - before;
+    });
+    expect(grown, `at ${width} px`).toBeLessThanOrEqual(0.5);
+  }
+});
+
 // However many pages a node holds, its lamps stay in the room its box keeps, so no press makes the
 // map taller. The room is laid out by the width, so a width in between can break what 320 and 390
 // don't: at 360 px, a common phone, all 120 pages took four rows, 3 px past the room.
@@ -483,7 +509,9 @@ for (const [name, lab] of Object.entries(LABS)) {
       parts.flatMap((part) => {
         const line = part.querySelector('[data-said]')?.getBoundingClientRect();
         if (!line) return ['a part with no line'];
+        // A control can have a copy for another width (components/queue-lab/NewOrders.astro).
         return [...part.querySelectorAll('button, label')].flatMap((control) => {
+          if (control.getClientRects().length === 0) return [];
           const box = control.getBoundingClientRect();
           return Math.max(line.bottom, box.bottom) - Math.min(line.top, box.top) > innerHeight
             ? [control.textContent?.trim() ?? '']
@@ -644,6 +672,28 @@ test('the route lab’s first screen on an iPhone 14 holds its map switch and ha
   await expect(page.locator('.rl-view')).toBeInViewport({ ratio: 1 });
   await expect(page.locator('svg[data-rl-map] >> visible=true')).toBeInViewport({ ratio: 0.5 });
   await expect(page.locator('[data-rl-saved]')).not.toBeInViewport();
+});
+
+// Words are what moves these two. On 2026-11-03 a longer lead and crash line took the Queue Lab's Run
+// row off this screen, and a longer lead took a row of the Backfill Lab's board, with every other test
+// green, since each of those measures from the picture and not from the top of the page.
+test('the queue lab’s first screen on an iPhone 14 holds all its picture and its Run row', async ({
+  page,
+}) => {
+  expect(page.viewportSize()).toEqual({ width: 390, height: 664 });
+  await page.goto(LABS.queue.path);
+  await page.evaluate(() => document.fonts.ready);
+  await expect(page.locator('.qu-map').filter({ visible: true })).toBeInViewport({ ratio: 1 });
+  await expect(page.locator('[data-qu-run]')).toBeInViewport({ ratio: 1 });
+});
+
+test('the backfill lab’s first screen on an iPhone 14 holds two thirds of its board', async ({
+  page,
+}) => {
+  expect(page.viewportSize()).toEqual({ width: 390, height: 664 });
+  await page.goto(LABS.backfill.path);
+  await page.evaluate(() => document.fonts.ready);
+  await expect(page.locator('.bf-board').filter({ visible: true })).toBeInViewport({ ratio: 0.66 });
 });
 
 for (const { phone, viewport } of PHONES) {
@@ -1028,7 +1078,7 @@ test('the queue lab: Stop taking orders and Take orders move nothing, at any wid
   await open(page, LABS.queue.path);
   for (const width of WRAPPING_WIDTHS) {
     await page.setViewportSize({ width, height: 800 });
-    const producer = page.locator('[data-qu-producer]');
+    const producer = page.locator('[data-qu-producer]:visible');
     await stand(page, producer);
     const moves = await movesAround(
       page,
@@ -1044,6 +1094,99 @@ test('the queue lab: Stop taking orders and Take orders move nothing, at any wid
     );
     expect(moves, `at ${width} px`).toEqual([]);
   }
+});
+
+// A clock says "random seed 7", and a run adds digits to it as it goes. Under 24rem it has a line of its
+// own and keeps two (lab-controls.css), and from there it shares a line with its group's name, so the
+// width at risk is the one where it only just fits: until 2026-11-03 a longer line wrapped at 375 px mid-run,
+// and at 400 and 402 px, and Run jumped 18 px under the thumb.
+const LONGEST_CLOCK = {
+  raft: 'Virtual time 999.999 s, 99,999 events, random seed 999999',
+  queue: 'Virtual time 999.999 s, 99,999 events, random seed 999999',
+  cache: 'Virtual time 999.999 s, 99,999 events, random seed 999999',
+  backfill: '05:00 on Tuesday, October 27, 999 events, random seed 999',
+} as const;
+
+for (const width of [375, 400, 402]) {
+  test.describe(`at ${width} px`, () => {
+    test.use({ viewport: { width, height: 664 } });
+    for (const [name, lab] of Object.entries(LABS) as [
+      keyof typeof LABS,
+      (typeof LABS)[keyof typeof LABS],
+    ][]) {
+      test(`the ${name} lab's clock moves nothing as a run plays, and keeps the room of its longest words`, async ({
+        page,
+      }) => {
+        await open(page, lab.path);
+        const run = page.locator(`[data-${lab.short}-run]`);
+        await page
+          .locator(`label:has(input[name="${lab.short}-speed"])`, { hasText: 'Quick' })
+          .tap();
+        await stand(page, run);
+        expect(await movesAround(page, () => run.tap(), AFTER_PRESS_MS)).toEqual([]);
+        await run.tap();
+        await expect(run).toHaveText('Run');
+        const grown = await page
+          .locator('.lab-clock')
+          .first()
+          .evaluate((clock, words) => {
+            const row = clock.closest('.lab-time')?.querySelector('.lab-row') as Element;
+            const before = row.getBoundingClientRect().top;
+            clock.textContent = words;
+            return row.getBoundingClientRect().top - before;
+          }, LONGEST_CLOCK[name]);
+        expect(grown).toBeLessThanOrEqual(0.5);
+      });
+    }
+  });
+}
+
+// The Time group's clock has no say in its width (lab-controls.css), so on a desk it moves nothing beside
+// it. Until 2026-11-03 the Queue Lab's did: at 1,056 px its key dropped a row and 682 px left, and all
+// under it 88 px, as the clock reached 10 s with nobody touching anything. Here the run itself plays
+// past that, in WebKit; e2e/queue.spec.ts sweeps the desk widths in Chromium with the clock's longest words.
+for (const width of [1046, 1056]) {
+  test(`at ${width} px a Queue Lab run plays past 10 s and moves nothing`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await open(page, LABS.queue.path);
+    const clock = page.locator('[data-qu-clock]');
+    await page.locator('label:has(input[name="qu-speed"])', { hasText: 'Quick' }).tap();
+    const moves = await movesAround(
+      page,
+      async () => {
+        await page.locator('[data-qu-run]').tap();
+        await expect
+          .poll(
+            async () => parseFloat(/[\d.]+/.exec((await clock.textContent()) ?? '')?.[0] ?? '0'),
+            {
+              timeout: 20_000,
+            },
+          )
+          .toBeGreaterThan(10.2);
+      },
+      100,
+      true,
+    );
+    expect(moves).toEqual([]);
+  });
+}
+
+// New orders is two copies, one shown at a width, so a rotated tablet hides the one that holds focus.
+// e2e/queue.spec.ts holds it in Chromium, which drops focus at another moment from WebKit.
+test('a change of width takes focus to the same New orders button in the copy now showing', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1100, height: 800 });
+  await open(page, LABS.queue.path);
+  const shown = (name: string) => page.locator(`[data-qu-${name}]:visible`);
+  await shown('poison').focus();
+  await expect(page.locator('.qu-controls [data-said]')).toBeVisible();
+  await page.waitForTimeout(500);
+  await page.setViewportSize({ width: 900, height: 1100 });
+  await expect(page.locator('.qu-new-settings [data-qu-poison]')).toBeFocused();
+  await shown('producer').focus();
+  await page.setViewportSize({ width: 1100, height: 800 });
+  await expect(page.locator('.qu-new-workers [data-qu-producer]')).toBeFocused();
 });
 
 // The top bar on an iPhone, in WebKit, at the widths phones have: one row, 56 px, so the first screen

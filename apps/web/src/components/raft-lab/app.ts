@@ -1,11 +1,12 @@
 import { eventLog } from '../../lib/lab/event-log';
 import { heldByThePage, runOnLanding } from '../../lib/lab/landing-run';
-import { speaker } from '../../lib/lab/said';
+import { speaker, watchIt } from '../../lib/lab/said';
 import { address } from '../../lib/sim/link';
 import {
   crash,
   heal,
   leaderOf,
+  nextTime,
   playTo,
   replay,
   restart,
@@ -30,6 +31,7 @@ import {
   readRun,
   seconds,
   serverState,
+  STORY_ENDS,
   summary,
   timerShare,
 } from '../../lib/raft/view';
@@ -46,12 +48,13 @@ import {
 // What a press did, or why it did nothing, goes on the line under Time and to one live region
 // (lib/lab/said.ts); the run a visitor lands on says nothing in either.
 //
-// The run a visitor lands on tells a story (lib/raft/view.ts, landingStory): the leader crashes and
-// the others elect a new one. It's the landing's alone: a press drops what's left of it, and the demo
-// is theirs. So a press of Run never brings a crash nobody asked for, and neither do Pause and Run or
-// a link. A visitor who presses gets what their presses make. Start over is the one press that asks
-// for that run again, so on a run with no other press in it, it tells the story again, once, as the
-// Queue Lab's brings its crash back; the same run a visitor just watched can be watched again.
+// The run the page opens on has a story ahead of it (lib/raft/view.ts, landingStory): the leader
+// crashes and the others elect a new one, as the other labs' runs have their failure. Time's controls
+// play the run and don't change it, so Pause, Run, a speed and Next event leave the story where it
+// is, and Run as a first press plays it, under reduced motion too. A press that changes the run, a
+// crash or a write or a split, drops what's left of it, since a crash that came after one would be the
+// page breaking something the visitor was using. A link names another run, which never holds it.
+// Start over asks for the run again, so on a run with the story still in it, it tells it again, once.
 
 const FRAME_CAP = 100; // real ms: a frame after a long pause does not leap ahead
 const EVENTS_PER_FRAME = 4_000;
@@ -100,11 +103,9 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   const linked = readRun(location.hash);
   if (!queued.includes(loss)) showLoss(linked?.loss ?? 0);
   let sim: Sim = fresh(linked?.seed ?? OPENING.seed, (linked?.loss ?? 0) / 100);
-  /** What's left of the story the run a visitor lands on tells, none once the demo is theirs. */
+  /** What's left of the story the run tells, none once a press has changed the run. */
   let ahead: Action[] = [];
-  /** When that story is over, so the landing run can stand a moment and go round again. */
-  let storyEnds = Infinity;
-  /** Whether the run is the one they landed on, with no press in it but Start over. */
+  /** Whether the run is the one the page opened on, with nothing in it that changed it. */
   let told = false;
   /** Whether the visitor has pressed anything or followed a link: then no landing starts for them. */
   let theirs = false;
@@ -229,21 +230,16 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
 
   /** Starts the story over from where the run stands, its opening. */
   function tell(): void {
-    const story = landingStory(sim);
-    ahead = story.actions;
-    storyEnds = story.ends;
+    ahead = landingStory();
     told = true;
   }
 
   function press(control: Element): void {
     const before = sim.lines.at(-1);
+    const stepping = control.matches('[data-rf-step]');
+    // The story's own actions land in the same list, and Next event can take one: that's no change.
+    const actions = stepping ? Infinity : sim.actions.length;
     theirs = true;
-    // Every press but Start over drops what's left of the story: Start over asks for it again.
-    const reset = control.matches('[data-rf-reset]');
-    if (!reset) {
-      told = false;
-      ahead = [];
-    }
     /** What the press says when the log has nothing to tell of it: words that never change stand on
      *  the control, in the page, so a browser never loads them. */
     let why = control.getAttribute('data-why') ?? '';
@@ -257,14 +253,17 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       if (playing) pause();
       else {
         play();
-        // The other labs' Run plays their story. This one has dropped what's left of it, so there may
-        // be nothing to watch, and the page says why rather than look stopped (reduced motion, a link).
-        say(why, control);
+        // With no story left there may be nothing to watch, and the page says why rather than look
+        // stopped. With one ahead the run has something to show, and it asks for nothing.
+        say(ahead.length ? '' : why, control);
       }
       return;
-    } else if (control.matches('[data-rf-step]')) {
+    } else if (stepping) {
       if (playing) pause();
-      step(sim);
+      // The next event, or the story's next action when it comes first: a crash is a moment too.
+      const story = ahead[0];
+      if (story && story.at <= nextTime(sim)) playTo(sim, ahead, story.at);
+      else step(sim);
       why = `Virtual time ${seconds(sim.now)}, ${eventsWords(sim)}`;
     } else if (control.matches('[data-rf-write]')) {
       write(sim);
@@ -274,16 +273,14 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       cutOff(1);
     } else if (control.matches('[data-rf-heal]')) {
       heal(sim);
-    } else if (reset) {
+    } else if (control.matches('[data-rf-reset]')) {
       const wasPlaying = playing;
       open(fresh(sim.seed, lost()));
       if (told) tell();
       // The address names the run, its loss and all, so a reload or the link shared opens it.
       writeLink(linkTo(sim.seed, percent()));
       if (wasPlaying) play();
-      // Only a run that plays on takes the story with it: a press of Run is a press like any other, so
-      // this line asks for none. "Press Run to watch it" promised a crash that a press of Run drops.
-      say(`${why}${told && wasPlaying ? ', before the leader crashes' : ''}.`, control);
+      say(`${why}${told ? `, before the leader crashes.${watchIt(wasPlaying)}` : '.'}`, control);
       return;
     } else if (control === loss) {
       // Before it changes the loss, the run finishes the events due in this millisecond, as any
@@ -292,6 +289,12 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       lossOut.textContent = `${loss.value}%`;
       why = `From here, ${percent()}% of messages are lost.`;
     } else return;
+    // A press that recorded an action changed the run, and what's left of the story goes. One that
+    // found nothing to do, a heal with nothing to heal, recorded none, so it stays.
+    if (sim.actions.length > actions) {
+      told = false;
+      ahead = [];
+    }
     const latest = sim.lines.at(-1);
     // A step the log doesn't tell, as most aren't, says where the run stands, so the press is heard.
     say(latest && latest !== before ? latest.text : why, control);
@@ -321,16 +324,19 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   });
 
   draw();
+  // A link's run has no story. The page's own has it from the start, so Run plays it for a visitor
+  // who asked for less motion too, or who pressed before the app arrived.
+  if (!linked) tell();
   for (const control of queued) press(control);
-  // The run a visitor lands on goes on from the moment the picture tells, with its story ahead. A
-  // visitor who already pressed something, while the top bar's Pause kept the landing waiting, has
-  // their demo already, and nothing here takes it back.
+  // The run a visitor lands on goes on from the moment the picture tells. A visitor who already
+  // pressed something, while the top bar's Pause kept the landing waiting, has their demo already, and
+  // nothing here takes it back.
   return () => {
     if (theirs) return;
-    tell();
     runOnLanding(root, {
       ...moving,
-      finished: () => Boolean(sim.violation) || sim.now >= storyEnds,
+      // A run that broke a property stands where it broke, with its row saying so: play() refuses it.
+      finished: () => sim.now >= STORY_ENDS,
       again: () => {
         open(fresh(sim.seed, lost()));
         tell();

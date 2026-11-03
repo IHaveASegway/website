@@ -22,6 +22,10 @@
   letter-spacing: -0.012em;
 }
 
+.title-sentence {
+  display: inline-block;
+}
+
 .long-form .page-lead {
   color: var(--muted-foreground);
   font-family: var(--font-reading);
@@ -49,6 +53,14 @@
 
 .register-by {
   color: var(--foreground);
+}
+
+/* Below this width the row can't hold all four, so who wrote it takes the first line, and the day, the
+   kind and the reading time stay together on the next. */
+@media (width < 26.75rem) {
+  .register-by {
+    flex-basis: 100%;
+  }
 }
 
 .long-form-body {
@@ -230,6 +242,24 @@
   .post-close,
   .more-writing {
     display: none;
+  }
+
+  /* A long read is its own words to the end. Whole, the footer took a sheet of its own at one margin
+     or another, and no control here prints, so it has no address to stand in for
+     (e2e/print.spec.ts). */
+  :root:has(.long-form) .site-foot {
+    display: none;
+  }
+
+  .long-form {
+    padding-block-end: 0;
+  }
+
+  /* 12 pt, a printed page's own size: at the screen's 14 pt the essay took a sheet more, and its last
+     one held a few lines. */
+  .long-form .prose {
+    font-size: 1rem;
+    line-height: 1.5;
   }
 
   .register {

@@ -1,7 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// The fold (content.md, "Home page"; ADR 0028): what Home's first screen holds at 390×844 and
-// 1440×900, with the web fonts and without them. Row 1 is the opening (the role, the name, the
+// The fold (content.md, "Home page"; ADR 0028): what Home's first screen holds on a phone and at
+// 1440×900, with the web fonts and without them. A phone's first screen is what Safari shows under its
+// toolbars, which is what Playwright's iPhone devices measure: 664 px tall on an iPhone 14 and 659 on
+// an iPhone 15 or 16, not the 844 and 852 of the glass. Until 2026-11-03 this read 390×844, and on a
+// real iPhone the buttons ended up to 17 px below the screen. Row 1 is the opening (the role, the name, the
 // statement, the rest of the bio's opening, the buttons and the cluster), the one rendered row. On a
 // phone the fold holds the role, the name, the whole opening and both buttons, an about-me first;
 // from 64rem it holds those and the cluster beside them. Until ADR 0028 it held the name, the
@@ -10,7 +13,8 @@ import { expect, test, type Page } from '@playwright/test';
 // And the opening is the same height either way, within 1 px: the fallback faces are fitted so the
 // words do not rewrap when their font arrives (layout shift).
 const VIEWPORTS = [
-  { width: 390, height: 844 },
+  { width: 390, height: 664 },
+  { width: 393, height: 659 },
   { width: 1440, height: 900 },
 ] as const;
 
@@ -61,7 +65,7 @@ async function measure(page: Page, fonts: Fonts) {
       '.hero-name',
       '.hero-statement',
       '.hero-more:last-of-type',
-      '.hero-actions .btn-email',
+      '.hero-actions .btn-primary',
       '.hero-actions .btn:last-child',
       ...(innerWidth >= 1024 ? ['figure.orbit .orbit-stage'] : []),
     ].map((selector) => box(selector)?.bottom ?? Infinity);

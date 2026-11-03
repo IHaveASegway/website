@@ -29,7 +29,7 @@ const { entry } = Astro.props;
 const { name } = (await loadProfile()).basics;
 const { Content, headings } = await render(await labEntry(entry));
 const lead =
-  'Hundreds of readers a second hit a made-up bakery’s cache. When the menu expires, watch the database, then tame the stampede four ways.';
+  'Hundreds of readers a second hit a made-up bakery’s cache. When the menu’s saved copy expires, its readers stampede to the database. Watch it, then tame it four ways.';
 // How it is built, in figures from the run the page opens on and the sweep, so none is typed.
 const opening = openingRun();
 const count = (n: number) => n.toLocaleString('en-US');
@@ -51,13 +51,13 @@ const count = (n: number) => n.toLocaleString('en-US');
       <Content />
       <h2 id="how-it-is-built">How it is built</h2>
       <p>
-        The readers, the four nodes and the database are one TypeScript module that runs in virtual
-        time. Every random draw in it, from when a reader arrives to how long a fetch takes, comes
-        from one seeded stream, and your presses are recorded at the moment they happened. The same
-        seed and the same presses give the same run, every time. The page opens on seed{' '}
-        {OPENING.seed} at {OPENING.until / 1000} s, {count(opening.counts.reads)} reads and{' '}
-        {count(opening.events)} events in, drawn before any script runs; your browser replays them
-        and takes over at that moment.
+        The readers, the four nodes and the database are one TypeScript module, a deterministic
+        simulation that runs in virtual time. Every random draw in it, from when a reader arrives to
+        how long a fetch takes, comes from one seeded stream, and the simulation records your button
+        presses at the moment they happen. The same seed and the same presses give the same run,
+        every time. The page opens on seed {OPENING.seed} at {OPENING.until / 1000} s,{' '}
+        {count(opening.counts.reads)} reads and {count(opening.events)} events in, drawn when the
+        site was built; your browser replays them and takes over at that moment.
       </p>
       <p>
         A checker counts each break of the three checks at the moment it happens. After every event

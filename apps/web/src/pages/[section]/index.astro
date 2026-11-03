@@ -5,7 +5,7 @@ import PostList from '../../components/PostList.astro';
 import Base from '../../layouts/Base.astro';
 import { loadProfile, loadWritingArea } from '../../lib/content';
 import { sectionCard } from '../../lib/og';
-import { listedOn, SECTION_LABELS, writingDescription, type Section } from '../../lib/posts';
+import { listedOn, SECTION_LABELS, WRITING_WORDS, type Section } from '../../lib/posts';
 
 // /writing/, everything published, and /notes/, the field notes alone. A dynamic route, because a
 // page file always builds: these build only while Writing renders, from the first published post,
@@ -27,8 +27,8 @@ const posts = listedOn(area, section);
 const heading = SECTION_LABELS[section];
 const WORDS: Record<Section, { description: string; lead: string }> = {
   writing: {
-    description: writingDescription(name),
-    lead: 'Essays on software decisions and what they cost.',
+    description: WRITING_WORDS,
+    lead: WRITING_WORDS,
   },
   notes: {
     description: `Field notes by ${name}: short posts, each on one thing learned.`,

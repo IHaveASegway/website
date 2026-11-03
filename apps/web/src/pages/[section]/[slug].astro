@@ -6,7 +6,6 @@ import { loadProfile, loadWritingArea, postEntry } from '../../lib/content';
 import { postingGraph, serialize } from '../../lib/jsonld';
 import { aboutParts, openingSentence } from '../../lib/about';
 import { checkedProfiles } from '../../lib/profile';
-import { CONTACT_EMAIL } from '../../lib/site';
 import { loadAbout } from '../../lib/content';
 import { postCard } from '../../lib/og';
 import { isoDay, minutesWords, postLabel, postPath, wordDay, type PostPage } from '../../lib/posts';
@@ -39,11 +38,12 @@ const source = post.source ? new URL(post.source) : null;
 // The register under the lead (layouts/Prose.astro, ADR 0025): the post's day, its kind (Draft
 // first on a draft), its reading time and any update in words, and its tags as plain words. After
 // the body, a note's source, then More writing: up to three other posts, newest first, as the
-// index lists them, and the way back to the index, a link in words with no arrow. A draft lists
-// nothing, since nothing lists a draft either way.
+// index lists them, and the way back to the index, a link in words with no arrow. A post with no
+// other to list has the way back and no heading over it: "More writing" over a lone link promises
+// what isn't there. A draft lists nothing, since nothing lists a draft either way.
 const area = await loadWritingArea();
 // The close (ADR 0029): this reader arrives cold from a shared link, so the post says who wrote it
-// and how to reach him, in words the bio and the profile already own. It renders on a listed post
+// and where to reach out, in words the bio and the profile already own. It renders on a listed post
 // where the bio's entry exists; the fixture builds hold none.
 const bioEntry = await loadAbout();
 const opening = bioEntry?.body === undefined ? undefined : aboutParts(bioEntry.body).lede[0];
@@ -93,17 +93,14 @@ const links = [
         <p class="post-close-name">{profile.basics.name}</p>
         <p class="post-close-text">{whoWrote}</p>
         <div class="post-close-actions">
-          <a class="btn btn-primary" href={`mailto:${CONTACT_EMAIL}`}>
-            Email me
-          </a>
           {linkedIn && (
-            <a class="btn" href={linkedIn.url} rel="me">
+            <a class="btn btn-primary" href={linkedIn.url} rel="me">
               LinkedIn
             </a>
           )}
         </div>
         <p class="post-close-more">
-          <a href="/lab/">Try the labs</a>
+          <a href="/lab/">Try the labs: small systems you can break</a>
           <a href="/about/">About me</a>
         </p>
       </aside>
@@ -115,12 +112,12 @@ const links = [
         </li>
       </ul>
     )}
-    {(others.length > 0 || links.length > 0) && (
+    {others.length > 0 ? (
       <section class="section more-writing" aria-labelledby="more-title">
         <h2 id="more-title" class="section-title">
           More writing
         </h2>
-        {others.length > 0 && <PostList posts={others} level={3} />}
+        <PostList posts={others} level={3} />
         {links.length > 0 && (
           <ul class="post-links">
             {links.map((link) => (
@@ -131,6 +128,16 @@ const links = [
           </ul>
         )}
       </section>
+    ) : (
+      links.length > 0 && (
+        <ul class="post-links more-writing">
+          {links.map((link) => (
+            <li>
+              <a href={link.href}>{link.text}</a>
+            </li>
+          ))}
+        </ul>
+      )
     )}
   </Fragment>
 </Prose>

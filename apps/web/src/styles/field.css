@@ -66,7 +66,8 @@
 }
 
 /* Current: each runs on a line of the grid, wherever the window puts that line. Out of sight until
-   it moves, so a browser with no scroll timelines shows only the grid and the patch. */
+   it moves, its head and that head's glow included, so a browser with no scroll timelines shows only
+   the grid and the patch. */
 .field-run {
   position: absolute;
   inset-block-start: 0;
@@ -74,7 +75,7 @@
   inline-size: 1px;
   block-size: 34lvh;
   background-image: linear-gradient(to bottom, transparent, var(--primary));
-  translate: 0 -100%;
+  translate: 0 calc(-100% - 1rem);
 }
 
 .field-across {
@@ -84,7 +85,7 @@
   inline-size: 34vw;
   block-size: 1px;
   background-image: linear-gradient(to right, transparent, var(--primary));
-  translate: -100% 0;
+  translate: calc(-100% - 1rem) 0;
 }
 
 /* Dimmer than the lines of the page itself: these run while someone reads. */
@@ -262,7 +263,7 @@
 
   @keyframes field-down {
     0% {
-      translate: 0 -100%;
+      translate: 0 calc(-100% - 1rem);
     }
 
     24%,
@@ -273,7 +274,7 @@
 
   @keyframes field-across {
     0% {
-      translate: -100% 0;
+      translate: calc(-100% - 1rem) 0;
     }
 
     24%,

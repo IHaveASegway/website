@@ -249,14 +249,14 @@ test('the Lab index draws each glyph from its lab’s opening, and each fact fro
   expect(new Set(seen.map((s) => s.wire)).size).toBe(seen.length);
 });
 
-// Home marks each lab What I build names in that lab's own colour (ADR 0028; until then a card per
+// Home marks each lab its rows name in that lab's own colour (ADR 0028; until then a card per
 // lab, ADR 0027, and a band of the board, ADR 0025), so no two rows share a colour, each row's lab
 // is one this build lists, and nothing is wider than the page.
 for (const { width, height } of [
   { width: 1440, height: 900 },
   { width: 390, height: 844 },
 ]) {
-  test(`at ${width} px What I build marks each lab's row in the one accent`, async ({ page }) => {
+  test(`at ${width} px Home's rows mark each lab's row in the one accent`, async ({ page }) => {
     const demos = pages().filter((path) => /^\/lab\/[^/]+\/$/.test(path));
     test.skip(demos.length === 0, 'this build has no demo');
     await page.setViewportSize({ width, height });

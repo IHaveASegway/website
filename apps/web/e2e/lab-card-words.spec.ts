@@ -2,15 +2,15 @@ import { expect, test } from '@playwright/test';
 import { openingRun as backfillOpening } from '../src/lib/backfill/view';
 import { replay as replayCache } from '../src/lib/cache/sim';
 import { OPENING as CACHE, openingRun as cacheOpening } from '../src/lib/cache/view';
-import { backfillFact, cacheFact, queueFact, raftFailover, raftLine } from '../src/lib/lines';
+import { backfillFact, cacheFact, queueFact, raftFailover } from '../src/lib/lines';
 import { replay as replayQueue } from '../src/lib/queue/sim';
 import { OPENING as QUEUE } from '../src/lib/queue/view';
 import { replay as replayRaft } from '../src/lib/raft/sim';
-import { OPENING as RAFT, openingRun as raftOpening } from '../src/lib/raft/view';
+import { landingStory, OPENING as RAFT } from '../src/lib/raft/view';
 import { pages } from './expected';
 
 // What Home says of each lab beside what it builds (the visitor review of 2026-10-31; ADR 0028):
-// each lab's fact under What I build is worked out from its lab's own runs, the same sentence the
+// each lab's fact in Home's rows is worked out from its lab's own runs, the same sentence the
 // lab's page and the Lab index work out, and where Home shows the Route Lab's figures it names what
 // they are measured against and says the bakery is made up. Until ADR 0028 the facts stood on
 // Home's lab cards, each with its glyph inside the card; until ADR 0027 Home's board said each
@@ -23,10 +23,10 @@ const SIZES = [
 
 const hasLabs = () => pages().some((path) => /^\/lab\/[^/]+\/$/.test(path));
 
-test("each lab What I build names says one fact from its lab's own runs", async ({ page }) => {
+test("each lab Home's rows name says one fact from its lab's own runs", async ({ page }) => {
   test.skip(!hasLabs(), 'this build has no demo');
   await page.goto('/');
-  const leader = raftLine(raftOpening()).leader ?? 0;
+  const crash = landingStory()[0] as ReturnType<typeof landingStory>[number];
   const expected: Record<string, string> = {
     backfill: backfillFact(backfillOpening(), backfillOpening('overwrite')),
     cache: cacheFact(
@@ -35,12 +35,8 @@ test("each lab What I build names says one fact from its lab's own runs", async 
     ),
     queue: queueFact(replayQueue({ ...QUEUE.config, key: true }, QUEUE.actions, QUEUE.until)),
     raft: raftFailover(
-      raftOpening(),
-      replayRaft(
-        { seed: RAFT.seed },
-        [...RAFT.actions, { at: RAFT.until, kind: 'crash', node: leader - 1 }],
-        RAFT.until,
-      ),
+      replayRaft({ seed: RAFT.seed }, RAFT.actions, crash.at),
+      replayRaft({ seed: RAFT.seed }, [...RAFT.actions, crash], crash.at),
     ),
   };
   for (const [slug, words] of Object.entries(expected)) {

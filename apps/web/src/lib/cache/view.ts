@@ -304,5 +304,5 @@ export function stripWords(sim: Sim): string {
 export const whereWords = (sim: Sim): string =>
   `Virtual time ${seconds(sim.now)}, ${count(sim.events)} ${sim.events === 1 ? 'event' : 'events'}`;
 
-/** The clock under the picture: where the run stands, and its seed. */
-export const clockWords = (sim: Sim): string => `${whereWords(sim)}, seed ${sim.seed}`;
+/** The clock under the picture: where the run stands, and its random seed. */
+export const clockWords = (sim: Sim): string => `${whereWords(sim)}, random seed ${sim.seed}`;

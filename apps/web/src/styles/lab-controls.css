@@ -37,12 +37,17 @@
 
 /* The Time group (components/lab/Time.astro): its name with the clock beside it, so the clock that
    Next event moves sits on the line over the button. Run keeps one width, its lamp and all, as its
-   words turn to Pause, so the row never shifts under the pointer. */
+   words turn to Pause, so the row never shifts under the pointer. The head has no say in the group's
+   width, which its buttons set: a clock that gains a digit can't widen the group and move what stands
+   beside it (no width, and at least the group's). Where a group's head was the wider, on the Queue
+   Lab's desk until 2026-11-03, its key slid sideways with the clock, and dropped a row at some widths. */
 .lab-time-head {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0 0.75rem;
+  inline-size: 0;
+  min-inline-size: 100%;
 }
 
 .lab-clock {
@@ -56,11 +61,16 @@
 }
 
 /* At the narrowest phones a long run's clock takes a line of its own and keeps two, so a clock that
-   grows a digit never moves the buttons under it. */
+   grows a digit never moves the buttons under it, and its random seed takes the second, so a digit
+   never sends the seed from one line to the other. */
 @media (width < 24rem) {
   .lab-clock {
     flex-basis: 100%;
     min-block-size: 2lh;
+  }
+
+  .lab-seed {
+    display: block;
   }
 }
 

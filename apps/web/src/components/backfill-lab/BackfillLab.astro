@@ -219,9 +219,10 @@ const KEY = [
 
       <div class="bf-strip-part">
         <p class="bf-strip-title">
-          Over time, each day's steps: a hollow bar is a sensor waiting for its file, a filled one a
-          step at work, and a cross an attempt that failed. A dotted track with nothing on it is a
-          run waiting for a slot or a retry, and the upright line is now.
+          This is each day's steps over time. A hollow bar is a sensor, the step that waits for its
+          file. A filled bar is a step at work, and a cross is an attempt that failed. A dotted
+          track with nothing on it is a run waiting its turn or waiting to retry, and the vertical
+          line is the current time.
         </p>
         <div class="bf-strip-box">
           <ol class="bf-strip-days" aria-hidden="true">
@@ -263,13 +264,16 @@ const KEY = [
         <Time short="bf" speeds={SPEEDS} speed="6">
           <p class="lab-clock">
             <span data-bf-clock>{when(sim.now)}</span>,{' '}
-            <span data-bf-events>{eventsText(sim)}</span>, seed <span data-bf-seed>{sim.seed}</span>
+            <span data-bf-events>{eventsText(sim)}</span>,{' '}
+            <span class="lab-seed">
+              random seed <span data-bf-seed>{sim.seed}</span>
+            </span>
           </p>
         </Time>
         <div class="bf-row" role="group" aria-label="Its loads">
           <Choice legend="How a load writes" name="bf-mode" options={MODES} checked={sim.mode} />
         </div>
-        <Said words="Choose how a load writes, and the week starts over under it, from its switch." />
+        <Said words="Choose how a load writes, and the week starts over under it, before the job is switched on." />
         <p class="lab-sr" role="status" data-bf-said></p>
       </div>
 

@@ -97,6 +97,12 @@
   margin-block-start: 0;
 }
 
+/* A write-up's bold leads use the headings' face, which every page already loads. Archivo SemiBold
+   is one more file, about 12 KB, and it took the Route Lab over its limit on PR 67's preview. */
+.lab-write strong {
+  font-family: var(--font-display);
+}
+
 .lab-contents {
   margin-block-end: 2.5rem;
   padding-block-end: 1.75rem;

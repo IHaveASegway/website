@@ -492,7 +492,7 @@ function look(sim: Sim, read: Read): void {
     sim.said.menuExpiry = entry.expiresAt;
     say(
       sim,
-      `The menu's entry expired at ${seconds(entry.expiresAt)}: ${sim.coalesce ? 'its readers miss, and each node sends one fetch for them all' : 'its readers miss, and each one fetches it from the database'}`,
+      `The menu's entry expired at ${seconds(entry.expiresAt)}: ${sim.coalesce ? 'its readers miss, and one fetches it for them all' : 'its readers miss, and each one fetches it from the database'}`,
     );
   }
   const flight = node?.flights.get(key);

@@ -44,7 +44,7 @@ ihaveasegway.com
 ├── /colophon/                             How it is built, what it costs      P2
 │   └── /colophon/decisions/               Published ADRs                      P2
 │       └── <nnnn-slug>/                   One ADR, rendered from docs/adr     P2
-├── /about/                                How I work, then the résumé         now (2026-10-28)
+├── /about/                                What I've built; the résumé on paper now (2026-10-28)
 ├── /now/                                  What I am doing now, dated          P3 (PR 4)
 ├── /writing/ · /writing/<slug>/           Essays                              P3 (PR 5, from 1 post)
 ├── /notes/ · /notes/<slug>/               Field notes                         P3 (PR 5, from 1 note)
@@ -64,10 +64,10 @@ Render rules:
 
 | Section | In the header and on Home when | Phase |
 |---|---|---|
-| About | always: a page file. The bio, `src/content/about.md` (lib/about.ts), then the résumé below it; the fixture builds hold no bio and draw the résumé alone | now (2026-10-28) |
+| About | always: a page file. The bio, `src/content/about.md` (lib/about.ts), laid out on screen ([About](#about)), and on paper the résumé; the fixture builds hold no bio and draw the résumé alone | now (2026-10-28) |
 | Writing (with `/notes/` and `/rss.xml`) | at least 1 published post, essay or note; a draft never counts, and `/notes/` also waits for its first note. The bar was 3 posts until 2026-10-24; lowering it to 1 was proposed that day for Joseph's read, from his ask for a workable site from the content he has ([ADR 0005](adr/0005-url-scheme.md)'s postscript) | P3 |
 | Lab | at least 1 demo has `lifecycle: live`: the Route Lab, since 2026-10-25 ([ADR 0016](adr/0016-route-lab-in-the-browser.md)). Home shows each demo as the first card in Selected work; a Lab section of its own (row 6) waits for a second demo, so no page lists a demo twice | built |
-| Résumé | on `/about/`, under the bio, since 2026-10-28 (at `/resume/` from 2026-10-25, now a 301). It renders from the profile: Experience lists roles once Q8 is cleared and Joseph adds them; a skill shows once every page it names is built; Selected work and Writing render as on Home ([Résumé](#résumé)) | now |
+| Résumé | `/about/` on paper since 2026-11-03 (under the bio from 2026-10-28, at `/resume/` from 2026-10-25, now a 301). It renders from the profile: Background lists roles once Q8 is cleared and Joseph adds them; Selected work and Writing render as on Home ([Résumé](#résumé)) | now |
 
 Header: Joseph's name, linking home, on every page but Home (whose `<h1>` is the name); Lab · Writing · About, each only when its rule holds (About always: since 2026-10-28 it holds the résumé, on Joseph's direction to replace the Résumé page with an About page that is his résumé and how he works; `lib/nav.ts`); and the theme toggle. On a phone the bar stays one row, 56 px, down to a 320 px screen (2026-11-02), and only a larger text size gives the links a second line; the name wraps, between its words, only when it alone is wider than the line. Owned work has no section of its own: its cards sit on Home. Footer, one line: the contact address; the links whose pages exist (RSS · Now · Colophon; About is in the header only, since a fourth link wraps the line at 768 px); the external profiles whose readiness check is recorded (GitHub, LinkedIn); the command menu's button, "⌘K" or "Ctrl K", under a pointer that can hover; and the copyright. This is recognition over recall: the navigation is always visible, and the command menu (2026-10-25, [design-system.md](design-system.md#the-command-menu)) is a shortcut, never the only way in.
 
@@ -96,7 +96,9 @@ Header: Joseph's name, linking home, on every page but Home (whose `<h1>` is the
 
 ## Home page
 
-Budget: 7 seconds. Rows 1–3 must be visible without scrolling at 390×844 (a phone) and 1440×900 (a laptop). A line that waits on an open decision or an unchecked source is left out until it can render; it is never a placeholder on the page ([product.md](product.md) lists the decisions). Lines about owned work are drafted here; Joseph's wording wins.
+Budget: 7 seconds. Rows 1–3 must be visible without scrolling at 390×664 (what Safari shows on an iPhone 14) and 1440×900 (a laptop). A line that waits on an open decision or an unchecked source is left out until it can render; it is never a placeholder on the page ([product.md](product.md) lists the decisions). Lines about owned work are drafted here; Joseph's wording wins.
+
+Since 2026-11-03 ([ADR 0031](adr/0031-about-leads-with-what-joseph-builds.md)) Home opens on "I take an idea and build the entire system. Here are a few things you can break.": the bio's first sentence and one of Home's own, written in `pages/index.astro`. The rest of the bio's opening follows at a lead's size, then LinkedIn and GitHub, LinkedIn leading, with the Raft Lab's cluster beside them. Then the bio's Things I built that you can try, in its order, each row with its lab's one fact; Selected work, which holds stillhere's card; Writing; The biggest thing I've built, which the next section's last sentence points back to; The last thing I built, over the record line; and the close, under the bio's last heading, with LinkedIn to press. `e2e/fold.spec.ts` holds the opening's buttons inside the first screen Safari shows, under its toolbars: 656 px of 664 on an iPhone 14 and of 659 on an iPhone 15 or 16, and 683 px of 900 on a laptop that day. The table below records each row's history; where it and this paragraph disagree, this paragraph is current, and it replaces the next.
 
 Since 2026-10-29 ([ADR 0023](adr/0023-home-as-a-story-and-rail-drop-downs.md), [ADR 0024](adr/0024-home-led-by-the-work.md)) Home tells who Joseph is top to bottom, led by the work: the hero, with the bio's opening sentence, over a live scene of the Route Lab's busy Saturday; then Selected work, whose first chapter, the Route Lab's, stands over the same scene as it lifts into the space-time cube, with the lab's two figures large, and whose second, the Raft Lab's, holds the cluster acting out an election; then How I work (the bio's principles), Writing, and what he is working toward, closing on the address. On a phone the first screen holds the scene, the name and the title, and the hero's sentence and buttons follow just below; from 64rem the whole hero is in the first screen. Every word about Joseph is the bio's, `src/content/about.md`, which he cleared on 2026-10-29: Home reads it in parts (`aboutParts`, `lib/about.ts`) and `/about/` renders it whole, so the two never differ. The table below records each row's history; where it and this paragraph disagree, this paragraph is current.
 
@@ -119,8 +121,8 @@ Selected work (row 4). A project's line is its `description` in `profile.json`, 
 | Card | Line | Proof | Links to | State on 2026-10-23 |
 |---|---|---|---|---|
 | This site | removed | — | — | removed on 2026-10-24: a card about the site is the site describing itself ([design-system.md](design-system.md#nothing-on-the-page-describes-the-site)) |
-| The auto-trader teardown | the post's own summary, under its title; tag: its kind, "Postmortem" | none | the post, `/writing/trading-bot-teardown/`, as "Read the teardown →"; never its repository | the card's code shipped on 2026-10-24 (`FEATURED_POSTS` in `src/lib/work.ts`); it renders once the post is published in the build |
-| stillhere | "What landed, what lasted, who knows the code. Every number traces back to its commits." | 15 decision records · 181 tests · publishes its own failed metric | its repository on GitHub | held until its readiness check and the GitHub profile's pass ([Names held off the site](#names-held-off-the-site)); the card's code shipped ahead, on 2026-10-23. The check run on 2026-10-24 did not pass: its commit identities need Joseph's call (Q-threat-model); the secret scan with default rules, over all non-merge history, is not clean (2 findings in one test file, to triage); its tests were not seen passing on a clean machine; its commit dates carry a non-UTC offset, which the identity call covers too; and the firewall scan with the private rules, the CI state and the GitHub profile's check could not be read outside his own access. Both scans read `git log -p`, which shows no diff for a merge commit, so a merge's own changes still need a pass. No `checked` stamp was recorded |
+| A teardown of an old project | removed | — | — | removed on 2026-11-03, on Joseph's decision: the post left the site and its URL answers with a 301 to `/writing/` ([ADR 0005](adr/0005-url-scheme.md), postscript) |
+| stillhere | The bio's words for it: "Change analytics for git and GitHub. It shows what landed, what lasted and who knows the code, and every number traces back to its commits. It's pre-release, and it doesn't measure a person's value." Its limits are in its line, since Home shows no tag | its published failed metric first, verdict first: "Main metric failed: AUC 0.42, size alone 0.82", which is `durable@1` in `docs/validation.md` · 15 decision records · 181 tests, counting subtests (`measured` 2026-11-03) | its repository on GitHub | on since 2026-11-03: its check is recorded at `6adb3ad` and its hold is lifted. Joseph accepted the commit identities outside the allowed list and the scan's hits as they are, on 2026-11-03 |
 | gitops | "One git command across every repository in a directory. A TUI for people, a CLI for scripts." | signed checksums · CI on Linux, macOS and Windows | its repository on GitHub, once public again | held: private since 2026-10-23. Joseph's plan: clean its history, make it public, then turn its card on |
 
 How I work (row 5), as it stood before 2026-10-24. Should a plain list of these lines return, each line links to evidence that exists when it ships, and a line without evidence stays off the page.
@@ -136,7 +138,7 @@ How I work (row 5), as it stood before 2026-10-24. Should a plain list of these 
 
 Fold rules:
 
-- Rows 1–3 are visible without scrolling at both sizes: the bottom edge of the last rendered row of 1–3 is at or above the bottom of the viewport at 390×844 and at 1440×900. A row with nothing to show is not rendered, so since 2026-10-24 the last row is row 1, the hero: it ends at 368.2 px of 844 on a phone and 420.7 px of 900 on a laptop (459.1 and 541.0 with the larger name earlier on 2026-10-24; 560.3 and 599.6 with row 2 in the first poster setting; 495.5 and 545.7 in PR 3), which leaves row 3 room. The e2e check loads Home at both sizes, with the web fonts and with them blocked, and also requires the hero to be the same height either way, within 1 px. That is a fitness function: the rule is tested on every pull request instead of argued in review. A Playwright viewport is the whole screen, while a phone's browser bars hide part of it, so Joseph also checks the fold once in Safari on a real phone, before PR 3 merges, and records the visible height in the pull request.
+- Rows 1–3 are visible without scrolling at both sizes: the bottom edge of the last rendered row of 1–3 is at or above the bottom of the viewport at 390×664, what Safari shows on an iPhone 14, and at 1440×900. A row with nothing to show is not rendered, so since 2026-10-24 the last row is row 1, the hero: it ends at 368.2 px of 844 on a phone and 420.7 px of 900 on a laptop (459.1 and 541.0 with the larger name earlier on 2026-10-24; 560.3 and 599.6 with row 2 in the first poster setting; 495.5 and 545.7 in PR 3), which leaves row 3 room. The e2e check loads Home at both sizes, with the web fonts and with them blocked, and also requires the hero to be the same height either way, within 1 px. That is a fitness function: the rule is tested on every pull request instead of argued in review. A Playwright viewport is the whole screen, while a phone's browser bars hide part of it, so Joseph also checks the fold once in Safari on a real phone, before PR 3 merges, and records the visible height in the pull request.
 - Nothing above the fold waits for JavaScript. Home is static HTML, and no value is filled in after load.
 - A value that cannot be read is left out, never faked.
 - No photo in the hero (Q-photo), no intro animation, and no city, coordinates or UTC offset anywhere. `test/readouts.test.ts` reads every file the site serves for a time of day or a zone, in every common way to write one: ISO 8601 in its extended and basic forms, RFC 2822 and HTTP dates, month-first dates with a time, a bare time with an offset, 12-hour clocks, a time beside a zone abbreviation, IANA zone names and PDF dates. Only midnight UTC passes, which is how `security.txt` writes the date RFC 9116 requires.
@@ -330,7 +332,7 @@ A claim about him needs his read. An agent drafts; he answers for what ships.
 
 ### The site's language
 
-One vocabulary, so nobody has to translate ([ADR 0029](adr/0029-one-voice-one-column-honed-colour.md)). A recruiter should get the first screen, and a tech lead shouldn't feel talked down to. `apps/web/test/language.test.ts` fails on a retired phrase.
+One vocabulary, so nobody has to translate ([ADR 0029](adr/0029-one-voice-one-column-honed-colour.md)). A recruiter should get the first screen, and a tech lead shouldn't feel talked down to. `apps/web/test/language.test.ts` fails on a retired phrase, and `apps/web/test/lab-words.test.ts` holds what a list of phrases can't: the bakery is made up before a page calls it "the bakery", checks outside Raft, and a skill's row names only what its lab shows, apart from the two rows it lists for About's overhaul.
 
 | Use | Avoid |
 |---|---|
@@ -353,6 +355,9 @@ One vocabulary, so nobody has to translate ([ADR 0029](adr/0029-one-voice-one-co
 | checks; safety properties in Raft | properties outside Raft |
 | How to read it | lines and lamps |
 | US English | colour, neighbour |
+| random seed, on a lab's clock | seed alone, which a reader took for poppy seeds or tournament seeding |
+| deterministic simulation, where a lab says how it's built | "a simulator around it", "a picture the build drew" |
+| orders come in, orders stop, on the Queue Lab's page and its log, as its buttons say | published, the producer |
 
 ## Firewall classes for copy
 
@@ -376,7 +381,7 @@ Published means permanent. Crawlers, the Wayback Machine and the LinkedIn and Sl
 
 Owned work shows as cards on Home, one per project, each linking to its repository: "Card → repo only", Joseph's decision on 2026-10-23. There are no case-study pages, terminal recordings or lab companions for it. A card renders from its record in `profile.json` once its checks are recorded and its hold is lifted ([How a project's card turns on](#how-a-projects-card-turns-on)).
 
-A post on this site can have a card too, after the projects' cards. `FEATURED_POSTS` in `src/lib/work.ts` names it by section and slug, with the words of its link; the card's title, line and tag are the post's own title, summary and kind, so the post stays their one owner. It renders once the post is published in the build, and never for a draft. The first is the auto-trader teardown, a postmortem being finalised, at `/writing/trading-bot-teardown/`: its card links to the post and never to the repository.
+A post on this site can have a card too, after the projects' cards. `FEATURED_POSTS` in `src/lib/work.ts` names it by section and slug, with the words of its link; the card's title, line and tag are the post's own title, summary and kind, so the post stays their one owner. It renders once the post is published in the build, and never for a draft. None does today.
 
 One rule covers every card, whatever made it: a card renders only when the page it opens exists in this build (`selectedWork()` and `withTargets()` in `src/lib/work.ts`). `test/work.test.ts` holds the rule with known answers (published, draft, not written yet, a target the build does not vouch for), and `test/project-cards.test.ts` holds every build's Home to it, reading the expected post cards from the build's own pages. With no card, Home has no Selected work section and no Work button.
 
@@ -384,9 +389,9 @@ Of owned work, the site features three things and nothing else, besides the post
 
 ### stillhere (lead)
 
-**Card → repo only.** stillhere's card links to its repository, so its README is the page a reader lands on, and the README carries the pitch: what it does, its limits statement, and the public numbers below. The tables below are the brief for that README pass, made in stillhere's own repository before its card turns on.
+**Card → repo only.** stillhere's card links to its repository, so its README is the page a reader lands on, and the README carries the pitch: what it does, its limits statement, and the public numbers below. The tables below are the brief for that README pass, in stillhere's own repository. Its card turned on without it on 2026-11-03, and the pass is still to come.
 
-Change analytics for git and GitHub: what landed, what lasted, who knows the code. Every number traces back to its commits. Apache-2.0, pre-release (no tagged release on 2026-10-22).
+Change analytics for git and GitHub: what landed, what lasted, who knows the code. Every number traces back to its commits. Apache-2.0, pre-release (no tagged release at `6adb3ad`, the commit the check read on 2026-11-03).
 
 What it shows a hiring manager:
 
@@ -401,7 +406,7 @@ What it shows a hiring manager:
 | Measurement validity | Blinded labels, AUC with intervals, Krippendorff's alpha, and a failing metric published as such |
 | Measuring before building | Profiling put git at 97% of CPU and commit-graph filters gave 2.85×, so the blame cache was deferred |
 
-Publishable numbers (measured 2026-10-22; re-measure at publish time):
+Publishable numbers (measured 2026-10-22; re-measure at publish time). The card's three were counted again on 2026-11-03 from a clone at `6adb3ad`: `go test -json` passes 181 tests and subtests, of 20 top-level test functions, `docs/adr/` holds 15 records, and `docs/validation.md` publishes the failed metric. The others in this table weren't counted again, because the card doesn't show them:
 
 | Number | Where it comes from |
 |---|---|
@@ -472,7 +477,9 @@ A card renders on Home when three things hold, each in a reviewed pull request:
 2. The GitHub profile's check is recorded too. A repository's page links its owner's profile, and its URL names the account, so the profile is checked before any repository is linked.
 3. The project's hold is lifted: its line leaves `not-on-site.txt` ([Names held off the site](#names-held-off-the-site)).
 
-`projectCards()` in `src/lib/profile.ts` owns the rule. `test/project-cards.test.ts` checks that Home shows exactly the cards it returns, then the featured posts' cards, on the real build (none today, so no Selected work section) and on a fixture build where a made-up project, checked and held by nothing, renders its card and its link. So the path is tested before any real project is on.
+`projectCards()` in `src/lib/profile.ts` owns the rule. `test/project-cards.test.ts` checks that Home shows exactly the cards it returns, then the featured posts' cards, on the real build (stillhere's alone today) and on a fixture build where a made-up project, checked and held by nothing, renders its card and its link.
+
+stillhere's card turned on this way on 2026-11-03. Its record and the GitHub profile's each carry `checked: {date: 2026-11-03, sha: 6adb3ad…}`: a profile has no commit of its own, so its record names the commit the check read. The check is recorded because Joseph accepted stillhere's commit identities outside the allowed list and the scan's hits as they are, on 2026-11-03. That acceptance names stillhere alone: the profile's line of the checklist and the account's other public repositories are still open ([roadmap.md](roadmap.md#pr-4-about-and-now)), and the profile's record stands because no repository can be linked without it. The GitHub link then appears wherever `checkedProfiles()` renders: Home's opening, beside LinkedIn, the footer, the command menu's Links, `sameAs` and the `WebSite`'s `alternateName` in the JSON-LD, `/llms.txt`, and the résumé's addresses on paper. The Route Lab's credit links VROOM's own repository, under an exact-URL exception in `test/readiness.test.ts`: it reaches no account of Joseph's.
 
 ## Names held off the site
 
@@ -481,13 +488,35 @@ Some names are public in this repository but must not appear on the site until a
 | Held name | Joins | Held by |
 |---|---|---|
 | Mission-AI | any | Q24 · Q-mission in [product.md](product.md): not on the site at launch |
-| stillhere | no space | the readiness checklist above, until its check passes |
 | gitops | any | private since 2026-10-23: held until it is public again and its readiness check passes |
 
 - **Joins.** "-" and "_" split a name where it is written with them, and "|" marks where a one-word name splits. `any` catches the parts joined by nothing or by any run of spaces, hyphens and underscores. `no space` catches nothing, one hyphen or one underscore, but never a space, for a name whose spaced form is ordinary English.
 - **What the matcher reads** (`src/lib/held-names.ts`): a name in any case; behind an HTML character reference, with or without its ";"; split by markup such as `<wbr>` or `<b>`; with an invisible character (a soft hyphen, a zero-width character, any default-ignorable code point) or a typographic dash inside; or in a compatibility form such as a fullwidth letter (NFKC). Text it cannot read fails the check instead of passing unread: fail closed. Since 2026-10-25 a `.js` or `.mjs` file is read as JavaScript, in four views: as written; with its string escapes (`\u0041`, `\u{41}`, `\x41`) decoded, as the engine decodes them; and as the markup it may write through `innerHTML`, with its references decoded, and with its tags removed as well. The Route Lab's minified scripts are full of `&&name`, which the markup reading refused as unreadable, so in the two markup views a `&` that starts no reference stays as written instead of failing. A name split by tags, behind a reference or behind an escape in a script is caught, with a known answer for each ([ADR 0016](adr/0016-route-lab-in-the-browser.md)); the URL checks in `test/readiness.test.ts` read scripts the same four ways.
 - **Where it runs.** `test/not-on-site.test.ts` scans every text file and every path in `dist/`, reading markup by each element's default display. CSS can change a display, so `e2e/not-on-site.spec.ts` also reads the text the browser draws on every page, the title included, with a known answer: a name split across two blocks that CSS sets inline is caught.
 - **Lifting a hold** means deleting its line in a reviewed pull request, together with the record's `checked` stamp where the rule was the readiness checklist.
+
+## About
+
+`/about/` says what Joseph builds and has built ([ADR 0031](adr/0031-about-leads-with-what-joseph-builds.md)). Its words are `src/content/about.md`, which Home reads in parts, so a change to the bio changes both. `lib/about.ts` reads the bio as plain text and refuses markup, so the links come from the page and its records; `ABOUT_HEADINGS` names each section, and `test/about.test.ts` holds the bio to them.
+
+| Part | What it says | On screen | On paper |
+|---|---|---|---|
+| The head | The name, the role, where | The name at a title's size, then LinkedIn, the primary button as on Home, and the Print button | With the addresses beside the name: the email address, the site, each checked profile |
+| The opening | What Joseph does; its first sentence is Home's statement | Plain prose, its first sentence at the statement's size | The summary |
+| How I got here | The route, the manager, the software, and who typed this site | Prose under a section's title, as every section here has, the close's title | Its second paragraph, "I didn't type this site's code", prints over Selected work, so nobody reads built as typed |
+| The biggest thing I've built | The largest system Joseph has built for real users, in round words | Prose at a lead's size | Prints: it's the résumé's strongest proof |
+| Things I built that you can try | A row per lab, and where the labs are going | A row of an index, the whole row its lab's link: the bold line at a heading's size under the lab's line from its link card (`components/LabLine.astro`, `lib/og-lines.ts`). The Route Lab's card holds its map, so its row takes its line from the same model. Numbers stay in ink inside sentences: no stat tiles and no isometric drawing, as Joseph asked | The labs' cards under Selected work |
+| Open source | stillhere | A row in the same family, its name linking to its repository, from the checked record through `projectCards()`, since `about.md` can't hold a link | Its card under Selected work |
+| The last thing I built | This site: what it took, what it costs, what it can't show | Prose, opening a step larger | Doesn't print |
+| What came from me | What Joseph decided, which agents didn't | Prose, with "The Lab" and "essay" linked where they stand | Doesn't print |
+| What I've worked with | The tools | One small line, the same sentence as `profile.json`'s `tools`, which a test holds together | Prints, as the sheet's one list of what Joseph has worked with |
+| If you've got an idea | Who should reach out, and where | Home's contact block (`components/home/Contact.astro`), under the article, with LinkedIn to press | Doesn't print |
+
+No page asks a reader to email. The address stays as plain text in the footer and in the résumé's head on paper. The numbers behind The biggest thing I've built aren't published: only the round words in `about.md`, in no test, doc or commit.
+
+The page never goes flat below its first screen ([ADR 0030](adr/0030-the-page-stays-alive.md)): the field stands behind the whole column, nothing paints a ground over it, and each section opens on the line that lights when a visitor first reaches it, each row its sweep. `e2e/about-screen.spec.ts` holds it.
+
+`profile.json` keeps its `skills`, with their evidence, and since 2026-11-03 nothing renders them.
 
 ## Résumé
 
@@ -496,24 +525,27 @@ Some names are public in this repository but must not appear on the site until a
 | Until 2026-10-25 | A LinkedIn link (Q-threat-model) and "Full résumé on request" by email | LinkedIn and Joseph's private résumé |
 | Now (Q9 (a), as a page, on Joseph's direction of 2026-10-25) | `/resume/`: the name, the title, the location line and every address, then Experience, which holds "Full history on LinkedIn." and "Full résumé on request", and the sections below as their sources exist. HTML with print CSS; no PDF | `profile.json` and what the build already renders; LinkedIn and the private résumé for the rest |
 | Since 2026-10-28, on Joseph's direction | The same résumé on `/about/`, under the bio, and `/resume/` a 301 to it. A Print button saves it as a PDF in the visitor's browser, from the one-page print CSS; still no PDF is hosted | the same |
+| Since 2026-11-03, on Joseph's direction | The résumé is `/about/` on paper, and the screen tells the same in the bio's words. The offer of a résumé by email is gone, and so is the email address on screen | the same |
 | Later (Q9 (b)) | A PDF printed from that page | the same page |
 
-What the résumé renders on `/about/`, after the bio, each part only when its source exists (`src/pages/about/index.astro`, `src/lib/resume.ts`):
+What the résumé prints from `/about/`, each part only when its source exists (`src/pages/about/index.astro`, `src/lib/resume.ts`):
 
 | Part | Renders when | From |
 |---|---|---|
-| The name (`<h1>`), the title and "US · remote" | always | `profile.json` `basics`, as Home's hero has them |
+| The name (`<h1>`), the title and "Remote, US" | always, on screen too | `profile.json` `basics`, as Home's hero has them |
 | Contact: Email, Web, then each checked profile, each shown as its address | always; a profile only from a checked record | `site.ts`, `checkedProfiles()` |
-| Experience: one row per role, its years ("2019–2024", "Since 2021") in mono and its title; then "Full history on LinkedIn." and "Full résumé on request: hello@ihaveasegway.com." | always; a row per entry in `work`, none today; the LinkedIn line only while that record is checked | `profile.json` `work` (Q8 (a)) |
-| Skills: each skill, with a link to each page that shows it, labelled by that page's own title | a skill only when every page it names is listed in the build; the section only with a skill. None today | `profile.json` `skills` |
-| Selected work | the cards Home's Selected work draws, card for card: the same function feeds both (`loadSelectedWork()` in `src/lib/content.ts`). Today that is the Route Lab's card, as on Home (2026-10-25) | `lib/work.ts` |
-| Writing | the posts Home's Writing row lists, and "All writing". None today | `writingRow()` |
+| The summary: the bio's opening | where the build holds the bio | `about.md` |
+| The biggest thing I've built | where the build holds the bio | `about.md` |
+| Background: one row per role, its years ("2019–2024", "Since 2021") and its title; then "About five years building backend systems and data platforms." and "My full work history is on LinkedIn." | a row per entry in `work`, none today; the summary while `basics.summary` holds one; the LinkedIn line while that record is checked; on paper only | `profile.json` `work` (Q8 (a)), `basics.summary` |
+| What I've worked with | while `tools` holds one | `profile.json` `tools` |
+| Selected work: "I didn't type this site's code" over the cards | the cards Home's Selected work draws and the labs' own, card for card: the same function feeds both (`loadSelectedWork()` in `src/lib/content.ts`). The agents line where the build holds the bio | `lib/work.ts`, `about.md` |
+| Writing | the posts Home's Writing row lists | `writingRow()` |
 
 - **The current résumé file is never hosted and never committed.** It names the employer, which the site never does.
 - **Generate, don't redact.** The public edition comes from a source that never held the employer's name. Redacting a file that holds it fails open: one missed text layer, metadata field or earlier revision leaks it. Generating from a clean source fails closed, and `profile.json` has no field meant for the employer.
-- **One printed page.** `@media print` gives the page a named page, US Letter with half-inch margins, and leaves out the header, the skip link and the footer; the name prints at 40 px, with the addresses beside it, or under it from a larger default text size so the name never breaks inside a word; the skills print as names in the text's size, each with its comma against it; Selected work stands on the page's left edge, or past the years' gutter where roles print; Writing prints a line a post, its day, its title and its address, with no summary, so a full profile still fits; and each link in Selected work and Writing prints its address after it (the site's own with the domain), as a link does on every page on paper, so the page works on paper. Of the bio, only its first paragraph prints, the summary a résumé opens with, and the Print button never does. `e2e/about-print.spec.ts` prints the page in Chromium and requires one Letter page, on the site and on the writing fixture, whose profile holds ten roles and twelve skills, the schema's limits; its known answer, forty roles, prints on more than one page.
+- **One printed page.** `@media print` gives the page a named page, US Letter with half-inch margins, and leaves out the header, the skip link, the footer and the close; the name prints at 34 px on one line, with the addresses beside it, or under it from a larger default text size so the name never breaks inside a word; Selected work stands on the page's left edge, with no card's edge, or past the years' gutter where roles print; Writing prints a line a post, its day, its title and its address, with no summary, so a full profile still fits; and each link in Selected work and Writing prints its address after it (the site's own with the domain), as a link does on every page on paper, so the page works on paper. No skill's name prints, and the Print button never does. `e2e/about-print.spec.ts` prints the page in Chromium and requires one Letter page, on the site and on the writing fixture, whose profile holds ten roles, the schema's limit; its known answer, forty roles, prints on more than one page.
 - **Structured data.** A `ProfilePage` whose main entity is Home's Person, with a `Role` per entry in `work` ([Structured data and link previews](#structured-data-and-link-previews)).
-- **Print or save as PDF.** The button under the addresses calls the browser's own print, whose dialog also saves a PDF, from the same print CSS: a PDF the visitor makes, so the site hosts none and no copy outlives an edit. `src/scripts/palette.js` binds it and shows it, so without the script there is no button, and the command menu's Print row on that page presses it. No new script and no new dependency.
+- **Print or save as PDF.** The button in the head calls the browser's own print, whose dialog also saves a PDF, from the same print CSS: a PDF the visitor makes, so the site hosts none and no copy outlives an edit. `src/scripts/palette.js` binds it and shows it, so without the script there is no button, and the command menu's Print row on that page presses it. No new script and no new dependency.
 - **The PDF stays a later, one-way decision (Q9 (b)).** If it ships, it is built, not uploaded: Playwright prints `/about/` at build, Title and Author are set explicitly, no metadata field names a machine, a path or an account, the firewall job reads the metadata with `pdfinfo` and the text with `pdftotext` and fails on anything unexpected, and the file is `/about/joseph-peterson-resume.pdf`. Crawlers and recruiters keep copies of a PDF after it is taken down, so its first version is the strict one.
 - **If a thin résumé reads worse than none**, the fallback is a line of code: draw the résumé's sections on `/about/` only once `work` holds a role. `/resume/` left with a 301 on 2026-10-28, as the ledger requires.
 
@@ -602,7 +634,8 @@ Open Graph: one template per page type, rendered at build for each page as a 120
 |---|---|
 | Home | the name and `<title line — Q-title>`, beside the cluster |
 | About | the name and "About", the header's label; it holds the résumé, whose card this was |
-| Writing, Notes | the section label and the entry's title |
+| Writing, Notes | the section label and its owner's name |
+| A post | its title, its summary where that takes two lines or fewer (one that takes more stays off the card, and is never cut to fit), and who wrote it, all inside a 3:2 centre crop |
 | A lab | its title and its short name, the Queue Lab, as Home and About call it; a lab's own picture and colour |
 | About, Now, Colophon, Decisions | the section label and the page title |
 
@@ -635,7 +668,7 @@ A generated PNG of text sits far below LinkedIn's 5 MB limit. LinkedIn does not 
 
 `/robots.txt` welcomes every crawler, AI crawlers included (Q15 · Q-ai-crawlers in [product.md](product.md)), and points them at the sitemap. `/llms.txt` tells a language model what the site is, in the [llms.txt](https://llmstxt.org/) convention (as of 2026-10-24): an H1 with the site's name, a blockquote with a short summary, then sections of links, each a list of `[name](url)` with an optional note.
 
-- **What it holds.** The name as the H1, and Home's own description as the summary. Contact: the address and the checked profiles, as the footer has them. Pages: Home, each manifest page the build writes and each Writing index. Then the lab's live demos, with their title and summary (from 2026-10-25), the published posts, by section, with their title and summary, and the project cards Home renders. A section with nothing in it is left out, as on a page; a draft never appears.
+- **What it holds.** The name as the H1, and Home's own description as the summary. Contact: the checked profiles, LinkedIn first since that's how people reach Joseph, then the address. Pages: Home, each manifest page the build writes and each Writing index. Then the lab's live demos, with their title and summary (from 2026-10-25), the published posts, by section, with their title and summary, and the project cards Home renders. A section with nothing in it is left out, as on a page; a draft never appears.
 - **One owner per fact.** `src/pages/llms.txt.ts` writes it at build from what the pages read, through the same functions (`src/lib/llms.ts`): `profile.json` through `homeDescription`, `checkedProfiles` and `projectCards`, `site.ts` for the address and the origin, the nav manifest and the posts. It copies no sentence from a page. The hero's sentence and the four principles are written in `index.astro`, so they stay there.
 - **Every scan of `dist/` reads it**: the hold list, the readiness check and the timestamps. So it can name nothing a page could not, which is what Q15's "Wrong if" asks: no AI answer joins the site to something the firewall keeps off it.
 - **Checked.** `test/llms.test.ts`, on every build: the shape; the summary is Home's description; Contact is the checked profiles; and every page in the sitemap is listed, and no other page, so a new page fails the build until it is listed. `e2e/llms.spec.ts` fetches it from the server under test, requires `text/plain; charset=utf-8`, which on the edge only the `_headers` rule gives it, and requests every page it names. The deploy smoke and `prod-smoke` leave it out: a rollback can promote a release from before the file existed.
@@ -695,7 +728,7 @@ Backlog. Owned work and general architecture only; nothing about the day job.
 4. Writing appears with the first published post. That pull request adds every new page URL to `apps/web/published-urls.txt`: the posts, `/writing/`, and `/notes/`, which exists only while Writing renders and a note is published. Every later post adds its own. `test/urls.test.ts` names any URL missing there. The e2e checks walk the pages of the build they serve, so a new page meets axe, the CSP and the smoke checks on its own preview.
 5. Merge. The deploy builds the same posts without drafts, and the feed and the sitemap pick the post up.
 
-The auto-trader teardown, `apps/web/src/content/writing/trading-bot-teardown.md`, is in the repository as a draft since 2026-10-24, with a placeholder stamp that the review stamp refuses, so its pull request stays red until Joseph reads it. Publishing it is steps 3 and 4 and nothing else: set `published` and `firewall_reviewed` to the day of the read, remove `draft: true`, and add `/writing/` and `/writing/trading-bot-teardown/` to `published-urls.txt`. Home then shows its card under Selected work, with a Writing section that holds the "All writing" and "RSS feed" links (the post is not listed twice), and the header gains Writing. No test pins its absence.
+Removing a published post takes the same care as publishing one, since its URL is still a promise ([ADR 0005](adr/0005-url-scheme.md), postscript of 2026-11-03). Delete the file. Keep its line in `published-urls.txt`, which is append-only. Add a 301 from its URL and its `og.png` to the section's index and the index's `og.png` in `public/_redirects`, or to the post that replaces it, with no chain. Take out every reference a reader could reach: a skill's evidence, a lead, a description, a test that names it. `test/removed-post.test.ts` holds the one removal so far: nothing the build serves names it, and `/_redirects`, the one file in `dist/` that may, is never served (`e2e/smoke.spec.ts`).
 
 What a post can hold today: paragraphs, h2 and h3 headings (the title is the page's one `<h1>`), lists, quotations, code (plain mono, wrapped), tables with unaligned columns, and footnotes. Column alignment (`:--:`) writes a style attribute, which the policy refuses, and `test/csp.test.ts` names it. Every character must be in the font subsets, and `test/glyph-coverage.test.ts` names any that is not, with its code point. A table wraps its cells inside the column at 320 px; the fixture tour's wide table proves the rule in `e2e`. Not yet: images. They need a check for WebP, an image budget and an asset pipeline that keeps a draft's images out of production, so until that pull request `test/writing.test.ts` refuses a Markdown image in a post's source, and `test/prose.test.ts` refuses an `img`, `picture` or `source` inside the rendered `div.prose`, which catches every form Markdown writes, a shortcut reference included, a draft included. Raw HTML is not refused yet: it can close that `div` early, or show an image another way (an SVG `image`, an `input type=image`, a video's poster), so write none in a post until a check refuses it.
 

@@ -964,22 +964,58 @@ describe('the property sweep', { timeout: 30_000 }, () => {
 
 // The page (components/queue-lab): what it says and draws of a run, from lib/queue/view.ts.
 describe('the page', () => {
-  test('the note under Load says how many workers are up and what they print: two at the opening, below a busy hour', () => {
+  test('the note under Load says what the workers up can print: two at the opening, below a busy hour', () => {
     const sim = openingRun();
-    expect(capacityWords(sim)).toBe('Two workers are up and print about 6.5.');
+    expect(capacityWords(sim)).toBe('Two workers up can print about 6.5 a second.');
     restart(sim, 1);
-    expect(capacityWords(sim)).toBe('Three workers are up and print about 9.7.');
+    expect(capacityWords(sim)).toBe('Three workers up can print about 9.7 a second.');
     // A slow worker prints a tenth as many, and the picture says which one is slow.
     slow(sim, 0, true);
-    expect(capacityWords(sim)).toBe('Three workers are up and print about 6.8.');
+    expect(capacityWords(sim)).toBe('Three workers up can print about 6.8 a second.');
     slow(sim, 1, true);
     slow(sim, 2, true);
-    expect(capacityWords(sim)).toBe('Three workers are up and print about 1.0.');
+    expect(capacityWords(sim)).toBe('Three workers up can print about 1.0 a second.');
     crash(sim, 0);
     crash(sim, 1);
-    expect(capacityWords(sim)).toBe('One worker is up and prints about 0.3.');
+    expect(capacityWords(sim)).toBe('One worker up can print about 0.3 a second.');
     crash(sim, 2);
     expect(capacityWords(sim)).toBe('No worker is up, so no order is printed.');
+  });
+
+  // Why the note says "can": below capacity they print what comes in. A calm hour's 5 orders a second
+  // keep two workers and three to about 5 a second, while the note says 6.5 and 9.7, and a rush at
+  // prefetch 1 takes them near what it says.
+  test('what the note says is what the workers up can print, not what they are printing', () => {
+    const printed = (load: 'calm' | 'rush', up: 2 | 3) => {
+      const crashed = up === 2 ? [{ at: 0, kind: 'crash' as const, worker: 1 }] : [];
+      const sim = replay({ seed: 1, load, workers: 3 }, crashed, 120_000);
+      return { perSecond: sim.doneCount / 120, said: capacityWords(sim) };
+    };
+    for (const up of [2, 3] as const) expect(printed('calm', up).perSecond).toBeCloseTo(5, 0);
+    expect(printed('calm', 2).said).toBe('Two workers up can print about 6.5 a second.');
+    expect(printed('calm', 3).said).toBe('Three workers up can print about 9.7 a second.');
+    expect(printed('rush', 2).perSecond).toBeGreaterThan(5.8);
+    expect(printed('rush', 3).perSecond).toBeGreaterThan(8.8);
+  });
+
+  // A press's line uses the words on the button: a visitor reads "published" and "producer" nowhere
+  // else on the page, and until 2026-11-03 they read them here, beside Send and Stop taking orders.
+  test('a run says what the controls say: orders come in and stop, with no producer and nothing published', () => {
+    const sim = createSim({ seed: 3, load: 'calm' });
+    runUntil(sim, 1_000);
+    const job = poison(sim);
+    expect(sim.lines.at(-1)?.text).toBe(
+      `Order ${job.id} comes in, and it is poison: it fails on every try`,
+    );
+    stopProducer(sim);
+    expect(sim.lines.at(-1)?.text).toBe('Orders stop: no new ones arrive');
+    startProducer(sim);
+    expect(sim.lines.at(-1)?.text).toBe('Orders start again, at about 5 a second');
+    stopProducer(sim);
+    runUntil(sim, 1_000 + DRAIN_WITHIN + 5_000);
+    const said = [...sim.lines.map((line) => line.text), summary(sim), ...checks(sim)];
+    expect(said.join('\n')).not.toMatch(/publish|producer/i);
+    expect(summary(sim)).toMatch(/still queued or in flight 30 s after orders stopped/);
   });
 
   test('Start over replays the opening with the visitor’s settings: with the key on, order 18 is printed once', () => {

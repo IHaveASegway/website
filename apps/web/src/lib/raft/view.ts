@@ -4,7 +4,6 @@ import type { Server } from './core';
 import {
   committedCount,
   currentTerm,
-  leaderOf,
   leaders,
   replay,
   type Action,
@@ -45,23 +44,19 @@ export const LANDING = { crash: 100, restart: 500, write: 700, ends: 1_000 } as 
 
 /**
  * That story as a script for this run: the same actions a press records, so playing it is a run
- * replay rebuilds. It's the landing's alone. It isn't in OPENING, so the build's picture and a link's
- * run never hold it. A press drops what's left of it, and Start over on a run with no other press in
- * it tells it again (app.ts).
+ * replay rebuilds. It isn't in OPENING, so the build's picture and a link's run never hold it. A press
+ * that changes the run drops what's left of it, and Start over on a run with the story still in it
+ * tells it again (app.ts). Only this opening tells it, and server 1 leads it, as test/raft.test.ts
+ * holds. A fresh list each time, since playing it takes off what it has played.
  */
-export function landingStory(sim: Sim): { actions: Action[]; ends: number } {
-  const leader = leaderOf(sim);
-  if (!leader) return { actions: [], ends: Infinity };
-  const { now } = sim;
-  return {
-    actions: [
-      { at: now + LANDING.crash, kind: 'crash', node: leader.id },
-      { at: now + LANDING.restart, kind: 'restart', node: leader.id },
-      { at: now + LANDING.write, kind: 'write' },
-    ],
-    ends: now + LANDING.ends,
-  };
-}
+export const landingStory = (): Action[] => [
+  { at: OPENING.until + LANDING.crash, kind: 'crash', node: 0 },
+  { at: OPENING.until + LANDING.restart, kind: 'restart', node: 0 },
+  { at: OPENING.until + LANDING.write, kind: 'write' },
+];
+
+/** When that story is over, so the landing run can stand a moment and go round again. */
+export const STORY_ENDS = OPENING.until + LANDING.ends;
 
 /** The shares of messages lost the page's slider offers, in percent: 0 to 50 in steps of 5. */
 export const LOSSES: readonly number[] = Array.from({ length: 11 }, (_, i) => i * 5);

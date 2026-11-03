@@ -400,6 +400,24 @@
   }
 }
 
+/* What a poison order is, beside its button where the row has the room. */
+.lab-row > .qu-note {
+  margin: 0;
+}
+
+/* New orders: one copy shows at a width (NewOrders.astro), in the picture's own controls from 64rem. */
+@media (width < 64rem) {
+  .qu-new-workers {
+    display: none;
+  }
+}
+
+@media (width >= 64rem) {
+  .qu-new-settings {
+    display: none;
+  }
+}
+
 /* One width as its words turn to Take orders, so the row and the settings after it never reflow under
    the pointer. A width, not a least one: a percentage in a least width counts for nothing when the
    settings' row works out what fits on it, so the shorter words took 45 px off the page at some widths

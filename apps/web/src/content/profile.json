@@ -2,15 +2,19 @@
   "basics": {
     "name": "Joseph Peterson",
     "label": "Senior Software Engineer",
-    "summary": "About five years building backend systems and data platforms, and before that I came up through operations.",
+    "summary": "About five years building backend systems and data platforms.",
     "url": "https://ihaveasegway.com/",
     "location": { "countryCode": "US", "remote": true },
     "profiles": [
-      { "network": "GitHub", "url": "https://github.com/IHaveASegway" },
       {
         "network": "LinkedIn",
         "url": "https://www.linkedin.com/in/joseph-peterson-96b90b168/",
         "checked": { "date": "2026-10-23" }
+      },
+      {
+        "network": "GitHub",
+        "url": "https://github.com/IHaveASegway",
+        "checked": { "date": "2026-11-03", "sha": "6adb3ad5c696243d3a057fa6291513354cb93a8a" }
       }
     ]
   },
@@ -25,17 +29,24 @@
     { "name": "Route optimization: VROOM, OSRM", "evidence": ["/lab/routes/"] },
     { "name": "WebAssembly", "evidence": ["/lab/routes/"] },
     { "name": "TypeScript", "evidence": ["/lab/raft/", "/lab/queue/", "/lab/cache/"] },
-    { "name": "AWS Lambda and API Gateway", "evidence": ["/writing/trading-bot-teardown/"] },
     {
       "name": "Coding agents: specs, permissions, tests",
-      "evidence": ["/writing/you-will-be-missed/"]
+      "evidence": ["/writing/coding-by-hand/"]
     }
   ],
   "projects": [
     {
       "name": "stillhere",
-      "description": "What landed, what lasted, who knows the code. Every number traces back to its commits.",
-      "url": "https://github.com/IHaveASegway/stillhere"
+      "description": "Change analytics for git and GitHub. It shows what landed, what lasted and who knows the code, and every number traces back to its commits. It’s pre-release, and it doesn’t measure a person’s value.",
+      "url": "https://github.com/IHaveASegway/stillhere",
+      "tag": "Pre-release",
+      "facts": [
+        { "term": "Validation", "value": "Main metric failed: AUC 0.42, size alone 0.82" },
+        { "term": "Decisions", "value": "15 records" },
+        { "term": "Tests", "value": "181, counting subtests" }
+      ],
+      "measured": "2026-11-03",
+      "checked": { "date": "2026-11-03", "sha": "6adb3ad5c696243d3a057fa6291513354cb93a8a" }
     },
     {
       "name": "gitops",
@@ -43,5 +54,5 @@
       "url": "https://github.com/IHaveASegway/gitops"
     }
   ],
-  "meta": { "firewall_reviewed": "2026-11-02" }
+  "meta": { "firewall_reviewed": "2026-11-03" }
 }
