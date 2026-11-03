@@ -325,6 +325,47 @@ async function play(page: Page, presses: readonly Press[]): Promise<string[]> {
   return found;
 }
 
+/** The fill behind a control, from its computed style. */
+const fill = (control: Locator) => control.evaluate((el) => getComputedStyle(el).backgroundColor);
+
+// A touch screen keeps :hover on what was last tapped (test/hover.test.ts): until 2026-11-02 a switch
+// tapped on and off still looked half on, a paused Run looked pressed, and a grey tile stayed behind
+// the theme icon.
+test('a tap leaves no fill behind: a switch off again, Run after Pause, and the theme button', async ({
+  page,
+}) => {
+  await open(page, '/lab/cache/');
+  const clear = 'rgba(0, 0, 0, 0)';
+  const invalidate = page.locator('[data-cl-toggle="invalidate"]');
+  await expect(invalidate).toHaveAttribute('aria-pressed', 'true');
+  await invalidate.tap();
+  await expect(invalidate).toHaveAttribute('aria-pressed', 'false');
+  expect(await invalidate.evaluate((el) => el.matches(':hover'))).toBe(true);
+  expect(await fill(invalidate)).toBe(clear);
+
+  const run = page.locator('[data-cl-run]');
+  await run.tap();
+  await expect(run).toHaveText('Pause');
+  await run.tap();
+  await expect(run).toHaveText('Run');
+  expect(await fill(run)).toBe(clear);
+
+  const reset = page.locator('[data-cl-reset]');
+  await reset.tap();
+  expect(await fill(reset)).toBe(clear);
+
+  // A chosen radio keeps its fill, which is no hover's: only the one left behind goes clear.
+  const steady = page.locator('label:has(input[name="cl-speed"][value="0.5"])');
+  const quick = page.locator('label:has(input[name="cl-speed"][value="2"])');
+  await quick.tap();
+  expect(await fill(steady)).toBe(clear);
+  expect(await fill(quick)).not.toBe(clear);
+
+  const toggle = page.locator('.theme-toggle').first();
+  await toggle.tap();
+  expect(await fill(toggle)).toBe(clear);
+});
+
 /** The phones the labs are pressed on: the project's iPhone 14, and the narrowest the site is
  *  laid out for, 320 px, where an iPhone SE wraps the labs' words onto more lines. */
 const PHONES = [

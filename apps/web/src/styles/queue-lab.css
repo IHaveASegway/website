@@ -496,9 +496,14 @@
   cursor: pointer;
 }
 
-.qu-choice:hover,
 .qu-choice:has(input:checked) {
   background-color: var(--surface-2);
+}
+
+@media (hover: hover) {
+  .qu-choice:hover {
+    background-color: var(--surface-2);
+  }
 }
 
 /* The radio covers its push-button, edge included, and draws nothing itself: the one focus ring

@@ -728,9 +728,14 @@ legend.cl-group-name {
   line-height: var(--text-ui--line-height);
 }
 
-.cl-choice:hover,
 .cl-choice:has(input:checked) {
   background-color: var(--surface-2);
+}
+
+@media (hover: hover) {
+  .cl-choice:hover {
+    background-color: var(--surface-2);
+  }
 }
 
 /* The radio itself covers its push-button, unseen, so a press anywhere on it chooses, and its

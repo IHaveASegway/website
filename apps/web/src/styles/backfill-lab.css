@@ -666,7 +666,13 @@
   cursor: default;
 }
 
-.bf-switch[aria-disabled='true']:hover {
+@media (hover: hover) {
+  .bf-switch[aria-disabled='true']:hover {
+    background-color: transparent;
+  }
+}
+
+.bf-switch[aria-disabled='true']:active {
   background-color: transparent;
 }
 

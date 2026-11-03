@@ -149,9 +149,11 @@
   text-decoration-line: none;
 }
 
-.lab-contents a:hover {
-  color: var(--primary);
-  text-decoration-line: underline;
+@media (hover: hover) {
+  .lab-contents a:hover {
+    color: var(--primary);
+    text-decoration-line: underline;
+  }
 }
 
 @media (width >= 64rem) {

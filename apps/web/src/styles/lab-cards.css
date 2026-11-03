@@ -29,12 +29,14 @@
   padding: 0;
 }
 
-.lab-card:hover {
-  border-color: var(--input);
-}
+@media (hover: hover) {
+  .lab-card:hover {
+    border-color: var(--input);
+  }
 
-.lab-card:hover .card-title {
-  color: var(--primary);
+  .lab-card:hover .card-title {
+    color: var(--primary);
+  }
 }
 
 .lab-plate {

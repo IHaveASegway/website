@@ -59,9 +59,11 @@
   text-decoration-skip-ink: none;
 }
 
-.hero-statement a[data-line]:hover {
-  color: inherit;
-  text-decoration-thickness: 0.24em;
+@media (hover: hover) {
+  .hero-statement a[data-line]:hover {
+    color: inherit;
+    text-decoration-thickness: 0.24em;
+  }
 }
 
 .hero-more {
