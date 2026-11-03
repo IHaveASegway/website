@@ -789,8 +789,10 @@ test.describe('the Raft Lab’s landing run', () => {
     await expect(said).toHaveText('');
     await expect(line).toHaveText(resting ?? '');
     await expect(line).not.toHaveAttribute('data-spoke');
-    // Round again, too: the run going back is nobody's press.
-    await page.clock.runFor(26_000);
+    // Round again, too: the run going back is nobody's press. It goes back 26.5 s after landing and
+    // the leader crashes about 2 s later, sooner when the app arrives within the page's first 200 ms,
+    // so this reads the middle of that, at 27.5 s. Reading at 28.5 s lost to a fast network.
+    await page.clock.runFor(25_000);
     await expect(summary(page)).toHaveText('Server 1 leads term 1, 3 entries committed.');
     await expect(said).toHaveText('');
     await expect(line).toHaveText(resting ?? '');
