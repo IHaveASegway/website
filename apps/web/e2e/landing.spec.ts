@@ -84,6 +84,17 @@ for (const lab of LABS) {
       await expect(run(page, lab)).toHaveText('Run');
     });
 
+    test('a link to a run followed on the page stops the one it landed on, and that run stands', async ({
+      page,
+    }) => {
+      await page.goto(lab.path);
+      await expect(run(page, lab)).toHaveText('Pause');
+      await page.evaluate(() => (location.hash = '#seed-12'));
+      await expect(run(page, lab)).toHaveText('Run');
+      await page.waitForTimeout(800);
+      await expect(run(page, lab)).toHaveText('Run');
+    });
+
     test('its own Pause stops it alone: the field runs on, and the next lab lands running', async ({
       page,
     }) => {
@@ -126,21 +137,24 @@ for (const lab of LABS) {
       await expect(run(page, lab)).toHaveText('Pause');
     });
 
-    // Reading the write-up from the page's contents is no press. Until 2026-11-02 any change of the
-    // hash ended the landing, and the run played on unseen for as long as they read.
-    test('a link to a part of the page leaves it holding back off the screen; a link to a run makes it stop', async ({
+    // Any hash change used to end all this, so an "On this page" link or the skip link left a run
+    // playing off the screen, deaf to the top bar's Pause, for as long as the tab stayed open.
+    test('a link to a heading is no press: it still pauses off the screen and under the top bar’s Pause', async ({
       page,
     }) => {
       await page.goto(lab.path);
       await expect(run(page, lab)).toHaveText('Pause');
       await page.locator('.lab-contents a').last().click();
       await expect(run(page, lab)).toHaveText('Run');
+      const said = page.locator(`#${lab.name}-lab [role="status"]`).first();
+      await expect(said).toHaveAttribute('aria-live', 'off');
       await page.evaluate(() => scrollTo(0, 0));
       await expect(run(page, lab)).toHaveText('Pause');
-      await page.evaluate(() => (location.hash = '#seed-12'));
+      await page.locator('[data-motion-toggle]').click();
       await expect(run(page, lab)).toHaveText('Run');
-      await page.waitForTimeout(800);
-      await expect(run(page, lab)).toHaveText('Run');
+      const first = await clock(page, lab).textContent();
+      await page.waitForTimeout(700);
+      await expect(clock(page, lab)).toHaveText(first ?? '');
     });
 
     test('its live regions keep quiet until the first press, then speak', async ({ page }) => {

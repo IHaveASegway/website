@@ -5,6 +5,8 @@
 // a live region that spoke from the moment a page opened would talk over the page. Their first press
 // gives it its voice back.
 
+import { readLink } from '../sim/link';
+
 /** What the run does, in the lab's own words. */
 export interface LandingRun {
   /** What Run does from here. */
@@ -35,6 +37,10 @@ export function runOnLanding(root: HTMLElement, run: LandingRun): void {
     const paused = document.documentElement.dataset['motion'] === 'paused';
     const wanted = shown && !document.hidden && !paused;
     if (!wanted) {
+      // The end of a run stands only while it's wanted: going round unseen, or under the top bar's
+      // Pause, would change the picture while nothing is meant to move.
+      clearTimeout(held);
+      held = 0;
       if (run.playing()) run.pause();
       return;
     }
@@ -77,11 +83,11 @@ export function runOnLanding(root: HTMLElement, run: LandingRun): void {
     });
     run.taken?.();
   };
-  /** A link to a run opens it paused, and the demo is theirs. A link to a part of the page, from its
-   *  contents or the skip link, names no run, so the run goes on holding back while it's off the
-   *  screen: ended there, it played on unseen under the write-up, for as long as they read. */
+  /** A link to a run opens that run, paused, and it's theirs from there. A link to a heading only
+   *  moves the page, so the run goes on as it was: it still pauses off the screen and under the top
+   *  bar's Pause. No settings are read here, only whether the hash names a run at all. */
   const followed = () => {
-    if (/^#seed-\d/.test(location.hash)) leave();
+    if (readLink(location.hash, {})) leave();
   };
   /** A press on anything that acts: a button, a choice, or a node of the Raft Lab's picture. */
   const taken = (event: Event) => {
