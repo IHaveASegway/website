@@ -175,6 +175,33 @@ test('each lab row is a link across the column, under its own line in its own co
   }
 });
 
+// A phone has no hover, so a row says it opens something before anyone touches it: its bold line is
+// underlined at rest, in the accent, as every other link on the page is (SC 1.4.1). On 2026-11-03 no
+// row showed it, and the drawings read as decoration.
+test('each row says it is a link at rest: its bold line is underlined in the accent', async ({
+  page,
+}) => {
+  await page.goto('/about/');
+  const accent = await page.evaluate(() => {
+    const probe = document.createElement('span');
+    probe.style.color = 'var(--primary)';
+    document.body.append(probe);
+    const color = getComputedStyle(probe).color;
+    probe.remove();
+    return color;
+  });
+  const leads = await page.locator('.bio-item-lead > a').evaluateAll((all) =>
+    all.map((a) => {
+      const s = getComputedStyle(a);
+      return { text: a.textContent, line: s.textDecorationLine, color: s.textDecorationColor };
+    }),
+  );
+  expect(leads.length).toBeGreaterThan(0);
+  for (const lead of leads) {
+    expect(lead, lead.text ?? '').toEqual({ text: lead.text, line: 'underline', color: accent });
+  }
+});
+
 // The page never goes flat below its first screen (ADR 0030, ADR 0031): the field stands behind every
 // block, nothing paints a ground over it, and each section opens on a line that lights once reached.
 test('below the first screen the field carries on behind the column, and each section opens on a line', async ({

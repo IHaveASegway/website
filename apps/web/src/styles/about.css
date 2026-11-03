@@ -211,6 +211,11 @@
   letter-spacing: -0.005em;
 }
 
+/* A phone has no hover, so a row's link is marked at rest, by the underline every link here wears. */
+.bio-item-lead > a {
+  text-decoration-line: underline;
+}
+
 .bio-item-text {
   margin: 0;
   max-inline-size: var(--measure);
