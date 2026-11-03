@@ -99,4 +99,4 @@ Writing now renders from the first published post, not the third: `MIN_POSTS` in
 
 ## Postscript 2026-11-03
 
-A published post can be removed, and its URL is still a promise: it answers with a 301 to its section's index, its `og.png` to the index's, and its line stays in `apps/web/published-urls.txt`, which stays append-only. A post that's replaced by another answers with a 301 to the new one instead, with no chain. The first removal is `/writing/trading-bot-teardown/`, and [ADR 0031](0031-about-leads-with-what-joseph-builds.md) has the reasoning.
+A published post can be removed, and its URL is still a promise: it answers with a 301 to its section's index, its `og.png` to the index's, and its line stays in `apps/web/published-urls.txt`, which stays append-only. A post that's replaced by another answers with a 301 to the new one instead, with no chain. [ADR 0031](0031-about-leads-with-what-joseph-builds.md) has the first removal and the reasoning.

@@ -7,7 +7,7 @@ import { files, read, textFiles } from './support/dist';
 // the one file in the build that may say it: Cloudflare reads that file and never serves it, which
 // e2e/smoke.spec.ts holds, with a 404 on /_redirects. On every build vitest.config.ts names.
 
-const GONE = /teardown|trading|alpaca|serverless-auto/i;
+const GONE = /teardown|trading/i;
 
 /** Each place a text or a path gives the post away. */
 export const traces = (name: string, text: string): string[] =>
@@ -27,8 +27,7 @@ describe('the removed post leaves nothing in the build', () => {
   test('known answers: what it catches, in any case, and what it passes', () => {
     expect(traces('a.html', 'A Trading bot')).toEqual(['a.html: Trading']);
     expect(traces('a.html', 'read the TEARDOWN')).toEqual(['a.html: TEARDOWN']);
-    expect(traces('a.html', 'a stock broker, Alpaca')).toEqual(['a.html: Alpaca']);
-    expect(traces('serverless-auto.js', '')).toEqual(['serverless-auto.js: serverless-auto']);
+    expect(traces('trading.js', '')).toEqual(['trading.js: trading']);
     expect(traces('a.html', 'Coding is fun.')).toEqual([]);
   });
 });

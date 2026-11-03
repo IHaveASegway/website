@@ -42,7 +42,7 @@ Reading a draft of About on 2026-11-03, Joseph set three things the site had got
 - `profile.json`'s `skills` have no reader on the page. They're kept, with their evidence kept true, and Joseph can delete them or give them a use.
 - With the teardown gone, the site holds no page with code, so the checks of inline code read the writing fixture, or code they add to the essay.
 - About's order, led by the Cache Lab, is Home's too; `/lab/` and the command menu keep their own, easiest first.
-- A reader who kept a link to the teardown lands on `/writing/`, which no longer mentions it. Search engines drop the page in time, and archives keep what they kept: a 301 can't recall a copy.
+- A reader who kept a link to the teardown lands on `/writing/`, which no longer mentions it. Search engines drop the page in time, and archives keep what they kept: a 301 can't recall a copy. The post also stays readable in this public repository's history, and taking it out would take a rewrite of `main`, which is Joseph's call.
 
 ## Door
 
