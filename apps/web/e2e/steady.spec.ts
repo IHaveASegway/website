@@ -509,28 +509,42 @@ test('in a log scrolled back, what a reader is reading stays where it is as the 
     box.style.setProperty('overflow-anchor', 'none');
     box.scrollTop = -200;
   });
-  const reading = () =>
-    log.evaluate((box) => {
-      const top = box.getBoundingClientRect().top;
-      const line = [...box.querySelectorAll('li')].find(
-        (item) => item.getBoundingClientRect().top >= top,
-      );
-      return {
-        words: line?.textContent,
-        at: Math.round((line?.getBoundingClientRect().top ?? 0) - top),
-      };
-    });
-  const before = await reading();
-  await page.waitForTimeout(1_500);
+  // The run writes when it has something to say, and can say nothing for seconds, so this waits for
+  // the next line and never for a time: a fixed wait passed or failed by where the run stood.
+  const lines = log.locator('li');
+  const newest = () => lines.last().textContent();
+  const nextLine = async () => {
+    const was = await newest();
+    await expect.poll(newest, { timeout: 20_000 }).not.toBe(was);
+  };
+  const words = await log.evaluate((box) => {
+    const top = box.getBoundingClientRect().top;
+    const line = [...box.querySelectorAll('li')].find(
+      (item) => item.getBoundingClientRect().top >= top + 8,
+    );
+    return line?.textContent ?? '';
+  });
+  const standing = () =>
+    log.evaluate((box, reading) => {
+      const line = [...box.querySelectorAll('li')].find((item) => item.textContent === reading);
+      return (line?.getBoundingClientRect().top ?? NaN) - box.getBoundingClientRect().top;
+    }, words);
+  const before = await standing();
+  const count = await lines.count();
+  await nextLine();
   await run.tap();
-  expect(await reading()).toEqual(before);
+  // Scroll offsets are whole pixels and a line's height isn't, so each line written can round by a
+  // pixel. A line nothing held would move by the height of what was written, 17 px a line at least.
+  const written = (await lines.count()) - count;
+  expect(written).toBeGreaterThan(0);
+  expect(Math.abs((await standing()) - before)).toBeLessThanOrEqual(1 + written);
   expect(await log.evaluate((box) => box.scrollTop)).toBeLessThan(-200);
   // Back at its end, it follows the newest line again, with no script to tell it.
   await log.evaluate((box) => {
     box.scrollTop = 0;
   });
   await run.tap();
-  await page.waitForTimeout(800);
+  await nextLine();
   expect(await log.evaluate((box) => box.scrollTop)).toBe(0);
 });
 
