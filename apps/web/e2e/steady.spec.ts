@@ -275,6 +275,8 @@ const LONGEST_SAID = [
   'Loads now file under the clock’s day. The week starts over under it, at 00:00, before the job is switched on. Press Run to watch it.',
   'Serving stale is off. The run starts over under it, at 2.500 s, before the menu expires. Press Run to watch it.',
   'Worker 1 crashes holding orders 26, 27, 28 and 7 more, after order 26’s ticket printed and before its acknowledgement left.',
+  'Nothing is left in the queue or in flight, so the clock stops here. Run plays it again from 1.500 s, or take orders, then Run, to carry on.',
+  'Every run has finished, so the clock stops here. Run plays the week again from the switch, or clear a day, then Run, to rerun it.',
 ];
 
 const FLOWS: Record<keyof typeof LABS, Press[]> = {
