@@ -24,7 +24,7 @@ Reading a draft of About on 2026-11-03, Joseph set three things the site had got
 
 **A published post can leave.** The file goes. Its URL and its link card answer with a 301 to its section's index, or to the post that replaces it, with no chain, and its line stays in the ledger, which stays append-only. Everything a reader could reach goes with it, and a test reads the build for its words. See ADR 0005's postscript of today.
 
-**stillhere is linked as it stands.** Its check and the GitHub profile's are recorded at the commit they read, because Joseph accepted the commit identities outside the allowed list and the scan's hits as they are. Its card leads with its limits and its published failed metric.
+**stillhere is linked as it stands.** Its check and the GitHub profile's are recorded at the commit they read, because Joseph accepted stillhere's commit identities outside the allowed list and the scan's hits as they are. That acceptance names stillhere alone. The profile's line of the checklist and the account's other public repositories stay open, on Joseph's account (`docs/roadmap.md`, PR 4). Its card leads with its limits and its published failed metric.
 
 ## Alternatives
 

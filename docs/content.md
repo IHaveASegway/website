@@ -389,7 +389,7 @@ Of owned work, the site features three things and nothing else, besides the post
 
 ### stillhere (lead)
 
-**Card → repo only.** stillhere's card links to its repository, so its README is the page a reader lands on, and the README carries the pitch: what it does, its limits statement, and the public numbers below. The tables below are the brief for that README pass, made in stillhere's own repository before its card turns on.
+**Card → repo only.** stillhere's card links to its repository, so its README is the page a reader lands on, and the README carries the pitch: what it does, its limits statement, and the public numbers below. The tables below are the brief for that README pass, in stillhere's own repository. Its card turned on without it on 2026-11-03, and the pass is still to come.
 
 Change analytics for git and GitHub: what landed, what lasted, who knows the code. Every number traces back to its commits. Apache-2.0, pre-release (no tagged release at `cd5f2f7`, the commit the check read on 2026-11-03).
 
@@ -479,7 +479,7 @@ A card renders on Home when three things hold, each in a reviewed pull request:
 
 `projectCards()` in `src/lib/profile.ts` owns the rule. `test/project-cards.test.ts` checks that Home shows exactly the cards it returns, then the featured posts' cards, on the real build (stillhere's alone today) and on a fixture build where a made-up project, checked and held by nothing, renders its card and its link.
 
-stillhere's card turned on this way on 2026-11-03. Its record and the GitHub profile's each carry `checked: {date: 2026-11-03, sha: cd5f2f7…}`: a profile has no commit of its own, so its record names the commit the check read. The check is recorded because Joseph accepted the commit identities outside the allowed list and the scan's hits as they are, on 2026-11-03. The GitHub link then appears wherever `checkedProfiles()` renders: Home's opening, beside LinkedIn, the footer, the command menu's Links, `sameAs` and the `WebSite`'s `alternateName` in the JSON-LD, `/llms.txt`, and the résumé's addresses on paper. The Route Lab's credit links VROOM's own repository, under an exact-URL exception in `test/readiness.test.ts`: it reaches no account of Joseph's.
+stillhere's card turned on this way on 2026-11-03. Its record and the GitHub profile's each carry `checked: {date: 2026-11-03, sha: cd5f2f7…}`: a profile has no commit of its own, so its record names the commit the check read. The check is recorded because Joseph accepted stillhere's commit identities outside the allowed list and the scan's hits as they are, on 2026-11-03. That acceptance names stillhere alone: the profile's line of the checklist and the account's other public repositories are still open ([roadmap.md](roadmap.md#pr-4-about-and-now)), and the profile's record stands because no repository can be linked without it. The GitHub link then appears wherever `checkedProfiles()` renders: Home's opening, beside LinkedIn, the footer, the command menu's Links, `sameAs` and the `WebSite`'s `alternateName` in the JSON-LD, `/llms.txt`, and the résumé's addresses on paper. The Route Lab's credit links VROOM's own repository, under an exact-URL exception in `test/readiness.test.ts`: it reaches no account of Joseph's.
 
 ## Names held off the site
 
