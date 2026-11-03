@@ -11,7 +11,7 @@ import { app, html, read } from './support/dist';
 // font a browser fell back to. This reads every post page in the build, a draft's included, splits
 // its text by the face that draws it (titles and headings in Archivo ExtraCondensed, the register,
 // the post's day, kind, reading time and tags, in Archivo Expanded since ADR 0027, bold in Archivo SemiBold, code in
-// B612 Mono, the rest in Archivo) and names each missing character, with the way out, so a post
+// JetBrains Mono, the rest in Archivo) and names each missing character, with the way out, so a post
 // fails with a sentence instead of a font name.
 
 /** The characters a self-hosted face carries, read from its own cmap (the files fonts.test.ts locks). */
@@ -37,7 +37,7 @@ const FACES = {
     where: 'bold text',
     file: 'reading-serif-semibold.woff2',
   },
-  mono: { name: 'B612 Mono', where: 'code', file: 'b612-mono-regular.woff2' },
+  mono: { name: 'JetBrains Mono', where: 'code', file: 'jetbrains-mono-regular.woff2' },
 } as const;
 type Face = keyof typeof FACES;
 const CHARS = Object.fromEntries(
@@ -146,13 +146,13 @@ test('known answers: a missing character is named with its code point and its fa
     '"←" (U+2190) in bold text: not in Reading Serif SemiBold',
   ]);
   expect(glyphProblems(page('<pre><code>├── src</code></pre>'))).toEqual([
-    '"├" (U+251C) in code: not in B612 Mono',
-    '"─" (U+2500) in code: not in B612 Mono',
+    '"├" (U+251C) in code: not in JetBrains Mono',
+    '"─" (U+2500) in code: not in JetBrains Mono',
   ]);
-  // The same letter is fine in prose and missing in code: the faces are cut to one range, and B612
-  // Mono has no dotless i. A code span inside a heading is code.
-  expect(glyphProblems(page('<h2>On <code>ı</code></h2><p>ı</p>'))).toEqual([
-    '"ı" (U+0131) in code: not in B612 Mono',
+  // The same character is fine in prose and missing in code: the faces are cut to one range, and
+  // JetBrains Mono has no double exclamation mark. A code span inside a heading is code.
+  expect(glyphProblems(page('<h2>On <code>‼</code></h2><p>‼</p>'))).toEqual([
+    '"‼" (U+203C) in code: not in JetBrains Mono',
   ]);
   // A page the check cannot read fails: a body under another class, or no header, is not clean.
   expect(() =>

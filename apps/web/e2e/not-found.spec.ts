@@ -65,6 +65,22 @@ for (const size of WIDTHS) {
   });
 }
 
+// The title is one line wherever the words have the column to themselves, and wherever the drawing
+// stands beside them: at 768 px, with the drawing beside it, it broke "Page not / found".
+for (const width of [768, 900, 1024, 1280, 1440, 2560]) {
+  test(`at ${width} px the 404's title stands on one line`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(MISSING);
+    await page.evaluate(() => document.fonts.ready);
+    const lines = await page.locator('h1').evaluate((title) => {
+      const range = document.createRange();
+      range.selectNodeContents(title);
+      return new Set([...range.getClientRects()].map((box) => Math.round(box.top))).size;
+    });
+    expect(lines).toBe(1);
+  });
+}
+
 // The known answer: the same reading finds a shape moved onto the title.
 test('known answer: the overlap check finds a shape moved onto the title', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });

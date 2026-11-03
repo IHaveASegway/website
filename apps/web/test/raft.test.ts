@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { fresh } from '../src/components/raft-lab/app';
-import { check, createChecker } from '../src/lib/raft/check';
+import { LINES_SHOWN } from '../src/lib/lab/event-log';
+import { check, createChecker, PROPERTIES } from '../src/lib/raft/check';
 import {
   createServer,
   crash as crashServer,
@@ -14,11 +15,15 @@ import {
   type Server,
 } from '../src/lib/raft/core';
 import {
+  committedCount,
   crash,
   createSim,
+  currentTerm,
   heal,
   leaderOf,
+  leaders,
   nextTime,
+  playTo,
   replay,
   restart,
   runUntil,
@@ -34,17 +39,23 @@ import {
 import {
   cutFence,
   footprint,
+  LANDING,
+  landingStory,
   linkTo,
   logMarkup,
   logWords,
   LOSSES,
-  nextSeed,
   OPENING,
   openingRun,
+  PROMISES,
+  propertyWord,
   readRun,
   SEEDS_IN_CI,
-  SIZE,
+  serverState,
+  VIEW_BOX,
+  summary,
 } from '../src/lib/raft/view';
+import { read } from './support/dist';
 
 // The Raft Lab's core (ADR 0020): known answers for each of Figure 2's rules, then a property
 // sweep. The sweep runs many seeded runs with crashes, partitions and loss, checks the five safety
@@ -209,7 +220,6 @@ describe('AppendEntries', () => {
     expect(s.role).toBe('candidate');
     at(s, append({ term: 1 }));
     expect(s.role).toBe('follower');
-    expect(s.leader).toBe(1);
   });
 });
 
@@ -440,8 +450,8 @@ function stepUntil(sim: Sim, reached: (sim: Sim) => boolean): void {
   }
 }
 
-/** A vote request or AppendEntries due at the millisecond the run stands at, to a node that is up
- *  and on the sender's side of the network: the node will answer it. */
+/** A vote request or AppendEntries due at the millisecond the run stands at, to a server that is up
+ *  and on the sender's side of the network: the server will answer it. */
 const dueNow = (s: Sim): Flight | undefined =>
   s.flights.find(
     (f) =>
@@ -454,7 +464,7 @@ const dueNow = (s: Sim): Flight | undefined =>
 test('determinism: an action taken between two events of one millisecond lands at its end, where replay puts it', () => {
   // Driven event by event, as the Next event button drives a run. An action records only its
   // time, and replay runs every event up to that time before it acts, so no action may land before
-  // another event of its millisecond: here, a message still on its way to a node. The run is
+  // another event of its millisecond: here, a message still on its way to a server. The run is
   // compared with its replay as the action lands and again 2 s on: some early differences, such
   // as two timers drawn in the other order, are gone by then, yet they made a different run.
   const takes: Record<Action['kind'], (sim: Sim, due: Flight) => void> = {
@@ -474,7 +484,7 @@ test('determinism: an action taken between two events of one millisecond lands a
     for (let seed = 1; seed <= 5; seed++) {
       const sim = createSim({ seed });
       runUntil(sim, 1_000);
-      // Node 5 down and node 4 cut off, so there is a node to restart and a cut to heal.
+      // Server 5 down and server 4 cut off, so there is a server to restart and a cut to heal.
       crash(sim, 4);
       split(sim, [0, 0, 0, 1, 0]);
       stepUntil(sim, (s) => dueNow(s) !== undefined);
@@ -556,7 +566,7 @@ test('a run the page opens with messages lost records the loss at the opening’
   expect(differences(fresh(7, 0), openingRun())).toEqual([]);
 });
 
-test('a link names a run’s seed and its loss, read as the other labs read theirs, and Start over’s seed comes back to 0 after six digits', () => {
+test('a link names a run’s seed and its loss, read as the other labs read theirs', () => {
   // Start over with the slider at 30% writes the loss, so the link opens the run that loses them.
   expect(linkTo(8, 30)).toBe('#seed-8&loss=30');
   expect(linkTo(8, 0)).toBe('#seed-8');
@@ -567,10 +577,8 @@ test('a link names a run’s seed and its loss, read as the other labs read thei
   expect(readRun('#seed-12&loss=33')).toEqual({ seed: 12, loss: 0 });
   expect(readRun('#seed-12&loss=10')).toEqual({ seed: 12, loss: 10 });
   expect(readRun('#main')).toBeNull();
-  // The link reads six digits, so the seed after the last of them is one it can name.
-  expect(nextSeed(41)).toBe(42);
-  expect(nextSeed(999_999)).toBe(0);
-  expect(readRun(linkTo(nextSeed(999_999), 20))).toEqual({ seed: 0, loss: 20 });
+  // The link reads six digits, and no more.
+  expect(readRun('#seed-999999')).toEqual({ seed: 999_999, loss: 0 });
   expect(readRun(`#seed-${999_999 + 1}`)).toBeNull();
 });
 
@@ -600,9 +608,397 @@ test('a log says what its server knows is committed, so a crash keeps the entrie
   expect(logWords(leader)).toBe(`3 entries, 3 known committed, last of term ${term}`);
 });
 
+describe('the committed count', () => {
+  const crashAll = (sim: Sim) => sim.servers.forEach((s) => crash(sim, s.id));
+  const restartAll = (sim: Sim) => sim.servers.forEach((s) => restart(sim, s.id));
+
+  test('known answer: crash all five and the caption still says 3, though no server remembers any', () => {
+    const sim = openingRun();
+    expect(summary(sim)).toBe('Server 1 leads term 1, 3 entries committed.');
+    crashAll(sim);
+    expect(sim.servers.map((s) => s.commitIndex)).toEqual([0, 0, 0, 0, 0]);
+    expect(committedCount(sim)).toBe(3);
+    expect(summary(sim)).toBe('No leader, 3 entries committed, 5 servers down.');
+  });
+
+  test('known answer: after a full restart a new leader can’t count old entries, and the caption still says 3 until a write commits', () => {
+    const sim = openingRun();
+    crashAll(sim);
+    restartAll(sim);
+    expect(summary(sim)).toBe('Term 1 lost its leader, 3 entries committed.');
+    stepUntil(sim, (s) => leaderOf(s) !== null);
+    runUntil(sim, sim.now + 500);
+    // Section 5.4.2: a leader commits only its own term's entries by counting, so none knows yet.
+    expect(sim.servers.map((s) => s.commitIndex)).toEqual([0, 0, 0, 0, 0]);
+    const leader = leaderOf(sim) as Server;
+    expect(summary(sim)).toBe(
+      `Server ${leader.id + 1} leads term ${leader.term}, 3 entries committed.`,
+    );
+    // One write of its own term commits, and with it the three before it: every dot fills again.
+    write(sim);
+    runUntil(sim, sim.now + 500);
+    expect(sim.writes.at(-1)?.state).toBe('committed');
+    expect(sim.servers.map((s) => s.commitIndex)).toEqual([4, 4, 4, 4, 4]);
+    expect(summary(sim)).toBe(
+      `Server ${leader.id + 1} leads term ${leader.term}, 4 entries committed.`,
+    );
+  });
+
+  test('it never falls, and it covers every write the run calls committed, whatever crashes', () => {
+    const broken: string[] = [];
+    for (let seed = 1; seed <= 200; seed++) {
+      const sim = createSim({ seed });
+      const pick = seeded(seed * 31 + 5);
+      let before = 0;
+      while (sim.now < 5_000 && !sim.violation) {
+        runUntil(sim, sim.now + 40);
+        const roll = pick();
+        const id = Math.floor(pick() * 5);
+        if (roll < 0.3) write(sim);
+        else if (roll < 0.45) crash(sim, id);
+        else if (roll < 0.7) restart(sim, id);
+        const count = committedCount(sim);
+        const most = Math.max(0, ...sim.servers.map((s) => s.commitIndex));
+        const told = sim.writes.filter((w) => w.state === 'committed').map((w) => w.index);
+        if (count < before) broken.push(`seed ${seed}: fell from ${before} to ${count}`);
+        if (count < most) broken.push(`seed ${seed}: ${count} under a server's ${most}`);
+        if (told.some((index) => index > count))
+          broken.push(`seed ${seed}: a write committed past ${count}`);
+        before = count;
+      }
+      if (before === 0) broken.push(`seed ${seed}: nothing ever committed, so it proved nothing`);
+    }
+    expect(broken).toEqual([]);
+  });
+});
+
+describe('the caption never contradicts the picture', () => {
+  /** Seed 7 with its leader cut off, stepped until `reached`. */
+  const cutOff = (reached: (sim: Sim) => boolean) => {
+    const sim = openingRun();
+    const leader = leaderOf(sim) as Server;
+    split(
+      sim,
+      sim.servers.map((s) => (s.id === leader.id ? 1 : 0)),
+    );
+    stepUntil(sim, reached);
+    return sim;
+  };
+
+  test('known answers: while the others elect, and after, it says who still thinks it leads', () => {
+    const during = cutOff((s) => s.servers.some((x) => x.role === 'candidate'));
+    expect(during.servers.filter((s) => s.role === 'leader').map((s) => s.id)).toEqual([0]);
+    expect(leaderOf(during)).toBeNull();
+    expect(summary(during)).toBe(
+      'No leader in term 2, 3 entries committed, the network is split. Server 1 still thinks it leads term 1.',
+    );
+    const after = cutOff((s) => leaderOf(s) !== null && leaderOf(s)?.id !== 0);
+    expect(after.servers.filter((s) => s.role === 'leader')).toHaveLength(2);
+    expect(summary(after)).toBe(
+      `Server ${(leaderOf(after) as Server).id + 1} leads term 2, 3 entries committed, the network is split. Server 1 still thinks it leads term 1.`,
+    );
+  });
+
+  test('it says so once the network heals, until the old leader hears, and then it stops', () => {
+    const sim = cutOff((s) => leaderOf(s) !== null && leaderOf(s)?.id !== 0);
+    heal(sim);
+    expect(summary(sim)).toContain('Server 1 still thinks it leads term 1.');
+    runUntil(sim, sim.now + 200);
+    expect(leaders(sim).behind).toEqual([]);
+    expect(summary(sim)).not.toContain('still');
+  });
+
+  test('known answer: more than one old leader, in one sentence', () => {
+    const sim = openingRun();
+    Object.assign(sim.servers[1] as Server, { role: 'leader', term: 2 });
+    Object.assign(sim.servers[2] as Server, { role: 'candidate', term: 3 });
+    expect(leaders(sim).behind.map((s) => s.id)).toEqual([0, 1]);
+    expect(summary(sim)).toBe(
+      'No leader in term 3, 3 entries committed. Servers 1 and 2 still think they lead older terms.',
+    );
+  });
+
+  test('with nobody up, it names no term, since no server is there to hold one', () => {
+    const sim = openingRun();
+    sim.servers.forEach((s) => crash(sim, s.id));
+    expect(summary(sim)).toMatch(/^No leader, /);
+    expect(leaders(sim).behind).toEqual([]);
+  });
+
+  test('a down leader is not an old leader: it is down, and the caption says that', () => {
+    const sim = openingRun();
+    crash(sim, 0);
+    expect(summary(sim)).toBe('Term 1 lost its leader, 3 entries committed, 1 server down.');
+    expect(leaders(sim).behind).toEqual([]);
+  });
+
+  // Split two from three, crash the leader on the small side, and the one server left there times
+  // out over and over, its term climbing past the working leader's with no way to win. It said "No
+  // leader in term 15" here, while that leader committed a write.
+  test('known answer: a cut-off server’s climbing term says nothing about the leader the majority has', () => {
+    const sim = openingRun();
+    split(sim, [1, 1, 0, 0, 0]);
+    stepUntil(sim, (s) => (leaderOf(s)?.id ?? 0) > 1);
+    crash(sim, 0);
+    const leader = leaderOf(sim) as Server;
+    runUntil(sim, sim.now + 3_000);
+    const alone = sim.servers[1] as Server;
+    expect(alone.term).toBeGreaterThan(leader.term + 3);
+    expect(leaderOf(sim)).toBe(leader);
+    expect(currentTerm(sim)).toBe(leader.term);
+    expect(summary(sim)).toBe(
+      `Server ${leader.id + 1} leads term ${leader.term}, 3 entries committed, 1 server down, the network is split.`,
+    );
+    write(sim);
+    runUntil(sim, sim.now + 300);
+    expect(sim.writes.at(-1)?.state).toBe('committed');
+    expect(summary(sim)).toContain(`Server ${leader.id + 1} leads term ${leader.term}, 4 entries`);
+    // Heal, and its term reaches the leader, which steps down: now it is true that nobody leads it.
+    heal(sim);
+    expect(summary(sim)).toBe(
+      `No leader in term ${alone.term}, 4 entries committed, 1 server down. Server ${leader.id + 1} still thinks it leads term ${leader.term}.`,
+    );
+  });
+
+  test('in any state a run reaches, every server drawn as a leader is named, as leading or as behind', () => {
+    const broken: string[] = [];
+    let behind = 0;
+    for (let seed = 1; seed <= 200; seed++) {
+      const sim = createSim({ seed });
+      const pick = seeded(seed * 13 + 3);
+      while (sim.now < 5_000 && !sim.violation) {
+        runUntil(sim, sim.now + 30);
+        const roll = pick();
+        const id = Math.floor(pick() * 5);
+        if (roll < 0.1) crash(sim, id);
+        else if (roll < 0.25) restart(sim, id);
+        else if (roll < 0.33)
+          split(
+            sim,
+            sim.servers.map(() => (pick() < 0.5 ? 0 : 1)),
+          );
+        else if (roll < 0.4) heal(sim);
+        const drawn = sim.servers.filter((s) => s.up && s.role === 'leader');
+        const named = leaders(sim);
+        const words = summary(sim);
+        behind += named.behind.length;
+        const all = [named.leader, ...named.behind].filter((s) => s !== null);
+        if (JSON.stringify(all.map((s) => s.id).sort()) !== JSON.stringify(drawn.map((s) => s.id)))
+          broken.push(`seed ${seed} at ${sim.now}: ${words}`);
+        if (named.leader && !words.startsWith(`Server ${named.leader.id + 1} leads term `))
+          broken.push(`seed ${seed} at ${sim.now}: ${words}`);
+        if (!named.leader && !/^(No leader|Term \d+ lost its leader)/.test(words))
+          broken.push(`seed ${seed} at ${sim.now}: ${words}`);
+        if (named.behind.length > 0 && !/ still think(s it leads| they lead) /.test(words))
+          broken.push(`seed ${seed} at ${sim.now}: ${words}`);
+        // "Behind" means it: on an older term than whoever is named, or than the term "No leader"
+        // names, so the two halves of the sentence can't disagree.
+        const newest = named.leader?.term ?? currentTerm(sim);
+        if (named.behind.some((s) => s.term >= newest))
+          broken.push(`seed ${seed} at ${sim.now}: ${words}`);
+      }
+    }
+    expect(broken).toEqual([]);
+    // The sweep did reach the states the sentence is for.
+    expect(behind).toBeGreaterThan(100);
+  });
+
+  // A newer term beside a leader on the small side is a message or two from reaching it. Counting it
+  // early said "No leader in term 2" and "Server 1 still thinks it leads term 2" in one breath, and with
+  // no side able to elect, named a leader of term 2 over one of term 3 it called behind.
+  test('known answer: a newer term on a leader’s own small side changes nothing until it hears', () => {
+    const sim = openingRun();
+    split(sim, [1, 1, 0, 0, 0]);
+    Object.assign(sim.servers[1] as Server, { role: 'candidate', term: 2 });
+    expect(leaderOf(sim)?.id).toBe(0);
+    expect(summary(sim)).toBe('Server 1 leads term 1, 3 entries committed, the network is split.');
+  });
+
+  test('known answer: with no side able to elect, the newest leader is named and the older is behind', () => {
+    const sim = openingRun();
+    split(sim, [1, 1, 0, 0, 0]);
+    crash(sim, 4);
+    Object.assign(sim.servers[0] as Server, { role: 'leader', term: 3 });
+    Object.assign(sim.servers[1] as Server, { role: 'candidate', term: 4 });
+    Object.assign(sim.servers[2] as Server, { role: 'leader', term: 2 });
+    expect(summary(sim)).toBe(
+      'Server 1 leads term 3, 3 entries committed, 1 server down, the network is split. Server 3 still thinks it leads term 2.',
+    );
+  });
+
+  test('with no side able to elect, the highest term anywhere is the term, and a leader there leads it', () => {
+    const sim = openingRun();
+    split(sim, [1, 1, 0, 0, 0]);
+    crash(sim, 3);
+    crash(sim, 4);
+    expect(summary(sim)).toBe(
+      'Server 1 leads term 1, 3 entries committed, 2 servers down, the network is split.',
+    );
+    runUntil(sim, sim.now + 1_000);
+    // Server 3, alone on its side, has climbed. No side can vote it in or outvote server 1.
+    expect((sim.servers[2] as Server).term).toBeGreaterThan(1);
+    expect(leaderOf(sim)?.id).toBe(0);
+    expect(currentTerm(sim)).toBe((sim.servers[2] as Server).term);
+  });
+});
+
+describe('the five safety properties, by name', () => {
+  test('known answer: Figure 3’s names, in its order, each with what it promises', () => {
+    expect(PROPERTIES.map((name) => [name, PROMISES[name]])).toEqual([
+      ['Election Safety', 'At most one leader in a term.'],
+      ['Leader Append-Only', 'A leader never overwrites or deletes its own entries.'],
+      ['Log Matching', 'Logs with the same term at an index match up to it.'],
+      ['Leader Completeness', 'A committed entry is in the log of every later leader.'],
+      ['State Machine Safety', 'No two servers apply different entries at one index.'],
+    ]);
+    expect([propertyWord(true), propertyWord(false)]).toEqual(['Held', 'Broken']);
+  });
+
+  test('a broken server: the run names the property as its row names it, and says when and how', () => {
+    let sim: Sim | null = null;
+    for (let seed = 1; seed <= SEEDS && !sim; seed++) {
+      const run = faultyRun(seed, { anyLogVotes: true }).sim;
+      if (run.violation) sim = run;
+    }
+    const violation = (sim as Sim).violation as NonNullable<Sim['violation']>;
+    // The page finds a property's row by this name (components/raft-lab/app.ts).
+    expect(PROPERTIES).toContain(violation.property);
+    expect(violation.detail).toMatch(/^Server \d /);
+  });
+});
+
+describe('the run a visitor lands on', () => {
+  /** Plays the story on from the opening in a page's frames, a limit on each. */
+  const played = (limit = Infinity, frame = 16) => {
+    const sim = openingRun();
+    const story = landingStory(sim);
+    const ahead = [...story.actions];
+    while (sim.now < story.ends) playTo(sim, ahead, sim.now + frame, limit);
+    return { sim, ends: story.ends, left: ahead };
+  };
+
+  test('known answers: the leader crashes, another wins a newer term, and all five end on one log', () => {
+    const { sim, left } = played();
+    expect(left).toEqual([]);
+    const lines = sim.lines.slice(openingRun().lines.length);
+    expect(lines.map((line) => `${line.at} ${line.text}`)).toEqual([
+      '1500 Server 1 crashes. It keeps its term, its vote and its log on disk',
+      '1648 Server 3 times out and asks for votes in term 2',
+      '1696 Server 3 wins term 2 with 3 votes',
+      '1900 Server 1 restarts as a follower in term 1, with 3 entries',
+      '2100 Server 3 takes write 4 at index 4 in term 2',
+      '2154 Server 3 commits up to index 4, an entry of term 2',
+      '2155 Write 4 is committed at index 4: it can never be lost',
+    ]);
+    // Past the opening, the logs stay short enough to hold one line on a phone.
+    expect(sim.servers.map((s) => s.log.length)).toEqual([4, 4, 4, 4, 4]);
+    expect(sim.servers.map((s) => s.commitIndex)).toEqual([4, 4, 4, 4, 4]);
+    expect(summary(sim)).toBe('Server 3 leads term 2, 4 entries committed.');
+    expect(sim.violation).toBeNull();
+  });
+
+  test('the story is a run its actions replay, whatever the frames were, and a frame’s budget only delays it', () => {
+    for (const { sim, left } of [played(), played(Infinity, 7), played(2)]) {
+      expect(left).toEqual([]);
+      expect(differences(replay({ seed: OPENING.seed }, sim.actions, sim.now), sim)).toEqual([]);
+      expect(sim.lines).toEqual(played().sim.lines);
+    }
+  });
+
+  test('an action waits for the frame that gets to it, when the budget runs out first', () => {
+    const sim = openingRun();
+    const ahead: Action[] = [{ at: sim.now + 200, kind: 'crash', node: 0 }];
+    playTo(sim, ahead, sim.now + 300, 1);
+    // One event's budget: the clock stands short of the crash, and the crash is still ahead.
+    expect(sim.now).toBeLessThan(OPENING.until + 200);
+    expect(ahead).toHaveLength(1);
+    expect(sim.servers[0]?.up).toBe(true);
+    playTo(sim, ahead, OPENING.until + 300);
+    expect(ahead).toEqual([]);
+    expect(sim.servers[0]?.up).toBe(false);
+  });
+
+  test('it changes nothing the build draws or a link opens: only the landing ever holds it', () => {
+    const { actions } = landingStory(openingRun());
+    expect(actions.map((a) => a.kind)).toEqual(['crash', 'restart', 'write']);
+    expect(actions.map((a) => a.at)).toEqual([
+      OPENING.until + LANDING.crash,
+      OPENING.until + LANDING.restart,
+      OPENING.until + LANDING.write,
+    ]);
+    // The opening has none of it, so the picture, a link's run and Start over have none either.
+    expect(OPENING.actions.every((a) => a.kind === 'write' && a.at < OPENING.until)).toBe(true);
+    expect(differences(fresh(OPENING.seed, 0), openingRun())).toEqual([]);
+    expect(fresh(12, 0).actions).toEqual(OPENING.actions);
+    // A run with no leader to crash has no story to tell.
+    const none = openingRun();
+    none.servers.forEach((s) => crash(none, s.id));
+    expect(landingStory(none)).toEqual({ actions: [], ends: Infinity });
+  });
+
+  test('Start over’s run is the opening again on the same seed and loss, line for line', () => {
+    const seen = fresh(8, 0.3);
+    runUntil(seen, 3_000);
+    const again = fresh(seen.seed, seen.loss);
+    expect(differences(again, fresh(8, 0.3))).toEqual([]);
+    runUntil(again, 3_000);
+    expect(differences(again, seen)).toEqual([]);
+  });
+});
+
+describe('a visitor reads server, never node (docs/content.md, "The site\'s language")', () => {
+  const NODE = /\bnodes?\b/i;
+
+  test('every line a run can write, and what the caption and a button say', () => {
+    const said: string[] = [];
+    for (let seed = 1; seed <= 200; seed++) {
+      const { sim } = faultyRun(seed);
+      said.push(summary(sim), ...sim.lines.map((line) => line.text));
+      if (sim.violation) said.push(sim.violation.detail);
+      said.push(...sim.servers.map(serverState));
+    }
+    // Each kind of line turned up, so the sweep read what it says it read.
+    for (const kind of ['times out', 'wins term', 'becomes a follower', 'drops', 'commits up to'])
+      expect(said.some((line) => line.includes(kind))).toBe(true);
+    for (const kind of ['crashes', 'restarts', 'The network splits', 'The network heals'])
+      expect(said.some((line) => line.includes(kind))).toBe(true);
+    expect(said.filter((line) => NODE.test(line))).toEqual([]);
+    // The broken servers' words too, which a visitor would meet only if a property broke.
+    for (const faults of [{ anyLogVotes: true }, { oldTermCommits: true }]) {
+      for (let seed = 1; seed <= SEEDS; seed++) {
+        const { sim } = faultyRun(seed, faults);
+        if (sim.violation) expect(sim.violation.detail).not.toMatch(NODE);
+        if (sim.violation) break;
+      }
+    }
+  });
+
+  test('the built page: its words and every name it gives assistive technology', () => {
+    const page = read('lab/raft/index.html').replace(/<(script|style)\b[\s\S]*?<\/\1>/g, ' ');
+    const names = [...page.matchAll(/aria-label="([^"]*)"/g)].map(([, name]) => name ?? '');
+    const words = page.replace(/<[^>]+>/g, ' ');
+    expect(words).toContain('Crash server 1');
+    expect(names.join(' ')).toContain('Server 1: 3 entries');
+    expect(words).not.toMatch(NODE);
+    expect(names.filter((name) => NODE.test(name))).toEqual([]);
+  });
+});
+
+test('the event log opens on the run’s first line at build, as it does in the browser: an election before its win', () => {
+  const sim = openingRun();
+  expect(sim.lines.length).toBeLessThanOrEqual(LINES_SHOWN);
+  const list = /data-rf-lines[^>]*>([\s\S]*?)<\/ol>/.exec(read('lab/raft/index.html'))?.[1] ?? '';
+  const items = [...list.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/g)].map(([, item]) =>
+    (item ?? '').replace(/<[^>]+>/g, '').trim(),
+  );
+  expect(items).toHaveLength(sim.lines.length);
+  expect(items[0]).toBe('0.151 s Server 1 times out and asks for votes in term 1');
+  expect(items[2]).toBe('0.213 s Server 1 wins term 1 with 3 votes');
+});
+
 describe('the cut', () => {
   type Point = readonly [number, number];
-  /** Every split of five nodes into two runs of the circle: one node cut off, or two. */
+  /** Every split of five servers into two runs of the circle: one server cut off, or two. */
   const splits = [1, 2].flatMap((n) =>
     Array.from({ length: 5 }, (_, start) =>
       Array.from({ length: 5 }, (_, id) => ((id - start + 5) % 5 < n ? 1 : 0)),
@@ -631,7 +1027,7 @@ describe('the cut', () => {
   }
 
   test.each(splits)(
-    'split %j: a fence closes off the smaller side, clear of every other node and its text',
+    'split %j: a fence closes off the smaller side, clear of every other server and its text',
     (...groups) => {
       const fence = corners(cutFence(groups) ?? 'MZ');
       const cutOff = groups.filter((g) => g === 1).length <= 2 ? 1 : 0;
@@ -640,17 +1036,18 @@ describe('the cut', () => {
           if (g === cutOff) expect(reach(fence, point)).toBeLessThan(-4);
           else expect(reach(fence, point)).toBeGreaterThan(4);
         }
+      // Inside the picture's frame, its 1.5 unit line and all.
+      const [left = 0, top = 0, wide = 0, tall = 0] = VIEW_BOX.split(' ').map(Number);
       for (const [x, y] of fence) {
-        expect(x).toBeGreaterThanOrEqual(0);
-        expect(x).toBeLessThanOrEqual(SIZE);
-        expect(y).toBeGreaterThanOrEqual(0);
-        expect(y).toBeLessThanOrEqual(SIZE);
+        expect(x - 0.75).toBeGreaterThanOrEqual(left);
+        expect(x + 0.75).toBeLessThanOrEqual(left + wide);
+        expect(y - 0.75).toBeGreaterThanOrEqual(top);
+        expect(y + 0.75).toBeLessThanOrEqual(top + tall);
       }
     },
   );
 
-  test('no fence while the network is whole, or when a side is not one run of the circle', () => {
+  test('no fence while the network is whole', () => {
     expect(cutFence([0, 0, 0, 0, 0])).toBeNull();
-    expect(cutFence([1, 0, 1, 0, 0])).toBeNull();
   });
 });

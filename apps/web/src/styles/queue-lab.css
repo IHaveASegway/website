@@ -1,6 +1,6 @@
 /*
   The Queue Lab (/lab/queue/): the picture of the broker and its workers, the history strip, the
-  three properties, the controls and the event log (ADR 0026, after
+  three checks, the controls and the event log (ADR 0026, after
   ADR 0020's pattern). Only that page links this file. Every colour is a token from tokens.css: the
   picture draws in the lab's line (--line, from data-line in global.css) and lights a lamp in
   --primary; state is a lamp's shape and a word, never a hue. A state the browser sets is an
@@ -221,20 +221,14 @@
 }
 
 .qu-summary {
-  max-width: var(--measure);
   min-block-size: 6lh;
-  color: var(--muted-foreground);
-  font-family: var(--font-label);
-  font-size: var(--text-label);
-  line-height: var(--text-label--line-height);
-  font-variant-numeric: tabular-nums;
 }
 
-/* The caption, the status line and the strip's head say the run in words, and their words change
-   with every frame of it; each keeps the room its longest words take at that width from the first
-   paint, so nothing under it moves while the run plays or when Start over shortens it. The counts:
-   the opening's story at 320 px is six lines, and a busy run's at 384 px five; the status line's
-   three; the head's two (measured with each number a digit longer than a run made it). */
+/* The caption and the strip's head say the run in words, and their words change with every frame of
+   it; each keeps the room its longest words take at that width from the first paint, so nothing under
+   it moves while the run plays or when Start over shortens it. The counts: the opening's story at 320
+   px is six lines, and a busy run's at 384 px five; the head's two (measured with each number a digit
+   longer than a run made it). */
 @media (width >= 24rem) {
   .qu-summary {
     min-block-size: 5lh;
@@ -327,120 +321,58 @@
   vector-effect: non-scaling-stroke;
 }
 
+/* The axis keeps to one row, so its ends mark the chart's: at 320 px the end fell under the start. The
+   words between them take two lines where they must, and that room is kept where a longer clock could
+   need it, so nothing under the chart moves. A rem in a media query is the visitor's own text size: at
+   16 px every phone has this row, and with larger text on a narrow screen it wraps, or it would push the
+   page wider than the window (SC 1.4.10). */
 .qu-strip-foot {
   padding-inline-start: 2.75rem;
 }
 
-/* The three properties: a lamp filled while one holds, and once broken ⊗, a hollow lamp crossed,
-   the site's mark for failed (design-system.md, "Lamps: one meaning per mark"); the words beside
-   it say which. The slash alone is a lost order's, on the tickets. */
-.qu-props {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
-  gap: 0.75rem 1.5rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+@media (width >= 18rem) {
+  .qu-strip-foot {
+    flex-wrap: nowrap;
+  }
+
+  .qu-strip-foot > :not(:nth-child(2)) {
+    flex: none;
+  }
+
+  .qu-strip-foot > :nth-child(2) {
+    text-align: center;
+  }
 }
 
-.qu-prop {
-  display: grid;
-  grid-template-columns: 1rem minmax(0, 1fr);
-  column-gap: 0.625rem;
-  align-items: baseline;
-  font-family: var(--font-label);
-  font-size: var(--text-label);
-  line-height: var(--text-label--line-height);
-}
-
-.qu-lamp {
-  position: relative;
-  align-self: center;
-  inline-size: 0.875rem;
-  block-size: 0.875rem;
-  border: 2px solid var(--line);
-  border-radius: 50%;
-  background-color: var(--line);
-}
-
-.qu-prop[data-held='false'] .qu-lamp {
-  background-color: transparent;
-}
-
-/* The cross stands inside the ring, as the Backfill Lab's failed step's does: two bars through the
-   lamp's middle, each a little short of the ring. */
-.qu-prop[data-held='false'] .qu-lamp::before,
-.qu-prop[data-held='false'] .qu-lamp::after {
-  content: '';
-  position: absolute;
-  inset-block-start: 50%;
-  inset-inline-start: 50%;
-  inline-size: 0.5rem;
-  block-size: 2px;
-  margin-block-start: -1px;
-  margin-inline-start: -0.25rem;
-  background-color: var(--line);
-  rotate: 45deg;
-}
-
-.qu-prop[data-held='false'] .qu-lamp::after {
-  rotate: -45deg;
-}
-
-.qu-prop-name {
-  color: var(--foreground);
-  font-size: var(--text-ui);
-  line-height: var(--text-ui--line-height);
-}
-
-.qu-prop-words {
-  grid-column: 2;
-  color: var(--muted-foreground);
-}
-
-.qu-prop[data-held='false'] .qu-prop-words {
-  color: var(--foreground);
-}
-
-.qu-status,
-.qu-clock {
-  margin: 0;
-  max-width: var(--measure);
-  font-family: var(--font-label);
-  font-size: var(--text-label);
-  line-height: var(--text-label--line-height);
-}
-
-.qu-status {
-  min-block-size: 3lh;
-  color: var(--foreground);
-  font-variant-numeric: tabular-nums;
-}
-
-@media (width >= 48rem) {
-  .qu-status {
+@media (18rem <= width < 24rem) {
+  .qu-strip-foot {
     min-block-size: 2lh;
   }
 }
 
-.qu-clock {
-  margin-block-start: 0.5rem;
-  color: var(--muted-foreground);
-  font-variant-numeric: tabular-nums;
+/* The three checks, under their heading (lab-controls.css). The drain's words are the longest, after a
+   dozen failed drains in one run, and take a second line at the narrowest phones: that room is kept. */
+.qu-checks {
+  gap: 0.75rem;
+}
+
+@media (width < 24rem) {
+  [data-qu-prop='drains'] .lab-check-word {
+    min-block-size: 2lh;
+  }
 }
 
 /* The opening's crash, on a line of its own under the clock, in the ink: it says where to look
    in a run started over, which stands before it. */
 .qu-ahead {
-  display: block;
+  flex-basis: 100%;
   color: var(--foreground);
 }
 
-/* The controls: push-buttons in groups, each named. A choice is a radio drawn as a push-button,
-   its lamp lit while it is the one chosen, as a pressed button's is (global.css, .btn). The
-   picture's own, under it: Time, Speed, the key and the workers, in groups that flow on as the
-   desk allows, one under another on a phone. The settings, after the properties, under a rule
-   from bezel to bezel. */
+/* The controls: the shared groups (lab-controls.css). The picture's own, under it: Time, the key and the
+   workers, in groups that flow on as the desk allows, one under another on a phone. The settings,
+   after the checks, under a rule from bezel to bezel. Each part ends in the line that says what its
+   presses did, which keeps its room whether or not it has anything to say. */
 .qu-controls,
 .qu-settings {
   display: flex;
@@ -455,79 +387,26 @@
   border-block-start: 1px solid var(--border);
 }
 
-/* Each group as wide as its buttons, flowing on as the desk allows. */
-.qu-group {
-  flex: 0 1 auto;
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
+.qu-controls > .lab-said,
+.qu-settings > .lab-said {
+  flex-basis: 100%;
 }
 
-.qu-legend {
-  display: block;
-  margin-block-end: 0.5rem;
-  padding: 0;
-  color: var(--muted-foreground);
-  font-family: var(--font-label);
-  font-size: var(--text-label);
-  line-height: var(--text-label--line-height);
+/* Two lines is the most its words take where the desk is this wide. */
+@media (width >= 48rem) {
+  .qu-controls > .lab-said,
+  .qu-settings > .lab-said {
+    min-block-size: 2lh;
+  }
 }
 
-.qu-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.qu-choice {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-height: 2.75rem;
-  padding: 0.375rem 0.875rem;
-  border: 1px solid var(--input);
-  color: var(--foreground);
-  font-family: var(--font-label);
-  font-size: var(--text-ui);
-  font-weight: 500;
-  line-height: var(--text-ui--line-height);
-  cursor: pointer;
-}
-
-.qu-choice:hover,
-.qu-choice:has(input:checked) {
-  background-color: var(--surface-2);
-}
-
-/* The radio covers its push-button, edge included, and draws nothing itself: the one focus ring
-   every focusable element has (global.css) goes around the whole button, as a button's does. The
-   lamp after it is hollow, and lit while its radio is chosen, the button pressed in, raised. */
-.qu-choice input {
-  position: absolute;
-  inset-block-start: -1px;
-  inset-inline-start: -1px;
-  inline-size: calc(100% + 2px);
-  block-size: calc(100% + 2px);
-  margin: 0;
-  border: 0;
-  appearance: none;
-  background-color: transparent;
-  cursor: pointer;
-}
-
-.qu-choice-lamp {
-  flex: none;
-  inline-size: 0.625rem;
-  block-size: 0.625rem;
-  border: 1.5px solid currentColor;
-  border-radius: 50%;
-}
-
-.qu-choice input:checked + .qu-choice-lamp {
-  border-color: var(--primary);
-  background-color: var(--primary);
+/* One width as its words turn to Take orders, so the row and the settings after it never reflow under
+   the pointer. A width, not a least one: a percentage in a least width counts for nothing when the
+   settings' row works out what fits on it, so the shorter words took 45 px off the page at some widths
+   (e2e/steady.spec.ts). */
+.qu-producer {
+  inline-size: 10rem;
+  max-inline-size: 100%;
 }
 
 .qu-note {
@@ -560,91 +439,16 @@
   line-height: var(--text-label--line-height);
 }
 
-/* Run keeps one width, its lamp and all, as its words turn to Pause, so the row never shifts
-   under the pointer; a worker's buttons keep theirs as their words change. */
-.qu-run {
-  min-inline-size: 6.5rem;
-}
-
+/* A worker's buttons keep one width as their words change. */
 .qu-toggle {
   min-inline-size: 6.5rem;
 }
 
-/* Read by assistive technology, kept off the screen: what the last press did. */
-.qu-sr {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  border-width: 0;
-  white-space: nowrap;
-}
-
-/* The event log: the newest line last, in a describer's window, raised, that scrolls; a part of
-   the desk of its own, under a rule from bezel to bezel. */
+/* The event log (lab-controls.css), a part of the desk of its own, under a rule from bezel to bezel. */
 .qu-events {
   display: grid;
   gap: 0.75rem;
   margin-inline: calc(var(--desk-side) * -1);
   padding: 1.5rem var(--desk-side) 0;
   border-block-start: 1px solid var(--border);
-}
-
-.qu-heading {
-  margin: 0;
-  font-family: var(--font-label);
-  font-size: var(--text-ui);
-  font-weight: 500;
-  line-height: var(--text-ui--line-height);
-}
-
-/* The log's box is one size whatever it holds, before the run's first line and after its sixtieth,
-   so a run that empties it, or fills it, moves nothing under it (steady.spec.ts). */
-.qu-lines {
-  block-size: 16rem;
-  padding: 0.75rem 1rem;
-  overflow-y: auto;
-  background-color: var(--surface-2);
-  font-size: var(--text-label);
-  line-height: var(--text-label--line-height);
-}
-
-.qu-list {
-  display: grid;
-  gap: 0.25rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* A line's time in a column of its own, so its words wrap under themselves, never under the time. */
-.qu-list li {
-  display: grid;
-  grid-template-columns: 5.5rem minmax(0, 1fr);
-}
-
-.qu-at {
-  color: var(--muted-foreground);
-  font-family: var(--font-label);
-  font-variant-numeric: tabular-nums;
-}
-
-/* Forced colours (Windows contrast themes) replace fills with the user's background. The lamps
-   keep their shapes in the user's palette: a filled lamp stays filled, and a chosen one lit. */
-@media (forced-colors: active) {
-  .qu-lamp,
-  .qu-prop[data-held='false'] .qu-lamp::before,
-  .qu-prop[data-held='false'] .qu-lamp::after,
-  .qu-choice input:checked + .qu-choice-lamp {
-    forced-color-adjust: none;
-    border-color: CanvasText;
-    background-color: CanvasText;
-  }
-
-  .qu-prop[data-held='false'] .qu-lamp {
-    background-color: Canvas;
-  }
 }

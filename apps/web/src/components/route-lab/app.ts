@@ -20,6 +20,8 @@ import {
   mapTitle,
   placesMarkup,
   planLine,
+  PLAN_NAMES,
+  PREVIOUS,
   roomText,
   routesMarkup,
   vansMarkup,
@@ -33,13 +35,18 @@ import type { Nearest } from './boot';
 
 // The Route Lab in the browser, loaded when a visitor shows intent (boot.ts). The controls and the
 // map are the state: which day, how many vans, which places have an order and in what order they
-// came in. Every change redraws the dealt-in-turn plan at once, and VROOM plans the same orders
-// again a moment later, in a module Web Worker that runs the WebAssembly build beside the page
+// came in. Every change plans the orders again a moment later, in a module Web Worker that runs the
+// WebAssembly build beside the page
 // (ADR 0016). One solve runs at a time: changes made during it are planned once it answers, as
 // one; a solve that has not answered in 15 s (60 s for the first, which loads the solver) is
 // stopped, and the next change tries again. Each change and VROOM's answer are said
 // in one line, on screen and to assistive technology. Nothing is stored and nothing is sent
 // anywhere: the only requests are the route data and the solver's own files.
+//
+// The two plans and the headline change together, when VROOM answers, or the figures on the page come
+// from two different plans for as long as it takes: until 2026-11-03 a first press read "VROOM saves
+// 2 h 22 min" beside 5 h 10 min and 3 h 12 min, while the solver loaded. If VROOM can't answer, the
+// plan as dealt shows at once, and the headline says VROOM's is for the previous orders.
 
 const FAILED =
   'This browser could not run the solver. VROOM’s plan on the map is the last one it made.';
@@ -123,8 +130,15 @@ export async function start(root: HTMLElement, queued: Element[], nearest: Neare
     plan,
     measured: measure(data, plan),
   });
+  const opened = keyOf(first.orders, first.vans);
   let solved = solvedFor(first.orders, first.vans, { routes: first.routes, unassigned: [] });
-  let dealt: Plan = { routes: [], unassigned: [] };
+  /** The plan as dealt that's on the map: the build's, until a change is planned. */
+  let dealt: Plan = dealtInTurn(
+    data,
+    first.orders,
+    first.vans,
+    capacityFor(data, first.orders, first.vans),
+  );
   const fresh = () => solved.key === keyOf(orders, vans);
   /** What the last change did, said with VROOM's answer to it. */
   let note = '';
@@ -141,9 +155,14 @@ export async function start(root: HTMLElement, queued: Element[], nearest: Neare
 
   /** The plan each map shows, once this module has drawn one: both maps' vans keep one clock. */
   const onMap: Partial<Record<Which, { plan: Plan; measured: Measured }>> = {};
+  /** Whether this module is drawing again the plan the build drew, which the vans are driving. */
+  let asBuilt = keyOf(orders, vans) === opened;
 
-  /** Redraws the vans on both maps, from the start of their day. */
+  /** Redraws the vans on both maps, from the start of their day. A visitor only has to look at the
+   *  demo to load this module, a mouse over it, a focus in it, and until 2026-11-02 that sent the
+   *  vans on the plan they were driving back to the bakery. */
   function drive() {
+    if (asBuilt) return;
     const longest = Math.max(onMap.before?.measured.back ?? 0, onMap.after?.measured.back ?? 0);
     for (const which of ['before', 'after'] as const) {
       const shown = onMap[which];
@@ -175,20 +194,32 @@ export async function start(root: HTMLElement, queued: Element[], nearest: Neare
     if (holder) holder.innerHTML = tableMarkup(data, measured, caption);
   }
 
-  /** Redraws everything that follows from the controls: the dealt-in-turn plan, and whether
-   *  VROOM's plan on show is for these orders. */
+  /** Redraws everything that follows from the controls: whether VROOM's plan on show is for these
+   *  orders, and when it is, or VROOM can't answer, the dealt-in-turn plan and the words on both. */
   function update() {
-    const capacity = capacityFor(data, orders, vans);
-    dealt = dealtInTurn(data, orders, vans, capacity);
-    const measured = measure(data, dealt);
-    draw('before', dealt, measured, orders.length, vans);
-    table('before', measured, 'As the orders came in');
     const isFresh = fresh();
+    if (isFresh || broken || stalled) {
+      const capacity = capacityFor(data, orders, vans);
+      dealt = dealtInTurn(data, orders, vans, capacity);
+      const measured = measure(data, dealt);
+      draw('before', dealt, measured, orders.length, vans);
+      table('before', measured, PLAN_NAMES.before);
+      text(
+        $('[data-rl-saved]'),
+        orders.length === 0
+          ? NONE
+          : isFresh
+            ? savedText(measured, solved.measured)
+            : 'VROOM’s plan on the map is for the previous orders.',
+      );
+      text($('[data-rl-capacity]'), roomText(data, orders, vans, capacity));
+    }
     const after = figure('after');
     after?.toggleAttribute('data-rl-stale', !isFresh);
     $('[data-rl-readout]')?.toggleAttribute('data-rl-stale', !isFresh);
     const stale = after && $('[data-rl-note]', after);
-    // Unseen while fresh, but in its place (route-lab.css), so the map under it never moves.
+    // Shown while stale, in the place of the line that says when that plan's last van is back
+    // (route-lab.css), so nothing under it moves.
     stale?.toggleAttribute('data-rl-off', isFresh);
     if (after)
       text(
@@ -198,16 +229,25 @@ export async function start(root: HTMLElement, queued: Element[], nearest: Neare
     table(
       'after',
       solved.measured,
-      isFresh ? 'Planned by VROOM' : 'Planned by VROOM, for the previous orders',
+      isFresh ? PLAN_NAMES.after : `${PLAN_NAMES.after}, ${PREVIOUS.toLowerCase()}`,
     );
-    if (orders.length === 0) text($('[data-rl-saved]'), NONE);
-    else if (isFresh) text($('[data-rl-saved]'), savedText(measured, solved.measured));
-    else if (broken || stalled)
-      text($('[data-rl-saved]'), 'VROOM’s plan on the map is for the previous orders.');
-    const room = $<HTMLElement>('[data-rl-capacity]');
-    text(room, roomText(data, orders, vans, capacity));
-    if (room) room.hidden = orders.length === 0;
+    if (tipped) tip(tipped.map, tipped.place);
     emit();
+    if (keyOf(orders, vans) !== opened) stills();
+  }
+
+  // The cube's pictures and their words, a view of these plans too (still.ts), from the first change:
+  // until then the build drew what they show. One that fails to load tries again on the next.
+  let still: Promise<void> | undefined;
+  function stills() {
+    still ??= import('./still')
+      .then(({ follow }) => {
+        follow(root);
+        emit();
+      })
+      .catch(() => {
+        still = undefined;
+      });
   }
 
   /** Tells the page's other views what the maps now show: the space-time cube reads both plans
@@ -415,11 +455,17 @@ export async function start(root: HTMLElement, queued: Element[], nearest: Neare
     for (const svg of all<SVGSVGElement>('svg[data-rl-map]')) tip(svg, null);
   });
 
+  /** The tip on show, drawn again after a change: until 2026-11-03 a stop clicked away kept its order
+   *  in the tip until the mouse moved. */
+  let tipped: { map: SVGSVGElement; place: number } | undefined;
+
   function tip(svg: SVGSVGElement, place: number | null) {
     const group = $<SVGGElement>('[data-rl-tip]', svg);
     const label = group && $<SVGTextElement>('text', group);
     const panel = group && $<SVGRectElement>('rect', group);
     if (!group || !label || !panel) return;
+    if (place !== null) tipped = { map: svg, place };
+    else if (tipped?.map === svg) tipped = undefined;
     const p = place === null ? undefined : data.points[place];
     group.toggleAttribute('data-rl-show', p !== undefined);
     if (place === null || !p) return;
@@ -454,9 +500,15 @@ export async function start(root: HTMLElement, queued: Element[], nearest: Neare
     panel.setAttribute('height', String(box.height + 2 * pad));
   }
 
-  update();
-  // What the visitor did while this module loaded, in order; the state above already holds it,
-  // and replaying it says what it did.
+  // What the controls say, unless the visitor did something while this module loaded: then it's half
+  // done, a chosen day's chip over the opening day's places, which is the solved plan's orders dealt
+  // in another order. Until 2026-11-02 the headline worked out a saving from that, which no plan on
+  // the page had, and kept it until VROOM answered: "VROOM saves 2 h 14 min of driving" on the way
+  // from a busy Saturday's 2 h 22 min to a quiet Tuesday's 52 min.
+  if (queued.length === 0) update();
+  asBuilt = false;
+  // What the visitor did while this module loaded, in order: replaying it draws it, and says what
+  // it did.
   for (const action of queued.splice(0)) {
     if (action instanceof HTMLInputElement) input(action);
     else surprise();

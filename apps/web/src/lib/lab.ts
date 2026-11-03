@@ -1,5 +1,6 @@
 import { z } from 'astro/zod';
 import { asDay } from './posts';
+import { typeset } from './typeset.mjs';
 import type { WorkCard } from './work';
 
 // The lab (content.md, "Content model"; lab.md): demos with a write-up, one Markdown entry each in
@@ -50,8 +51,8 @@ export interface LabEntry {
 
 export const fromLab = (slug: string, data: LabData): LabEntry => ({
   slug,
-  title: data.title,
-  summary: data.summary,
+  title: typeset(data.title),
+  summary: typeset(data.summary),
   decisions: data.decisions,
 });
 
@@ -68,10 +69,37 @@ export interface LabArea {
   readonly visible: boolean;
 }
 
+/** Each lab's short name, the one Home and About call it by, in the order a visitor meets the labs:
+ *  easiest to follow first. The Route Lab's map asks for no jargon at all. The rest go as What I
+ *  build goes, so Home and /lab/ tell them in one order: the queue, the cache, the backfill, and
+ *  Raft, the deepest. Until 2026-11-02 they sorted by slug, so a recruiter's first card on /lab/ was
+ *  "Backfill", the hardest word on the site, and the Route Lab came last. */
+export const LAB_NAMES = [
+  { slug: 'routes', name: 'Route Lab' },
+  { slug: 'queue', name: 'Queue Lab' },
+  { slug: 'cache', name: 'Cache Lab' },
+  { slug: 'backfill', name: 'Backfill Lab' },
+  { slug: 'raft', name: 'Raft Lab' },
+] as const;
+
+/** A lab's short name, or undefined for a lab that has none yet. */
+export const labName = (slug: string): string | undefined =>
+  LAB_NAMES.find((lab) => lab.slug === slug)?.name;
+
+/** Sorts slugs in the order the labs are met. A lab with no place yet comes after them, by slug, so
+ *  a new one can't fall out of a list. */
+export function byLabOrder(a: string, b: string): number {
+  const place = (slug: string) => {
+    const at = LAB_NAMES.findIndex((lab) => lab.slug === slug);
+    return at < 0 ? LAB_NAMES.length : at;
+  };
+  return place(a) - place(b) || a.localeCompare(b);
+}
+
 export function labArea(entries: readonly LabEntry[]): LabArea {
   if (entries.some((entry) => entry.slug === 'api'))
     throw new Error('lab: "api" is reserved for the lab Worker (ADR 0009)');
-  const sorted = [...entries].sort((a, b) => a.slug.localeCompare(b.slug));
+  const sorted = [...entries].sort((a, b) => byLabOrder(a.slug, b.slug));
   return { entries: sorted, visible: sorted.length > 0 };
 }
 

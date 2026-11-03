@@ -43,7 +43,7 @@ const {
   published,
 } = Astro.props;
 // The body, rendered before the page around it: a body with a code span or block makes the page
-// declare B612 Mono, the face code is set in, and a body without one leaves it out (Base.astro).
+// declare JetBrains Mono, the face code is set in, and a body without one leaves it out (Base.astro).
 const body = await Astro.slots.render('default');
 const code = /<(code|pre)\b/i.test(body);
 ---

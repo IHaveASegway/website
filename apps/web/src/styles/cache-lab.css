@@ -1,6 +1,6 @@
 /*
   The Cache Lab (/lab/cache/): readers fanning in to four cache nodes, the database behind them, the
-  last 2 s of reads by what they got, the three properties, the controls and the event log. Only
+  last 2 s of reads by what they got, the three checks, the controls and the event log. Only
   that page links this file. Every colour is a token from tokens.css, and the lab's own is its
   line, var(--line), which data-line='cache' sets (global.css). State the browser sets is an
   attribute (data-*), never a class, so every class here is one a built page carries
@@ -34,8 +34,8 @@
 }
 
 /* Below 64rem the desk is one column: the map and its caption, the panel's first part, the strip
-   and the properties, then the other settings. The first part is right under the map so that on a
-   phone the two fit one screen, and nothing pins: the visitor scrolls the desk as a page. The
+   and the checks, then the other settings. The first part is right under the map so that on a
+   phone the map and Time fit one screen, and nothing pins: the visitor scrolls the desk as a page. The
    panel's box steps aside so its two parts take places of their own in that column; the settings
    go last by their order, and since the strip and the properties hold nothing that takes focus,
    Tab still meets the controls in the order they are seen. Each part, and the strip after the
@@ -59,8 +59,8 @@
   }
 }
 
-/* From 64rem, with the controls, the picture, the strip and the properties under it take the
-   left, and the panel the right, its first part on top. */
+/* From 64rem, with the controls, the picture, the strip and the checks under it take the left, and
+   the panel the right, its first part on top. */
 @media (scripting: enabled) and (width >= 64rem) {
   .cl-stage {
     grid-template-columns: minmax(0, 1.7fr) minmax(16rem, 1fr);
@@ -71,12 +71,12 @@
 
   .cl-figure,
   .cl-strip,
-  .cl-props {
+  .cl-checks {
     grid-column: 1;
   }
 
   /* The panel stands beside all three and runs on past them, into a last row of its own, so the
-     properties sit right under the strip however tall the panel is. */
+     checks sit right under the strip however tall the panel is. */
   .cl-panel {
     grid-column: 2;
     grid-row: 1 / -1;
@@ -107,16 +107,36 @@
   }
 }
 
-.cl-readers {
-  grid-column: 1 / 3;
+.cl-map-head {
+  grid-column: 1 / -1;
   grid-row: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0 1rem;
+}
+
+.cl-readers,
+.cl-menu-line {
   margin: 0;
-  color: var(--muted-foreground);
   font-family: var(--font-label);
   font-size: var(--text-label);
   font-weight: var(--text-label--font-weight);
   line-height: var(--text-label--line-height);
   font-variant-numeric: tabular-nums;
+}
+
+.cl-readers {
+  color: var(--muted-foreground);
+}
+
+/* The menu's words, with a lamp that says what its lamp in its node says: over the nodes, since the
+   page every stampede is about moves between them as nodes are lost, and four boxes keeping room for
+   words that only one holds kept the database off a phone's first screen. */
+.cl-menu-line {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
 }
 
 /* The fan and the links stretch to the nodes' height and give it none of their own: four bands,
@@ -209,11 +229,11 @@
   color: var(--foreground);
 }
 
-/* A node's pages, a lamp each, the menu first where it lives, with its words. Under them, in the
-   same cell, the node's room (picture.ts, roomLamps): as many lamps as a node holds with one node
-   down, and the menu's longest words, laid out the same way and never seen. The cell is as tall as
-   the taller of the two, so the box keeps one height while the menu's words change and the lamps
-   move between nodes, and the four rows, which take the tallest node's height, keep theirs. */
+/* A node's pages, a lamp each, the menu first where it lives. Under them, in the same cell, the
+   node's room (picture.ts, roomLamps): as many lamps as a node holds with one node down, laid out
+   the same way and never seen. The cell is as tall as the taller of the two, so the box keeps one
+   height while the lamps move between nodes, and the four rows, which take the tallest node's
+   height, keep theirs. */
 .cl-room {
   display: grid;
 }
@@ -266,18 +286,6 @@
 .cl-lamp[data-state='busy'] {
   border-width: 2px;
   background-color: var(--primary);
-}
-
-.cl-menu {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  margin-inline-end: 0.375rem;
-  font-family: var(--font-label);
-  font-size: var(--text-label);
-  font-weight: var(--text-label--font-weight);
-  line-height: var(--text-label--line-height);
-  font-variant-numeric: tabular-nums;
 }
 
 .cl-menu-lamp,
@@ -384,26 +392,54 @@
 
 /* Where the picture has less than about 26 lines of its labels' width, any phone held upright or a
    larger text size, the database stands under the nodes, whole, rather than past the window's edge
-   (SC 1.4.10); the lines to it are left out, and the fan still runs in from the left. The nodes
-   then have the picture's width, so the room each keeps for its lamps and the menu's words
-   (.cl-room) is three rows and two lines, not the five and three a box beside the database needs
-   at 390 px. */
+   (SC 1.4.10); the lines to it are left out, and the fan still runs in from the left. The lead says
+   to watch the database, so all of it stands on a phone's first screen, with the stampede above it:
+   at 390 by 664 the lamps are a size smaller, to keep a node to two rows of them, and the menu's words
+   take a line of their own over the nodes. */
 @container (width < 26rem) {
   .cl-map {
     grid-template-columns: 1.75rem minmax(0, 1fr);
   }
 
-  .cl-readers {
-    grid-column: 1 / -1;
+  .cl-menu-line {
+    flex-basis: 100%;
   }
 
   .cl-links {
     display: none;
   }
 
+  .cl-node {
+    padding-block: 0.125rem;
+  }
+
+  .cl-box {
+    gap: 0.25rem;
+    padding-block: 0.25rem 0.375rem;
+  }
+
+  .cl-pages,
+  .cl-room-pages {
+    gap: 0.125rem;
+    min-block-size: 0;
+  }
+
+  :is(.cl-pages, .cl-room-pages, .cl-legend) .cl-lamp {
+    inline-size: 0.4375rem;
+    block-size: 0.4375rem;
+    border-width: 1px;
+  }
+
+  :is(.cl-pages, .cl-room-pages) .cl-menu-lamp,
+  :is(.cl-pages, .cl-room-pages) .cl-menu-lamp[data-state='fetching'] {
+    inline-size: 0.6875rem;
+    block-size: 0.6875rem;
+    border-width: 1.5px;
+  }
+
   /* Under the nodes it is one line where the width allows, its name, its eight lamps and the
-     count beside them, so the map, Time and the switches still share a 390 by 844 screen; with
-     larger text its parts take more lines, rather than run past the window (SC 1.4.10). */
+     count beside them; with larger text its parts take more lines, rather than run past the window
+     (SC 1.4.10). */
   .cl-db {
     grid-column: 1 / -1;
     grid-row: 3;
@@ -411,8 +447,13 @@
     flex-wrap: wrap;
     align-items: center;
     justify-self: start;
-    gap: 0.375rem 0.75rem;
-    margin-top: 0.5rem;
+    gap: 0.25rem 0.75rem;
+    margin-top: 0.25rem;
+    padding-block: 0.25rem;
+  }
+
+  .cl-count {
+    line-height: 1.1;
   }
 
   .cl-conns {
@@ -430,11 +471,37 @@
     grid-column: 1 / -1;
     grid-row: 4;
   }
+}
 
-  /* The menu's words take a line of their own, above its node's other lamps. */
-  .cl-menu {
-    flex-basis: 100%;
+/* Below 24rem the top bar and the title each take a second line, so under the nodes the database
+   would end past the first screen (709 px at 360 by 640, and more on a smaller phone) however small
+   the lamps are drawn. The lines to it are left out here anyway, so it stands over the nodes, right
+   under the menu's words, where the lead says to look. */
+@media (width < 24rem) {
+  .cl-db {
+    grid-row: 2;
+    margin-block: 0 0.25rem;
   }
+
+  .cl-fan,
+  .cl-nodes {
+    grid-row: 3;
+  }
+}
+
+/* A node holding more than its room, once a second node is lost and up to all 120 pages: its lamps,
+   the menu's too, are drawn smaller, so they stay in that room and the picture keeps its height at
+   any width. With no gap between their rows: from 333 to 362 px all 120 take four rows, where the
+   room is two rows of the usual lamps, and a gap there made the map 12 px taller at the press. */
+.cl-pages[data-crowded] {
+  gap: 0 0.0625rem;
+}
+
+.cl-pages[data-crowded] .cl-lamp,
+.cl-pages[data-crowded] .cl-menu-lamp[data-state='fetching'] {
+  inline-size: 0.3125rem;
+  block-size: 0.3125rem;
+  border-width: 1px;
 }
 
 /* The strip: the last 2 s of reads, a lane for each thing a read can get, a bar each 50 ms. The
@@ -531,14 +598,7 @@
    panel under it never moves while the run plays: five lines at 320 px, four from 24rem, three
    from 48rem, the most a busy run's words took, measured with each number a digit longer. */
 .cl-summary {
-  max-width: var(--measure);
   min-block-size: 5lh;
-  margin: 0;
-  font-family: var(--font-label);
-  font-size: var(--text-label);
-  font-weight: var(--text-label--font-weight);
-  line-height: var(--text-label--line-height);
-  font-variant-numeric: tabular-nums;
 }
 
 @media (width >= 24rem) {
@@ -553,84 +613,18 @@
   }
 }
 
-/* The properties, under the strip: a lamp each, filled while it holds and crossed once it breaks,
-   with its name and in words how often and how badly. From 48rem each is one row: lamp, name, and
-   the words in a column of their own, so the three names line up. */
-.cl-props {
-  display: grid;
-  gap: 0.625rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+/* The checks, under the strip and their heading (lab-controls.css). A check's words take one line or
+   two, by its count: each keeps two. */
+.cl-checks {
+  gap: 0.75rem;
 }
 
-.cl-prop {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: baseline;
-  gap: 0.125rem 0.625rem;
-}
-
-.cl-prop-lamp {
-  grid-row: 1 / span 2;
-  align-self: start;
-  inline-size: 1rem;
-  block-size: 1rem;
-  margin-top: 0.125rem;
-}
-
-@media (width >= 48rem) {
-  .cl-prop {
-    grid-template-columns: auto 15.5rem minmax(0, 1fr);
-  }
-
-  .cl-prop-lamp {
-    grid-row: 1;
-  }
-}
-
-.cl-prop-disc {
-  fill: var(--line);
-  stroke: var(--line);
-  stroke-width: 1.5px;
-}
-
-.cl-prop-cross {
-  display: none;
-  fill: none;
-  stroke: var(--foreground);
-  stroke-width: 2px;
-}
-
-.cl-prop[data-held='false'] .cl-prop-disc {
-  fill: none;
-  stroke: var(--foreground);
-}
-
-.cl-prop[data-held='false'] .cl-prop-cross {
-  display: inline;
-}
-
-.cl-prop-name {
-  font-family: var(--font-label);
-  font-size: var(--text-ui);
-  font-weight: 500;
-  line-height: var(--text-ui--line-height);
-}
-
-/* A property's words take one line or two, by its count: each keeps two. */
-.cl-prop-words {
+.cl-checks .lab-check-word {
   min-block-size: 2lh;
-  color: var(--muted-foreground);
-  font-family: var(--font-label);
-  font-size: var(--text-label);
-  font-weight: var(--text-label--font-weight);
-  line-height: var(--text-label--line-height);
-  font-variant-numeric: tabular-nums;
 }
 
-/* The panel: the push-buttons by what they work on, the clock beside Time. A choice among a few is
-   a native radio inside a push-button, its lamp lit while it is the one chosen. */
+/* The panel: the controls (lab-controls.css), by what they work on. Each part ends in the line that says
+   what its presses did, which keeps its room whether or not it has anything to say. */
 .cl-panel,
 .cl-deck,
 .cl-settings {
@@ -640,141 +634,28 @@
   min-width: 0;
 }
 
-/* The Time group's name with the clock beside it, so the clock that Next event moves sits on the
-   line over the button. Where the two do not always fit one line, below 24rem and in the panel's
-   column from 64rem, the clock takes a line of its own and keeps two, the most a long run's clock
-   takes there, so a clock that grows a digit never moves the buttons under it. */
-.cl-group-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0 0.75rem;
-}
-
-@media (width < 24rem) or (width >= 64rem) {
-  .cl-clock {
-    flex-basis: 100%;
+/* Three lines is the most a line's words take in the panel's column; below that the desk is wider. */
+@media (48rem <= width < 64rem) {
+  .cl-panel .lab-said {
     min-block-size: 2lh;
   }
 }
 
-.cl-clock {
-  margin: 0;
-  color: var(--muted-foreground);
-  font-family: var(--font-label);
-  font-size: var(--text-label);
-  font-weight: var(--text-label--font-weight);
-  line-height: var(--text-label--line-height);
-  font-variant-numeric: tabular-nums;
-}
-
-.cl-group {
+/* The node buttons stand in a grid, so one whose words change from Lose to Restart keeps its place,
+   and the next button stays under the finger (until 2026-11-02 they wrapped by their words: losing
+   node 3 sent the next one from the right edge to the left and a row down). */
+.cl-node-buttons {
   display: grid;
-  gap: 0.5rem;
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-.cl-group-name {
-  margin: 0;
-  padding: 0;
-  color: var(--muted-foreground);
-  font-family: var(--font-label);
-  font-size: var(--text-label);
-  font-weight: var(--text-label--font-weight);
-  line-height: var(--text-label--line-height);
-}
-
-/* A fieldset's legend stands outside its grid, so its gap to the buttons is its own. */
-legend.cl-group-name {
-  margin-bottom: 0.5rem;
-}
-
-.cl-row {
-  display: flex;
-  flex-wrap: wrap;
+  grid-template-columns: repeat(auto-fill, minmax(min(7.25rem, 100%), 1fr));
   gap: 0.5rem;
 }
 
-/* Run keeps one width, its lamp and all, as its words turn to Pause, so the row never shifts
-   under the pointer. */
-.cl-run {
-  min-inline-size: 6.5rem;
+.cl-flush {
+  grid-column: 1 / -1;
+  justify-self: start;
 }
 
-/* The choices of one radio group stand edge to edge, one push-button of several parts. */
-.cl-segments {
-  gap: 0;
-}
-
-.cl-segments > .cl-choice + .cl-choice {
-  margin-inline-start: -1px;
-}
-
-.cl-choice {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-height: 2.75rem;
-  padding: 0.375rem 1rem;
-  border: 1px solid var(--input);
-  color: var(--foreground);
-  font-family: var(--font-label);
-  font-size: var(--text-ui);
-  font-weight: 500;
-  line-height: var(--text-ui--line-height);
-}
-
-.cl-choice:hover,
-.cl-choice:has(input:checked) {
-  background-color: var(--surface-2);
-}
-
-/* The radio itself covers its push-button, unseen, so a press anywhere on it chooses, and its
-   focus ring, the site's own, goes round the whole button. The lamp before the words is drawn:
-   hollow, and lit while chosen, the button pressed in, raised, as a pressed button's is
-   (global.css). */
-.cl-choice input {
-  position: absolute;
-  inset: 0;
-  margin: 0;
-  appearance: none;
-  background-color: transparent;
-  cursor: pointer;
-}
-
-.cl-choice::before {
-  content: '';
-  flex: none;
-  inline-size: 0.625rem;
-  block-size: 0.625rem;
-  border: 1.5px solid currentColor;
-  border-radius: 50%;
-}
-
-.cl-choice:has(input:checked)::before {
-  border-color: var(--primary);
-  background-color: var(--primary);
-}
-
-/* Read by assistive technology, unseen on screen: what the last press did. */
-.cl-sr {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  border-width: 0;
-  white-space: nowrap;
-}
-
-/* The event log: the newest line last, in a describer's window, raised, that scrolls; a part of
-   the desk of its own, under a rule from bezel to bezel. */
+/* The event log (lab-controls.css), a part of the desk of its own, under a rule from bezel to bezel. */
 .cl-events {
   display: grid;
   gap: 0.75rem;
@@ -783,51 +664,12 @@ legend.cl-group-name {
   border-block-start: 1px solid var(--border);
 }
 
-.cl-heading {
-  margin: 0;
-  font-family: var(--font-label);
-  font-size: var(--text-ui);
-  font-weight: 500;
-}
-
-/* The log's box is one size whatever it holds, before the run's first line and after its sixtieth,
-   so a run that empties it, or fills it, moves nothing under it (steady.spec.ts). */
-.cl-lines {
-  block-size: 16rem;
-  padding: 0.75rem 1rem;
-  overflow-y: auto;
-  background-color: var(--surface-2);
-  font-size: var(--text-label);
-  line-height: var(--text-label--line-height);
-}
-
-.cl-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* A line of the log: its time, then its words in a column of their own, so a line that wraps
-   runs on under its words and the times stay one column. */
-.cl-list > li {
-  display: grid;
-  grid-template-columns: 5.5rem minmax(0, 1fr);
-}
-
-.cl-at {
-  color: var(--muted-foreground);
-  font-family: var(--font-label);
-  font-size: var(--text-label);
-  font-variant-numeric: tabular-nums;
-}
-
 /* Forced colours (a Windows contrast theme) replace fills with the visitor's background. The lamps
    keep their shapes in the visitor's own text and highlight colours: filled, half, hollow, a dot
    in its rim, and a connection lit. */
 @media (forced-colors: active) {
   .cl-lamp,
-  .cl-wait-key,
-  .cl-choice::before {
+  .cl-wait-key {
     forced-color-adjust: none;
   }
 
@@ -850,13 +692,5 @@ legend.cl-group-name {
 
   .cl-lamp[data-state='busy'] {
     background-color: Highlight;
-  }
-
-  .cl-choice::before {
-    border-color: ButtonText;
-  }
-
-  .cl-choice:has(input:checked)::before {
-    background-color: ButtonText;
   }
 }

@@ -1,5 +1,5 @@
 import { readLink, writeLink } from '../sim/link';
-import { properties, type PropertyState } from './check';
+import type { PropertyState } from './check';
 import {
   crash,
   createSim,
@@ -109,31 +109,19 @@ export const SEEDS_IN_CI = 2_000;
 
 export const seconds = (ms: number): string => `${(ms / 1000).toFixed(3)} s`;
 
+/** "143 events", for the clock, as every lab's says it. */
+export const eventsWords = (sim: Sim): string =>
+  `${sim.events.toLocaleString('en-US')} ${sim.events === 1 ? 'event' : 'events'}`;
+
 /** A time to a tenth of a second, for the history strip's ends. */
 export const tenths = (ms: number): string => `${(ms / 1000).toFixed(1)} s`;
 
 const firstUp = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
-const firstDown = (text: string) => text.charAt(0).toLowerCase() + text.slice(1);
 
 /** "a", "a and b", "a, b and c". */
 function list(parts: readonly string[]): string {
   if (parts.length <= 1) return parts.join('');
   return `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`;
-}
-
-function brokenWords(sim: Sim, p: PropertyState): string {
-  const n = p.count;
-  switch (p.id) {
-    case 'no-loss':
-      return `${n} ${n === 1 ? 'order was' : 'orders were'} lost`;
-    case 'once': {
-      // `once` counts orders; more tickets than orders means one was printed three times or more.
-      const times = sim.duplicates > n ? 'more than once' : 'twice';
-      return `${n} ${n === 1 ? 'order was' : 'orders were'} printed ${times}`;
-    }
-    case 'drains':
-      return `the queue did not drain within 30 s${n === 1 ? '' : `, ${n} times`}`;
-  }
 }
 
 /**
@@ -150,27 +138,13 @@ function drainCheck(sim: Sim): string | null {
   return since === null ? '30 s after a worker is up' : `at ${tenths(since + DRAIN_WITHIN)}`;
 }
 
-/** The status line: the three properties as one sentence, or the bug that froze the run. Whether
- *  the queue drains is claimed only once it is known, and until then the line says when it is. */
-export function statusText(sim: Sim): string {
-  if (sim.violation)
-    return `Stopped at ${seconds(sim.violation.at)}: an order appeared or disappeared, which is a bug. ${firstUp(sim.violation.detail)}.`;
-  const check = drainCheck(sim);
-  const asked = properties(sim).filter((p) => check === null || p.id !== 'drains');
-  const held = asked.flatMap((p) => (p.held ? [firstDown(p.name)] : []));
-  const broken = asked.flatMap((p) => (p.held ? [] : [brokenWords(sim, p)]));
-  const events = sim.events.toLocaleString('en-US');
-  const tail = check === null ? '' : ` Whether the queue drains is checked ${check}.`;
-  if (broken.length === 0)
-    return check === null
-      ? `All three held over ${events} events: ${list(held)}.`
-      : `${firstUp(list(held))} over ${events} events.${tail}`;
-  if (held.length === 0) return `${firstUp(list(broken))}.${tail}`;
-  return `${firstUp(list(held))}, but ${list(broken)}.${tail}`;
-}
+/** The bug that froze a run, and where: said on the line under the controls. Everything else the
+ *  checks' own rows say (propertyWords). */
+export const stoppedWords = ({ at, detail }: NonNullable<Sim['violation']>): string =>
+  `Stopped at ${seconds(at)}: an order appeared or disappeared, which is a bug. ${firstUp(detail)}.`;
 
 /** The first order the idempotency key kept from printing twice: done, printed once, and sent
- *  again after that ticket, so a later delivery found it in the done set. A done order's last
+ *  again after that ticket, so a later delivery found it in the record. A done order's last
  *  delivery has run its ticket step, so that is the delivery that skipped. */
 function skippedOrder(sim: Sim): Job | undefined {
   return sim.jobs.find(
@@ -202,7 +176,7 @@ function story(sim: Sim): string | null {
         : `worker ${b.worker + 1} printed it a second time`;
     told.push({
       at: twice.at,
-      text: `Order ${job.id} was printed ${times}: worker ${a.worker + 1} crashed after printing its ticket and before its ack left, so the broker sent it again and ${again}.`,
+      text: `Order ${job.id} was printed ${times}: worker ${a.worker + 1} crashed after printing its ticket and before its acknowledgement left, so the broker sent it again and ${again}.`,
     });
   }
   const lost = sim.tallies['no-loss'].first;
@@ -238,7 +212,7 @@ function story(sim: Sim): string | null {
   if (!kept) return null;
   const printer = (kept.effects[0] as Effect).worker + 1;
   const sent = kept.delivered.length === 2 ? 'twice' : `${kept.delivered.length} times`;
-  return `Order ${kept.id} was sent ${sent} and printed once: worker ${printer} crashed after printing its ticket and before its ack left, so the broker sent it again, and worker ${kept.worker + 1} found it in the done set and skipped the ticket.`;
+  return `Order ${kept.id} was sent ${sent} and printed once: worker ${printer} crashed after printing its ticket and before its acknowledgement left, so the broker sent it again, and worker ${kept.worker + 1} found it in the record and skipped the ticket.`;
 }
 
 function totals(sim: Sim): string {
@@ -346,6 +320,37 @@ export const SETTINGS = {
   handling: { values: ['requeue', 'dead-letter'], opening: 'requeue' },
 } as const;
 
+/**
+ * The setting that decides the story the run opens on: order 18 prints twice, or the key stops it. A
+ * run that has told that story has nothing more to say about it, so a choice of this one replays the
+ * run under it, from REPLAY_FROM, where a visitor watches the same crash come out the other way.
+ * Every other setting works from the moment it's chosen, on the run as it stands: a rush fills the
+ * queue, and acknowledging before the work lets go of what the workers hold, for the next crash to
+ * lose. Replayed, that next crash wouldn't be the visitor's: at 2.4 s worker 2 happens to hold nothing.
+ */
+export const STORY: readonly (keyof typeof SETTINGS)[] = ['key'];
+
+const CRASHING = `worker ${(OPENING.actions[0]?.worker ?? 0) + 1}`;
+
+/** Where a run goes back to, in words, for the lines that say it did. */
+export const REPLAY_WORDS = `at ${seconds(REPLAY_FROM)}, before ${CRASHING}'s crash`;
+export const AGAIN = `The run plays again from ${seconds(REPLAY_FROM)}, before ${CRASHING}'s crash.`;
+
+/**
+ * Why the clock stops once nothing is left to happen. The queue has drained, or orders wait with no
+ * worker up to take them and none on the way. The clock can't tell those apart, and the words must:
+ * "nothing is left" beside "13 waiting" is false, and more orders wouldn't carry that run on. Either
+ * way a press alone doesn't move the clock, so the words name Run too.
+ */
+export function stopWords(sim: Sim): string {
+  const n = sim.ready.length;
+  const [why, next] =
+    n === 0
+      ? ['Nothing is left in the queue or in flight', 'take orders']
+      : [`${n} ${n === 1 ? 'order waits' : 'orders wait'} and no worker is up`, 'restart a worker'];
+  return `${why}, so the clock stops here. Run plays it again from ${seconds(REPLAY_FROM)}, or ${next}, then Run, to carry on.`;
+}
+
 /** The link to a run's start: its seed, and each setting not the opening's (#seed-28&key=on). */
 export const linkTo = (sim: Sim): string => writeLink(sim.seed, sim, SETTINGS);
 
@@ -370,12 +375,12 @@ export function openLink(hash: string, until: number = OPENING.until): Sim | nul
 export const startOver = (sim: Sim, until: number = OPENING.until): Sim =>
   openLink(linkTo(sim), until) as Sim;
 
-/** A property's words beside its lamp: "Holds", or "Broken" and what broke it, counted. Until the
- *  page knows whether the queue drains, the words say when it will. */
+/** A check's words beside its lamp, in the same form in every lab: "Held", or "Broken" and what
+ *  broke it, counted. Until the page knows whether the queue drains, the words say when it will. */
 export function propertyWords(sim: Sim, p: PropertyState): string {
   if (p.held) {
     const check = p.id === 'drains' ? drainCheck(sim) : null;
-    return check === null ? 'Holds' : `Holds; checked ${check}`;
+    return check === null ? 'Held' : `Held so far; checked ${check}`;
   }
   const n = p.count;
   const orders = `${n} ${n === 1 ? 'order' : 'orders'}`;
@@ -509,6 +514,10 @@ export interface Layout {
   /** Where three captions stand: the end they are set from, and their baseline. */
   readonly words: {
     readonly orders: Caption;
+    /** Where "stopped" goes when "Orders stopped" has no room on one line: the wide drawing's line
+     *  into the queue is 56 units long, and on one line the words ran over the queue's edge and onto
+     *  the first order's dot. */
+    readonly stopped?: Caption;
     readonly tickets: Caption;
     readonly dead: Caption;
   };
@@ -533,6 +542,7 @@ export const LAYOUTS = {
     lamp: 7,
     words: {
       orders: { x: 0, y: 80, anchor: 'start' },
+      stopped: { x: 0, y: 114, anchor: 'start' },
       tickets: { x: 612, y: 32, anchor: 'start' },
       dead: { x: 612, y: 226, anchor: 'start' },
     },
@@ -705,7 +715,8 @@ export function mapMarkup(sim: Sim, layout: Layout): string {
   if (waiting.length > room)
     out.push(text(tank.x, tankTop + tankH + 36, `${waiting.length} waiting`, 'qu-label qu-count'));
   const say = (at: Caption, what: string) => text(at.x, at.y, what, 'qu-label', at.anchor);
-  out.push(say(words.orders, sim.producing ? 'Orders' : 'Orders stopped'));
+  out.push(say(words.orders, sim.producing || words.stopped ? 'Orders' : 'Orders stopped'));
+  if (!sim.producing && words.stopped) out.push(say(words.stopped, 'stopped'));
 
   // A track a worker: its name and word, then its lamps, the order in work at the head.
   const nameX = along + 4;

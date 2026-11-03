@@ -5,14 +5,7 @@ import Motion from '../components/Motion.astro';
 import PostList from '../components/PostList.astro';
 import WorkCard from '../components/WorkCard.astro';
 import Base from '../layouts/Base.astro';
-import {
-  ABOUT_HEADINGS,
-  aboutParts,
-  LAB_NAMES,
-  openingSentence,
-  sectionOf,
-  withLinks,
-} from '../lib/about';
+import { ABOUT_HEADINGS, aboutParts, openingSentence, sectionOf, withLinks } from '../lib/about';
 import { SEEDS_IN_CI as BACKFILL_SEEDS } from '../lib/backfill/view';
 import { SEEDS_IN_CI as CACHE_SEEDS } from '../lib/cache/view';
 import {
@@ -25,15 +18,15 @@ import {
 import { figure } from '../lib/home';
 import { countTests, readDecisions } from '../lib/home-sources';
 import { homeGraph, serialize } from '../lib/jsonld';
-import { labPath } from '../lib/lab';
-import { labFact } from '../lib/lab-facts';
+import { LAB_NAMES, labPath } from '../lib/lab';
+import { factSource, labFact } from '../lib/lab-facts';
 import { inWords } from '../lib/lines';
 import { homeCard } from '../lib/og';
 import { postPath } from '../lib/posts';
 import { checkedProfiles, homeDescription, roleLine } from '../lib/profile';
 import { SEEDS_IN_CI as QUEUE_SEEDS } from '../lib/queue/view';
-import { leaderOf } from '../lib/raft/sim';
-import { SEEDS_IN_CI as RAFT_SEEDS, openingRun as raftRun } from '../lib/raft/view';
+import { openingServers } from '../lib/orbit';
+import { SEEDS_IN_CI as RAFT_SEEDS } from '../lib/raft/view';
 import { CONTACT_EMAIL } from '../lib/site';
 import { writingRow } from '../lib/work';
 import '../styles/home.css';
@@ -109,7 +102,7 @@ const builds = await Promise.all(
               slug: entry.slug,
               name: named.name,
               href: labPath(entry),
-              fact: await labFact(entry.slug, 'home'),
+              fact: await labFact(entry.slug),
             }
           : undefined,
     };
@@ -117,13 +110,7 @@ const builds = await Promise.all(
 );
 
 // The live picture: the Raft Lab's opening run, as its page plays it before anyone presses anything.
-const raft = demo.has('raft') ? raftRun() : undefined;
-const leader = raft ? leaderOf(raft) : null;
-const servers = raft?.servers.map((server) => ({
-  id: server.id,
-  leader: server.id === leader?.id,
-  entries: server.log.length,
-}));
+const servers = demo.has('raft') ? openingServers() : undefined;
 const raftEntry = demo.get('raft');
 
 // Selected work (content.md, "Owned work"; lib/work.ts) beyond the labs, which What I build carries:
@@ -132,10 +119,12 @@ const work = await loadSelectedWork();
 const demoPages = new Set(lab.entries.map(labPath));
 const others = work.filter((card) => !demoPages.has(card.link.href));
 
-// The record the repository keeps (lib/home-sources.ts), each count from its source: the commits in
-// its history, the decision records in docs/adr/, the tests in test/ and e2e/, and the seeded runs
-// the simulated labs' sweeps play on every pull request (each lab's SEEDS_IN_CI). A count whose
-// source cannot be read is left out, never guessed.
+// The record the repository keeps (lib/home-sources.ts), each count from its source: the decision
+// records in docs/adr/, the tests in test/ and e2e/, and the seeded runs the simulated labs' sweeps
+// play on every pull request (each lab's SEEDS_IN_CI). A count whose source cannot be read is left
+// out, never guessed. This is the one place the site names the term a tech lead looks for (content.md,
+// "The site's language"): the bio says "written down" and "a written decision". It counts tests as
+// written, once each, however many times a loop runs one: CI's total is about nine times this.
 const SEEDS: Record<string, number> = {
   raft: RAFT_SEEDS,
   queue: QUEUE_SEEDS,
@@ -146,8 +135,8 @@ const decisions = readDecisions().length;
 const tests = countTests();
 const seeded = lab.entries.reduce((n, entry) => n + (SEEDS[entry.slug] ?? 0), 0);
 const record = [
-  decisions > 0 ? `${figure(decisions)} written decisions` : '',
-  tests > 0 ? `${figure(tests)} tests` : '',
+  decisions > 0 ? `${figure(decisions)} decision records (ADRs)` : '',
+  tests > 0 ? `${figure(tests)} tests written` : '',
   seeded > 0 ? `${figure(seeded)} simulated runs on every pull request` : '',
 ].filter(Boolean);
 const recordLine =
@@ -198,7 +187,7 @@ const latest = writingRow(area.published, work);
         ))}
       </div>
     </div>
-    {servers && raft && raftEntry && <Orbit servers={servers} href={labPath(raftEntry)} />}
+    {servers && raftEntry && <Orbit servers={servers} href={labPath(raftEntry)} />}
   </section>
 
   {builds.length > 0 && (
@@ -217,7 +206,20 @@ const latest = writingRow(area.published, work);
             </p>
             {where?.fact && (
               <div class="build-evidence">
-                <p class="build-lab">Simulated in the {where.name}</p>
+                <p class="build-lab">
+                  {factSource(where.slug, where.name)
+                    .split('made-up')
+                    .map((part, i) =>
+                      i === 0 ? (
+                        part
+                      ) : (
+                        <>
+                          <span class="build-word">made-up</span>
+                          {part}
+                        </>
+                      ),
+                    )}
+                </p>
                 <p class="build-fact">{where.fact}</p>
               </div>
             )}

@@ -329,6 +329,11 @@ jobs:
       image: mcr.microsoft.com/playwright:v${{ needs.verify.outputs.playwright }}-noble
       options: --user 1001
     timeout-minutes: 20
+    # One runner per suite, since together they outgrew this limit (delivery.md, "Pipeline").
+    strategy:
+      fail-fast: false # one suite's failure doesn't hide what the others find
+      matrix:
+        suite: [site, phone, writing]
     permissions:
       contents: read
     steps:
@@ -346,23 +351,27 @@ jobs:
           name: dist
           path: apps/web/dist
       - name: Playwright, against the preview (or wrangler dev serving the same dist/)
+        if: matrix.suite != 'writing'
         working-directory: apps/web
         env:
           BASE_URL: ${{ needs.preview.outputs.url }}
           # Worker Previews ignore not_found_handling (apps/web/e2e/expected.ts, ON_WORKER_PREVIEW)
           E2E_TARGET: ${{ needs.preview.outputs.url != '' && 'worker-preview' || 'wrangler-dev' }}
-        run: pnpm run e2e
+          SUITE: ${{ matrix.suite }}
+        run: pnpm exec playwright test --project="$SUITE"
       - name: Playwright, against the writing fixture build on wrangler dev (posts, indexes, feed)
-        if: ${{ !cancelled() }}
+        if: matrix.suite == 'writing'
         working-directory: apps/web
         run: |
           pnpm run build:fixtures
           pnpm run e2e:writing
+      # A run that hits the job's limit counts as cancelled, not failed, and its traces are the ones
+      # that say why.
       - name: Keep the reports (run artifacts only, never public storage)
-        if: failure()
+        if: failure() || cancelled()
         uses: actions/upload-artifact@v7
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.suite }}
           # Each run writes its own folders (playwright.config.ts), so a failing first run keeps its
           # report and traces when the second one runs.
           path: |

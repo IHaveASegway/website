@@ -2,10 +2,10 @@ import { expect, test, type Page } from '@playwright/test';
 import { pages } from './expected';
 
 // The top bar (ADR 0027; docs/design/overhaul.md, "Top nav"), which replaced the rail of ADRs 0021
-// to 0023 on every width: a band across the top of every page, 56 px, one row from 390 px, never
-// fixed to the window; the wordmark, Lab, Writing and About, then Search and the theme. The page's
-// section is marked by a 2 px rule in the accent under its item. The frame is centred, so on a wide
-// screen the room it adds goes to both margins.
+// to 0023 on every width: a band across the top of every page, 56 px, one row down to a 320 px
+// phone, never fixed to the window; the wordmark, Lab, Writing and About, then Search, the motion
+// button and the theme. The page's section is marked by a 2 px rule in the accent under its item.
+// The frame is centred, so on a wide screen the room it adds goes to both margins.
 
 /** Every page's bar, measured: its box, the masthead's and main's, and whether its items share a
  *  row. */
@@ -30,10 +30,13 @@ const bar = (page: Page) =>
     };
   });
 
-test('the bar spans the window above main on every page, one row 56 px tall from 390 px', async ({
+// A row checked only from 390 px let every phone narrower than 378 px take two, 88 px tall, once
+// ADR 0030 put the motion button on every page: an iPhone SE, a 13 mini and most Androids at 360 px.
+test('the bar spans the window above main on every page, one row 56 px tall from 320 px', async ({
   page,
 }) => {
-  for (const width of [390, 768, 1024, 1440, 2560]) {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  for (const width of [320, 344, 360, 375, 390, 640, 768, 1024, 1440, 2560]) {
     await page.setViewportSize({ width, height: 900 });
     for (const path of pages()) {
       await page.goto(path);
@@ -47,6 +50,78 @@ test('the bar spans the window above main on every page, one row 56 px tall from
         position: 'relative',
       });
     }
+  }
+});
+
+// The name shows from 640 px. Until 2026-11-03 the space beside it came at 768, so for those widths the
+// name stood 7 px from Lab, closer than Lab stands to Writing: "Joseph Peterson Lab Writing About".
+test('the name stands as far from the first link wherever it shows, and further than the links stand apart', async ({
+  page,
+}) => {
+  await page.goto('/lab/');
+  await page.evaluate(() => document.fonts.ready);
+  for (const width of [640, 700, 767, 768]) {
+    await page.setViewportSize({ width, height: 800 });
+    const { beside, between } = await page.evaluate(() => {
+      const words = (element: Element) => {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        return range.getBoundingClientRect();
+      };
+      const [lab, writing] = [...document.querySelectorAll('.site-nav a')];
+      const name = document.querySelector('.wordmark-name') as Element;
+      return {
+        beside: words(lab as Element).left - words(name).right,
+        between: words(writing as Element).left - words(lab as Element).right,
+      };
+    });
+    expect(Math.round(beside), `at ${width} px`).toBe(31);
+    expect(beside, `at ${width} px`).toBeGreaterThan(between);
+  }
+});
+
+// What the row must not give up to fit: a target's size, the words' room, and the page's left edge.
+test('on a phone every target in the bar stays 44 px tall and each tool 44 px wide, with the tile on the words’ edge', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  for (const width of [320, 344, 360, 375, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto('/about/');
+    await page.waitForFunction(() => 'palette' in document.documentElement.dataset);
+    await page.evaluate(() => document.fonts.ready);
+    const at = await page.evaluate(() => {
+      const box = (element: Element | null) => (element as Element).getBoundingClientRect();
+      const tools = ['.search-open', '.motion-toggle', '.theme-toggle'];
+      const words = [...document.querySelectorAll('.site-nav a')].map((link) => {
+        const range = document.createRange();
+        range.selectNodeContents(link);
+        return range.getBoundingClientRect();
+      });
+      return {
+        heights: [
+          ...document.querySelectorAll('.wordmark, .site-nav a'),
+          ...tools.map((t) => document.querySelector(t) as Element),
+        ].map((e) => box(e).height),
+        widths: tools.map((tool) => box(document.querySelector(tool)).width),
+        wordmark: box(document.querySelector('.wordmark')).width,
+        tile: box(document.querySelector('.wordmark-tile')).left,
+        text: box(document.querySelector('.about-name')).left,
+        gaps: [
+          words[0]!.left - box(document.querySelector('.wordmark-tile')).right,
+          ...words.slice(1).map((word, i) => word.left - words[i]!.right),
+          box(document.querySelector('.search-glass')).left - words.at(-1)!.right,
+        ],
+        scrollWidth: document.documentElement.scrollWidth,
+      };
+    });
+    for (const height of at.heights) expect(height, `${width}`).toBeGreaterThanOrEqual(44);
+    expect(at.widths, `${width}`).toEqual([44, 44, 44]);
+    expect(at.wordmark, `${width}`).toBeGreaterThanOrEqual(24);
+    expect(at.tile, `${width}`).toBe(at.text);
+    // Lab, Writing and About still read as three words, however close the row sets them.
+    for (const gap of at.gaps) expect(gap, `${width}`).toBeGreaterThanOrEqual(8);
+    expect(at.scrollWidth, `${width}`).toBe(width);
   }
 });
 

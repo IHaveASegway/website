@@ -16,6 +16,8 @@ import {
   mapTitle,
   placesMarkup,
   planLine,
+  PLAN_NAMES,
+  PREVIOUS,
   roomText,
   routesMarkup,
   savedText,
@@ -50,8 +52,8 @@ const fills = [...isochrones.within.keys()].reverse();
 // The later of the two plans' last van back: the clock both maps' vans keep.
 const longest = Math.max(before.measured.back, after.measured.back);
 const plans = [
-  { which: 'before', label: 'As the orders came in', short: 'As they came in', ...before },
-  { which: 'after', label: 'Planned by VROOM', short: 'VROOM’s plan', ...after },
+  { which: 'before', ...before },
+  { which: 'after', ...after },
 ] as const;
 const vans = [0, 1, 2, 3].map((van) => ({
   letter: vanClass(van),
@@ -135,24 +137,13 @@ const bands = bandsSentence(
     </defs>
   </svg>
 
-  <div class="rl-readout" data-rl-readout>
-    <p class="rl-saved" data-rl-saved>
-      {savedText(before.measured, after.measured)}
-    </p>
-    <p class="rl-capacity" data-rl-capacity>
-      {roomText(routeData, day.orders, day.vans, capacity)}
-    </p>
-    <p class="rl-status" data-rl-status data-rl-js></p>
-    <p class="rl-say" role="status" data-rl-say></p>
-  </div>
-
   <fieldset class="rl-view" data-rl-js>
     <legend class="rl-say">Which map</legend>
     <div class="rl-chips">
       {plans.map((plan) => (
         <label class="rl-chip">
           <input type="radio" name="rl-view" value={plan.which} checked={plan.which === 'after'} />
-          <span class="rl-chip-name">{plan.short}</span>
+          <span class="rl-chip-name">{PLAN_NAMES[plan.which]}</span>
         </label>
       ))}
     </div>
@@ -162,7 +153,7 @@ const bands = bandsSentence(
     {plans.map((plan) => (
       <figure class="rl-figure" data-rl-plan={plan.which}>
         <figcaption class="rl-head">
-          <span class="label">{plan.label}</span>
+          <span class="label">{PLAN_NAMES[plan.which]}</span>
           <span class="rl-time" data-rl-time>
             {formatDuration(plan.measured.drive)}
           </span>
@@ -174,7 +165,7 @@ const bands = bandsSentence(
           </span>
           {plan.which === 'after' && (
             <span class="rl-note" data-rl-note data-rl-off>
-              For the previous orders
+              {PREVIOUS}
             </span>
           )}
         </figcaption>
@@ -260,21 +251,33 @@ const bands = bandsSentence(
     </div>
   </div>
 
+  <p class="rl-status" data-rl-status data-said data-rl-js></p>
+  <p class="rl-say" role="status" data-rl-say></p>
+
   <p class="rl-hint" data-rl-js>
-    Tap a place on a map, or tick it in the list below, to add or remove its order. VROOM plans
-    again each time.
+    Tap a place on a map, or check it in the list below, to add or remove its order. VROOM plans
+    again each time.{' '}
     <span class="rl-hint-vans">Each moving dot is a van, both maps on one clock.</span>
   </p>
 
-  <p class="rl-caption" data-rl-nojs>
+  <div class="rl-readout" data-rl-readout>
+    <p class="rl-saved" data-rl-saved>
+      {savedText(before.measured, after.measured)}
+    </p>
+    <p class="rl-capacity" data-rl-capacity>
+      {roomText(routeData, day.orders, day.vans, capacity)}
+    </p>
+  </div>
+
+  <noscript class="rl-caption">
     Both plans for a busy Saturday, worked out in advance by the same solver. With JavaScript on,
     you can change the orders and the vans.
-  </p>
+  </noscript>
 
   <div class="rl-legend">
     <div class="rl-legend-bands">
       <p class="label" id="rl-bands-title">
-        Driving time from the bakery, without traffic
+        Drive time from the bakery, without traffic
       </p>
       <ol class="rl-bands" aria-labelledby="rl-bands-title">
         {isochrones.minutes.map((m, k) => (
@@ -356,7 +359,7 @@ const bands = bandsSentence(
       {plans.map((plan) => (
         <div
           data-rl-table={plan.which}
-          set:html={tableMarkup(routeData, plan.measured, plan.label)}
+          set:html={tableMarkup(routeData, plan.measured, PLAN_NAMES[plan.which])}
         />
       ))}
     </div>

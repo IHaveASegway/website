@@ -65,3 +65,21 @@ export function writeLink<S extends Settings>(
     if (values[name] !== setting.opening) link += `&${name}=${word(values[name] as Value)}`;
   return link;
 }
+
+/**
+ * The address while a run stands on a page. A link followed on the page opens its run (`open`, which
+ * returns whether the hash named one), and Start over writes its run's link through what this returns.
+ * A hash that comes back to the link the page already stands on opens nothing: until 2026-11-03 a link
+ * to a section and then the browser's Back read as a link followed, and took the visitor's run back to
+ * its opening, their presses gone. Only a hash that names another run opens it.
+ */
+export function address(open: () => unknown): (link: string) => void {
+  let own = location.hash;
+  addEventListener('hashchange', () => {
+    if (location.hash !== own && open()) own = location.hash;
+  });
+  return (link) => {
+    own = link;
+    history.replaceState(null, '', link);
+  };
+}

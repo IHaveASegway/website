@@ -37,6 +37,7 @@ const DIST_CHECKS = [
   'tells',
   'theme-color',
   'tokens',
+  'typography',
   'urls',
   'wasm',
 ].map((name) => `test/${name}.test.ts`);

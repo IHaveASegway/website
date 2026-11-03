@@ -8,6 +8,7 @@ import { defineConfig, fontProviders } from 'astro/config';
 import { commit, withBuildHeader } from './src/lib/build.mjs';
 import { policyFor, withPagePolicies } from './src/lib/csp.mjs';
 import { isNoindex } from './src/lib/noindex.mjs';
+import { typesetHtml } from './src/lib/typeset-html.mjs';
 
 /** A self-hosted family cut by scripts/fonts/build.sh: one static file per weight. Base.astro
  *  writes its faces into every page and says which it preloads. */
@@ -34,7 +35,7 @@ const font = (name, cssVariable, weights) => ({
 // browser's first moment, about 100 ms, is not swapped in, and that page stays in its fitted
 // fallback until the next, which has the file cached. The fitting matches widths on average, not
 // line by line, so a swap moved what a reader had on the screen: the Queue Lab's key by 24 px, a
-// paragraph of a write-up by a line (e2e/steady.spec.ts). Archivo's SemiBold and B612 Mono keep
+// paragraph of a write-up by a line (e2e/steady.spec.ts). Archivo's SemiBold and JetBrains Mono keep
 // swap: a page fetches them only once it sets <strong> or code, never in that first moment, and
 // every glyph is drawn in a self-hosted face (e2e/glyphs.spec.ts).
 const PRELOADED = new Set([
@@ -69,6 +70,26 @@ const buildHeader = {
   },
 };
 
+/** Every file under a directory. */
+const walk = (at) =>
+  readdirSync(at).flatMap((name) => {
+    const path = join(at, name);
+    return statSync(path).isDirectory() ? walk(path) : [path];
+  });
+
+// Every page's text as a post's body is set: curled quotes, whatever code it passed through
+// (src/lib/typeset-html.mjs). It touches text and nothing else, so it can run before or after the
+// policy below, which hashes scripts and styles.
+const typesetPages = {
+  name: 'typeset',
+  hooks: {
+    'astro:build:done': ({ dir }) => {
+      for (const file of walk(fileURLToPath(dir)).filter((name) => name.endsWith('.html')))
+        writeFileSync(file, typesetHtml(readFileSync(file, 'utf8')));
+    },
+  },
+};
+
 // The page policy is a header (security.md, "Headers and Content Security Policy"; ADR 0018). Once
 // the pages are written, each one's policy is read from its own inline code, a hash for each
 // script and style it holds, and written into the build's _headers: the 404's on the "/*" rule,
@@ -79,11 +100,6 @@ const pagePolicy = {
   hooks: {
     'astro:build:done': ({ dir }) => {
       const root = fileURLToPath(dir);
-      const walk = (at) =>
-        readdirSync(at).flatMap((name) => {
-          const path = join(at, name);
-          return statSync(path).isDirectory() ? walk(path) : [path];
-        });
       const policies = new Map(
         walk(root)
           .filter((file) => file.endsWith('.html'))
@@ -118,6 +134,17 @@ const indexable = (page) => {
   return !existsSync(file) || !isNoindex(readFileSync(file, 'utf8'));
 };
 
+// Vite's preload helper asks each browser whether it knows modulepreload, because Astro tells Vite no
+// polyfill is coming. Telling it one is ships none: Vite writes that polyfill only into an HTML entry
+// it handles, and Astro's pages aren't one. It just stops asking, and uses the word. Every browser
+// since Safari 17 and Firefox 115 knows it, and an older one skips the link and fetches the chunk when
+// it is imported. The question costs every lab's page 55 B of its 5,000 B of eager JavaScript.
+const preloadWithoutTheQuestion = {
+  name: 'preload-without-the-question',
+  configEnvironment: (name) =>
+    name === 'client' ? { build: { modulePreload: { polyfill: true } } } : undefined,
+};
+
 export default defineConfig({
   site: 'https://ihaveasegway.com',
   // Trailing slashes everywhere, written as <path>/index.html (ADR 0005).
@@ -132,13 +159,14 @@ export default defineConfig({
     recordCommand,
     recordOutDir,
     buildHeader,
+    typesetPages,
     pagePolicy,
     sitemap({ filter: indexable }),
   ],
   // Spike S9 (roadmap.md): the Fonts API's local provider serves the files from /_astro/fonts/,
   // writes the preload links Base.astro asks for and emits a <style> with each family's faces,
   // which pagePolicy hashes into style-src (above). So it serves the faces, with Astro's fallbacks
-  // off. Archivo across its width axis, one width per role, B612 Mono for code, and Reading Serif, an
+  // off. Archivo across its width axis, one width per role, JetBrains Mono for code, and Reading Serif, an
   // instance of Source Serif 4, for long reads (ADR 0029), each a static instance, so no face has an axis.
   fonts: [
     font('Archivo Display', '--font-archivo-display', {
@@ -150,7 +178,7 @@ export default defineConfig({
       400: 'archivo-regular.woff2',
       600: 'archivo-semibold.woff2',
     }),
-    font('B612 Mono', '--font-b612-mono', { 400: 'b612-mono-regular.woff2' }),
+    font('JetBrains Mono', '--font-jetbrains-mono', { 400: 'jetbrains-mono-regular.woff2' }),
     font('Reading Serif', '--font-reading-serif', {
       400: 'reading-serif-regular.woff2',
       600: 'reading-serif-semibold.woff2',
@@ -172,7 +200,7 @@ export default defineConfig({
   // carry frame-ancestors. The page policy is the header pagePolicy writes (above), and a <meta>
   // beside it would be a second owner of the same directives.
   vite: {
-    plugins: [tailwindcss()],
+    plugins: [tailwindcss(), preloadWithoutTheQuestion],
     // No asset becomes a data: URI, which img-src and font-src 'self' would refuse.
     build: { assetsInlineLimit: 0 },
   },

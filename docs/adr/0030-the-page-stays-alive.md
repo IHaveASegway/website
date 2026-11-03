@@ -27,7 +27,7 @@ The veil is the design's one trick. Moving a mask would repaint the window on ev
 
 **One choice, one button.** Since the field runs on every page, every page's top bar holds the pause button (SC 2.2.2). `scripts/field.js` is the one owner of the choice: it marks the page (`data-motion`) unless the visitor asked for less motion or to save data, and CSS, a lab's run and the Route Lab's vans all read the mark. The press lasts for the tab.
 
-**A lab is running when you land.** Once the page is marked, its simulation loads and plays, which reverses ADR 0020's load on intent for arrival only. It plays only while the demo is on the screen and the tab is showing. Its live regions say nothing until the visitor's first press, and from that press the demo is theirs. Its own Pause stops that demo and nothing else, so the next lab still lands running. A link to a run still opens paused.
+**A lab is running when you land.** Once the page is marked, its simulation loads and plays, which reverses ADR 0020's load on intent for arrival only. It plays only while the demo is on the screen and the tab is showing. Its live regions say nothing until the visitor's first press, and neither do the lines on the screen that say what a press did, and from that press the demo is theirs. Its own Pause stops that demo and nothing else, so the next lab still lands running. A link to a run still opens paused.
 
 **The Route Lab's vans.** It has no simulation to run, and its solver is 350 KB, so its sketch is its plans: a dot for each van drives the route already drawn, on one clock across both maps, so the better plan is visibly home first. SMIL's `animateMotion` follows the drawn path by reference, so it needs no script to run and no copy of the route, and it sits on a layer of its own so a moving dot repaints nothing of the map.
 
@@ -47,7 +47,7 @@ The veil is the design's one trick. Moving a mask would repaint the window on ev
 
 | Option | Weight on arrival | Truth |
 |---|---|---|
-| Run the real simulation (chosen) | 8 to 13 KB, after the page has settled | It's the thing itself, so it can't disagree with the page |
+| Run the real simulation (chosen) | 8 to 14 KB, after the page has settled | It's the thing itself, so it can't disagree with the page |
 | A CSS loop of the picture, as Home's Orbit does | None | Looks right, and would be a drawing of a demo sitting on top of the demo |
 | Keep load on intent, with a louder Run button | None | Doesn't answer him: a page that needs a press still reads as stopped |
 
@@ -76,3 +76,24 @@ Two-way. It's about 300 lines of CSS, one component's markup and a return value 
 - WebKit, [bug 312407](https://bugs.webkit.org/show_bug.cgi?id=312407), on when Safari's scroll-driven animations came off the main thread (iOS 26.4).
 - Paul Lewis and Paul Irish, [High Performance Animations](https://web.dev/articles/animations-guide), on why transform and opacity are the cheap ones.
 - W3C, [Understanding SC 2.2.2: Pause, Stop, Hide](https://www.w3.org/WAI/WCAG22/Understanding/pause-stop-hide.html), on what starts by itself.
+
+## Postscript 2026-11-02
+
+The Raft Lab's landing run had no story. A healthy cluster only sends heartbeats, so a visitor watched dots for as long as they stayed, where the Queue Lab's run crashes a worker. So left alone it now crashes its leader 2 s in at the Steady speed; another server wins a newer term about 6 s in; the old one comes back as a follower at 10 s; the new leader commits one write all five hold at 15 s. Then it stands a moment and goes round again, as the other labs' landing runs do. One write and no more, so each log stays on one line on a phone.
+
+It's a script of the same actions a press records (`landingStory` in `lib/raft/view.ts`), played by `playTo` in `lib/raft/sim.ts`, so it's a run its actions replay. Two things differ from the Queue Lab's crash, on purpose:
+
+- **It isn't in the opening.** The build's picture and a link's run never hold it.
+- **A press drops what's left of it.** A crash that came after a visitor's press would be the page breaking something they were using. A visitor who wants the election again presses Crash or Cut off the leader, and a visitor who presses Run first, as under reduced motion, starts on heartbeats for the same reason.
+
+Start over is the one press that doesn't, on a run with no other press in it. It asks for that run again, so the story plays again, once and with no going round, as the Queue Lab's Start over brings its crash back. The weaker design let it drop the story like any other press, and a visitor who watched the election and pressed Start over got heartbeats, so the run they just saw still couldn't be replayed, the thing this day's review asked Start over to stop doing. After any other press, Start over goes back to the opening with nothing ahead. Which way it goes is one line in `press`, in the lab's `app.ts`, so it's a two-way door.
+
+The same review found two faults in `runOnLanding` itself, in all four labs. Any hash change ended its work, so an "On this page" link or the skip link left a run playing off the screen and deaf to the top bar's Pause. Now only a link to a run does (`readLink`, the one owner of what a link is). And the end of a run went round with nobody watching, or under the top bar's Pause, lighting the button and putting the picture back to the opening on a page told to hold still. It stands now until it's wanted.
+
+`e2e/landing.spec.ts` holds the story, each kind of first press, Start over, a link, a link to a heading and reduced motion, on Playwright's clock so a press lands exactly when it says. `e2e/steady.spec.ts` holds that nothing moves on a phone through the whole of it and round again. The other labs' runs are otherwise unchanged, and no Revisit if condition was met.
+
+## Postscript 2026-11-03
+
+**One choice, one button** didn't hold. In the four simulated labs the top bar's Pause stopped a run only until the visitor's first press, and from there it turned to Play and stopped the field while the clock ran on. On the Route Lab's maps its Play restarted vans the visitor had stopped by hand, and the cube's Play the day ignored it. SC 2.2.2 held, through each lab's own Pause, but the page said paused while it visibly ran. Now there's one rule: its Pause stops whatever is moving, its Play starts only what its Pause stopped, and a press after that Pause is the visitor's (`heldByThePage` in `lib/lab/landing-run.ts`, the vans' `barred` in `route-lab/boot.ts`, the cube's own). The press still lasts for the tab, so a stored Pause holds a lab as it lands, and a visitor who presses Run under it gets their run.
+
+This doesn't touch "from that press the demo is theirs" and the Raft Lab's story, which a review also asked about. Pause, Run and a choice of Speed each drop what's left of the story there, as this record's postscript of 2026-11-02 says, and a visitor who presses Pause and then Run gets heartbeats, where the other labs still play their failure. That's a rule of Joseph's, and bending it is his call. What changed is the words: Start over's line no longer says "Press Run to watch it" on that lab, and Run says "Nothing is scheduled: press something below to break it", so heartbeats alone don't read as a page that stopped. `e2e/landing.spec.ts` holds both.

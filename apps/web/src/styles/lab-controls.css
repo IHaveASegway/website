@@ -1,0 +1,359 @@
+/*
+  The controls on a simulated lab's desk, one set in all four
+  (docs/lab.md, "The controls"; components/lab/). A sheet of its own, which those components link, so
+  a lab's page that draws none of them, as the Route Lab's, doesn't pay for them. Every color is a
+  token from tokens.css. It moves nothing, so it declares no transition and no animation.
+*/
+
+/* A group of controls: its name, and what it works. Its one column can shrink, or a button of a set
+   width pushes the page sideways at a larger text size. */
+.lab-group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.5rem;
+  align-content: start;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.lab-group-name {
+  margin: 0;
+  padding: 0;
+  color: var(--muted-foreground);
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  line-height: var(--text-label--line-height);
+}
+
+.lab-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* The Time group (components/lab/Time.astro): its name with the clock beside it, so the clock that
+   Next event moves sits on the line over the button. Run keeps one width, its lamp and all, as its
+   words turn to Pause, so the row never shifts under the pointer. */
+.lab-time-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.75rem;
+}
+
+.lab-clock {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  line-height: var(--text-label--line-height);
+  font-variant-numeric: tabular-nums;
+}
+
+/* At the narrowest phones a long run's clock takes a line of its own and keeps two, so a clock that
+   grows a digit never moves the buttons under it. */
+@media (width < 24rem) {
+  .lab-clock {
+    flex-basis: 100%;
+    min-block-size: 2lh;
+  }
+}
+
+.lab-run {
+  min-inline-size: 6.5rem;
+}
+
+/* A choice among a few (components/lab/Choice.astro), one rule in every lab: push-buttons with a
+   control's 4 px corners, joined edge to edge. The chosen one is pressed in, raised, as a pressed
+   button is (global.css), and its lamp is lit. Until 2026-11-02 the labs drew it three ways. */
+.lab-choice {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.lab-choice > .lab-group-name {
+  margin-block-end: 0.375rem;
+}
+
+/* Its name beside its buttons. */
+.lab-choice-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 0.5rem;
+}
+
+/* Each button draws over its neighbor's edge, and the row steps in by as much, so a row that wraps
+   starts level with the one over it. */
+.lab-options {
+  display: flex;
+  flex-wrap: wrap;
+  row-gap: 0.25rem;
+  padding-inline-start: 1px;
+}
+
+.desk .btn.lab-option {
+  position: relative;
+  padding-inline: 0.75rem;
+}
+
+/* A button that shows a short name, a number or a day's first letters, keeps to its words, and is
+   still 44 px across, the target size every other control on the desk has (SC 2.5.5). */
+.desk .btn.lab-option[data-short] {
+  min-inline-size: 2.75rem;
+  padding-inline: 0.5rem;
+}
+
+.lab-option {
+  margin-inline-start: -1px;
+}
+
+.lab-option:has(input:checked) {
+  background-color: var(--surface-2);
+}
+
+/* The radio covers its push-button, edge included, and draws nothing itself: the one focus ring
+   every focusable element has (global.css) goes around the whole button, as a button's does. */
+.lab-option input {
+  position: absolute;
+  inset-block-start: -1px;
+  inset-inline-start: -1px;
+  inline-size: calc(100% + 2px);
+  block-size: calc(100% + 2px);
+  margin: 0;
+  border: 0;
+  border-radius: inherit;
+  appearance: none;
+  background-color: transparent;
+  cursor: pointer;
+}
+
+.lab-option-lamp {
+  flex: none;
+  inline-size: 0.625rem;
+  block-size: 0.625rem;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+}
+
+.lab-option input:checked + .lab-option-lamp {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+/* What a press did, or why it did nothing (lib/lab/said.ts), under the controls it came from, in the
+   room its longest words take at that width from the first paint, so nothing moves when it speaks.
+   Until a press it says what its controls do, in the muted text. */
+.lab-said {
+  max-inline-size: var(--measure);
+  min-block-size: 3lh;
+  margin: 0;
+  color: var(--muted-foreground);
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  line-height: var(--text-label--line-height);
+  font-variant-numeric: tabular-nums;
+}
+
+.lab-said[data-spoke] {
+  color: var(--foreground);
+}
+
+/* Read by assistive technology, kept off the screen. */
+.lab-sr {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  border-width: 0;
+  white-space: nowrap;
+}
+
+.lab-heading {
+  margin: 0;
+  font-family: var(--font-label);
+  font-size: var(--text-ui);
+  font-weight: 500;
+  line-height: var(--text-ui--line-height);
+}
+
+/* The caption under a lab's picture, which says what the run has done, one rule in every lab. Each
+   lab's sheet keeps only the room its longest words take at each width. Until 2026-11-03 it was set
+   three ways, in two faces and two colours, in four labs. */
+.lab-caption {
+  max-inline-size: var(--measure);
+  margin: 0;
+  color: var(--foreground);
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  line-height: var(--text-label--line-height);
+  font-variant-numeric: tabular-nums;
+}
+
+/* What a visitor with no script reads, beside the caption (components/lab/NoScript.astro). */
+.lab-noscript {
+  color: var(--muted-foreground);
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  line-height: var(--text-label--line-height);
+}
+
+/* "Checked as the run goes", one list in every lab: a lamp filled while a check holds and crossed once
+   it breaks, the site's mark for failed (design-system.md, "Lamps: one meaning per mark"), its name,
+   and in words how it stands. The name and the words stand one over the other, and side by side where
+   the list has the room, so what decides is the list's own width: a lab's list shares a desk with
+   something else at some widths and not others. Until 2026-11-03 two labs set a row one way, and two
+   another, in three columns. */
+.lab-checks {
+  display: grid;
+  container-type: inline-size;
+  gap: 0.625rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lab-check {
+  display: grid;
+  grid-template-columns: 0.875rem minmax(0, 1fr);
+  gap: 0.125rem 0.625rem;
+  align-items: baseline;
+}
+
+.lab-check-lamp {
+  position: relative;
+  align-self: start;
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  margin-block-start: 0.1875rem;
+  border: 2px solid var(--line);
+  border-radius: 50%;
+  background-color: var(--line);
+}
+
+.lab-check[data-held='false'] .lab-check-lamp {
+  background-color: transparent;
+}
+
+/* The cross stands inside the ring: two bars through the lamp's middle, each a little short of it. */
+.lab-check[data-held='false'] .lab-check-lamp::before,
+.lab-check[data-held='false'] .lab-check-lamp::after {
+  content: '';
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  inline-size: 0.5rem;
+  block-size: 2px;
+  margin-block-start: -1px;
+  margin-inline-start: -0.25rem;
+  background-color: var(--line);
+  rotate: 45deg;
+}
+
+.lab-check[data-held='false'] .lab-check-lamp::after {
+  rotate: -45deg;
+}
+
+.lab-check-name {
+  color: var(--foreground);
+  font-family: var(--font-label);
+  font-size: var(--text-ui);
+  font-weight: 500;
+  line-height: var(--text-ui--line-height);
+}
+
+.lab-check-word {
+  grid-column: 2;
+  color: var(--muted-foreground);
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  line-height: var(--text-label--line-height);
+  font-variant-numeric: tabular-nums;
+}
+
+.lab-check[data-held='false'] .lab-check-word {
+  color: var(--foreground);
+}
+
+@container (inline-size >= 38rem) {
+  .lab-check {
+    grid-template-columns: 0.875rem 17rem minmax(0, 1fr);
+  }
+
+  .lab-check-word {
+    grid-column: 3;
+  }
+}
+
+/* The event log (components/lab/EventLog.astro), a describer's window, raised, the same in every lab.
+   Its box is one size whatever it holds, before the run's first line and after its sixtieth, so a run
+   that empties it, or fills it, moves nothing under it (steady.spec.ts). It stands on its end: under
+   column-reverse the newest line shows from the first paint with no script, and a reader at the end
+   stays there as lines come. The list's auto margin keeps a short log at the box's top. */
+.lab-log {
+  display: flex;
+  flex-direction: column-reverse;
+  block-size: 16rem;
+  padding: 0.75rem 1rem;
+  overflow-y: auto;
+  background-color: var(--surface-2);
+  font-size: var(--text-label);
+  line-height: var(--text-label--line-height);
+}
+
+.lab-log-list {
+  display: grid;
+  flex: none;
+  gap: 0.25rem;
+  margin: 0 0 auto;
+  padding: 0;
+  list-style: none;
+}
+
+/* A line's time in a column of its own, so its words wrap under themselves, never under the time. */
+.lab-log-list > li {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+}
+
+.lab-log-at {
+  color: var(--muted-foreground);
+  font-family: var(--font-label);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Forced colors (Windows contrast themes) replace fills with the visitor's background: a chosen
+   lamp stays lit, and a check's lamp keeps its shape, in their palette. */
+@media (forced-colors: active) {
+  .lab-option input:checked + .lab-option-lamp {
+    forced-color-adjust: none;
+    border-color: ButtonText;
+    background-color: ButtonText;
+  }
+
+  .lab-check-lamp,
+  .lab-check[data-held='false'] .lab-check-lamp::before,
+  .lab-check[data-held='false'] .lab-check-lamp::after {
+    forced-color-adjust: none;
+    border-color: CanvasText;
+    background-color: CanvasText;
+  }
+
+  .lab-check[data-held='false'] .lab-check-lamp {
+    background-color: Canvas;
+  }
+}

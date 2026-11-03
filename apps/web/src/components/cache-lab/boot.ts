@@ -4,14 +4,12 @@
 // over it, or a press, and a press made before it arrives is kept and played once it has. A touch
 // that only scrolls the page loads nothing, but a visitor who lands here gets the demo running (below).
 
+import { sayUnloaded, tryAgain } from '../../lib/lab/unloaded';
 import { whenMoving } from '../../lib/lab/when-moving';
-
-const UNLOADED = 'The demo did not load. Press any control to try again.';
 
 const root = document.getElementById('cache-lab');
 
 if (root) {
-  const said = root.querySelector('[data-cl-said]');
   const queued: Element[] = [];
   let ready = false;
   let failed = false;
@@ -29,7 +27,7 @@ if (root) {
       .catch(() => {
         started = undefined;
         failed = true;
-        if (said) said.textContent = UNLOADED;
+        sayUnloaded(root);
       });
   };
 
@@ -46,11 +44,19 @@ if (root) {
     const target = event.target instanceof Element ? event.target : null;
     const control = target?.closest('button');
     if (!control) return;
+    if (failed) {
+      tryAgain(root);
+      return;
+    }
     queued.push(control);
     start();
   });
   root.addEventListener('change', (event) => {
     if (ready || !(event.target instanceof Element)) return;
+    if (failed) {
+      tryAgain(root);
+      return;
+    }
     queued.push(event.target);
     start();
   });

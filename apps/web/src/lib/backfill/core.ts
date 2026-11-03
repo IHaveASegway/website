@@ -1,6 +1,6 @@
 // The Backfill Lab's model: the bakery's weekly sales report, made by a job graph that runs once
 // for each day of data. Virtual time here counts whole minutes, not the milliseconds the other
-// labs count: minute 0 is 00:00 on Monday 19 October 2026, the first day the report covers, and a
+// labs count: minute 0 is 00:00 on Monday, October 19, 2026, the first day the report covers, and a
 // day is 1,440 minutes. Every name and number of the model is in this file; the simulator (sim.ts)
 // moves it and the checker (check.ts) judges it.
 //
@@ -18,9 +18,9 @@
 
 /** Minutes in a day. */
 export const DAY = 1_440;
-/** The days the report covers: day 0 is Monday 19 October 2026, day 6 is Sunday 25 October. */
+/** The days the report covers: day 0 is Monday, October 19, 2026, day 6 is Sunday, October 25. */
 export const DAYS = 7;
-/** When the week is over and the graph is switched on: 00:00 on Monday 26 October. */
+/** When the week is over and the graph is switched on: 00:00 on Monday, October 26. */
 export const WEEK_END = DAYS * DAY;
 
 const WEEKDAYS = [
@@ -36,17 +36,17 @@ const WEEKDAYS = [
 /** A day number's weekday: day 0 is a Monday. */
 export const weekday = (day: number): string => WEEKDAYS[((day % 7) + 7) % 7] as string;
 
-/** A day number's date, counted from 19 October without a Date object. It is right for every day
- *  from 1 October to 30 November, far more than a run can reach. */
+/** A day number's date, counted from October 19 without a Date object. It is right for every day
+ *  from October 1 to November 30, far more than a run can reach. */
 function calendar(day: number): { readonly month: number; readonly date: number } {
   const date = 19 + day;
   return date <= 31 ? { month: 10, date } : { month: 11, date: date - 31 };
 }
 
-/** "Wednesday 21 October": how the lines and the page name a day. */
+/** "Wednesday, October 21": how the lines and the page name a day. */
 export function dayText(day: number): string {
   const { month, date } = calendar(day);
-  return `${weekday(day)} ${date} ${month === 10 ? 'October' : 'November'}`;
+  return `${weekday(day)}, ${month === 10 ? 'October' : 'November'} ${date}`;
 }
 
 /** "2026-10-21": a day as the partition's key. */
@@ -65,7 +65,7 @@ export function clock(at: number): string {
   return `${pad(Math.floor(minute / 60))}:${pad(minute % 60)}`;
 }
 
-/** "00:40 on Monday 26 October". */
+/** "00:40 on Monday, October 26". */
 export const when = (at: number): string => `${clock(at)} on ${dayText(dayOf(at))}`;
 
 /** "5 minutes", "1 hour", "5 hours 10 minutes". */
@@ -89,18 +89,17 @@ export function countOf<T>(list: readonly T[], test: (item: T) => boolean): numb
 
 /**
  * The job graph each day's run follows, one task after another: a sensor that waits for the day's
- * export file, then extract, convert, load and check. The middle three are the E, T and L of every
- * batch pipeline. The T goes by a synonym here: Tailwind reads every word under src/ as a possible
- * class name, and its usual name is also a utility's.
+ * export file, then extract, transform, load and check. The middle three are the E, T and L of
+ * every batch pipeline.
  */
-export const TASKS = ['wait', 'extract', 'convert', 'load', 'check'] as const;
+export const TASKS = ['wait', 'extract', 'transform', 'load', 'check'] as const;
 export type TaskName = (typeof TASKS)[number];
 
 /** How a line names each task: the first one is a sensor, not a step that does work. */
 export const TASK_WORD: Record<TaskName, string> = {
   wait: 'sensor',
   extract: 'extract',
-  convert: 'convert',
+  transform: 'transform',
   load: 'load',
   check: 'check',
 };
@@ -108,7 +107,7 @@ export const TASK_WORD: Record<TaskName, string> = {
 /** How long an attempt of each task takes, in whole minutes, both bounds included. */
 export const DURATION = {
   extract: [4, 9],
-  convert: [3, 7],
+  transform: [3, 7],
   load: [5, 12],
   check: [1, 2],
 } as const satisfies Record<Exclude<TaskName, 'wait'>, readonly [number, number]>;

@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest';
 import { replay as replayBackfill } from '../src/lib/backfill/sim';
 import { WEEK_END } from '../src/lib/backfill/core';
 import { openingRun as backfillOpening } from '../src/lib/backfill/view';
+import { labFact } from '../src/lib/lab-facts';
 import { replay as replayCache } from '../src/lib/cache/sim';
 import { OPENING as CACHE, openingRun as cacheOpening } from '../src/lib/cache/view';
 import {
@@ -22,7 +23,6 @@ import {
   raftLine,
   RAFT_RECOVERY,
   ROUNDS,
-  routesFact,
   routesLine,
   routesWords,
   SIDING,
@@ -33,7 +33,7 @@ import {
 import { replay as replayQueue } from '../src/lib/queue/sim';
 import { OPENING as QUEUE, openingRun as queueOpening } from '../src/lib/queue/view';
 import { replay as replayRaft } from '../src/lib/raft/sim';
-import { OPENING as RAFT, openingRun, statusText } from '../src/lib/raft/view';
+import { OPENING as RAFT, openingRun } from '../src/lib/raft/view';
 import type { RouteData } from '../src/lib/route-lab/data';
 import type { Day } from '../src/lib/route-lab/days';
 import { dayLine, NBSP } from '../src/lib/route-lab/format';
@@ -126,12 +126,6 @@ describe('the Routes line', () => {
     expect(figureWords(day)).toBe(
       'of driving for a made-up bakery on a busy Saturday, planned by VROOM in your browser',
     );
-    // The index's one fact: the day's driving with VROOM, against the orders as they came in.
-    const before = measured([{ arrives: [600], back: 7200 }]);
-    const after = measured([{ arrives: [600], back: 5400 }]);
-    expect(routesFact(day, before, after)).toBe(
-      `A busy Saturday: 1${NBSP}h 30${NBSP}min of driving instead of 2${NBSP}h 0${NBSP}min.`,
-    );
     expect(inWords(5)).toBe('five');
     expect(inWords(12)).toBe('12');
   });
@@ -154,8 +148,9 @@ describe('the Routes line', () => {
     expect(routesWords(picture.day, picture.before.measured, after)).toBe(
       `20 orders on 3 vans: 5${NBSP}h 34${NBSP}min of driving as the orders came in, 3${NBSP}h 12${NBSP}min planned by VROOM, the last van back after 2${NBSP}h 20${NBSP}min.`,
     );
-    expect(routesFact(picture.day, picture.before.measured, after)).toBe(
-      `A busy Saturday: 3${NBSP}h 12${NBSP}min of driving instead of 5${NBSP}h 34${NBSP}min.`,
+    // The card's one fact says what the figure measures against and that the bakery is made up.
+    expect(await labFact('routes')).toBe(
+      `3${NBSP}h 12${NBSP}min of driving for a made-up bakery on a busy Saturday, planned by VROOM in your browser, against 5${NBSP}h 34${NBSP}min as the orders came in.`,
     );
     const line = routesLine(after);
     expect(line.vans.map((van) => van.stops.length)).toEqual([9, 9, 2]);
@@ -173,10 +168,6 @@ describe('the Raft line', () => {
     expect(line.followers).toEqual([2, 3, 4, 5]);
     expect(line.log).toEqual([true, true, true]);
     expect(line.words).toBe('Server 1 leads term 1. All five safety properties hold.');
-  });
-
-  test("the index's fact: the five properties held over every event of the opening run", () => {
-    expect(statusText(openingRun())).toBe('All five safety properties held over 249 events.');
   });
 
   // The board's fix: the opening with its leader crashed where it stands, played on until another
@@ -233,7 +224,7 @@ describe('the Queue line', () => {
   test("the index's fact: the same crash with the idempotency key prints order 18 once", () => {
     const keyed = replayQueue({ ...QUEUE.config, key: true }, QUEUE.actions, QUEUE.until);
     expect(queueFact(keyed)).toBe(
-      'With an idempotency key, worker 2 crashes and order 18 still prints once. 25 orders done in 4 s, none lost or printed twice.',
+      'With an idempotency key, worker 2 crashes and order 18’s oven ticket still prints once. 25 orders done in 4 s, none lost or printed twice.',
     );
     // The opening itself printed order 18 twice, so it cannot be the fact.
     expect(() => queueFact(queueOpening())).toThrow(/doubled/);
@@ -261,14 +252,14 @@ describe('the Cache line', () => {
     expect(line.nodes).toEqual(['filled', 'filled', 'filled', 'filled']);
     expect(line.connections).toEqual([true, false, false, false, false, false, false, false]);
     expect(line.words).toBe(
-      'When the menu expired at 3.0 s, the database fetched it 23 times at once, and 2 reads timed out.',
+      'When the menu expired at 3.0 s, the database had 23 fetches of it in flight at once, and 2 reads timed out.',
     );
   });
 
-  test("the index's fact: coalescing has the database fetch the menu once instead of 23 times", () => {
+  test("the index's fact: with coalescing the database is asked for the menu once instead of 23 times", () => {
     const coalesced = replayCache({ ...CACHE.config, coalesce: true }, CACHE.actions, CACHE.until);
     expect(cacheFact(cacheOpening(), coalesced)).toBe(
-      'When the menu expires at 3.0 s, coalescing means the database fetches it once instead of 23 times.',
+      'When the menu expires at 3.0 s, coalescing means the database is asked for it once instead of 23 times.',
     );
     // With no herd at an expiry there is nothing to compare.
     expect(() => cacheFact(coalesced, coalesced)).toThrow(/herd/);
@@ -277,11 +268,11 @@ describe('the Cache line', () => {
   test("the board's fix: coalescing fetches the menu once, and no read times out", () => {
     const coalesced = replayCache({ ...CACHE.config, coalesce: true }, CACHE.actions, CACHE.until);
     expect(cacheFix(cacheOpening(), coalesced)).toBe(
-      'With coalescing, the database fetches it once, and no read times out.',
+      'With coalescing, the database is asked for it once, and no read times out.',
     );
     // Without coalescing the same words would be false: 23 fetches, and two reads timed out.
     expect(cacheFix(cacheOpening(), cacheOpening())).toBe(
-      'With coalescing, the database fetches it 23 times, and 2 reads time out.',
+      'With coalescing, the database is asked for it 23 times, and 2 reads time out.',
     );
     expect(() => cacheFix(coalesced, coalesced)).toThrow(/herd/);
   });

@@ -2,7 +2,7 @@ import rss from '@astrojs/rss';
 import type { APIRoute, GetStaticPaths } from 'astro';
 import { site, trailingSlash } from 'astro:config/server';
 import { loadProfile, loadWritingArea } from '../lib/content';
-import { feedItems } from '../lib/posts';
+import { feedItems, writingDescription } from '../lib/posts';
 
 // /rss.xml: essays and notes, published ones only, newest first (content.md, "Sitemap and phases").
 // A dynamic route, because a file named rss.xml.ts would always build: this one builds only while
@@ -18,7 +18,7 @@ export const GET: APIRoute = async () => {
   const { name } = (await loadProfile()).basics;
   return rss({
     title: name,
-    description: `Essays by ${name}.`,
+    description: writingDescription(name),
     site,
     // @astrojs/rss has a slash option of its own; it follows astro.config.mjs, so the feed's links
     // and GUIDs take the same form as the canonical links and the sitemap (ADR 0005).

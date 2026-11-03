@@ -91,13 +91,16 @@ export function directivesOf(value: string): Map<string, string[]> {
   return directives;
 }
 
-/** The one kind of inline style a page may hold: the Fonts API's, each face's @font-face rule and
- *  its family's custom property on :root (security.md). The policy hashes every inline <style>
- *  the build finds, so this is the alarm for one nothing else wrote: a post's raw HTML, an
+/** The kinds of inline style a page may hold: the Fonts API's, each face's @font-face rule and
+ *  its family's custom property on :root (security.md), and the one view-transition opt-in Base.astro
+ *  writes, guarded as test/tokens.test.ts holds every motion rule. The policy hashes every inline
+ *  <style> the build finds, so this is the alarm for one nothing else wrote: a post's raw HTML, an
  *  integration, a dependency. The script allowlist is test/scripts.test.ts. The family is a quoted
  *  name, or a bare identifier where the name is one word, as the API minifies "Archivo". */
 export const FONTS_STYLE =
   /^(?:@font-face\{[^{}]*\})+:root\{--font-[a-z0-9-]+:(?:"[^"]+"|[A-Za-z][\w-]*);\}$/;
+const VIEW_TRANSITION_STYLE =
+  '@media (prefers-reduced-motion:no-preference){@view-transition{navigation:auto}}';
 
 /** The path a built page answers at: its folder, or for the 404, a path no page has. */
 export const pathOf = (file: string): string =>
@@ -144,9 +147,11 @@ for (const file of html) {
       expect(inline.map((s) => s.body)).toEqual([THEME_SCRIPT]);
     });
 
-    test("every inline <style> is the Fonts API's, and nothing else's", () => {
-      for (const style of tags(page, 'style'))
-        expect(style.body, style.body.slice(0, 60)).toMatch(FONTS_STYLE);
+    test("every inline <style> is the Fonts API's or the view-transition opt-in, and nothing else's", () => {
+      const styles = tags(page, 'style').map((style) => style.body);
+      expect(styles.filter((body) => body === VIEW_TRANSITION_STYLE)).toHaveLength(1);
+      for (const body of styles.filter((text) => text !== VIEW_TRANSITION_STYLE))
+        expect(body, body.slice(0, 60)).toMatch(FONTS_STYLE);
     });
 
     test("style-src has no 'unsafe-inline', and every inline <style> is hashed", () => {

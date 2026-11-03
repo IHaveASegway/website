@@ -111,7 +111,7 @@ describe('/about/, the résumé', () => {
     ).toEqual([
       ...(profile.basics.summary ? [profile.basics.summary] : []),
       ...(linkedIn ? ['My full work history is on LinkedIn.'] : []),
-      `I'll send a résumé if you email me: ${CONTACT_EMAIL}.`,
+      `I’ll send a résumé if you email me: ${CONTACT_EMAIL}.`,
     ]);
     expect(links(notes)).toEqual([
       ...(linkedIn ? [{ href: linkedIn.url, text: 'LinkedIn' }] : []),
@@ -189,7 +189,8 @@ describe('/about/, the résumé', () => {
 
   test('its link preview draws the name and the label the header gives it', () => {
     expect(page).toContain(`<meta property="og:title" content="${profile.basics.name} · About">`);
-    expect(page).toContain('<title>About · Joseph Peterson</title>');
+    // The tab says what the link preview does: on the page about him, his name comes first.
+    expect(page).toContain('<title>Joseph Peterson · About</title>');
     expect(files).toContain('about/og.png');
     expect(files).not.toContain('resume/og.png');
   });

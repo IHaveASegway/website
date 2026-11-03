@@ -211,7 +211,7 @@ const judged = (sim: Sim, day: number): boolean => Boolean(sim.runs[day]?.verdic
  *  failed, as the run board does. */
 export function summary(sim: Sim): string {
   if (!sim.on)
-    return `The job graph is off. Switched on, it creates a run for each day from ${dayText(0)} to ${dayText(DAYS - 1)} at once, and lets ${sim.maxActiveRuns} run at a time.`;
+    return `The job is off. Switched on, it creates a run for each day from ${dayText(0)} to ${dayText(DAYS - 1)} at once, and lets ${sim.maxActiveRuns} run at a time.`;
   const checked: number[] = [];
   for (let day = 0; day < DAYS; day++) if (judged(sim, day)) checked.push(day);
   const wrong = checked.flatMap((day) =>
@@ -283,7 +283,7 @@ export function statusText(sim: Sim): string {
       : [],
   );
   if (broken.length === 0)
-    return `All three properties held over ${events}: every checked day's total matched the source, no task started before its upstream succeeded, and no limit was passed.`;
+    return `All three checks held over ${events}: every checked day's total matched the source, no task started before its upstream succeeded, and no limit was passed.`;
   const held = all.flatMap((p) => (p.held ? [SHORT[p.id]] : []));
   const tail = held.length > 0 ? `; ${joinAnd(held)} held` : '';
   return `${upperFirst(broken.join('; '))}${tail}, over ${events}.`;
@@ -337,15 +337,47 @@ export const startOver = (sim: Sim): Sim => openLink(linkTo(sim)) as Sim;
 /**
  * The week as it stood before the job was switched on: the minute the week ends, the job off,
  * under the visitor's settings, with every failed load and late file set before the switch,
- * Wednesday's failed load from the opening among them.
+ * Wednesday's failed load from the opening among them, and every failed load the visitor set after
+ * it that no load has spent yet. Until 2026-11-02 those went: Fail Monday's next load on a finished
+ * week, then Run, and the week played with Monday succeeding, right after the log said it wouldn't.
  */
 export function beforeSwitch(sim: Sim): Sim {
   const switched = sim.actions.findIndex((a) => a.kind === 'start');
+  const upTo = switched < 0 ? sim.actions.length : switched;
   const setUp = sim.actions
-    .slice(0, switched < 0 ? sim.actions.length : switched)
+    .slice(0, upTo)
     .filter((a) => a.kind === 'fail-next-load' || a.kind === 'late-file');
-  return replay(settingsOf(sim), setUp, WEEK_END);
+  // A failure set after the switch, on a day whose earlier ones were spent first. Each goes before
+  // the switch now, as if it had been set there.
+  const pressed = sim.actions
+    .slice(upTo)
+    .flatMap((a) => (a.kind === 'fail-next-load' ? [a.day] : []));
+  const unspent = Array.from({ length: DAYS }, (_, day) =>
+    Array.from(
+      {
+        length: Math.min(
+          countOf(pressed, (d) => d === day),
+          sim.failNext[day] ?? 0,
+        ),
+      },
+      (): Action => ({ at: WEEK_END, steps: 0, kind: 'fail-next-load', day }),
+    ),
+  ).flat();
+  return replay(settingsOf(sim), [...setUp, ...unspent], WEEK_END);
 }
+
+/**
+ * The settings that decide the story the week tells: how a load writes, and which day it writes.
+ * A week that has told it has nothing more to say about it, and one under way would mix the old
+ * loads with the new, so a choice of either replays the week under it, from its switch. The limit of
+ * runs works from the moment it's chosen, on the week as it stands.
+ */
+export const STORY_WORDS: Record<Mode | PartitionKey, string> = {
+  append: 'Loads now append their rows',
+  overwrite: 'Loads now overwrite their day',
+  'run-day': "Loads now file under the run's own day",
+  today: "Loads now file under the clock's day",
+};
 
 /**
  * What Start over shows: the week this one's link names (startOver), taken back to its switch, the
@@ -383,14 +415,17 @@ export function holdFile(sim: Sim, day: number): Sim {
 export const moment = (at: number): string =>
   dayOf(at) === dayOf(WEEK_END) ? clock(at) : when(at);
 
+/** Where a week goes back to, in words, for the lines that say it did. */
+export const REPLAY_WORDS = `at ${moment(WEEK_END)}, before the job is switched on`;
+
 /** An event line's time, short enough for its column: "00:41", or "Tue 00:10" a day later. */
 export const lineTime = (at: number): string =>
   dayOf(at) === dayOf(WEEK_END) ? clock(at) : `${weekday(dayOf(at)).slice(0, 3)} ${clock(at)}`;
 
 /** "Mon 19": a day as the run board's rows name it. */
 export function shortDay(day: number): string {
-  const [name = '', date = ''] = dayText(day).split(' ');
-  return `${name.slice(0, 3)} ${date}`;
+  const words = dayText(day).split(' ');
+  return `${(words[0] ?? '').slice(0, 3)} ${words.at(-1) ?? ''}`;
 }
 
 /** A lamp's shape (ADR 0025: state is a shape and a word): not started, running, succeeded, failed,
@@ -407,7 +442,7 @@ export interface StepView {
 
 export interface DayView {
   readonly day: number;
-  /** "Mon 19", and "Monday 19 October". */
+  /** "Mon 19", and "Monday, October 19". */
   readonly short: string;
   readonly long: string;
   /** The run's state in a word; empty while the graph is off and the day has no run. */
@@ -534,7 +569,7 @@ export interface PropertyView {
   readonly id: PropertyId;
   readonly name: string;
   readonly held: boolean;
-  /** "Held.", or how often it broke and the first time, with what was wrong then. */
+  /** "Held", or how often it broke and the first time, with what was wrong then. */
   readonly word: string;
 }
 
@@ -544,8 +579,8 @@ export const propertyViews = (sim: Sim): PropertyView[] =>
     name: PROPERTY_NAMES[p.id],
     held: p.held,
     word: p.first
-      ? `Broke ${times(p.count)}, first at ${moment(p.first.at)}: ${p.first.detail}.`
-      : 'Held.',
+      ? `Broken ${times(p.count)}, first at ${moment(p.first.at)}: ${p.first.detail}.`
+      : 'Held',
   }));
 
 /** "44 events". */

@@ -106,7 +106,6 @@ export interface Server {
   hashes: number[];
   // Volatile state: lost in a crash.
   role: Role;
-  leader: number | null;
   commitIndex: number;
   /** The writes applied to the state machine, in log order: entries 1..commitIndex. */
   applied: number[];
@@ -158,7 +157,6 @@ export function createServer(
     log: [],
     hashes: [0x811c9dc5],
     role: 'follower',
-    leader: null,
     commitIndex: 0,
     applied: [],
     votes: new Set(),
@@ -175,7 +173,6 @@ export function createServer(
 export function crash(s: Server): void {
   s.up = false;
   s.role = 'follower';
-  s.leader = null;
   s.commitIndex = 0;
   s.applied = [];
   s.votes = new Set();
@@ -196,7 +193,6 @@ function adopt(s: Server, term: number, notes: Note[]): void {
   s.term = term;
   s.votedFor = null;
   s.role = 'follower';
-  s.leader = null;
 }
 
 function appendFor(s: Server, peer: number, timing: Timing): AppendRequest {
@@ -251,7 +247,6 @@ export function tick(
   s.term += 1;
   s.role = 'candidate';
   s.votedFor = s.id;
-  s.leader = null;
   s.votes = new Set([s.id]);
   resetTimer(s, now, timing, random);
   notes.push({ kind: 'election', node: s.id, term: s.term });
@@ -276,7 +271,6 @@ export function propose(s: Server, write: number): number | null {
 
 function becomeLeader(s: Server, now: number, timing: Timing, notes: Note[]): Message[] {
   s.role = 'leader';
-  s.leader = s.id;
   s.nextIndex = Array.from({ length: s.size }, () => lastIndex(s) + 1);
   s.matchIndex = Array.from({ length: s.size }, (_, i) => (i === s.id ? lastIndex(s) : 0));
   s.timerStart = now;
@@ -335,7 +329,6 @@ export function receive(
         s.role = 'follower';
         notes.push({ kind: 'stepped-down', node: s.id, term: s.term });
       }
-      s.leader = m.from;
       resetTimer(s, now, timing, random);
       // The consistency check: this log must hold the leader's entry at prevIndex. If it is too
       // short, the leader may jump back to its end; if the terms differ, it backs up by one.

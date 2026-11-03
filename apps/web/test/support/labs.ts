@@ -20,9 +20,11 @@ export interface SimulatedLab {
 }
 
 /**
- * One row per simulated lab. The Raft Lab keeps the 8,000 B of ADR 0020. The others' budgets are
- * proposed in ADR 0026, each its lab's measure rounded up to the next 500 B, so the next growth
- * past it is a decision and not a default.
+ * One row per simulated lab. The Raft Lab kept the 8,000 B of ADR 0020 until 2026-11-02, when a run
+ * that lands with a story to tell, a caption that says who only thinks it leads and a row for each
+ * property took it to 8,451 B (its postscript): 8,500 B, rounded up to the next 500 B as the others
+ * are. The others' budgets are proposed in ADR 0026, each its lab's measure rounded up to the next
+ * 500 B, so the next growth past it is a decision and not a default.
  *
  * Measured on 2026-10-31 on the labs' review fixes merged with the signal box, every chunk a lab's
  * module can load, gzip -9:
@@ -38,12 +40,32 @@ export interface SimulatedLab {
  * of the three. Of the Queue Lab's app, the test-only faults are about 118 B and resizing the pool
  * 111 B, which no control reaches: ADR 0026 takes them out before any budget is raised again. The
  * Backfill Lab's map class is its board's.
+ *
+ * Raised on 2026-11-02 for one set of controls in the three labs (docs/lab.md, "The controls"): the
+ * line that says what a press did, the shared event log and a setting that replays the run. Measured
+ * then, each with its 2,035 B of shared chunks: the Queue Lab 13,796 B, the Cache Lab 12,437 B, the
+ * Backfill Lab 12,943 B, against their 13,200, 12,000 and 12,500 B, each rounded up to the next 500 B.
+ * ADR 0026 asks for the test-only faults to go first. They are about 118 B of the Queue Lab's app,
+ * too little to stay inside any of these, and the build-time constant that would drop them ties the
+ * core to the bundler: e2e specs import these modules outside it. That one is left for Joseph.
+ *
+ * With the same day's other fixes merged, the helper that sets an apostrophe (lib/typeset.mjs) stands
+ * in the chunk all four share, so the three's shared chunks, 2,098 B, import it. Measured then: the
+ * Raft Lab 8,490 B, the Queue Lab 13,857 B, the Cache Lab 12,482 B, the Backfill Lab 12,989 B. The
+ * Cache and Backfill Labs came in over by 23 and 29 B and were trimmed back, with no budget moved.
+ *
+ * Then the Raft Lab took the same controls, the log and the line, and they moved to the chunk all four
+ * share, 1,338 B. It paid for them by trimming (ADR 0020's postscript), with no budget moved. Measured
+ * then: the Raft Lab 8,449 B, the Queue Lab 13,662 B, the Cache Lab 12,310 B, the Backfill Lab 12,790 B.
+ *
+ * On 2026-11-03 the top bar's button reached a run that's the visitor's, Back left a run alone, and the
+ * summary line under the checks went, with no budget moved (ADR 0020's and ADR 0030's postscripts).
  */
 export const SIMULATED_LABS = [
-  { slug: 'raft', bundle: 'RaftLab', map: 'rf-map', lazyJavaScript: 8_000 },
-  { slug: 'queue', bundle: 'QueueLab', map: 'qu-map', lazyJavaScript: 13_200 },
-  { slug: 'cache', bundle: 'CacheLab', map: 'cl-map', lazyJavaScript: 12_000 },
-  { slug: 'backfill', bundle: 'BackfillLab', map: 'bf-board', lazyJavaScript: 12_500 },
+  { slug: 'raft', bundle: 'RaftLab', map: 'rf-map', lazyJavaScript: 8_500 },
+  { slug: 'queue', bundle: 'QueueLab', map: 'qu-map', lazyJavaScript: 14_000 },
+  { slug: 'cache', bundle: 'CacheLab', map: 'cl-map', lazyJavaScript: 12_500 },
+  { slug: 'backfill', bundle: 'BackfillLab', map: 'bf-board', lazyJavaScript: 13_000 },
 ] as const satisfies readonly SimulatedLab[];
 
 type Row = (typeof SIMULATED_LABS)[number];

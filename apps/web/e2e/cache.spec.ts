@@ -17,7 +17,7 @@ const CACHE = '/lab/cache/';
 test.beforeEach(({ page }) => handsOn(page));
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 const OPENING =
-  '1,500 reads in 5.0 s, 94.3% from the cache. When the menu expired at 3.0 s, the database fetched it 23 times at once and 2 reads timed out.';
+  '1,500 reads in 5.0 s, 94.3% from the cache. When the menu expired at 3.0 s, the database had 23 fetches of it in flight at once and 2 reads timed out.';
 const TAMED =
   '1,515 reads in 5.0 s, 99.9% from the cache. No page was fetched twice at once and no reader timed out.';
 /** The picture's own name at the opening: what its parts show, not the caption's account. */
@@ -77,7 +77,7 @@ test('without JavaScript, the page is the opening run: the menu’s stampede tol
   await expect(page.locator('.cl-conn')).toHaveCount(8);
   await expect(waiting(page)).toHaveText('0');
   await expect(words(page, 'one-fetch')).toHaveText(
-    'Broken 40 times, at worst 23 fetches of one page at once',
+    'Broken 40 times: at worst 23 fetches of one page in flight',
   );
   await expect(words(page, 'no-timeouts')).toHaveText('Broken: 2 reads timed out');
   await expect(words(page, 'fresh')).toHaveText('Held');
@@ -184,28 +184,34 @@ test('let the menu expire: the first run plays it, 23 fetches at once and two ti
   const herd = await seconds(page);
   expect(herd).toBeGreaterThan(3);
   expect(herd).toBeLessThan(4.5);
-  await expect(page.locator('[data-cl-menu]')).toHaveText(/^Menu, \d+ fetches at once$/);
+  await expect(page.locator('[data-cl-menu]')).toHaveText(/^Menu, \d+ fetches in flight$/);
   await runUntil(page, () =>
     /Virtual time ([5-9]|\d\d)\./.test(
       document.querySelector('[data-cl-clock]')?.textContent ?? '',
     ),
   );
   await expect(summary(page)).toHaveText(
-    /When the menu expired at 3\.0 s, the database fetched it 23 times at once and 2 reads timed out\.$/,
+    /When the menu expired at 3\.0 s, the database had 23 fetches of it in flight at once and 2 reads timed out\.$/,
   );
 
-  // Turn on coalescing and serving stale, and start over: the same seed, from the same moment.
-  await press(page, 'Coalesce misses');
-  await press(page, 'Serve stale while refreshing');
-  // A switch alone writes nothing: the link names how a run starts.
-  expect(new URL(page.url()).hash).toBe('');
+  // Turn on coalescing and serving stale: each replays the run under it, the same seed from the same
+  // moment, so the switch shows what it does. Until 2026-11-02 it took Start over to see it, and Run
+  // carried on past the stampede with the switch lit, and the checks still Broken.
   const first = await page.evaluate(() => history.length);
+  await press(page, 'Coalesce misses');
+  await expect(said(page)).toHaveText(
+    'Coalescing is on: readers that miss the same page on one node wait on one fetch. The run starts over under it, at 2.500 s, before the menu expires. Press Run to watch it.',
+  );
+  await press(page, 'Serve stale while refreshing');
+  await expect(clock(page)).toHaveText('Virtual time 2.500 s, 780 events, seed 7');
+  // The link names the run, written with history.replaceState: no new entry in the history.
+  expect(new URL(page.url()).hash).toBe('#seed-7&coalesce=on&stale=on');
+  expect(await page.evaluate(() => history.length)).toBe(first);
   await press(page, 'Start over');
   await expect(clock(page)).toHaveText('Virtual time 2.500 s, 780 events, seed 7');
-  // Start over writes the link with history.replaceState: no new entry in the history.
   expect(await page.evaluate(() => history.length)).toBe(first);
   await expect(said(page)).toHaveText(
-    'Virtual time 2.500 s, 780 events, seed 7. Menu, fresh until 3.0 s.',
+    'The run starts over under these settings, at 2.500 s, before the menu expires. Press Run to watch it.',
   );
   const restarted = [await summary(page).textContent(), await waiting(page).textContent()];
   await runUntil(page, () =>
@@ -220,7 +226,7 @@ test('let the menu expire: the first run plays it, 23 fetches at once and two ti
     await expect(words(page, id)).toHaveText('Held');
   // One fetch refreshes the menu; its readers take the old copy meanwhile, and none waits a second.
   await expect(log).toContainText(
-    "The menu's entry expired at 3.000 s: its readers still get it at once, while one fetch refreshes it",
+    'The menu’s entry expired at 3.000 s: its readers still get it at once, while one fetch refreshes it',
   );
   await expect(log).not.toContainText('fetched twice at once');
   await expect(log).not.toContainText('gave up');
@@ -251,7 +257,7 @@ test('flush every node at the morning rush: the database falls behind, and the o
 }) => {
   test.setTimeout(90_000);
   await page.goto(CACHE);
-  await choose(page, 'Morning');
+  await choose(page, 'Morning rush');
   await press(page, 'Flush every node');
   await expect(said(page)).toHaveText(
     'The cache is flushed: every node is empty, and the pages fetched again now will expire together',
@@ -280,7 +286,7 @@ test('turn on jitter and early refresh before the flush, and the expiries spread
 }) => {
   test.setTimeout(90_000);
   await page.goto(CACHE);
-  await choose(page, 'Morning');
+  await choose(page, 'Morning rush');
   await press(page, 'Jitter expiry times');
   await press(page, 'Refresh early');
   await press(page, 'Flush every node');
@@ -320,7 +326,7 @@ test('lose a node: the circle moves only its quarter of the pages, modulo about 
   );
   await expect(page.locator('[data-cl-node="0"]')).toHaveAttribute('data-up', 'false');
   await expect(page.locator('[data-cl-node="0"] [data-cl-node-words]')).toHaveText('Down');
-  await expect(first).toHaveAccessibleName('Restore node 1, now down');
+  await expect(first).toHaveAccessibleName('Restart node 1, now down');
   // Those 28 pages land on the other three nodes, empty.
   await expect(page.locator('.cl-pages .cl-lamp[data-state="missing"]')).toHaveCount(28);
   await first.click();
@@ -458,7 +464,7 @@ test('a link followed before the app has loaded loads it, and opens that run wit
   // The boot script hears the link and loads the app, which opens the run the link names.
   await page.evaluate(() => (location.hash = '#seed-9&load=morning'));
   await expect(clock(page)).toHaveText('Virtual time 5.000 s, 3,167 events, seed 9');
-  await expect(page.getByRole('radio', { name: 'Morning', exact: true })).toBeChecked();
+  await expect(page.getByRole('radio', { name: 'Morning rush', exact: true })).toBeChecked();
   expect(app).toHaveLength(1);
 });
 
@@ -479,7 +485,7 @@ test('a link names a run’s switches, load and placement; followed on the page 
     'aria-pressed',
     'false',
   );
-  await expect(page.getByRole('radio', { name: 'Morning', exact: true })).toBeChecked();
+  await expect(page.getByRole('radio', { name: 'Morning rush', exact: true })).toBeChecked();
   await expect(page.getByRole('radio', { name: 'Modulo', exact: true })).toBeChecked();
   await expect(page.getByRole('button', { name: 'Invalidate on write' })).toHaveAttribute(
     'aria-pressed',
@@ -497,7 +503,7 @@ test('a link names a run’s switches, load and placement; followed on the page 
   ];
   await open('#seed-12&load=morning&coalesce=on');
   await expect(page.locator('[data-cl-clock]')).toHaveText(/, seed 12$/);
-  await expect(page.getByRole('radio', { name: 'Morning', exact: true })).toBeChecked();
+  await expect(page.getByRole('radio', { name: 'Morning rush', exact: true })).toBeChecked();
   await open('#seed-9&load=rush&coalesce=yes&colour=red');
   await expect(page.locator('[data-cl-readers]')).toHaveText('Readers, 300 a second');
   await expect(page.locator('[data-cl-clock]')).toHaveText(
@@ -560,7 +566,7 @@ test('on a phone, the line waiting stands beside the database’s lamps, and a l
   // Every line's words, wrapped or not, start right of its time.
   const under = await page.locator('[data-cl-lines] li').evaluateAll((items) =>
     items.flatMap((item) => {
-      const at = item.querySelector('.cl-at')?.getBoundingClientRect();
+      const at = item.querySelector('.lab-log-at')?.getBoundingClientRect();
       const words = [...item.childNodes].find(
         (node) => node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').trim() !== '',
       );
@@ -603,28 +609,41 @@ const reach = (page: Page, names: string[]) =>
 
 // The first thing to try is to let the menu expire, then coalesce misses and start over: those
 // buttons sit by the map, so a press and the picture share one screen. Serve stale comes on the
-// next line; on Linux the map's labels set wider, the menu's words take a line of their own, and
-// the map grows by 70 px, so only the first switch is held to the screen.
-for (const [width, height] of [
-  [390, 844],
-  [1440, 900],
-] as const) {
-  test(`at ${width} × ${height}, the map, Time and Coalesce misses fit one screen, and nothing pins`, async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width, height });
-    await page.goto(CACHE);
-    await page.evaluate(() => document.fonts.ready);
-    const { span, pinned } = await reach(page, [
-      'Run',
-      'Next event',
-      'Start over',
-      'Coalesce misses',
-    ]);
-    expect(pinned).toBe('');
-    expect(span).toBeLessThanOrEqual(height);
-  });
-}
+// next line, so only the first switch is held to the screen.
+test('at 1440 × 900, the map, Time and Coalesce misses fit one screen, and nothing pins', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(CACHE);
+  await page.evaluate(() => document.fonts.ready);
+  const { span, pinned } = await reach(page, [
+    'Run',
+    'Next event',
+    'Start over',
+    'Coalesce misses',
+  ]);
+  expect(pinned).toBe('');
+  expect(span).toBeLessThanOrEqual(900);
+});
+
+// On a phone it's what Safari shows of an iPhone 14 with its bars up, the phone project's own viewport.
+// Until 2026-11-02 this read 844, the whole screen, which no page gets (labs-m4). The map and Time fit
+// that. The first switch doesn't: it's 52 px past it, so reaching it takes at most the map's top
+// quarter off the screen, and the press and most of the picture still share one.
+test('at 390 × 664, the map and Time fit one screen, Coalesce misses stands with most of the map, and nothing pins', async ({
+  page,
+}) => {
+  const height = 664;
+  await page.setViewportSize({ width: 390, height });
+  await page.goto(CACHE);
+  await page.evaluate(() => document.fonts.ready);
+  const time = await reach(page, ['Run', 'Next event', 'Start over']);
+  expect(time.pinned).toBe('');
+  expect(time.span).toBeLessThanOrEqual(height);
+  const map = await page.locator('[data-cl-map]').boundingBox();
+  const { span } = await reach(page, ['Coalesce misses']);
+  expect(span - height).toBeLessThanOrEqual((map?.height ?? 0) / 4);
+});
 
 test('on a phone, Tab meets the controls in the order they are seen, top to bottom', async ({
   page,
@@ -648,7 +667,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await page.goto(CACHE);
     await press(page, 'Coalesce misses');
     await page.locator('[data-cl-lose="1"]').click();
-    await choose(page, 'Morning');
+    await choose(page, 'Morning rush');
     await press(page, 'Next event');
     const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
     expect(results.violations.map((v) => `${v.id}: ${v.nodes.length}`)).toEqual([]);

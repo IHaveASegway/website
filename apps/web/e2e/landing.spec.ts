@@ -84,6 +84,17 @@ for (const lab of LABS) {
       await expect(run(page, lab)).toHaveText('Run');
     });
 
+    test('a link to a run followed on the page stops the one it landed on, and that run stands', async ({
+      page,
+    }) => {
+      await page.goto(lab.path);
+      await expect(run(page, lab)).toHaveText('Pause');
+      await page.evaluate(() => (location.hash = '#seed-12'));
+      await expect(run(page, lab)).toHaveText('Run');
+      await page.waitForTimeout(800);
+      await expect(run(page, lab)).toHaveText('Run');
+    });
+
     test('its own Pause stops it alone: the field runs on, and the next lab lands running', async ({
       page,
     }) => {
@@ -117,6 +128,48 @@ for (const lab of LABS) {
       await expect(run(page, next)).toHaveText('Pause');
     });
 
+    // One button, one meaning (ADR 0030). Until 2026-11-03 it let go of a run at the visitor's first
+    // press: it turned to Play and the field stopped, and the clock ran on.
+    test('the top bar’s Pause stops a run that’s theirs, and its Play starts only what it stopped', async ({
+      page,
+    }) => {
+      const bar = page.locator('[data-motion-toggle]');
+      await page.goto(lab.path);
+      await expect(run(page, lab)).toHaveText('Pause');
+      // Theirs now: paused and played by hand.
+      await run(page, lab).click();
+      await expect(run(page, lab)).toHaveText('Run');
+      await run(page, lab).click();
+      await expect(run(page, lab)).toHaveText('Pause');
+
+      await bar.click();
+      await expect(bar).toHaveAttribute('aria-label', 'Play motion');
+      await expect(run(page, lab)).toHaveText('Run');
+      const stopped = await clock(page, lab).textContent();
+      await page.waitForTimeout(400);
+      await expect(clock(page, lab)).toHaveText(stopped ?? '');
+
+      await bar.click();
+      await expect(run(page, lab)).toHaveText('Pause');
+      await expect(clock(page, lab)).not.toHaveText(stopped ?? '');
+
+      // A run stopped by hand stays stopped, through the bar's Pause and its Play.
+      await run(page, lab).click();
+      await expect(run(page, lab)).toHaveText('Run');
+      await bar.click();
+      await bar.click();
+      await expect(bar).toHaveAttribute('aria-label', 'Pause motion');
+      await page.waitForTimeout(100);
+      await expect(run(page, lab)).toHaveText('Run');
+
+      // A run started by hand under the bar's Pause is theirs: its Play neither starts nor stops it.
+      await bar.click();
+      await run(page, lab).click();
+      await expect(run(page, lab)).toHaveText('Pause');
+      await bar.click();
+      await expect(run(page, lab)).toHaveText('Pause');
+    });
+
     test('it pauses off the screen and goes on when it comes back', async ({ page }) => {
       await page.goto(lab.path);
       await expect(run(page, lab)).toHaveText('Pause');
@@ -124,6 +177,26 @@ for (const lab of LABS) {
       await expect(run(page, lab)).toHaveText('Run');
       await page.evaluate(() => scrollTo(0, 0));
       await expect(run(page, lab)).toHaveText('Pause');
+    });
+
+    // Any hash change used to end all this, so an "On this page" link or the skip link left a run
+    // playing off the screen, deaf to the top bar's Pause, for as long as the tab stayed open.
+    test('a link to a heading is no press: it still pauses off the screen and under the top bar’s Pause', async ({
+      page,
+    }) => {
+      await page.goto(lab.path);
+      await expect(run(page, lab)).toHaveText('Pause');
+      await page.locator('.lab-contents a').last().click();
+      await expect(run(page, lab)).toHaveText('Run');
+      const said = page.locator(`#${lab.name}-lab [role="status"]`).first();
+      await expect(said).toHaveAttribute('aria-live', 'off');
+      await page.evaluate(() => scrollTo(0, 0));
+      await expect(run(page, lab)).toHaveText('Pause');
+      await page.locator('[data-motion-toggle]').click();
+      await expect(run(page, lab)).toHaveText('Run');
+      const first = await clock(page, lab).textContent();
+      await page.waitForTimeout(700);
+      await expect(clock(page, lab)).toHaveText(first ?? '');
     });
 
     test('its live regions keep quiet until the first press, then speak', async ({ page }) => {
@@ -136,6 +209,521 @@ for (const lab of LABS) {
     });
   });
 }
+
+// The labs on one set of controls (docs/lab.md, "The controls"). The Raft Lab's first thing to try is
+// a fault, so it has no fix to replay.
+const FIXES = [
+  {
+    name: 'queue',
+    path: '/lab/queue/',
+    short: 'qu',
+    fix: 'label:has(input[name="qu-key"][value="on"])',
+    quick: 'label:has(input[name="qu-speed"][value="5"])',
+    back: 'Virtual time 1.',
+    link: '#seed-28&key=on',
+    words:
+      'The idempotency key is on. The run starts over under it, at 1.500 s, before worker 2’s crash.',
+    log: '2.873 s Worker 1 finds order 18 in the record and does not print it again',
+  },
+  {
+    name: 'cache',
+    path: '/lab/cache/',
+    short: 'cl',
+    fix: '[data-cl-toggle="coalesce"]',
+    quick: 'label:has(input[name="cl-speed"][value="2"])',
+    back: 'Virtual time 2.',
+    link: '#seed-7&coalesce=on',
+    words: 'Coalescing is on. The run starts over under it, at 2.500 s, before the menu expires.',
+    log: 'its readers miss, and each node sends one fetch for them all',
+  },
+  {
+    name: 'backfill',
+    path: '/lab/backfill/',
+    short: 'bf',
+    fix: 'label:has(input[name="bf-mode"][value="overwrite"])',
+    quick: 'label:has(input[name="bf-speed"][value="30"])',
+    back: '00:00',
+    link: '#seed-9&mode=overwrite',
+    words:
+      'Loads now overwrite their day. The week starts over under it, at 00:00, before the job is switched on.',
+    log: 'Wednesday’s load fails partway, and as its overwrite is one atomic step, the report is as it was',
+  },
+] as const;
+
+for (const lab of FIXES) {
+  test.describe(`the ${lab.name} lab, as a visitor who lands on it running tries the fix`, () => {
+    const clockOf = (page: Page) => page.locator(`[data-${lab.short}-clock]`);
+    const line = (page: Page) => page.locator('[data-said]').first();
+
+    // Until 2026-11-02 a fix pressed on the run that was already going changed nothing they could
+    // see: the crash or the stampede had been and gone, and the checks stayed Broken beside a lit fix.
+    test('its first press replays the run under the fix, still running, and says so', async ({
+      page,
+    }) => {
+      await page.goto(lab.path);
+      const run = page.locator(`[data-${lab.short}-run]`);
+      await expect(run).toHaveText('Pause');
+      await page.locator(lab.quick).click();
+      await page.locator(lab.fix).click();
+      await expect(line(page)).toHaveText(lab.words);
+      await expect(line(page)).toBeVisible();
+      await expect(run).toHaveText('Pause');
+      expect(new URL(page.url()).hash).toBe(lab.link);
+      await expect(page.locator(`#${lab.name}-lab [data-${lab.short}-lines]`)).toContainText(
+        lab.log,
+        { timeout: 20_000 },
+      );
+    });
+
+    test('Start over goes back to the same moment, and plays on if it was playing', async ({
+      page,
+    }) => {
+      await page.goto(lab.path);
+      const run = page.locator(`[data-${lab.short}-run]`);
+      await expect(run).toHaveText('Pause');
+      await page.locator(`[data-${lab.short}-reset]`).click();
+      await expect(run).toHaveText('Pause');
+      await expect(clockOf(page)).toContainText(lab.back);
+      await expect(line(page)).toHaveText(/ starts over under these settings, at /);
+      // Stood still, it asks for the press it waits for.
+      await run.click();
+      await expect(run).toHaveText('Run');
+      await page.locator(`[data-${lab.short}-reset]`).click();
+      await expect(run).toHaveText('Run');
+      await expect(line(page)).toHaveText(/ Press Run to watch it\.$/);
+    });
+
+    test('until a press, its lines say what their controls do, and never what the run does', async ({
+      page,
+    }) => {
+      await page.goto(lab.path);
+      await expect(page.locator(`[data-${lab.short}-run]`)).toHaveText('Pause');
+      await page.waitForTimeout(600);
+      const lines = page.locator('[data-said]');
+      await expect(lines).toHaveCount(2);
+      for (const each of await lines.all()) {
+        await expect(each).toBeVisible();
+        await expect(each).not.toHaveAttribute('data-spoke');
+        expect(await each.textContent()).toBe(await each.getAttribute('data-said'));
+        // A screen reader can read what a sighted visitor reads here. It's the only place that says
+        // what these controls do before they're pressed.
+        expect(await each.evaluate((line) => line.closest('[aria-hidden="true"]'))).toBeNull();
+      }
+    });
+  });
+}
+
+for (const lab of LABS) {
+  // A dropped connection, or a deploy that retired the hashed file while the page was open. Until
+  // 2026-11-02 the only word of it was in a line a screen reader alone could reach.
+  test(`the ${lab.name} lab: a load that fails says so on the screen, leaves the picture as drawn, and a press tries again`, async ({
+    page,
+  }) => {
+    const words = 'The lab did not load. Press any control to try again.';
+    const line = page.locator('[data-said]').first();
+    await page.route('**/_astro/app.*.js', (route) => route.abort());
+    await page.goto(lab.path);
+    await expect(line).toHaveText(words);
+    await expect(line).toBeVisible();
+    // Every line says it: a visitor at the settings on a phone is a thousand pixels from the first.
+    await expect(page.locator('[data-said]').last()).toHaveText(words);
+    await expect(page.locator(`[data-${lab.short}-said]`)).toHaveText(words);
+    const standing = await clock(page, lab).textContent();
+    await page.waitForTimeout(300);
+    await expect(run(page, lab)).toHaveText('Run');
+    await expect(clock(page, lab)).toHaveText(standing ?? '');
+
+    // With a connection, a fresh page is the way back: a browser may keep a failed import, as
+    // WebKit does (steady.spec.ts), and a deploy's new file has another name.
+    await page.unroute('**/_astro/app.*.js');
+    await run(page, lab).click();
+    await expect(run(page, lab)).toHaveText('Pause');
+    await expect(line).not.toHaveText(words);
+  });
+}
+
+// Heartbeats alone have no story, so the run a visitor lands on on the Raft Lab crashes its leader
+// and elects another, as the Queue Lab's crashes a worker (lib/raft/view.ts, landingStory). At the
+// Steady speed a real second is 50 virtual ms: the crash comes 2 s in, the new leader about 6 s in,
+// the old leader comes back at 10 s, a write commits at about 15 s, and it ends at 20 s. All but the
+// first test run on Playwright's clock, held still between its steps, so a run of a minute takes a
+// moment and a press lands exactly when it says.
+test.describe('the Raft Lab’s landing run', () => {
+  const lab = LABS[0];
+  const summary = (page: Page) => page.locator('[data-rf-summary]');
+  const lines = (page: Page) => page.locator('[data-rf-lines] li').allTextContents();
+  const up = (page: Page) => page.locator('[data-rf-node][data-up="true"]');
+  /** The lines a run with no story and no press never writes: a crash, a restart, a fourth write. */
+  const madeSinceTheOpening = async (page: Page) =>
+    (await lines(page)).filter((line) => /crashes\.|restarts as|takes write 4/.test(line));
+
+  /** Opens a page with the clock in the test's hand, and lets it settle: nothing by the clock moves
+   *  but what the test runs. */
+  async function open(page: Page, path: string = lab.path): Promise<void> {
+    const start = Date.UTC(2026, 10, 2);
+    await page.clock.install({ time: start });
+    await page.clock.pauseAt(start + 1_000);
+    await page.goto(path);
+    await page.clock.runFor(200);
+  }
+
+  /** A visitor landing: the page has settled and the run stands at the opening's moment, playing.
+   *  The app can arrive within the 200 ms the page settled in, and have run on for some of them. */
+  async function land(page: Page): Promise<void> {
+    await open(page);
+    await expect(run(page, lab)).toHaveText('Pause');
+    await expect(clock(page, lab)).toHaveText(/^Virtual time 1\.4[01]\d s$/);
+  }
+
+  test('on the real clock too, it shows an election with no press', async ({ page }) => {
+    await page.goto(lab.path);
+    await expect(summary(page)).toHaveText(
+      'Server 3 leads term 2, 3 entries committed, 1 server down.',
+      { timeout: 25_000 },
+    );
+    expect((await lines(page)).join('\n')).toContain(
+      'Server 3 times out and asks for votes in term 2',
+    );
+  });
+
+  test('left alone, the leader crashes, another wins a newer term, and the old one comes back to hear it', async ({
+    page,
+  }) => {
+    await land(page);
+    await expect(summary(page)).toHaveText('Server 1 leads term 1, 3 entries committed.');
+    await page.clock.runFor(2_100);
+    await expect(summary(page)).toHaveText(
+      'Term 1 lost its leader, 3 entries committed, 1 server down.',
+    );
+    await expect(page.locator('[data-rf-node="0"]')).toHaveAttribute('data-up', 'false');
+    await page.clock.runFor(3_100);
+    await expect(page.locator('[data-rf-node="2"]')).toHaveAttribute('data-role', 'candidate');
+    await expect(summary(page)).toHaveText(
+      'No leader in term 2, 3 entries committed, 1 server down.',
+    );
+    await page.clock.runFor(1_000);
+    await expect(summary(page)).toHaveText(
+      'Server 3 leads term 2, 3 entries committed, 1 server down.',
+    );
+    await page.clock.runFor(4_500);
+    await expect(up(page)).toHaveCount(5);
+    await expect(page.locator('[data-rf-node="0"]')).toHaveAttribute('data-role', 'follower');
+    await page.clock.runFor(5_000);
+    await expect(summary(page)).toHaveText('Server 3 leads term 2, 4 entries committed.');
+    await expect(page.locator('[data-rf-prop][data-held="true"]')).toHaveCount(5);
+  });
+
+  test('its story ends, stands a moment, and goes round again, on the same seed', async ({
+    page,
+  }) => {
+    await land(page);
+    await page.clock.runFor(20_500);
+    await expect(summary(page)).toHaveText('Server 3 leads term 2, 4 entries committed.');
+    await expect(page.locator('.rf-cell[data-done]')).toHaveCount(20);
+    await page.clock.runFor(6_200);
+    await expect(summary(page)).toHaveText('Server 1 leads term 1, 3 entries committed.');
+    await expect(run(page, lab)).toHaveText('Pause');
+    await expect(page.locator('[data-rf-seed]')).toHaveText('7');
+    expect(new URL(page.url()).hash).toBe('');
+    expect(await madeSinceTheOpening(page)).toEqual([]);
+    await page.clock.runFor(2_500);
+    await expect(up(page)).toHaveCount(4);
+    expect(await madeSinceTheOpening(page)).toHaveLength(1);
+  });
+
+  // A first press ends the story: nothing happens by itself after it. A press that writes or crashes
+  // writes its own line, and that's the one line there is. Start over is the one press that asks for
+  // the run again, and has tests of its own below.
+  const FIRST_PRESSES: [string, (page: Page) => Promise<unknown>, RegExp[]][] = [
+    [
+      'Pause, then Run',
+      async (page) => {
+        await run(page, lab).click();
+        await run(page, lab).click();
+      },
+      [],
+    ],
+    ['a speed', (page) => page.getByRole('radio', { name: 'Slow' }).check(), []],
+    // It fires no input, since it's the speed already chosen, and it's as much a press as any.
+    [
+      'the speed already chosen',
+      (page) => page.locator('label', { hasText: 'Steady' }).click(),
+      [],
+    ],
+    ['Next event', (page) => page.getByRole('button', { name: 'Next event' }).click(), []],
+    [
+      'a write',
+      (page) => page.getByRole('button', { name: 'Send a write' }).click(),
+      [/Server 1 takes write 4/],
+    ],
+    ['the loss slider', (page) => page.locator('[data-rf-loss]').fill('0'), []],
+    [
+      'a tap on a server in the picture',
+      (page) => page.locator('[data-rf-node="4"] .rf-name').click(),
+      [/Server 5 crashes/],
+    ],
+  ];
+  for (const [what, press, made] of FIRST_PRESSES) {
+    test(`a first press makes it theirs: after ${what}, nothing happens by itself`, async ({
+      page,
+    }) => {
+      await land(page);
+      await press(page);
+      if ((await run(page, lab).textContent()) === 'Run') await run(page, lab).click();
+      await expect(run(page, lab)).toHaveText('Pause');
+      await page.clock.runFor(30_000);
+      await expect(page.locator('[data-rf-node="0"]')).toHaveAttribute('data-up', 'true');
+      const said = await madeSinceTheOpening(page);
+      expect(said).toHaveLength(made.length);
+      made.forEach((line, i) => expect(said[i]).toMatch(line));
+    });
+  }
+
+  test('a press once the story has begun keeps what happened and stops the rest', async ({
+    page,
+  }) => {
+    await land(page);
+    await page.clock.runFor(2_500);
+    await expect(up(page)).toHaveCount(4);
+    await run(page, lab).click();
+    await run(page, lab).click();
+    await page.clock.runFor(30_000);
+    // Server 1 stays down: bringing it back was the page's to do, and the demo is theirs now.
+    await expect(up(page)).toHaveCount(4);
+    const said = await madeSinceTheOpening(page);
+    expect(said).toHaveLength(1);
+    expect(said[0]).toMatch(/Server 1 crashes/);
+    // The cluster it leaves goes on by Raft's own rules, with a leader of its own.
+    await expect(summary(page)).toHaveText(/^Server [2-5] leads term \d+, 3 entries committed/);
+  });
+
+  // A visitor who watched the election and pressed Start over got heartbeats and nothing else, so the
+  // run they just saw couldn't be replayed, where the Queue Lab's Start over brings its crash back.
+  test('Start over on the run they landed on tells the story again, once, and it stands', async ({
+    page,
+  }) => {
+    await land(page);
+    await page.clock.runFor(8_000);
+    await expect(summary(page)).toHaveText(
+      'Server 3 leads term 2, 3 entries committed, 1 server down.',
+    );
+    await page.getByRole('button', { name: 'Start over' }).click();
+    await expect(summary(page)).toHaveText('Server 1 leads term 1, 3 entries committed.');
+    await expect(run(page, lab)).toHaveText('Pause');
+    await expect(page.locator('[data-rf-seed]')).toHaveText('7');
+    expect(new URL(page.url()).hash).toBe('#seed-7');
+    expect(await madeSinceTheOpening(page)).toEqual([]);
+    await page.clock.runFor(2_500);
+    await expect(up(page)).toHaveCount(4);
+    await page.clock.runFor(14_000);
+    await expect(summary(page)).toHaveText('Server 3 leads term 2, 4 entries committed.');
+    // It's theirs now: no going round. The cluster stands on what the story left, with its one write.
+    await page.clock.runFor(30_000);
+    await expect(summary(page)).toHaveText('Server 3 leads term 2, 4 entries committed.');
+    await expect(up(page)).toHaveCount(5);
+    expect(await madeSinceTheOpening(page)).toHaveLength(3);
+    // And again, for as often as they ask.
+    await page.getByRole('button', { name: 'Start over' }).click();
+    await page.clock.runFor(2_500);
+    await expect(up(page)).toHaveCount(4);
+  });
+
+  test('any other press after Start over drops what is left of the story', async ({ page }) => {
+    await land(page);
+    await page.getByRole('button', { name: 'Start over' }).click();
+    await page.clock.runFor(1_000);
+    await page.getByRole('button', { name: 'Send a write' }).click();
+    await page.clock.runFor(30_000);
+    await expect(up(page)).toHaveCount(5);
+    const said = await madeSinceTheOpening(page);
+    expect(said).toHaveLength(1);
+    expect(said[0]).toMatch(/Server 1 takes write 4/);
+  });
+
+  test('Start over after any other press goes back to the opening with nothing ahead', async ({
+    page,
+  }) => {
+    await land(page);
+    await page.getByRole('button', { name: 'Send a write' }).click();
+    await page.getByRole('button', { name: 'Start over' }).click();
+    await expect(summary(page)).toHaveText('Server 1 leads term 1, 3 entries committed.');
+    await page.clock.runFor(30_000);
+    await expect(up(page)).toHaveCount(5);
+    expect(await madeSinceTheOpening(page)).toEqual([]);
+  });
+
+  test('a link to a heading is no press: the story waits off the screen and carries on', async ({
+    page,
+  }) => {
+    await land(page);
+    await page.locator('.lab-contents a').last().click();
+    await expect(run(page, lab)).toHaveText('Run');
+    await page.clock.runFor(30_000);
+    expect(await madeSinceTheOpening(page)).toEqual([]);
+    await page.evaluate(() => scrollTo(0, 0));
+    await expect(run(page, lab)).toHaveText('Pause');
+    await page.clock.runFor(2_500);
+    await expect(up(page)).toHaveCount(4);
+    expect(await madeSinceTheOpening(page)).toHaveLength(1);
+  });
+
+  test('a link to a run followed on the page stands on that run with no story, and Start over keeps it so', async ({
+    page,
+  }) => {
+    await land(page);
+    await page.clock.runFor(2_500);
+    await expect(up(page)).toHaveCount(4);
+    await page.evaluate(() => {
+      location.hash = '#seed-7';
+    });
+    await expect(run(page, lab)).toHaveText('Run');
+    await expect(summary(page)).toHaveText('Server 1 leads term 1, 3 entries committed.');
+    await page.getByRole('button', { name: 'Start over' }).click();
+    await run(page, lab).click();
+    await page.clock.runFor(30_000);
+    await expect(up(page)).toHaveCount(5);
+    expect(await madeSinceTheOpening(page)).toEqual([]);
+  });
+
+  test('a link to a run has no story, standing or run', async ({ page }) => {
+    await open(page, `${lab.path}#seed-7`);
+    await expect(run(page, lab)).toHaveText('Run');
+    await page.clock.runFor(5_000);
+    await expect(clock(page, lab)).toHaveText('Virtual time 1.400 s');
+    await run(page, lab).click();
+    await page.clock.runFor(30_000);
+    await expect(up(page)).toHaveCount(5);
+    expect(await madeSinceTheOpening(page)).toEqual([]);
+  });
+
+  test('under reduced motion, Run has no story either', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await open(page);
+    await expect(run(page, lab)).toHaveText('Run');
+    await run(page, lab).click();
+    await expect(run(page, lab)).toHaveText('Pause');
+    await page.clock.runFor(30_000);
+    await expect(up(page)).toHaveCount(5);
+    expect(await madeSinceTheOpening(page)).toEqual([]);
+  });
+
+  test('a visitor who pressed while the top bar’s Pause held the landing back gets no story from its Play', async ({
+    page,
+  }) => {
+    await page.addInitScript(() => sessionStorage.setItem('motion', 'paused'));
+    await open(page);
+    await expect(run(page, lab)).toHaveText('Run');
+    await run(page, lab).click();
+    await expect(run(page, lab)).toHaveText('Pause');
+    await page.locator('[data-motion-toggle]').click();
+    await page.clock.runFor(30_000);
+    await expect(up(page)).toHaveCount(5);
+    expect(await madeSinceTheOpening(page)).toEqual([]);
+  });
+
+  test('the top bar’s Pause holds the story, which is no press, and its Play picks it up', async ({
+    page,
+  }) => {
+    await land(page);
+    await page.clock.runFor(1_000);
+    await page.locator('[data-motion-toggle]').click();
+    await expect(run(page, lab)).toHaveText('Run');
+    const stood = (await clock(page, lab).textContent()) ?? '';
+    await page.clock.runFor(30_000);
+    await expect(clock(page, lab)).toHaveText(stood);
+    expect(await madeSinceTheOpening(page)).toEqual([]);
+    await page.locator('[data-motion-toggle]').click();
+    await expect(run(page, lab)).toHaveText('Pause');
+    await page.clock.runFor(1_500);
+    await expect(up(page)).toHaveCount(4);
+    expect(await madeSinceTheOpening(page)).toHaveLength(1);
+  });
+
+  // The end of the story stands six seconds, then goes round. With nobody watching, or the top bar's
+  // Pause pressed, it went round anyway: the button lit, the clock ran for up to half a second, and
+  // the picture went back to the opening, on a page told to hold still.
+  test('the top bar’s Pause holds the end of the story too, and its Play goes round from there', async ({
+    page,
+  }) => {
+    await land(page);
+    await page.clock.runFor(21_000);
+    await expect(summary(page)).toHaveText('Server 3 leads term 2, 4 entries committed.');
+    await page.locator('[data-motion-toggle]').click();
+    await expect(run(page, lab)).toHaveText('Run');
+    const stood = (await clock(page, lab).textContent()) ?? '';
+    for (let i = 0; i < 8; i++) {
+      await page.clock.runFor(1_000);
+      await expect(run(page, lab)).toHaveText('Run');
+      await expect(clock(page, lab)).toHaveText(stood);
+    }
+    await expect(summary(page)).toHaveText('Server 3 leads term 2, 4 entries committed.');
+    await page.locator('[data-motion-toggle]').click();
+    await page.clock.runFor(6_600);
+    await expect(summary(page)).toHaveText('Server 1 leads term 1, 3 entries committed.');
+    await expect(run(page, lab)).toHaveText('Pause');
+  });
+
+  test('none of the story is said aloud or on the line, and the first press gives the page its voice back', async ({
+    page,
+  }) => {
+    await land(page);
+    const line = page.locator('[data-said]');
+    const resting = await line.getAttribute('data-said');
+    await page.clock.runFor(2_500);
+    const said = page.locator('[data-rf-said]');
+    await expect(said).toHaveAttribute('aria-live', 'off');
+    await expect(said).toHaveText('');
+    await expect(line).toHaveText(resting ?? '');
+    await expect(line).not.toHaveAttribute('data-spoke');
+    // Round again, too: the run going back is nobody's press.
+    await page.clock.runFor(26_000);
+    await expect(summary(page)).toHaveText('Server 1 leads term 1, 3 entries committed.');
+    await expect(said).toHaveText('');
+    await expect(line).toHaveText(resting ?? '');
+    await page.getByRole('button', { name: 'Send a write' }).click();
+    await expect(said).not.toHaveAttribute('aria-live', 'off');
+    await expect(line).toHaveAttribute('data-spoke');
+  });
+
+  // For about 4 s of every 26 the story has no leader, and Cut off the leader has nothing to cut off.
+  // Until 2026-11-02 only a screen reader heard why, and the button looked dead. It's a press like
+  // any other, so what's left of the story goes with it, and the cluster elects on by its own rules.
+  test('Cut off the leader while the story has none says why on the screen, and the run is theirs', async ({
+    page,
+  }) => {
+    await land(page);
+    await page.clock.runFor(2_100);
+    await expect(summary(page)).toHaveText(
+      'Term 1 lost its leader, 3 entries committed, 1 server down.',
+    );
+    await page.getByRole('button', { name: 'Cut off the leader' }).click();
+    const line = page.locator('[data-said]');
+    await expect(line).toHaveText('There is no leader to cut off right now.');
+    await expect(line).toBeVisible();
+    await page.clock.runFor(30_000);
+    await expect(up(page)).toHaveCount(4);
+    expect(await madeSinceTheOpening(page)).toHaveLength(1);
+    await expect(summary(page)).toHaveText(/^Server [2-5] leads term \d+, 3 entries committed/);
+  });
+
+  // Until 2026-11-03 a stood run's line said "Press Run to watch it", and a press of Run drops the story,
+  // so there was nothing to watch. Now it promises nothing, and Run says why it's quiet.
+  test('Start over on the run they landed on says the crash is ahead, and on a stood run promises none', async ({
+    page,
+  }) => {
+    await land(page);
+    const line = page.locator('[data-said]');
+    await page.getByRole('button', { name: 'Start over' }).click();
+    await expect(line).toHaveText(
+      'The run starts over under these settings, at 1.400 s, before the leader crashes.',
+    );
+    await run(page, lab).click();
+    await page.getByRole('button', { name: 'Start over' }).click();
+    await expect(line).toHaveText('The run starts over under these settings, at 1.400 s.');
+    await run(page, lab).click();
+    await expect(line).toHaveText('Nothing is scheduled: press something below to break it.');
+  });
+});
 
 test.describe('the Route Lab', () => {
   const layers = (page: Page) => page.locator('[data-rl-fleet]');
@@ -182,11 +770,58 @@ test.describe('the Route Lab', () => {
     expect(await paused(page)).toBe(true);
   });
 
+  // Until 2026-11-03 the bar's Play restarted vans the visitor had stopped by hand.
+  test('the top bar’s Play starts only the vans its Pause stopped', async ({ page }) => {
+    const bar = page.locator('[data-motion-toggle]');
+    await page.goto(ROUTE_LAB);
+    await expect(drive(page)).toHaveText('Pause');
+    await bar.click();
+    await expect(drive(page)).toHaveText('Run');
+    await bar.click();
+    await expect(drive(page)).toHaveText('Pause');
+    expect(await paused(page)).toBe(false);
+
+    await drive(page).click();
+    await expect(drive(page)).toHaveText('Run');
+    await bar.click();
+    await bar.click();
+    await expect(bar).toHaveAttribute('aria-label', 'Pause motion');
+    await expect(drive(page)).toHaveText('Run');
+    expect(await paused(page)).toBe(true);
+
+    // Vans started by hand under the bar's Pause are the visitor's, and its Play leaves them driving.
+    await bar.click();
+    await drive(page).click();
+    await expect(drive(page)).toHaveText('Pause');
+    expect(await paused(page)).toBe(false);
+    await bar.click();
+    await expect(drive(page)).toHaveText('Pause');
+    expect(await paused(page)).toBe(false);
+  });
+
   test('under reduced motion they and their button are gone', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto(ROUTE_LAB);
     await expect(layers(page).first()).toBeHidden();
     await expect(drive(page)).toBeHidden();
+  });
+
+  // A mouse over the demo, or a focus in it, loads its app, which draws the plan the build drew. That
+  // is no reason to send the vans home: until 2026-11-02 they jumped back to the bakery.
+  test('the app arriving leaves the vans where they are', async ({ page }) => {
+    await page.goto(ROUTE_LAB);
+    await expect.poll(() => time(page)).toBeGreaterThan(1);
+    const drawn = page.evaluate(
+      () =>
+        new Promise<void>((done) =>
+          document
+            .getElementById('route-lab')
+            ?.addEventListener('rl:plans', () => done(), { once: true }),
+        ),
+    );
+    await page.locator('.rl-controls').hover();
+    await drawn;
+    expect(await time(page)).toBeGreaterThan(1);
   });
 
   test('a new plan brings its own vans, and a tap still lands on the map', async ({ page }) => {

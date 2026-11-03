@@ -9,6 +9,7 @@ Someone deciding in under a minute whether to hire or work with Joseph. Home's j
 ## The opening
 
 On a phone, the opening is one column:
+
 1. The role, in the wide face, muted.
 2. The name, in Archivo Expanded, in its own case (`--text-name`, 32 to 72 px).
 3. The statement: the bio's first sentence (`--text-statement`, 22 to 30 px). Its kinds of system (queues, data pipelines, caches, clusters) are links to their labs, underlined in each lab's colour.
@@ -19,12 +20,14 @@ From 64rem the words take a little over half the row, and the cluster stands bes
 
 ## The cluster
 
-The Raft Lab's opening run, drawn at build by `components/home/Orbit.astro`:
+The Raft Lab's opening run, drawn at build by `components/home/Orbit.astro`, from the geometry `lib/orbit.ts` shares with Home's link preview (`lib/og-art.ts`):
+
 - five servers on a ring, the leader lit, a glow and a halo around it;
 - a wire from the leader to each follower;
 - the log beside each server, a bead an entry.
 
-The SVG lies back in perspective, `rotateX(58deg)`, in a stage that keeps a 16 to 10 box from the first paint and clips the turning corners. Once the motion module has marked the page:
+The SVG lies back in perspective, `rotateX(58deg)`, in a stage that keeps a 16 to 10 box from the first paint. Laid back, the ring's near side draws larger than its column, so its picture stands a little above the stage's middle and may reach 12 px past the column's sides, into a margin with no words in it; a clip just outside that stops the plane's turning corners from scrolling the page sideways, and no server or bead reaches it at any point of the turn (`e2e/home.spec.ts`, since 2026-11-02, when the clip on the stage's own edges cut the beads for half of every turn). Once the motion module has marked the page:
+
 - the inner group turns once in 90 s (the SVG itself never moves, so the phone's steadiness checks see a still box);
 - every 2.4 s a heartbeat runs out along each wire and its answer runs back;
 - the halo breathes.
@@ -34,6 +37,7 @@ As the opening scrolls away, the plane rises to `rotateX(28deg)`, tied to the sc
 ## What I build
 
 Each of the bio's five things is a row between hairlines:
+
 - its lead in the wide face, after a dot in its lab's colour;
 - its words;
 - the lab's name and one fact from its build (`lib/lab-facts.ts`), under a 2 px rule in the lab's colour.
@@ -42,11 +46,12 @@ From 64rem the lead, the words and the fact stand in three columns. A row with n
 
 ## The record
 
-How I work ends, under a hairline, with one sentence. It counts the commits in the repository, the decision records, the tests and the seeded runs on every pull request, each at build from its source. It is a sentence, not a row of figures: the stats row and the heatmap were the reference's signature.
+How I work ends, under a hairline, with one sentence. It counts the decision records, the tests and the seeded runs on every pull request, each at build from its source. It is a sentence, not a row of figures: the stats row and the heatmap were the reference's signature. It's where the site says "decision records (ADRs)", once, for the tech lead who looks for the term, after the bio's plainer "written down". It says "tests written" because it counts declarations: a loop that runs one test across every page counts once, so CI's total is about nine times larger, and a reader who opens CI should find the words true.
 
 ## Contact
 
 `components/home/Contact.astro` shows the address at a title's size in the wide face:
+
 - a section's size below 64rem, and a headline's below 27rem;
 - it breaks only after its @;
 - its underline is unbroken under the letters that hang below the line.

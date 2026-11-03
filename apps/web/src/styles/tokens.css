@@ -30,7 +30,7 @@
 
   /* The self-hosted faces (astro.config.mjs, "fonts"), then fallback faces fitted to their widths
      (font-fallbacks.css), then the system's. If a face's own style never arrives, or a page does
-     not declare it (B612 Mono, on a page without code), the fitted fallbacks still apply, so the
+     not declare it (JetBrains Mono, on a page without code), the fitted fallbacks still apply, so the
      page never falls back to a browser default. Width says who is speaking (ADR 0029): display,
      Archivo Expanded SemiBold, for the name, every title and heading; wide, Expanded Medium, for
      signage: the navigation, buttons, labels and dates; sans, Archivo Regular, for short interface
@@ -42,7 +42,7 @@
   --font-wide: var(--font-archivo-wide, var(--font-wide-fallbacks)), var(--font-wide-fallbacks);
   --font-label: var(--font-archivo-label, var(--font-label-fallbacks)), var(--font-label-fallbacks);
   --font-sans: var(--font-archivo, var(--font-sans-fallbacks)), var(--font-sans-fallbacks);
-  --font-mono: var(--font-b612-mono, var(--font-mono-fallbacks)), var(--font-mono-fallbacks);
+  --font-mono: var(--font-jetbrains-mono, var(--font-mono-fallbacks)), var(--font-mono-fallbacks);
   --font-reading:
     var(--font-reading-serif, var(--font-reading-fallbacks)), var(--font-reading-fallbacks);
 

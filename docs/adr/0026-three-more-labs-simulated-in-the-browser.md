@@ -193,3 +193,7 @@ The kernel's determinism is the load-bearing part. Every opening picture, every 
 - **Tolerant reader**, the link: Robert Daigneau, *Service Design Patterns* (2011).
 - **Fitness functions**, the budgets and the one-row table: Neal Ford, Rebecca Parsons, Patrick Kua and Pramod Sadalage, *Building Evolutionary Architectures* (2nd edition), chapter 2.
 - **The rule of three**, for the run loop: Martin Fowler, *Refactoring* (2nd edition, 2018), chapter 2.
+
+## Postscript 2026-11-02
+
+The Raft Lab no longer keeps its one difference. Its Start over keeps the seed and the share of messages lost, as the other three labs' do. The review of this day found that moving to the next seed left the run just seen with no way back, and that the same button meant two things across the labs. Another seed is still a link away (`#seed-8`). `nextSeed` is gone, and `e2e/raft.spec.ts` holds the new behaviour. The links' format is unchanged, so a link already shared opens what it did, and no Revisit if condition was met.

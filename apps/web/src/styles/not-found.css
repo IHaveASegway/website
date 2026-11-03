@@ -1,7 +1,8 @@
 /*
   The 404 (pages/404.astro; docs/design/overhaul.md, "404"): the page's head on the left, and from
-  48rem the drawing beside it (lib/missing-piece.ts), never taller than half the window on a phone,
-  under the words. The drawing's faces are the drawing's own fills (tokens.css, --iso-*), its edges
+  64rem the drawing beside it (lib/missing-piece.ts), never taller than half the window on a phone,
+  under the words. Beside it at 48rem, the column left the title too narrow for one line, which
+  broke it "Page not / found". The drawing's faces are the drawing's own fills (tokens.css, --iso-*), its edges
   the ink, its wires the working rule, and the request's way in and the missing solid the accent,
   the one place the eye should land. Nothing moves. Only the 404 loads this; every colour is a token.
 */
@@ -55,10 +56,15 @@
 
 @media (width >= 48rem) {
   .not-found {
+    padding-block: 3.5rem 2.5rem;
+  }
+}
+
+@media (width >= 64rem) {
+  .not-found {
     grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
     column-gap: 3rem;
     min-block-size: min(36rem, 70svh);
-    padding-block: 3.5rem 2.5rem;
   }
 
   .missing-piece {

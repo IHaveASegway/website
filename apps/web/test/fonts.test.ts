@@ -37,7 +37,7 @@ const shipped = files.filter((file) => kinds.get(file) === 'woff2');
 test('every font the site serves is a locked output, byte for byte', () => {
   const locked = new Set(Object.values(lock.outputs).map((entry) => entry.sha256));
   // Archivo ExtraCondensed ExtraBold, Condensed SemiBold, Expanded Medium, Regular and SemiBold,
-  // and B612 Mono.
+  // and JetBrains Mono.
   expect(shipped.length).toBe(8);
   for (const file of shipped) expect(locked.has(sha256(bytes(file))), file).toBe(true);
 });
@@ -99,7 +99,7 @@ const ARCHIVO =
   'Copyright 2020 The Archivo Project Authors (https://github.com/Omnibus-Type/Archivo)';
 /** Each face's name strings, keyed by its family name as the font itself records it. The four
  *  Archivo faces are static instances scripts/fonts/cut.py cuts from google/fonts' variable font
- *  and names as themselves (ADR 0027); B612 Mono is google/fonts' own static instance. */
+ *  and names as themselves (ADR 0027); JetBrains Mono's Regular is its variable font's default. */
 const archivo = (family: string, postscript: string, full = family): string[] => [
   ARCHIVO,
   family,
@@ -129,14 +129,14 @@ const NAMES: Record<string, string[]> = {
   'Archivo Expanded Medium': archivo('Archivo Expanded Medium', 'Archivo-ExpandedMedium'),
   Archivo: archivo('Archivo', 'Archivo-Regular', 'Archivo Regular'),
   'Archivo SemiBold': archivo('Archivo SemiBold', 'Archivo-SemiBold'),
-  'B612 Mono': [
-    'Copyright 2012 The B612 Project Authors (https://github.com/polarsys/b612)',
-    'B612 Mono',
+  'JetBrains Mono': [
+    'Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono)',
+    'JetBrains Mono',
     'Regular',
-    'Airbus: B612 Mono Regular: Version1.008',
-    'B612 Mono Regular',
-    'Version 1.008',
-    'B612Mono-Regular',
+    '2.211;JB;JetBrainsMono-Regular',
+    'JetBrains Mono Regular',
+    'Version 2.211',
+    'JetBrainsMono-Regular',
   ],
 };
 
@@ -196,7 +196,7 @@ describe("every font's strings and blocks, served or committed", () => {
   });
 
   test('known answers: a stray name string, a private block and a stray table are caught', () => {
-    const real = readFileSync(join(app, 'src/assets/fonts/b612-mono-regular.woff2'));
+    const real = readFileSync(join(app, 'src/assets/fonts/jetbrains-mono-regular.woff2'));
     expect(fontProblems(real)).toEqual([]);
     const privateBlock = Buffer.from(real);
     privateBlock.writeUInt32BE(1, 44);
@@ -227,7 +227,7 @@ describe('axes and coverage', () => {
     'Archivo',
     'Archivo SemiBold',
   ].map((family) => byFamily[family]);
-  const mono = byFamily['B612 Mono'];
+  const mono = byFamily['JetBrains Mono'];
 
   test('every face is a static instance: no axis, one weight per file', () => {
     expect(faces.map((font) => font.familyName).sort()).toEqual(Object.keys(NAMES).sort());
@@ -245,7 +245,7 @@ describe('axes and coverage', () => {
     }
   });
 
-  test('B612 Mono covers what code is written in: ASCII, Latin-1 and its punctuation', () => {
+  test('JetBrains Mono covers what code is written in: ASCII, Latin-1 and its punctuation', () => {
     expect(missing(mono, `${ascii}àéñöüç·©–—‘’“”…`)).toEqual([]);
   });
 
@@ -260,8 +260,8 @@ describe('axes and coverage', () => {
 // Spike S9 (roadmap.md): what the Fonts API writes into every page. A regression here would set
 // the name in a fallback (no face) or load it late (no preload). Every page's first screen draws
 // four of Archivo's faces, the display, wide, label and reading faces, so each is preloaded;
-// Archivo SemiBold draws <strong> only, so it is declared and fetched where a page sets some. B612
-// Mono draws code and nothing else, so a page
+// Archivo SemiBold draws <strong> only, so it is declared and fetched where a page sets some.
+// JetBrains Mono draws code and nothing else, so a page
 // declares it exactly when it has code (Prose.astro): until 2026-10-30 every page declared the mono
 // face, and the Route Lab's first view counted a face it never drew (design-system.md, "The
 // faces").
@@ -306,9 +306,10 @@ describe('what the Fonts API writes into every page', () => {
         regular,
         ...(long ? [serif] : []),
       ]);
-      expect(fontFile(page, 'B612 Mono', 400) !== undefined, 'B612 Mono only with code').toBe(
-        drawsCode(page),
-      );
+      expect(
+        fontFile(page, 'JetBrains Mono', 400) !== undefined,
+        'JetBrains Mono only with code',
+      ).toBe(drawsCode(page));
       // A preloaded face is optional, never swapped in late; a face fetched on demand swaps
       // (astro.config.mjs, PRELOADED; e2e/steady.spec.ts).
       const preloaded = preloads(page);
@@ -346,7 +347,7 @@ describe('what the Fonts API writes into every page', () => {
     // A family's name is matched whole: "Archivo" is not "Archivo Display".
     expect(fontFile(page, 'Archivo', 400)).toBe('/_astro/fonts/r.woff2');
     expect(fontFile(page, 'Archivo', 600)).toBe('/_astro/fonts/b.woff2');
-    expect(fontFile(page, 'B612 Mono', 400)).toBeUndefined();
+    expect(fontFile(page, 'JetBrains Mono', 400)).toBeUndefined();
     expect(preloads(page + link('/_astro/fonts/c.woff2'))).toEqual(['/_astro/fonts/c.woff2']);
     expect(drawsCode('<p>Run <code>pnpm</code></p>')).toBe(true);
     expect(drawsCode('<p>Press <kbd>K</kbd></p>')).toBe(false);

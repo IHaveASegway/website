@@ -116,14 +116,14 @@ describe('the week', () => {
     expect(median).toBeLessThanOrEqual(44);
   });
 
-  test('the dates: day 0 is Monday 19 October 2026, and the clock reads Monday 26 October as the week ends', () => {
+  test('the dates: day 0 is Monday, October 19, 2026, and the clock reads Monday, October 26 as the week ends', () => {
     expect(isoDate(0)).toBe('2026-10-19');
-    expect(dayText(2)).toBe('Wednesday 21 October');
-    expect(dayText(6)).toBe('Sunday 25 October');
-    expect(dayText(dayOf(WEEK_END))).toBe('Monday 26 October');
+    expect(dayText(2)).toBe('Wednesday, October 21');
+    expect(dayText(6)).toBe('Sunday, October 25');
+    expect(dayText(dayOf(WEEK_END))).toBe('Monday, October 26');
     expect(isoDate(13)).toBe('2026-11-01');
-    expect(dayText(13)).toBe('Sunday 1 November');
-    expect(when(WEEK_END + 130)).toBe('02:10 on Monday 26 October');
+    expect(dayText(13)).toBe('Sunday, November 1');
+    expect(when(WEEK_END + 130)).toBe('02:10 on Monday, October 26');
   });
 
   test('nothing happens before the graph is switched on but files landing', () => {
@@ -134,7 +134,7 @@ describe('the week', () => {
     expect(board(sim).every((row) => row.run === null && row.cells.every((c) => !c.state))).toBe(
       true,
     );
-    expect(summary(sim)).toMatch(/^The job graph is off\./);
+    expect(summary(sim)).toMatch(/^The job is off\./);
   });
 });
 
@@ -313,7 +313,7 @@ describe('retries', () => {
     expect(sim.failNext[2]).toBe(0);
   });
 
-  test('extract and load attempts fail on their own about 8% of the time; convert never fails, and a check only when it finds the totals apart', () => {
+  test('extract and load attempts fail on their own about 8% of the time; transform never fails, and a check only when it finds the totals apart', () => {
     let tries = 0;
     let failures = 0;
     for (let seed = 1; seed <= 300; seed++) {
@@ -410,7 +410,7 @@ describe('the check', () => {
 
 describe('loads', () => {
   test.each(['append', 'overwrite'] as const)(
-    '%s: a load that fails part way, then succeeds on its retry',
+    '%s: a load that fails partway, then succeeds on its retry',
     (mode) => {
       const sim = backfill({ ...quiet, mode }, (s) => failNextLoad(s, 2));
       const [failed, retry] = attemptsOf(sim, 2, 'load') as [Attempt, Attempt];
@@ -469,16 +469,16 @@ describe('loads', () => {
     expect(properties(sim).every((p) => p.held)).toBe(true);
   });
 
-  test("today: every day of the backfill lands on Monday 26 October, the clock's day", () => {
+  test("today: every day of the backfill lands on Monday, October 26, the clock's day", () => {
     const sim = backfill({ ...quiet, mode: 'append', partition: 'today' });
     const total = sim.source.reduce((sum, n) => sum + n, 0);
     expect(sim.report.slice(0, DAYS)).toEqual([0, 0, 0, 0, 0, 0, 0]);
     expect(strays(sim)).toEqual([
-      { day: 7, date: '2026-10-26', name: 'Monday 26 October', rows: total },
+      { day: 7, date: '2026-10-26', name: 'Monday, October 26', rows: total },
     ]);
     expect(property(sim, 'totals').count).toBe(7);
     expect(summary(sim)).toMatch(
-      /7 days show no orders in the report, because their rows were filed under Monday 26 October/,
+      /7 days show no orders in the report, because their rows were filed under Monday, October 26/,
     );
   });
 
@@ -571,7 +571,7 @@ describe('the conservation check', () => {
     expect(invariant(sim)).toBeNull();
 
     sim.report[4] = (sim.report[4] as number) + 1;
-    expect(invariant(sim)?.detail).toMatch(/holds \d+ rows for Friday 23 October, and its writes/);
+    expect(invariant(sim)?.detail).toMatch(/holds \d+ rows for Friday, October 23, and its writes/);
     sim.report[4] = (sim.report[4] as number) - 1;
 
     const write = sim.writes[0] as { inserted: number };
@@ -599,12 +599,14 @@ describe('the conservation check', () => {
     start(sim);
     sim.report[0] = 5;
     expect(step(sim)).toBe(true);
-    expect(sim.violation?.detail).toMatch(/the report holds 5 rows for Monday 19 October/);
+    expect(sim.violation?.detail).toMatch(/the report holds 5 rows for Monday, October 19/);
     const events = sim.events;
     expect(step(sim)).toBe(false);
     runUntil(sim, Infinity);
     expect(sim.events).toBe(events);
-    expect(statusText(sim)).toMatch(/^Stopped at 00:\d\d on Monday 26 October: conservation broke/);
+    expect(statusText(sim)).toMatch(
+      /^Stopped at 00:\d\d on Monday, October 26: conservation broke/,
+    );
   });
 });
 
@@ -894,7 +896,7 @@ describe('the opening the page draws', () => {
       'success',
       'success',
     ]);
-    // The last run finishes at the minute the picture stands at: 02:10 on Monday 26 October.
+    // The last run finishes at the minute the picture stands at: 02:10 on Monday, October 26.
     expect(Math.max(...sim.runs.map((r) => r.ended ?? 0))).toBe(OPENING.until);
     const [failed, retry] = attemptsOf(sim, 2, 'load') as [Attempt, Attempt];
     expect(failed).toMatchObject({ outcome: 'failed', wrote: 96 });
@@ -924,9 +926,9 @@ describe('the opening the page draws', () => {
     expect(summary(sim)).toBe(
       "Every run has finished, and Wednesday's failed. Wednesday's report counts 275 orders, 96 more than the source: a failed load left 96 rows behind, and the retry appended all 179 again; the other 6 days match.",
     );
-    expect([sim.events, when(sim.now)]).toEqual([44, '02:10 on Monday 26 October']);
+    expect([sim.events, when(sim.now)]).toEqual([44, '02:10 on Monday, October 26']);
     expect(statusText(sim)).toMatch(
-      /^Day totals broke once, first at 00:41 on Monday 26 October \(Wednesday's report holds 275 orders and the source 179\); task order and the limits held/,
+      /^Day totals broke once, first at 00:41 on Monday, October 26 \(Wednesday's report holds 275 orders and the source 179\); task order and the limits held/,
     );
     // Replayed, it is the same run: the browser takes over where the picture stands.
     expect(JSON.stringify(openingRun().runs)).toBe(JSON.stringify(sim.runs));
@@ -972,7 +974,7 @@ describe('what the page draws, and the three things to try', () => {
     // played does, not at the opening's 02:10 past every bar.
     const twelve = openingWeek({ ...OPENING.config, seed: 12 });
     const played = week({ seed: 12 });
-    expect(when(twelve.now)).toBe('01:19 on Monday 26 October');
+    expect(when(twelve.now)).toBe('01:19 on Monday, October 26');
     expect(twelve.now).toBe(played.now);
     expect(twelve.events).toBe(played.events);
     expect(JSON.stringify(twelve.runs)).toBe(JSON.stringify(played.runs));
@@ -981,7 +983,7 @@ describe('what the page draws, and the three things to try', () => {
     expect(view.days[2]).toMatchObject({ report: '415', source: '303', difference: '+112' });
     expect(view.week).toEqual({ report: '2,203', difference: '+455', source: '1,748' });
     expect(propertyViews(twelve)[0]?.word).toBe(
-      "Broke 3 times, first at 00:28: Wednesday's report holds 415 orders and the source 303.",
+      "Broken 3 times, first at 00:28: Wednesday's report holds 415 orders and the source 303.",
     );
   });
 
@@ -1038,7 +1040,7 @@ describe('what the page draws, and the three things to try', () => {
     expect(before.on).toBe(false);
     expect(before.now).toBe(WEEK_END);
     expect(before.failNext).toEqual([0, 0, 1, 0, 0, 0, 0]);
-    expect(summary(before)).toMatch(/^The job graph is off\./);
+    expect(summary(before)).toMatch(/^The job is off\./);
     expect(boardView(before).days.every((d) => d.run === '' && d.report === '')).toBe(true);
     expect(lamps(before, 0)).toEqual(Array.from({ length: DAYS }, () => 'hollow'));
     expect(stripMarkup(before)).toContain('The job is off');
@@ -1053,6 +1055,36 @@ describe('what the page draws, and the three things to try', () => {
     expect(back.maxActiveRuns).toBe(5);
     expect(back.files).toEqual(sim.files);
     expect(back.actions.map((a) => a.kind)).toEqual(['fail-next-load', 'late-file']);
+  });
+
+  // The lead promises "fail a load". Until 2026-11-02 a failure set after the switch went with the
+  // old week: fail Monday's next load on the finished opening, press Run, and Monday succeeded, right
+  // after the log said it wouldn't.
+  test('a failed load set after the switch and not yet spent carries back to before it, as many as are left', () => {
+    const sim = openingRun();
+    failNextLoad(sim, 0);
+    const back = beforeSwitch(sim);
+    expect(back.on).toBe(false);
+    expect(back.now).toBe(WEEK_END);
+    expect(back.failNext).toEqual([1, 0, 1, 0, 0, 0, 0]);
+    start(back);
+    runUntil(back, Infinity);
+    expect(boardView(back).days[0]).toMatchObject({ run: 'failed', difference: '+46' });
+    expect(back.lines.some((line) => /Monday's load fails after appending/.test(line.text))).toBe(
+      true,
+    );
+    // Wednesday's own, from the opening, is spent in the opening's week and set again before the
+    // switch; pressed again on top of it, it counts once more, as it would have had it not been spent.
+    const twice = openingRun();
+    failNextLoad(twice, 2);
+    expect(beforeSwitch(twice).failNext).toEqual([0, 0, 2, 0, 0, 0, 0]);
+    // A failure already spent stays spent: that week's first load took it.
+    const spent = beforeSwitch(openingRun());
+    start(spent);
+    failNextLoad(spent, 0);
+    runUntil(spent, Infinity);
+    expect(spent.failNext).toEqual([0, 0, 0, 0, 0, 0, 0]);
+    expect(beforeSwitch(spent).failNext).toEqual([0, 0, 1, 0, 0, 0, 0]);
   });
 
   test('watch Wednesday count twice: 96 of 179 rows, then all 179, and a check that finds 275; overwrite the day and start over, and every day matches: 2,012 orders', () => {
@@ -1093,20 +1125,20 @@ describe('what the page draws, and the three things to try', () => {
       "Every run has finished, and all 7 succeeded. Every day's total matches the source: 2,012 orders in all.",
     );
     expect(propertyViews(fixed).every((p) => p.held)).toBe(true);
-    expect([when(fixed.now), fixed.events]).toEqual(['02:10 on Monday 26 October', 44]);
+    expect([when(fixed.now), fixed.events]).toEqual(['02:10 on Monday, October 26', 44]);
   });
 
-  test("write to today: every day's orders land on Monday 26 October, and every check fails", () => {
+  test("write to today: every day's orders land on Monday, October 26, and every check fails", () => {
     const opening = openingRun();
     setPartition(opening, 'today');
     const today = startOver(opening);
     const view = boardView(today);
-    expect(view.stray).toEqual({ short: 'Mon 26', long: 'Monday 26 October', rows: '2,108' });
+    expect(view.stray).toEqual({ short: 'Mon 26', long: 'Monday, October 26', rows: '2,108' });
     expect(view.days.every((d) => d.report === '0' && d.difference.startsWith('−'))).toBe(true);
     expect(lamps(today, CHECK)).toEqual(Array.from({ length: DAYS }, () => 'cross'));
     expect(view.week).toEqual({ report: '0', difference: '−2,012', source: '2,012' });
     expect(summary(today)).toBe(
-      "Every run has finished, and all 7 failed. 7 days show no orders in the report, because their rows were filed under Monday 26 October, the clock's day.",
+      "Every run has finished, and all 7 failed. 7 days show no orders in the report, because their rows were filed under Monday, October 26, the clock's day.",
     );
     expect(view.days.map((d) => d.run)).toEqual(Array.from({ length: DAYS }, () => 'failed'));
     expect(today.lines.at(-1)?.text).toBe('Every run has finished, and all 7 failed');
@@ -1168,7 +1200,7 @@ describe('what the page draws, and the three things to try', () => {
     expect(sim).toMatchObject({ on: false, now: WEEK_END, maxActiveRuns: 1 });
     expect(sim.failNext).toEqual([0, 0, 1, 0, 0, 0, 0]);
     expect(sim.lines.at(-1)?.text).toBe(
-      "Monday's export file is held back 5 hours: it lands at 05:00 on Monday 26 October",
+      "Monday's export file is held back 5 hours: it lands at 05:00 on Monday, October 26",
     );
     start(sim);
     runUntil(sim, WEEK_END + 120);
@@ -1186,7 +1218,7 @@ describe('what the page draws, and the three things to try', () => {
     expect(
       sim.lines.some((l) => l.text === "Monday's sensor finds the export file after 5 hours"),
     ).toBe(true);
-    expect(when(sim.now)).toBe('07:56 on Monday 26 October');
+    expect(when(sim.now)).toBe('07:56 on Monday, October 26');
   });
 
   test('each lamp has its shape and its words: a retry carries its time, a load waiting for a slot is hollow, a step after a failure is a dash', () => {
@@ -1225,14 +1257,14 @@ describe('what the page draws, and the three things to try', () => {
         id: 'totals',
         name: PROPERTY_NAMES.totals,
         held: false,
-        word: "Broke once, first at 00:41: Wednesday's report holds 275 orders and the source 179.",
+        word: "Broken once, first at 00:41: Wednesday's report holds 275 orders and the source 179.",
       },
-      { id: 'order', name: 'No step started before the steps it needs', held: true, word: 'Held.' },
+      { id: 'order', name: 'No step started before the steps it needs', held: true, word: 'Held' },
       {
         id: 'limits',
         name: 'No more runs or loads at once than allowed',
         held: true,
-        word: 'Held.',
+        word: 'Held',
       },
     ]);
   });
@@ -1265,7 +1297,7 @@ describe('what the page draws, and the three things to try', () => {
     expect(late.now).toBeGreaterThan(WEEK_END + DAY);
     for (const text of [stripMarkup(late), stripLabel(late), summary(late)])
       expect(text).not.toMatch(/undefined|NaN|Infinity|null/);
-    expect(stripLabel(late)).toMatch(/to \d\d:\d\d on Tuesday 27 October$/);
+    expect(stripLabel(late)).toMatch(/to \d\d:\d\d on Tuesday, October 27$/);
   });
 
   test('the strip: a day cleared after its run finished gets a track for each life, and none between the end and the clear', () => {

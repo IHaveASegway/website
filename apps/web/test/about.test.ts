@@ -5,11 +5,11 @@ import {
   ABOUT_HEADINGS,
   aboutParts,
   aboutSchema,
-  LAB_NAMES,
   openingSentence,
   sectionOf,
   withLinks,
 } from '../src/lib/about';
+import { LAB_NAMES } from '../src/lib/lab';
 import { fixture, read } from './support/dist';
 
 // /about/ (lib/about.ts): the bio, Joseph's words from src/content/about.md, then the résumé, which
@@ -76,6 +76,15 @@ test('the bio renders exactly where its entry is, as named blocks in its own wor
   expect(page.indexOf('class="bio"')).toBeLessThan(page.indexOf('id="experience-title"'));
 });
 
+// The bio names the essay and the Lab, and until 2026-11-02 only Home linked the essay: this is the
+// page for readers who want more, so each opens its page here too.
+test('the essay and the Lab the bio names open their pages, as the labs do', () => {
+  if (fixtureBuild) return;
+  const bio = /<section class="bio"[\s\S]*?<\/section>/.exec(page)?.[0] ?? '';
+  expect(bio).toContain('<a href="/writing/you-will-be-missed/">essay</a>');
+  expect(bio).toContain('<a href="/lab/">The Lab</a>');
+});
+
 test('the page has one Print button, and no PDF is written for it', () => {
   expect(page.match(/<button\b[^>]*\bdata-print\b/g)).toHaveLength(1);
   expect(page).not.toMatch(/href="[^"]*\.pdf"/);
@@ -93,7 +102,7 @@ describe('aboutParts: Home reads the bio it does not own', () => {
     expect(parts.sections.map((s) => s.heading)).toEqual([
       'What I build',
       'How I work',
-      "What I'm working toward",
+      'What I’m working toward',
     ]);
     const build = sectionOf(parts, ABOUT_HEADINGS.build);
     const how = sectionOf(parts, ABOUT_HEADINGS.how);
@@ -170,10 +179,10 @@ describe('aboutParts: Home reads the bio it does not own', () => {
     const names = LAB_NAMES.map(({ slug, name }) => ({ name, href: `/lab/${slug}/` }));
     expect(LAB_NAMES.map((n) => n.name)).toEqual([
       'Route Lab',
-      'Raft Lab',
       'Queue Lab',
       'Cache Lab',
       'Backfill Lab',
+      'Raft Lab',
     ]);
     expect(withLinks('The Queue Lab, the Cache Lab and the Backfill Lab.', names)).toEqual([
       'The ',

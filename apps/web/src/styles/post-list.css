@@ -66,8 +66,10 @@
   color: var(--muted-foreground);
 }
 
-.post-row:hover .post-title > a {
-  color: var(--primary);
+@media (hover: hover) {
+  .post-row:hover .post-title > a {
+    color: var(--primary);
+  }
 }
 
 @media (width >= 48rem) {

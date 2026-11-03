@@ -12,16 +12,12 @@
   display: none;
 }
 
-/* A control on a lab's desk keeps the compact label face and the 44 px height the instruments were
-   laid out for (ADR 0029): only the chrome's buttons moved to the signage face. */
-.desk .btn {
-  min-height: 2.75rem;
-  padding: 0.375rem 1rem;
-  font-family: var(--font-label);
-}
-
-.desk .label {
-  font-family: var(--font-label);
+/* The name Home and About call the lab by, opening the lead in the signage face, a step smaller so
+   the wide face sits level with the words after it. */
+.lab-head-name {
+  font-family: var(--font-wide);
+  font-size: 0.875em;
+  font-weight: 500;
 }
 
 @media (width >= 48rem) {
@@ -59,6 +55,13 @@
   background-color: var(--surface-1);
 }
 
+@media (width >= 48rem) {
+  .desk {
+    --desk-side: 1.75rem;
+    padding-block: 1.5rem 2rem;
+  }
+}
+
 /* A control on a lab's desk keeps the compact label face and the 44 px height the instruments were
    laid out for (ADR 0029): only the chrome's buttons moved to the signage face. */
 .desk .btn {
@@ -69,13 +72,6 @@
 
 .desk .label {
   font-family: var(--font-label);
-}
-
-@media (width >= 48rem) {
-  .desk {
-    --desk-side: 1.75rem;
-    padding-block: 1.5rem 2rem;
-  }
 }
 
 /* The write-up: the prose in its measure on the frame's left edge, and from 64rem the list of its
@@ -84,18 +80,6 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   margin-block-start: 3.5rem;
-}
-
-/* A control on a lab's desk keeps the compact label face and the 44 px height the instruments were
-   laid out for (ADR 0029): only the chrome's buttons moved to the signage face. */
-.desk .btn {
-  min-height: 2.75rem;
-  padding: 0.375rem 1rem;
-  font-family: var(--font-label);
-}
-
-.desk .label {
-  font-family: var(--font-label);
 }
 
 @media (width >= 48rem) {
@@ -149,9 +133,11 @@
   text-decoration-line: none;
 }
 
-.lab-contents a:hover {
-  color: var(--primary);
-  text-decoration-line: underline;
+@media (hover: hover) {
+  .lab-contents a:hover {
+    color: var(--primary);
+    text-decoration-line: underline;
+  }
 }
 
 @media (width >= 64rem) {

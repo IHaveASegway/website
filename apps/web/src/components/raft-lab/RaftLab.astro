@@ -1,23 +1,29 @@
 ---
+import EventLog from '../lab/EventLog.astro';
+import NoScript from '../lab/NoScript.astro';
+import Said from '../lab/Said.astro';
+import Time from '../lab/Time.astro';
+import { LINES_SHOWN } from '../../lib/lab/event-log';
+import { PROPERTIES } from '../../lib/raft/check';
 import {
   cutFence,
   DIAL_RADIUS,
+  eventsWords,
   flightsMarkup,
   logMarkup,
   logWords,
   NODE_RADIUS,
-  nodeText,
   openingRun,
-  OPENING,
   place,
+  PROMISES,
+  propertyWord,
   ROLE_BASELINE,
-  ROLE_WORD,
   seconds,
-  SIZE,
-  statusText,
+  serverState,
   summary,
   TERM_BASELINE,
   timerShare,
+  VIEW_BOX,
 } from '../../lib/raft/view';
 import '../../styles/raft-lab.css';
 
@@ -36,17 +42,32 @@ import '../../styles/raft-lab.css';
 // A log's lamps are its own server's view, as Raft's are: an entry is filled once that server
 // knows it is committed. The commit index is volatile state (Raft paper, Figure 2), so a crash
 // clears it and a server that is down draws its whole log hollow, though every entry a majority
-// holds is still committed. The legend says so, since "hollow" alone would read "not committed".
+// holds is still committed. The legend says so, since "hollow" alone would read "not committed",
+// and the caption counts from the run's high-water mark (lib/raft/sim.ts, committedCount), which
+// no crash takes down.
 //
-// The controls come straight after the picture, before the logs, so on a phone the picture and the
-// buttons that work it, Run, Next event, Start over and the network's, share one screen: a press and
-// what it does are seen together. From 64rem the logs stand beside the picture and the controls
-// under both (raft-lab.css), as before; nothing in the logs takes focus, so the tab order is the
-// same either way. Start over comes before Speed for the same reason: the three time buttons stay
-// on one line on a phone, and the setting follows them.
+// The controls come straight after the picture, before the logs, so on a phone the picture and Time
+// share one screen, and the network's first buttons most of the picture: a press and what it does are
+// seen together. From 64rem the logs and the safety properties stand beside the picture, the controls
+// under them, and how to read it all under those (raft-lab.css), since the properties are what the
+// lead tells a visitor to watch. Only the controls and the two boxes that scroll take focus, in that
+// order, so the tab order is the same either way. Time is the one group every lab has
+// (components/lab/Time.astro): the clock, Run, Next event, Start over and Speed. What a press did, or
+// why it did nothing, is said on the line under it, over the network's buttons (lib/lab/said.ts). The
+// other labs' stands under all of a part's controls, but here that is about 400 px below Cut off the
+// leader, off the screen for a thumb on that button with Run in view. This way every control is within
+// a screen of it, at 320 px too.
+//
+// The key names each mark on the wire, in the picture's own classes. Assistive technology skips it,
+// as it does the Queue Lab's: the picture is one image, named by its caption, and the marks it holds
+// aren't read out, so a key to them would name nothing a listener met.
 const sim = openingRun();
 const cut = cutFence(sim.groups);
-const lines = sim.lines.slice(-12);
+// Every line the app would write for this run, so the run's first election is on the page from its
+// first line: the last 12 of them opened on a server winning, with no line saying it stood.
+const lines = sim.lines
+  .slice(-LINES_SHOWN)
+  .map((line) => ({ at: seconds(line.at), text: line.text }));
 const dial = DIAL_RADIUS;
 
 // Virtual seconds a real second runs, by name; Steady is the speed the page opens at.
@@ -54,18 +75,12 @@ const SPEEDS = [
   { value: '0.025', words: 'Slow' },
   { value: '0.05', words: 'Steady' },
   { value: '0.1', words: 'Quick' },
-] as const;
+];
 ---
 
-<div class="rf desk" id="raft-lab" data-rf-opening={JSON.stringify(OPENING)}>
+<div class="rf desk" id="raft-lab">
   <figure class="rf-figure">
-    <svg
-      class="rf-map"
-      viewBox={`0 0 ${SIZE} ${SIZE}`}
-      role="img"
-      aria-labelledby="rf-summary"
-      data-rf-map
-    >
+    <svg class="rf-map" viewBox={VIEW_BOX} role="img" aria-labelledby="rf-summary" data-rf-map>
       <path class="rf-cut" data-rf-cut data-off={cut ? undefined : ''} d={cut ?? 'M0 0'} />
       {sim.servers.map((s) => {
         const { x, y } = place(s.id, sim.servers.length);
@@ -87,7 +102,7 @@ const SPEEDS = [
               {s.id + 1}
             </text>
             <text class="rf-role" x={x} y={y + ROLE_BASELINE} data-rf-role>
-              {s.up ? ROLE_WORD[s.role] : 'down'}
+              {s.up ? s.role : 'down'}
             </text>
             <text class="rf-term" x={x} y={y + TERM_BASELINE} data-rf-term>
               term {s.term}
@@ -97,119 +112,190 @@ const SPEEDS = [
       })}
       <g class="rf-flights" data-rf-flights set:html={flightsMarkup(sim, false)} />
     </svg>
-    <figcaption class="rf-summary" id="rf-summary" data-rf-summary>
-      {summary(sim)}
+    <figcaption class="rf-caption">
+      <p class="lab-caption rf-gloss">
+        A term is a numbered stretch of time with at most one leader.
+      </p>
+      <p class="lab-caption rf-summary" id="rf-summary" data-rf-summary>
+        {summary(sim)}
+      </p>
+      <NoScript />
     </figcaption>
   </figure>
 
-  <div class="rf-controls" data-rf-js>
-    <div class="rf-row" role="group" aria-label="Time">
-      <button type="button" class="btn rf-run" data-lamp="off" data-rf-run>
-        Run
-      </button>
-      <button type="button" class="btn" data-rf-step>
-        Next event
-      </button>
-      <button type="button" class="btn" data-rf-reset>
-        Start over
-      </button>
-      <fieldset class="rf-speed">
-        <legend class="rf-speed-name">Speed</legend>
-        {SPEEDS.map((speed) => (
-          <label class="btn rf-option">
-            <input
-              type="radio"
-              name="rf-speed"
-              value={speed.value}
-              checked={speed.words === 'Steady'}
-              autocomplete="off"
-              data-rf-speed
-            />
-            <span class="rf-lamp" />
-            {speed.words}
-          </label>
-        ))}
-      </fieldset>
-    </div>
-    <div class="rf-row" role="group" aria-label="The network">
-      <button type="button" class="btn" data-rf-write>
-        Send a write
-      </button>
-      <button type="button" class="btn" data-rf-lone>
-        Cut off the leader
-      </button>
-      <button type="button" class="btn" data-rf-split>
-        Split 2 and 3
-      </button>
-      <button type="button" class="btn" data-rf-heal>
-        Heal the network
-      </button>
-      <label class="rf-field">
-        <span>Messages lost</span>
-        <input type="range" min="0" max="50" step="5" value="0" data-rf-loss />
-        <output data-rf-loss-out>0%</output>
-      </label>
-    </div>
-    <div class="rf-row" role="group" aria-label="Crash or restart a node">
-      {sim.servers.map((s) => (
+  <div class="rf-controls" data-rf-js data-part>
+    <Time
+      short="rf"
+      speeds={SPEEDS}
+      speed="0.05"
+      runSays="Nothing is scheduled: press something below to break it."
+      resetSays={`The run starts over under these settings, at ${seconds(sim.now)}`}
+    >
+      <p class="lab-clock">
+        <span data-rf-clock>Virtual time {seconds(sim.now)}</span>,{' '}
+        <span data-rf-events>{eventsWords(sim)}</span>, seed <span data-rf-seed>{sim.seed}</span>
+      </p>
+    </Time>
+    <Said words="The network and the servers below change the run as it stands." />
+    <div class="lab-group" role="group" aria-labelledby="rf-network">
+      <p class="lab-group-name" id="rf-network">
+        The network
+      </p>
+      <div class="lab-row">
+        <button type="button" class="btn" data-rf-write>
+          Send a write
+        </button>
         <button
           type="button"
-          class="btn rf-toggle"
-          data-rf-toggle={s.id}
-          aria-label={`Crash node ${s.id + 1}, now ${nodeText(s).split(', ').slice(1).join(', ')}`}
+          class="btn"
+          data-rf-lone
+          data-why="There is no leader to cut off right now."
         >
-          Crash node {s.id + 1}
+          Cut off the leader
         </button>
-      ))}
+        <button type="button" class="btn" data-rf-split>
+          Split two servers from three
+        </button>
+        <button type="button" class="btn" data-rf-heal data-why="The network is already whole.">
+          Heal the network
+        </button>
+        <label class="rf-field">
+          <span>Messages lost</span>
+          <input type="range" min="0" max="50" step="5" value="0" data-rf-loss />
+          <output data-rf-loss-out>0%</output>
+        </label>
+      </div>
     </div>
-    <p class="rf-sr" role="status" data-rf-said></p>
+    <div class="lab-group" role="group" aria-labelledby="rf-servers">
+      <p class="lab-group-name" id="rf-servers">
+        Crash or restart a server
+      </p>
+      <div class="lab-row">
+        {sim.servers.map((s) => (
+          <button
+            type="button"
+            class="btn rf-toggle"
+            data-rf-toggle={s.id}
+            aria-label={`Crash server ${s.id + 1}, now ${serverState(s)}`}
+          >
+            Crash server {s.id + 1}
+          </button>
+        ))}
+      </div>
+    </div>
+    <p class="lab-sr" role="status" data-rf-said></p>
   </div>
 
-  <div class="rf-side">
-    <h2 class="rf-heading">Logs</h2>
-    <ol class="rf-logs" role="list">
-      {sim.servers.map((s) => (
-        <li class="rf-log">
-          <span class="rf-log-name">Node {s.id + 1}</span>
-          <ol
-            class="rf-cells"
-            role="list"
-            aria-label={`Node ${s.id + 1}: ${logWords(s)}`}
-            data-rf-log={s.id}
-            set:html={logMarkup(s)}
-          />
-        </li>
-      ))}
-    </ol>
-    <p class="rf-legend">
-      Each dot is one entry, with its term under it, as its node knows it. A filled dot is
-      committed: a majority holds it, and it can never be lost. A hollow dot is one its node has not
-      heard is committed yet. A crash keeps a node's log but not what it knew was committed, which
-      Raft holds only in memory, so a node that is down shows its whole log hollow until the leader
-      tells it again.
-    </p>
-    <p class="rf-status" data-rf-status>
-      {statusText(sim)}
-    </p>
-    <p class="rf-clock" data-rf-js>
-      <span data-rf-clock>Virtual time {seconds(sim.now)}</span>, seed{' '}
-      <span data-rf-seed>{sim.seed}</span>
-    </p>
-  </div>
-
-  <div class="rf-events">
-    <h2 class="rf-heading" id="rf-events">
-      What happened
+  <div class="rf-part rf-log-part">
+    <h2 class="lab-heading" id="rf-logs">
+      Logs
     </h2>
-    <div class="rf-lines" role="log" aria-live="off" aria-labelledby="rf-events" tabindex="0">
-      <ol class="rf-list" data-rf-lines>
-        {lines.map((line) => (
-          <li>
-            <span class="rf-at">{seconds(line.at)}</span> {line.text}
+    <div class="rf-logs-box" role="group" aria-labelledby="rf-logs" tabindex="0">
+      <ol class="rf-logs" role="list">
+        {sim.servers.map((s) => (
+          <li class="rf-log" data-entries={s.log.length}>
+            <span class="rf-log-name">Server {s.id + 1}</span>
+            <ol
+              class="rf-cells"
+              role="list"
+              aria-label={`Server ${s.id + 1}: ${logWords(s)}`}
+              data-rf-log={s.id}
+              set:html={logMarkup(s)}
+            />
           </li>
         ))}
       </ol>
     </div>
+  </div>
+
+  <div class="rf-read">
+    <p class="rf-legend">
+      Each dot is one entry, with its term under it, as its server knows it. A filled dot is
+      committed: a majority holds it, and it can never be lost. A hollow dot is one its server has
+      not heard is committed yet. A crash keeps a server’s log but not what it knew was committed,
+      which Raft holds only in memory, so a server shows its whole log hollow until a leader tells
+      it again. If all five crash, no leader knows either: a new leader can’t count an older term’s
+      entries until an entry of its own term commits, so they stay hollow until the next write. The
+      caption counts what was ever committed, so its number doesn’t fall. The number beside a
+      server’s name counts its entries. The rows scroll sideways together, so a row with no dots in
+      view has fallen behind, not lost its log.
+    </p>
+    <ul class="rf-key" role="list" aria-hidden="true">
+      <li class="rf-key-wide">
+        <svg class="rf-key-mark" viewBox="0 0 20 20">
+          <circle class="rf-track" cx="10" cy="10" r="7" />
+          <circle class="rf-dial" cx="10" cy="10" r="7" pathLength="1" stroke-dasharray="0.6 1" />
+        </svg>
+        Election timer: when it closes, the server asks for votes
+      </li>
+      <li>
+        <svg class="rf-key-mark" viewBox="0 0 20 20">
+          <circle class="rf-m" data-kind="vote" cx="10" cy="10" r="4.5" />
+        </svg>
+        Asks for a vote
+      </li>
+      <li>
+        <svg class="rf-key-mark" viewBox="0 0 20 20">
+          <circle class="rf-m" data-kind="yes" cx="10" cy="10" r="3.5" />
+        </svg>
+        Grants a vote
+      </li>
+      <li>
+        <svg class="rf-key-mark" viewBox="0 0 20 20">
+          <circle class="rf-m" data-kind="no" cx="10" cy="10" r="3.5" />
+        </svg>
+        Refuses a vote
+      </li>
+      <li>
+        <svg class="rf-key-mark" viewBox="0 0 20 20">
+          <rect class="rf-m" data-kind="entries" x="5.5" y="5.5" width="9" height="9" />
+        </svg>
+        Carries log entries
+      </li>
+      <li>
+        <svg class="rf-key-mark" viewBox="0 0 20 20">
+          <rect class="rf-m" data-kind="beat" x="7" y="7" width="6" height="6" />
+        </svg>
+        Heartbeat, no entries
+      </li>
+      <li>
+        <svg class="rf-key-mark" viewBox="0 0 20 20">
+          <circle class="rf-m" data-kind="ack" cx="10" cy="10" r="2.5" />
+        </svg>
+        Answers the leader
+      </li>
+      <li class="rf-key-wide">
+        <svg class="rf-key-mark" viewBox="0 0 20 20">
+          <path class="rf-cut" d="M0 10H20" />
+        </svg>
+        Network split: no message crosses it
+      </li>
+    </ul>
+  </div>
+
+  <div class="rf-part rf-props-part">
+    <div class="rf-props-head">
+      <h2 class="lab-heading">Checked as the run goes</h2>
+      <p class="rf-props-source" id="rf-props">
+        Safety properties, from Figure 3 of the Raft paper
+      </p>
+    </div>
+    <ul class="lab-checks rf-props" role="list" aria-labelledby="rf-props">
+      {PROPERTIES.map((name) => (
+        <li class="lab-check" data-rf-prop={name} data-held="true">
+          <span class="lab-check-lamp" aria-hidden="true" />
+          <span class="lab-check-name">{name}</span>
+          <span class="lab-check-word" data-rf-prop-word>
+            {propertyWord(true)}
+          </span>
+          <span class="rf-prop-promise">{PROMISES[name]}</span>
+        </li>
+      ))}
+    </ul>
+  </div>
+
+  <div class="rf-events">
+    <EventLog short="rf" lines={lines} />
   </div>
 </div>
 

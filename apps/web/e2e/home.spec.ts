@@ -75,7 +75,91 @@ test.describe("Home's opening", () => {
   });
 });
 
+/** Through the ring's whole turn, seeked a step at a time: how many steps cut a server or a bead of
+ *  its log at the clip's edge, and by how much at worst, in px. Until 2026-11-02 they were cut for
+ *  half of every turn, 12 px at the bottom at 1440 px, right under a caption that says the servers
+ *  keep the same log. */
+const cutThroughTheTurn = (page: Page) =>
+  page.evaluate(() => {
+    const turn = document
+      .getAnimations()
+      .find((a) => (a as CSSAnimation).animationName === 'orbit-turn');
+    if (!turn) throw new Error('the ring is not turning');
+    turn.pause();
+    const clip = (document.querySelector('.orbit-clip') as Element).getBoundingClientRect();
+    const STEPS = 180;
+    let steps = 0;
+    let worst = 0;
+    for (let step = 0; step < STEPS; step++) {
+      turn.currentTime = (step / STEPS) * 90_000;
+      let cut = 0;
+      for (const mark of document.querySelectorAll('.orbit-entry, .orbit-node')) {
+        const box = mark.getBoundingClientRect();
+        cut = Math.max(
+          cut,
+          clip.left - box.left,
+          clip.top - box.top,
+          box.right - clip.right,
+          box.bottom - clip.bottom,
+        );
+      }
+      if (cut > 0.5) steps += 1;
+      worst = Math.max(worst, cut);
+    }
+    return { steps, worst };
+  });
+
 test.describe("Home's live picture", () => {
+  for (const [width, height] of [
+    [320, 568],
+    [390, 664],
+    [768, 900],
+    [1024, 768],
+    [1280, 800],
+    [1440, 900],
+    [2560, 1440],
+  ] as const) {
+    test(`at ${width} px no server or bead is cut as the ring turns, and the ring keeps its size`, async ({
+      page,
+    }) => {
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
+      await page.setViewportSize({ width, height });
+      await page.goto('/');
+      test.skip((await picture(page).count()) === 0, 'this build writes no Raft Lab');
+      await expect(page.locator('html')).toHaveAttribute('data-motion', 'on');
+      expect(await cutThroughTheTurn(page)).toEqual({ steps: 0, worst: expect.any(Number) });
+      // The room came from the margin, not from the ring: it still fills its column, up to 36rem.
+      const sizes = await page.evaluate(() => ({
+        plane: (document.querySelector('.orbit-plane') as HTMLElement).offsetWidth,
+        stage: (document.querySelector('.orbit-stage') as HTMLElement).offsetWidth,
+        page: document.documentElement.scrollWidth,
+      }));
+      expect(sizes.plane).toBe(Math.min(sizes.stage, 576));
+      expect(sizes.page).toBe(width);
+    });
+  }
+
+  // The known answer: the same reading on the stage as it stood, the clip on its own edges and the
+  // plane at its middle, finds what the turn cut.
+  test('known answer: with the clip on the stage and the ring at its middle, the cut is found', async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+    test.skip((await picture(page).count()) === 0, 'this build writes no Raft Lab');
+    await expect(page.locator('html')).toHaveAttribute('data-motion', 'on');
+    await page.evaluate(() => {
+      const old = new CSSStyleSheet();
+      old.replaceSync(`.orbit-clip { inset-inline: 0; }
+        .orbit-plane { inset-block-start: 50%; inline-size: min(100%, 36rem); }`);
+      document.adoptedStyleSheets = [old];
+    });
+    const { steps, worst } = await cutThroughTheTurn(page);
+    expect(steps).toBeGreaterThan(50);
+    expect(worst).toBeGreaterThan(8);
+  });
+
   test("it is the Raft Lab's cluster as its page opens: one leader lit, every log as long, a link to break it", async ({
     page,
   }) => {
@@ -90,7 +174,7 @@ test.describe("Home's live picture", () => {
     expect(new Set(logs).size, `logs ${logs.join(', ')}`).toBe(1);
     expect(logs[0]).toBeGreaterThan(0);
     await expect(picture(page).locator('figcaption')).toHaveText(
-      /^A simulation of five servers keeping the same log\. Server \d is the leader in this picture, and its heartbeats hold the other four\. Try to break it in the Raft Lab$/,
+      /^A simulation of five servers keeping the same log\. Server \d is the leader in this picture, and its heartbeats keep the other four from starting an election\. Try to break it in the Raft Lab$/,
     );
     await expect(picture(page).locator('figcaption a')).toHaveAttribute('href', '/lab/raft/');
   });
@@ -185,7 +269,12 @@ test("What I build: the bio's five in its order, each lab's row with its fact", 
     const line = await row.getAttribute('data-line');
     if (!line) continue;
     await expect(row.locator(`.build-text a[href="/lab/${line}/"]`)).toHaveCount(1);
-    await expect(row.locator('.build-lab')).toHaveText(/ Lab$/);
+    // Home names the made-up bakery nowhere else, so the line over a fact says what it is about.
+    await expect(row.locator('.build-lab')).toHaveText(
+      line === 'raft' || line === 'routes'
+        ? /^Simulated in the \w+ Lab$/
+        : /^Simulated in the \w+ Lab, with a made-up bakery’s (orders|menu|report)$/,
+    );
     await expect(row.locator('.build-fact')).toHaveText(/\S.*\.$/);
   }
 });
@@ -202,7 +291,7 @@ test("Home's writing rows: the day, the title as the row's link, its summary, it
   test.skip((await rows.count()) === 0, 'this build lists no post');
   const home = new Map<string, string>();
   for (const row of await rows.all()) {
-    await expect(row.locator('.post-date time')).toHaveText(/^\d{1,2} [A-Z][a-z]{2} \d{4}$/);
+    await expect(row.locator('.post-date time')).toHaveText(/^[A-Z][a-z]{2} \d{1,2}, \d{4}$/);
     const link = row.locator('.post-title a');
     await expect(link).toHaveAttribute('href', /^\/(writing|notes)\/.+\/$/);
     await expect(row.locator('.post-summary')).not.toBeEmpty();
@@ -221,6 +310,25 @@ test("Home's writing rows: the day, the title as the row's link, its summary, it
 // The address works with no mail app (components/home/Contact.astro; scripts/copy.js): pressed, the
 // button copies it, or where the clipboard refuses (a page not served securely) selects it, says
 // which, and keeps its width, so nothing moves.
+// "made-up" is one word to read: the line over a fact must not split it at its hyphen. Phones, and the
+// widths from 1,024 to 1,112 px where the third column split it until 2026-11-03: four widths saw none.
+test('at every width the line over a fact keeps "made-up" whole', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate(() => document.fonts.ready);
+  for (const width of [320, 360, 390, 430, 1024, 1040, 1056, 1072, 1088, 1104, 1112]) {
+    await page.setViewportSize({ width, height: 844 });
+    const lines = await page.locator('.build-lab').evaluateAll((labels) =>
+      labels.flatMap((label) => {
+        const word = [...label.querySelectorAll('span')].find(
+          (span) => span.textContent === 'made-up',
+        );
+        return word ? [new Set([...word.getClientRects()].map((r) => Math.round(r.top))).size] : [];
+      }),
+    );
+    expect(lines, `at ${width} px`).toEqual([1, 1, 1]);
+  }
+});
+
 test('Home closes with the address, a button that copies it without moving, and LinkedIn', async ({
   page,
   context,
@@ -234,7 +342,7 @@ test('Home closes with the address, a button that copies it without moving, and 
   );
   await expect(contact.locator('.contact-address')).toHaveText('hello@ihaveasegway.com');
   const copy = contact.locator('.btn-copy');
-  await expect(copy).toHaveText('Copy the address');
+  await expect(copy).toHaveText('Copy email address');
   await copy.scrollIntoViewIfNeeded();
   const size = async () => {
     const box = await copy.boundingBox();
@@ -255,6 +363,6 @@ test('Home closes with the address, a button that copies it without moving, and 
     );
   }
   expect(await size()).toEqual(before);
-  await expect(copy).toHaveText('Copy the address', { timeout: 5_000 });
+  await expect(copy).toHaveText('Copy email address', { timeout: 5_000 });
   await expect(contact.locator('a.btn')).toHaveText(['LinkedIn']);
 });

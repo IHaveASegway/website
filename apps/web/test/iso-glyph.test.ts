@@ -19,7 +19,7 @@ import {
   type Paint,
 } from '../src/lib/iso/glyph';
 import { GLYPH_SLUGS, labGlyph } from '../src/lib/iso/lab-glyphs';
-import { labFact } from '../src/lib/lab-facts';
+import { factSource, labFact } from '../src/lib/lab-facts';
 import { openingRun as queueOpening } from '../src/lib/queue/view';
 import { leaderOf } from '../src/lib/raft/sim';
 import { openingRun as raftOpening } from '../src/lib/raft/view';
@@ -125,19 +125,30 @@ describe("each lab's glyph, from the run its page opens on", () => {
   });
 
   // One module writes every card's fact, Home's and the Lab index's (lib/lab-facts.ts). Until the
-  // overhaul's merge Home worked out its own copy beside it. The places agree but for the two
-  // sentences that differ on purpose: Home's Raft card crashes the leader, and its Route Lab card
-  // says the bakery is made up.
-  test("Home's facts are the Lab index's, but Raft's failover and the made-up bakery", async () => {
-    for (const slug of LABS) {
-      const [home, index] = [await labFact(slug, 'home'), await labFact(slug, 'index')];
-      expect(home, slug).toMatch(/\S.*\.$/);
-      if (slug === 'raft')
-        expect(home).toMatch(/^Crash server \d, and server \d takes over in term \d+ after/);
-      else if (slug === 'routes') expect(home).toContain('made-up bakery');
-      else expect(home, slug).toBe(index);
-    }
-    expect(await labFact('raft')).toBe(await labFact('raft', 'index'));
+  // overhaul's merge Home worked out its own copy beside it, and until 2026-11-02 the places differed
+  // in two labs: the Lab index's Raft card said every property held over a fault-free opening, which
+  // read as test evidence and was none, and only Home's Route Lab card said the bakery is made up. Each
+  // lab now has one sentence, so Raft's is the failover the write-up asks for, and the bakery's made up.
+  test('a lab has one fact: Raft’s is the failover, and the bakery is made up', async () => {
+    expect(await labFact('raft')).toMatch(
+      /^Crash server \d, and server \d takes over in term \d+ after \d+ ms, with all three committed entries kept\.$/,
+    );
+    expect(await labFact('raft')).not.toMatch(/events/);
+    expect(await labFact('routes')).toContain('made-up bakery');
+  });
+
+  // Home names no bakery anywhere else, so the line over each fact says what the fact is about.
+  test('the line over a fact on Home says what it is about, for a reader who has not opened the lab', () => {
+    expect(factSource('queue', 'Queue Lab')).toBe(
+      'Simulated in the Queue Lab, with a made-up bakery’s orders',
+    );
+    expect(factSource('cache', 'Cache Lab')).toBe(
+      'Simulated in the Cache Lab, with a made-up bakery’s menu',
+    );
+    expect(factSource('backfill', 'Backfill Lab')).toBe(
+      'Simulated in the Backfill Lab, with a made-up bakery’s report',
+    );
+    expect(factSource('raft', 'Raft Lab')).toBe('Simulated in the Raft Lab');
   });
 
   test('the queue: a lit plate per order waiting, up to eight; a worker that is down is dashed, its wire cut', () => {

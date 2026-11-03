@@ -23,7 +23,7 @@ const HANDLE_ANY_CASE = new RegExp(HANDLE, 'i');
 // are the one exception: they reach no account of Joseph's.
 const LICENSE_NOTICES = [
   { file: 'fonts/OFL-Archivo.txt', url: 'https://github.com/Omnibus-Type/Archivo' },
-  { file: 'fonts/OFL-B612Mono.txt', url: 'https://github.com/polarsys/b612' },
+  { file: 'fonts/OFL-JetBrainsMono.txt', url: 'https://github.com/JetBrains/JetBrainsMono' },
   { file: 'fonts/OFL-SourceSerif4.txt', url: 'https://github.com/adobe-fonts/source-serif' },
 ];
 
@@ -366,8 +366,8 @@ describe('known answers for the matcher', () => {
     );
   });
   test('a license notice passes only in its own file', () => {
-    const url = 'https://github.com/polarsys/b612';
-    expect(verdict(url, 'fonts/OFL-B612Mono.txt', none)).toBeNull();
+    const url = 'https://github.com/JetBrains/JetBrainsMono';
+    expect(verdict(url, 'fonts/OFL-JetBrainsMono.txt', none)).toBeNull();
     expect(verdict(url, 'index.html', none)).not.toBeNull();
   });
 });

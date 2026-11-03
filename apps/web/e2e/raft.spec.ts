@@ -12,11 +12,18 @@ const RAFT = '/lab/raft/';
 
 test.beforeEach(({ page }) => handsOn(page));
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
-const HELD = /^All five safety properties held over [\d,]+ events\.$/;
+const PROPERTIES = [
+  'Election Safety',
+  'Leader Append-Only',
+  'Log Matching',
+  'Leader Completeness',
+  'State Machine Safety',
+];
+const SPLIT = 'Split two servers from three';
 
 const clock = (page: Page) => page.locator('[data-rf-clock]');
 const summary = (page: Page) => page.locator('[data-rf-summary]');
-const status = (page: Page) => page.locator('[data-rf-status]');
+const events = (page: Page) => page.locator('[data-rf-events]');
 const log = (page: Page) => page.locator('[data-rf-lines] li');
 
 /** Collects policy violations the page reports. */
@@ -36,7 +43,7 @@ async function watch(page: Page): Promise<() => Promise<string[]>> {
 const seconds = async (page: Page) =>
   Number(/([\d.]+) s/.exec((await clock(page).textContent()) ?? '')?.[1] ?? NaN);
 
-test('without JavaScript, the page is the opening run: five nodes, three committed entries each, no control', async ({
+test('without JavaScript, the page is the opening run: five servers, three committed entries each, the properties named, no control', async ({
   browser,
 }) => {
   const context = await browser.newContext({ javaScriptEnabled: false });
@@ -44,10 +51,10 @@ test('without JavaScript, the page is the opening run: five nodes, three committ
   await page.goto(RAFT);
   await expect(page.locator('[data-rf-node]')).toHaveCount(5);
   await expect(page.locator('.rf-cell[data-done]')).toHaveCount(15);
-  await expect(summary(page)).toHaveText(/^Node \d leads term \d+, 3 entries committed\.$/);
-  await expect(status(page)).toHaveText(HELD);
-  for (const control of await page.locator('.rf-controls, .rf-clock').all())
-    await expect(control).toBeHidden();
+  await expect(summary(page)).toHaveText(/^Server \d leads term \d+, 3 entries committed\.$/);
+  await expect(page.locator('.lab-check-name')).toHaveText(PROPERTIES);
+  await expect(page.locator('.lab-check-word')).toHaveText(PROPERTIES.map(() => 'Held'));
+  await expect(page.locator('.rf-controls')).toBeHidden();
   await context.close();
 });
 
@@ -80,7 +87,7 @@ test('cut off the leader: a new term elects another leader, and every safety pro
 }) => {
   await page.goto(RAFT);
   const before = (await summary(page).textContent()) ?? '';
-  const [, oldLeader, oldTerm] = /^Node (\d) leads term (\d+)/.exec(before) ?? [];
+  const [, oldLeader, oldTerm] = /^Server (\d) leads term (\d+)/.exec(before) ?? [];
   await page.getByRole('button', { name: 'Cut off the leader' }).click();
   await page.getByRole('radio', { name: 'Quick' }).check();
   await page.getByRole('button', { name: 'Run' }).click();
@@ -89,20 +96,20 @@ test('cut off the leader: a new term elects another leader, and every safety pro
     .poll(
       async () => {
         const [, leader, term] =
-          /^Node (\d) leads term (\d+)/.exec((await summary(page).textContent()) ?? '') ?? [];
+          /^Server (\d) leads term (\d+)/.exec((await summary(page).textContent()) ?? '') ?? [];
         return leader !== undefined && leader !== oldLeader && Number(term) > Number(oldTerm);
       },
       { timeout: 15_000 },
     )
     .toBe(true);
   await page.getByRole('button', { name: 'Pause' }).click();
-  await expect(status(page)).toHaveText(HELD);
+  await expect(page.locator('[data-rf-prop-word]')).toHaveText(PROPERTIES.map(() => 'Held'));
   await expect(page.locator('[data-rf-lines]')).toContainText('The network splits');
 });
 
-/** How the cut's fence meets each node as drawn: its timer ring with half its stroke, and each
- *  line of text with its halo. Each node must be wholly inside the fence or wholly outside it,
- *  and never under its line. Says how many nodes are inside, or what went wrong. */
+/** How the cut's fence meets each server as drawn: its timer ring with half its stroke, and each
+ *  line of text with its halo. Each server must be wholly inside the fence or wholly outside it,
+ *  and never under its line. Says how many servers are inside, or what went wrong. */
 // Points sit under 1 unit apart, closer than the fence's 1.5 px line, so it cannot slip between.
 const fenced = (page: Page) =>
   page.evaluate(() => {
@@ -139,15 +146,15 @@ const fenced = (page: Page) =>
           );
       }
       const id = Number(node.dataset.rfNode) + 1;
-      if (points.some((p) => cut.isPointInStroke(p))) return `the line crosses node ${id}`;
+      if (points.some((p) => cut.isPointInStroke(p))) return `the line crosses server ${id}`;
       const within = points.filter((p) => cut.isPointInFill(p)).length;
       if (within === points.length) inside++;
-      else if (within > 0) return `node ${id} is partly inside`;
+      else if (within > 0) return `server ${id} is partly inside`;
     }
     return inside;
   });
 
-test('a cut network: a fence closes off the smaller side and crosses no node or its text', async ({
+test('a split network: a fence closes off the smaller side and crosses no server or its text', async ({
   page,
 }) => {
   await page.goto(RAFT);
@@ -156,33 +163,349 @@ test('a cut network: a fence closes off the smaller side and crosses no node or 
   await expect.poll(() => fenced(page)).toBe(1);
   await page.getByRole('button', { name: 'Heal the network' }).click();
   await expect.poll(() => fenced(page)).toBe('no fence');
-  await page.getByRole('button', { name: 'Split 2 and 3' }).click();
+  await page.getByRole('button', { name: SPLIT }).click();
   await expect.poll(() => fenced(page)).toBe(2);
 });
 
-// On a phone the role and term grow and move down (raft-lab.css); the fence must still keep clear.
-for (const width of [390, 320]) {
-  test(`at ${width} px wide, the fence still crosses no node or its text`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 844 });
+// On a phone the role and term grow and move down (raft-lab.css), and from 64rem the term grows a
+// little; the fence must still keep clear.
+for (const [width, height] of [
+  [390, 844],
+  [320, 844],
+  [1440, 900],
+] as const) {
+  test(`at ${width} px wide, the fence still crosses no server or its text`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
     await page.goto(RAFT);
     await page.getByRole('button', { name: 'Cut off the leader' }).click();
     await expect.poll(() => fenced(page)).toBe(1);
     await page.getByRole('button', { name: 'Heal the network' }).click();
-    await page.getByRole('button', { name: 'Split 2 and 3' }).click();
+    await page.getByRole('button', { name: SPLIT }).click();
     await expect.poll(() => fenced(page)).toBe(2);
   });
 }
 
-test('a node button crashes it and then restarts it, and says so in its name', async ({ page }) => {
+test('a server’s button crashes it and then restarts it, and says so in its name', async ({
+  page,
+}) => {
   await page.goto(RAFT);
   const first = page.locator('[data-rf-toggle="0"]');
+  await expect(first).toHaveText('Crash server 1');
+  await expect(first).toHaveAccessibleName('Crash server 1, now leader, term 1');
   await first.click();
-  await expect(first).toHaveText('Restart node 1');
-  await expect(first).toHaveAccessibleName('Restart node 1, now down');
+  await expect(first).toHaveText('Restart server 1');
+  await expect(first).toHaveAccessibleName('Restart server 1, now down');
   await expect(page.locator('[data-rf-node="0"]')).toHaveAttribute('data-up', 'false');
   await first.click();
-  await expect(first).toHaveText('Crash node 1');
+  await expect(first).toHaveText('Crash server 1');
   await expect(page.locator('[data-rf-node="0"]')).toHaveAttribute('data-up', 'true');
+});
+
+// A crash clears what a server knows is committed (Figure 2's commitIndex is volatile), and a new
+// leader can't count an older term's entries (section 5.4.2), so with all five crashed no server
+// knows of any. What a majority holds is still committed, so the caption's count stays: it read "0
+// entries committed" under a log line saying a write could never be lost until 2026-11-02.
+test('crash all five and the caption still says 3, through a new leader, until a write makes it 4', async ({
+  page,
+}) => {
+  await page.goto(RAFT);
+  for (let id = 0; id < 5; id++) await page.locator(`[data-rf-toggle="${id}"]`).click();
+  await expect(summary(page)).toHaveText('No leader, 3 entries committed, 5 servers down.');
+  await expect(page.locator('.rf-cell[data-done]')).toHaveCount(0);
+  for (let id = 0; id < 5; id++) await page.locator(`[data-rf-toggle="${id}"]`).click();
+  await page.getByRole('radio', { name: 'Quick' }).check();
+  await page.getByRole('button', { name: 'Run' }).click();
+  await expect(summary(page)).toHaveText(/^Server \d leads term \d+, 3 entries committed\.$/, {
+    timeout: 15_000,
+  });
+  await expect(page.locator('.rf-cell[data-done]')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Send a write' }).click();
+  await expect(summary(page)).toHaveText(/^Server \d leads term \d+, 4 entries committed\.$/, {
+    timeout: 15_000,
+  });
+  await expect(page.locator('.rf-cell[data-done]').first()).toBeVisible({ timeout: 15_000 });
+  await page.getByRole('button', { name: 'Pause' }).click();
+});
+
+// The picture draws what each server thinks, so a leader cut off from the rest is still drawn as one,
+// and the caption says so at that moment: "No leader" under a server labelled leader read as a bug.
+test('with its leader cut off, the caption says who still thinks it leads, during the election and after it', async ({
+  page,
+}) => {
+  await page.goto(RAFT);
+  await page.getByRole('button', { name: 'Cut off the leader' }).click();
+  const next = page.getByRole('button', { name: 'Next event' });
+  const candidate = page.locator('[data-rf-node][data-role="candidate"]');
+  for (let i = 0; i < 400 && (await candidate.count()) === 0; i++) await next.click();
+  await expect(page.locator('[data-rf-node="0"]')).toHaveAttribute('data-role', 'leader');
+  await expect(summary(page)).toHaveText(
+    /^No leader in term 2, 3 entries committed, the network is split\. Server 1 still thinks it leads term 1\.$/,
+  );
+  const elected = page.locator('[data-rf-node][data-role="leader"]');
+  for (let i = 0; i < 400 && (await elected.count()) < 2; i++) await next.click();
+  await expect(summary(page)).toHaveText(
+    /^Server [2-5] leads term 2, 3 entries committed, the network is split\. Server 1 still thinks it leads term 1\.$/,
+  );
+});
+
+// A server that has fallen behind shows no entries at the logs' newest end, the truth at those indexes,
+// and on a phone its row goes blank under words that say a committed entry can never be lost. Each row
+// says how many its log holds.
+test('each log says how many entries it holds, beside its server’s name', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(RAFT);
+  const rows = page.locator('.rf-log');
+  const counts = () =>
+    rows.evaluateAll((all) =>
+      all.map((row) => getComputedStyle(row, '::after').content.replace(/"/g, '')),
+    );
+  expect(await counts()).toEqual(['3', '3', '3', '3', '3']);
+  await page.getByRole('button', { name: 'Cut off the leader' }).click();
+  for (let i = 0; i < 10; i++) await page.getByRole('button', { name: 'Send a write' }).click();
+  await expect(page.locator('[data-rf-log="0"] .rf-cell')).toHaveCount(13);
+  expect(await counts()).toEqual(['13', '3', '3', '3', '3']);
+  // It stands by the name as the entries pass under it, and clear of them.
+  const name = await rows.first().locator('.rf-log-name').boundingBox();
+  const box = page.locator('.rf-logs-box');
+  await box.evaluate((el) => {
+    el.scrollLeft = -80;
+  });
+  expect(await rows.first().locator('.rf-log-name').boundingBox()).toEqual(name);
+});
+
+// The lead says to watch the five safety properties, so the page names them, Figure 3's own words,
+// each with its state, as the other labs do their checks. They stand beside the picture from 64rem.
+test('the desk names the five safety properties, each with its state', async ({ page }) => {
+  await page.goto(RAFT);
+  const rows = page.locator('[data-rf-prop]');
+  await expect(page.locator('.lab-check-name')).toHaveText(PROPERTIES);
+  await expect(rows).toHaveCount(5);
+  for (const row of await rows.all()) await expect(row).toHaveAttribute('data-held', 'true');
+  await expect(page.locator('[data-rf-prop-word]')).toHaveText(PROPERTIES.map(() => 'Held'));
+  await expect(page.getByRole('list', { name: /^Safety properties/ })).toBeVisible();
+  // The lamp the table gives each state: filled while it holds, crossed once it broke, both in the
+  // lab's line. The page's servers never break one, so the mark is set by hand to read it.
+  const lamp = () =>
+    rows.first().evaluate((row) => {
+      const part = row.querySelector('.lab-check-lamp') as Element;
+      return {
+        fill: getComputedStyle(part).backgroundColor,
+        ring: getComputedStyle(part).borderTopColor,
+        cross: getComputedStyle(part, '::before').content,
+      };
+    });
+  const holding = await lamp();
+  expect(holding.fill).toBe(holding.ring);
+  expect(holding.cross).toBe('none');
+  await rows.first().evaluate((row) => row.setAttribute('data-held', 'false'));
+  const broken = await lamp();
+  expect(broken.fill).toBe('rgba(0, 0, 0, 0)');
+  expect(broken.ring).toBe(holding.ring);
+  expect(broken.cross).toBe('""');
+});
+
+test('from 64rem the properties share the first screen with the picture they describe', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(RAFT);
+  const last = await page.locator('[data-rf-prop]').last().boundingBox();
+  const map = await page.locator('[data-rf-map]').boundingBox();
+  expect(last && last.y + last.height).toBeLessThanOrEqual(900);
+  expect(last && map && last.x).toBeGreaterThan((map?.x ?? 0) + (map?.width ?? 0));
+});
+
+// The name's column is laid out by hand, each row a grid of its own, so it has to hold the longest name
+// where it's set widest. Until 2026-11-02 two names took a second line in CI's image, which sets these
+// faces wider than a Mac does, and the two rows pushed the controls down 37 px.
+for (const [width, height] of [
+  [1440, 900],
+  [1024, 768],
+  [390, 664],
+  [320, 568],
+] as const) {
+  test(`at ${width} px wide, each safety property's name keeps one line`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto(RAFT);
+    await page.evaluate(() => document.fonts.ready);
+    const lines = await page.locator('.lab-check-name').evaluateAll((names) =>
+      names.map((name) => {
+        const style = getComputedStyle(name);
+        return Math.round(name.getBoundingClientRect().height / parseFloat(style.lineHeight));
+      }),
+    );
+    expect(lines).toEqual([1, 1, 1, 1, 1]);
+  });
+}
+
+// Run under the fold was the desk's first impression on a laptop: a picture and a list, and nothing
+// to press. Until 2026-11-02 it stood at 900 of 900, once the properties came to stand beside the
+// picture. Measured from the top of the page, not the picture's: that test passed all along.
+for (const fonts of ['loaded', 'blocked'] as const) {
+  test(`at 1440 by 900, all of the picture, the properties and Run are on the first screen, fonts ${fonts}`, async ({
+    page,
+  }) => {
+    if (fonts === 'blocked') await page.route('**/*.woff2', (route) => route.abort());
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(RAFT);
+    await page.evaluate(() => document.fonts.ready);
+    const bottoms = await page.evaluate(() =>
+      ['[data-rf-map]', '[data-rf-summary]', '.rf-props', '[data-rf-run]'].map(
+        (selector) => (document.querySelector(selector) as Element).getBoundingClientRect().bottom,
+      ),
+    );
+    expect(Math.max(...bottoms)).toBeLessThanOrEqual(900);
+  });
+}
+
+test('on a screen tall enough for both, the picture keeps its full size', async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto(RAFT);
+  const map = await page.locator('[data-rf-map]').boundingBox();
+  const run = await page.locator('[data-rf-run]').boundingBox();
+  expect(map?.width).toBe(448);
+  expect(run && run.y + run.height).toBeLessThanOrEqual(1080);
+});
+
+// The room the caption keeps at every width the desk changes at, for its longest words, with each
+// number a digit longer than a run makes it (e2e/steady.spec.ts holds the two phones, in WebKit). And
+// the line under Time, for the longest a press says here.
+for (const width of [384, 768, 1024, 1440]) {
+  test(`at ${width} px wide, the caption and the line under Time keep the room of their longest words`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(RAFT);
+    const hold = async (part: ReturnType<Page['locator']>, words: string) => {
+      const before = await part.boundingBox();
+      await part.evaluate((p, text) => {
+        p.textContent = text;
+      }, words);
+      const after = await part.boundingBox();
+      expect(Math.abs((after?.height ?? 0) - (before?.height ?? 0))).toBeLessThanOrEqual(1);
+    };
+    await hold(
+      summary(page),
+      'Term 123 lost its leader, 1000 entries committed, 2 servers down, the network is split. Servers 1 and 3 and 4 still think they lead older terms.',
+    );
+    await hold(
+      page.locator('[data-said]'),
+      'The run starts over under these settings, at 1.400 s, before the leader crashes.',
+    );
+  });
+}
+
+// What the app writes as well as what the build drew: the glossary's word for Raft, and the paper's
+// (docs/content.md, "The site's language"; test/raft.test.ts reads the words a run can write).
+test('a visitor reads server, never node, in the words and in the names, after the app has redrawn them', async ({
+  page,
+}) => {
+  await page.goto(RAFT);
+  await page.locator('[data-rf-toggle="0"]').click();
+  await page.getByRole('button', { name: SPLIT }).click();
+  await page.getByRole('button', { name: 'Send a write' }).click();
+  await expect(page.locator('[data-rf-toggle="0"]')).toHaveText('Restart server 1');
+  const read = await page.locator('#raft-lab').evaluate((desk) => ({
+    words: (desk as HTMLElement).innerText,
+    names: [...desk.querySelectorAll('[aria-label]')].map((e) => e.getAttribute('aria-label')),
+  }));
+  expect(read.words).toContain('Server 5');
+  expect(read.names).toContain('Server 1: 3 entries, none known committed, last of term 1');
+  expect(read.words).not.toMatch(/\bnodes?\b/i);
+  expect(read.names.filter((name) => /\bnodes?\b/i.test(name ?? ''))).toEqual([]);
+});
+
+// A log's row keeps one line however long its log grows. Until 2026-11-02 a row wrapped at about 20
+// entries, and Run and every control under it dropped 37 px at 1,440 px, on the first screen.
+for (const [width, height] of [
+  [1440, 900],
+  [390, 664],
+] as const) {
+  test(`at ${width} by ${height}, forty writes move nothing, and each log stays one line that opens on its newest`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto(RAFT);
+    const places = () =>
+      page.evaluate(() => {
+        const top = (selector: string) =>
+          Math.round(
+            (document.querySelector(selector) as Element).getBoundingClientRect().top + scrollY,
+          );
+        return {
+          run: top('[data-rf-run]'),
+          row: (document.querySelector('.rf-log') as Element).getBoundingClientRect().height,
+          read: top('.rf-read'),
+          props: top('.rf-props-part'),
+          events: top('.rf-events'),
+          page: document.documentElement.scrollHeight,
+        };
+      });
+    const before = await places();
+    const write = page.locator('[data-rf-write]');
+    for (let i = 0; i < 40; i++) await write.click();
+    for (let i = 0; i < 80; i++) await page.locator('[data-rf-step]').click();
+    await expect(page.locator('[data-rf-log="0"] .rf-cell')).toHaveCount(43);
+    expect(await places()).toEqual(before);
+    const box = page.locator('.rf-logs-box');
+    const shows = (cell: string) =>
+      box.evaluate((frame, selector) => {
+        const dot = (frame.querySelector(selector) as Element).getBoundingClientRect();
+        const name = (frame.querySelector('.rf-log-name') as Element).getBoundingClientRect();
+        return dot.left >= name.right - 1 && dot.right <= frame.getBoundingClientRect().right + 1;
+      }, cell);
+    const newest = '[data-rf-log="0"] .rf-cell:last-child';
+    const oldest = '[data-rf-log="0"] .rf-cell:first-child';
+    expect(await box.evaluate((frame) => frame.scrollTop)).toBe(0);
+    expect(await shows(newest)).toBe(true);
+    expect(await shows(oldest)).toBe(false);
+    // Reached by scrolling back, the names standing where they were; and a keyboard can get there.
+    await box.focus();
+    const name = await box.locator('.rf-log-name').first().boundingBox();
+    await box.evaluate((frame) => {
+      frame.scrollLeft = -frame.scrollWidth;
+    });
+    expect(await shows(oldest)).toBe(true);
+    expect(await box.locator('.rf-log-name').first().boundingBox()).toEqual(name);
+  });
+}
+
+// Each server's button keeps one width as its word changes, so the next one stays under the thumb.
+for (const width of [390, 320]) {
+  test(`at ${width} px wide, a server’s button keeps its place and width from Crash to Restart`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(RAFT);
+    const boxes = () =>
+      page
+        .locator('[data-rf-toggle]')
+        .evaluateAll((all) =>
+          all.map((b) => ((r) => [r.x, r.y + scrollY, r.width])(b.getBoundingClientRect())),
+        );
+    const before = await boxes();
+    await page.locator('[data-rf-toggle="0"]').click();
+    await expect(page.locator('[data-rf-toggle="0"]')).toHaveText('Restart server 1');
+    expect(await boxes()).toEqual(before);
+  });
+}
+
+test('the key names each mark on the wire in the picture’s own marks, and what a term is stands by the picture', async ({
+  page,
+}) => {
+  await page.goto(RAFT);
+  const kinds = await page
+    .locator('.rf-key .rf-m')
+    .evaluateAll((marks) => marks.map((m) => m.getAttribute('data-kind')));
+  expect(kinds.sort()).toEqual(['ack', 'beat', 'entries', 'no', 'vote', 'yes']);
+  await expect(page.locator('.rf-key')).toContainText('Network split');
+  await expect(page.locator('.rf-gloss')).toHaveText(
+    'A term is a numbered stretch of time with at most one leader.',
+  );
+  // The picture is named by the caption alone, which every change rewrites.
+  await expect(page.locator('[data-rf-map]')).toHaveAccessibleName(
+    /^Server 1 leads term 1, 3 entries committed\.$/,
+  );
 });
 
 test('under reduce, Run advances in still steps of half a second of the chosen speed, and nothing animates', async ({
@@ -244,30 +567,87 @@ test('Next event says where the run stands when the log has nothing to tell', as
     await expect(said).not.toHaveText(heard.at(-1) ?? '');
     const words = (await said.textContent()) ?? '';
     heard.push(words);
-    // An event the log does not tell is said as the clock and the status line count it.
+    // An event the log does not tell is said as the clock counts it.
     if (!words.startsWith('Virtual time')) continue;
     told += 1;
-    const events = /over ([\d,]+) events/.exec((await status(page).textContent()) ?? '')?.[1];
-    expect(words).toBe(`${await clock(page).textContent()}, ${events} events`);
+    expect(words).toBe(`${await clock(page).textContent()}, ${await events(page).textContent()}`);
   }
   // Each press is heard, and each says something new.
   expect(told).toBeGreaterThan(0);
   expect(new Set(heard).size).toBe(heard.length);
 });
 
-test('the app writes the event log once: the build’s lines go on as the run’s, and a link’s run shows only its own', async ({
+// Until 2026-11-02 these reached only a screen reader, and a press that did nothing looked dead.
+test('why a press did nothing is on the screen: Heal on a whole network, Cut off with no leader', async ({
+  page,
+}) => {
+  await page.goto(RAFT);
+  const line = page.locator('[data-said]');
+  await expect(line).toHaveCount(1);
+  await expect(line).toBeVisible();
+  await expect(line).toHaveText('The network and the servers below change the run as it stands.');
+  await expect(line).not.toHaveAttribute('data-spoke');
+
+  await page.getByRole('button', { name: 'Heal the network' }).click();
+  await expect(line).toHaveText('The network is already whole.');
+  await expect(line).toHaveAttribute('data-spoke');
+  await expect(page.locator('[data-rf-said]')).toHaveText('The network is already whole.');
+
+  // A press that does something says what, the log's line with its point.
+  await page.getByRole('button', { name: SPLIT }).click();
+  await expect(line).toHaveText('The network splits: {1, 2} and {3, 4, 5}.');
+  await page.getByRole('button', { name: 'Heal the network' }).click();
+  await expect(line).toHaveText('The network heals: every server can reach every other.');
+
+  // No leader, all five down.
+  for (let id = 0; id < 5; id++) await page.locator(`[data-rf-toggle="${id}"]`).click();
+  await expect(line).toHaveText(
+    /^Server 5 crashes\. It keeps its term, its vote and its log on disk\.$/,
+  );
+  await page.getByRole('button', { name: 'Cut off the leader' }).click();
+  await expect(line).toHaveText('There is no leader to cut off right now.');
+  await expect(line).toBeVisible();
+
+  // Start over says where it went, and asks for no press: a press of Run brings no crash here.
+  await page.getByRole('button', { name: 'Start over' }).click();
+  await expect(line).toHaveText('The run starts over under these settings, at 1.400 s.');
+  // Run says there's nothing to wait for, so heartbeats alone don't read as a page that stopped.
+  await page.getByRole('button', { name: 'Run', exact: true }).click();
+  await expect(line).toHaveText('Nothing is scheduled: press something below to break it.');
+  await page.getByRole('button', { name: 'Pause' }).click();
+
+  await page.locator('[data-rf-loss]').fill('30');
+  await expect(line).toHaveText('From here, 30% of messages are lost.');
+});
+
+// A tap on a server in the picture has no part of the controls to speak in, so it speaks in the first.
+test('a tap on a server in the picture says what it did on the line under Time', async ({
+  page,
+}) => {
+  await page.goto(RAFT);
+  await page.locator('[data-rf-node="4"] .rf-name').click();
+  await expect(page.locator('[data-said]')).toHaveText(
+    'Server 5 crashes. It keeps its term, its vote and its log on disk.',
+  );
+});
+
+test('the app writes the event log once: the build’s lines are the run’s, from its first, and a link’s run shows only its own', async ({
   page,
 }) => {
   await page.goto(RAFT);
   const built = await log(page).allTextContents();
-  expect(built).toHaveLength(12);
-  // Intent alone loads the app, which writes the run's log from its first line: 13 lines, each
-  // once, the last 12 of them the build's.
+  // The whole of it, from the first server to stand: the build's last 12 opened on a server winning
+  // an election with no line saying it stood, a line the app then added above them.
+  expect(built).toHaveLength(13);
+  expect(built[0]).toContain('times out and asks for votes in term 1');
+  // Intent alone loads the app, which writes the run's log from its first line: the same 13 lines,
+  // each once.
   await page.locator('[data-rf-map]').hover();
+  await expect(clock(page)).toHaveText('Virtual time 1.400 s');
   await expect(log(page)).toHaveCount(13);
+  await expect.poll(() => log(page).allTextContents()).toEqual(built);
   const lines = await log(page).allTextContents();
   expect(new Set(lines).size).toBe(lines.length);
-  expect(lines.slice(-12)).toEqual(built);
 
   // A link's run writes its own log alone, the same as when the link is followed on the page.
   await page.goto(`${RAFT}#seed-8`);
@@ -300,11 +680,11 @@ test('moving the loss slider after Next event draws the events it lets finish in
   // Four events on from the opening, the run stands at 1.426 s with another event due then.
   for (let i = 0; i < 4; i++) await page.getByRole('button', { name: 'Next event' }).click();
   await expect(clock(page)).toHaveText('Virtual time 1.426 s');
-  await expect(status(page)).toHaveText('All five safety properties held over 253 events.');
+  await expect(events(page)).toHaveText('253 events');
   // The slider is an action: the run first finishes that millisecond, and the page shows it.
   await page.locator('[data-rf-loss]').fill('10');
   await expect(page.locator('[data-rf-loss-out]')).toHaveText('10%');
-  await expect(status(page)).toHaveText('All five safety properties held over 254 events.');
+  await expect(events(page)).toHaveText('254 events');
   await expect(clock(page)).toHaveText('Virtual time 1.426 s');
 });
 
@@ -336,24 +716,54 @@ test('a link followed on the page opens that seed paused at the opening’s mome
   expect(await log(page).allTextContents()).toEqual(lines);
 });
 
-test('a link to a run opens it: #seed-8 loads that seed with no other intent, and Start over moves on', async ({
+// Start over keeps the seed and the loss, as the other three labs do, so the run just seen can be
+// watched again. Until 2026-11-02 it moved to the next seed, which this test pinned.
+test('a link to a run opens it: #seed-8 loads that seed with no other intent, and Start over stays on it', async ({
   page,
 }) => {
   await page.goto(`${RAFT}#seed-8`);
   await expect(page.locator('[data-rf-seed]')).toHaveText('8');
   await page.getByRole('button', { name: 'Start over' }).click();
-  await expect(page.locator('[data-rf-seed]')).toHaveText('9');
-  expect(new URL(page.url()).hash).toBe('#seed-9');
+  await expect(page.locator('[data-rf-seed]')).toHaveText('8');
+  expect(new URL(page.url()).hash).toBe('#seed-8');
   // A name the lab does not have is dropped, and the seed still opens.
   await page.goto(`${RAFT}#seed-12&foo=bar`);
   await expect(page.locator('[data-rf-seed]')).toHaveText('12');
-  // After the last seed a link can name, Start over comes back to 0, which a reload opens.
+  // The last seed a link can name, too, which a reload opens again.
   await page.goto(`${RAFT}#seed-999999`);
   await expect(page.locator('[data-rf-seed]')).toHaveText('999999');
   await page.getByRole('button', { name: 'Start over' }).click();
-  expect(new URL(page.url()).hash).toBe('#seed-0');
+  expect(new URL(page.url()).hash).toBe('#seed-999999');
   await page.reload();
-  await expect(page.locator('[data-rf-seed]')).toHaveText('0');
+  await expect(page.locator('[data-rf-seed]')).toHaveText('999999');
+});
+
+test('Start over shows the same run again from the same opening: what the presses made goes, and the seed stays', async ({
+  page,
+}) => {
+  await page.goto(RAFT);
+  await page.locator('[data-rf-map]').hover();
+  await expect(log(page)).toHaveCount(13);
+  const opening = await log(page).allTextContents();
+  /** Forty events on, as a run of this seed goes. */
+  const forty = async () => {
+    for (let i = 0; i < 40; i++) await page.getByRole('button', { name: 'Next event' }).click();
+    return [
+      await clock(page).textContent(),
+      await events(page).textContent(),
+      await page.locator('[data-rf-flights]').innerHTML(),
+    ];
+  };
+  const seen = await forty();
+  await page.getByRole('button', { name: 'Send a write' }).click();
+  await page.locator('[data-rf-toggle="0"]').click();
+  await page.getByRole('button', { name: 'Start over' }).click();
+  await expect(page.locator('[data-rf-seed]')).toHaveText('7');
+  expect(new URL(page.url()).hash).toBe('#seed-7');
+  await expect(clock(page)).toHaveText('Virtual time 1.400 s');
+  await expect(summary(page)).toHaveText('Server 1 leads term 1, 3 entries committed.');
+  expect(await log(page).allTextContents()).toEqual(opening);
+  expect(await forty()).toEqual(seen);
 });
 
 test('Start over writes the loss into its link, and a reload opens the same run, which loses messages too', async ({
@@ -365,7 +775,7 @@ test('Start over writes the loss into its link, and a reload opens the same run,
     return [
       await clock(page).textContent(),
       await summary(page).textContent(),
-      await status(page).textContent(),
+      await events(page).textContent(),
       await page.locator('[data-rf-flights]').innerHTML(),
     ];
   };
@@ -373,8 +783,10 @@ test('Start over writes the loss into its link, and a reload opens the same run,
   await page.locator('[data-rf-loss]').fill('30');
   const entries = await page.evaluate(() => history.length);
   await page.getByRole('button', { name: 'Start over' }).click();
-  await expect(page.locator('[data-rf-seed]')).toHaveText('8');
-  expect(new URL(page.url()).hash).toBe('#seed-8&loss=30');
+  await expect(page.locator('[data-rf-seed]')).toHaveText('7');
+  // A press that comes before the lab has loaded waits for it (the app's queued presses), so the
+  // address changes when the lab arrives, and the seed above already read 7 before the press.
+  await expect.poll(() => new URL(page.url()).hash).toBe('#seed-7&loss=30');
   expect(await page.evaluate(() => history.length)).toBe(entries);
   const before = await forty();
   await page.reload();
@@ -382,7 +794,7 @@ test('Start over writes the loss into its link, and a reload opens the same run,
   await expect(page.locator('[data-rf-loss-out]')).toHaveText('30%');
   expect(await forty()).toEqual(before);
   // The same seed without the loss is another run: the link is what tells them apart.
-  await page.goto(`${RAFT}#seed-8`);
+  await page.goto(`${RAFT}#seed-7`);
   await expect(page.locator('[data-rf-loss]')).toHaveValue('0');
   expect(await forty()).not.toEqual(before);
 });
@@ -412,7 +824,7 @@ test('Run lights its lamp while the run is on, and every lamp on the desk is the
       .querySelector('[data-rf-log="0"]')
       ?.insertAdjacentHTML(
         'beforeend',
-        '<li class="rf-cell" data-term="2"><span class="rf-mark"></span><span class="rf-num">3</span></li>',
+        '<li class="rf-cell"><span class="rf-mark"></span><span class="rf-num">3</span></li>',
       );
     // The lab's own line token, as the page resolves it, read from a probe on the desk.
     const probe = document.createElement('span');
@@ -537,7 +949,8 @@ for (const colorScheme of ['light', 'dark'] as const) {
   });
 }
 
-// The speed is a radio group (WAI-ARIA APG, "Radio Group Pattern"): named Speed, a radio a speed,
+// The speed is a radio group (WAI-ARIA APG, "Radio Group Pattern"), the Time group's in every lab
+// (components/lab/Choice.astro): named Speed, a radio a speed,
 // Steady chosen; Tab stops once, on the chosen radio; the arrow keys choose the next, wrapping; the
 // chosen one's lamp is lit and the others' are not; and a run goes at the speed chosen.
 test('the speed is a radio group of lamps that the arrow keys move through, and the run goes at it', async ({
@@ -545,7 +958,7 @@ test('the speed is a radio group of lamps that the arrow keys move through, and 
 }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto(RAFT);
-  const group = page.getByRole('group', { name: 'Speed' });
+  const group = page.getByRole('radiogroup', { name: 'Speed' });
   const radios = group.getByRole('radio');
   await expect(radios).toHaveCount(3);
   const steady = group.getByRole('radio', { name: 'Steady' });
@@ -568,9 +981,9 @@ test('the speed is a radio group of lamps that the arrow keys move through, and 
   await expect(page.getByRole('button', { name: 'Send a write' })).toBeFocused();
 
   const lit = await page.evaluate(() =>
-    [...document.querySelectorAll('.rf-option')].map(
+    [...document.querySelectorAll('.lab-option')].map(
       (option) =>
-        getComputedStyle(option.querySelector('.rf-lamp') as Element).backgroundColor !==
+        getComputedStyle(option.querySelector('.lab-option-lamp') as Element).backgroundColor !==
         'rgba(0, 0, 0, 0)',
     ),
   );
@@ -608,33 +1021,53 @@ const reach = (page: Page, names: string[]) =>
 
 // The first thing to try is Run, then Cut off the leader, then Send a write: those buttons and
 // Time's sit by the picture, so a press and what it does share one screen.
+test('at 1440 × 900, the picture and Time, Cut off the leader and Send a write fit one screen, and nothing pins', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(RAFT);
+  await page.evaluate(() => document.fonts.ready);
+  const { span, pinned } = await reach(page, [
+    'Run',
+    'Next event',
+    'Start over',
+    'Cut off the leader',
+    'Send a write',
+  ]);
+  expect(pinned).toBe('');
+  expect(span).toBeLessThanOrEqual(900);
+});
+
+// On a phone it's what Safari shows of an iPhone 14 with its bars up, the phone project's own viewport.
+// Until 2026-11-02 this read 844, the whole screen, which no page gets (labs-m4). The picture and Time
+// fit that. The network's first row doesn't: it's 60 px past it, so reaching it takes at most the
+// picture's top quarter off the screen, and the press, its line and most of the picture share one.
+test('at 390 × 664, the picture and Time fit one screen, Cut off the leader stands with most of the picture, and nothing pins', async ({
+  page,
+}) => {
+  const height = 664;
+  await page.setViewportSize({ width: 390, height });
+  await page.goto(RAFT);
+  await page.evaluate(() => document.fonts.ready);
+  const time = await reach(page, ['Run', 'Next event', 'Start over']);
+  expect(time.pinned).toBe('');
+  expect(time.span).toBeLessThanOrEqual(height);
+  const map = await page.locator('[data-rf-map]').boundingBox();
+  const { span } = await reach(page, ['Cut off the leader', 'Send a write']);
+  expect(span - height).toBeLessThanOrEqual((map?.height ?? 0) / 4);
+});
+
+// A server's role and term are set in the picture's units, which shrink with its width; they must
+// still draw 13 px at the least, and the leader's number above them more. 1,024 px is the desk's
+// narrowest beside the logs, and 1,440 by 900 is where the picture stops at its smallest.
 for (const [width, height] of [
   [390, 844],
+  [320, 844],
+  [1024, 768],
   [1440, 900],
 ] as const) {
-  test(`at ${width} × ${height}, the picture and Time, Cut off the leader and Send a write fit one screen, and nothing pins`, async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width, height });
-    await page.goto(RAFT);
-    await page.evaluate(() => document.fonts.ready);
-    const { span, pinned } = await reach(page, [
-      'Run',
-      'Next event',
-      'Start over',
-      'Cut off the leader',
-      'Send a write',
-    ]);
-    expect(pinned).toBe('');
-    expect(span).toBeLessThanOrEqual(height);
-  });
-}
-
-// A node's role and term are set in the picture's units, which shrink with a phone's width; they
-// must still draw 13 px at the least, and the leader's number above them more.
-for (const width of [390, 320]) {
   test(`at ${width} px wide, every label in the picture draws 13 px or more`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 844 });
+    await page.setViewportSize({ width, height });
     await page.goto(RAFT);
     const sizes = await page
       .locator('[data-rf-map] text')
@@ -670,7 +1103,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
     await page.goto(RAFT);
     await page.getByRole('button', { name: 'Send a write' }).click();
-    await page.getByRole('button', { name: 'Split 2 and 3' }).click();
+    await page.getByRole('button', { name: SPLIT }).click();
     await page.getByRole('button', { name: 'Next event' }).click();
     const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
     expect(results.violations.map((v) => `${v.id}: ${v.nodes.length}`)).toEqual([]);

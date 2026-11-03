@@ -1,11 +1,11 @@
 import { openingRun as backfillOpening } from './backfill/view';
 import { replay as replayCache } from './cache/sim';
 import { OPENING as CACHE, openingRun as cacheOpening } from './cache/view';
-import { backfillFact, cacheFact, figureWords, queueFact, raftFailover, routesFact } from './lines';
+import { backfillFact, cacheFact, figureWords, queueFact, raftFailover } from './lines';
 import { replay as replayQueue } from './queue/sim';
 import { OPENING as QUEUE } from './queue/view';
 import { leaderOf, replay as replayRaft } from './raft/sim';
-import { OPENING as RAFT, openingRun as raftOpening, statusText } from './raft/view';
+import { OPENING as RAFT, openingRun as raftOpening } from './raft/view';
 import { formatDuration } from './route-lab/format';
 import { routeLabPicture } from './route-lab/picture';
 
@@ -17,10 +17,7 @@ import { routeLabPicture } from './route-lab/picture';
 //
 // One module owns the facts for both places: until the overhaul's branches were merged, Home
 // worked out its own copy of the Queue's, the Cache's and the Backfill's beside this one, the same
-// arithmetic twice. Where the places differ they differ on purpose, and say so below.
-
-/** Where a card stands: Home's Selected work, or the Lab index. */
-export type FactPlace = 'home' | 'index';
+// arithmetic twice. Since 2026-11-02 the two say the same sentence for every lab.
 
 const queue = () =>
   queueFact(replayQueue({ ...QUEUE.config, key: true }, QUEUE.actions, QUEUE.until));
@@ -31,9 +28,10 @@ const cache = () =>
   );
 const backfill = () => backfillFact(backfillOpening(), backfillOpening('overwrite'));
 
-// The Raft Lab: on the Lab index, that every property held over the opening run; on Home, what the
-// board said, the failover its write-up asks the visitor to cause: crash the leader.
-const raftHeld = () => statusText(raftOpening());
+// The Raft Lab: the failover its write-up asks the visitor to cause, crash the leader, in both
+// places. Until 2026-11-02 the Lab index said every safety property held over the opening run, which
+// is true and shows nothing: 249 events, one election, three writes and no fault to survive, on a
+// card that tells the visitor to crash the servers. That sentence stays the lab's own status line.
 function raftFailedOver(): string {
   const opening = raftOpening();
   const leader = leaderOf(opening);
@@ -46,30 +44,36 @@ function raftFailedOver(): string {
   return raftFailover(opening, crashed);
 }
 
-// The Route Lab: on Home its figures say what they measure against and that the bakery is made up
-// (the visitor review of 2026-10-31), in the words the hero said them in until ADR 0027
-// (lib/lines.ts, figureWords); the Lab index keeps the line's shorter sentence, as it had before.
-async function routes(place: FactPlace): Promise<string> {
+// The Route Lab: its figures say what they measure against and that the bakery is made up, in the
+// words the hero said them in until ADR 0027 (lib/lines.ts, figureWords). Home took those words after
+// the visitor review of 2026-10-31; until 2026-11-02 the Lab index kept a shorter sentence, "A busy
+// Saturday: 3 h 12 min of driving instead of 5 h 34 min", which said neither.
+async function routes(): Promise<string> {
   // Astro's root is the working directory (lib/route-lab/node-solver.ts).
   const { day, before, after } = await routeLabPicture(process.cwd());
-  return place === 'home'
-    ? `${formatDuration(after.measured.drive)} ${figureWords(day)}, against ${formatDuration(before.measured.drive)} as the orders came in.`
-    : routesFact(day, before.measured, after.measured);
+  return `${formatDuration(after.measured.drive)} ${figureWords(day)}, against ${formatDuration(before.measured.drive)} as the orders came in.`;
 }
 
-const FACTS: Record<string, (place: FactPlace) => string | Promise<string>> = {
+const FACTS: Record<string, () => string | Promise<string>> = {
   queue,
-  raft: (place) => (place === 'home' ? raftFailedOver() : raftHeld()),
+  raft: raftFailedOver,
   cache,
   backfill,
   routes,
 };
 
-/** The fact on the card of the lab with this slug in this place (the Lab index unless named), or
- *  undefined for a lab that has none yet. */
-export async function labFact(
-  slug: string,
-  place: FactPlace = 'index',
-): Promise<string | undefined> {
-  return FACTS[slug]?.(place);
+/** What each lab's fact on Home is about. Home names the made-up bakery nowhere else, and its facts
+ *  talk of order 18 and the menu: without this a reader who has not opened the lab can't tell what
+ *  prints or whose menu it is. The Route Lab's fact says so itself, and the Raft Lab's has none. */
+const BAKERY: Record<string, string> = { queue: 'orders', cache: 'menu', backfill: 'report' };
+
+/** The line over a lab's fact on Home: where it comes from, and what it is about. */
+export function factSource(slug: string, name: string): string {
+  const about = BAKERY[slug];
+  return `Simulated in the ${name}${about ? `, with a made-up bakery’s ${about}` : ''}`;
+}
+
+/** The fact on the card of the lab with this slug, or undefined for a lab that has none yet. */
+export async function labFact(slug: string): Promise<string | undefined> {
+  return FACTS[slug]?.();
 }

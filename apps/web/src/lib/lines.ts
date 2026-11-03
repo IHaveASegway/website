@@ -101,11 +101,6 @@ export function routesWords(day: Day, before: Measured, after: Measured): string
   return `${day.orders.length} orders on ${vans} ${vans === 1 ? 'van' : 'vans'}: ${formatDuration(before.drive)} of driving as the orders came in, ${formatDuration(after.drive)} planned by VROOM, the last van back after ${formatDuration(after.back)}.`;
 }
 
-/** The Routes line's one fact on the Lab index: what VROOM saves on the lab's own day, from the
- *  build's solve of both plans: "A busy Saturday: 3 h 12 min of driving instead of 5 h 34 min." */
-export const routesFact = (day: Day, before: Measured, after: Measured): string =>
-  `${day.name}: ${formatDuration(after.drive)} of driving instead of ${formatDuration(before.drive)}.`;
-
 /** The figure pair's caption on Home: "of driving for a made-up bakery on a busy Saturday, planned
  *  by VROOM in your browser", the day's own name in it. The bakery and its orders are invented and
  *  the streets are Seattle's. The hero is where a visitor first meets the bakery, so it says so
@@ -251,7 +246,7 @@ export function queueFact(keyed: QueueSim): string {
   const kept = keptOnce(keyed);
   const crashed = (kept.effects[0]?.worker ?? 0) + 1;
   const seconds = Math.round(keyed.now / 1000);
-  return `With an idempotency key, worker ${crashed} crashes and order ${kept.id} still prints once. ${firstUp(orders(keyed.doneCount))} done in ${seconds} s, none lost or printed twice.`;
+  return `With an idempotency key, worker ${crashed} crashes and order ${kept.id}’s oven ticket still prints once. ${firstUp(orders(keyed.doneCount))} done in ${seconds} s, none lost or printed twice.`;
 }
 
 /** The Queue line's fix on the board, after the crash its describer tells: "With an idempotency
@@ -286,8 +281,8 @@ export function cacheLine(sim: CacheSim): CacheLine {
   const fetched =
     herd && herd.size >= 2
       ? herd.expired === null
-        ? `The database fetched ${pageName(herd.key)} ${times(herd.size)} at once`
-        : `When ${pageName(herd.key)} expired at ${(herd.expired / 1000).toFixed(1)} s, the database fetched it ${times(herd.size)} at once`
+        ? `The database had ${count(herd.size)} fetches of ${pageName(herd.key)} in flight at once`
+        : `When ${pageName(herd.key)} expired at ${(herd.expired / 1000).toFixed(1)} s, the database had ${count(herd.size)} fetches of it in flight at once`
       : 'No page was fetched twice at once';
   const gave =
     timeouts === 0
@@ -302,7 +297,8 @@ export function cacheLine(sim: CacheSim): CacheLine {
 
 /**
  * The Cache line's one fact on the Lab index: the opening's expiry again, with coalescing, which
- * the lab entry turns on first: the database's fetches of the expired page, with it and without.
+ * the lab entry turns on first: how often the database is asked for the expired page, with it and
+ * without. A cache fetches and a database answers, so the sentence never has the database fetch.
  * Refused for an opening with no expiry's herd to compare.
  */
 export function cacheFact(opening: CacheSim, coalesced: CacheSim): string {
@@ -311,11 +307,11 @@ export function cacheFact(opening: CacheSim, coalesced: CacheSim): string {
   const at = (herd.expired / 1000).toFixed(1);
   const once = coalesced.fetchesOf[herd.key] ?? 0;
   const without = opening.fetchesOf[herd.key] ?? 0;
-  return `${firstUp(`when ${page} expires at ${at} s`)}, coalescing means the database fetches it ${times(once)} instead of ${times(without)}.`;
+  return `${firstUp(`when ${page} expires at ${at} s`)}, coalescing means the database is asked for it ${times(once)} instead of ${times(without)}.`;
 }
 
 /** The Cache line's fix on the board, after the stampede its describer tells: "With coalescing,
- *  the database fetches it once, and no read times out." From the same runs as the index's fact. */
+ *  the database is asked for it once, and no read times out." From the same runs as the index's fact. */
 export function cacheFix(opening: CacheSim, coalesced: CacheSim): string {
   const once = coalesced.fetchesOf[herdAtExpiry(opening).key] ?? 0;
   const timeouts = coalesced.counts.timeout;
@@ -323,7 +319,7 @@ export function cacheFix(opening: CacheSim, coalesced: CacheSim): string {
     timeouts === 0
       ? 'no read times out'
       : `${count(timeouts)} ${timeouts === 1 ? 'read times' : 'reads time'} out`;
-  return `With coalescing, the database fetches it ${times(once)}, and ${gave}.`;
+  return `With coalescing, the database is asked for it ${times(once)}, and ${gave}.`;
 }
 
 /** The opening's herd at an expiry, which the cache's fact and fix compare; refused when there is

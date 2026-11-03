@@ -1,4 +1,7 @@
 import { z } from 'astro/zod';
+import { typeset } from './typeset.mjs';
+
+export { typeset };
 
 // Essays and field notes (content.md, "Content model"; roadmap.md, PR 5). This module is pure: the
 // collections' schemas and every rule about what a build writes. The build reads the posts through
@@ -122,20 +125,6 @@ export function readingMinutes(markdown: string): number {
     .replace(/\]\([^)]*\)/g, ']')
     .replace(/^\[[^\]]+\]:\s*\S+.*$/gm, ' ');
   return Math.max(1, Math.ceil((count(prose) + code / 2) / WORDS_PER_MINUTE));
-}
-
-/**
- * Typographer's quotes for front matter, which the Markdown pipeline's smart quotes never see: a
- * post's body has curly apostrophes and quotes, so its title and summary should too, on its page,
- * on Home, in the feed and in link previews. An apostrophe inside or at the end of a word is ’, a
- * quote that opens after a space, a dash or a bracket is ‘ or “, and any other is ’ or ”.
- */
-export function typeset(text: string): string {
-  return text
-    .replace(/(^|[\s([{\u2014\u2013-])"/g, '$1\u201c')
-    .replace(/"/g, '\u201d')
-    .replace(/(^|[\s([{\u2014\u2013-])'(?=\S)/g, '$1\u2018')
-    .replace(/'/g, '\u2019');
 }
 
 export const fromEssay = (slug: string, data: EssayData, body = ''): Post => ({
@@ -281,31 +270,19 @@ export const KIND_LABELS: Readonly<Record<Post['kind'], string>> = {
 /** A day as machines read it: YYYY-MM-DD, in a <time>'s datetime, the feed and structured data. */
 export const isoDay = (date: Date): string => date.toISOString().slice(0, 10);
 
-const MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-] as const;
+const MONTHS = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ');
 
-/** A day as a reader reads it (ADR 0025): "25 October 2026", the day of the UTC date a post is
- *  dated by. The months are spelled out here, not by Intl, so the words never depend on the build
- *  machine's locale. */
+/** A day as a reader reads it, on every page: "Nov 2, 2026", US English, the month first and cut to
+ *  three letters, which every English month is known by (content.md, "Voice"). The day of the UTC
+ *  date a post is dated by. The months are written here, not by Intl, so the words never depend on
+ *  the build machine's locale. Until 2026-11-02 lists said "2 Nov 2026" and a post's register "2
+ *  November 2026". */
 export const wordDay = (date: Date): string =>
-  `${date.getUTCDate()} ${MONTHS[date.getUTCMonth()] ?? ''} ${date.getUTCFullYear()}`;
+  `${MONTHS[date.getUTCMonth()] ?? ''} ${date.getUTCDate()}, ${date.getUTCFullYear()}`;
 
-/** A day in a list's date column: "25 Oct 2026", the month cut to its first three letters, which
- *  every English month name is still known by, so the column stays one width a row. */
-export const shortDay = (date: Date): string =>
-  `${date.getUTCDate()} ${(MONTHS[date.getUTCMonth()] ?? '').slice(0, 3)} ${date.getUTCFullYear()}`;
+/** What Writing is, in a search result and a feed reader: the index's lead, and whose it is. */
+export const writingDescription = (name: string): string =>
+  `Essays on software decisions and what they cost, by ${name}.`;
 
 /** A post's reading time in words: "12 min read". */
 export const minutesWords = (minutes: number): string => `${minutes} min read`;

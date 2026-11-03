@@ -1002,8 +1002,8 @@ const TOGGLE_LINES: Record<Toggle, readonly [off: string, on: string]> = {
     'Coalescing is on: readers that miss the same page on one node wait on one fetch',
   ],
   stale: [
-    'Stale-while-revalidate is off: an expired entry is a miss',
-    'Stale-while-revalidate is on: an entry up to 4 s past its expiry is served at once while one fetch refreshes it',
+    'Serving stale is off: an expired entry is a miss',
+    'Serving stale is on: an entry up to 4 s past its expiry is served at once while one fetch refreshes it',
   ],
   early: [
     'Early refresh is off: an entry is fetched again only once it has expired',

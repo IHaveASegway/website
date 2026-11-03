@@ -1,8 +1,15 @@
 ---
+import Choice from '../lab/Choice.astro';
+import EventLog from '../lab/EventLog.astro';
+import NoScript from '../lab/NoScript.astro';
+import Said from '../lab/Said.astro';
+import Time from '../lab/Time.astro';
+import { LINES_SHOWN } from '../../lib/lab/event-log';
 import { properties } from '../../lib/queue/check';
 import { LOADS, MAX_WORKERS } from '../../lib/queue/sim';
 import {
   capacityWords,
+  eventsWords,
   LAYOUTS,
   mapMarkup,
   OPENING,
@@ -11,7 +18,6 @@ import {
   propertyWords,
   seconds,
   SPEEDS,
-  statusText,
   STRIP,
   strip,
   stripWords,
@@ -24,20 +30,18 @@ import '../../styles/queue-lab.css';
 // The Queue Lab (ADR 0026, after ADR 0020's pattern): a broker, three workers and the bakery's
 // orders, drawn at build from the opening run (lib/queue/view.ts), so the page is complete without
 // JavaScript. The controls show only where script runs (queue-lab.css), and boot.ts loads the
-// simulation on the visitor's first intent; it replays the same opening, so it takes over exactly
-// where this stands. It all sits on the lab's desk (ADR 0027; styles/lab-page.css, .desk).
+// simulation; it replays the same opening, so it takes over exactly where this stands. It all sits
+// on the lab's desk (ADR 0027; styles/lab-page.css, .desk).
 //
-// The picture's own controls come right under it, before any words: Time (Run, Next event, Start
-// over and the clock), Speed, the idempotency key and the workers' Crash and Slow, so a visitor
-// sees what a press does as they press it, on a phone too (a 390 by 844 screen holds the picture
-// and all of them). Nothing pins: the picture scrolls with the page, and covers nothing. Then what
-// the run says, the caption, the key, the history strip and the properties; then the settings a
-// run is tried under, and the event log, each under a rule from bezel to bezel. Run is a
-// push-button whose lamp is lit while the run is on (app.ts sets data-lamp; its words change, so
-// it is no toggle and has no aria-pressed). The key names each mark a run can draw that the
-// write-up's key does not, in the picture's own classes: it shows only where script runs, since
-// only a run draws those marks, and assistive technology skips it, since the caption and the log
-// say the same in words.
+// The picture's own controls come right under it, before any words: Time, the idempotency key and
+// the workers' Crash and Slow, so a visitor sees what a press does as they press it, on a phone too
+// (a 390 by 664 screen holds the picture and all of them). Nothing pins: the picture scrolls with the
+// page, and covers nothing. Then what the run says, the caption, the key, the history strip and the
+// checks; then the settings a run is tried under, and the event log, each under a rule from bezel to
+// bezel. Each part of the controls says what its presses did (lib/lab/said.ts). The key names each
+// mark a run can draw that the write-up's key does not, in the picture's own classes: it shows only
+// where script runs, since only a run draws those marks, and assistive technology skips it, since
+// the caption and the log say the same in words.
 const sim = openingRun();
 // The opening's crash, under the clock, in words true of every run the page plays, the opening,
 // a link's and a run started over, so the script never rewrites them: a run started over stands
@@ -45,26 +49,28 @@ const sim = openingRun();
 const crashes = OPENING.actions
   .map((a) => `Every run crashes worker ${a.worker + 1} at ${seconds(a.at)}.`)
   .join(' ');
-const lines = sim.lines.slice(-12);
+const lines = sim.lines
+  .slice(-LINES_SHOWN)
+  .map((line) => ({ at: seconds(line.at), text: line.text }));
 const history = strip(sim);
 const pool = sim.workers.slice(0, sim.size);
+const SWITCH = [
+  { value: 'off', words: 'Off' },
+  { value: 'on', words: 'On' },
+];
 const ACKS = [
-  { value: 'after', name: 'After the work' },
-  { value: 'before', name: 'Before the work' },
-] as const;
-const KEYS = [
-  { value: 'off', name: 'Off' },
-  { value: 'on', name: 'On' },
-] as const;
+  { value: 'after', words: 'After the work' },
+  { value: 'before', words: 'Before the work' },
+];
 const HANDLINGS = [
-  { value: 'requeue', name: 'Requeue it' },
-  { value: 'dead-letter', name: 'Dead-letter after four tries' },
-] as const;
+  { value: 'requeue', words: 'Requeue it' },
+  { value: 'dead-letter', words: 'Dead-letter after four tries' },
+];
 const LOAD_NAMES = [
-  { value: 'calm', name: 'Calm' },
-  { value: 'busy', name: 'Busy' },
-  { value: 'rush', name: 'Rush' },
-] as const;
+  { value: 'calm', words: 'Calm' },
+  { value: 'busy', words: 'Busy' },
+  { value: 'rush', words: 'Rush' },
+];
 if (pool.length > MAX_WORKERS) throw new Error('queue lab: more workers than the picture draws');
 ---
 
@@ -83,71 +89,31 @@ if (pool.length > MAX_WORKERS) throw new Error('queue lab: more workers than the
       ))}
     </div>
 
-    <div class="qu-controls" data-qu-js>
-      <div class="qu-group" role="group" aria-labelledby="qu-time">
-        <span class="qu-legend" id="qu-time">
-          Time
-        </span>
-        <div class="qu-row">
-          <button type="button" class="btn qu-run" data-lamp="off" data-qu-run>
-            Run
-          </button>
-          <button type="button" class="btn" data-qu-step>
-            Next event
-          </button>
-          <button type="button" class="btn" data-qu-reset>
-            Start over
-          </button>
-        </div>
-        <p class="qu-clock">
-          <span data-qu-clock>Virtual time {seconds(sim.now)}</span>, seed{' '}
-          <span data-qu-seed>{sim.seed}</span>
-          <span class="qu-ahead" data-qu-ahead>
-            {crashes}
-          </span>
+    <div class="qu-controls" data-qu-js data-part>
+      <Time
+        short="qu"
+        speeds={SPEEDS.map((s) => ({ value: String(s.value), words: s.name }))}
+        speed="1"
+      >
+        <p class="lab-clock">
+          <span data-qu-clock>Virtual time {seconds(sim.now)}</span>,{' '}
+          <span data-qu-events>{eventsWords(sim)}</span>, seed <span data-qu-seed>{sim.seed}</span>
         </p>
-      </div>
-      <fieldset class="qu-group">
-        <legend class="qu-legend">Speed</legend>
-        <div class="qu-row">
-          {SPEEDS.map((s) => (
-            <label class="qu-choice">
-              <input
-                type="radio"
-                name="qu-speed"
-                value={String(s.value)}
-                checked={s.value === 1}
-                autocomplete="off"
-              />
-              <span class="qu-choice-lamp" />
-              {s.name}
-            </label>
-          ))}
-        </div>
-      </fieldset>
-      <fieldset class="qu-group">
-        <legend class="qu-legend">Idempotency key</legend>
-        <div class="qu-row">
-          {KEYS.map((k) => (
-            <label class="qu-choice">
-              <input
-                type="radio"
-                name="qu-key"
-                value={k.value}
-                checked={(k.value === 'on') === sim.key}
-                autocomplete="off"
-              />
-              <span class="qu-choice-lamp" />
-              {k.name}
-            </label>
-          ))}
-        </div>
-      </fieldset>
-      <div class="qu-group" role="group" aria-labelledby="qu-workers">
-        <span class="qu-legend" id="qu-workers">
+        <p class="lab-clock qu-ahead" data-qu-ahead>
+          {crashes}
+        </p>
+      </Time>
+      <Choice
+        legend="Idempotency key"
+        name="qu-key"
+        options={SWITCH}
+        checked={sim.key ? 'on' : 'off'}
+      />
+      <div class="lab-group" role="group" aria-labelledby="qu-workers">
+        <p class="lab-group-name" id="qu-workers">
           Workers
-        </span>
-        <div class="qu-row qu-workers">
+        </p>
+        <div class="lab-row qu-workers">
           {pool.map((w) => (
             <div class="qu-worker" role="group" aria-labelledby={`qu-worker-${w.id}`}>
               <span class="qu-worker-name" id={`qu-worker-${w.id}`}>
@@ -175,12 +141,14 @@ if (pool.length > MAX_WORKERS) throw new Error('queue lab: more workers than the
           ))}
         </div>
       </div>
-      <p class="qu-sr" role="status" data-qu-said></p>
+      <Said words="Turn the key on or off, and the run starts over under it, before the same crash." />
+      <p class="lab-sr" role="status" data-qu-said></p>
     </div>
 
-    <p class="qu-summary" id="qu-summary" data-qu-summary>
+    <p class="lab-caption qu-summary" id="qu-summary" data-qu-summary>
       {summary(sim)}
     </p>
+    <NoScript />
     <ul class="qu-key" role="list" aria-hidden="true" data-qu-js>
       <li>
         <svg class="qu-key-mark" viewBox="0 0 20 20">
@@ -264,87 +232,49 @@ if (pool.length > MAX_WORKERS) throw new Error('queue lab: more workers than the
       </p>
     </div>
 
-    <ul class="qu-props" role="list">
-      {properties(sim).map((p) => (
-        <li class="qu-prop" data-qu-prop={p.id} data-held={String(p.held)}>
-          <span class="qu-lamp" aria-hidden="true" />
-          <span class="qu-prop-name">{p.name}</span>
-          <span class="qu-prop-words" data-qu-prop-words>
-            {propertyWords(sim, p)}
-          </span>
-        </li>
-      ))}
-    </ul>
-    <p class="qu-status" data-qu-status>
-      {statusText(sim)}
-    </p>
+    <section class="lab-group qu-checks" aria-labelledby="qu-checks">
+      <h2 class="lab-heading" id="qu-checks">
+        Checked as the run goes
+      </h2>
+      <ul class="lab-checks" role="list">
+        {properties(sim).map((p) => (
+          <li class="lab-check" data-qu-prop={p.id} data-held={String(p.held)}>
+            <span class="lab-check-lamp" aria-hidden="true" />
+            <span class="lab-check-name">{p.name}</span>
+            <span class="lab-check-word" data-qu-prop-words>
+              {propertyWords(sim, p)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
   </div>
 
-  <div class="qu-settings" data-qu-js>
-    <fieldset class="qu-group">
-      <legend class="qu-legend">When a worker acknowledges</legend>
-      <div class="qu-row">
-        {ACKS.map((a) => (
-          <label class="qu-choice">
-            <input
-              type="radio"
-              name="qu-ack"
-              value={a.value}
-              checked={a.value === sim.ack}
-              autocomplete="off"
-            />
-            <span class="qu-choice-lamp" />
-            {a.name}
-          </label>
-        ))}
-      </div>
-    </fieldset>
-    <fieldset class="qu-group">
-      <legend class="qu-legend">Orders each worker may hold</legend>
-      <div class="qu-row">
-        {PREFETCHES.map((n) => (
-          <label class="qu-choice">
-            <input
-              type="radio"
-              name="qu-prefetch"
-              value={String(n)}
-              checked={n === sim.prefetch}
-              autocomplete="off"
-            />
-            <span class="qu-choice-lamp" />
-            {n}
-          </label>
-        ))}
-      </div>
-    </fieldset>
-    <fieldset class="qu-group">
-      <legend class="qu-legend">Load</legend>
-      <div class="qu-row">
-        {LOAD_NAMES.map((l) => (
-          <label class="qu-choice">
-            <input
-              type="radio"
-              name="qu-load"
-              value={l.value}
-              checked={l.value === sim.load}
-              autocomplete="off"
-            />
-            <span class="qu-choice-lamp" />
-            {l.name}
-          </label>
-        ))}
-      </div>
+  <div class="qu-settings" data-qu-js data-part>
+    <Choice legend="When a worker acknowledges" name="qu-ack" options={ACKS} checked={sim.ack} />
+    <Choice
+      legend="Prefetch: orders each worker may hold"
+      name="qu-prefetch"
+      options={PREFETCHES.map((n) => ({
+        value: String(n),
+        words: String(n),
+        long: `${n} ${n === 1 ? 'order' : 'orders'}`,
+      }))}
+      checked={String(sim.prefetch)}
+    />
+    <div class="qu-load">
+      <Choice legend="Load" name="qu-load" options={LOAD_NAMES} checked={sim.load} />
       <p class="qu-note">
         {LOADS.calm}, {LOADS.busy} and {LOADS.rush} orders a second.{' '}
         <span data-qu-capacity>{capacityWords(sim)}</span>
       </p>
-    </fieldset>
-    <div class="qu-group" role="group" aria-labelledby="qu-new">
-      <span class="qu-legend" id="qu-new">
+    </div>
+    <div class="lab-group" role="group" aria-labelledby="qu-new">
+      <p class="lab-group-name" id="qu-new">
         New orders
-      </span>
-      <div class="qu-row">
-        <button type="button" class="btn" data-qu-producer>
+      </p>
+      <div class="lab-row">
+        <button type="button" class="btn qu-producer" data-qu-producer>
           Stop taking orders
         </button>
         <button type="button" class="btn" data-qu-poison>
@@ -352,39 +282,17 @@ if (pool.length > MAX_WORKERS) throw new Error('queue lab: more workers than the
         </button>
       </div>
     </div>
-    <fieldset class="qu-group">
-      <legend class="qu-legend">When an order fails</legend>
-      <div class="qu-row">
-        {HANDLINGS.map((h) => (
-          <label class="qu-choice">
-            <input
-              type="radio"
-              name="qu-handling"
-              value={h.value}
-              checked={h.value === sim.handling}
-              autocomplete="off"
-            />
-            <span class="qu-choice-lamp" />
-            {h.name}
-          </label>
-        ))}
-      </div>
-    </fieldset>
+    <Choice
+      legend="When an order fails"
+      name="qu-handling"
+      options={HANDLINGS}
+      checked={sim.handling}
+    />
+    <Said words="These change the run as it stands." />
   </div>
 
   <div class="qu-events">
-    <h2 class="qu-heading" id="qu-events">
-      What happened
-    </h2>
-    <div class="qu-lines" role="log" aria-live="off" aria-labelledby="qu-events" tabindex="0">
-      <ol class="qu-list" data-qu-lines>
-        {lines.map((line) => (
-          <li>
-            <span class="qu-at">{seconds(line.at)}</span> {line.text}
-          </li>
-        ))}
-      </ol>
-    </div>
+    <EventLog short="qu" lines={lines} />
   </div>
 </div>
 

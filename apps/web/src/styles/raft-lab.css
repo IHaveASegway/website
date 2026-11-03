@@ -1,10 +1,10 @@
 /*
   The Raft Lab (/lab/raft/): five servers on a circle, the messages between them, each one's log,
-  the controls and the event log (design-system.md, "Effects catalog"; ADR 0020). Only that page
-  links this file. Every color is a token from tokens.css. A state the browser sets is an
-  attribute (data-*), never a class, so every class here is one a built page carries
-  (test/css-classes.test.ts). The demo moves only while the visitor runs it, and in JavaScript, so
-  this file declares no transition and no animation.
+  the safety properties, the controls and the event log (design-system.md, "Effects catalog";
+  ADR 0020). Only that page links this file. Every color is a token from tokens.css. A state the
+  browser sets is an attribute (data-*), never a class, so every class here is one a built page
+  carries (test/css-classes.test.ts). The demo moves only while it runs, and in JavaScript, so this
+  file declares no transition and no animation.
 
   The demo is the lab's desk (ADR 0027; lab-page.css, .desk). A server is a lamp in the lab's line,
   var(--line), hollow while it follows, lit while it stands for election, filled while it leads, and
@@ -28,31 +28,52 @@
   }
 }
 
-/* Below 64rem the desk is one column in the page's order: the picture, the controls that work
-   it, the logs, then what happened. The controls come right after the picture so that on a phone
-   both fit one screen; nothing pins, the visitor scrolls the desk as a page. From 64rem the logs
-   stand beside the picture and the controls run under both, as they always have; the logs hold no
-   control, so the tab order is the same either way. */
+/* Below 64rem the desk is one column in the page's order: the picture, the controls that work it,
+   the logs and how to read them, the safety properties, then what happened. The controls come right
+   after the picture so that on a phone it and Time fit one screen; nothing pins, the visitor scrolls
+   the desk as a page. From 64rem the logs and the safety properties stand beside the picture, so the
+   five names a visitor is told to watch are on the first screen with what they watch; the controls
+   run under them and how to read it all under those. Only the controls and the two boxes that scroll
+   take focus, so the tab order is the same either way. */
 @media (width >= 64rem) {
   .rf {
     grid-template-columns: repeat(12, minmax(0, 1fr));
+    row-gap: 1rem;
     column-gap: var(--gutter);
     align-items: start;
   }
 
   .rf-figure {
     grid-column: 1 / 7;
-    grid-row: 1;
+    grid-row: 1 / span 2;
   }
 
-  .rf-side {
+  .rf-log-part {
     grid-column: 7 / 13;
     grid-row: 1;
   }
 
+  .rf-props-part {
+    grid-column: 7 / 13;
+    grid-row: 2;
+  }
+
   .rf-controls,
+  .rf-read,
   .rf-events {
     grid-column: 1 / -1;
+  }
+
+  .rf-controls {
+    grid-row: 3;
+  }
+
+  .rf-read {
+    grid-row: 4;
+  }
+
+  .rf-events {
+    grid-row: 5;
   }
 }
 
@@ -74,9 +95,9 @@
 }
 
 /* On a phone the picture takes the desk's whole width, out to its bezel, so its labels stay as
-   large as they can. From 64rem it stops at 28rem: its labels, set in its own units
-   (lib/raft/view.ts), stay 13 px at the least, and the controls stay in the first screen at
-   1440 × 900. */
+   large as they can. From 64rem it stops at 24.5rem, with its term's words a step larger to stay 13 px
+   at the least, so Run is on the first screen at 1440 × 900 with the picture and the safety properties
+   over it (e2e/raft.spec.ts). On a screen tall enough for both, it takes the room it had. */
 @media (width < 48rem) {
   .rf-map {
     width: calc(100% + var(--desk-side) * 2);
@@ -87,23 +108,46 @@
 
 @media (width >= 64rem) {
   .rf-map {
+    max-width: 24.5rem;
+  }
+}
+
+@media (width >= 64rem) and (height >= 60rem) {
+  .rf-map {
     max-width: 28rem;
   }
 }
 
-/* No fill: the numbers are set taller than any line, so a fill would cover the node around them.
+/* No fill: the numbers are set taller than any line, so a fill would cover the server around them.
    Chromium keeps an SVG text's own fill when it is selected, so the color is the text's ink. */
 .rf-map text::selection {
   background-color: transparent;
   color: var(--foreground);
 }
 
-.rf-summary {
+/* Under the picture, what a term is, since every server in it says one, then the caption, the
+   cluster in words. The caption changes as the run does, and takes the room its longest words take
+   at that width from the first paint, so the controls under it never move: a run with no leader, two
+   servers down, the network split and three old leaders left over is two lines from 390 px and three
+   under it (measured in CI's Linux image, which sets these faces a little wider than a Mac does, with
+   each number a digit longer than a run makes it). */
+.rf-caption {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.rf-gloss {
   color: var(--muted-foreground);
-  font-family: var(--font-label);
-  font-size: var(--text-label);
-  font-weight: var(--text-label--font-weight);
-  line-height: var(--text-label--line-height);
+}
+
+.rf-summary {
+  min-block-size: 2lh;
+}
+
+@media (width < 24.375rem) {
+  .rf-summary {
+    min-block-size: 3lh;
+  }
 }
 
 /* A server: its body, a lamp in the lab's line, its election timer as a dial around it, its
@@ -153,11 +197,11 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* A node's role and term are set in the picture's own units, so on a phone they shrink with it:
+/* A server's role and term are set in the picture's own units, so on a phone they shrink with it:
    at 390 px wide the picture is about 350 px across, and 12 and 10.5 units drew 11.7 and 10.2 px.
    Under 30rem they grow to draw 13 px at the least down to 24rem, and under 24rem again, to keep
    13 px at 320. The term moves down as it grows, so the two lines never touch; both stay inside
-   the box the cut's fence keeps clear of a node's words (lib/raft/view.ts, cutFence), which runs
+   the box the fence keeps clear of a server's words (lib/raft/view.ts, cutFence), which runs
    from 11 units over the role's baseline to 5 under the term's. The halo below covers the rest. */
 @media (width < 30rem) {
   .rf-role {
@@ -179,6 +223,12 @@
   .rf-term {
     font-size: 17px;
     transform: translateY(5px);
+  }
+}
+
+@media (width >= 64rem) {
+  .rf-term {
+    font-size: 12px;
   }
 }
 
@@ -282,9 +332,9 @@
   stroke: none;
 }
 
-/* The logs: a row a server, a lamp an entry, its term under it. Below 64rem they come under the
-   controls, a part of the desk of their own under a rule from bezel to bezel, as the event log is. */
-.rf-side {
+/* A part of the desk under its own rule from bezel to bezel, below 64rem: the logs and the safety
+   properties. From 64rem they stand beside the picture, and the rules run above and below them. */
+.rf-part {
   display: grid;
   gap: 1rem;
   align-content: start;
@@ -292,56 +342,99 @@
 }
 
 @media (width < 64rem) {
-  .rf-side {
+  .rf-part {
     margin-inline: calc(var(--desk-side) * -1);
     padding: 1.5rem var(--desk-side) 0;
     border-top: 1px solid var(--border);
   }
 }
 
+/* Beside the picture they keep to its height, a little closer together. */
+@media (width >= 64rem) {
+  .rf-part {
+    gap: 0.75rem;
+  }
+}
+
 /* Without script there are no controls between the picture and the logs, so no rule either. */
 @media (scripting: none) and (width < 64rem) {
-  .rf-side {
+  .rf-log-part {
     padding-top: 0;
     border-top: 0;
   }
 }
 
-.rf-heading {
-  margin: 0;
-  font-size: var(--text-ui);
-  font-family: var(--font-label);
-  font-weight: 500;
+/* The logs stand on their end, as the event log does (lab-controls.css, .lab-log), sideways: under
+   row-reverse the newest entries show with no script, and a reader at the end stays there as entries
+   come. One box for the five rows, so an index stays one column as it scrolls, and a row keeps one
+   line and one height however long its log grows: until 2026-11-02 a row wrapped at about 20 entries,
+   and Run and every control under it dropped 37 px. A server that has fallen behind shows no entries
+   at the end, which is what it holds at those indexes. Its scrollbar's room is always kept, where a
+   scrollbar takes room, or the first entry past the edge would move all of it too. The names stay
+   put over the entries that pass under them. */
+.rf-logs-box {
+  display: flex;
+  flex-direction: row-reverse;
+  overflow-x: scroll;
+  scrollbar-width: thin;
 }
 
 .rf-logs {
   display: grid;
+  flex: none;
   gap: 0.625rem;
   margin: 0;
+  margin-inline-end: auto;
   padding: 0;
   list-style: none;
 }
 
-.rf-log {
-  display: grid;
-  grid-template-columns: 4.5rem minmax(0, 1fr);
-  align-items: start;
-  gap: 0.75rem;
+@media (width >= 64rem) {
+  .rf-logs {
+    gap: 0.375rem;
+  }
 }
 
-.rf-log-name {
-  padding-top: 0.125rem;
+/* A count of its entries stands by each server's name, since one that has fallen behind shows none at
+   the end, and a blank row under "it can never be lost" read as a lost log. An attribute the build and
+   the app write, not a counter the browser keeps: WebKit doesn't recount one when a log's cells are
+   written again, and read 0 on all five. */
+.rf-log {
+  display: flex;
+}
+
+.rf-log-name,
+.rf-log::after {
+  position: sticky;
+  flex: none;
+  box-sizing: content-box;
+  padding-block-start: 0.125rem;
+  background-color: var(--surface-1);
   color: var(--muted-foreground);
   font-family: var(--font-label);
   font-size: var(--text-label);
   font-variant-numeric: tabular-nums;
 }
 
+.rf-log-name {
+  order: -2;
+  inset-inline-start: 0;
+  inline-size: 2.875rem;
+}
+
+.rf-log::after {
+  content: attr(data-entries);
+  order: -1;
+  inset-inline-start: 2.875rem;
+  inline-size: 1.625rem;
+  padding-inline-end: 0.75rem;
+}
+
+/* A row with no entries yet is as tall as one with some. */
 .rf-cells {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.375rem 0.5rem;
-  min-height: 1.75rem;
+  gap: 0.5rem;
+  min-block-size: calc(1.125rem + var(--text-label) * 1.2);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -354,7 +447,8 @@
   width: 1rem;
 }
 
-/* An entry's lamp: hollow, a ring in the lab's line, until a majority holds it; then filled. */
+/* The logs: a row a server, a lamp an entry, its term under it. An entry's lamp is hollow, a ring in
+   the lab's line, until a majority holds it; then filled. */
 .rf-mark {
   display: block;
   width: 1rem;
@@ -377,9 +471,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-.rf-legend,
-.rf-status,
-.rf-clock {
+.rf-legend {
   margin: 0;
   max-width: var(--measure);
   font-family: var(--font-label);
@@ -388,22 +480,138 @@
   line-height: var(--text-label--line-height);
 }
 
+/* How to read it: what the logs' dots mean, and a key to the marks on the wire, in the picture's own
+   classes. Under the logs on a phone. From 64rem under the controls, as a part of the desk of its own,
+   since the first screen is for the picture and what it does. */
+.rf-read {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
 .rf-legend {
   color: var(--muted-foreground);
 }
 
-/* What the run proved, the desk's one result: the label face at the controls' size, in the ink. */
-.rf-status {
-  font-size: var(--text-ui);
-  line-height: var(--text-ui--line-height);
-}
-
-.rf-clock {
+.rf-key {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(9rem, 100%), 1fr));
+  gap: 0.25rem 1rem;
+  align-content: start;
+  margin: 0;
+  padding: 0;
+  list-style: none;
   color: var(--muted-foreground);
-  font-variant-numeric: tabular-nums;
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  line-height: var(--text-label--line-height);
 }
 
-/* Controls: time, the network, and a button a server, under a rule from bezel to bezel. */
+.rf-key li {
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr);
+  column-gap: 0.375rem;
+  align-items: center;
+}
+
+.rf-key-wide {
+  grid-column: 1 / -1;
+}
+
+.rf-key-mark {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+}
+
+@media (width >= 64rem) {
+  .rf-read {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: var(--gutter);
+    margin-inline: calc(var(--desk-side) * -1);
+    padding: 1.5rem var(--desk-side) 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .rf-legend {
+    grid-column: 1 / 7;
+  }
+
+  .rf-key {
+    grid-column: 7 / 13;
+  }
+}
+
+/* The safety properties: under the heading every lab's checks have, and where these come from, beside
+   it where they fit. Each is a check as on every desk (lab-controls.css): a lamp, its name and Held or
+   Broken, which here always fit side by side, and what it promises, which takes a line of its own until
+   there's room beside the name. The name's column is as wide as the longest name where a browser sets
+   it widest, as CI's Linux image does, so the words beside it stand in a line and no name takes a
+   second. */
+.rf-props-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.75rem;
+}
+
+.rf-props-source {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  line-height: var(--text-label--line-height);
+}
+
+.rf-props {
+  gap: 0.5rem;
+}
+
+.rf-props .lab-check {
+  grid-template-columns: 0.875rem 8.75rem minmax(0, 1fr);
+  row-gap: 0;
+}
+
+.rf-props .lab-check-word {
+  grid-column: auto;
+}
+
+.rf-prop-promise {
+  grid-column: 2 / -1;
+  color: var(--muted-foreground);
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  line-height: var(--text-label--line-height);
+}
+
+/* With larger text on a narrow screen the name's column would push the page wider than the window
+   (SC 1.4.10), so each part takes a line of its own beside the lamp. A rem in a media query is the
+   visitor's own text size: at 16 px this is narrower than any phone. */
+@media (width < 18rem) {
+  .rf-props .lab-check {
+    grid-template-columns: 0.875rem minmax(0, 1fr);
+  }
+
+  .rf-props .lab-check-word,
+  .rf-prop-promise {
+    grid-column: 2;
+  }
+}
+
+@media (width >= 75rem) {
+  .rf-props .lab-check {
+    grid-template-columns: 0.875rem 8.75rem 3rem minmax(0, 1fr);
+  }
+
+  .rf-prop-promise {
+    grid-column: auto;
+  }
+}
+
+/* Controls: the shared groups (lab-controls.css), time, the line that says what a press did, the
+   network, and a button a server, under a rule from bezel to bezel. */
 .rf-controls {
   display: grid;
   gap: 1rem;
@@ -412,17 +620,17 @@
   border-top: 1px solid var(--border);
 }
 
-/* Run keeps one width as its words turn to Pause, so the row never shifts under the pointer. Its
-   lamp, lit while the run is on, is global.css's [data-lamp], the one Run every lab shares. */
-.rf-run {
-  min-inline-size: 6.5rem;
+/* Two lines is the most its words take where the desk is this wide. */
+@media (width >= 48rem) {
+  .rf-controls > .lab-said {
+    min-block-size: 2lh;
+  }
 }
 
-.rf-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 0.75rem;
-  align-items: center;
+@media (width >= 64rem) {
+  .rf-controls {
+    padding-block-start: 1rem;
+  }
 }
 
 .rf-field {
@@ -460,72 +668,6 @@
   }
 }
 
-/* The speed is a row of push-buttons, each a native radio, so the arrow keys move between them
-   and Tab enters and leaves the row at the chosen one (WAI-ARIA APG, "Radio Group Pattern"). Its
-   name stands before it in the label face, as the loss slider's does; a floated legend is laid out
-   with the buttons instead of over the border. The buttons share their edges. */
-.rf-speed {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-.rf-speed-name {
-  float: left;
-  margin-inline-end: 0.5rem;
-  padding: 0;
-  font-family: var(--font-label);
-  font-size: var(--text-label);
-  font-weight: var(--text-label--font-weight);
-}
-
-.rf-option {
-  position: relative;
-  padding-inline: 0.75rem;
-}
-
-.rf-option + .rf-option {
-  margin-inline-start: -1px;
-}
-
-/* The chosen speed's button is pressed in, as a pressed push-button is (global.css). */
-.rf-option:has(:checked) {
-  background-color: var(--surface-2);
-}
-
-/* The radio covers its button, edge included, and draws nothing itself, so the one focus ring
-   (global.css) goes around the whole button, as a button's does. The lamp after it is hollow, and
-   lit while its radio is chosen. */
-.rf-option input {
-  position: absolute;
-  inset-block-start: -1px;
-  inset-inline-start: -1px;
-  inline-size: calc(100% + 2px);
-  block-size: calc(100% + 2px);
-  margin: 0;
-  border: 0;
-  appearance: none;
-  background-color: transparent;
-  cursor: pointer;
-}
-
-.rf-lamp {
-  flex: none;
-  inline-size: 0.625rem;
-  block-size: 0.625rem;
-  border: 1.5px solid currentColor;
-  border-radius: 50%;
-}
-
-.rf-option input:checked + .rf-lamp {
-  border-color: var(--primary);
-  background-color: var(--primary);
-}
-
 .rf-field output {
   min-width: 2.5rem;
   font-family: var(--font-label);
@@ -537,23 +679,17 @@
   min-width: min(9rem, 100%);
 }
 
-/* Read by assistive technology, hidden on screen: what the last press did. */
-.rf-sr {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  border-width: 0;
-  white-space: nowrap;
+/* At the narrowest phones two still share a row, which keeps the last within a screen of the line
+   under Time. A larger text size stacks them, since the minimum grows with it. */
+@media (width < 24rem) {
+  .rf .btn.rf-toggle {
+    flex: 0 1 calc(50% - 0.25rem);
+    min-inline-size: min(7rem, 100%);
+    padding-inline: 0.5rem;
+  }
 }
 
-/* The event log: the newest line last, in a describer's window, raised, that scrolls; a part of
-   the desk of its own, under a rule from bezel to bezel. On a phone a line is one column, its time
-   leading its words; from 48rem the time has a column of its own, so the words wrap under
-   themselves, never under the time. */
+/* The event log (lab-controls.css), a part of the desk of its own, under a rule from bezel to bezel. */
 .rf-events {
   display: grid;
   gap: 0.75rem;
@@ -562,49 +698,9 @@
   border-top: 1px solid var(--border);
 }
 
-/* The log's box is one size whatever it holds, before the run's first line and after its sixtieth,
-   so a run that empties it, or fills it, moves nothing under it (steady.spec.ts). */
-.rf-lines {
-  block-size: 16rem;
-  padding: 0.75rem 1rem;
-  overflow-y: auto;
-  background-color: var(--surface-2);
-  font-family: var(--font-label);
-  font-size: var(--text-label);
-  font-weight: var(--text-label--font-weight);
-  line-height: var(--text-label--line-height);
-}
-
-.rf-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-@media (width >= 48rem) {
-  .rf-list li {
-    display: grid;
-    grid-template-columns: 5.5rem minmax(0, 1fr);
-  }
-}
-
-.rf-at {
-  margin-inline-end: 0.5rem;
-  color: var(--muted-foreground);
-  font-family: var(--font-label);
-  font-size: var(--text-label);
-  font-variant-numeric: tabular-nums;
-}
-
 @media (forced-colors: active) {
   .rf-cell[data-done] .rf-mark {
     background-color: CanvasText;
-  }
-
-  .rf-option input:checked + .rf-lamp {
-    forced-color-adjust: none;
-    border-color: ButtonText;
-    background-color: ButtonText;
   }
 
   .rf-mark {
