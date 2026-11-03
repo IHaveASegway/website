@@ -91,12 +91,18 @@
   }
 }
 
-/* The Print button, under the head's words. It shows once the command menu's script has bound it
-   (src/scripts/palette.js), on a phone too, where printing saves or shares a PDF: until then it
-   holds its place unseen, and without the script it is not there. */
+/* What to press, under the head's words: LinkedIn, then Print. Print shows once the command menu's
+   script has bound it (src/scripts/palette.js), on a phone too, where printing saves or shares a PDF:
+   until then it holds its place unseen, and without the script it is not there. */
+.about-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+}
+
 .print-item {
   display: none;
-  margin-top: 1.5rem;
 }
 
 @media (scripting: enabled) {
@@ -436,7 +442,7 @@
     break-inside: avoid;
   }
 
-  /* Paper gets no Print button and no way round the page, and of the bio its opening, the summary a
+  /* Paper gets nothing to press and no way round the page, and of the bio its opening, the summary a
      printed résumé opens with, without a label, and the biggest thing, its strongest proof: the rest
      is the web edition's, so the page stays one sheet whatever the profile holds
      (e2e/about-print.spec.ts). The agents line prints over Selected work, so nobody reads built as
@@ -455,7 +461,7 @@
     line-height: 1.3;
   }
 
-  .resume .print-item,
+  .about-actions,
   .bio-block:not(.bio-now, .bio-biggest) {
     display: none;
   }

@@ -31,7 +31,7 @@ import { writingRow } from '../../lib/work';
 import '../../styles/about.css';
 
 // /about/ (ADR 0031): what Joseph builds and has built, one column on every screen, since 2026-10-28
-// in /resume/'s place (public/_redirects). On screen: the head (name, role, where, Print), the opening
+// in /resume/'s place (public/_redirects). On screen: the head (name, role, where, LinkedIn, Print), the opening
 // in plain words, how they got here, the biggest thing, the labs and the open source as rows, the last
 // thing, what came from them, the tools, and the close, every word from src/content/about.md, laid out
 // here and never changed. On paper it is the résumé, one US Letter page (about.css, "The résumé on
@@ -139,11 +139,19 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
           </>
         ))}
       </dl>
-      {/* Pressed by the command menu's Print row too; src/scripts/palette.js binds it and shows
-          it, so without the script it is not there, and on paper it never is. */}
-      <button class="btn print-item" type="button" data-print>
-        Print or save as PDF
-      </button>
+      {/* LinkedIn is how people reach Joseph, so it leads here as it does on Home (ADR 0031). Print is
+          pressed by the command menu's Print row too; src/scripts/palette.js binds it and shows it, so
+          without the script it is not there. On paper neither is. */}
+      <div class="about-actions">
+        {linkedIn && (
+          <a class="btn btn-primary" href={linkedIn.url}>
+            {linkedIn.network}
+          </a>
+        )}
+        <button class="btn print-item" type="button" data-print>
+          Print or save as PDF
+        </button>
+      </div>
     </header>
 
     <div class="about-body">

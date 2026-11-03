@@ -501,7 +501,7 @@ Some names are public in this repository but must not appear on the site until a
 
 | Part | What it says | On screen | On paper |
 |---|---|---|---|
-| The head | The name, the role, where | The name at a title's size, then the Print button | With the addresses beside the name: the email address, the site, each checked profile |
+| The head | The name, the role, where | The name at a title's size, then LinkedIn, the primary button as on Home, and the Print button | With the addresses beside the name: the email address, the site, each checked profile |
 | The opening | What Joseph does; its first sentence is Home's statement | Plain prose, its first sentence at the statement's size | The summary |
 | How I got here | The route, the manager, the software, and who typed this site | Prose under a section's title, as every section here has, the close's title | Its second paragraph, "I didn't type this site's code", prints over Selected work, so nobody reads built as typed |
 | The biggest thing I've built | The largest system Joseph has built for real users, in round words | Prose at a lead's size | Prints: it's the résumé's strongest proof |

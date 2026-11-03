@@ -167,6 +167,22 @@ test('each lab row is a link across the column, under its own line in its own co
   }
 });
 
+// People reach Joseph on LinkedIn (ADR 0031), so About's first screen offers it, as Home's does, and
+// doesn't leave that to a button 7 screens down. It's a control, so it stays off paper.
+test("/about/'s head offers LinkedIn in the first screen, and paper leaves it off", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 664 });
+  await page.goto('/about/');
+  const button = page.locator('.about-head a.btn-primary');
+  await expect(button).toHaveText('LinkedIn');
+  await expect(button).toHaveAttribute('href', /^https:\/\/www\.linkedin\.com\/in\//);
+  const box = await button.boundingBox();
+  expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(664);
+  await page.emulateMedia({ media: 'print' });
+  await expect(button).toBeHidden();
+});
+
 // A phone has no hover, so a row says it opens something before anyone touches it: its bold line is
 // underlined at rest, in the accent, as every other link on the page is (SC 1.4.1). On 2026-11-03 no
 // row showed it, and the drawings read as decoration.
