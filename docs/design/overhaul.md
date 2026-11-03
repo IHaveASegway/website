@@ -200,7 +200,7 @@ How it works (prose, measure)      │ register (from 64rem)
 
 **/about/**: brittanychiang's two columns from 64rem: the left sticky (the name at `title`, the role, the addresses as `.kv`, Print), the right scrolling (the bio's blocks, the roles, the skills, the work cards). It still prints on one US Letter page (`e2e/about-print.spec.ts`).
 
-**404**: the drawing with one solid missing and its place drawn dashed, the existing words ("Page not found", "There is no page at this address.") beside it, and "Go to the home page" as the primary button. The old buffer-stop line (`.line-end`) and About's wheels (`.ground`) go with the signal box.
+**404**: the drawing with one solid missing and its place drawn dashed, the existing words ("Page not found", "There is no page at this address.") beside it from 64rem and over it below, and "Go to the home page" as the primary button. The old buffer-stop line (`.line-end`) and About's wheels (`.ground`) go with the signal box.
 
 ```
 [top nav]

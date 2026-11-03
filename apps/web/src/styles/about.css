@@ -273,11 +273,14 @@
   border-block-start: 1px solid var(--border);
 }
 
+/* A skill's name lists what it holds, so left to itself a line break strands the last of them:
+   "Message brokers: RabbitMQ, LavinMQ, / SQS". Balanced, as a title is, it keeps some company. */
 .skills dt {
   font-family: var(--font-wide);
   font-size: var(--text-ui);
   font-weight: 600;
   line-height: var(--text-ui--line-height);
+  text-wrap: balance;
 }
 
 .skills dd {
