@@ -31,8 +31,10 @@ test('on a 390 by 844 phone the map switch, the map and the day and van controls
   expect(map.bottom).toBeLessThanOrEqual(days.top);
   expect(days.bottom).toBeLessThanOrEqual(more.top);
   expect(more.bottom - view.top).toBeLessThanOrEqual(844);
-  // Scrolled there, every part is on screen at once.
-  await page.evaluate((y) => window.scrollTo(0, y), view.top);
+  // Scrolled there, every part is on screen at once. A browser scrolls by whole pixels here, so to
+  // the pixel at or above the switch: rounding up would cut a sliver off its top, and whether it
+  // rounds up depends on what the words above it happen to add up to.
+  await page.evaluate((y) => window.scrollTo(0, y), Math.floor(view.top));
   for (const part of ['.rl-view', '.rl-days', '.rl-more']) {
     await expect(page.locator(part)).toBeInViewport({ ratio: 1 });
   }

@@ -46,6 +46,24 @@
   border-block-end: 1px solid var(--border);
 }
 
+/* The name Home and About call the lab by, as the picture's caption, in the corner of the plate the
+   diamond of its tile leaves empty. */
+.lab-plate {
+  position: relative;
+}
+
+.lab-name {
+  position: absolute;
+  inset-block-start: 0.875rem;
+  inset-inline-start: min(1.375rem, 5vw);
+  margin: 0;
+  color: var(--muted-foreground);
+  font-family: var(--font-wide);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  line-height: var(--text-label--line-height);
+}
+
 .lab-plate > .iso-glyph {
   inline-size: 100%;
   block-size: 100%;

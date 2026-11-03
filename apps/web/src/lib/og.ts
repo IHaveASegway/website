@@ -2,7 +2,7 @@ import { create } from 'fontkitten';
 import satori from 'satori';
 import sharp from 'sharp';
 import tokensCss from '../styles/tokens.css?raw';
-import type { LabEntry } from './lab';
+import { labName, type LabEntry } from './lab';
 import { fieldPicture, OG_SIZE } from './og-field';
 import { SECTION_LABELS, type Post, type Section } from './posts';
 import type { Profile } from './profile';
@@ -49,9 +49,10 @@ export function sectionCard(section: Section, profile: Profile): OgCard {
   return { title: SECTION_LABELS[section], label: profile.basics.name };
 }
 
-/** A demo's card: its title, and the section, Lab. */
-export function labCard(entry: Pick<LabEntry, 'title'>): OgCard {
-  return { title: entry.title, label: 'Lab' };
+/** A lab's card: its title, and the name Home and About call it by, so a link to it says which lab
+ *  this is (a lab with no short name yet says Lab). */
+export function labCard(entry: Pick<LabEntry, 'slug' | 'title'>): OgCard {
+  return { title: entry.title, label: labName(entry.slug) ?? 'Lab' };
 }
 
 /** The lab index's card: the section, and whose it is. */

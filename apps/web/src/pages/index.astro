@@ -5,14 +5,7 @@ import Motion from '../components/Motion.astro';
 import PostList from '../components/PostList.astro';
 import WorkCard from '../components/WorkCard.astro';
 import Base from '../layouts/Base.astro';
-import {
-  ABOUT_HEADINGS,
-  aboutParts,
-  LAB_NAMES,
-  openingSentence,
-  sectionOf,
-  withLinks,
-} from '../lib/about';
+import { ABOUT_HEADINGS, aboutParts, openingSentence, sectionOf, withLinks } from '../lib/about';
 import { SEEDS_IN_CI as BACKFILL_SEEDS } from '../lib/backfill/view';
 import { SEEDS_IN_CI as CACHE_SEEDS } from '../lib/cache/view';
 import {
@@ -25,7 +18,7 @@ import {
 import { figure } from '../lib/home';
 import { countTests, readDecisions } from '../lib/home-sources';
 import { homeGraph, serialize } from '../lib/jsonld';
-import { labPath } from '../lib/lab';
+import { LAB_NAMES, labPath } from '../lib/lab';
 import { labFact } from '../lib/lab-facts';
 import { inWords } from '../lib/lines';
 import { homeCard } from '../lib/og';

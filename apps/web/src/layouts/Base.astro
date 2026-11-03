@@ -4,7 +4,7 @@ import Footer from '../components/Footer.astro';
 import Header from '../components/Header.astro';
 import Palette from '../components/Palette.astro';
 import { loadLabArea, loadProfile, loadWritingArea } from '../lib/content';
-import { labPath, labRoutes } from '../lib/lab';
+import { labName, labPath, labRoutes } from '../lib/lab';
 import { NOINDEX } from '../lib/noindex.mjs';
 import { ogAlt, ogTitle, OG_SIZE, type OgCard } from '../lib/og';
 import { areaRoutes, postPath } from '../lib/posts';
@@ -74,7 +74,8 @@ const generated = [...areaRoutes(area), ...labRoutes(lab)];
 // them by its words.
 const demos = lab.entries.map((entry) => ({
   title: entry.title,
-  summary: entry.summary,
+  // Home and About say the Queue Lab, so the menu finds it by that name too.
+  summary: `${labName(entry.slug) ?? ''} ${entry.summary}`.trim(),
   href: labPath(entry),
   line: entry.slug,
 }));

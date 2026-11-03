@@ -15,6 +15,7 @@ import {
   type OgNode,
 } from '../src/lib/og';
 import { clusterBox, homeArt, labIndexArt, OG_GLYPHS } from '../src/lib/og-art';
+import { byLabOrder } from '../src/lib/lab';
 import { demoArt, OG_LINE } from '../src/lib/og-lines';
 import { openingServers } from '../src/lib/orbit';
 import { demoPicture } from '../src/lib/route-lab/og-map';
@@ -31,11 +32,11 @@ function meta(page: string, key: string): string | undefined {
   return new RegExp(`<meta (?:property|name)="${key}" content="([^"]*)">`).exec(page)?.[1];
 }
 
-/** The labs this build holds, in the board's order (lib/lab.ts sorts them by slug). */
+/** The labs this build holds, in the order they're met (lib/lab.ts). */
 const labs = files
   .map((file) => /^lab\/([a-z0-9-]+)\/index\.html$/.exec(file)?.[1])
   .filter((slug) => slug !== undefined)
-  .sort((a, b) => a.localeCompare(b));
+  .sort(byLabOrder);
 
 /** What a page's card carries besides its strings, as its og.png endpoint draws it: Home its
  *  cluster, the Lab index its glyphs, a lab its own picture and colour, any other page nothing. */

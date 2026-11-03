@@ -12,6 +12,14 @@
   display: none;
 }
 
+/* The name Home and About call the lab by, opening the lead in the signage face, a step smaller so
+   the wide face sits level with the words after it. */
+.lab-head-name {
+  font-family: var(--font-wide);
+  font-size: 0.875em;
+  font-weight: 500;
+}
+
 /* A control on a lab's desk keeps the compact label face and the 44 px height the instruments were
    laid out for (ADR 0029): only the chrome's buttons moved to the signage face. */
 .desk .btn {
@@ -59,6 +67,14 @@
   background-color: var(--surface-1);
 }
 
+/* The name Home and About call the lab by, opening the lead in the signage face, a step smaller so
+   the wide face sits level with the words after it. */
+.lab-head-name {
+  font-family: var(--font-wide);
+  font-size: 0.875em;
+  font-weight: 500;
+}
+
 /* A control on a lab's desk keeps the compact label face and the 44 px height the instruments were
    laid out for (ADR 0029): only the chrome's buttons moved to the signage face. */
 .desk .btn {
@@ -84,6 +100,14 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   margin-block-start: 3.5rem;
+}
+
+/* The name Home and About call the lab by, opening the lead in the signage face, a step smaller so
+   the wide face sits level with the words after it. */
+.lab-head-name {
+  font-family: var(--font-wide);
+  font-size: 0.875em;
+  font-weight: 500;
 }
 
 /* A control on a lab's desk keeps the compact label face and the 44 px height the instruments were

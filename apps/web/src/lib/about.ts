@@ -118,16 +118,6 @@ export function openingSentence(paragraph: string): string {
   return /^.+?[.!?](?=\s+[A-Z])/.exec(paragraph)?.[0] ?? paragraph;
 }
 
-/** The demos the bio names, by their lab's slug: on Home the first mention of each opens its page,
- *  once the build writes it. */
-export const LAB_NAMES = [
-  { slug: 'routes', name: 'Route Lab' },
-  { slug: 'raft', name: 'Raft Lab' },
-  { slug: 'queue', name: 'Queue Lab' },
-  { slug: 'cache', name: 'Cache Lab' },
-  { slug: 'backfill', name: 'Backfill Lab' },
-] as const;
-
 /** A run of text, or of text that links somewhere. */
 export type Run = string | { readonly text: string; readonly href: string };
 

@@ -124,7 +124,7 @@ White sheet on the paper, a hairline edge, 8 px corners, no shadow. Title in dis
 - **The isometric drawing** (`components/iso/System.astro`, `.iso`): see 6.
 - **Stats row** (`.stats`, `.stat`, `.stat-figure`, `.stat-caption`): a `<dl>` of four cells on `--ground`, hairlines between cells, a figure in display at `title`, its caption in wide at `label` under it. Two cells a row below 48rem. Every figure derived at build from its system of record, never typed: the live labs (`lib/lab.ts`), the seeded runs a pull request checks (the labs' sweeps), the decision records (`docs/adr/`), the posts (`lib/posts.ts`). No "+" or star glyph after a figure.
 - **Decision log** (`.decisions`): his answer to syntaqx's activity heatmap, from data he owns: each ADR a tick on a date axis, its number and title on hover and focus, the latest five listed under it with their dates. Built at build time from `docs/adr/*.md` front lines. No commit heatmap: it would be a second owner of git history and says nothing about judgment.
-- **Lab cards** (`.lab-cards`, `.lab-card`): the five labs as tool cards, two or three a row, each with its glyph cut from the drawing (`.iso-glyph`, in its lab's colour), its title, its summary and one fact from its build. The whole card is its link.
+- **Lab cards** (`.lab-cards`, `.lab-card`): the five labs as tool cards, two or three a row, in the order a visitor meets them, easiest to follow first (`LAB_NAMES`, `lib/lab.ts`; since 2026-11-02, by slug before), each with its glyph cut from the drawing (`.iso-glyph`, in its lab's colour) under the short name Home and About call it by (`.lab-name`), its title, its summary and one fact from its build. The whole card is its link.
 - **Writing list** (`.post-list`, `.post-row`, `.post-date`, `.post-title`, `.post-summary`, `.post-kind`): a dated list as syntaqx's, three columns from 48rem: the date in wide at `label` (`31 Oct 2026`), the title in display at `headline` with its summary under it, the kind at the row's end. A hairline above each row; the row is its title's link; the 2 px cobalt sweep along its top on hover is the one motion.
 
 ## 6. The isometric drawing
@@ -181,7 +181,7 @@ How I work (the bio's principles, two columns from 64rem)
 
 **/lab/**: the page head (title "Lab", lead), then the five lab cards, larger: the glyph across the card's top, the title, the summary, one fact, two a row from 64rem.
 
-**A lab's page chrome**: a breadcrumb-free head (the nav marks Lab): the title in display at `title`, the lead, then the demo on a desk (`.desk`: `--surface-1`, hairline edge, `--radius-lg`), then the write-up in a reading column with the register beside it from 64rem. The lab's colour appears only inside its drawing. Each lab keeps its controls' words and its steady-on-a-phone tests.
+**A lab's page chrome**: a breadcrumb-free head (the nav marks Lab): the title in display at `title`, the lead, opening on the lab's short name (`.lab-head-name`), then the demo on a desk (`.desk`: `--surface-1`, hairline edge, `--radius-lg`), then the write-up in a reading column with the register beside it from 64rem. The lab's colour appears only inside its drawing. Each lab keeps its controls' words and its steady-on-a-phone tests.
 
 ```
 [top nav, Lab marked]

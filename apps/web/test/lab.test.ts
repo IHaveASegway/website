@@ -1,5 +1,15 @@
 import { describe, expect, test } from 'vitest';
-import { labArea, labCards, labRoutes, labSchema } from '../src/lib/lab';
+import {
+  byLabOrder,
+  LAB_NAMES,
+  labArea,
+  labCards,
+  labName,
+  labRoutes,
+  labSchema,
+} from '../src/lib/lab';
+import { attribute, elementsOf, hasClass } from './support/html';
+import { files, read } from './support/dist';
 
 // The lab collection (lib/lab.ts; content.md, "Content model"), with known answers: what a lab
 // entry may say about itself, which pages a build writes for the lab, and that /lab/api/ stays the
@@ -52,13 +62,72 @@ describe('labArea', () => {
     expect(labCards(empty)).toEqual([]);
   });
 
-  test('a demo brings /lab/ and its own page, by slug', () => {
+  test('a demo brings /lab/ and its own page', () => {
     const area = labArea([demo('zeta'), demo('routes')]);
     expect(labRoutes(area)).toEqual(['/lab/', '/lab/routes/', '/lab/zeta/']);
     expect(labCards(area).map((c) => c.link.href)).toEqual(['/lab/routes/', '/lab/zeta/']);
   });
 
+  // Easiest to follow first, and What I build's order after that. By slug, a recruiter's first card
+  // on /lab/ was the hardest word on the site, and the Route Lab was last.
+  test('known answers: the labs come in the order a visitor meets them, a new one after them', () => {
+    const slugs = ['backfill', 'cache', 'beta', 'queue', 'raft', 'alpha', 'routes'];
+    expect(labArea(slugs.map(demo)).entries.map((entry) => entry.slug)).toEqual([
+      'routes',
+      'queue',
+      'cache',
+      'backfill',
+      'raft',
+      'alpha',
+      'beta',
+    ]);
+    expect(byLabOrder('routes', 'backfill')).toBeLessThan(0);
+    expect(byLabOrder('zeta', 'raft')).toBeGreaterThan(0);
+    expect(labName('queue')).toBe('Queue Lab');
+    expect(labName('zeta')).toBeUndefined();
+  });
+
   test('"api" is never a demo: the lab Worker owns /lab/api/', () => {
     expect(() => labArea([demo('api')])).toThrow(/reserved/);
+  });
+});
+
+// One order wherever the labs are listed, and one name for each, so nobody has to translate between
+// pages: Home's rows, /lab/'s cards, the command menu, and /lab/'s link preview, whose glyphs read
+// the same list. Home's rows come from the bio, so Home holds the bio's order to this one.
+describe.runIf(files.includes('lab/index.html'))('the labs as this build lists them', () => {
+  const order = LAB_NAMES.map((lab) => lab.slug);
+  const cards = elementsOf(read('lab/index.html')).filter((e) => hasClass(e, 'lab-card'));
+
+  test('/lab/ lists them in the order they are met, each named on its card', () => {
+    expect(cards.map((card) => attribute(card, 'data-line'))).toEqual(order);
+    const page = read('lab/index.html');
+    for (const { name } of LAB_NAMES) expect(page).toContain(`<p class="lab-name">${name}</p>`);
+  });
+
+  test("Home's What I build goes in that order, and the menu lists them in it", () => {
+    const page = read('index.html');
+    const builds = elementsOf(page)
+      .filter((e) => hasClass(e, 'build') && attribute(e, 'data-line') !== undefined)
+      .map((e) => attribute(e, 'data-line') as string);
+    expect(builds.length).toBeGreaterThan(0);
+    expect(builds).toEqual(order.filter((slug) => builds.includes(slug)));
+    const menu = elementsOf(page)
+      .filter((e) => attribute(e, 'role') === 'option')
+      .map((e) => /^palette-lab-(.+)$/.exec(attribute(e, 'id') ?? '')?.[1])
+      .filter((slug) => slug !== undefined);
+    expect(menu).toEqual(order);
+  });
+
+  test("each lab's page opens its lead on its name, its link preview says it, and the menu finds it", () => {
+    for (const { slug, name } of LAB_NAMES) {
+      const page = read(`lab/${slug}/index.html`);
+      expect(page, slug).toContain(`<span class="lab-head-name">${name}. </span>`);
+      expect(page, slug).toMatch(
+        new RegExp(`<meta property="og:title" content="[^"]* · ${name}">`),
+      );
+      const row = elementsOf(page).find((e) => attribute(e, 'id') === `palette-lab-${slug}`);
+      expect(row && attribute(row, 'data-find'), slug).toContain(name);
+    }
   });
 });

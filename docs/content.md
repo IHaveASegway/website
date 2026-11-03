@@ -340,7 +340,7 @@ One vocabulary, so nobody has to translate ([ADR 0029](adr/0029-one-voice-one-co
 | coding agents | "agents" alone on first mention; "lines where agents" |
 | scoped permissions, tests, staged releases | "walls", "harness" on Home and About |
 | software factory, in the essay, with who says it | "dark factory" without attribution |
-| lab, for the page | demo, drawing or board as a page's name |
+| lab, for the page; each has one short name, the Queue Lab, on Home, About, /lab/, its own page and its link preview, beside the title that says what you do there | demo, drawing or board as a page's name |
 | simulation, simulated | "live" or "real" for what a simulation outputs |
 | the made-up bakery, on first mention in a page | "the bakery" as if it were a client |
 | essay | post, or field note until one exists |
@@ -602,7 +602,8 @@ Open Graph: one template per page type, rendered at build for each page as a 120
 |---|---|
 | Home | the name and `<title line — Q-title>`, beside the cluster |
 | About | the name and "About", the header's label; it holds the résumé, whose card this was |
-| Writing, Notes, Lab | the section label and the entry's title |
+| Writing, Notes | the section label and the entry's title |
+| A lab | its title and its short name, the Queue Lab, as Home and About call it; a lab's own picture and colour |
 | About, Now, Colophon, Decisions | the section label and the page title |
 
 | Consumer | Requirement or behavior (as of 2026-10-22) | Source |
