@@ -335,6 +335,61 @@ test('a visitor reads server, never node, in the words and in the names, after t
   expect(read.names.filter((name) => /\bnodes?\b/i.test(name ?? ''))).toEqual([]);
 });
 
+// A log's row keeps one line however long its log grows. Until 2026-11-02 a row wrapped at about 20
+// entries, and Run and every control under it dropped 37 px at 1,440 px, on the first screen.
+for (const [width, height] of [
+  [1440, 900],
+  [390, 664],
+] as const) {
+  test(`at ${width} by ${height}, forty writes move nothing, and each log stays one line that opens on its newest`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto(RAFT);
+    const places = () =>
+      page.evaluate(() => {
+        const top = (selector: string) =>
+          Math.round(
+            (document.querySelector(selector) as Element).getBoundingClientRect().top + scrollY,
+          );
+        return {
+          run: top('[data-rf-run]'),
+          row: (document.querySelector('.rf-log') as Element).getBoundingClientRect().height,
+          read: top('.rf-read'),
+          props: top('.rf-props-part'),
+          events: top('.rf-events'),
+          page: document.documentElement.scrollHeight,
+        };
+      });
+    const before = await places();
+    const write = page.locator('[data-rf-write]');
+    for (let i = 0; i < 40; i++) await write.click();
+    for (let i = 0; i < 80; i++) await page.locator('[data-rf-step]').click();
+    await expect(page.locator('[data-rf-log="0"] .rf-cell')).toHaveCount(43);
+    expect(await places()).toEqual(before);
+    const box = page.locator('.rf-logs-box');
+    const shows = (cell: string) =>
+      box.evaluate((frame, selector) => {
+        const dot = (frame.querySelector(selector) as Element).getBoundingClientRect();
+        const name = (frame.querySelector('.rf-log-name') as Element).getBoundingClientRect();
+        return dot.left >= name.right - 1 && dot.right <= frame.getBoundingClientRect().right + 1;
+      }, cell);
+    const newest = '[data-rf-log="0"] .rf-cell:last-child';
+    const oldest = '[data-rf-log="0"] .rf-cell:first-child';
+    expect(await box.evaluate((frame) => frame.scrollTop)).toBe(0);
+    expect(await shows(newest)).toBe(true);
+    expect(await shows(oldest)).toBe(false);
+    // Reached by scrolling back, the names standing where they were; and a keyboard can get there.
+    await box.focus();
+    const name = await box.locator('.rf-log-name').first().boundingBox();
+    await box.evaluate((frame) => {
+      frame.scrollLeft = -frame.scrollWidth;
+    });
+    expect(await shows(oldest)).toBe(true);
+    expect(await box.locator('.rf-log-name').first().boundingBox()).toEqual(name);
+  });
+}
+
 // Each server's button keeps one width as its word changes, so the next one stays under the thumb.
 for (const width of [390, 320]) {
   test(`at ${width} px wide, a server’s button keeps its place and width from Crash to Restart`, async ({

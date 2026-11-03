@@ -50,8 +50,8 @@ import '../../styles/raft-lab.css';
 // buttons that work it, Run, Next event, Start over and the network's, share one screen: a press and
 // what it does are seen together. From 64rem the logs and the safety properties stand beside the
 // picture, the controls under them, and how to read it all under those (raft-lab.css), since the
-// properties are what the lead tells a visitor to watch. Nothing but the controls takes focus, so the
-// tab order is the same either way. Time is the one group every lab has (components/lab/Time.astro):
+// properties are what the lead tells a visitor to watch. Only the controls and the two boxes that
+// scroll take focus, in that order, so the tab order is the same either way. Time is the one group every lab has (components/lab/Time.astro):
 // the clock, Run, Next event, Start over and Speed. What a press did, or why it did nothing, is said
 // on the line under it, over the network's buttons (lib/lab/said.ts): the other labs' stands under all
 // of a part's controls, but here that is 385 px below Cut off the leader, off the screen for a thumb
@@ -178,21 +178,25 @@ const SPEEDS = [
   </div>
 
   <div class="rf-part rf-log-part">
-    <h2 class="lab-heading">Logs</h2>
-    <ol class="rf-logs" role="list">
-      {sim.servers.map((s) => (
-        <li class="rf-log">
-          <span class="rf-log-name">Server {s.id + 1}</span>
-          <ol
-            class="rf-cells"
-            role="list"
-            aria-label={`Server ${s.id + 1}: ${logWords(s)}`}
-            data-rf-log={s.id}
-            set:html={logMarkup(s)}
-          />
-        </li>
-      ))}
-    </ol>
+    <h2 class="lab-heading" id="rf-logs">
+      Logs
+    </h2>
+    <div class="rf-logs-box" role="group" aria-labelledby="rf-logs" tabindex="0">
+      <ol class="rf-logs" role="list">
+        {sim.servers.map((s) => (
+          <li class="rf-log">
+            <span class="rf-log-name">Server {s.id + 1}</span>
+            <ol
+              class="rf-cells"
+              role="list"
+              aria-label={`Server ${s.id + 1}: ${logWords(s)}`}
+              data-rf-log={s.id}
+              set:html={logMarkup(s)}
+            />
+          </li>
+        ))}
+      </ol>
+    </div>
   </div>
 
   <div class="rf-read">

@@ -448,6 +448,28 @@ test('one node holding all 120 pages keeps to its room at every width a phone ha
   }
 });
 
+// The Raft Lab's caption says more as the cluster breaks. Its room is laid out by the width, so a width
+// in between can break what 320 and 390 don't, and until 2026-11-02 at 320 px a second line moved Run.
+test('the raft lab’s caption keeps the room of its longest words at every width a phone has', async ({
+  page,
+}) => {
+  await open(page, LABS.raft.path);
+  const caption = page.locator('[data-rf-summary]');
+  for (let width = 320; width <= 480; width += 5) {
+    await page.setViewportSize({ width, height: 664 });
+    const room = await caption.evaluate((p) => {
+      const opening = p.textContent;
+      const before = p.getBoundingClientRect().height;
+      p.textContent =
+        'No leader in term 123, 1000 entries committed, 2 servers down, the network is split. Servers 1 and 3 and 4 still think they lead older terms.';
+      const after = p.getBoundingClientRect().height;
+      p.textContent = opening;
+      return after - before;
+    });
+    expect(room, `at ${width} px`).toBeLessThanOrEqual(0.5);
+  }
+});
+
 // A press and what it says share a screen, on the smallest screen a phone's bars leave: each part of
 // the controls has its own line, because one by Run would be over a thousand pixels from the settings.
 for (const [name, lab] of Object.entries(LABS)) {
@@ -676,6 +698,23 @@ for (const { phone, viewport } of PHONES) {
             { what: 'a server restarted', selector: '[data-rf-toggle="0"]', by: 'key', ms: 800 },
           ];
           expect(await play(page, presses)).toEqual([]);
+        });
+
+        // A log outgrows its row with a thumb on Send a write: the page holds still, all of it.
+        test('the raft lab, as its logs outgrow their rows', async ({ page }) => {
+          await open(page, lab.path);
+          const write = page.locator('[data-rf-write]');
+          await stand(page, write);
+          const moves = await movesAround(
+            page,
+            async () => {
+              for (let i = 0; i < 25; i++) await write.tap();
+            },
+            300,
+            true,
+          );
+          expect(moves).toEqual([]);
+          await expect(page.locator('[data-rf-log="0"] .rf-cell')).toHaveCount(28);
         });
 
         // Its caption takes the room its longest words take from the first paint, so a run that
