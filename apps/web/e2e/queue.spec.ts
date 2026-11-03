@@ -232,7 +232,7 @@ test('Run on the untouched opening plays worker 2’s crash as it happens, and N
 }) => {
   await page.goto(QUEUE);
   await expect(crashLine(page)).toHaveText(
-    'Every run crashes worker 2 at 2.400 s on purpose, so you can compare settings.',
+    'Every run crashes worker 2 at 2.400 s, to compare settings.',
   );
   // A speed is no action: the run still stands untouched. Slow gives the eye time to see it.
   await page.getByRole('radio', { name: 'Slow' }).check();

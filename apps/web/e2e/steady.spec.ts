@@ -674,6 +674,28 @@ test('the route lab’s first screen on an iPhone 14 holds its map switch and ha
   await expect(page.locator('[data-rl-saved]')).not.toBeInViewport();
 });
 
+// Words are what moves these two. On 2026-11-03 a longer lead and crash line took the Queue Lab's Run
+// row off this screen, and a longer lead took a row of the Backfill Lab's board, with every other test
+// green, since each of those measures from the picture and not from the top of the page.
+test('the queue lab’s first screen on an iPhone 14 holds all its picture and its Run row', async ({
+  page,
+}) => {
+  expect(page.viewportSize()).toEqual({ width: 390, height: 664 });
+  await page.goto(LABS.queue.path);
+  await page.evaluate(() => document.fonts.ready);
+  await expect(page.locator('.qu-map').filter({ visible: true })).toBeInViewport({ ratio: 1 });
+  await expect(page.locator('[data-qu-run]')).toBeInViewport({ ratio: 1 });
+});
+
+test('the backfill lab’s first screen on an iPhone 14 holds two thirds of its board', async ({
+  page,
+}) => {
+  expect(page.viewportSize()).toEqual({ width: 390, height: 664 });
+  await page.goto(LABS.backfill.path);
+  await page.evaluate(() => document.fonts.ready);
+  await expect(page.locator('.bf-board').filter({ visible: true })).toBeInViewport({ ratio: 0.66 });
+});
+
 for (const { phone, viewport } of PHONES) {
   test.describe(`on ${phone}, a lab moves nothing on the screen, and the focus stays put`, () => {
     if (viewport) test.use({ viewport });

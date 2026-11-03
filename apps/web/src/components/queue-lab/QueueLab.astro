@@ -49,10 +49,7 @@ const sim = openingRun();
 // a link's and a run started over, so the script never rewrites them: a run started over stands
 // before it, and the line says where to look.
 const crashes = OPENING.actions
-  .map(
-    (a) =>
-      `Every run crashes worker ${a.worker + 1} at ${seconds(a.at)} on purpose, so you can compare settings.`,
-  )
+  .map((a) => `Every run crashes worker ${a.worker + 1} at ${seconds(a.at)}, to compare settings.`)
   .join(' ');
 const lines = sim.lines
   .slice(-LINES_SHOWN)

@@ -38,7 +38,7 @@ const { entry } = Astro.props;
 const { name } = (await loadProfile()).basics;
 const { Content, headings } = await render(await labEntry(entry));
 const lead =
-  'Three worker programs take a made-up bakery’s orders. Crash one, choose when they acknowledge, meaning tell the queue an order is done, and watch an oven ticket print once, twice, or not at all.';
+  'Three worker programs take a made-up bakery’s orders and tell the queue when each is done. Crash one, choose when they say so, and watch an oven ticket print once, twice, or not at all.';
 // How it is built, in figures from the core itself, so none is typed here.
 const opening = openingRun();
 const ms = (range: readonly [number, number]) => `${range[0]} to ${range[1]} ms`;

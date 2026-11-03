@@ -106,7 +106,7 @@ describe('what a page says of itself', () => {
     ],
     [
       'lab/backfill/index.html',
-      'A nightly job counts a made-up bakery’s orders, one run per day. Backfill the week, which runs the job over days already past, then fail a load, rerun a day, and check every total against the source.',
+      'A nightly job counts a made-up bakery’s orders, one run per day. Backfill the days already past, then fail a load, rerun a day, and check every total against the source.',
     ],
     [
       'lab/backfill/index.html',
@@ -138,12 +138,9 @@ describe('what a page says of itself', () => {
     ],
     [
       'lab/queue/index.html',
-      'Three worker programs take a made-up bakery’s orders. Crash one, choose when they acknowledge, meaning tell the queue an order is done, and watch an oven ticket print once, twice, or not at all.',
+      'Three worker programs take a made-up bakery’s orders and tell the queue when each is done. Crash one, choose when they say so, and watch an oven ticket print once, twice, or not at all.',
     ],
-    [
-      'lab/queue/index.html',
-      'Every run crashes worker 2 at 2.400 s on purpose, so you can compare settings.',
-    ],
+    ['lab/queue/index.html', 'Every run crashes worker 2 at 2.400 s, to compare settings.'],
     ['lab/queue/index.html', 'Idempotency key: skip an order already printed'],
     [
       'lab/queue/index.html',
