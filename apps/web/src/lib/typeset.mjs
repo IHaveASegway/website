@@ -3,8 +3,9 @@
 // "I've" beside "week's" (2026-11-02), two sets of text a careful reader could tell apart. Three places
 // call this: each collection's front matter (lib/posts.ts, lib/lab.ts) and the bio (lib/about.ts), since
 // those reach attributes and files too; every page's text once it is written (lib/typeset-html.mjs);
-// and a lab's app, where it writes its words in the browser. It has no imports, so a lab's chunk can
-// carry it. test/typography.test.ts reads the build for what got past.
+// and a lab's app, with the log and the line the labs share (lib/lab), where they write words in the
+// browser. It has no imports, so a lab's chunk can carry it. test/typography.test.ts reads the build
+// for what got past.
 
 /**
  * An apostrophe inside or at the end of a word is ’. A quote that opens after a space, a dash or a

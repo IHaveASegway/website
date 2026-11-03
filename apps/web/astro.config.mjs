@@ -134,11 +134,11 @@ const indexable = (page) => {
   return !existsSync(file) || !isNoindex(readFileSync(file, 'utf8'));
 };
 
-// Vite's preload helper asks each browser whether it knows modulepreload, in case a polyfill is
-// coming, and Astro tells it none is. Vite writes that polyfill only into an HTML entry it handles,
-// and Astro's pages aren't one, so none ships either way, and every browser since Safari 17 and
-// Firefox 115 knows the word: one that doesn't skips the link and fetches the chunk when it is
-// imported. The question costs every lab's page 55 B of its 5,000 B of eager JavaScript.
+// Vite's preload helper asks each browser whether it knows modulepreload, because Astro tells Vite no
+// polyfill is coming. Telling it one is ships none: Vite writes that polyfill only into an HTML entry
+// it handles, and Astro's pages aren't one. It just stops asking, and uses the word. Every browser
+// since Safari 17 and Firefox 115 knows it, and an older one skips the link and fetches the chunk when
+// it is imported. The question costs every lab's page 55 B of its 5,000 B of eager JavaScript.
 const preloadWithoutTheQuestion = {
   name: 'preload-without-the-question',
   configEnvironment: (name) =>
