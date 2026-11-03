@@ -224,7 +224,7 @@ test('a lab followed from the index arrives with its transition, however often, 
     addEventListener('pagereveal', (event) =>
       sessionStorage.setItem(
         'revealed',
-        String(Boolean((event as Event & { viewTransition?: unknown }).viewTransition)),
+        `${location.pathname} ${Boolean((event as Event & { viewTransition?: unknown }).viewTransition)}`,
       ),
     ),
   );
@@ -235,8 +235,11 @@ test('a lab followed from the index arrives with its transition, however often, 
       await page.goto('/lab/');
       await page.locator(`a[href="/lab/${slug}/"]`).first().click();
       await page.waitForURL(`**/lab/${slug}/`);
-      await page.waitForLoadState('load');
-      expect(await page.evaluate(() => sessionStorage.getItem('revealed')), slug).toBe('true');
+      // The event comes with the page's first frame, which can follow load, so until then
+      // this reads what the index left. Hence the path, and the wait.
+      await expect
+        .poll(() => page.evaluate(() => sessionStorage.getItem('revealed')))
+        .toBe(`/lab/${slug}/ true`);
     }
   }
   expect(errors).toEqual([]);
