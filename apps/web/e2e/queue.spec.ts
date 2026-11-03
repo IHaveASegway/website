@@ -850,9 +850,13 @@ test('a change of width takes focus to the same New orders button in the copy no
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(QUEUE);
   const poison = page.getByRole('button', { name: 'Send a poison order' });
-  // A hover loads the app, which then listens for the width.
-  await page.locator('[data-qu-map="wide"]').hover();
-  await expect(page.locator('[data-qu-lines] li')).not.toHaveCount(0);
+  // The app listens for the width once it has arrived, and on a real network that can be after the
+  // width changes. The build draws what the app would, so nothing says it's here until a press it
+  // keeps and plays on arrival moves the clock.
+  const clock = page.locator('[data-qu-clock]');
+  const drawn = (await clock.textContent()) ?? '';
+  await page.getByRole('button', { name: 'Next event' }).click();
+  await expect(clock).not.toHaveText(drawn, { timeout: 15_000 });
   await poison.focus();
   await page.setViewportSize({ width: 1000, height: 900 });
   await expect(page.locator('.qu-new-settings [data-qu-poison]')).toBeFocused();
