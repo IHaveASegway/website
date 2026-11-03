@@ -248,8 +248,10 @@ export function savedText(before: Measured, after: Measured): string {
 
 /** Why the vans hold what they hold: an even split of the day's boxes and a margin, so changing the
  *  vans changes it. Nothing when there is no order, and no split when there is one: one van takes it.
- *  Only where that margin sets the limit is it what makes VROOM balance the loads, so only there does
- *  the line say so: the other limits have reasons of their own. */
+ *  Only where that margin sets the limit does the line say so: the other limits have reasons of their
+ *  own. What the margin does is keep any one van from taking every box. It doesn't even out the loads:
+ *  VROOM's busy Saturday is 19, 18 and 5 boxes. Two orders of one box on two vans round up to room for
+ *  both, so there the line claims no more than the arithmetic. */
 export function roomText(
   data: RouteData,
   orders: readonly number[],
@@ -262,11 +264,11 @@ export function roomText(
   if (orders.length === 1) return `One order: one van takes its ${all}.`;
   if (vans === 1) return `One van takes all ${all}.`;
   const share = shareCapacity(data, orders, vans);
-  const most = `at most ${capacity} of the ${all}`;
-  if (capacity > share) return `Each van takes ${most}: room for every order, dealt in turn.`;
-  if (capacity > Math.ceil((boxes / vans) * SHARE))
-    return `Each van takes ${most}: the largest order.`;
-  return `Each van can carry ${most}, ${SHARE} times an even split, so VROOM has to balance the loads.`;
+  const most = `Each van can carry at most ${capacity} of the ${all}`;
+  if (capacity > share) return `${most}: room for every order, dealt in turn.`;
+  if (capacity > Math.ceil((boxes / vans) * SHARE)) return `${most}: the largest order.`;
+  const split = `${most}, ${SHARE} times an even split`;
+  return capacity < boxes ? `${split}, so VROOM can’t put them all on one van.` : `${split}.`;
 }
 
 /** The tip over a place on a map, line by line: its name, its order, and where it falls in this

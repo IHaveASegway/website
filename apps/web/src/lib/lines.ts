@@ -146,11 +146,11 @@ export function raftLine(sim: Sim): RaftLine {
 export const RAFT_RECOVERY = 5_000;
 
 /**
- * The Raft line's fix on the board: the opening's leader crashed where the run stands, and Raft
- * electing another, so the board shows what the protocol does about the failure it is built for:
- * "Crash server 1, and server 5 takes over as leader after 221 ms, with nothing lost: all three
- * committed entries are still there." `crashed` is the opening replayed with that crash as its last
- * action; this plays it on, event by event, until another server leads. Refused when none leads
+ * The Raft line's fix on the board: a leader crashed, and Raft electing another, so the board shows
+ * what the protocol does about the failure it is built for: "Crash server 1, and server 3 takes over
+ * as leader after 196 ms, with nothing lost: all three committed entries are still there." `opening`
+ * is the run at the crash's moment, and `crashed` is the same run with that crash as its last action;
+ * this plays it on, event by event, until another server leads. Refused when none leads
  * within RAFT_RECOVERY, when a property broke, or when the new leader's log lacks any entry the old
  * leader held, committed or not, since the sentence says nothing was lost.
  */
@@ -250,7 +250,7 @@ export function queueFact(keyed: QueueSim): string {
   const kept = keptOnce(keyed);
   const crashed = (kept.effects[0]?.worker ?? 0) + 1;
   const seconds = Math.round(keyed.now / 1000);
-  return `Worker ${crashed} crashes, and with an idempotency key, an id workers check before printing, order ${kept.id}’s oven ticket still prints once. ${firstUp(orders(keyed.doneCount))} done in ${seconds} s, none lost or printed twice.`;
+  return `Worker ${crashed} crashes and order ${kept.id} is sent again. Workers check its id, the idempotency key, before printing, so its oven ticket prints once. ${firstUp(orders(keyed.doneCount))} done in ${seconds} s, none lost or printed twice.`;
 }
 
 /** The Queue line's fix on the board, after the crash its describer tells: "With an idempotency

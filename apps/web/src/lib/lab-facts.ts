@@ -4,8 +4,8 @@ import { OPENING as CACHE, openingRun as cacheOpening } from './cache/view';
 import { backfillFact, cacheFact, figureWords, queueFact, raftFailover } from './lines';
 import { replay as replayQueue } from './queue/sim';
 import { OPENING as QUEUE } from './queue/view';
-import { leaderOf, replay as replayRaft } from './raft/sim';
-import { OPENING as RAFT, openingRun as raftOpening } from './raft/view';
+import { replay as replayRaft } from './raft/sim';
+import { landingStory, OPENING as RAFT } from './raft/view';
 import { formatDuration } from './route-lab/format';
 import { routeLabPicture } from './route-lab/picture';
 
@@ -32,16 +32,17 @@ const backfill = () => backfillFact(backfillOpening(), backfillOpening('overwrit
 // places. Until 2026-11-02 the Lab index said every safety property held over the opening run, which
 // is true and shows nothing: 249 events, one election, three writes and no fault to survive, on a
 // card that tells the visitor to crash the servers. That sentence stays the lab's own status line.
+// The crash is the one the run a visitor lands on plays (raft/view.ts, landingStory), so the card
+// names the server and the time the page then shows. Which server wins depends on the moment: until
+// 2026-11-03 this crashed the leader where the opening stands, 100 ms earlier, and the card named
+// server 5 after 221 ms over a page that showed server 3 after 196 ms.
 function raftFailedOver(): string {
-  const opening = raftOpening();
-  const leader = leaderOf(opening);
-  if (!leader) throw new Error('lab-facts: the Raft opening has no leader to crash');
-  const crashed = replayRaft(
-    { seed: RAFT.seed },
-    [...RAFT.actions, { at: RAFT.until, kind: 'crash', node: leader.id }],
-    RAFT.until,
+  const [crash] = landingStory();
+  if (!crash) throw new Error('lab-facts: the Raft story has no crash');
+  return raftFailover(
+    replayRaft({ seed: RAFT.seed }, RAFT.actions, crash.at),
+    replayRaft({ seed: RAFT.seed }, [...RAFT.actions, crash], crash.at),
   );
-  return raftFailover(opening, crashed);
 }
 
 // The Route Lab: its figures say what they measure against and that the bakery is made up, in the

@@ -210,7 +210,7 @@ describe('the two plans', () => {
     expect(capacityFor(toy, orders, 3)).toBe(5);
     expect(dealtInTurn(toy, orders, 3, 5)).toEqual({ routes: [[1, 4], [2], [3]], unassigned: [] });
     expect(roomText(toy, orders, 3, 5)).toBe(
-      'Each van takes at most 5 of the 9 boxes: room for every order, dealt in turn.',
+      'Each van can carry at most 5 of the 9 boxes: room for every order, dealt in turn.',
     );
     // The ready-made days need no raise: the pipeline's share rule already deals every order.
     for (const day of data.scenarios)
@@ -535,7 +535,7 @@ describe('the markup both the build and the browser draw', () => {
   test('known answers: a van’s room is a share of the day’s boxes, said as one', () => {
     // A busy Saturday: 42 boxes, 3 vans of 19, 1.3 times a third of 42 rounded up.
     expect(roomText(data, busy.orders, 3, 19)).toBe(
-      'Each van can carry at most 19 of the 42 boxes, 1.3 times an even split, so VROOM has to balance the loads.',
+      'Each van can carry at most 19 of the 42 boxes, 1.3 times an even split, so VROOM can’t put them all on one van.',
     );
     expect(roomText(data, busy.orders, 1, capacityFor(data, busy.orders, 1))).toBe(
       'One van takes all 42 boxes.',
@@ -553,7 +553,15 @@ describe('the markup both the build and the browser draw', () => {
     // Two orders that are together the largest: the room is the largest order, more than the share.
     const two = [three, one];
     expect(roomText(data, two, 4, capacityFor(data, two, 4))).toBe(
-      'Each van takes at most 3 of the 4 boxes: the largest order.',
+      'Each van can carry at most 3 of the 4 boxes: the largest order.',
+    );
+    // Two orders of one box on two vans round up to room for both on one van, so the line stops at the
+    // arithmetic there: a tap can make this day.
+    const ones = data.points.filter((p) => p.qty === 1).map((p) => p.i);
+    const pair = ones.slice(0, 2);
+    expect(capacityFor(data, pair, 2)).toBe(2);
+    expect(roomText(data, pair, 2, 2)).toBe(
+      'Each van can carry at most 2 of the 2 boxes, 1.3 times an even split.',
     );
     expect(roomText(data, [], 2, 1)).toBe('');
   });

@@ -34,8 +34,8 @@ export function shareCapacity(data: RouteData, orders: readonly number[], vans: 
 
 /** Boxes a van holds: the share rule above, raised until the orders dealt in turn all fit. Dealing
  *  can leave an order no van has room for while the vans hold enough between them (2, 2 and 2 boxes,
- *  then 3, in three vans of 4), and then the two plans would not serve the same orders. VROOM still
- *  has to balance the loads. The ready-made days need no raise. */
+ *  then 3, in three vans of 4), and then the two plans would not serve the same orders. The ready-made
+ *  days need no raise. */
 export function capacityFor(data: RouteData, orders: readonly number[], vans: number): number {
   let capacity = shareCapacity(data, orders, vans);
   while (dealtInTurn(data, orders, vans, capacity).unassigned.length > 0) capacity++;

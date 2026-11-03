@@ -354,10 +354,10 @@ test('the third: a poison order, then no more orders: under requeue the queue ne
     async () => (await property(page, 'drains').getAttribute('data-held')) === 'false',
   );
   await expect(summary(page)).toHaveText(
-    /^The queue did not drain: 1 order was still queued or in flight 30 s after the producer stopped, while poison order 39 kept failing and going back to the head of the queue\./,
+    /^The queue did not drain: 1 order was still queued or in flight 30 s after orders stopped, while poison order 39 kept failing and going back to the head of the queue\./,
   );
   await expect(log(page)).toContainText(
-    '34.000 s 30 s after the producer stopped, 1 order was still queued or in flight: the queue does not drain',
+    '34.000 s 30 s after orders stopped, 1 order was still queued or in flight: the queue does not drain',
   );
 
   // The same, with dead-lettering: four tries, 200, 400 and 800 ms apart, then the siding.
@@ -428,11 +428,11 @@ test('and a rush: with three workers up, 14 orders a second outrun them, and the
 }) => {
   test.setTimeout(60_000);
   await page.goto(QUEUE);
-  // The note under the loads says what the workers up print: two after the opening's crash.
+  // The note under the loads says what the workers up can print: two after the opening's crash.
   const capacity = page.locator('[data-qu-capacity]');
-  await expect(capacity).toHaveText('Two workers are up and print about 6.5 a second.');
+  await expect(capacity).toHaveText('Two workers up can print about 6.5 a second.');
   await page.getByRole('button', { name: 'Restart worker 2' }).click();
-  await expect(capacity).toHaveText('Three workers are up and print about 9.7 a second.');
+  await expect(capacity).toHaveText('Three workers up can print about 9.7 a second.');
   await page.getByRole('radio', { name: 'Rush' }).check();
   const waiting = async () =>
     Number(/^(\d+) waiting/.exec((await page.locator('[data-qu-wait]').textContent()) ?? '')?.[1]);

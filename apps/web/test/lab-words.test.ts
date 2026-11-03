@@ -101,12 +101,24 @@ describe('every write-up has one shape', () => {
 describe('what a page says of itself', () => {
   const SAID: readonly (readonly [string, string])[] = [
     [
+      'index.html',
+      'A simulation of five servers keeping the same log, the ordered list of every write.',
+    ],
+    [
+      'lab/backfill/index.html',
+      'A nightly job counts a made-up bakery’s orders, one run per day. Backfill the week, which runs the job over days already past, then fail a load, rerun a day, and check every total against the source.',
+    ],
+    [
+      'lab/backfill/index.html',
+      'Choose how a load writes, and the week starts over under it, before the job is switched on.',
+    ],
+    [
       'lab/backfill/index.html',
       'This is each day’s steps over time. A hollow bar is a sensor, the step that waits for its file. A filled bar is a step at work, and a cross is an attempt that failed. A dotted track with nothing on it is a run waiting its turn or waiting to retry, and the vertical line is the current time.',
     ],
     [
       'lab/backfill/index.html',
-      'This is a deterministic simulation: the simulator controls time, the export files and every failure, with virtual time in minutes and one seeded random stream, and it records your button presses where they happen.',
+      'This is a deterministic simulation: the simulator controls time, the export files and every failure, with virtual time in minutes and one seeded random stream, and it records your button presses at the moment they happen.',
     ],
     [
       'lab/backfill/index.html',
@@ -118,11 +130,15 @@ describe('what a page says of itself', () => {
     ],
     [
       'lab/cache/index.html',
+      'Coalesce misses: one reader fetches a fresh copy and the rest wait for it. Serve stale while refreshing: readers get the old copy while one fetch gets a fresh one. Refresh early: a busy page gets fetched before it expires. Jitter expiry times: pages fetched together expire apart, which shows after a flush.',
+    ],
+    [
+      'lab/cache/index.html',
       'The readers, the four nodes and the database are one TypeScript module, a deterministic simulation that runs in virtual time.',
     ],
     [
       'lab/queue/index.html',
-      'Three worker programs take a made-up bakery’s orders. Crash one, choose when they acknowledge, meaning tell the queue an order is done, and watch its oven ticket print once, twice, or not at all.',
+      'Three worker programs take a made-up bakery’s orders. Crash one, choose when they acknowledge, meaning tell the queue an order is done, and watch an oven ticket print once, twice, or not at all.',
     ],
     [
       'lab/queue/index.html',
@@ -131,7 +147,11 @@ describe('what a page says of itself', () => {
     ['lab/queue/index.html', 'Idempotency key: skip an order already printed'],
     [
       'lab/queue/index.html',
-      'Calm is 5 orders a second, Busy 9 and Rush 14. Two workers are up and print about 6.5 a second.',
+      'Turn the idempotency key on or off, and the run starts over under it, before the same crash.',
+    ],
+    [
+      'lab/queue/index.html',
+      'Calm is 5 orders a second, Busy 9 and Rush 14. Two workers up can print about 6.5 a second.',
     ],
     ['lab/queue/index.html', 'A poison order is one that always fails.'],
     [
@@ -140,7 +160,7 @@ describe('what a page says of itself', () => {
     ],
     [
       'lab/raft/index.html',
-      'Each row is one server’s own view of the log, and each dot is one entry, with its term under it. A filled dot is committed: a majority holds it, and it can never be lost. A hollow dot means its server hasn’t heard yet that the entry is committed.',
+      'Each row is one server’s own view of the log, and each dot is one entry, with its term under it. A filled dot is committed: a majority holds it, and it can never be lost. A hollow dot means its server hasn’t heard that the entry is committed, and it may never be.',
     ],
     ['lab/raft/index.html', 'Network split: no message crosses it'],
     [
@@ -173,13 +193,27 @@ describe('what a page says of itself', () => {
     () => {
       const page = nbsp(words(read('lab/routes/index.html')));
       expect(page).toContain(
-        'VROOM, an open-source route optimizer, plans a made-up Seattle bakery’s deliveries in your browser. On a busy Saturday, it cuts 5 h 34 min of driving, as the orders came in, to 3 h 12 min.',
+        'VROOM, an open-source route optimizer, plans a made-up Seattle bakery’s deliveries in your browser. On a busy Saturday, it plans 3 h 12 min of driving, against 5 h 34 min as the orders came in.',
       );
+      // Not "has to balance the loads": VROOM's plan under that line is 19, 18 and 5 boxes.
       expect(page).toContain(
-        'Each van can carry at most 19 of the 42 boxes, 1.3 times an even split, so VROOM has to balance the loads.',
+        'Each van can carry at most 19 of the 42 boxes, 1.3 times an even split, so VROOM can’t put them all on one van.',
       );
     },
   );
+
+  // The labs built the same way say so in one form of words, and two forms read as two mechanisms.
+  // Until 2026-11-03 the four had three forms of each of these.
+  const ONE_FORM = ['raft', 'queue', 'cache', 'backfill'].map((slug) => `lab/${slug}/index.html`);
+  for (const file of ONE_FORM)
+    test.runIf(html.includes(file))(`${file} says how a run replays in one form of words`, () => {
+      const page = nbsp(words(read(file)));
+      expect(page).toContain('records your button presses at the moment they happen');
+      expect(page).toContain('drawn when the site was built');
+      expect(page).not.toMatch(
+        /presses are recorded|where they happen|drawn in advance|before any script/,
+      );
+    });
 
   // A description is an attribute, which the build's typographer never reads, so its marks are curled
   // where it's written. Writing's lead, its description and the feed say one thing.

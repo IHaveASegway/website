@@ -166,7 +166,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     if (sim.violation) return statusText(sim);
     if (Number.isFinite(nextTime(sim))) return null;
     return finished(sim)
-      ? 'Every run has finished. Run plays the week again from when the job was switched on, or clear a day, then Run, to rerun it.'
+      ? 'Every run has finished. Run plays the week again from 00:00, or clear a day, then Run, to rerun it.'
       : 'Nothing more is due, so the clock stops here.';
   }
 
@@ -177,7 +177,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
    *  limit of runs: then Run plays what the picture told, under that limit, as it happens. */
   const untouched = () =>
     told && sim.actions.slice(OPENING.actions.length).every((a) => a.kind === 'max-active-runs');
-  const AGAIN = 'The week plays again from when the job was switched on.';
+  const AGAIN = 'The week plays again from 00:00, before the job is switched on.';
 
   /** What happened after a line, in the log's words: its lines, up to the last four of them. */
   function since(line: Line | undefined): string {

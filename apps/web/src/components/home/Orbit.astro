@@ -33,7 +33,7 @@ const leader = lead?.server;
 const count = inWords(servers.length);
 const others = inWords(servers.length - 1);
 const caption = leader
-  ? `A simulation of ${count} servers keeping the same log, the ordered list of every change. Server ${leader.id + 1} is the leader in this picture, and its heartbeats tell the other ${others} it’s still up, so they keep following it.`
+  ? `A simulation of ${count} servers keeping the same log, the ordered list of every write. Server ${leader.id + 1} is the leader in this picture, and its heartbeats tell the other ${others} it’s up, so they keep following it.`
   : `${count[0]?.toUpperCase()}${count.slice(1)} servers keeping one log.`;
 ---
 

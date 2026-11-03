@@ -355,6 +355,7 @@ One vocabulary, so nobody has to translate ([ADR 0029](adr/0029-one-voice-one-co
 | US English | colour, neighbour |
 | random seed, on a lab's clock | seed alone, which a reader took for poppy seeds or tournament seeding |
 | deterministic simulation, where a lab says how it's built | "a simulator around it", "a picture the build drew" |
+| orders come in, orders stop, on the Queue Lab's page and its log, as its buttons say | published, the producer |
 
 ## Firewall classes for copy
 

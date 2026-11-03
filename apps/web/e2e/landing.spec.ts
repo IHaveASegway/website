@@ -234,7 +234,7 @@ const FIXES = [
     back: 'Virtual time 2.',
     link: '#seed-7&coalesce=on',
     words: 'Coalescing is on. The run starts over under it, at 2.500 s, before the menu expires.',
-    log: 'its readers miss, and each node sends one fetch for them all',
+    log: 'its readers miss, and one fetches it for them all',
   },
   {
     name: 'backfill',

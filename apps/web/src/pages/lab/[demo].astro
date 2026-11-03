@@ -45,7 +45,7 @@ const { name } = (await loadProfile()).basics;
 // Astro's root is the working directory: astro.config.mjs sets no other (node-solver.ts).
 const picture = await routeLabPicture(process.cwd());
 const { Content, headings } = await render(await labEntry(entry));
-const lead = `VROOM, an open-source route optimizer, plans a made-up Seattle bakery’s deliveries in your browser. On a busy Saturday, it cuts ${formatDuration(picture.before.measured.drive)} of driving, as the orders came in, to ${formatDuration(picture.after.measured.drive)}.`;
+const lead = `VROOM, an open-source route optimizer, plans a made-up Seattle bakery’s deliveries in your browser. On a busy Saturday, it plans ${formatDuration(picture.after.measured.drive)} of driving, against ${formatDuration(picture.before.measured.drive)} as the orders came in.`;
 // How it is built, in figures measured here from the files the page serves, so none is typed:
 // the solver's WebAssembly and the route data, gzip -9 as the budgets count them (ADR 0016).
 const kilobytes = (bytes: number) => `${Math.round(bytes / 1000)} KB`;

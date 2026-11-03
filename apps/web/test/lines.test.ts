@@ -33,7 +33,7 @@ import {
 import { replay as replayQueue } from '../src/lib/queue/sim';
 import { OPENING as QUEUE, openingRun as queueOpening } from '../src/lib/queue/view';
 import { leaderOf, replay as replayRaft } from '../src/lib/raft/sim';
-import { OPENING as RAFT, openingRun } from '../src/lib/raft/view';
+import { landingStory, OPENING as RAFT, openingRun, STORY_ENDS } from '../src/lib/raft/view';
 import type { RouteData } from '../src/lib/route-lab/data';
 import type { Day } from '../src/lib/route-lab/days';
 import { dayLine, NBSP } from '../src/lib/route-lab/format';
@@ -176,9 +176,24 @@ describe('the Raft line', () => {
     replayRaft({ seed: RAFT.seed }, [...RAFT.actions, { at: until, kind: 'crash', node }], until);
 
   test("the board's fix: crash the leader, and another leads the next term with every entry kept", () => {
+    // Which server wins depends on the moment: this is a crash where the opening stands.
     expect(raftFailover(openingRun(), crashedAt(RAFT.until, 0))).toBe(
       'Crash server 1, and server 5 takes over as leader after 221 ms, with nothing lost: all three committed entries are still there.',
     );
+  });
+
+  // The card's fact is the crash the page goes on to show: a visitor reads it, opens the lab, and the
+  // run they land on crashes the same server and elects the one the card names, as fast as it says.
+  // Until 2026-11-03 the card said server 5 after 221 ms, over a page that showed server 3 after 196.
+  test("the card's fact is the crash the run a visitor lands on plays: the same server, the same time", async () => {
+    expect(await labFact('raft')).toBe(
+      'Crash server 1, and server 3 takes over as leader after 196 ms, with nothing lost: all three committed entries are still there.',
+    );
+    const [crash] = landingStory();
+    const story = replayRaft({ seed: RAFT.seed }, [...RAFT.actions, ...landingStory()], STORY_ENDS);
+    const won = story.lines.find((line) => line.text.includes('wins term 2'));
+    expect(won?.text).toMatch(/^Server 3 wins term 2/);
+    expect(Math.round((won?.at ?? 0) - (crash?.at ?? 0))).toBe(196);
   });
 
   // "Nothing lost" says more than "its committed entries kept": Raft may drop an entry it never
@@ -245,7 +260,7 @@ describe('the Queue line', () => {
   test("the index's fact: the same crash with the idempotency key prints order 18 once", () => {
     const keyed = replayQueue({ ...QUEUE.config, key: true }, QUEUE.actions, QUEUE.until);
     expect(queueFact(keyed)).toBe(
-      'Worker 2 crashes, and with an idempotency key, an id workers check before printing, order 18’s oven ticket still prints once. 25 orders done in 4 s, none lost or printed twice.',
+      'Worker 2 crashes and order 18 is sent again. Workers check its id, the idempotency key, before printing, so its oven ticket prints once. 25 orders done in 4 s, none lost or printed twice.',
     );
     // The opening itself printed order 18 twice, so it cannot be the fact.
     expect(() => queueFact(queueOpening())).toThrow(/doubled/);
