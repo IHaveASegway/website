@@ -1,13 +1,18 @@
+import sharp from 'sharp';
 import { describe, expect, test } from 'vitest';
 import {
+  cardTree,
   drawnStrings,
   homeCard,
+  ogSvg,
   ogTree,
   OG_SIZE,
   renderOg,
   titleSize,
+  wordWidth,
   type OgArt,
   type OgCard,
+  type OgNode,
 } from '../src/lib/og';
 import { boardArt, demoArt, OG_BOARD, OG_LINE } from '../src/lib/og-lines';
 import { demoPicture } from '../src/lib/route-lab/og-map';
@@ -196,6 +201,160 @@ test("a title's size steps down with its length, so the longest title still fits
   expect(titleSize('x'.repeat(40))).toBe(84);
   expect(titleSize('x'.repeat(41))).toBe(72);
   expect(titleSize('x'.repeat(70))).toBe(72);
+});
+
+// A title wraps only between its words (Cache Lab's card read "Stamped / e a cache" on 2026-11-02).
+// Satori with embedFont false leaves its text as <text> runs, each with its place and width, so the
+// lines it chose can be read back. Pixels could not be scanned for this, and a byte comparison with
+// a redraw says nothing about what the redraw looks like.
+interface TitleRun {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly text: string;
+}
+
+/** The runs of a card's SVG drawn at the title's size: the label's size is another, 44 px. */
+function titleRuns(svg: string, size: number): TitleRun[] {
+  return [...svg.matchAll(/<text\b([^>]*)>([^<]*)<\/text>/g)].flatMap(
+    ([, attributes = '', text = '']) => {
+      const read = (name: string) =>
+        Number(new RegExp(`\\b${name}="([\\d.]+)"`).exec(attributes)?.[1] ?? NaN);
+      return read('font-size') === size
+        ? [{ x: read('x'), y: read('y'), width: read('width'), text: decode(text) }]
+        : [];
+    },
+  );
+}
+
+/** The lines those runs make, top to bottom, each run left to right. */
+function linesOf(runs: readonly TitleRun[]): string[] {
+  const rows = [...new Set(runs.map((run) => run.y))].sort((a, b) => a - b);
+  return rows.map((y) =>
+    runs
+      .filter((run) => run.y === y)
+      .sort((a, b) => a.x - b.x)
+      .map((run) => run.text)
+      .join('')
+      .trim(),
+  );
+}
+
+/** What's wrong with how a title was wrapped: a word cut across lines, or a run past the card's
+ *  margin. */
+function wrapProblems(title: string, runs: readonly TitleRun[], end: number): string[] {
+  const lines = linesOf(runs);
+  const whole = lines.flatMap((line) => line.split(/\s+/));
+  return [
+    ...(whole.join(' ') === title ? [] : [`"${title}" wraps as ${JSON.stringify(lines)}`]),
+    ...runs
+      .filter((run) => run.x + run.width > end + 0.5)
+      .map((run) => `"${run.text}" runs past x = ${end}`),
+  ];
+}
+
+/** Where a card's title has to stop: its right margin, or the map's edge less that margin. */
+const rightEdge = (art: OgArt) => {
+  const width = art.picture?.readUInt32BE(16);
+  return (
+    (width === undefined || width === OG_SIZE.width ? OG_SIZE.width : OG_SIZE.width - width) - 72
+  );
+};
+
+for (const file of previewed) {
+  test(`${file}: its card's title wraps only between its words`, async () => {
+    const page = read(file);
+    const card = cardFrom(
+      decode(meta(page, 'og:title') ?? ''),
+      decode(meta(page, 'og:image:alt') ?? ''),
+    ) as OgCard;
+    const art = await artFor(file);
+    const runs = titleRuns(await ogSvg(cardTree(card, art), false), titleSize(card.title));
+    expect(wrapProblems(card.title, runs, rightEdge(art))).toEqual([]);
+  });
+}
+
+describe('known answers: a title wraps between its words, whatever its size', () => {
+  const line = { width: OG_LINE.width, height: OG_LINE.height };
+  const stripe = sharp({
+    create: { ...line, channels: 3, background: { r: 0, g: 0, b: 0 } },
+  })
+    .png()
+    .toBuffer();
+
+  /** The lines a title draws in, with no picture or with one across the top. */
+  async function drawn(title: string, picture?: Buffer) {
+    const art = { picture };
+    const size = titleSize(title);
+    const runs = titleRuns(await ogSvg(cardTree({ title, label: 'Lab' }, art), false), size);
+    return { lines: linesOf(runs), problems: wrapProblems(title, runs, rightEdge(art)) };
+  }
+
+  // Exactly 16 characters and over a line at 100 px, so it wraps, and "Stampede" is over half a line.
+  test('the title that broke, under its line', async () => {
+    expect(await drawn('Stampede a cache', await stripe)).toEqual({
+      lines: ['Stampede', 'a cache'],
+      problems: [],
+    });
+  });
+
+  // The verifier's list on 2026-11-02: each broke at its own size under a rule of title length.
+  for (const title of [
+    'Swamped workers',
+    'Momentum waves',
+    'Backpressure and retries',
+    'Implementation details',
+    'Misconfiguration at scale',
+  ])
+    test(title, async () => expect((await drawn(title)).problems).toEqual([]));
+
+  // A word wider than the line still has to stay on the card: this one breaks.
+  test('a word wider than the line breaks, and stays on the card', async () => {
+    const title = 'a_long_identifier_that_is_much_wider_than_any_line_of_the_card';
+    expect(wordWidth(title, titleSize(title))).toBeGreaterThan(1056);
+    const { lines, problems } = await drawn(title);
+    expect(lines.length).toBeGreaterThan(1);
+    expect(lines.join('')).toBe(title);
+    expect(problems.filter((problem) => problem.includes('runs past'))).toEqual([]);
+  });
+
+  // The measure is the title's own column. This word fits a card with nothing beside it, and is
+  // wider than the column the Route Lab's map leaves.
+  test('a word that fits the card can still be wider than the column a map leaves it', async () => {
+    const title = 'Internationalization';
+    const size = titleSize(title);
+    const width = wordWidth(title, size);
+    expect(width).toBeLessThan(1056);
+    expect(width).toBeGreaterThan(OG_SIZE.width - 491 - 144);
+    const colors = { background: '', foreground: '', muted: '', accent: '' };
+    const style = (tree: OgNode) => JSON.stringify(tree);
+    expect(style(ogTree({ title, label: 'B' }, colors))).not.toContain('break-word');
+    expect(
+      style(ogTree({ title, label: 'B' }, colors, { src: 'x', width: 491, height: 630 })),
+    ).toContain('break-word');
+  });
+
+  // The checker catches the fault it is here for: the same tree with breaking left on, as it was.
+  test('with breaking always on, the cut word is what the check finds', async () => {
+    const title = 'Stampede a cache';
+    const tree = cardTree({ title, label: 'Lab' }, { picture: await stripe });
+    const withBreaking = JSON.parse(
+      JSON.stringify(tree).replace(
+        '"textWrap":"balance"',
+        '"textWrap":"balance","wordBreak":"break-word"',
+      ),
+    ) as OgNode;
+    const runs = titleRuns(await ogSvg(withBreaking, false), titleSize(title));
+    expect(linesOf(runs)).toEqual(['Stamped', 'e a cache']);
+    expect(wrapProblems(title, runs, 1128)).toEqual([
+      '"Stampede a cache" wraps as ["Stamped","e a cache"]',
+    ]);
+  });
+
+  test('a run past the margin is reported too', () => {
+    const run = { x: 1000, y: 10, width: 200, text: 'Long' };
+    expect(wrapProblems('Long', [run], 1128)).toEqual(['"Long" runs past x = 1128']);
+  });
 });
 
 test('pages without a canonical URL (the 404) carry no preview tags', () => {

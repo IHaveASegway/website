@@ -1,3 +1,4 @@
+import { create } from 'fontkitten';
 import satori from 'satori';
 import sharp from 'sharp';
 import tokensCss from '../styles/tokens.css?raw';
@@ -69,6 +70,9 @@ export function titleSize(title: string): number {
   return 72;
 }
 
+/** The title's tracking at a size, in px. */
+const letterSpacing = (size: number) => size * -0.012;
+
 /** og:title and og:image:alt, written from the drawn strings and nothing else. */
 export const ogTitle = (card: OgCard) =>
   card.byline ? card.title : `${card.title} · ${card.label}`; // an ogTitle, for the head
@@ -106,6 +110,14 @@ const node = (style: OgNode['props']['style'], ...children: (OgNode | string)[])
   props: { style: { display: 'flex', ...style }, children },
 });
 
+/** The width a word of the title takes at a size, in px, with the tree's tracking, read from the
+ *  face the card draws it in. Satori measures it the same way. */
+export function wordWidth(word: string, size: number): number {
+  const face = titleFace();
+  const advance = face.glyphsForString(word).reduce((sum, glyph) => sum + glyph.advanceWidth, 0);
+  return (advance / face.unitsPerEm) * size + word.length * letterSpacing(size);
+}
+
 /** The card as satori's element tree. Colors come in, so the tree holds no literal of its own.
  *  With a picture at the right, the text keeps the left of the card. With one across the top, the
  *  text keeps the rest beneath it: the two are boxes side by side or one over the other, never
@@ -116,6 +128,12 @@ export function ogTree(
   picture?: OgPicture,
 ): OgNode {
   const above = picture?.width === OG_SIZE.width;
+  const size = titleSize(card.title);
+  // What the title has across: its box, less the padding and a post's inset below.
+  const room =
+    (picture && !above ? OG_SIZE.width - picture.width : OG_SIZE.width) -
+    2 * 72 -
+    (!picture && card.byline ? 2 * 56 : 0);
   const text = node(
     {
       // Satori sizes boxes as content-box: without border-box, the padding would push the card
@@ -147,12 +165,16 @@ export function ogTree(
         {
           fontFamily: 'Archivo Display',
           fontWeight: 600,
-          fontSize: titleSize(card.title),
+          fontSize: size,
           lineHeight: 1.06,
-          letterSpacing: titleSize(card.title) * -0.012,
+          letterSpacing: letterSpacing(size),
           textWrap: 'balance',
-          // A word longer than a line, such as a long identifier, breaks instead of leaving the card.
-          wordBreak: 'break-word',
+          // A word wider than the line, such as a long identifier, breaks instead of leaving the
+          // card. Only then: balancing narrows the box until the line count would rise, and with
+          // breaking on, a cut word keeps the count, so it cut one that fit: "Stamped / e a cache".
+          ...(card.title.split(/\s+/).some((word) => wordWidth(word, size) > room)
+            ? { wordBreak: 'break-word' }
+            : {}),
         },
         card.title,
       ),
@@ -211,6 +233,17 @@ function font(file: string): Buffer {
   return Buffer.from(entry[1].slice(entry[1].indexOf(',') + 1), 'base64');
 }
 
+function openFace(file: string) {
+  const face = create(font(file));
+  if (face.isCollection) throw new Error(`og.ts: ${file} is a collection, not a font`);
+  return face;
+}
+
+let display: ReturnType<typeof openFace> | undefined;
+
+/** The face titles are drawn in, read once. */
+const titleFace = () => (display ??= openFace('archivo-expanded-semibold.ttf'));
+
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const PNG_KEEP = new Set(['IHDR', 'PLTE', 'tRNS', 'IDAT', 'IEND']);
 
@@ -227,32 +260,12 @@ export function stripPng(png: Buffer): Buffer {
   return Buffer.concat(parts);
 }
 
-/** The card as a PNG, with no metadata chunks (scripts/image-metadata.mjs checks it again), with
- *  its picture, a PNG, and its lab's colour on the lamp, when it has them. */
-export async function renderOg(card: OgCard, art: OgArt = {}): Promise<Buffer> {
-  const { picture, line } = art;
-  const colors = themeColors(tokensCss, 'dark');
-  const token = (name: string) => {
-    const value = colors.get(name);
-    if (!value) throw new Error(`og.ts: tokens.css has no --${name}`);
-    return hex(value);
-  };
-  const tree = ogTree(
-    card,
-    {
-      background: token('background'),
-      foreground: token('foreground'),
-      muted: token('muted-foreground'),
-      accent: token(line ? `line-${line}` : 'primary'),
-    },
-    picture && {
-      src: `data:image/png;base64,${picture.toString('base64')}`,
-      width: picture.readUInt32BE(16),
-      height: picture.readUInt32BE(20),
-    },
-  );
-  const svg = await satori(tree as unknown as Parameters<typeof satori>[0], {
+/** The card's tree as an SVG: its text as paths, or with `embedFont` false as text a test can read
+ *  back. */
+export function ogSvg(tree: OgNode, embedFont = true): Promise<string> {
+  return satori(tree as unknown as Parameters<typeof satori>[0], {
     ...OG_SIZE,
+    embedFont,
     fonts: [
       {
         name: 'Archivo Display',
@@ -268,5 +281,36 @@ export async function renderOg(card: OgCard, art: OgArt = {}): Promise<Buffer> {
       },
     ],
   });
+}
+
+/** The tree a card draws from, in the night theme's tokens, with its picture, a PNG, and its lab's
+ *  colour on the lamp, when it has them. */
+export function cardTree(card: OgCard, art: OgArt = {}): OgNode {
+  const { picture, line } = art;
+  const colors = themeColors(tokensCss, 'dark');
+  const token = (name: string) => {
+    const value = colors.get(name);
+    if (!value) throw new Error(`og.ts: tokens.css has no --${name}`);
+    return hex(value);
+  };
+  return ogTree(
+    card,
+    {
+      background: token('background'),
+      foreground: token('foreground'),
+      muted: token('muted-foreground'),
+      accent: token(line ? `line-${line}` : 'primary'),
+    },
+    picture && {
+      src: `data:image/png;base64,${picture.toString('base64')}`,
+      width: picture.readUInt32BE(16),
+      height: picture.readUInt32BE(20),
+    },
+  );
+}
+
+/** The card as a PNG, with no metadata chunks (scripts/image-metadata.mjs checks it again). */
+export async function renderOg(card: OgCard, art: OgArt = {}): Promise<Buffer> {
+  const svg = await ogSvg(cardTree(card, art));
   return stripPng(await sharp(Buffer.from(svg)).png({ compressionLevel: 9 }).toBuffer());
 }
