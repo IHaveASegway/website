@@ -52,6 +52,20 @@ test.describe("Home's opening", () => {
     });
   }
 
+  // Stacked, they'd cost a narrow phone's first screen a whole button's height.
+  test('the buttons share one row, at one width, down to 320 px', async ({ page }) => {
+    for (const width of [320, 375, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto('/');
+      const buttons = await page
+        .locator('.hero-actions .btn')
+        .evaluateAll((all) => all.map((b) => b.getBoundingClientRect()).map((r) => [r.top, r.width]));
+      expect(buttons.length, String(width)).toBe(2);
+      expect(buttons[0]?.[0], String(width)).toBe(buttons[1]?.[0]);
+      expect(buttons[0]?.[1], String(width)).toBe(buttons[1]?.[1]);
+    }
+  });
+
   // What Joseph does, and what the page is for (ADR 0031). The second sentence is Home's own, and the
   // first is the bio's, so it's the one /about/ opens with. Until 2026-11-03 the statement linked its
   // kinds of system to their labs.

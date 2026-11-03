@@ -22,7 +22,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   row-gap: 2.5rem;
-  padding-block: 2.75rem 0.5rem;
+  padding-block: 1.5rem 0.5rem;
 }
 
 .hero-role {
@@ -65,10 +65,10 @@
   gap: 0.5rem;
 }
 
-/* The buttons, both one width at every screen width: side by side from 390 px, and stacked as two
-   equal bars on a narrower phone. */
+/* The buttons, both one width at every screen width, the most a 320 px screen's row holds side by side.
+   They stack as two equal bars only when a larger text size leaves no room for both. */
 .hero-actions .btn {
-  min-inline-size: min(10.75rem, 100%);
+  min-inline-size: min(8.625rem, 100%);
   text-align: center;
 }
 
