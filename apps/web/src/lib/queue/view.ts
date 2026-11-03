@@ -543,6 +543,10 @@ export interface Layout {
   /** Where three captions stand: the end they are set from, and their baseline. */
   readonly words: {
     readonly orders: Caption;
+    /** Where "stopped" goes when "Orders stopped" has no room on one line: the wide drawing's line
+     *  into the queue is 56 units long, and on one line the words ran over the queue's edge and onto
+     *  the first order's dot. */
+    readonly stopped?: Caption;
     readonly tickets: Caption;
     readonly dead: Caption;
   };
@@ -567,6 +571,7 @@ export const LAYOUTS = {
     lamp: 7,
     words: {
       orders: { x: 0, y: 80, anchor: 'start' },
+      stopped: { x: 0, y: 114, anchor: 'start' },
       tickets: { x: 612, y: 32, anchor: 'start' },
       dead: { x: 612, y: 226, anchor: 'start' },
     },
@@ -739,7 +744,8 @@ export function mapMarkup(sim: Sim, layout: Layout): string {
   if (waiting.length > room)
     out.push(text(tank.x, tankTop + tankH + 36, `${waiting.length} waiting`, 'qu-label qu-count'));
   const say = (at: Caption, what: string) => text(at.x, at.y, what, 'qu-label', at.anchor);
-  out.push(say(words.orders, sim.producing ? 'Orders' : 'Orders stopped'));
+  out.push(say(words.orders, sim.producing || words.stopped ? 'Orders' : 'Orders stopped'));
+  if (!sim.producing && words.stopped) out.push(say(words.stopped, 'stopped'));
 
   // A track a worker: its name and word, then its lamps, the order in work at the head.
   const nameX = along + 4;

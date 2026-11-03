@@ -327,8 +327,26 @@
   vector-effect: non-scaling-stroke;
 }
 
+/* The axis keeps to one row, so its ends mark the chart's: at 320 px the end fell under the start. The
+   words between them take two lines where they must, and that room is kept where a longer clock could
+   need it, so nothing under the chart moves. */
 .qu-strip-foot {
+  flex-wrap: nowrap;
   padding-inline-start: 2.75rem;
+}
+
+.qu-strip-foot > :not(:nth-child(2)) {
+  flex: none;
+}
+
+.qu-strip-foot > :nth-child(2) {
+  text-align: center;
+}
+
+@media (width < 24rem) {
+  .qu-strip-foot {
+    min-block-size: 2lh;
+  }
 }
 
 /* The three checks, under their heading: a lamp filled while one holds, and once broken ⊗, a hollow

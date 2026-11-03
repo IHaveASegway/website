@@ -688,6 +688,53 @@ test('on a large screen the picture fills the desk', async ({ page }) => {
   expect(Math.round(picture?.width ?? 0)).toBe(Math.round(stage?.width ?? -1));
 });
 
+// The write-up's third thing to try. On one line over the wide drawing's short line into the queue, the
+// words ran over the queue's edge and onto its first order's dot, at every width that draws it.
+for (const width of [1024, 1280, 1440, 1920]) {
+  test(`at ${width} px, orders stopped stands clear of the queue`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(QUEUE);
+    await page.locator('[data-qu-producer]').click();
+    const labels = map(page).locator('text', { hasText: /^(Orders|stopped)$/ });
+    await expect(labels).toHaveText(['Orders', 'stopped']);
+    const queue = await map(page).locator('.qu-tank').boundingBox();
+    for (const label of await labels.all()) {
+      const box = await label.boundingBox();
+      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(queue?.x ?? 0);
+    }
+    // Taking orders again, it's the one word it was.
+    await page.locator('[data-qu-producer]').click();
+    await expect(labels).toHaveText(['Orders']);
+  });
+}
+
+// At 320 px the axis's end fell onto a line of its own, under its start, so it marked nothing.
+for (const width of [320, 340, 360, 390, 768]) {
+  test(`at ${width} px, the strip's axis keeps its two ends on one row, at the chart's ends`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto(QUEUE);
+    await page.evaluate(() => document.fonts.ready);
+    const chart = await page.locator('[data-qu-strip]').boundingBox();
+    const from = await page.locator('[data-qu-from]').boundingBox();
+    const to = await page.locator('[data-qu-to]').boundingBox();
+    expect(to?.y).toBe(from?.y);
+    expect(from?.x).toBeCloseTo(chart?.x ?? 0, 0);
+    expect((to?.x ?? 0) + (to?.width ?? 0)).toBeCloseTo((chart?.x ?? 0) + (chart?.width ?? 0), 0);
+    // A long run's clock takes no more room than the page kept for it.
+    const foot = page.locator('.qu-strip-foot');
+    const before = await foot.boundingBox();
+    await page.locator('[data-qu-to]').evaluate((end) => {
+      end.textContent = '9999.9 s';
+    });
+    await page.locator('[data-qu-from]').evaluate((start) => {
+      start.textContent = '9969.9 s';
+    });
+    expect((await foot.boundingBox())?.height).toBe(before?.height);
+  });
+}
+
 test('on a phone the narrow picture shows, and nothing scrolls sideways', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(QUEUE);
