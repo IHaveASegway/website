@@ -1125,7 +1125,7 @@ describe('the page', () => {
     expect(nextTime(drained)).toBe(Infinity);
     expect(waitWords(drained)).toBe('None waiting');
     expect(stopWords(drained)).toBe(
-      'Nothing is left in the queue or in flight, so the clock stops here. Run plays the run again from 1.500 s, or take orders to carry on.',
+      'Nothing is left in the queue or in flight, so the clock stops here. Run plays it again from 1.500 s, or take orders, then Run, to carry on.',
     );
 
     const down = openingRun();
@@ -1136,7 +1136,7 @@ describe('the page', () => {
     expect(nextTime(down)).toBe(Infinity);
     expect(waitWords(down)).toMatch(/^13 waiting,/);
     expect(stopWords(down)).toBe(
-      '13 orders wait and no worker is up, so the clock stops here. Run plays the run again from 1.500 s, or restart a worker to carry on.',
+      '13 orders wait and no worker is up, so the clock stops here. Run plays it again from 1.500 s, or restart a worker, then Run, to carry on.',
     );
     expect(stopWords({ ...down, ready: [18] })).toMatch(/^1 order waits and no worker is up,/);
     // A worker back, and the run has something to happen again.

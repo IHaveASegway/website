@@ -1,6 +1,6 @@
 import { eventLog } from '../../lib/lab/event-log';
 import { heldByThePage, runOnLanding } from '../../lib/lab/landing-run';
-import { speaker, startsOver } from '../../lib/lab/said';
+import { speaker, startsOver, watchIt } from '../../lib/lab/said';
 import { address } from '../../lib/sim/link';
 import { TASKS, weekday, when, type Mode, type PartitionKey } from '../../lib/backfill/core';
 import {
@@ -166,7 +166,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     if (sim.violation) return statusText(sim);
     if (Number.isFinite(nextTime(sim))) return null;
     return finished(sim)
-      ? 'Every run has finished, so the clock stops here. Run plays the week again from the switch, or clear a day to rerun it.'
+      ? 'Every run has finished, so the clock stops here. Run plays the week again from the switch, or clear a day, then Run, to rerun it.'
       : 'Nothing more is due, so the clock stops here.';
   }
 
@@ -366,15 +366,17 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
         const line = week.lines.at(-1)?.text ?? '';
         const wasPlaying = sendBack(week, control);
         words = `${weekday(day)}'s sensor has found its file already, so the week goes back to before the job is switched on. ${line}.${wasPlaying ? '' : ' Press Run to backfill the week.'}`;
-        short = `${weekday(day)}'s file is ${hours} hours late, so the week goes back to before the job is switched on.${wasPlaying ? '' : ' Press Run to watch it.'}`;
+        short = `${weekday(day)}'s file is ${hours} hours late, so the week goes back to before the job is switched on.${watchIt(wasPlaying)}`;
       }
     } else if (control.matches('[data-bf-clear]')) {
       clear(sim, day);
       told = false;
-      if (sim.lines.at(-1) === before)
-        words = sim.runs[day]
-          ? `${weekday(day)}'s run has not started, so there is nothing to clear.`
-          : `${weekday(day)} has no run to clear while the job is off.`;
+      words =
+        sim.lines.at(-1) !== before
+          ? `${since(before)}${watchIt(playing)}`
+          : sim.runs[day]
+            ? `${weekday(day)}'s run has not started, so there is nothing to clear.`
+            : `${weekday(day)} has no run to clear while the job is off.`;
     } else return;
     draw();
     // What the press set off, in the log's words.

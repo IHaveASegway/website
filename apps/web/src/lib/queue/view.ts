@@ -339,7 +339,8 @@ export const AGAIN = `The run plays again from ${seconds(REPLAY_FROM)}, before $
 /**
  * Why the clock stops once nothing is left to happen. The queue has drained, or orders wait with no
  * worker up to take them and none on the way. The clock can't tell those apart, and the words must:
- * "nothing is left" beside "13 waiting" is false, and more orders wouldn't carry that run on.
+ * "nothing is left" beside "13 waiting" is false, and more orders wouldn't carry that run on. Either
+ * way a press alone doesn't move the clock, so the words name Run too.
  */
 export function stopWords(sim: Sim): string {
   const n = sim.ready.length;
@@ -347,7 +348,7 @@ export function stopWords(sim: Sim): string {
     n === 0
       ? ['Nothing is left in the queue or in flight', 'take orders']
       : [`${n} ${n === 1 ? 'order waits' : 'orders wait'} and no worker is up`, 'restart a worker'];
-  return `${why}, so the clock stops here. Run plays the run again from ${seconds(REPLAY_FROM)}, or ${next} to carry on.`;
+  return `${why}, so the clock stops here. Run plays it again from ${seconds(REPLAY_FROM)}, or ${next}, then Run, to carry on.`;
 }
 
 /** The link to a run's start: its seed, and each setting not the opening's (#seed-28&key=on). */

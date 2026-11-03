@@ -1,6 +1,6 @@
 import { eventLog } from '../../lib/lab/event-log';
 import { heldByThePage, runOnLanding } from '../../lib/lab/landing-run';
-import { speaker, startsOver } from '../../lib/lab/said';
+import { speaker, startsOver, watchIt } from '../../lib/lab/said';
 import { properties } from '../../lib/queue/check';
 import { address, valueOf, word } from '../../lib/sim/link';
 import {
@@ -285,6 +285,8 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
 
   function press(control: Element): void {
     const before = sim.lines.at(-1);
+    /** Orders or a worker back wait for Run on a run that stands, as the line that stopped it said. */
+    let after = '';
     if (control instanceof HTMLInputElement && control.type === 'radio') {
       if (!control.checked) return;
       const name = setting(control.name);
@@ -333,19 +335,25 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       return;
     } else if (control.matches('[data-qu-producer]')) {
       if (sim.producing) stopProducer(sim);
-      else startProducer(sim);
+      else {
+        startProducer(sim);
+        after = watchIt(playing);
+      }
     } else if (control.matches('[data-qu-poison]')) {
       poison(sim);
     } else if (control.matches('[data-qu-crash]')) {
       const w = sim.workers[Number(control.getAttribute('data-qu-crash'))];
       if (w?.state === 'up') crash(sim, w.id);
-      else if (w) restart(sim, w.id);
+      else if (w) {
+        restart(sim, w.id);
+        after = watchIt(playing);
+      }
     } else if (control.matches('[data-qu-slow]')) {
       const w = sim.workers[Number(control.getAttribute('data-qu-slow'))];
       if (w) slow(sim, w.id, !w.slow);
     } else return;
     const latest = sim.lines.at(-1);
-    if (latest && latest !== before) say(latest.text, control);
+    if (latest && latest !== before) say(`${latest.text}.${after}`, control);
     draw();
   }
 

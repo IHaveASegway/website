@@ -293,7 +293,7 @@ test('rerun a finished day: with append Tuesday’s total doubles; with overwrit
   await page.getByRole('radio', { name: 'Tuesday' }).check();
   await page.getByRole('button', { name: 'Clear Tuesday and rerun it' }).click();
   await expect(page.locator('[data-bf-said]')).toHaveText(
-    'Tuesday, October 20 is cleared, and its run starts again from extract. Tuesday’s run starts.',
+    'Tuesday, October 20 is cleared, and its run starts again from extract. Tuesday’s run starts. Press Run to watch it.',
   );
   // A run slot is free, so the rerun starts at once, from extract: the sensor keeps its file.
   await expect(tuesday.locator('[data-bf-run-word]')).toHaveText('running');

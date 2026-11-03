@@ -212,13 +212,18 @@ test('a queue that has drained stops the clock, says why, and Run plays the run 
   await page.locator('[data-qu-producer]').click();
   await run.click();
   await expect(page.locator('[data-said]').first()).toHaveText(
-    /^Nothing is left in the queue or in flight, so the clock stops here\./,
+    /^Nothing is left in the queue or in flight, so the clock stops here\. .* or take orders, then Run, to carry on\.$/,
     { timeout: 20_000 },
   );
   await expect(run).toHaveText('Run');
   const stopped = await page.locator('[data-qu-clock]').textContent();
   await page.waitForTimeout(300);
   await expect(page.locator('[data-qu-clock]')).toHaveText(stopped ?? '');
+  // Taking orders moves no clock on a run that stands, and says what will. Then back to where it was.
+  await page.locator('[data-qu-producer]').click();
+  await expect(page.locator('[data-said]').last()).toHaveText(/ Press Run to watch it\.$/);
+  await expect(run).toHaveText('Run');
+  await page.locator('[data-qu-producer]').click();
   await run.click();
   await expect(run).toHaveText('Pause');
   await expect(page.locator('[data-said]').first()).toHaveText(
@@ -242,13 +247,15 @@ test('with every worker down and orders waiting, the clock stops, says so, and a
   await run.click();
   const line = page.locator('[data-said]').first();
   await expect(line).toHaveText(
-    /^\d+ orders wait and no worker is up, so the clock stops here\. Run plays the run again from 1\.500 s, or restart a worker to carry on\.$/,
+    /^\d+ orders wait and no worker is up, so the clock stops here\. Run plays it again from 1\.500 s, or restart a worker, then Run, to carry on\.$/,
     { timeout: 20_000 },
   );
   await expect(run).toHaveText('Run');
   await expect(page.locator('[data-qu-wait]')).toHaveText(/^\d+ waiting/);
   const stopped = Number(/[\d.]+/.exec((await clock.textContent()) ?? '')?.[0]);
+  // A restart alone moves no clock, and says so.
   await page.locator('[data-qu-crash="0"]').click();
+  await expect(page.locator('[data-qu-said]')).toHaveText(/ Press Run to watch it\.$/);
   await run.click();
   await expect(run).toHaveText('Pause');
   await expect

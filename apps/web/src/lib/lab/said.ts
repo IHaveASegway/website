@@ -26,11 +26,15 @@ export function shortly(words: string): string {
   return short.endsWith('.') ? short : `${short}.`;
 }
 
+/** What a run standing still asks for, where a press has set something going that only Run can show:
+ *  until 2026-11-03 a press said "carry on" or "starts again", and the clock stood. */
+export const watchIt = (playing: boolean): string => (playing ? '' : ' Press Run to watch it.');
+
 /** What a run that went back says, in every lab: "The run starts over under these settings, at
  *  1.500 s, before worker 2's crash. Press Run to watch it." A run still playing plays on from there,
  *  so it asks for no press. `under` is the settings or the one just chosen. */
 export const startsOver = (what: string, under: string, where: string, playing: boolean): string =>
-  `The ${what} starts over under ${under}, ${where}.${playing ? '' : ' Press Run to watch it.'}`;
+  `The ${what} starts over under ${under}, ${where}.${watchIt(playing)}`;
 
 /** Says what a press did. `short` is what the screen shows, by default the whole words cut to its
  *  room; `control` is the press's, whose part of the controls says it, by default the first part. */
