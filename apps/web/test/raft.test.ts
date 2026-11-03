@@ -37,6 +37,7 @@ import {
   type Sim,
 } from '../src/lib/raft/sim';
 import {
+  brokenWords,
   cutFence,
   footprint,
   LANDING,
@@ -53,7 +54,6 @@ import {
   SEEDS_IN_CI,
   serverState,
   VIEW_BOX,
-  statusText,
   summary,
 } from '../src/lib/raft/view';
 import { read } from './support/dist';
@@ -864,7 +864,7 @@ describe('the five safety properties, by name', () => {
     const violation = (sim as Sim).violation as NonNullable<Sim['violation']>;
     // The page finds a property's row by this name (components/raft-lab/app.ts).
     expect(PROPERTIES).toContain(violation.property);
-    expect(statusText(sim as Sim)).toMatch(
+    expect(brokenWords(violation)).toMatch(
       new RegExp(`^Broken at \\d+\\.\\d{3} s: ${violation.property}\\. Server \\d .+\\.$`),
     );
   });
@@ -956,7 +956,8 @@ describe('a visitor reads server, never node (docs/content.md, "The site\'s lang
     const said: string[] = [];
     for (let seed = 1; seed <= 200; seed++) {
       const { sim } = faultyRun(seed);
-      said.push(summary(sim), statusText(sim), ...sim.lines.map((line) => line.text));
+      said.push(summary(sim), ...sim.lines.map((line) => line.text));
+      if (sim.violation) said.push(brokenWords(sim.violation));
       said.push(...sim.servers.map(serverState));
     }
     // Each kind of line turned up, so the sweep read what it says it read.
@@ -969,7 +970,7 @@ describe('a visitor reads server, never node (docs/content.md, "The site\'s lang
     for (const faults of [{ anyLogVotes: true }, { oldTermCommits: true }]) {
       for (let seed = 1; seed <= SEEDS; seed++) {
         const { sim } = faultyRun(seed, faults);
-        if (sim.violation) expect(statusText(sim)).not.toMatch(NODE);
+        if (sim.violation) expect(brokenWords(sim.violation)).not.toMatch(NODE);
         if (sim.violation) break;
       }
     }

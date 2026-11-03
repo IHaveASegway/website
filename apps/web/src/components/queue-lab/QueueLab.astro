@@ -17,7 +17,6 @@ import {
   propertyWords,
   seconds,
   SPEEDS,
-  statusText,
   STRIP,
   strip,
   stripWords,
@@ -145,7 +144,7 @@ if (pool.length > MAX_WORKERS) throw new Error('queue lab: more workers than the
       <p class="lab-sr" role="status" data-qu-said></p>
     </div>
 
-    <p class="qu-summary" id="qu-summary" data-qu-summary>
+    <p class="lab-caption qu-summary" id="qu-summary" data-qu-summary>
       {summary(sim)}
     </p>
     <ul class="qu-key" role="list" aria-hidden="true" data-qu-js>
@@ -235,21 +234,18 @@ if (pool.length > MAX_WORKERS) throw new Error('queue lab: more workers than the
       <h2 class="lab-heading" id="qu-checks">
         Checked as the run goes
       </h2>
-      <ul class="qu-props" role="list">
+      <ul class="lab-checks" role="list">
         {properties(sim).map((p) => (
-          <li class="qu-prop" data-qu-prop={p.id} data-held={String(p.held)}>
-            <span class="qu-lamp" aria-hidden="true" />
-            <span class="qu-prop-name">{p.name}</span>
-            <span class="qu-prop-words" data-qu-prop-words>
+          <li class="lab-check" data-qu-prop={p.id} data-held={String(p.held)}>
+            <span class="lab-check-lamp" aria-hidden="true" />
+            <span class="lab-check-name">{p.name}</span>
+            <span class="lab-check-word" data-qu-prop-words>
               {propertyWords(sim, p)}
             </span>
           </li>
         ))}
       </ul>
     </section>
-    <p class="qu-status" data-qu-status>
-      {statusText(sim)}
-    </p>
   </div>
 
   <div class="qu-settings" data-qu-js data-part>

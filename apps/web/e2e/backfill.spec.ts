@@ -91,8 +91,8 @@ test('without JavaScript, the page is the opening run: Wednesday counted twice, 
   await expect(summary(page)).toHaveText(OPENING_SUMMARY);
   await expect(page.locator('[data-bf-day]')).toHaveCount(7);
   await expect(page.locator('[data-bf-step][data-lamp="filled"]')).toHaveCount(34);
-  await expect(page.locator('[data-bf-check="totals"]')).toHaveAttribute('data-lamp', 'cross');
-  await expect(page.locator('[data-bf-check="order"]')).toHaveAttribute('data-lamp', 'filled');
+  await expect(page.locator('[data-bf-check="totals"]')).toHaveAttribute('data-held', 'false');
+  await expect(page.locator('[data-bf-check="order"]')).toHaveAttribute('data-held', 'true');
   await expect(page.locator('[data-bf-stray]')).toBeHidden();
   await expect(page.locator('[data-bf-week-source]')).toHaveText('2,012');
   // A cross for each failed attempt: Wednesday's first load, and its check.
@@ -252,7 +252,7 @@ test('watch Wednesday count twice; then overwrite the day and start over, and ev
   await expect(page.locator('[data-bf-week-source]')).toHaveText('2,012');
   await expect(page.locator('[data-bf-diff]:not(:empty)')).toHaveCount(0);
   await expect(page.locator(`[data-bf-step="${CHECK}"][data-lamp="filled"]`)).toHaveCount(7);
-  await expect(page.locator('[data-bf-check][data-lamp="filled"]')).toHaveCount(3);
+  await expect(page.locator('[data-bf-check][data-held="true"]')).toHaveCount(3);
   await expect(page.locator('[data-bf-clock]')).toHaveText('02:10 on Monday, October 26');
   await expect(page.locator('[data-bf-events]')).toHaveText('44 events');
 });

@@ -598,14 +598,7 @@
    panel under it never moves while the run plays: five lines at 320 px, four from 24rem, three
    from 48rem, the most a busy run's words took, measured with each number a digit longer. */
 .cl-summary {
-  max-width: var(--measure);
   min-block-size: 5lh;
-  margin: 0;
-  font-family: var(--font-label);
-  font-size: var(--text-label);
-  font-weight: var(--text-label--font-weight);
-  line-height: var(--text-label--line-height);
-  font-variant-numeric: tabular-nums;
 }
 
 @media (width >= 24rem) {
@@ -620,84 +613,14 @@
   }
 }
 
-/* The checks, under the strip and their heading: a lamp each, filled while it holds and crossed once
-   it breaks, with its name and in words how often and how badly. From 48rem each is one row: lamp,
-   name, and the words in a column of their own, so the three names line up. */
+/* The checks, under the strip and their heading (lab-controls.css). A check's words take one line or
+   two, by its count: each keeps two. */
 .cl-checks {
   gap: 0.75rem;
 }
 
-.cl-props {
-  display: grid;
-  gap: 0.625rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.cl-prop {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: baseline;
-  gap: 0.125rem 0.625rem;
-}
-
-.cl-prop-lamp {
-  grid-row: 1 / span 2;
-  align-self: start;
-  inline-size: 1rem;
-  block-size: 1rem;
-  margin-top: 0.125rem;
-}
-
-@media (width >= 48rem) {
-  .cl-prop {
-    grid-template-columns: auto 15.5rem minmax(0, 1fr);
-  }
-
-  .cl-prop-lamp {
-    grid-row: 1;
-  }
-}
-
-.cl-prop-disc {
-  fill: var(--line);
-  stroke: var(--line);
-  stroke-width: 1.5px;
-}
-
-.cl-prop-cross {
-  display: none;
-  fill: none;
-  stroke: var(--foreground);
-  stroke-width: 2px;
-}
-
-.cl-prop[data-held='false'] .cl-prop-disc {
-  fill: none;
-  stroke: var(--foreground);
-}
-
-.cl-prop[data-held='false'] .cl-prop-cross {
-  display: inline;
-}
-
-.cl-prop-name {
-  font-family: var(--font-label);
-  font-size: var(--text-ui);
-  font-weight: 500;
-  line-height: var(--text-ui--line-height);
-}
-
-/* A check's words take one line or two, by its count: each keeps two. */
-.cl-prop-words {
+.cl-checks .lab-check-word {
   min-block-size: 2lh;
-  color: var(--muted-foreground);
-  font-family: var(--font-label);
-  font-size: var(--text-label);
-  font-weight: var(--text-label--font-weight);
-  line-height: var(--text-label--line-height);
-  font-variant-numeric: tabular-nums;
 }
 
 /* The panel: the controls (lab-controls.css), by what they work on. Each part ends in the line that says

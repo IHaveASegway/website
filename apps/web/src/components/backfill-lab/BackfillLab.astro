@@ -211,7 +211,7 @@ const KEY = [
         ))}
       </ul>
 
-      <p class="bf-summary" id="bf-summary" data-bf-summary>
+      <p class="lab-caption bf-summary" id="bf-summary" data-bf-summary>
         {summary(sim)}
       </p>
 
@@ -238,27 +238,17 @@ const KEY = [
         </div>
       </div>
 
-      <section class="bf-checks-block" aria-labelledby="bf-checks">
+      <section class="lab-group bf-checks" aria-labelledby="bf-checks">
         <h2 class="lab-heading" id="bf-checks">
           Checked as the run goes
         </h2>
-        <ul class="bf-checks" aria-labelledby="bf-checks" role="list">
+        <ul class="lab-checks" role="list">
           {checks.map((check) => (
-            <li
-              class="bf-check"
-              data-bf-check={check.id}
-              data-lamp={check.held ? 'filled' : 'cross'}
-            >
-              <svg class="bf-lamp" viewBox="-11 -11 22 22" aria-hidden="true">
-                <circle class="bf-plate" r="9" />
-                <circle class="bf-disc" r="6" />
-                <path class="bf-x" d={CROSS} />
-              </svg>
-              <span>
-                <span class="bf-check-name">{check.name}</span>
-                <span class="bf-check-word" data-bf-check-word>
-                  {check.word}
-                </span>
+            <li class="lab-check" data-bf-check={check.id} data-held={String(check.held)}>
+              <span class="lab-check-lamp" aria-hidden="true" />
+              <span class="lab-check-name">{check.name}</span>
+              <span class="lab-check-word" data-bf-check-word>
+                {check.word}
               </span>
             </li>
           ))}

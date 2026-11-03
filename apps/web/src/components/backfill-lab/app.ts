@@ -140,7 +140,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     set($('[data-bf-summary]'), summary(sim));
     for (const check of propertyViews(sim)) {
       const item = $(`[data-bf-check="${check.id}"]`);
-      mark(item, 'data-lamp', check.held ? 'filled' : 'cross');
+      mark(item, 'data-held', String(check.held));
       set(item?.querySelector('[data-bf-check-word]'), check.word);
     }
     set($('[data-bf-clock]'), when(sim.now));

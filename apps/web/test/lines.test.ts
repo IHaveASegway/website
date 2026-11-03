@@ -33,7 +33,7 @@ import {
 import { replay as replayQueue } from '../src/lib/queue/sim';
 import { OPENING as QUEUE, openingRun as queueOpening } from '../src/lib/queue/view';
 import { replay as replayRaft } from '../src/lib/raft/sim';
-import { OPENING as RAFT, openingRun, statusText } from '../src/lib/raft/view';
+import { OPENING as RAFT, openingRun } from '../src/lib/raft/view';
 import type { RouteData } from '../src/lib/route-lab/data';
 import type { Day } from '../src/lib/route-lab/days';
 import { dayLine, NBSP } from '../src/lib/route-lab/format';
@@ -168,10 +168,6 @@ describe('the Raft line', () => {
     expect(line.followers).toEqual([2, 3, 4, 5]);
     expect(line.log).toEqual([true, true, true]);
     expect(line.words).toBe('Server 1 leads term 1. All five safety properties hold.');
-  });
-
-  test("the index's fact: the five properties held over every event of the opening run", () => {
-    expect(statusText(openingRun())).toBe('All five safety properties held over 249 events.');
   });
 
   // The board's fix: the opening with its leader crashed where it stands, played on until another

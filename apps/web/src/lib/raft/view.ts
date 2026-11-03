@@ -1,5 +1,5 @@
 import { readLink, writeLink } from '../sim/link';
-import { serverName, type Property } from './check';
+import { serverName, type Property, type Violation } from './check';
 import type { Server } from './core';
 import {
   committedCount,
@@ -243,18 +243,16 @@ export const PROMISES: Readonly<Record<Property, string>> = {
 };
 
 /** A property's word beside its lamp: Held or Broken, the other labs' words, and nothing longer, so a
- *  row never takes another line. The status line says when it broke and how. */
+ *  row never takes another line. brokenWords says when it broke and how. */
 export const propertyWord = (held: boolean): string => (held ? 'Held' : 'Broken');
 
 /** "249 events", for the clock, as every lab's says it. */
 export const eventsWords = (sim: Sim): string => `${sim.events.toLocaleString('en-US')} events`;
 
-/** The status line: the five properties held, or the one that broke, and where. */
-export function statusText(sim: Sim): string {
-  if (sim.violation)
-    return `Broken at ${seconds(sim.violation.at)}: ${sim.violation.property}. ${sim.violation.detail}.`;
-  return `All five safety properties held over ${eventsWords(sim)}.`;
-}
+/** The property that broke, where and how, said on the line under Time: the one thing a property's
+ *  row doesn't say, and no run of these servers gets here. */
+export const brokenWords = ({ at, property, detail }: Violation): string =>
+  `Broken at ${seconds(at)}: ${property}. ${detail}.`;
 
 export const seconds = (ms: number): string => `${(ms / 1000).toFixed(3)} s`;
 

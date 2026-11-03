@@ -30,7 +30,7 @@ import {
   readRun,
   seconds,
   serverState,
-  statusText,
+  brokenWords,
   summary,
   timerShare,
 } from '../../lib/raft/view';
@@ -163,7 +163,6 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
         text(row.querySelector('[data-rf-prop-word]') as Element, propertyWord(held));
       }
     }
-    text($('[data-rf-status]'), statusText(sim));
     text($('[data-rf-clock]'), `Virtual time ${seconds(sim.now)}`);
     text($('[data-rf-events]'), eventsWords(sim));
     text($('[data-rf-seed]'), String(sim.seed));
@@ -203,7 +202,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     playTo(sim, ahead, sim.now + elapsed * speed(), EVENTS_PER_FRAME);
     draw();
     if (sim.violation) {
-      say(statusText(sim));
+      say(brokenWords(sim.violation));
       pause();
       return;
     }

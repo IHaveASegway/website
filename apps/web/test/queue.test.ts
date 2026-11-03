@@ -50,7 +50,7 @@ import {
   SEEDS_IN_CI,
   SETTINGS,
   startOver,
-  statusText,
+  stoppedWords,
   stopWords,
   strip,
   stripWords,
@@ -87,6 +87,8 @@ function betweenTicketAndAck(sim: Sim, k: number): boolean {
 
 const property = (sim: Sim, id: PropertyId) =>
   properties(sim).find((p) => p.id === id) as ReturnType<typeof properties>[number];
+/** What the three checks' rows say, in the page's order. */
+const checks = (sim: Sim) => properties(sim).map((p) => propertyWords(sim, p));
 
 /**
  * What the records alone say became of the orders, without the totals, places and tallies sim.ts
@@ -213,9 +215,11 @@ describe('a crash', () => {
     expect([job.place, job.effects.length]).toEqual(['done', 3]);
     expect(sim.jobs.filter((j) => j.effects.length > 1)).toEqual([job]);
     expect([sim.duplicates, property(sim, 'once').count]).toEqual([2, 1]);
-    expect(statusText(sim)).toBe(
-      'No order was lost, but 1 order was printed more than once. Whether the queue drains is checked once orders stop.',
-    );
+    expect(checks(sim)).toEqual([
+      'Held',
+      'Broken: 1 order printed more than once',
+      'Held so far; checked once orders stop',
+    ]);
     expect(summary(sim)).toMatch(new RegExp(`^Order ${job.id} was printed 3 times: worker 1 `));
   });
 
@@ -454,9 +458,7 @@ describe('a poison order', () => {
     expect(summary(sim)).toMatch(
       new RegExp(`^The queue did not drain: .*poison order ${job.id} kept failing`),
     );
-    expect(statusText(sim)).toBe(
-      'No order was lost and no order was printed twice, but the queue did not drain within 30 s.',
-    );
+    expect(checks(sim)).toEqual(['Held', 'Held', 'Broken: not empty 30 s after orders stopped']);
   });
 
   test('under dead-letter it is tried four times, waiting 200, 400 and 800 ms, then dead-lettered, and the queue drains', () => {
@@ -582,7 +584,9 @@ describe('conservation', () => {
     runUntil(sim, 6_000);
     expect(sim.events).toBe(events);
     expect(sim.now).toBeLessThan(5_000);
-    expect(statusText(sim)).toMatch(/^Stopped at 3\.\d{3} s: an order appeared or disappeared/);
+    expect(stoppedWords(sim.violation as NonNullable<Sim['violation']>)).toMatch(
+      /^Stopped at 3\.\d{3} s: an order appeared or disappeared/,
+    );
   });
 
   test('the audit catches an order whose record names another place, or that is in two places', () => {
@@ -743,7 +747,11 @@ describe('the event lines', () => {
     }
     let lines = 0;
     for (const sim of runs)
-      for (const { text } of [...sim.lines, { text: summary(sim) }, { text: statusText(sim) }]) {
+      for (const { text } of [
+        ...sim.lines,
+        { text: summary(sim) },
+        ...checks(sim).map((word) => ({ text: word })),
+      ]) {
         lines += 1;
         expect(text).toMatch(/^[A-Z0-9]/);
         expect(text).not.toContain('!');
@@ -775,9 +783,11 @@ test('the opening the page draws: worker 2 crashes between a ticket and its ack,
   expect(summary(sim)).toBe(
     'Order 18 was printed twice: worker 2 crashed after printing its ticket and before its acknowledgement left, so the broker sent it again and worker 1 printed it a second time. Nothing was lost; 25 orders are done and 13 are queued or with a worker.',
   );
-  expect(statusText(sim)).toBe(
-    'No order was lost, but 1 order was printed twice. Whether the queue drains is checked once orders stop.',
-  );
+  expect(checks(sim)).toEqual([
+    'Held',
+    'Broken: 1 order printed twice',
+    'Held so far; checked once orders stop',
+  ]);
   expect(workerText(sim, 1)).toBe('Worker 2, down');
   const life = lifecycles(sim).find((l) => l.id === 18);
   expect(life).toMatchObject({ outcome: 'done', redelivered: true, delivered: [2_265, 2_450] });
@@ -988,9 +998,8 @@ describe('the page', () => {
     expect(summary(again)).toBe(
       'Order 18 was sent twice and printed once: worker 2 crashed after printing its ticket and before its acknowledgement left, so the broker sent it again, and worker 1 found it in the record and skipped the ticket. Nothing was lost; 25 orders are done and 13 are queued or with a worker.',
     );
-    expect(statusText(again)).toBe(
-      'No order was lost and no order was printed twice over 143 events. Whether the queue drains is checked once orders stop.',
-    );
+    expect(checks(again)).toEqual(['Held', 'Held', 'Held so far; checked once orders stop']);
+    expect(again.events).toBe(143);
     // A link to a run opens the same opening on its own seed.
     const eight = openLink('#seed-8');
     expect([eight?.seed, eight?.now]).toEqual([8, OPENING.until]);
@@ -1062,10 +1071,7 @@ describe('the page', () => {
     expect(summary(sim)).toBe(
       'Order 26 was lost: worker 1 crashed holding it, and it was acknowledged at the switch, before its ticket printed. 1 order was lost; 25 orders are done and 12 are queued or with a worker.',
     );
-    expect(statusText(sim)).toBe(
-      '1 order was lost and 1 order was printed twice. Whether the queue drains is checked once orders stop.',
-    );
-    expect(properties(sim).map((p) => propertyWords(sim, p))).toEqual([
+    expect(checks(sim)).toEqual([
       'Broken: 1 order lost',
       'Broken: 1 order printed twice',
       'Held so far; checked once orders stop',
@@ -1079,21 +1085,22 @@ describe('the page', () => {
     expect(summary(sim)).toMatch(
       /^Poison order 39 has failed \d+ times?: each time it comes straight back to the head of the queue and keeps a worker busy\. Nothing was lost;/,
     );
-    expect(statusText(sim)).toBe(
-      'No order was lost, but 1 order was printed twice. Whether the queue drains is checked once orders stop.',
-    );
+    expect(checks(sim)).toEqual([
+      'Held',
+      'Broken: 1 order printed twice',
+      'Held so far; checked once orders stop',
+    ]);
     stopProducer(sim);
     const deadline = (sim.drain.since as number) + DRAIN_WITHIN;
-    expect(statusText(sim)).toBe(
-      `No order was lost, but 1 order was printed twice. Whether the queue drains is checked at ${(deadline / 1000).toFixed(1)} s.`,
-    );
     expect(propertyWords(sim, property(sim, 'drains'))).toBe(
       `Held so far; checked at ${(deadline / 1000).toFixed(1)} s`,
     );
     runUntil(sim, deadline);
-    expect(statusText(sim)).toBe(
-      'No order was lost, but 1 order was printed twice and the queue did not drain within 30 s.',
-    );
+    expect(checks(sim)).toEqual([
+      'Held',
+      'Broken: 1 order printed twice',
+      'Broken: not empty 30 s after orders stopped',
+    ]);
     // With every worker down, the 30 s start again when one is up.
     const down = openingRun();
     stopProducer(down);
@@ -1106,9 +1113,7 @@ describe('the page', () => {
     const drained = openingRun();
     stopProducer(drained);
     runUntil(drained, 10_000);
-    expect(statusText(drained)).toBe(
-      'No order was lost and the queue drains, but 1 order was printed twice.',
-    );
+    expect(checks(drained)).toEqual(['Held', 'Broken: 1 order printed twice', 'Held']);
   });
 
   // The clock stops once nothing is left to happen, which it can't tell apart: a drained queue, or

@@ -368,7 +368,7 @@ test.describe('the Raft Lab’s landing run', () => {
     await expect(page.locator('[data-rf-node="0"]')).toHaveAttribute('data-role', 'follower');
     await page.clock.runFor(5_000);
     await expect(summary(page)).toHaveText('Server 3 leads term 2, 4 entries committed.');
-    await expect(page.locator('[data-rf-status]')).toHaveText(/^All five safety properties held/);
+    await expect(page.locator('[data-rf-prop][data-held="true"]')).toHaveCount(5);
   });
 
   test('its story ends, stands a moment, and goes round again, on the same seed', async ({

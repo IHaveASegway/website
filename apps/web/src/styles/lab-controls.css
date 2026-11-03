@@ -186,6 +186,108 @@
   line-height: var(--text-ui--line-height);
 }
 
+/* The caption under a lab's picture, which says what the run has done, one rule in every lab. Each
+   lab's sheet keeps only the room its longest words take at each width. Until 2026-11-03 it was set
+   three ways, in two faces and two colours, in four labs. */
+.lab-caption {
+  max-inline-size: var(--measure);
+  margin: 0;
+  color: var(--foreground);
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  line-height: var(--text-label--line-height);
+  font-variant-numeric: tabular-nums;
+}
+
+/* "Checked as the run goes", one list in every lab: a lamp filled while a check holds and crossed once
+   it breaks, the site's mark for failed (design-system.md, "Lamps: one meaning per mark"), its name,
+   and in words how it stands. The name and the words stand one over the other, and side by side where
+   the list has the room, so what decides is the list's own width: a lab's list shares a desk with
+   something else at some widths and not others. Until 2026-11-03 two labs set a row one way, and two
+   another, in three columns. */
+.lab-checks {
+  display: grid;
+  container-type: inline-size;
+  gap: 0.625rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lab-check {
+  display: grid;
+  grid-template-columns: 0.875rem minmax(0, 1fr);
+  gap: 0.125rem 0.625rem;
+  align-items: baseline;
+}
+
+.lab-check-lamp {
+  position: relative;
+  align-self: start;
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  margin-block-start: 0.1875rem;
+  border: 2px solid var(--line);
+  border-radius: 50%;
+  background-color: var(--line);
+}
+
+.lab-check[data-held='false'] .lab-check-lamp {
+  background-color: transparent;
+}
+
+/* The cross stands inside the ring: two bars through the lamp's middle, each a little short of it. */
+.lab-check[data-held='false'] .lab-check-lamp::before,
+.lab-check[data-held='false'] .lab-check-lamp::after {
+  content: '';
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  inline-size: 0.5rem;
+  block-size: 2px;
+  margin-block-start: -1px;
+  margin-inline-start: -0.25rem;
+  background-color: var(--line);
+  rotate: 45deg;
+}
+
+.lab-check[data-held='false'] .lab-check-lamp::after {
+  rotate: -45deg;
+}
+
+.lab-check-name {
+  color: var(--foreground);
+  font-family: var(--font-label);
+  font-size: var(--text-ui);
+  font-weight: 500;
+  line-height: var(--text-ui--line-height);
+}
+
+.lab-check-word {
+  grid-column: 2;
+  color: var(--muted-foreground);
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  line-height: var(--text-label--line-height);
+  font-variant-numeric: tabular-nums;
+}
+
+.lab-check[data-held='false'] .lab-check-word {
+  color: var(--foreground);
+}
+
+@container (inline-size >= 38rem) {
+  .lab-check {
+    grid-template-columns: 0.875rem 17rem minmax(0, 1fr);
+  }
+
+  .lab-check-word {
+    grid-column: 3;
+  }
+}
+
 /* The event log (components/lab/EventLog.astro), a describer's window, raised, the same in every lab.
    Its box is one size whatever it holds, before the run's first line and after its sixtieth, so a run
    that empties it, or fills it, moves nothing under it (steady.spec.ts). It stands on its end: under
@@ -224,11 +326,23 @@
 }
 
 /* Forced colors (Windows contrast themes) replace fills with the visitor's background: a chosen
-   lamp stays lit, in their palette. */
+   lamp stays lit, and a check's lamp keeps its shape, in their palette. */
 @media (forced-colors: active) {
   .lab-option input:checked + .lab-option-lamp {
     forced-color-adjust: none;
     border-color: ButtonText;
     background-color: ButtonText;
+  }
+
+  .lab-check-lamp,
+  .lab-check[data-held='false'] .lab-check-lamp::before,
+  .lab-check[data-held='false'] .lab-check-lamp::after {
+    forced-color-adjust: none;
+    border-color: CanvasText;
+    background-color: CanvasText;
+  }
+
+  .lab-check[data-held='false'] .lab-check-lamp {
+    background-color: Canvas;
   }
 }

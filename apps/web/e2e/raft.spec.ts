@@ -12,7 +12,6 @@ const RAFT = '/lab/raft/';
 
 test.beforeEach(({ page }) => handsOn(page));
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
-const HELD = /^All five safety properties held over [\d,]+ events\.$/;
 const PROPERTIES = [
   'Election Safety',
   'Leader Append-Only',
@@ -24,7 +23,7 @@ const SPLIT = 'Split two servers from three';
 
 const clock = (page: Page) => page.locator('[data-rf-clock]');
 const summary = (page: Page) => page.locator('[data-rf-summary]');
-const status = (page: Page) => page.locator('[data-rf-status]');
+const events = (page: Page) => page.locator('[data-rf-events]');
 const log = (page: Page) => page.locator('[data-rf-lines] li');
 
 /** Collects policy violations the page reports. */
@@ -53,9 +52,8 @@ test('without JavaScript, the page is the opening run: five servers, three commi
   await expect(page.locator('[data-rf-node]')).toHaveCount(5);
   await expect(page.locator('.rf-cell[data-done]')).toHaveCount(15);
   await expect(summary(page)).toHaveText(/^Server \d leads term \d+, 3 entries committed\.$/);
-  await expect(status(page)).toHaveText(HELD);
-  await expect(page.locator('.rf-prop-name')).toHaveText(PROPERTIES);
-  await expect(page.locator('.rf-prop-word')).toHaveText(PROPERTIES.map(() => 'Held'));
+  await expect(page.locator('.lab-check-name')).toHaveText(PROPERTIES);
+  await expect(page.locator('.lab-check-word')).toHaveText(PROPERTIES.map(() => 'Held'));
   await expect(page.locator('.rf-controls')).toBeHidden();
   await context.close();
 });
@@ -105,7 +103,7 @@ test('cut off the leader: a new term elects another leader, and every safety pro
     )
     .toBe(true);
   await page.getByRole('button', { name: 'Pause' }).click();
-  await expect(status(page)).toHaveText(HELD);
+  await expect(page.locator('[data-rf-prop-word]')).toHaveText(PROPERTIES.map(() => 'Held'));
   await expect(page.locator('[data-rf-lines]')).toContainText('The network splits');
 });
 
@@ -255,7 +253,7 @@ test('with its leader cut off, the caption says who still thinks it leads, durin
 test('the desk names the five safety properties, each with its state', async ({ page }) => {
   await page.goto(RAFT);
   const rows = page.locator('[data-rf-prop]');
-  await expect(page.locator('.rf-prop-name')).toHaveText(PROPERTIES);
+  await expect(page.locator('.lab-check-name')).toHaveText(PROPERTIES);
   await expect(rows).toHaveCount(5);
   for (const row of await rows.all()) await expect(row).toHaveAttribute('data-held', 'true');
   await expect(page.locator('[data-rf-prop-word]')).toHaveText(PROPERTIES.map(() => 'Held'));
@@ -264,7 +262,7 @@ test('the desk names the five safety properties, each with its state', async ({ 
   // lab's line. The page's servers never break one, so the mark is set by hand to read it.
   const lamp = () =>
     rows.first().evaluate((row) => {
-      const part = row.querySelector('.rf-prop-lamp') as Element;
+      const part = row.querySelector('.lab-check-lamp') as Element;
       return {
         fill: getComputedStyle(part).backgroundColor,
         ring: getComputedStyle(part).borderTopColor,
@@ -305,7 +303,7 @@ for (const [width, height] of [
     await page.setViewportSize({ width, height });
     await page.goto(RAFT);
     await page.evaluate(() => document.fonts.ready);
-    const lines = await page.locator('.rf-prop-name').evaluateAll((names) =>
+    const lines = await page.locator('.lab-check-name').evaluateAll((names) =>
       names.map((name) => {
         const style = getComputedStyle(name);
         return Math.round(name.getBoundingClientRect().height / parseFloat(style.lineHeight));
@@ -327,7 +325,7 @@ for (const fonts of ['loaded', 'blocked'] as const) {
     await page.goto(RAFT);
     await page.evaluate(() => document.fonts.ready);
     const bottoms = await page.evaluate(() =>
-      ['[data-rf-map]', '[data-rf-summary]', '[data-rf-status]', '[data-rf-run]'].map(
+      ['[data-rf-map]', '[data-rf-summary]', '.rf-props', '[data-rf-run]'].map(
         (selector) => (document.querySelector(selector) as Element).getBoundingClientRect().bottom,
       ),
     );
@@ -544,11 +542,10 @@ test('Next event says where the run stands when the log has nothing to tell', as
     await expect(said).not.toHaveText(heard.at(-1) ?? '');
     const words = (await said.textContent()) ?? '';
     heard.push(words);
-    // An event the log does not tell is said as the clock and the status line count it.
+    // An event the log does not tell is said as the clock counts it.
     if (!words.startsWith('Virtual time')) continue;
     told += 1;
-    const events = /over ([\d,]+) events/.exec((await status(page).textContent()) ?? '')?.[1];
-    expect(words).toBe(`${await clock(page).textContent()}, ${events} events`);
+    expect(words).toBe(`${await clock(page).textContent()}, ${await events(page).textContent()}.`);
   }
   // Each press is heard, and each says something new.
   expect(told).toBeGreaterThan(0);
@@ -661,11 +658,11 @@ test('moving the loss slider after Next event draws the events it lets finish in
   // Four events on from the opening, the run stands at 1.426 s with another event due then.
   for (let i = 0; i < 4; i++) await page.getByRole('button', { name: 'Next event' }).click();
   await expect(clock(page)).toHaveText('Virtual time 1.426 s');
-  await expect(status(page)).toHaveText('All five safety properties held over 253 events.');
+  await expect(events(page)).toHaveText('253 events');
   // The slider is an action: the run first finishes that millisecond, and the page shows it.
   await page.locator('[data-rf-loss]').fill('10');
   await expect(page.locator('[data-rf-loss-out]')).toHaveText('10%');
-  await expect(status(page)).toHaveText('All five safety properties held over 254 events.');
+  await expect(events(page)).toHaveText('254 events');
   await expect(clock(page)).toHaveText('Virtual time 1.426 s');
 });
 
@@ -731,7 +728,7 @@ test('Start over shows the same run again from the same opening: what the presse
     for (let i = 0; i < 40; i++) await page.getByRole('button', { name: 'Next event' }).click();
     return [
       await clock(page).textContent(),
-      await status(page).textContent(),
+      await events(page).textContent(),
       await page.locator('[data-rf-flights]').innerHTML(),
     ];
   };
@@ -756,7 +753,7 @@ test('Start over writes the loss into its link, and a reload opens the same run,
     return [
       await clock(page).textContent(),
       await summary(page).textContent(),
-      await status(page).textContent(),
+      await events(page).textContent(),
       await page.locator('[data-rf-flights]').innerHTML(),
     ];
   };

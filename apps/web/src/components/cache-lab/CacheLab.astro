@@ -161,7 +161,7 @@ const mitigations: { toggle: Toggle; name: string }[] = [
         </p>
       </div>
 
-      <figcaption class="cl-summary" data-cl-summary>
+      <figcaption class="lab-caption cl-summary" data-cl-summary>
         {summary(sim)}
       </figcaption>
     </figure>
@@ -278,15 +278,12 @@ const mitigations: { toggle: Toggle; name: string }[] = [
       <h2 class="lab-heading" id="cl-checks">
         Checked as the run goes
       </h2>
-      <ul class="cl-props" role="list" data-cl-props>
+      <ul class="lab-checks" role="list">
         {propertyLines(sim).map((p) => (
-          <li class="cl-prop" data-cl-prop={p.id} data-held={String(p.held)}>
-            <svg class="cl-prop-lamp" viewBox="0 0 16 16" aria-hidden="true">
-              <circle class="cl-prop-disc" cx="8" cy="8" r="6.25" />
-              <path class="cl-prop-cross" d="M4.5 4.5l7 7M11.5 4.5l-7 7" />
-            </svg>
-            <span class="cl-prop-name">{p.name}</span>
-            <span class="cl-prop-words" data-cl-prop-words>
+          <li class="lab-check" data-cl-prop={p.id} data-held={String(p.held)}>
+            <span class="lab-check-lamp" aria-hidden="true" />
+            <span class="lab-check-name">{p.name}</span>
+            <span class="lab-check-word" data-cl-prop-words>
               {p.words}
             </span>
           </li>

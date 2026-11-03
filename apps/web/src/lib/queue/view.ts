@@ -1,5 +1,5 @@
 import { readLink, writeLink } from '../sim/link';
-import { properties, type PropertyState } from './check';
+import type { PropertyState } from './check';
 import {
   crash,
   createSim,
@@ -117,27 +117,11 @@ export const eventsWords = (sim: Sim): string =>
 export const tenths = (ms: number): string => `${(ms / 1000).toFixed(1)} s`;
 
 const firstUp = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
-const firstDown = (text: string) => text.charAt(0).toLowerCase() + text.slice(1);
 
 /** "a", "a and b", "a, b and c". */
 function list(parts: readonly string[]): string {
   if (parts.length <= 1) return parts.join('');
   return `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`;
-}
-
-function brokenWords(sim: Sim, p: PropertyState): string {
-  const n = p.count;
-  switch (p.id) {
-    case 'no-loss':
-      return `${n} ${n === 1 ? 'order was' : 'orders were'} lost`;
-    case 'once': {
-      // `once` counts orders; more tickets than orders means one was printed three times or more.
-      const times = sim.duplicates > n ? 'more than once' : 'twice';
-      return `${n} ${n === 1 ? 'order was' : 'orders were'} printed ${times}`;
-    }
-    case 'drains':
-      return `the queue did not drain within 30 s${n === 1 ? '' : `, ${n} times`}`;
-  }
 }
 
 /**
@@ -154,24 +138,10 @@ function drainCheck(sim: Sim): string | null {
   return since === null ? '30 s after a worker is up' : `at ${tenths(since + DRAIN_WITHIN)}`;
 }
 
-/** The status line: the three properties as one sentence, or the bug that froze the run. Whether
- *  the queue drains is claimed only once it is known, and until then the line says when it is. */
-export function statusText(sim: Sim): string {
-  if (sim.violation)
-    return `Stopped at ${seconds(sim.violation.at)}: an order appeared or disappeared, which is a bug. ${firstUp(sim.violation.detail)}.`;
-  const check = drainCheck(sim);
-  const asked = properties(sim).filter((p) => check === null || p.id !== 'drains');
-  const held = asked.flatMap((p) => (p.held ? [firstDown(p.name)] : []));
-  const broken = asked.flatMap((p) => (p.held ? [] : [brokenWords(sim, p)]));
-  const events = sim.events.toLocaleString('en-US');
-  const tail = check === null ? '' : ` Whether the queue drains is checked ${check}.`;
-  if (broken.length === 0)
-    return check === null
-      ? `All three held over ${events} events: ${list(held)}.`
-      : `${firstUp(list(held))} over ${events} events.${tail}`;
-  if (held.length === 0) return `${firstUp(list(broken))}.${tail}`;
-  return `${firstUp(list(held))}, but ${list(broken)}.${tail}`;
-}
+/** The bug that froze a run, and where: said on the line under the controls. Everything else the
+ *  checks' own rows say (propertyWords). */
+export const stoppedWords = ({ at, detail }: NonNullable<Sim['violation']>): string =>
+  `Stopped at ${seconds(at)}: an order appeared or disappeared, which is a bug. ${firstUp(detail)}.`;
 
 /** The first order the idempotency key kept from printing twice: done, printed once, and sent
  *  again after that ticket, so a later delivery found it in the record. A done order's last

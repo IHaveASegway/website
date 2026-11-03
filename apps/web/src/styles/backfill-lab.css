@@ -455,25 +455,12 @@
    is under it never moves while the week plays: six lines at 320 px, five from 24rem, four from
    48rem, the most its words took. The day totals' check keeps the lines its broken words take. */
 .bf-summary {
-  max-width: var(--measure);
   min-block-size: 6lh;
-  margin: 0;
-  font-size: var(--text-label);
-  line-height: var(--text-label--line-height);
-  font-variant-numeric: tabular-nums;
-}
-
-[data-bf-check='totals'] .bf-check-word {
-  min-block-size: 3lh;
 }
 
 @media (width >= 24rem) {
   .bf-summary {
     min-block-size: 5lh;
-  }
-
-  [data-bf-check='totals'] .bf-check-word {
-    min-block-size: 2lh;
   }
 }
 
@@ -481,59 +468,22 @@
   .bf-summary {
     min-block-size: 4lh;
   }
-
-  [data-bf-check='totals'] .bf-check-word {
-    min-block-size: 1lh;
-  }
 }
 
-/* From 64rem the checks share the picture's column, and a broken check's words take three lines. */
-@media (width >= 64rem) {
-  [data-bf-check='totals'] .bf-check-word {
-    min-block-size: 3lh;
-  }
-}
-
-/* The checks, under the strip. */
-.bf-checks-block {
-  display: grid;
-  gap: 1.25rem;
-  align-content: start;
-  min-width: 0;
-}
-
+/* The checks, under the strip (lab-controls.css). */
 .bf-checks {
-  display: grid;
-  gap: 0.875rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+  gap: 0.75rem;
 }
 
-.bf-check {
-  display: grid;
-  grid-template-columns: 1.375rem minmax(0, 1fr);
-  gap: 0.625rem;
-  align-items: start;
+/* A broken check's words are the longest: their room is kept, three lines where they take three. */
+[data-bf-check='totals'] .lab-check-word {
+  min-block-size: 3lh;
 }
 
-.bf-check-name {
-  display: block;
-  font-family: var(--font-label);
-  font-size: var(--text-ui);
-  line-height: var(--text-ui--line-height);
-}
-
-.bf-check-word,
-.bf-key {
-  color: var(--muted-foreground);
-  font-family: var(--font-label);
-  font-size: var(--text-label);
-  line-height: var(--text-label--line-height);
-}
-
-.bf-check-word {
-  display: block;
+@media (width >= 24rem) {
+  [data-bf-check='totals'] .lab-check-word {
+    min-block-size: 2lh;
+  }
 }
 
 .bf-key {
@@ -543,6 +493,10 @@
   margin: 0;
   padding: 0;
   list-style: none;
+  color: var(--muted-foreground);
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  line-height: var(--text-label--line-height);
 }
 
 .bf-key li {
@@ -663,12 +617,6 @@
 
   .bf-events .lab-log {
     block-size: auto;
-  }
-
-  /* Side by side where the column has room for three of them, as at 1440 px. */
-  .bf-checks {
-    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-    column-gap: 2rem;
   }
 }
 

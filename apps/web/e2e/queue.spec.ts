@@ -25,7 +25,8 @@ const clock = (page: Page) => page.locator('[data-qu-clock]');
 const crashLine = (page: Page) => page.locator('[data-qu-ahead]');
 const STARTED_OVER = `Virtual time ${(REPLAY_FROM / 1000).toFixed(3)} s`;
 const summary = (page: Page) => page.locator('[data-qu-summary]');
-const status = (page: Page) => page.locator('[data-qu-status]');
+/** What the three checks' rows say, in order: no order lost, none printed twice, the queue drains. */
+const checks = (page: Page) => page.locator('[data-qu-prop-words]');
 const log = (page: Page) => page.locator('[data-qu-lines]');
 /** The picture the page shows at this width: the wide one on a laptop. */
 const map = (page: Page) => page.locator('[data-qu-map="wide"]');
@@ -77,9 +78,11 @@ test('without JavaScript, the page is the opening run: order 18 printed twice, w
   const page = await context.newPage();
   await page.goto(QUEUE);
   await expect(summary(page)).toHaveText(OPENING_STORY);
-  await expect(status(page)).toHaveText(
-    'No order was lost, but 1 order was printed twice. Whether the queue drains is checked once orders stop.',
-  );
+  await expect(checks(page)).toHaveText([
+    'Held',
+    'Broken: 1 order printed twice',
+    'Held so far; checked once orders stop',
+  ]);
   // Worker 2's track is hollow and says Down; workers 1 and 3 each light the order in work.
   await expect(map(page).locator('.qu-gap')).toHaveCount(1);
   await expect(map(page).locator('.qu-state')).toHaveText(['Down']);
@@ -111,7 +114,7 @@ test('without JavaScript, the page is the opening run: order 18 printed twice, w
   // The slash alone is a lost order's, and a property that holds has neither bar.
   const bars = (id: string) =>
     property(page, id)
-      .locator('.qu-lamp')
+      .locator('.lab-check-lamp')
       .evaluate((lamp) =>
         ['::before', '::after'].map((part) => {
           const bar = getComputedStyle(lamp, part);
@@ -294,9 +297,7 @@ test('the first thing to try: worker 2 crashes at 2.4 s and order 18 prints twic
     'data-state',
     'printed',
   );
-  await expect(status(page)).toHaveText(
-    /^No order was lost and no order was printed twice over [\d,]+ events\. Whether the queue drains is checked once orders stop\.$/,
-  );
+  await expect(checks(page)).toHaveText(['Held', 'Held', 'Held so far; checked once orders stop']);
   // The key is a setting: it stays on for the run that starts over.
   await expect(page.getByRole('radio', { name: 'On' })).toBeChecked();
 });
@@ -328,9 +329,11 @@ test('the second: switched to acknowledging before the work, a worker crashed at
   const ticket = await strokes(page, '[data-qu-map="wide"] .qu-ticket[data-order="26"]');
   expect(ticket.mark).toBe(ticket.line);
   expect(ticket.mark).not.toBe(ticket.ink);
-  await expect(status(page)).toHaveText(
-    '1 order was lost and 1 order was printed twice. Whether the queue drains is checked once orders stop.',
-  );
+  await expect(checks(page)).toHaveText([
+    'Broken: 1 order lost',
+    'Broken: 1 order printed twice',
+    'Held so far; checked once orders stop',
+  ]);
 });
 
 test('the third: a poison order, then no more orders: under requeue the queue never drains; dead-lettered after four tries, it drains', async ({
@@ -343,7 +346,7 @@ test('the third: a poison order, then no more orders: under requeue the queue ne
   await page.getByRole('button', { name: 'Stop taking orders' }).click();
   await expect(page.getByRole('button', { name: 'Take orders' })).toBeVisible();
   // Until the 30 s are up, no line claims the queue drains.
-  await expect(status(page)).toHaveText(/Whether the queue drains is checked at 34\.0 s\.$/);
+  await expect(property(page, 'drains')).toContainText('Held so far; checked at 34.0 s');
   await runUntil(
     page,
     async () => (await property(page, 'drains').getAttribute('data-held')) === 'false',
@@ -392,10 +395,11 @@ test('while orders still come, a poison order under requeue fails over and over:
   await expect(summary(page)).toHaveText(
     /^Poison order 39 has failed \d+ times: each time it comes straight back to the head of the queue and keeps a worker busy\./,
   );
-  await expect(status(page)).toHaveText(
-    'No order was lost, but 1 order was printed twice. Whether the queue drains is checked once orders stop.',
-  );
-  await expect(property(page, 'drains')).toContainText('Held so far; checked once orders stop');
+  await expect(checks(page)).toHaveText([
+    'Held',
+    'Broken: 1 order printed twice',
+    'Held so far; checked once orders stop',
+  ]);
 });
 
 test('then a slow worker: with ten orders of prefetch it sits on nine it cannot reach, with one it holds one', async ({
@@ -476,7 +480,7 @@ const shown = async (page: Page) => [
   await page.locator('[data-qu-seed]').textContent(),
   await clock(page).textContent(),
   await summary(page).textContent(),
-  await status(page).textContent(),
+  await checks(page).allTextContents(),
   await log(page).locator('li').allTextContents(),
 ];
 

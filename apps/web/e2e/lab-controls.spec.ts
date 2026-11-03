@@ -256,6 +256,69 @@ test('with every worker down and orders waiting, the clock stops, says so, and a
     .toBeGreaterThan(stopped);
 });
 
+// The readouts read as one set, as the controls do (design-system.md). Until 2026-11-03 the caption was
+// set three ways, in two faces and two colours, a check's row two ways, and only two labs closed their
+// checks with a line that said again what the rows say.
+for (const [width, height] of [
+  [1440, 900],
+  [390, 844],
+] as const) {
+  test(`at ${width} px every lab's caption and check rows have one look`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    const looks: string[] = [];
+    for (const lab of LABS) {
+      await page.goto(`/lab/${lab.name}/`);
+      looks.push(
+        await page.evaluate(() => {
+          const look = (selector: string, ...names: string[]) => {
+            const style = getComputedStyle(document.querySelector(selector) as Element);
+            return names.map((name) => style.getPropertyValue(name)).join(' ');
+          };
+          const text = ['font-family', 'font-size', 'font-weight', 'line-height', 'color'];
+          return [
+            look('.lab-caption:not(.rf-gloss)', ...text),
+            look('.lab-check-name', ...text),
+            look('.lab-check-word', ...text),
+            look('.lab-check-lamp', 'inline-size', 'border-radius', 'background-color'),
+          ].join(' | ');
+        }),
+      );
+      // Under its heading, and nothing after the rows but the next part of the desk.
+      await expect(page.getByRole('heading', { name: 'Checked as the run goes' })).toBeVisible();
+      await expect(page.locator('.lab-checks > .lab-check').first()).toBeVisible();
+      await expect(page.locator(`[data-${lab.short}-status]`)).toHaveCount(0);
+    }
+    expect(new Set(looks).size, looks.join('\n')).toBe(1);
+  });
+}
+
+// What decides is the list's own width, so a list that shares its desk stacks where it's narrow.
+test('a check row stands its words beside its name where the list has the room, and under it where not', async ({
+  page,
+}) => {
+  const layout = () =>
+    page.locator('.lab-check').evaluateAll((rows) =>
+      rows.map((row) => {
+        const name = (row.querySelector('.lab-check-name') as Element).getBoundingClientRect();
+        const word = (row.querySelector('.lab-check-word') as Element).getBoundingClientRect();
+        return word.left >= name.right ? 'beside' : word.top >= name.bottom - 1 ? 'under' : 'odd';
+      }),
+    );
+  await page.setViewportSize({ width: 1440, height: 900 });
+  for (const name of ['queue', 'cache', 'backfill']) {
+    await page.goto(`/lab/${name}/`);
+    expect(await layout(), name).toEqual(['beside', 'beside', 'beside']);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const name of ['queue', 'cache', 'backfill']) {
+    await page.goto(`/lab/${name}/`);
+    expect(await layout(), name).toEqual(['under', 'under', 'under']);
+  }
+  // The Raft Lab's words are one word, and fit beside its names on any phone.
+  await page.goto('/lab/raft/');
+  expect(await layout()).toEqual(['beside', 'beside', 'beside', 'beside', 'beside']);
+});
+
 // Reading a section and coming back is an ordinary thing to do. Until 2026-11-03 a contents link and
 // then the browser's Back read as a link followed, and took the visitor's run back to its opening.
 for (const lab of LABS) {

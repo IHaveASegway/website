@@ -136,23 +136,12 @@
   gap: 0.25rem;
 }
 
-.rf-gloss,
-.rf-summary {
-  margin: 0;
-  font-family: var(--font-label);
-  font-size: var(--text-label);
-  font-weight: var(--text-label--font-weight);
-  line-height: var(--text-label--line-height);
-}
-
 .rf-gloss {
   color: var(--muted-foreground);
 }
 
 .rf-summary {
   min-block-size: 2lh;
-  color: var(--foreground);
-  font-variant-numeric: tabular-nums;
 }
 
 @media (width < 24.375rem) {
@@ -466,8 +455,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-.rf-legend,
-.rf-status {
+.rf-legend {
   margin: 0;
   max-width: var(--measure);
   font-family: var(--font-label);
@@ -539,11 +527,11 @@
 }
 
 /* The safety properties: under the heading every lab's checks have, and where these come from, beside
-   it where they fit. A lamp each, filled while it holds and crossed once it breaks, as a property is
-   on every desk (design-system.md, "Lamps: one meaning per mark"), then its name, Held or Broken, and
-   what it promises. The promise takes a line of its own until there's room beside the name. The
-   name's column is as wide as the longest name where a browser sets it widest, as CI's Linux image
-   does, so the words beside it stand in a line and no name takes a second. */
+   it where they fit. Each is a check as on every desk (lab-controls.css): a lamp, its name and Held or
+   Broken, which here always fit side by side, and what it promises, which takes a line of its own until
+   there's room beside the name. The name's column is as wide as the longest name where a browser sets
+   it widest, as CI's Linux image does, so the words beside it stand in a line and no name takes a
+   second. */
 .rf-props-head {
   display: flex;
   flex-wrap: wrap;
@@ -561,121 +549,48 @@
 }
 
 .rf-props {
-  display: grid;
   gap: 0.5rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
 }
 
-.rf-prop {
-  display: grid;
+.rf-props .lab-check {
   grid-template-columns: 0.875rem 8.75rem minmax(0, 1fr);
-  column-gap: 0.625rem;
-  align-items: baseline;
+  row-gap: 0;
+}
+
+.rf-props .lab-check-word {
+  grid-column: auto;
+}
+
+.rf-prop-promise {
+  grid-column: 2 / -1;
+  color: var(--muted-foreground);
   font-family: var(--font-label);
   font-size: var(--text-label);
   font-weight: var(--text-label--font-weight);
   line-height: var(--text-label--line-height);
 }
 
-.rf-prop-lamp {
-  position: relative;
-  align-self: center;
-  inline-size: 0.875rem;
-  block-size: 0.875rem;
-  border: 2px solid var(--line);
-  border-radius: 50%;
-  background-color: var(--line);
-}
-
-.rf-prop[data-held='false'] .rf-prop-lamp {
-  background-color: transparent;
-}
-
-/* The cross stands inside the ring, as it does on the Queue Lab's desk: two bars through the lamp's
-   middle, each a little short of the ring. */
-.rf-prop[data-held='false'] .rf-prop-lamp::before,
-.rf-prop[data-held='false'] .rf-prop-lamp::after {
-  content: '';
-  position: absolute;
-  inset-block-start: 50%;
-  inset-inline-start: 50%;
-  inline-size: 0.5rem;
-  block-size: 2px;
-  margin-block-start: -1px;
-  margin-inline-start: -0.25rem;
-  background-color: var(--line);
-  rotate: 45deg;
-}
-
-.rf-prop[data-held='false'] .rf-prop-lamp::after {
-  rotate: -45deg;
-}
-
-.rf-prop-name {
-  font-size: var(--text-ui);
-  line-height: var(--text-ui--line-height);
-}
-
-.rf-prop-word,
-.rf-prop-promise {
-  color: var(--muted-foreground);
-}
-
-.rf-prop[data-held='false'] .rf-prop-word {
-  color: var(--foreground);
-}
-
-.rf-prop-promise {
-  grid-column: 2 / -1;
-}
-
 /* With larger text on a narrow screen the name's column would push the page wider than the window
    (SC 1.4.10), so each part takes a line of its own beside the lamp. A rem in a media query is the
    visitor's own text size: at 16 px this is narrower than any phone. */
 @media (width < 18rem) {
-  .rf-prop {
+  .rf-props .lab-check {
     grid-template-columns: 0.875rem minmax(0, 1fr);
   }
 
-  .rf-prop-word,
+  .rf-props .lab-check-word,
   .rf-prop-promise {
     grid-column: 2;
   }
 }
 
 @media (width >= 75rem) {
-  .rf-prop {
+  .rf-props .lab-check {
     grid-template-columns: 0.875rem 8.75rem 3rem minmax(0, 1fr);
   }
 
   .rf-prop-promise {
     grid-column: auto;
-  }
-}
-
-/* What the run proved, the desk's one result: the label face at the controls' size, in the ink. On
-   a phone it keeps the room its longest words take, a property broken and how: two lines, three at
-   320 px, at the part's foot, so the room reads as the space above the next rule. From 64rem it
-   stands beside the picture, where a line less leaves the controls that much higher. */
-.rf-status {
-  max-width: none;
-  min-block-size: 2lh;
-  font-size: var(--text-ui);
-  line-height: var(--text-ui--line-height);
-  font-variant-numeric: tabular-nums;
-}
-
-@media (width < 24rem) {
-  .rf-status {
-    min-block-size: 3lh;
-  }
-}
-
-@media (width >= 64rem) {
-  .rf-status {
-    min-block-size: 0;
   }
 }
 
@@ -770,18 +685,6 @@
 @media (forced-colors: active) {
   .rf-cell[data-done] .rf-mark {
     background-color: CanvasText;
-  }
-
-  .rf-prop-lamp,
-  .rf-prop[data-held='false'] .rf-prop-lamp::before,
-  .rf-prop[data-held='false'] .rf-prop-lamp::after {
-    forced-color-adjust: none;
-    border-color: CanvasText;
-    background-color: CanvasText;
-  }
-
-  .rf-prop[data-held='false'] .rf-prop-lamp {
-    background-color: Canvas;
   }
 
   .rf-mark {

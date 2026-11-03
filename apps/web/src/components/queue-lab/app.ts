@@ -36,7 +36,7 @@ import {
   seconds,
   SETTINGS,
   startOver,
-  statusText,
+  stoppedWords,
   stopWords,
   STORY,
   STRIP,
@@ -158,7 +158,6 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       text(item?.querySelector('[data-qu-prop-words]') ?? null, propertyWords(sim, p));
     }
     text($('[data-qu-summary]'), summary(sim));
-    text($('[data-qu-status]'), statusText(sim));
     text($('[data-qu-clock]'), `Virtual time ${seconds(sim.now)}`);
     text($('[data-qu-events]'), eventsWords(sim));
     text($('[data-qu-seed]'), String(sim.seed));
@@ -236,7 +235,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
 
   function stopped(): boolean {
     if (sim.violation) {
-      say(statusText(sim));
+      say(stoppedWords(sim.violation));
       pause();
       return true;
     }
