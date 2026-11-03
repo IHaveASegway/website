@@ -107,15 +107,9 @@ export function place(id: number, size: number): { x: number; y: number } {
 
 const round = (n: number) => Math.round(n * 10) / 10;
 
-export const ROLE_WORD = {
-  follower: 'follower',
-  candidate: 'candidate',
-  leader: 'leader',
-} as const;
-
 /** A server's state in words, for its button's name. */
 export const serverState = (s: Server): string =>
-  s.up ? `${ROLE_WORD[s.role]}, term ${s.term}` : 'down';
+  s.up ? `${s.role}, term ${s.term}` : 'down';
 
 /** How far a follower's or candidate's election timer has run, 0 to 1; a leader's is full. */
 export function timerShare(s: Server, now: number): number {
@@ -125,22 +119,16 @@ export function timerShare(s: Server, now: number): number {
   return span > 0 ? Math.max(0, Math.min(1, (now - s.timerStart) / span)) : 0;
 }
 
-/** Terms take the map's four van colors in turn, so neighboring terms always differ. A state the
- *  browser sets is an attribute, never a class: every class the stylesheet styles is one a built
- *  page carries (test/css-classes.test.ts). */
-export const termShade = (term: number): number => (((term - 1) % 4) + 4) % 4;
-
 /** One server's log as a row of cells: filled when that server knows the entry is committed,
  *  outlined when not, term below. A crash clears what it knew (Figure 2's commitIndex is
  *  volatile), so a server that is down outlines every cell. */
 export function logMarkup(s: Server): string {
-  const cells = s.log
-    .map((entry, i) => {
-      const committed = i < s.commitIndex;
-      return `<li class="rf-cell" data-term="${termShade(entry.term)}"${committed ? ' data-done=""' : ''}><span class="rf-mark"></span><span class="rf-num">${entry.term}</span></li>`;
-    })
+  return s.log
+    .map(
+      (entry, i) =>
+        `<li class="rf-cell"${i < s.commitIndex ? ' data-done=""' : ''}><span class="rf-mark"></span><span class="rf-num">${entry.term}</span></li>`,
+    )
     .join('');
-  return cells;
 }
 
 /** The same log said in words, for assistive technology and for the text it stands beside: what

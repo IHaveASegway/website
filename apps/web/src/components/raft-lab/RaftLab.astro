@@ -9,12 +9,10 @@ import {
   logWords,
   NODE_RADIUS,
   openingRun,
-  OPENING,
   place,
   PROMISES,
   propertyWord,
   ROLE_BASELINE,
-  ROLE_WORD,
   seconds,
   serverState,
   SIZE,
@@ -70,7 +68,7 @@ const SPEEDS = [
 ] as const;
 ---
 
-<div class="rf desk" id="raft-lab" data-rf-opening={JSON.stringify(OPENING)}>
+<div class="rf desk" id="raft-lab">
   <figure class="rf-figure">
     <svg
       class="rf-map"
@@ -100,7 +98,7 @@ const SPEEDS = [
               {s.id + 1}
             </text>
             <text class="rf-role" x={x} y={y + ROLE_BASELINE} data-rf-role>
-              {s.up ? ROLE_WORD[s.role] : 'down'}
+              {s.up ? s.role : 'down'}
             </text>
             <text class="rf-term" x={x} y={y + TERM_BASELINE} data-rf-term>
               term {s.term}

@@ -91,9 +91,7 @@ export function runOnLanding(root: HTMLElement, run: LandingRun): void {
   };
   /** A press on anything that acts: a button, a choice, or a node of the Raft Lab's picture. */
   const taken = (event: Event) => {
-    const target = event.target;
-    if (target instanceof Element && target.closest('button, input, label, [data-rf-node]'))
-      leave();
+    if ((event.target as Element).closest('button, input, label, [data-rf-node]')) leave();
   };
   root.addEventListener('click', taken, true);
   root.addEventListener('change', taken, true);

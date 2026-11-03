@@ -623,7 +623,7 @@ test('Run lights its lamp while the run is on, and every lamp on the desk is the
       .querySelector('[data-rf-log="0"]')
       ?.insertAdjacentHTML(
         'beforeend',
-        '<li class="rf-cell" data-term="2"><span class="rf-mark"></span><span class="rf-num">3</span></li>',
+        '<li class="rf-cell"><span class="rf-mark"></span><span class="rf-num">3</span></li>',
       );
     // The lab's own line token, as the page resolves it, read from a probe on the desk.
     const probe = document.createElement('span');

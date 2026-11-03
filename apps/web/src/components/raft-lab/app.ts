@@ -25,7 +25,6 @@ import {
   OPENING,
   propertyWord,
   readRun,
-  ROLE_WORD,
   seconds,
   serverState,
   statusText,
@@ -70,7 +69,6 @@ export function fresh(seed: number, loss: number): Sim {
 export function start(root: HTMLElement, queued: readonly Element[]): () => void {
   const $ = <T extends Element>(selector: string) => root.querySelector<T>(selector);
   const still = matchMedia('(prefers-reduced-motion: reduce)');
-  const map = $<SVGSVGElement>('[data-rf-map]');
   const flights = $<SVGGElement>('[data-rf-flights]');
   const cut = $<SVGPathElement>('[data-rf-cut]');
   const run = $<HTMLButtonElement>('[data-rf-run]');
@@ -81,8 +79,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   const speed = () => Number($<HTMLInputElement>('[data-rf-speed]:checked')?.value ?? 0.05);
   const lines = $<HTMLOListElement>('[data-rf-lines]');
   const said = $('[data-rf-said]');
-  const text = (selector: string, value: string) => {
-    const element = $(selector);
+  const text = (element: Element | null, value: string) => {
     const words = curled(value);
     if (element && element.textContent !== words) element.textContent = words;
   };
@@ -113,7 +110,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   let playing = false;
   let last = 0;
   let frame = 0;
-  let timer = 0;
+  let timer: ReturnType<typeof setInterval> | undefined;
   let shownLines: Line | undefined;
   let shownBroken: string | undefined;
   const shownLogs: string[] = [];
@@ -124,32 +121,25 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   /** Everything the page shows of the run, changed only where it changed. */
   function draw(): void {
     for (const s of sim.servers) {
-      const node = map?.querySelector(`[data-rf-node="${s.id}"]`);
-      if (node) {
-        node.setAttribute('data-role', s.role);
-        node.setAttribute('data-up', String(s.up));
-        const dial = node.querySelector('[data-rf-dial]');
-        dial?.setAttribute('stroke-dasharray', `${timerShare(s, sim.now).toFixed(3)} 1`);
-        const role = node.querySelector('[data-rf-role]');
-        const label = s.up ? ROLE_WORD[s.role] : 'down';
-        if (role && role.textContent !== label) role.textContent = label;
-        const term = node.querySelector('[data-rf-term]');
-        if (term && term.textContent !== `term ${s.term}`) term.textContent = `term ${s.term}`;
-      }
-      const log = root.querySelector(`[data-rf-log="${s.id}"]`);
+      const node = $(`[data-rf-node="${s.id}"]`);
+      node?.setAttribute('data-role', s.role);
+      node?.setAttribute('data-up', String(s.up));
+      node
+        ?.querySelector('[data-rf-dial]')
+        ?.setAttribute('stroke-dasharray', `${timerShare(s, sim.now).toFixed(3)} 1`);
+      text($(`[data-rf-node="${s.id}"] [data-rf-role]`), s.up ? s.role : 'down');
+      text($(`[data-rf-node="${s.id}"] [data-rf-term]`), `term ${s.term}`);
+      const log = $(`[data-rf-log="${s.id}"]`);
       const markup = logMarkup(s);
       if (log && shownLogs[s.id] !== markup) {
         log.innerHTML = markup;
         log.setAttribute('aria-label', `Server ${s.id + 1}: ${logWords(s)}`);
         shownLogs[s.id] = markup;
       }
-      const toggle = root.querySelector(`[data-rf-toggle="${s.id}"]`);
-      if (toggle) {
-        const verb = s.up ? 'Crash' : 'Restart';
-        const words = `${verb} server ${s.id + 1}`;
-        if (toggle.textContent !== words) toggle.textContent = words;
-        toggle.setAttribute('aria-label', `${words}, now ${serverState(s)}`);
-      }
+      const toggle = $(`[data-rf-toggle="${s.id}"]`);
+      const words = `${s.up ? 'Crash' : 'Restart'} server ${s.id + 1}`;
+      text(toggle, words);
+      toggle?.setAttribute('aria-label', `${words}, now ${serverState(s)}`);
     }
     if (flights) flights.innerHTML = flightsMarkup(sim, still.matches);
     const fence = cutFence(sim.groups);
@@ -159,7 +149,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
         if (cut.getAttribute('d') !== fence) cut.setAttribute('d', fence);
       } else cut.setAttribute('data-off', '');
     }
-    text('[data-rf-summary]', summary(sim));
+    text($('[data-rf-summary]'), summary(sim));
     // A property breaks at most once in a run, and that stops the run, so this rarely has work.
     const broken = sim.violation?.property;
     if (broken !== shownBroken) {
@@ -167,13 +157,12 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       for (const row of root.querySelectorAll('[data-rf-prop]')) {
         const held = row.getAttribute('data-rf-prop') !== broken;
         row.setAttribute('data-held', String(held));
-        const word = row.querySelector('[data-rf-prop-word]');
-        if (word) word.textContent = propertyWord(held);
+        text(row.querySelector('[data-rf-prop-word]'), propertyWord(held));
       }
     }
-    text('[data-rf-status]', statusText(sim));
-    text('[data-rf-clock]', `Virtual time ${seconds(sim.now)}`);
-    text('[data-rf-seed]', String(sim.seed));
+    text($('[data-rf-status]'), statusText(sim));
+    text($('[data-rf-clock]'), `Virtual time ${seconds(sim.now)}`);
+    text($('[data-rf-seed]'), String(sim.seed));
     drawLines();
   }
 
@@ -246,7 +235,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     if (run) run.textContent = 'Pause';
     run?.setAttribute('data-lamp', 'on');
     if (still.matches) {
-      timer = window.setInterval(() => {
+      timer = setInterval(() => {
         playTo(sim, ahead, sim.now + STILL_EVERY * speed(), EVENTS_PER_FRAME);
         draw();
         if (sim.violation) pause();
@@ -318,8 +307,6 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       // action does (lib/raft/sim.ts, catchUp), so the page draws what they did.
       setLoss(sim, lost());
       if (lossOut) lossOut.textContent = `${loss.value}%`;
-    } else if (control.matches('[data-rf-speed]')) {
-      return;
     } else return;
     const latest = sim.lines.at(-1);
     if (latest && latest !== shownLines) say(latest.text);
@@ -332,13 +319,10 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   // A label too, though it does nothing here: the speed already chosen fires no input, and it's as
   // much a first press as any (lib/lab/landing-run.ts).
   root.addEventListener('click', (event) => {
-    const target = event.target instanceof Element ? event.target : null;
-    const control = target?.closest('button, label, [data-rf-node]');
+    const control = (event.target as Element).closest('button, label, [data-rf-node]');
     if (control) press(control);
   });
-  root.addEventListener('input', (event) => {
-    if (event.target instanceof Element) press(event.target);
-  });
+  root.addEventListener('input', (event) => press(event.target as Element));
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && playing) pause();
   });
