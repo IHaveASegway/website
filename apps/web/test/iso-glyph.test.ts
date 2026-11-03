@@ -125,19 +125,19 @@ describe("each lab's glyph, from the run its page opens on", () => {
   });
 
   // One module writes every card's fact, Home's and the Lab index's (lib/lab-facts.ts). Until the
-  // overhaul's merge Home worked out its own copy beside it. The places agree but for the two
-  // sentences that differ on purpose: Home's Raft card crashes the leader, and its Route Lab card
-  // says the bakery is made up.
-  test("Home's facts are the Lab index's, but Raft's failover and the made-up bakery", async () => {
+  // overhaul's merge Home worked out its own copy beside it. The places agree but for the one
+  // sentence that differs on purpose: Home's Raft card crashes the leader. Until 2026-11-02 the
+  // Route Lab's differed too, and only Home's said the bakery is made up.
+  test("Home's facts are the Lab index's, but Raft's failover, and the bakery is made up on both", async () => {
     for (const slug of LABS) {
       const [home, index] = [await labFact(slug, 'home'), await labFact(slug, 'index')];
       expect(home, slug).toMatch(/\S.*\.$/);
       if (slug === 'raft')
         expect(home).toMatch(/^Crash server \d, and server \d takes over in term \d+ after/);
-      else if (slug === 'routes') expect(home).toContain('made-up bakery');
       else expect(home, slug).toBe(index);
     }
     expect(await labFact('raft')).toBe(await labFact('raft', 'index'));
+    expect(await labFact('routes')).toContain('made-up bakery');
   });
 
   test('the queue: a lit plate per order waiting, up to eight; a worker that is down is dashed, its wire cut', () => {

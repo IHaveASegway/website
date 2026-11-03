@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest';
 import { replay as replayBackfill } from '../src/lib/backfill/sim';
 import { WEEK_END } from '../src/lib/backfill/core';
 import { openingRun as backfillOpening } from '../src/lib/backfill/view';
+import { labFact } from '../src/lib/lab-facts';
 import { replay as replayCache } from '../src/lib/cache/sim';
 import { OPENING as CACHE, openingRun as cacheOpening } from '../src/lib/cache/view';
 import {
@@ -22,7 +23,6 @@ import {
   raftLine,
   RAFT_RECOVERY,
   ROUNDS,
-  routesFact,
   routesLine,
   routesWords,
   SIDING,
@@ -126,12 +126,6 @@ describe('the Routes line', () => {
     expect(figureWords(day)).toBe(
       'of driving for a made-up bakery on a busy Saturday, planned by VROOM in your browser',
     );
-    // The index's one fact: the day's driving with VROOM, against the orders as they came in.
-    const before = measured([{ arrives: [600], back: 7200 }]);
-    const after = measured([{ arrives: [600], back: 5400 }]);
-    expect(routesFact(day, before, after)).toBe(
-      `A busy Saturday: 1${NBSP}h 30${NBSP}min of driving instead of 2${NBSP}h 0${NBSP}min.`,
-    );
     expect(inWords(5)).toBe('five');
     expect(inWords(12)).toBe('12');
   });
@@ -154,8 +148,9 @@ describe('the Routes line', () => {
     expect(routesWords(picture.day, picture.before.measured, after)).toBe(
       `20 orders on 3 vans: 5${NBSP}h 34${NBSP}min of driving as the orders came in, 3${NBSP}h 12${NBSP}min planned by VROOM, the last van back after 2${NBSP}h 20${NBSP}min.`,
     );
-    expect(routesFact(picture.day, picture.before.measured, after)).toBe(
-      `A busy Saturday: 3${NBSP}h 12${NBSP}min of driving instead of 5${NBSP}h 34${NBSP}min.`,
+    // The card's one fact says what the figure measures against and that the bakery is made up.
+    expect(await labFact('routes')).toBe(
+      `3${NBSP}h 12${NBSP}min of driving for a made-up bakery on a busy Saturday, planned by VROOM in your browser, against 5${NBSP}h 34${NBSP}min as the orders came in.`,
     );
     const line = routesLine(after);
     expect(line.vans.map((van) => van.stops.length)).toEqual([9, 9, 2]);

@@ -101,11 +101,6 @@ export function routesWords(day: Day, before: Measured, after: Measured): string
   return `${day.orders.length} orders on ${vans} ${vans === 1 ? 'van' : 'vans'}: ${formatDuration(before.drive)} of driving as the orders came in, ${formatDuration(after.drive)} planned by VROOM, the last van back after ${formatDuration(after.back)}.`;
 }
 
-/** The Routes line's one fact on the Lab index: what VROOM saves on the lab's own day, from the
- *  build's solve of both plans: "A busy Saturday: 3 h 12 min of driving instead of 5 h 34 min." */
-export const routesFact = (day: Day, before: Measured, after: Measured): string =>
-  `${day.name}: ${formatDuration(after.drive)} of driving instead of ${formatDuration(before.drive)}.`;
-
 /** The figure pair's caption on Home: "of driving for a made-up bakery on a busy Saturday, planned
  *  by VROOM in your browser", the day's own name in it. The bakery and its orders are invented and
  *  the streets are Seattle's. The hero is where a visitor first meets the bakery, so it says so

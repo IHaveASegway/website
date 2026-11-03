@@ -1,7 +1,7 @@
 import { openingRun as backfillOpening } from './backfill/view';
 import { replay as replayCache } from './cache/sim';
 import { OPENING as CACHE, openingRun as cacheOpening } from './cache/view';
-import { backfillFact, cacheFact, figureWords, queueFact, raftFailover, routesFact } from './lines';
+import { backfillFact, cacheFact, figureWords, queueFact, raftFailover } from './lines';
 import { replay as replayQueue } from './queue/sim';
 import { OPENING as QUEUE } from './queue/view';
 import { leaderOf, replay as replayRaft } from './raft/sim';
@@ -46,15 +46,14 @@ function raftFailedOver(): string {
   return raftFailover(opening, crashed);
 }
 
-// The Route Lab: on Home its figures say what they measure against and that the bakery is made up
-// (the visitor review of 2026-10-31), in the words the hero said them in until ADR 0027
-// (lib/lines.ts, figureWords); the Lab index keeps the line's shorter sentence, as it had before.
-async function routes(place: FactPlace): Promise<string> {
+// The Route Lab: its figures say what they measure against and that the bakery is made up, in the
+// words the hero said them in until ADR 0027 (lib/lines.ts, figureWords). Home took those words after
+// the visitor review of 2026-10-31; until 2026-11-02 the Lab index kept a shorter sentence, "A busy
+// Saturday: 3 h 12 min of driving instead of 5 h 34 min", which said neither.
+async function routes(): Promise<string> {
   // Astro's root is the working directory (lib/route-lab/node-solver.ts).
   const { day, before, after } = await routeLabPicture(process.cwd());
-  return place === 'home'
-    ? `${formatDuration(after.measured.drive)} ${figureWords(day)}, against ${formatDuration(before.measured.drive)} as the orders came in.`
-    : routesFact(day, before.measured, after.measured);
+  return `${formatDuration(after.measured.drive)} ${figureWords(day)}, against ${formatDuration(before.measured.drive)} as the orders came in.`;
 }
 
 const FACTS: Record<string, (place: FactPlace) => string | Promise<string>> = {
