@@ -47,7 +47,7 @@ The veil is the design's one trick. Moving a mask would repaint the window on ev
 
 | Option | Weight on arrival | Truth |
 |---|---|---|
-| Run the real simulation (chosen) | 8 to 13 KB, after the page has settled | It's the thing itself, so it can't disagree with the page |
+| Run the real simulation (chosen) | 8 to 14 KB, after the page has settled | It's the thing itself, so it can't disagree with the page |
 | A CSS loop of the picture, as Home's Orbit does | None | Looks right, and would be a drawing of a demo sitting on top of the demo |
 | Keep load on intent, with a louder Run button | None | Doesn't answer him: a page that needs a press still reads as stopped |
 
