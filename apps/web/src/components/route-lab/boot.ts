@@ -128,10 +128,12 @@ if (root) {
   });
 
   // The space-time cube (ADR 0019): three.js, about 140 KB, loads on intent at the cube itself, a
-  // mouse over it, a focus inside it, a click or a tap, a touch of its slider, and never on a
-  // scroll: a finger that lands on the cube to scroll fires no click. The app loads with it, since
-  // the cube draws the app's plans, and the cube starts only once the app has started: an app that
-  // failed leaves the pictures, and the next intent tries again. A press of Play is kept for it.
+  // mouse over it, a focus inside it, a click or a tap, a finger's drag sideways, a touch of its
+  // slider, and never on a scroll: a finger that lands on the cube to scroll fires no click, and
+  // the browser takes a drag up or down for itself and cancels the pointer (touch-action,
+  // route-lab.css). The app loads with it, since the cube draws the app's plans, and the cube starts
+  // only once the app has started: an app that failed leaves the pictures, and the next intent
+  // tries again. A press of Play is kept for it.
   const cube = root.querySelector<HTMLElement>('[data-rl-cube]');
   if (cube) {
     // Each cube is a stop for Tab from the first paint, before three.js is here: the focus is the
@@ -145,6 +147,19 @@ if (root) {
       stage.setAttribute('role', 'img');
       if (title) stage.setAttribute('aria-labelledby', title.id);
       stage.setAttribute('aria-describedby', 'rl-cube-hint');
+      // A finger's drag sideways is what the hint under the cube asks for, and it fires no click:
+      // until 2026-11-02 it did nothing until a tap had loaded the scene. Once a drag, as a press is.
+      // Up or down is the browser's, which cancels the pointer as soon as it starts to scroll.
+      let from = NaN;
+      stage.addEventListener('pointerdown', (event) => {
+        from = event.clientX;
+      });
+      stage.addEventListener('pointermove', (event) => {
+        if (event.pointerType === 'touch' && Math.abs(event.clientX - from) > 10) {
+          from = NaN;
+          open(true);
+        }
+      });
     }
     let cubed: Promise<unknown> | undefined;
     let live = false;

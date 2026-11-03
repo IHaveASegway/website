@@ -321,6 +321,62 @@ test('a finger that scrolls the page from on the cube loads nothing; a tap loads
   await context.close();
 });
 
+// What the hint tells a phone to do. A drag fires no click, so until 2026-11-02 it did nothing until
+// a tap had loaded the scene: the hint's one instruction didn't work the first time.
+test('a finger’s drag sideways on the picture loads the scene and goes on to turn it', async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    hasTouch: true,
+    isMobile: true,
+    viewport: { width: 390, height: 664 },
+  });
+  const page = await context.newPage();
+  const asked: string[] = [];
+  page.on('request', (r) => asked.push(new URL(r.url()).pathname));
+  await page.goto(ROUTE_LAB);
+  await expect(page.locator('[data-rl-cube-hint]')).toHaveText(/^\s*Drag the cube sideways/);
+  const stage = cube(page).locator('[data-rl-cube-plan="after"] [data-rl-cube-stage]');
+  await stage.scrollIntoViewIfNeeded();
+  const box = await stage.boundingBox();
+  if (!box) throw new Error('no stage');
+  const cdp = await context.newCDPSession(page);
+  const touch = (type: 'touchStart' | 'touchMove' | 'touchEnd', x = 0) =>
+    cdp.send('Input.dispatchTouchEvent', {
+      type,
+      touchPoints: type === 'touchEnd' ? [] : [{ x: box.x + x, y: box.y + box.height / 2 }],
+    });
+
+  // A finger settling on the picture is no drag.
+  await touch('touchStart', 60);
+  await touch('touchMove', 66);
+  await page.waitForTimeout(300);
+  expect(asked.filter(isCube)).toEqual([]);
+  await touch('touchMove', 90);
+  await expect(canvases(page)).toHaveCount(2);
+  const canvas = cube(page).locator('[data-rl-cube-plan="after"] canvas');
+  await expect(canvas).toBeVisible();
+  await expect
+    .poll(() => canvas.evaluate((c: HTMLCanvasElement) => c.width), { timeout: 20_000 })
+    .toBeGreaterThan(0);
+
+  // The same finger, still down: the scene came under it, and it turns the scene.
+  const first = await canvas.screenshot();
+  await touch('touchMove', 120);
+  await touch('touchMove', 180);
+  await expect.poll(() => canvas.screenshot()).not.toEqual(first);
+  await touch('touchEnd');
+
+  // And the next drag, on the canvas itself.
+  const second = await canvas.screenshot();
+  await touch('touchStart', 60);
+  await touch('touchMove', 120);
+  await touch('touchMove', 180);
+  await touch('touchEnd');
+  await expect.poll(() => canvas.screenshot()).not.toEqual(second);
+  await context.close();
+});
+
 test('the canvas starts where the picture was: each hour mark lands on the picture’s mark', async ({
   page,
 }) => {

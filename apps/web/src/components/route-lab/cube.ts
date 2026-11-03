@@ -642,9 +642,14 @@ export function start(root: HTMLElement): boolean {
       },
       { signal },
     );
-    canvas.addEventListener(
+    // On the frame, which holds the picture as well as the canvas: a finger's drag on the picture is
+    // what loads this module (boot.ts), and one still moving when the canvas comes turns it from
+    // there. Its pointer stays with the picture, so the canvas never hears it.
+    stage.frame.addEventListener(
       'pointermove',
       (event) => {
+        if (!drag && event.pointerType === 'touch')
+          drag = { x: event.clientX, y: event.clientY, view, id: event.pointerId };
         if (!drag || event.pointerId !== drag.id) return;
         const tilt = event.pointerType === 'mouse' ? (event.clientY - drag.y) * 0.006 : 0;
         turn({
@@ -657,8 +662,8 @@ export function start(root: HTMLElement): boolean {
     const end = () => {
       drag = null;
     };
-    canvas.addEventListener('pointerup', end, { signal });
-    canvas.addEventListener('pointercancel', end, { signal });
+    stage.frame.addEventListener('pointerup', end, { signal });
+    stage.frame.addEventListener('pointercancel', end, { signal });
     stage.frame.addEventListener(
       'keydown',
       (event) => {

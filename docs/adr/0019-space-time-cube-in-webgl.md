@@ -73,6 +73,8 @@ This record took the pictures to be the build's day alone. On a phone, where thr
 
 In the budgets the picture and the geometry it shares with the scene count as the cube's, since they moved there from the scene's chunk. In the app's 12,000 B they took it 1,245 B over, and that number keeps its meaning, the app and the solver alone. A first solve counts them, since a first change fetches them.
 
+A finger's drag sideways joined the intents the same day. The hint under a cube asks for one, and it fires no click, so on a phone it did nothing until a tap had loaded the scene. The browser takes a drag up or down for itself and cancels the pointer (`touch-action: pan-y`), so a scroll still loads nothing, and a finger still moving when the canvas comes turns it from there.
+
 ## Door
 
 Two-way. The cube is one component, one chunk and one dependency; removing them leaves the pictures, which stand alone. The principle's amendment is a policy, and reverting it is an edit to this record and product.md.
