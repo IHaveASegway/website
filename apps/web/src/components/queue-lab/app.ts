@@ -365,6 +365,26 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   root.addEventListener('change', (event) => {
     if (event.target instanceof Element) press(event.target);
   });
+  // A change of width that hides the copy of New orders holding focus would drop focus to the page,
+  // far from where the visitor was: it moves to the same button in the copy now showing. What holds
+  // focus is kept here, since by the time the width's change is told, Chromium can have dropped it
+  // already, with a focusout from a button no longer drawn; a focusout from one still drawn lets go.
+  // It starts from what holds focus now: a focus inside the demo is what loads this app.
+  let holding = document.activeElement;
+  root.addEventListener('focusin', (event) => {
+    holding = event.target as Element;
+  });
+  root.addEventListener('focusout', (event) => {
+    if ((event.target as Element).getClientRects().length > 0) holding = null;
+  });
+  const desk = matchMedia('(width >= 64rem)');
+  desk.addEventListener('change', () => {
+    const button = holding?.hasAttribute('data-qu-poison') ? 'poison' : 'producer';
+    if (holding?.hasAttribute(`data-qu-${button}`))
+      $<HTMLElement>(
+        `.qu-new-${desk.matches ? 'workers' : 'settings'} [data-qu-${button}]`,
+      )?.focus();
+  });
   const moving = { play, pause, playing: () => playing };
   heldByThePage(root, moving, still);
   // A link to another run followed on this page opens that run, paused, as loading it would.

@@ -842,6 +842,27 @@ test('as the clock’s words grow, the key and all under it hold their place, at
   }
 });
 
+// A press that hides the button that holds focus is one thing; a change of width is another, and focus
+// on a copy that stops showing would fall to the page, the next Tab far from where the visitor was.
+test('a change of width takes focus to the same New orders button in the copy now showing', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(QUEUE);
+  const poison = page.getByRole('button', { name: 'Send a poison order' });
+  // A hover loads the app, which then listens for the width.
+  await page.locator('[data-qu-map="wide"]').hover();
+  await expect(page.locator('[data-qu-lines] li')).not.toHaveCount(0);
+  await poison.focus();
+  await page.setViewportSize({ width: 1000, height: 900 });
+  await expect(page.locator('.qu-new-settings [data-qu-poison]')).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('radio', { name: 'Requeue it' })).toBeFocused();
+  await page.getByRole('button', { name: 'Stop taking orders' }).focus();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(page.locator('.qu-new-workers [data-qu-producer]')).toBeFocused();
+});
+
 // One copy shows at a width, and the two say the same, so a window made narrower can't show the words
 // the run had before.
 test('the copy a change of width shows says what the run says', async ({ page }) => {

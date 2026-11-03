@@ -1146,6 +1146,24 @@ for (const width of [1046, 1056]) {
   });
 }
 
+// New orders is two copies, one shown at a width, so a rotated tablet hides the one that holds focus.
+// e2e/queue.spec.ts holds it in Chromium, which drops focus at another moment from WebKit.
+test('a change of width takes focus to the same New orders button in the copy now showing', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1100, height: 800 });
+  await open(page, LABS.queue.path);
+  const shown = (name: string) => page.locator(`[data-qu-${name}]:visible`);
+  await shown('poison').focus();
+  await expect(page.locator('.qu-controls [data-said]')).toBeVisible();
+  await page.waitForTimeout(500);
+  await page.setViewportSize({ width: 900, height: 1100 });
+  await expect(page.locator('.qu-new-settings [data-qu-poison]')).toBeFocused();
+  await shown('producer').focus();
+  await page.setViewportSize({ width: 1100, height: 800 });
+  await expect(page.locator('.qu-new-workers [data-qu-producer]')).toBeFocused();
+});
+
 // The top bar on an iPhone, in WebKit, at the widths phones have: one row, 56 px, so the first screen
 // doesn't lose 32 px to a second row with half of it empty (e2e/top-bar.spec.ts holds every width in
 // Chromium). 320 is an iPhone SE of the first generation, 375 a 13 mini or a later SE, 390 an iPhone
