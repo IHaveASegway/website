@@ -286,7 +286,7 @@ test("Home's writing rows: the day, the title as the row's link, its summary, it
   test.skip((await rows.count()) === 0, 'this build lists no post');
   const home = new Map<string, string>();
   for (const row of await rows.all()) {
-    await expect(row.locator('.post-date time')).toHaveText(/^\d{1,2} [A-Z][a-z]{2} \d{4}$/);
+    await expect(row.locator('.post-date time')).toHaveText(/^[A-Z][a-z]{2} \d{1,2}, \d{4}$/);
     const link = row.locator('.post-title a');
     await expect(link).toHaveAttribute('href', /^\/(writing|notes)\/.+\/$/);
     await expect(row.locator('.post-summary')).not.toBeEmpty();
