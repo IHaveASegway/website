@@ -43,6 +43,8 @@ import {
 // a run (lib/sim/link.ts) names its seed and the share of messages it loses (#seed-8&loss=30), and
 // opens that run's opening, paused, on load or when followed on the page. Start over keeps the seed
 // and the loss, as the other labs do, so the run can be watched again, and writes the link to it.
+// What a press did, or why it did nothing, goes on the line under Time and to one live region
+// (lib/lab/said.ts); the run a visitor lands on says nothing in either.
 //
 // The run a visitor lands on tells a story (lib/raft/view.ts, landingStory): the leader crashes and
 // the others elect a new one. It's the landing's alone: a press drops what's left of it, and the demo
