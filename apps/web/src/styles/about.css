@@ -450,14 +450,14 @@
     display: block;
   }
 
-  .resume :is(.skills-note, #writing) {
+  .resume .skills-note {
     display: none;
   }
 
   .resume .skills-tools {
     margin-bottom: 0.25rem;
     max-inline-size: none;
-    font-size: inherit;
+    font-size: 0.8125rem;
     line-height: 1.3;
   }
 
@@ -489,12 +489,16 @@
     row-gap: 0;
   }
 
-  /* Selected work on paper: two cards a row, past the years' gutter, so each title stands where the
-     roles' and the posts' titles stand. */
+  /* Selected work on paper: two cards a row, on the page's one left edge. */
   .resume .cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     column-gap: 1.5rem;
     max-inline-size: none;
+  }
+
+  /* Past the years' gutter where roles print, so each title stands where theirs do. With none, that
+     gutter would be an empty column under a heading on the margin. */
+  .resume:has(.roles) .cards {
     padding-inline-start: 8rem;
   }
 
@@ -533,7 +537,9 @@
     grid-column: 2;
   }
 
-  .resume .post-kind {
+  /* Writing on paper is a line a post: its day, its title and its address. Their summaries and the
+     way to the whole list would run the sheet over with a full profile (e2e/about-print.spec.ts). */
+  .resume :is(.post-kind, .post-summary, #writing .post-links) {
     display: none;
   }
 
@@ -552,13 +558,19 @@
   .resume .skills {
     display: flex;
     flex-wrap: wrap;
+    row-gap: 0.125rem;
     border: 0;
   }
 
+  /* The comma is this row's own ::after, so it sits against the name with no gutter, at the name's
+     size. The screen's two columns would leave a gutter between them with the second one hidden. */
   .resume .skills > div {
     display: flex;
+    column-gap: 0;
     padding: 0;
     border: 0;
+    font-size: 0.8125rem;
+    line-height: 1.3;
   }
 
   .resume .skills > div:not(:last-child)::after {
@@ -579,15 +591,11 @@
     line-height: 1.3;
   }
 
+  .resume .resume-notes {
+    max-width: none;
+  }
+
   .resume .roles + .resume-notes {
     margin-top: 0.375rem;
-  }
-
-  .resume .post-links {
-    margin-top: 0.25rem;
-  }
-
-  .resume .post-links a {
-    min-height: 0;
   }
 }

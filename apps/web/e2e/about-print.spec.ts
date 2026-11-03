@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { pages } from './expected';
 
 // /about/ on paper, the résumé (content.md, "Résumé"): one US Letter page, with nothing of the
 // site's own chrome on it and every link's address printed after it. It runs on the site and on the
@@ -75,6 +76,112 @@ test('on paper the site chrome is gone, the name is at a print size, and links s
   }
   // The contact list and the notes already show their addresses as their text.
   for (const content of paper.contact) expect(content).toBe('none');
+});
+
+// The sheet as Chromium lays it out for a Letter page: its media queries see the page's 816 px, so the
+// screen's rules from 48rem apply on paper though the column is 720 px. A viewport under 48rem would
+// pass what print gets wrong, as it did until 2026-11-02: every skill's comma stood a gutter away
+// from it, the skills' paragraph drew at 17 px over 13 px text, and with no role to line up with,
+// Selected work started 128 px in from its own heading.
+const AS_LETTER = { width: 816, height: 1056 };
+
+/** How the skills and the cards stand on paper. */
+const sheet = (page: Page) =>
+  page.evaluate(() => {
+    const px = (element: Element, name: 'fontSize') => parseFloat(getComputedStyle(element)[name]);
+    const rows = [...document.querySelectorAll('.resume .skills > div')];
+    const cards = document.querySelector('.resume .cards');
+    const title = document.querySelector('#work-title');
+    const first = cards?.firstElementChild;
+    return {
+      // What a row holds past its name: a comma, and the space after it. A whole em would be a
+      // gutter, not a comma's width.
+      afterName: rows.map((row) => {
+        const name = row.querySelector('dt') as Element;
+        const size = px(name, 'fontSize');
+        return (row.getBoundingClientRect().right - name.getBoundingClientRect().right) / size;
+      }),
+      sizes: rows.map((row) => {
+        const comma = getComputedStyle(row, '::after').fontSize;
+        return parseFloat(comma) / px(row.querySelector('dt') as Element, 'fontSize');
+      }),
+      tools: (() => {
+        const tools = document.querySelector('.skills-tools');
+        return tools ? px(tools, 'fontSize') : null;
+      })(),
+      body: px(document.querySelector('.resume .skills dt') as Element, 'fontSize'),
+      cardInset:
+        first && title
+          ? first.getBoundingClientRect().left - title.getBoundingClientRect().left
+          : null,
+      roles: document.querySelector('.resume .roles') !== null,
+    };
+  });
+
+test('on paper each skill keeps its comma, its text is one size, and the cards stand where they should', async ({
+  page,
+}) => {
+  await page.setViewportSize(AS_LETTER);
+  await page.goto(RESUME);
+  await page.emulateMedia({ media: 'print' });
+  await page.evaluate(() => document.fonts.ready);
+  const paper = await sheet(page);
+  expect(paper.afterName.length).toBeGreaterThan(0);
+  // The last has no comma; every other holds the comma's width and the space after it.
+  expect(paper.afterName.at(-1)).toBeCloseTo(0);
+  for (const room of paper.afterName.slice(0, -1)) expect(room).toBeLessThan(0.9);
+  for (const size of paper.sizes) expect(size).toBeCloseTo(1);
+  if (paper.tools !== null) expect(paper.tools).toBe(paper.body);
+  // On the page's left edge, or past the years' gutter where roles print beside it.
+  if (paper.cardInset !== null) expect(paper.cardInset).toBe(paper.roles ? 128 : 0);
+});
+
+// The known answer: the same reading on the rules the sheet shipped with. Each of the three is
+// reported, so a reading that saw nothing would not pass the sheet.
+test('known answer: the old rules read as a comma a gutter away, large skills and indented cards', async ({
+  page,
+}) => {
+  test.skip(!pages().includes('/lab/'), 'this build has no card to indent');
+  await page.setViewportSize(AS_LETTER);
+  await page.goto(RESUME);
+  // A stylesheet of its own, since the page's policy refuses a style tag.
+  await page.evaluate(() => {
+    const old = new CSSStyleSheet();
+    old.replaceSync(`@media print {
+      .resume .skills > div { column-gap: 2rem; font-size: inherit; line-height: inherit; }
+      .resume .skills-tools { font-size: 1.1rem; }
+      .resume .cards { padding-inline-start: 8rem; }
+    }`);
+    document.adoptedStyleSheets = [old];
+  });
+  await page.emulateMedia({ media: 'print' });
+  const paper = await sheet(page);
+  expect(paper.afterName[0]).toBeGreaterThan(2);
+  expect(paper.tools).toBeGreaterThan(paper.body);
+  expect(paper.cardInset).toBe(128);
+});
+
+// Writing prints as a line a post, its address after its title, and no way to the whole list: a
+// sheet has no links to follow, and a full profile has no room for the rest.
+test('on paper Writing is each post in one line, with its address', async ({ page }) => {
+  await page.goto(RESUME);
+  await page.emulateMedia({ media: 'print' });
+  const writing = await page.evaluate(() => {
+    const section = document.querySelector('#writing');
+    const shown = (selector: string) =>
+      [...(section?.querySelectorAll(selector) ?? [])].filter((e) => e.checkVisibility()).length;
+    return {
+      section: section?.checkVisibility() ?? null,
+      titles: shown('.post-title'),
+      summaries: shown('.post-summary'),
+      more: shown('.post-links a'),
+    };
+  });
+  test.skip(writing.section === null, 'this build lists no post on the résumé');
+  expect(writing.section).toBe(true);
+  expect(writing.titles).toBeGreaterThan(0);
+  expect(writing.summaries).toBe(0);
+  expect(writing.more).toBe(0);
 });
 
 // A printed résumé never asks its reader for the résumé (2026-10-31): the sheet in their hand is
