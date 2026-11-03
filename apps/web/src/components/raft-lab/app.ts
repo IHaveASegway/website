@@ -1,3 +1,4 @@
+import { eventLog } from '../../lib/lab/event-log';
 import { runOnLanding } from '../../lib/lab/landing-run';
 import {
   crash,
@@ -11,7 +12,6 @@ import {
   step,
   write,
   type Action,
-  type Line,
   type Sim,
 } from '../../lib/raft/sim';
 import {
@@ -21,7 +21,6 @@ import {
   landingStory,
   linkTo,
   logMarkup,
-  LOG_LINES,
   logWords,
   OPENING,
   propertyWord,
@@ -78,7 +77,6 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   // The speed is the chosen radio's, read on every frame, so a choice made before the app loaded
   // counts too.
   const speed = () => Number($<HTMLInputElement>('[name="rf-speed"]:checked')?.value ?? 0.05);
-  const lines = $<HTMLOListElement>('[data-rf-lines]');
   const said = $('[data-rf-said]');
   const text = (element: Element | null, value: string) => {
     const words = curled(value);
@@ -112,12 +110,16 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   let last = 0;
   let frame = 0;
   let timer: ReturnType<typeof setInterval> | undefined;
-  let shownLines: Line | undefined;
   let shownBroken: string | undefined;
   const shownLogs: string[] = [];
-  // The build wrote the opening's lines; the run writes its own from the first draw, so none is
-  // written twice, and a link's run shows its own.
-  lines?.replaceChildren();
+  // The build wrote the opening's last lines; a link's run writes its own.
+  const log = eventLog(
+    $('[data-rf-lines]') as HTMLElement,
+    'lab-log-at',
+    seconds,
+    linked ? undefined : sim.lines.at(-1),
+  );
+  if (linked) log.clear();
 
   /** Everything the page shows of the run, changed only where it changed. */
   function draw(): void {
@@ -130,11 +132,11 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
         ?.setAttribute('stroke-dasharray', `${timerShare(s, sim.now).toFixed(3)} 1`);
       text($(`[data-rf-node="${s.id}"] [data-rf-role]`), s.up ? s.role : 'down');
       text($(`[data-rf-node="${s.id}"] [data-rf-term]`), `term ${s.term}`);
-      const log = $(`[data-rf-log="${s.id}"]`);
+      const row = $(`[data-rf-log="${s.id}"]`);
       const markup = logMarkup(s);
-      if (log && shownLogs[s.id] !== markup) {
-        log.innerHTML = markup;
-        log.setAttribute('aria-label', `Server ${s.id + 1}: ${logWords(s)}`);
+      if (row && shownLogs[s.id] !== markup) {
+        row.innerHTML = markup;
+        row.setAttribute('aria-label', `Server ${s.id + 1}: ${logWords(s)}`);
         shownLogs[s.id] = markup;
       }
       const toggle = $(`[data-rf-toggle="${s.id}"]`);
@@ -165,31 +167,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     text($('[data-rf-clock]'), `Virtual time ${seconds(sim.now)}`);
     text($('[data-rf-events]'), eventsWords(sim));
     text($('[data-rf-seed]'), String(sim.seed));
-    drawLines();
-  }
-
-  /** The event log: new lines appended, the oldest dropped past LOG_LINES. */
-  function drawLines(): void {
-    if (!lines) return;
-    const from = shownLines ? sim.lines.indexOf(shownLines) + 1 : 0;
-    // The newest line stays in view while the reader is at the log's end, as an emptied log is. A
-    // reader who has scrolled back to read is left there, not pulled down again by the next frame:
-    // on a phone a finger on the log would otherwise fight every draw.
-    const box = lines.parentElement;
-    const following = box && box.scrollHeight - box.scrollTop - box.clientHeight < 2;
-    if (shownLines && from === 0) lines.replaceChildren();
-    const start = from === 0 ? Math.max(0, sim.lines.length - LOG_LINES) : from;
-    for (const line of sim.lines.slice(start)) {
-      const item = document.createElement('li');
-      const at = document.createElement('span');
-      at.className = 'rf-at';
-      at.textContent = seconds(line.at);
-      item.append(at, ` ${curled(line.text)}`);
-      lines.append(item);
-    }
-    while (lines.children.length > LOG_LINES) lines.firstElementChild?.remove();
-    if (box && following && sim.lines.length > start) box.scrollTop = box.scrollHeight;
-    shownLines = sim.lines.at(-1);
+    log.draw(sim.lines);
   }
 
   const say = (words: string) => {
@@ -211,8 +189,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     pause();
     sim = next;
     ahead = [];
-    shownLines = undefined;
-    lines?.replaceChildren();
+    log.clear();
     draw();
     say(summary(sim));
   }
@@ -264,6 +241,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   }
 
   function press(control: Element): void {
+    const before = sim.lines.at(-1);
     theirs = true;
     // Every press but Start over drops what's left of the story: Start over asks for it again.
     const reset = control.matches('[data-rf-reset]');
@@ -311,7 +289,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       if (lossOut) lossOut.textContent = `${loss.value}%`;
     } else return;
     const latest = sim.lines.at(-1);
-    if (latest && latest !== shownLines) say(latest.text);
+    if (latest && latest !== before) say(latest.text);
     // An event the log does not tell, as most are: where the run stands now, so the press is heard.
     else if (control.matches('[data-rf-step]'))
       say(`Virtual time ${seconds(sim.now)}, ${eventsWords(sim)}`);

@@ -355,13 +355,6 @@
   }
 }
 
-.rf-heading {
-  margin: 0;
-  font-size: var(--text-ui);
-  font-family: var(--font-label);
-  font-weight: 500;
-}
-
 .rf-logs {
   display: grid;
   gap: 0.625rem;
@@ -690,50 +683,13 @@
   white-space: nowrap;
 }
 
-/* The event log: the newest line last, in a describer's window, raised, that scrolls; a part of
-   the desk of its own, under a rule from bezel to bezel. On a phone a line is one column, its time
-   leading its words; from 48rem the time has a column of its own, so the words wrap under
-   themselves, never under the time. */
+/* The event log (lab-controls.css), a part of the desk of its own, under a rule from bezel to bezel. */
 .rf-events {
   display: grid;
   gap: 0.75rem;
   margin-inline: calc(var(--desk-side) * -1);
   padding: 1.5rem var(--desk-side) 0;
   border-top: 1px solid var(--border);
-}
-
-/* The log's box is one size whatever it holds, before the run's first line and after its sixtieth,
-   so a run that empties it, or fills it, moves nothing under it (steady.spec.ts). */
-.rf-lines {
-  block-size: 16rem;
-  padding: 0.75rem 1rem;
-  overflow-y: auto;
-  background-color: var(--surface-2);
-  font-family: var(--font-label);
-  font-size: var(--text-label);
-  font-weight: var(--text-label--font-weight);
-  line-height: var(--text-label--line-height);
-}
-
-.rf-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-@media (width >= 48rem) {
-  .rf-list li {
-    display: grid;
-    grid-template-columns: 5.5rem minmax(0, 1fr);
-  }
-}
-
-.rf-at {
-  margin-inline-end: 0.5rem;
-  color: var(--muted-foreground);
-  font-family: var(--font-label);
-  font-size: var(--text-label);
-  font-variant-numeric: tabular-nums;
 }
 
 @media (forced-colors: active) {

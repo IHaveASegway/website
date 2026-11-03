@@ -79,18 +79,48 @@ for (const lab of LABS) {
 const THREE = LABS.filter((lab) => lab.name !== 'raft');
 
 for (const lab of THREE) {
-  test(`the ${lab.name} lab's every list of checks has the same heading, and its log the same box`, async ({
-    page,
-  }) => {
+  test(`the ${lab.name} lab's list of checks has the same heading`, async ({ page }) => {
     await page.goto(`/lab/${lab.name}/`);
     await expect(page.getByRole('heading', { name: 'Checked as the run goes' })).toBeVisible();
+  });
+}
+
+for (const lab of LABS) {
+  test(`the ${lab.name} lab's log is the same box, its lines in two columns, and opens on its newest with no script`, async ({
+    browser,
+  }) => {
+    const context = await browser.newContext({
+      javaScriptEnabled: false,
+      viewport: { width: 390, height: 664 },
+    });
+    const page = await context.newPage();
+    await page.goto(`/lab/${lab.name}/`);
     await expect(page.getByRole('heading', { name: 'What happened' })).toBeVisible();
     const log = await page.locator('[role="log"]').evaluate((box) => {
       const style = getComputedStyle(box);
-      return [style.flexDirection, style.overflowY, style.blockSize];
+      const lines = [...box.querySelectorAll('li')];
+      const last = lines.at(-1)?.getBoundingClientRect();
+      return {
+        direction: style.flexDirection,
+        overflow: style.overflowY,
+        height: Math.round(box.getBoundingClientRect().height),
+        scrolled: box.scrollTop,
+        newestShows: (last?.bottom ?? Infinity) <= box.getBoundingClientRect().bottom,
+        columns: getComputedStyle(lines[0] as Element).gridTemplateColumns.split(' ').length,
+        face: style.fontFamily,
+      };
     });
-    expect(log[0]).toBe('column-reverse');
-    expect(log[1]).toBe('auto');
+    expect(log).toMatchObject({
+      direction: 'column-reverse',
+      overflow: 'auto',
+      height: 256,
+      scrolled: 0,
+      newestShows: true,
+      columns: 2,
+    });
+    // Every lab's lines in the same face: Raft's were in Archivo Label, and the others' in Archivo.
+    expect(log.face).not.toMatch(/Label/);
+    await context.close();
   });
 }
 

@@ -3,7 +3,7 @@ import '../../styles/lab-controls.css';
 
 interface Props {
   /** The lab's prefix: its app finds the list by it, as data-qu-lines. */
-  short: 'qu' | 'cl' | 'bf';
+  short: 'rf' | 'qu' | 'cl' | 'bf';
   /** The run's last lines, oldest first, each with its time as the lab writes it. */
   lines: readonly { readonly at: string; readonly text: string }[];
 }

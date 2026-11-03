@@ -1,5 +1,7 @@
 ---
+import EventLog from '../lab/EventLog.astro';
 import Time from '../lab/Time.astro';
+import { LINES_SHOWN } from '../../lib/lab/event-log';
 import { PROPERTIES } from '../../lib/raft/check';
 import {
   cutFence,
@@ -7,7 +9,6 @@ import {
   eventsWords,
   flightsMarkup,
   logMarkup,
-  LOG_LINES,
   logWords,
   NODE_RADIUS,
   openingRun,
@@ -59,7 +60,9 @@ const sim = openingRun();
 const cut = cutFence(sim.groups);
 // Every line the app would write for this run, so the run's first election is on the page from its
 // first line: the last 12 of them opened on a server winning, with no line saying it stood.
-const lines = sim.lines.slice(-LOG_LINES);
+const lines = sim.lines
+  .slice(-LINES_SHOWN)
+  .map((line) => ({ at: seconds(line.at), text: line.text }));
 const dial = DIAL_RADIUS;
 
 // Virtual seconds a real second runs, by name; Steady is the speed the page opens at.
@@ -170,7 +173,7 @@ const SPEEDS = [
   </div>
 
   <div class="rf-part rf-log-part">
-    <h2 class="rf-heading">Logs</h2>
+    <h2 class="lab-heading">Logs</h2>
     <ol class="rf-logs" role="list">
       {sim.servers.map((s) => (
         <li class="rf-log">
@@ -251,7 +254,7 @@ const SPEEDS = [
   </div>
 
   <div class="rf-part rf-props-part">
-    <h2 class="rf-heading" id="rf-props">
+    <h2 class="lab-heading" id="rf-props">
       Safety properties, from Figure 3 of the Raft paper
     </h2>
     <ul class="rf-props" role="list" aria-labelledby="rf-props">
@@ -272,18 +275,7 @@ const SPEEDS = [
   </div>
 
   <div class="rf-events">
-    <h2 class="rf-heading" id="rf-events">
-      What happened
-    </h2>
-    <div class="rf-lines" role="log" aria-live="off" aria-labelledby="rf-events" tabindex="0">
-      <ol class="rf-list" data-rf-lines>
-        {lines.map((line) => (
-          <li>
-            <span class="rf-at">{seconds(line.at)}</span> {line.text}
-          </li>
-        ))}
-      </ol>
-    </div>
+    <EventLog short="rf" lines={lines} />
   </div>
 </div>
 

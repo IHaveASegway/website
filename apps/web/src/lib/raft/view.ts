@@ -33,9 +33,6 @@ export const OPENING = {
 
 export const openingRun = (): Sim => replay({ seed: OPENING.seed }, OPENING.actions, OPENING.until);
 
-/** How many of a run's lines the event log shows, at build and in the browser, so the two agree. */
-export const LOG_LINES = 60;
-
 /**
  * What the run a visitor lands on goes on to do if it's left alone (ADR 0030), in virtual ms after
  * the opening: heartbeats alone tell nothing, so the leader crashes, the others elect a new one, the

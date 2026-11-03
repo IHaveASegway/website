@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { fresh } from '../src/components/raft-lab/app';
+import { LINES_SHOWN } from '../src/lib/lab/event-log';
 import { check, createChecker, PROPERTIES } from '../src/lib/raft/check';
 import {
   createServer,
@@ -41,7 +42,6 @@ import {
   LANDING,
   landingStory,
   linkTo,
-  LOG_LINES,
   logMarkup,
   logWords,
   LOSSES,
@@ -989,7 +989,7 @@ describe('a visitor reads server, never node (docs/content.md, "The site\'s lang
 
 test('the event log opens on the run’s first line at build, as it does in the browser: an election before its win', () => {
   const sim = openingRun();
-  expect(sim.lines.length).toBeLessThanOrEqual(LOG_LINES);
+  expect(sim.lines.length).toBeLessThanOrEqual(LINES_SHOWN);
   const list = /data-rf-lines[^>]*>([\s\S]*?)<\/ol>/.exec(read('lab/raft/index.html'))?.[1] ?? '';
   const items = [...list.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/g)].map(([, item]) =>
     (item ?? '').replace(/<[^>]+>/g, '').trim(),
