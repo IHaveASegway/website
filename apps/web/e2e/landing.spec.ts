@@ -189,6 +189,24 @@ test.describe('the Route Lab', () => {
     await expect(drive(page)).toBeHidden();
   });
 
+  // A mouse over the demo, or a focus in it, loads its app, which draws the plan the build drew. That
+  // is no reason to send the vans home: until 2026-11-02 they jumped back to the bakery.
+  test('the app arriving leaves the vans where they are', async ({ page }) => {
+    await page.goto(ROUTE_LAB);
+    await expect.poll(() => time(page)).toBeGreaterThan(1);
+    const drawn = page.evaluate(
+      () =>
+        new Promise<void>((done) =>
+          document
+            .getElementById('route-lab')
+            ?.addEventListener('rl:plans', () => done(), { once: true }),
+        ),
+    );
+    await page.locator('.rl-controls').hover();
+    await drawn;
+    expect(await time(page)).toBeGreaterThan(1);
+  });
+
   test('a new plan brings its own vans, and a tap still lands on the map', async ({ page }) => {
     await page.goto(ROUTE_LAB);
     const before = await layers(page).first().innerHTML();

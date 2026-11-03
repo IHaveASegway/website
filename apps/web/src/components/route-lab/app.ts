@@ -144,9 +144,14 @@ export async function start(root: HTMLElement, queued: Element[], nearest: Neare
 
   /** The plan each map shows, once this module has drawn one: both maps' vans keep one clock. */
   const onMap: Partial<Record<Which, { plan: Plan; measured: Measured }>> = {};
+  /** Whether this module is drawing again the plan the build drew, which the vans are driving. */
+  let asBuilt = keyOf(orders, vans) === opened;
 
-  /** Redraws the vans on both maps, from the start of their day. */
+  /** Redraws the vans on both maps, from the start of their day. A visitor only has to look at the
+   *  demo to load this module, a mouse over it, a focus in it, and until 2026-11-02 that sent the
+   *  vans on the plan they were driving back to the bakery. */
   function drive() {
+    if (asBuilt) return;
     const longest = Math.max(onMap.before?.measured.back ?? 0, onMap.after?.measured.back ?? 0);
     for (const which of ['before', 'after'] as const) {
       const shown = onMap[which];
@@ -191,7 +196,8 @@ export async function start(root: HTMLElement, queued: Element[], nearest: Neare
     after?.toggleAttribute('data-rl-stale', !isFresh);
     $('[data-rl-readout]')?.toggleAttribute('data-rl-stale', !isFresh);
     const stale = after && $('[data-rl-note]', after);
-    // Unseen while fresh, but in its place (route-lab.css), so the map under it never moves.
+    // Shown while stale, in the place of the line that says when that plan's last van is back
+    // (route-lab.css), so nothing under it moves.
     stale?.toggleAttribute('data-rl-off', isFresh);
     if (after)
       text(
@@ -470,9 +476,15 @@ export async function start(root: HTMLElement, queued: Element[], nearest: Neare
     panel.setAttribute('height', String(box.height + 2 * pad));
   }
 
-  update();
-  // What the visitor did while this module loaded, in order; the state above already holds it,
-  // and replaying it says what it did.
+  // What the controls say, unless the visitor did something while this module loaded: then it's half
+  // done, a chosen day's chip over the opening day's places, which is the solved plan's orders dealt
+  // in another order. Until 2026-11-02 the headline worked out a saving from that, which no plan on
+  // the page had, and kept it until VROOM answered: "VROOM saves 2 h 14 min of driving" on the way
+  // from a busy Saturday's 2 h 22 min to a quiet Tuesday's 52 min.
+  if (queued.length === 0) update();
+  asBuilt = false;
+  // What the visitor did while this module loaded, in order: replaying it draws it, and says what
+  // it did.
   for (const action of queued.splice(0)) {
     if (action instanceof HTMLInputElement) input(action);
     else surprise();

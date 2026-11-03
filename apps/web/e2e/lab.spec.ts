@@ -489,6 +489,39 @@ for (const width of [390, 1440]) {
   });
 }
 
+// The first change of all: the app arrives with a day's chip already chosen and the opening day's
+// places still ticked. Until 2026-11-02 the headline worked out a saving from those, one no plan on
+// the page had, "VROOM saves 2 h 14 min of driving", and kept it until the solver had loaded.
+test('while the first solve loads, the headline keeps what it said, until VROOM answers', async ({
+  page,
+  context,
+}) => {
+  let hold = true;
+  await context.route(`**${SOLVER}vroom-worker.mjs`, async (route) => {
+    while (hold) await new Promise((resolve) => setTimeout(resolve, 50));
+    await route.continue();
+  });
+  await page.goto(ROUTE_LAB);
+  const saved = page.locator('[data-rl-saved]');
+  const opening = `VROOM saves 2${NBSP}h 22${NBSP}min of driving, 43% less, and 74.0${NBSP}mi.`;
+  await expect(saved).toHaveText(opening);
+  await page
+    .locator('input[name="rl-day"][value="quiet"]')
+    .evaluate((radio: HTMLInputElement) => radio.click());
+  // The app is here, with the day's own plan drawn, and VROOM hasn't answered.
+  await expect(page.locator('[data-rl-plan="before"] [data-rl-time]')).toHaveText(
+    `3${NBSP}h 16${NBSP}min`,
+  );
+  await expect(page.locator('[data-rl-readout]')).toHaveAttribute('data-rl-stale', '');
+  await expect(saved).toHaveText(opening);
+  hold = false;
+  await expect(saved).toHaveText(
+    `VROOM saves 52${NBSP}min of driving, 27% less, and 32.1${NBSP}mi.`,
+    { timeout: 20_000 },
+  );
+  await expect(page.locator('[data-rl-readout]')).not.toHaveAttribute('data-rl-stale', '');
+});
+
 // Nothing moves when the boot module arrives: CSS shows the controls from the first paint wherever
 // script runs (route-lab.css, the scripting media feature). On a phone on a slow network the module
 // used to reveal them after the page had painted, a layout shift of 0.16 against a limit of 0.1.
