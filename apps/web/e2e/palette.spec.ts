@@ -391,9 +391,29 @@ test.describe('on a touch screen', () => {
       for (let y = 740; y >= 500; y -= 20) await touch('touchMove', y);
       await touch('touchEnd');
     };
+    // A drag ends in a fling that carries on through a scrollTo, and a tap on a moving page only
+    // stops it, as it does on a phone. Tapping at once left the menu shut on 12 of 12 tries, and
+    // once the page had stopped on 0 of 12. On CI's runner, this test sometimes tapped too soon.
+    const stopped = () =>
+      page.evaluate(
+        () =>
+          new Promise<void>((done) => {
+            let still = 0;
+            let was = scrollY;
+            const look = () => {
+              still = scrollY === was ? still + 1 : 0;
+              was = scrollY;
+              if (still >= 20) done();
+              else requestAnimationFrame(look);
+            };
+            requestAnimationFrame(look);
+          }),
+      );
     await drag();
     await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
+    await stopped();
     await page.evaluate(() => scrollTo(0, 0));
+    await stopped();
     await opener(page).tap();
     await expect(menu(page)).toHaveJSProperty('open', true);
     // The lock reaches the compositor with the next frame, and a drag is the compositor's.
