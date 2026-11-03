@@ -32,6 +32,11 @@ export const RETIRED: readonly (readonly [RegExp, string])[] = [
 const PROPERTIES = /\bpropert(?:y|ies)\b/i;
 const CHECKS_LABS = ['lab/queue/', 'lab/cache/', 'lab/backfill/'];
 
+/** Raft's word is server, the paper's and the glossary's: a node is the Cache Lab's. What the app
+ *  writes in the browser is held by e2e/raft.spec.ts and test/raft.test.ts. */
+const NODE = /\bnodes?\b/i;
+const SERVER_LABS = ['lab/raft/'];
+
 /**
  * Retired words that still stand in a write-up with a review stamp: changing them needs Joseph's read,
  * so an agent can't. Each is the exact file and word, and the test below fails once it has gone, so
@@ -81,6 +86,9 @@ describe('the words the site retired stay retired', () => {
         ...retiredIn(text),
         ...(CHECKS_LABS.some((lab) => file.startsWith(lab)) && PROPERTIES.test(text)
           ? ['propert: say "checks", which outside Raft is the word']
+          : []),
+        ...(SERVER_LABS.some((lab) => file.startsWith(lab)) && NODE.test(text)
+          ? ['node: say "server", which on the Raft Lab is the word']
           : []),
       ].filter(
         (hit) => !(onLabPage(file) && hit.startsWith('\\bseeded runs')) && !awaiting(file, hit),
@@ -164,6 +172,12 @@ test('the content files say the same: a draft does not bring a retired word back
       .map((hit) => `${file}: ${hit}`),
   );
   expect(found).toEqual([]);
+});
+
+test('the Raft Lab’s write-up says server, never node', () => {
+  const text = readFileSync(join(process.cwd(), 'src/content/lab/raft.md'), 'utf8');
+  expect(text).toMatch(/\bservers?\b/i);
+  expect(text).not.toMatch(NODE);
 });
 
 test('every word waiting for his read still stands where the list says, so the list can only shrink', () => {
