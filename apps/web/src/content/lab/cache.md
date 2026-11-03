@@ -16,7 +16,7 @@ That last part is the stampede. At 300 reads a second, an expired menu sends doz
 
 ## Three things to try
 
-**Let the menu expire.** The first run does it: the entry expires at 3.0 s, 23 fetches of the menu pile up on the database's eight connections, and two readers time out. Turn on coalescing and serving stale, and start over. One reader fetches; the others wait for that fetch or take the old copy, and nobody times out.
+**Let the menu expire.** The first run does it: the entry expires at 3.0 s, the database has 23 fetches of the menu in flight at once, and two readers time out. Turn on coalescing and serving stale, and start over. One reader fetches; the others wait for that fetch or take the old copy, and nobody times out.
 
 **Flush every node at the morning rush.** Choose the morning's 600 reads a second and flush with nothing turned on. Every page misses at once: within a second more than 250 fetches wait for the database's eight connections, and for about three seconds readers give up. The pages fetched again together expire together eight seconds later, so the overload comes back in waves, about every ten seconds, and does not die out. Turn on jitter and early refresh before you flush, and the expiries spread out: no second wave forms.
 
