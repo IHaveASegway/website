@@ -53,7 +53,7 @@ test('known answer: a glyph outside the subsets is reported, with the system fon
 
 // A page fetches a face's file only if it draws text in that face (design-system.md, "The faces").
 // Four Archivo faces draw every page's first screen and are preloaded; Archivo's SemiBold draws
-// <strong>, and B612 Mono code, so each is fetched where a page uses it. On 2026-10-24's build every
+// <strong>, and JetBrains Mono code, so each is fetched where a page uses it. On 2026-10-24's build every
 // page preloaded the mono face, and the 404, which set nothing in it, fetched its 8,156 B anyway.
 
 /** The font files a page fetched, and those of them whose face drew none of its text. `before`
@@ -103,7 +103,7 @@ for (const path of [...pages(), NOT_FOUND_PAGE]) {
 }
 
 // The known answer: a page that fetches the mono file and draws nothing in it is reported, with that
-// one file. Only a page with code declares B612 Mono (Base.astro), so the copy here is such a page
+// one file. Only a page with code declares JetBrains Mono (Base.astro), so the copy here is such a page
 // with its code taken out, and the face is loaded anyway, as a preload of it would. It needs one
 // page with code in the build it runs on: on the site that is a post (since 2026-10-30, the
 // trading-bot teardown), on the writing fixture its posts, as test/fonts.test.ts assumes for the
@@ -114,12 +114,12 @@ test('known answer: a font file fetched for a face that draws no text is reporte
 }) => {
   let withCode: string | undefined;
   for (const path of pages()) {
-    if ((await (await page.request.get(path)).text()).includes('B612 Mono-')) {
+    if ((await (await page.request.get(path)).text()).includes('JetBrains Mono-')) {
       withCode = path;
       break;
     }
   }
-  if (!withCode) throw new Error('no page in this build declares B612 Mono');
+  if (!withCode) throw new Error('no page in this build declares JetBrains Mono');
   await page.route(`**${withCode}`, async (route) => {
     const response = await route.fetch();
     const body = (await response.text())
@@ -131,7 +131,7 @@ test('known answer: a font file fetched for a face that draws no text is reporte
   const { unused, families } = await unusedFonts(page, withCode, () =>
     page.evaluate(async () => {
       const mono = [...document.fonts].find((face) =>
-        face.family.replace(/"/g, '').startsWith('B612 Mono-'),
+        face.family.replace(/"/g, '').startsWith('JetBrains Mono-'),
       );
       if (!mono) throw new Error('the page declares no mono face');
       await mono.load();
@@ -140,7 +140,7 @@ test('known answer: a font file fetched for a face that draws no text is reporte
   // By name, not by count: page.route turns off the cache and slows every fetch, so a preloaded face
   // (font-display: optional) can miss its first moment here and sit undrawn beside the mono, as one
   // did on 2026-11-02. That is the fallback working, not the fault this answer is about.
-  const mono = unused.filter((file) => families[file] === 'B612 Mono');
+  const mono = unused.filter((file) => families[file] === 'JetBrains Mono');
   expect(mono).toHaveLength(1);
   expect(mono[0]).toMatch(/\.woff2$/);
 });

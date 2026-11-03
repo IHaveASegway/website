@@ -24,7 +24,7 @@
    in Prussian ink, with one accent, cobalt, for what a visitor can act on; by night the same
    drawing as a blueprint. Type is one family, Archivo, in three widths: ExtraCondensed ExtraBold
    for the name, titles and figures; Expanded Medium for signage, the navigation, a block's name
-   and dates; SemiBold for buttons and controls; Regular for reading; code alone in B612 Mono. Labels are sentence case, untracked, never mono.
+   and dates; SemiBold for buttons and controls; Regular for reading; code alone in JetBrains Mono. Labels are sentence case, untracked, never mono.
    Everything stands on one left edge, ragged right. Corners follow hierarchy: the bar and bands
    square, a control 4px, a card 8px; no shadows but the open command menu's. A hairline carries
    structure (a row of a list, a stat's cell, the bar's edge), never decoration. */
@@ -1219,7 +1219,7 @@
 
   /* A post's body, as Markdown renders it. Tailwind's preflight removes every margin, list marker
      and heading size, so the rhythm is set here once, for whatever a post holds: the base size,
-     h2 at the headline's, code in B612 Mono on the board's surface, links underlined in the rule's
+     h2 at the headline's, code in JetBrains Mono on the board's surface, links underlined in the rule's
      color. */
   .prose {
     max-width: var(--measure);

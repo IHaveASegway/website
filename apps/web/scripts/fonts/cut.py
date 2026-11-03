@@ -98,11 +98,13 @@ def cut(font: TTFont, points: list[int], flavor, out: Path):
 # The faces the site serves (docs/design/overhaul.md, "Type"; ADR 0027): one family, Archivo by
 # Omnibus-Type, in three widths, each a static instance cut here from google/fonts' variable font,
 # so no served face has an axis (ADR 0029 moved the display face from ExtraCondensed to Expanded).
-# (file name, family name the font records, PostScript name, axes, CSS weight.) B612 Mono is
-# google/fonts' own static instance, cut as it comes. Long reads are set in two static instances of
-# Source Serif 4 at its text optical size (ADR 0029), named Reading Serif: the upstream's name table
-# reserves "Source" under the OFL, and an instanced subset is a modified version, so it goes by a
-# name of its own. Its copyright notice and license stay.
+# (file name, family name the font records, PostScript name, axes, CSS weight.) Code is set in the
+# Regular of JetBrains Mono, instanced from google/fonts' variable font: it reserves no name, so it
+# keeps its own, and its ligatures (calt) stay out with every other feature FEATURES doesn't list.
+# Long reads are set in two static instances of Source Serif 4 at its text optical size (ADR 0029),
+# named Reading Serif: the upstream's name table reserves "Source" under the OFL, and an instanced
+# subset is a modified version, so it goes by a name of its own. Its copyright notice and license
+# stay.
 ARCHIVO = [
     # The name, every title and heading, and the figures: the widest width at SemiBold.
     ("archivo-expanded-semibold", "Archivo Expanded SemiBold", "Archivo-ExpandedSemiBold",
@@ -118,7 +120,7 @@ ARCHIVO = [
     ("archivo-regular", "Archivo", "Archivo-Regular", {"wdth": 100, "wght": 400}, 400),
     ("archivo-semibold", "Archivo SemiBold", "Archivo-SemiBold", {"wdth": 100, "wght": 600}, 600),
 ]
-MONO = ("b612-mono-ttf", "b612-mono-regular", 400)
+MONO = ("jetbrains-mono-regular", {"wght": 400})
 SERIF = [
     ("reading-serif-regular", "Reading Serif", "ReadingSerif-Regular", {"opsz": 14, "wght": 400}, 400),
     ("reading-serif-semibold", "Reading Serif SemiBold", "ReadingSerif-SemiBold", {"opsz": 14, "wght": 600}, 600),
@@ -170,6 +172,17 @@ def serif(files: dict[str, Path], file: str) -> TTFont:
     }.items():
         font["name"].setName(value, name_id, 3, 1, 0x409)
         font["name"].removeNames(nameID=name_id, platformID=1)
+    for name_id in (16, 17, 25):
+        font["name"].removeNames(nameID=name_id)
+    if "STAT" in font:
+        del font["STAT"]
+    return font
+
+
+def mono(files: dict[str, Path]) -> TTFont:
+    """The code face. Its default instance is already named as itself: only what the variable font
+    adds to the names goes, as archivo() does."""
+    font = instance(files["jetbrains-mono-ttf"], MONO[1])
     for name_id in (16, 17, 25):
         font["name"].removeNames(nameID=name_id)
     if "STAT" in font:
@@ -263,7 +276,7 @@ def fallback_css(files: dict[str, Path], name: str) -> str:
     label = archivo(files, "archivo-condensed-semibold")
     regular = archivo(files, "archivo-regular")
     semibold = archivo(files, "archivo-semibold")
-    mono = load(files["b612-mono-ttf"])
+    code = mono(files)
     locals_ = locals_for(files)
 
     def fit(web: TTFont, local: TTFont) -> float:
@@ -295,13 +308,13 @@ def fallback_css(files: dict[str, Path], name: str) -> str:
 
     mono_families = []
     for family, names, local in [
-        ("B612 Mono Fallback Menlo", ["Menlo Regular", "Menlo-Regular", "DejaVu Sans Mono", "DejaVuSansMono"],
+        ("JetBrains Mono Fallback Menlo", ["Menlo Regular", "Menlo-Regular", "DejaVu Sans Mono", "DejaVuSansMono"],
          load(files["dejavu-sans-mono-ttf"])),
-        ("B612 Mono Fallback Courier", ["Courier New", "CourierNewPSMT", "Liberation Mono", "LiberationMono",
-                                        "Cousine Regular", "Cousine-Regular"], load(files["cousine-ttf"])),
+        ("JetBrains Mono Fallback Courier", ["Courier New", "CourierNewPSMT", "Liberation Mono", "LiberationMono",
+                                             "Cousine Regular", "Cousine-Regular"], load(files["cousine-ttf"])),
     ]:
         mono_families.append(family)
-        faces.append(face(family, names, advance(mono, "0") / advance(local, "0"), mono, 400))
+        faces.append(face(family, names, advance(code, "0") / advance(local, "0"), code, 400))
 
     def stack(families: list[str], generic: str) -> str:
         return ", ".join(f"'{family}'" for family in families) + f", {generic}"
@@ -314,7 +327,7 @@ def fallback_css(files: dict[str, Path], name: str) -> str:
   - Arial: Arial (Apple, Windows), Liberation Sans and Arimo (Linux), which share its widths.
     Measured from Arimo. Roboto: Android. DejaVu Sans: Linux without Liberation.
   - Menlo and DejaVu Sans Mono share one width, and so do Courier New, Liberation Mono and Cousine.
-  - Archivo's wide, label and reading faces and B612 Mono are fitted to English letter
+  - Archivo's wide, label and reading faces and JetBrains Mono are fitted to English letter
     frequencies. Archivo Expanded SemiBold is fitted to "{name}", from profile.json: the name is
     Home's largest text.
   - Reading Serif has no fitted fallback: its 400 is font-display: optional, so nothing swaps, and
@@ -338,9 +351,6 @@ def fallback_css(files: dict[str, Path], name: str) -> str:
 
 
 def outputs(files: dict[str, Path], name: str) -> list[tuple[str, object]]:
-    def web(key: str):
-        return lambda out: cut(load(files[key]), unicodes(LATIN), "woff2", out)
-
     def license_copy(key: str, same: list[str]):
         # One copy serves every family that ships the same license text, byte for byte.
         def make(out: Path):
@@ -361,15 +371,15 @@ def outputs(files: dict[str, Path], name: str) -> list[tuple[str, object]]:
     def serif_web(file: str):
         return lambda out: cut(serif(files, file), unicodes(LATIN), "woff2", out)
 
-    key, mono_file, _ = MONO
+    mono_file = MONO[0]
     return [
         *[(f"src/assets/fonts/{file}.woff2", archivo_web(file)) for file, *_ in ARCHIVO],
-        (f"src/assets/fonts/{mono_file}.woff2", web(key)),
+        (f"src/assets/fonts/{mono_file}.woff2", lambda out: cut(mono(files), unicodes(LATIN), "woff2", out)),
         *[(f"src/assets/fonts/{file}.woff2", serif_web(file)) for file, *_ in SERIF],
         *[(f"src/og/fonts/{file}.ttf", archivo_og(file)) for file in OG_FACES],
         ("src/styles/font-fallbacks.css", lambda out: out.write_text(fallback_css(files, name), "utf-8")),
         ("public/fonts/OFL-Archivo.txt", license_copy("archivo-ofl", [])),
-        ("public/fonts/OFL-B612Mono.txt", license_copy("b612-mono-ofl", [])),
+        ("public/fonts/OFL-JetBrainsMono.txt", license_copy("jetbrains-mono-ofl", [])),
         ("public/fonts/OFL-SourceSerif4.txt", license_copy("source-serif-4-ofl", [])),
     ]
 

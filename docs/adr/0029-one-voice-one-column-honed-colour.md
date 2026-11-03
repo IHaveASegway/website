@@ -29,7 +29,7 @@ Joseph is about to share an essay on LinkedIn, and traffic from recruiters and t
 | `--font-sans` | Archivo Regular | short interface prose |
 | `--font-reading` | Reading Serif, an instance of Source Serif 4 | long reads |
 | `--font-label` | Archivo Condensed SemiBold | a lab's instruments and key hints |
-| `--font-mono` | B612 Mono | code |
+| `--font-mono` | JetBrains Mono (B612 Mono until the postscript below) | code |
 
 ExtraCondensed is gone. The served serif goes by its own name because the upstream's name table reserves "Source" under the OFL, and an instanced subset is a modified version. The attribution and license ship with it.
 
@@ -78,6 +78,10 @@ Two-way for colour, tokens and copy: one file each, and a revert restores them. 
 ## Postscript, 2026-11-02: the link cards
 
 A QA pass before the traffic found Home's and the Lab index's link previews still topped with the board's five coloured lines, which ADR 0027 took off the pages and which this record's colour rule rules out for Home. A card is the first thing a stranger sees of a link, so it now looks like what it opens. Home's is the name in two lines beside the cluster, in black and white and the one accent; the Lab index's carries the five glyphs its page lists, each in its own lab's colour, as the page has them. Every card stands on the field behind every page (ADR 0030), so none is a black sheet. A lab's own card keeps its line and its colour. `test/og.test.ts` counts the pixels on Home's card away from the accent, and the door stays two-way: a card is redrawn at the next build, and a preview cache lets go of the old one in days.
+
+## Postscript, 2026-11-02: the code face
+
+B612 Mono read `order_data.update(message)` as `order_data. update[message]`: its parentheses look square and its period leaves a gap. On the teardown, a page about reading that exact line, that's a different and wrong Python expression, and it isn't a matter of taste. Code is now set in JetBrains Mono's Regular, cut through `scripts/fonts/cut.py` and `fonts.lock.json` as the reading face was: 8,436 B against 12,084 B, fetched only on a page with code, so no budget moves. Source Code Pro drew as well and looked lighter beside the serif. It also reserves "Source", so it would have needed a name of its own, and JetBrains Mono reserves nothing. Its ligatures stay out: code shows the characters it was written in. The door is two-way, one lock entry and one token. Rendered side by side on 2026-11-02 in Chromium and WebKit.
 
 ## Further reading
 

@@ -6,7 +6,7 @@
   - Arial: Arial (Apple, Windows), Liberation Sans and Arimo (Linux), which share its widths.
     Measured from Arimo. Roboto: Android. DejaVu Sans: Linux without Liberation.
   - Menlo and DejaVu Sans Mono share one width, and so do Courier New, Liberation Mono and Cousine.
-  - Archivo's wide, label and reading faces and B612 Mono are fitted to English letter
+  - Archivo's wide, label and reading faces and JetBrains Mono are fitted to English letter
     frequencies. Archivo Expanded SemiBold is fitted to "Joseph Peterson", from profile.json: the name is
     Home's largest text.
   - Reading Serif has no fitted fallback: its 400 is font-display: optional, so nothing swaps, and
@@ -19,7 +19,7 @@
   --font-wide-fallbacks: 'Archivo Wide Fallback Arial', 'Archivo Wide Fallback Roboto', 'Archivo Wide Fallback DejaVu', sans-serif;
   --font-label-fallbacks: 'Archivo Label Fallback Arial', 'Archivo Label Fallback Roboto', 'Archivo Label Fallback DejaVu', sans-serif;
   --font-sans-fallbacks: 'Archivo Fallback Arial', 'Archivo Fallback Roboto', 'Archivo Fallback DejaVu', sans-serif;
-  --font-mono-fallbacks: 'B612 Mono Fallback Menlo', 'B612 Mono Fallback Courier', monospace;
+  --font-mono-fallbacks: 'JetBrains Mono Fallback Menlo', 'JetBrains Mono Fallback Courier', monospace;
   --font-reading-fallbacks: Georgia, 'Noto Serif', 'DejaVu Serif', serif;
 }
 
@@ -226,21 +226,21 @@
 }
 
 @font-face {
-  font-family: 'B612 Mono Fallback Menlo';
+  font-family: 'JetBrains Mono Fallback Menlo';
   src:
     local('Menlo Regular'),
     local('Menlo-Regular'),
     local('DejaVu Sans Mono'),
     local('DejaVuSansMono');
   font-weight: 400;
-  size-adjust: 107.9643%;
-  ascent-override: 89%;
-  descent-override: 23%;
+  size-adjust: 99.6594%;
+  ascent-override: 102%;
+  descent-override: 30%;
   line-gap-override: 0%;
 }
 
 @font-face {
-  font-family: 'B612 Mono Fallback Courier';
+  font-family: 'JetBrains Mono Fallback Courier';
   src:
     local('Courier New'),
     local('CourierNewPSMT'),
@@ -249,8 +249,8 @@
     local('Cousine Regular'),
     local('Cousine-Regular');
   font-weight: 400;
-  size-adjust: 108.3157%;
-  ascent-override: 89%;
-  descent-override: 23%;
+  size-adjust: 99.9837%;
+  ascent-override: 102%;
+  descent-override: 30%;
   line-gap-override: 0%;
 }

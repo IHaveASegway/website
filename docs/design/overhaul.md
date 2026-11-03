@@ -51,7 +51,7 @@ One family, **Archivo** (Omnibus-Type, SIL OFL 1.1), across its width axis: widt
 | Label | Condensed SemiBold (wdth 75, wght 600) | `--font-label` | buttons, controls, keys, labels inside drawings, where room is short | `archivo-condensed-semibold.woff2`, 11,900 B | preloaded |
 | Text | Regular (wdth 100, wght 400) | `--font-sans` | reading | `archivo-regular.woff2`, 12,272 B | preloaded |
 | Strong | SemiBold (wdth 100, wght 600) | `--font-sans` at 600 | `<strong>` | `archivo-semibold.woff2`, about 11.4 kB | on demand |
-| Code | B612 Mono Regular | `--font-mono` | code and nothing else | `b612-mono-regular.woff2`, 12,084 B | only on a page with code |
+| Code | JetBrains Mono Regular (B612 Mono until 2026-11-02; ADR 0029, postscript) | `--font-mono` | code and nothing else | `jetbrains-mono-regular.woff2`, 8,436 B | only on a page with code |
 
 Preloaded on every page: 48,244 B of the 70,000 B budget. The label face matches the old Barlow Semi Condensed's width on the labs' own words (0.394 em a letter against 0.419), so the labs' controls keep their rows.
 
@@ -196,7 +196,7 @@ How it works (prose, measure)      │ register (from 64rem)
 
 **/writing/**: the head, then the dated writing list (above), RSS feed at its foot.
 
-**A post**: the title at `title`, the date and kind under it in wide at `label`, the body at `base` in the measure, the register beside from 64rem; code in B612 Mono on `--surface-2`.
+**A post**: the title at `title`, the date and kind under it in wide at `label`, the body at `base` in the measure, the register beside from 64rem; code in JetBrains Mono on `--surface-2`.
 
 **/about/**: brittanychiang's two columns from 64rem: the left sticky (the name at `title`, the role, the addresses as `.kv`, Print), the right scrolling (the bio's blocks, the roles, the skills, the work cards). It still prints on one US Letter page (`e2e/about-print.spec.ts`).
 

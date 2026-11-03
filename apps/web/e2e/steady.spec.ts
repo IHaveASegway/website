@@ -215,7 +215,7 @@ test.describe('web fonts arriving late move nothing', () => {
       await handsOn(page);
       // The faces every page preloads a second late, as on a slow first visit. They are optional
       // (astro.config.mjs): not here in the browser's first moment, they are not swapped in, and
-      // the page stays in its fitted fallback. Archivo's SemiBold and B612 Mono swap by design, as
+      // the page stays in its fitted fallback. Archivo's SemiBold and JetBrains Mono swap by design, as
       // a page fetches them only once it sets <strong> or code (design-system.md, "The faces"), so
       // they come on time here. All of the page is watched, not only the screen: a reader may have
       // scrolled before the fonts came.
