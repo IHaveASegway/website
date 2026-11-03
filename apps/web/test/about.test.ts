@@ -153,6 +153,19 @@ describe('aboutParts: Home reads the bio it does not own', () => {
     });
   });
 
+  test('known answers: the bio takes the typographer a post gets, in every part', () => {
+    expect(aboutParts("It's Joseph's.\n\n### What I'm at\n\n- **I've one.** It's two.\n")).toEqual({
+      lede: ['It’s Joseph’s.'],
+      sections: [
+        {
+          heading: 'What I’m at',
+          principles: [{ lead: 'I’ve one.', text: 'It’s two.' }],
+          paragraphs: [],
+        },
+      ],
+    });
+  });
+
   test('markup Home would print as characters stops the build, rather than reach the page', () => {
     expect(() => aboutParts('See [the lab](/lab/).')).toThrow(/plain text only/);
     expect(() => aboutParts('### A\n\n- **One.** Has `code`.')).toThrow(/plain text only/);

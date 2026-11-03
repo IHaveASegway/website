@@ -23,7 +23,7 @@ export const RETIRED: readonly (readonly [RegExp, string])[] = [
   [/\brules live in the build\b/i, 'I turn rules into tests'],
   [/\bseeded runs\b/i, 'simulated runs, on Home and About'],
   [/\bfield notes?\b/i, 'essays'],
-  [/\bcolour\b/i, 'US English: color'],
+  [/\bcolour(?:s|ed|ing)?\b/i, 'US English: color'],
   [/\bdemos?\b/i, 'lab, for the page'],
   [/\bpart way\b/i, 'partway, one word'],
 ];
@@ -41,25 +41,6 @@ const SERVER_LABS = ['lab/raft/'];
 /** The Route Lab's term, which its write-up says too. "Of driving" is another thing, what a plan
  *  does; this is how far a place is. */
 const DRIVING_TIME = /\bdriving times?\b/i;
-
-/**
- * Retired words that still stand in a write-up with a review stamp: changing them needs Joseph's read,
- * so an agent can't. Each is the exact file and word, and the test below fails once it has gone, so
- * the list can only shrink. They're in the report of the pass that found them.
- */
-const AWAITING_HIS_READ: Readonly<Record<string, readonly string[]>> = {
-  'lab/routes/index.html': ['colour'],
-  'lab/routes.md': ['colour'],
-  'lab/raft/index.html': ['demo'],
-  'lab/raft.md': ['demo'],
-  'lab/cache/index.html': ['propert'],
-  'lab/cache.md': ['propert'],
-  'lab/backfill/index.html': ['propert'],
-  'lab/backfill.md': ['propert'],
-};
-
-const awaiting = (file: string, hit: string) =>
-  (AWAITING_HIS_READ[file] ?? []).some((word) => hit.includes(word));
 
 /** The words a page says outside its text: what a screen reader announces, a tooltip shows and a
  *  link preview quotes. Until 2026-11-02 this test stripped them with the tags, so "What the lamps
@@ -96,9 +77,7 @@ describe('the words the site retired stay retired', () => {
           ? ['node: say "server", which on the Raft Lab is the word']
           : []),
         ...(DRIVING_TIME.test(text) ? ['driving time: say "drive time"'] : []),
-      ].filter(
-        (hit) => !(onLabPage(file) && hit.startsWith('\\bseeded runs')) && !awaiting(file, hit),
-      );
+      ].filter((hit) => !(onLabPage(file) && hit.startsWith('\\bseeded runs')));
       expect(found).toEqual([]);
     });
   }
@@ -120,8 +99,8 @@ describe('the words the site retired stay retired', () => {
 });
 
 // What a search result and a link preview show, which a page's body doesn't. "Lab" is the page's
-// name in the site's language, and until 2026-11-02 /lab/'s description said "Demos by". A lab's
-// write-up is stamped text, so the word is held here in what page code writes, not yet in its body.
+// name in the site's language, and until 2026-11-02 /lab/'s description said "Demos by". This holds
+// what page code writes for a search result; the content test below holds a write-up's body.
 describe("a page's description and its link preview call a lab a lab", () => {
   /** The strings a page's head gives a search result and a link preview. */
   const head = (page: string) =>
@@ -174,7 +153,6 @@ test('the content files say the same: a draft does not bring a retired word back
   const found = entries.flatMap((file) =>
     retiredIn(readFileSync(join(root, file), 'utf8'))
       .filter((hit) => !(file.startsWith('lab/') && hit.startsWith('\\bseeded runs')))
-      .filter((hit) => !awaiting(file, hit))
       .map((hit) => `${file}: ${hit}`),
   );
   expect(found).toEqual([]);
@@ -184,18 +162,4 @@ test('the Raft Lab’s write-up says server, never node', () => {
   const text = readFileSync(join(process.cwd(), 'src/content/lab/raft.md'), 'utf8');
   expect(text).toMatch(/\bservers?\b/i);
   expect(text).not.toMatch(NODE);
-});
-
-test('every word waiting for his read still stands where the list says, so the list can only shrink', () => {
-  const root = join(process.cwd(), 'src/content');
-  for (const [file, waiting] of Object.entries(AWAITING_HIS_READ)) {
-    const text = file.endsWith('.md')
-      ? readFileSync(join(root, file), 'utf8')
-      : html.includes(file)
-        ? words(read(file))
-        : null;
-    if (text === null) continue;
-    for (const word of waiting)
-      expect(new RegExp(`\\b${word}`, 'i').test(text), `${file}: ${word}`).toBe(true);
-  }
 });

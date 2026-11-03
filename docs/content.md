@@ -330,7 +330,7 @@ A claim about him needs his read. An agent drafts; he answers for what ships.
 
 ### The site's language
 
-One vocabulary, so nobody has to translate ([ADR 0029](adr/0029-one-voice-one-column-honed-colour.md)). A recruiter should get the first screen, and a tech lead shouldn't feel talked down to. `apps/web/test/language.test.ts` fails on a retired phrase.
+One vocabulary, so nobody has to translate ([ADR 0029](adr/0029-one-voice-one-column-honed-colour.md)). A recruiter should get the first screen, and a tech lead shouldn't feel talked down to. `apps/web/test/language.test.ts` fails on a retired phrase, and `apps/web/test/lab-words.test.ts` holds what a list of phrases can't: the bakery is made up before a page calls it "the bakery", checks outside Raft, and a skill's row names only what its lab shows, apart from the two rows it lists for About's overhaul.
 
 | Use | Avoid |
 |---|---|
