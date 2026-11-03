@@ -200,7 +200,7 @@ None left: Q1 and Q2 were decided on 2026-10-22 ([Decided](#decided)).
 
 | # | Question | Options | Recommendation, and why | Door | Blocks · by |
 |---|---|---|---|---|---|
-| Q10 · Q-projects | Which work is featured? | (a) stillhere and gitops, plus one line for the upstream contribution to capacitor. (b) Other repositories as well | (a). Owned, checkable work, linked only after its readiness checks, with exact credit (gitops has outside contributions; capacitor is someone else's project). Partly answered on 2026-10-23: owned work shows as cards that link to the repositories, not case studies. stillhere's card waits on its readiness check and the GitHub profile's. gitops is private, so it stays off the site until it is public again. Still open: the capacitor line | Two-way | the project cards and the capacitor line in PR 4 · before PR 4 |
+| Q10 · Q-projects | Which work is featured? | (a) stillhere and gitops, plus one line for the upstream contribution to capacitor. (b) Other repositories as well | (a). Owned, checkable work, linked only after its readiness checks, with exact credit (gitops has outside contributions; capacitor is someone else's project). Partly answered on 2026-10-23: owned work shows as cards that link to the repositories, not case studies. stillhere's card turned on on 2026-11-03, with its check and the GitHub profile's recorded. gitops is private, so it stays off the site until it is public again. Still open: the capacitor line | Two-way | the project cards and the capacitor line in PR 4 · before PR 4 |
 
 ### Blocking PR 6 and later
 

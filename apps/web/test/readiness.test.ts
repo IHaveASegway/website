@@ -19,12 +19,14 @@ const OWN_HOST = /^(www\.)?ihaveasegway\.com$/i;
 const HANDLE_ANY_CASE = new RegExp(HANDLE, 'i');
 
 // The font licenses the site must ship (public/fonts/OFL-*.txt) begin with their projects'
-// copyright lines, which name the projects' own repositories. These exact URLs, in these files only,
-// are the one exception: they reach no account of Joseph's.
+// copyright lines, which name the projects' own repositories, and the Route Lab's credits link the
+// solver it runs to that project's repository. These exact URLs, in these files only, are the one
+// exception: they reach no account of Joseph's.
 const LICENSE_NOTICES = [
   { file: 'fonts/OFL-Archivo.txt', url: 'https://github.com/Omnibus-Type/Archivo' },
   { file: 'fonts/OFL-JetBrainsMono.txt', url: 'https://github.com/JetBrains/JetBrainsMono' },
   { file: 'fonts/OFL-SourceSerif4.txt', url: 'https://github.com/adobe-fonts/source-serif' },
+  { file: 'lab/routes/index.html', url: 'https://github.com/VROOM-Project/vroom' },
 ];
 
 /** Text as the URL checks read it: markup with its references decoded; a script in each of its
@@ -369,5 +371,11 @@ describe('known answers for the matcher', () => {
     const url = 'https://github.com/JetBrains/JetBrainsMono';
     expect(verdict(url, 'fonts/OFL-JetBrainsMono.txt', none)).toBeNull();
     expect(verdict(url, 'index.html', none)).not.toBeNull();
+  });
+  test("the Route Lab's credit passes only as that exact URL, on that page", () => {
+    const url = 'https://github.com/VROOM-Project/vroom';
+    expect(verdict(url, 'lab/routes/index.html', none)).toBeNull();
+    expect(verdict(url, 'index.html', none)).not.toBeNull();
+    expect(verdict(`${url}/releases`, 'lab/routes/index.html', none)).not.toBeNull();
   });
 });

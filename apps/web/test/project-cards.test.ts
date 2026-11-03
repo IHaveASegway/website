@@ -112,10 +112,13 @@ test('a project card links only to its own repository, says so in words, and dra
 // Only the projects are pinned here. Whether a post's card renders follows from the build's own
 // pages, which the tests above already hold Home to, so publishing a featured post turns its card
 // on without a change to this file.
+const STILLHERE = { title: 'stillhere', href: 'https://github.com/IHaveASegway/stillhere' };
+
 test.runIf(fixture === undefined)(
-  'today, as profile.json and the hold list stand, no project card renders and no fixture project leaks',
+  'today, as profile.json and the hold list stand, stillhere alone renders, and no fixture project leaks',
   () => {
-    expect(projects).toEqual([]);
+    expect(projects.map((c) => c.title)).toEqual(['stillhere']);
+    expect(homeCards()).toEqual([STILLHERE]);
     expect(home).not.toContain('fixture-project');
   },
 );
@@ -123,8 +126,9 @@ test.runIf(fixture === undefined)(
 test.runIf(fixture?.includes('fixture-many') === true)(
   'known answer: the profile fixture renders its made-up project, linked to its repository',
   () => {
-    expect(projects.map((c) => c.title)).toEqual(['fixture-project']);
+    expect(projects.map((c) => c.title)).toEqual(['stillhere', 'fixture-project']);
     expect(homeCards()).toEqual([
+      STILLHERE,
       { title: 'fixture-project', href: 'https://github.com/IHaveASegway/fixture-project' },
     ]);
   },

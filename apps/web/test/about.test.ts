@@ -114,6 +114,19 @@ test('the tools line says what profile.json says, under its heading, and the clo
   expect(page.indexOf('class="section contact"')).toBeLessThan(page.indexOf('<footer'));
 });
 
+// The open source row's name links to its repository, from the record's own check (lib/profile.ts,
+// projectCards): about.md holds no link, since Home reads it as plain text.
+test('stillhere’s row links its name to its repository, from the checked record', () => {
+  if (fixtureBuild) return;
+  const record = profile.projects.find((p) => p.name === 'stillhere');
+  expect(record?.checked).toBeDefined();
+  const row = /<li class="bio-row">([\s\S]*?)<\/li>/.exec(page)?.[1] ?? '';
+  expect(/<h3[^>]*>([\s\S]*?)<\/h3>/.exec(row)?.[1]).toBe(
+    `<a href="${record?.url}">stillhere</a>:`,
+  );
+  expect(row.match(/<a\b/g)).toHaveLength(1);
+});
+
 // The labs' rows (ADR 0031): the whole row is a link to its lab, by the bold line, and each stands
 // under its lab's own line from its link card, not the isometric glyph: Joseph asked for no isometric
 // drawing beside the bio.

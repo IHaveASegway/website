@@ -33,10 +33,11 @@ interface Loose {
 // profile.json with both networks, a LinkedIn record under a made-up slug among them, so each
 // network's rules are tested whatever profile.json holds today.
 // Its skills start empty, so the cases that count to the schema's limit count from zero whatever
-// profile.json lists.
+// profile.json lists, and its projects hold no check or figure, so each case adds its own.
 const valid: Profile = {
   ...structuredClone(profile),
   skills: [],
+  projects: profile.projects.map(({ name, description, url }) => ({ name, description, url })),
   basics: {
     ...structuredClone(profile.basics),
     profiles: [
@@ -232,12 +233,33 @@ test('the tag and the facts pass through, and the cards keep profile order', () 
   ]);
 });
 
-test("the real hold list keeps both of today's projects off, even once each is checked", () => {
+// stillhere's hold was lifted on 2026-11-03, with its check recorded (content.md, "How a project's
+// card turns on"). gitops is private, and stays off even once it's checked.
+test('the real hold list keeps gitops off, even once it is checked, and lets stillhere through', () => {
   const both = profile.projects
     .filter((p) => !p.name.startsWith('fixture'))
     .map((p) => ({ ...p, checked }));
-  expect(both.length).toBeGreaterThanOrEqual(2);
-  expect(projectCards(withOnly(both), realHolds)).toEqual([]);
+  expect(both.map((p) => p.name)).toEqual(['stillhere', 'gitops']);
+  expect(projectCards(withOnly(both), realHolds).map((c) => c.title)).toEqual(['stillhere']);
+});
+
+// What the card leads with (content.md, "stillhere"): its limits and its published failed metric, and
+// figures of the whole repository, each re-measured at the commit the check read.
+test("stillhere's record: its check, its limits first, and figures the repository can show", () => {
+  const stillhere = profile.projects.find((p) => p.name === 'stillhere');
+  expect(stillhere?.checked).toEqual({
+    date: '2026-11-03',
+    sha: 'cd5f2f70522de055b9eabe03ffdebf4265ea82c5',
+  });
+  expect(stillhere?.measured).toBe('2026-11-03');
+  expect(stillhere?.tag).toBe('Pre-release');
+  expect(stillhere?.description).toContain(
+    'it doesn’t measure a person’s value'.replace(/’/g, "'"),
+  );
+  expect(stillhere?.facts?.map((f) => f.term)).toEqual(['Validation', 'Decisions', 'Tests']);
+  expect(stillhere?.facts?.[0]?.value).toMatch(/^durable@1 AUC 0\.42/);
+  const github = profile.basics.profiles.find((p) => p.network === 'GitHub');
+  expect(github?.checked).toEqual(stillhere?.checked);
 });
 
 /** The first project changed by `over`; true when the schema refuses the result. */
