@@ -101,10 +101,12 @@ export function routesWords(day: Day, before: Measured, after: Measured): string
   return `${day.orders.length} orders on ${vans} ${vans === 1 ? 'van' : 'vans'}: ${formatDuration(before.drive)} of driving as the orders came in, ${formatDuration(after.drive)} planned by VROOM, the last van back after ${formatDuration(after.back)}.`;
 }
 
-/** The Routes line's one fact on the Lab index: what VROOM saves on the lab's own day, from the
- *  build's solve of both plans: "A busy Saturday: 3 h 12 min of driving instead of 5 h 34 min." */
+/** The Routes line's one fact on the Lab index: what VROOM saves on the lab's own day, and against
+ *  what, from the build's solve of both plans: "A busy Saturday: 3 h 12 min of driving, against
+ *  5 h 34 min as the orders came in." The card's summary, right above it, says the bakery is made
+ *  up. Until 2026-11-02 this said "instead of 5 h 34 min", which named no baseline. */
 export const routesFact = (day: Day, before: Measured, after: Measured): string =>
-  `${day.name}: ${formatDuration(after.drive)} of driving instead of ${formatDuration(before.drive)}.`;
+  `${day.name}: ${formatDuration(after.drive)} of driving, against ${formatDuration(before.drive)} as the orders came in.`;
 
 /** The figure pair's caption on Home: "of driving for a made-up bakery on a busy Saturday, planned
  *  by VROOM in your browser", the day's own name in it. The bakery and its orders are invented and

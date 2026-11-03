@@ -126,11 +126,12 @@ describe('the Routes line', () => {
     expect(figureWords(day)).toBe(
       'of driving for a made-up bakery on a busy Saturday, planned by VROOM in your browser',
     );
-    // The index's one fact: the day's driving with VROOM, against the orders as they came in.
+    // The index's one fact: the day's driving with VROOM, against the orders as they came in. It
+    // said "instead of" until 2026-11-02, which named no baseline, so this known answer moved.
     const before = measured([{ arrives: [600], back: 7200 }]);
     const after = measured([{ arrives: [600], back: 5400 }]);
     expect(routesFact(day, before, after)).toBe(
-      `A busy Saturday: 1${NBSP}h 30${NBSP}min of driving instead of 2${NBSP}h 0${NBSP}min.`,
+      `A busy Saturday: 1${NBSP}h 30${NBSP}min of driving, against 2${NBSP}h 0${NBSP}min as the orders came in.`,
     );
     expect(inWords(5)).toBe('five');
     expect(inWords(12)).toBe('12');
@@ -155,7 +156,7 @@ describe('the Routes line', () => {
       `20 orders on 3 vans: 5${NBSP}h 34${NBSP}min of driving as the orders came in, 3${NBSP}h 12${NBSP}min planned by VROOM, the last van back after 2${NBSP}h 20${NBSP}min.`,
     );
     expect(routesFact(picture.day, picture.before.measured, after)).toBe(
-      `A busy Saturday: 3${NBSP}h 12${NBSP}min of driving instead of 5${NBSP}h 34${NBSP}min.`,
+      `A busy Saturday: 3${NBSP}h 12${NBSP}min of driving, against 5${NBSP}h 34${NBSP}min as the orders came in.`,
     );
     const line = routesLine(after);
     expect(line.vans.map((van) => van.stops.length)).toEqual([9, 9, 2]);
