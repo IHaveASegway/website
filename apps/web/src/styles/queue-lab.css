@@ -461,9 +461,12 @@
   }
 }
 
-/* Keeps its width as its words turn to Take orders, so the button beside it never shifts. */
+/* One width as its words turn to Take orders, so the row and the settings after it never reflow under
+   the pointer. A width, not a least one: a percentage in a least width counts for nothing when the
+   settings' row works out what fits on it, so the shorter words took 45 px off the page at some widths
+   (e2e/steady.spec.ts). */
 .qu-producer {
-  min-inline-size: min(10rem, 100%);
+  inline-size: 10rem;
 }
 
 .qu-note {

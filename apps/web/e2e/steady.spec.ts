@@ -937,6 +937,63 @@ for (const { phone, viewport } of PHONES) {
   });
 }
 
+// A press that changes a button's words can reflow the row it stands in, at the widths that row wraps
+// and no others, so a check at 390 and 320 px sees none of it: until 2026-11-03 choosing Wednesday took
+// the Backfill Lab's page 56 px down on a 1,440 px laptop and on the largest iPhones, and Stop taking
+// orders sent itself 800 px across the Queue Lab at 1,216. All of the page is watched, at every kind of
+// width: the phones, the tablets, the laptops, and each width a reviewer saw it at.
+const WRAPPING_WIDTHS = [320, 390, 430, 440, 600, 640, 1024, 1180, 1216, 1280, 1440];
+
+test('the backfill lab: a day chosen moves nothing, at any width its row could wrap', async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await open(page, LABS.backfill.path);
+  for (const width of WRAPPING_WIDTHS) {
+    await page.setViewportSize({ width, height: 800 });
+    const days = page.locator('label:has(input[name="bf-day"])');
+    await stand(page, days.first());
+    const moves = await movesAround(
+      page,
+      async () => {
+        for (const day of await days.all()) {
+          await day.tap();
+          await page.waitForTimeout(60);
+        }
+        await days.first().tap();
+      },
+      60,
+      true,
+    );
+    expect(moves, `at ${width} px`).toEqual([]);
+  }
+});
+
+test('the queue lab: Stop taking orders and Take orders move nothing, at any width their row could wrap', async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  await open(page, LABS.queue.path);
+  for (const width of WRAPPING_WIDTHS) {
+    await page.setViewportSize({ width, height: 800 });
+    const producer = page.locator('[data-qu-producer]');
+    await stand(page, producer);
+    const moves = await movesAround(
+      page,
+      async () => {
+        await producer.tap();
+        await expect(producer).toHaveText('Take orders');
+        await page.waitForTimeout(60);
+        await producer.tap();
+        await expect(producer).toHaveText('Stop taking orders');
+      },
+      60,
+      true,
+    );
+    expect(moves, `at ${width} px`).toEqual([]);
+  }
+});
+
 // The top bar on an iPhone, in WebKit, at the widths phones have: one row, 56 px, so the first screen
 // doesn't lose 32 px to a second row with half of it empty (e2e/top-bar.spec.ts holds every width in
 // Chromium). 320 is an iPhone SE of the first generation, 375 a 13 mini or a later SE, 390 an iPhone

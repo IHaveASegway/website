@@ -308,21 +308,23 @@ const KEY = [
         </div>
         <div class="bf-row" role="group" aria-label="One day">
           <Choice legend="Day" name="bf-day" options={PICKS} checked="0" />
-          <button type="button" class="btn" data-bf-fail>
-            <span>
-              Fail <span data-bf-picked>{weekday(0)}</span>'s next load
-            </span>
-          </button>
-          <button type="button" class="btn" data-bf-late>
-            <span>
-              Make <span data-bf-picked>{weekday(0)}</span>'s file {LATE_BY / 60} hours late
-            </span>
-          </button>
-          <button type="button" class="btn" data-bf-clear>
-            <span>
-              Clear <span data-bf-picked>{weekday(0)}</span> and rerun it
-            </span>
-          </button>
+          <div class="bf-day-actions">
+            <button type="button" class="btn" data-bf-fail>
+              <span>
+                Fail <span data-bf-picked>{weekday(0)}</span>'s next load
+              </span>
+            </button>
+            <button type="button" class="btn" data-bf-late>
+              <span>
+                Make <span data-bf-picked>{weekday(0)}</span>'s file {LATE_BY / 60} hours late
+              </span>
+            </button>
+            <button type="button" class="btn" data-bf-clear>
+              <span>
+                Clear <span data-bf-picked>{weekday(0)}</span> and rerun it
+              </span>
+            </button>
+          </div>
         </div>
         <Said words="Which day a load writes starts the week over too. The rest change the week as it stands." />
       </div>
