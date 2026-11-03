@@ -42,7 +42,6 @@ import {
   logMarkup,
   logWords,
   LOSSES,
-  nextSeed,
   OPENING,
   openingRun,
   PROMISES,
@@ -566,7 +565,7 @@ test('a run the page opens with messages lost records the loss at the opening’
   expect(differences(fresh(7, 0), openingRun())).toEqual([]);
 });
 
-test('a link names a run’s seed and its loss, read as the other labs read theirs, and Start over’s seed comes back to 0 after six digits', () => {
+test('a link names a run’s seed and its loss, read as the other labs read theirs', () => {
   // Start over with the slider at 30% writes the loss, so the link opens the run that loses them.
   expect(linkTo(8, 30)).toBe('#seed-8&loss=30');
   expect(linkTo(8, 0)).toBe('#seed-8');
@@ -577,10 +576,8 @@ test('a link names a run’s seed and its loss, read as the other labs read thei
   expect(readRun('#seed-12&loss=33')).toEqual({ seed: 12, loss: 0 });
   expect(readRun('#seed-12&loss=10')).toEqual({ seed: 12, loss: 10 });
   expect(readRun('#main')).toBeNull();
-  // The link reads six digits, so the seed after the last of them is one it can name.
-  expect(nextSeed(41)).toBe(42);
-  expect(nextSeed(999_999)).toBe(0);
-  expect(readRun(linkTo(nextSeed(999_999), 20))).toEqual({ seed: 0, loss: 20 });
+  // The link reads six digits, and no more.
+  expect(readRun('#seed-999999')).toEqual({ seed: 999_999, loss: 0 });
   expect(readRun(`#seed-${999_999 + 1}`)).toBeNull();
 });
 

@@ -517,22 +517,24 @@ test('a link followed on the page opens that seed paused at the opening’s mome
   expect(await log(page).allTextContents()).toEqual(lines);
 });
 
-test('a link to a run opens it: #seed-8 loads that seed with no other intent, and Start over moves on', async ({
+// Start over keeps the seed and the loss, as the other three labs do, so the run just seen can be
+// watched again. Until 2026-11-02 it moved to the next seed, which this test pinned.
+test('a link to a run opens it: #seed-8 loads that seed with no other intent, and Start over stays on it', async ({
   page,
 }) => {
   await page.goto(`${RAFT}#seed-8`);
   await expect(page.locator('[data-rf-seed]')).toHaveText('8');
   await page.getByRole('button', { name: 'Start over' }).click();
-  await expect(page.locator('[data-rf-seed]')).toHaveText('9');
-  expect(new URL(page.url()).hash).toBe('#seed-9');
+  await expect(page.locator('[data-rf-seed]')).toHaveText('8');
+  expect(new URL(page.url()).hash).toBe('#seed-8');
   // A name the lab does not have is dropped, and the seed still opens.
   await page.goto(`${RAFT}#seed-12&foo=bar`);
   await expect(page.locator('[data-rf-seed]')).toHaveText('12');
-  // After the last seed a link can name, Start over comes back to 0, which a reload opens.
+  // The last seed a link can name, too, which a reload opens again.
   await page.goto(`${RAFT}#seed-999999`);
   await expect(page.locator('[data-rf-seed]')).toHaveText('999999');
   await page.getByRole('button', { name: 'Start over' }).click();
-  expect(new URL(page.url()).hash).toBe('#seed-0');
+  expect(new URL(page.url()).hash).toBe('#seed-999999');
   await page.reload();
   await expect(page.locator('[data-rf-seed]')).toHaveText('999999');
 });
@@ -582,8 +584,8 @@ test('Start over writes the loss into its link, and a reload opens the same run,
   await page.locator('[data-rf-loss]').fill('30');
   const entries = await page.evaluate(() => history.length);
   await page.getByRole('button', { name: 'Start over' }).click();
-  await expect(page.locator('[data-rf-seed]')).toHaveText('8');
-  expect(new URL(page.url()).hash).toBe('#seed-8&loss=30');
+  await expect(page.locator('[data-rf-seed]')).toHaveText('7');
+  expect(new URL(page.url()).hash).toBe('#seed-7&loss=30');
   expect(await page.evaluate(() => history.length)).toBe(entries);
   const before = await forty();
   await page.reload();
@@ -591,7 +593,7 @@ test('Start over writes the loss into its link, and a reload opens the same run,
   await expect(page.locator('[data-rf-loss-out]')).toHaveText('30%');
   expect(await forty()).toEqual(before);
   // The same seed without the loss is another run: the link is what tells them apart.
-  await page.goto(`${RAFT}#seed-8`);
+  await page.goto(`${RAFT}#seed-7`);
   await expect(page.locator('[data-rf-loss]')).toHaveValue('0');
   expect(await forty()).not.toEqual(before);
 });

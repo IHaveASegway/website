@@ -20,7 +20,6 @@ import {
   logMarkup,
   LOG_LINES,
   logWords,
-  nextSeed,
   OPENING,
   propertyWord,
   readRun,
@@ -272,7 +271,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       heal(sim);
     } else if (control.matches('[data-rf-reset]')) {
       const wasPlaying = playing;
-      open(fresh(nextSeed(sim.seed), lost()));
+      open(fresh(sim.seed, lost()));
       // The address names the run, its loss and all, so a reload or the link shared opens it.
       history.replaceState(null, '', linkTo(sim.seed, percent()));
       if (wasPlaying) play();
@@ -326,7 +325,15 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       play,
       pause,
       playing: () => playing,
-      finished: () => Boolean(sim.violation),
-      again: () => undefined,
+      finished: () => Boolean(sim.violation) || sim.now >= storyEnds,
+      again: () => {
+        open(fresh(sim.seed, lost()));
+        tell();
+        play();
+      },
+      theirs: () => {
+        theirs = true;
+        ahead = [];
+      },
     });
 }

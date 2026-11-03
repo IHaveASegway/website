@@ -58,9 +58,6 @@ export const readRun = (hash: string): { seed: number; loss: number } | null => 
   return link && { seed: link.seed, loss: link.values.loss };
 };
 
-/** Start over's seed: the next one, and 0 after the last a link can name, six digits' worth. */
-export const nextSeed = (seed: number): number => (seed >= 999_999 ? 0 : seed + 1);
-
 /** How many seeded runs the property sweep in test/raft.test.ts makes: the page says the number. */
 export const SEEDS_IN_CI = 3_000;
 
