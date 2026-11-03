@@ -158,6 +158,8 @@ describe('what a run says fits the room its line keeps', () => {
       ),
       "Wednesday's next load will fail partway. Wednesday has loaded already, so this fails its load when the week plays again, or after a clear.",
       "Wednesday's file is 5 hours late, so the week goes back to before the job is switched on. Press Run to watch it.",
+      'Every run has finished. Run plays the week again from when the job was switched on, or clear a day, then Run, to rerun it.',
+      'The week plays again from when the job was switched on.',
     ];
     // Why a queue's clock stops, drained or with no worker up, at the most orders a run has waiting.
     const stopped = createSim({ ...QUEUE.config });
