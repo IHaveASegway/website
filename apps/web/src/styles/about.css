@@ -1,8 +1,8 @@
 /*
   /about/ (pages/about/index.astro; ADR 0031). One column on every screen: the name, the role and
   where; the opening, its first sentence at the statement's size; then the bio's sections, each
-  opening on the line that carries the current (field.css) under its small label in the wide face in
-  the accent, sentence case: the page's one title is the name. The labs and the open source are rows
+  opening on the line that carries the current (field.css) under a section's title, as the close is.
+  The labs and the open source are rows
   of an index (global.css), the labs' each under its own line, in its colour; the page stands on the
   field, so nothing here paints a ground of its own. On paper (below) it is the résumé, one US Letter
   page. Only this page loads this file, and it moves nothing itself; every colour is a token from
@@ -110,21 +110,12 @@
   }
 }
 
-/* The column: the bio's blocks, then each section, a label over each. */
+/* The column: the bio's blocks, then each section, a title over each. */
 .about-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   margin-top: 2.5rem;
   overflow-wrap: break-word;
-}
-
-.block-label {
-  margin: 0 0 1.125rem;
-  color: var(--primary);
-  font-family: var(--font-wide);
-  font-size: var(--text-label);
-  font-weight: var(--text-label--font-weight);
-  line-height: var(--text-label--line-height);
 }
 
 .bio {
@@ -486,12 +477,10 @@
     letter-spacing: normal;
   }
 
-  .resume .block-label {
+  .resume .section-title {
     margin-bottom: 0.25rem;
-    color: var(--foreground);
-    font-family: var(--font-display);
     font-size: 0.9375rem;
-    font-weight: 600;
+    line-height: var(--text-label--line-height);
   }
 
   .resume .roles {

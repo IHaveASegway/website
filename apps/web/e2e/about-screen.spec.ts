@@ -53,55 +53,47 @@ test('known answer: lab cards without their line resolve no colour', async ({ pa
   expect(new Set(cards.map((card) => card.resolved))).toEqual(new Set(['']));
 });
 
-// The bio as named blocks (ADR 0027, after syntaqx's Currently and Previously): each block's name,
-// and each section's name on the page, is a label in the wide face at the label's size, in the
-// accent, sentence case, the way Home names its bio blocks; each item's lead takes a card title's
-// size and face, one step of the scale. Until 2026-10-31 the bio's headings were display titles.
-// The fixture builds hold no bio, so there the leads are not read.
-test("the page's sections are named by wide labels in the accent, and the bio's leads by a card title's type", async ({
+// The page's sections are named as its close is, by section titles (ADR 0031): at 12.5 px over two
+// screens of prose, then 28 px at the close, the page's rhythm fell away a third of the way from its
+// end, and the same heading read 28 px on Home. Each item's lead takes a card title's size and face,
+// one step of the scale. The fixture builds hold no bio, so there the leads are not read.
+test("the page's sections are named by section titles, as its close is, and the bio's leads by a card title's type", async ({
   page,
 }) => {
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/about/');
     const type = await page.evaluate(() => {
-      const probe = document.createElement('span');
-      probe.style.cssText =
-        'color: var(--primary); font-family: var(--font-wide); font-size: var(--text-label)';
-      document.body.append(probe);
-      const want = getComputedStyle(probe);
-      const accent = { color: want.color, family: want.fontFamily, size: want.fontSize };
-      probe.remove();
       const of = (e: Element) => {
+        const s = getComputedStyle(e);
+        return {
+          family: s.fontFamily,
+          size: s.fontSize,
+          weight: s.fontWeight,
+          height: s.lineHeight,
+          color: s.color,
+          case: s.textTransform,
+        };
+      };
+      const line = (e: Element) => {
         const s = getComputedStyle(e);
         return `${s.fontSize} ${s.fontFamily} ${s.fontWeight} ${s.lineHeight}`;
       };
+      const close = document.querySelector('.contact .section-title');
       const card = document.querySelector('.card-title');
       return {
-        accent,
-        labels: [...document.querySelectorAll('.resume h2')].map((h) => {
-          const s = getComputedStyle(h);
-          return {
-            text: h.textContent?.trim(),
-            color: s.color,
-            family: s.fontFamily,
-            size: s.fontSize,
-            case: s.textTransform,
-          };
-        }),
-        leads: [...document.querySelectorAll('.bio-item-lead')].map(of),
-        headline: card ? of(card) : null,
+        close: close ? of(close) : null,
+        titles: [...document.querySelectorAll('.resume h2')]
+          .filter((h) => h.checkVisibility())
+          .map((h) => ({ text: h.textContent?.trim(), ...of(h) })),
+        leads: [...document.querySelectorAll('.bio-item-lead')].map(line),
+        headline: card ? line(card) : null,
       };
     });
-    expect(type.labels.length).toBeGreaterThan(0);
-    for (const label of type.labels) {
-      expect(label, String(width)).toEqual({
-        text: label.text,
-        color: type.accent.color,
-        family: type.accent.family,
-        size: type.accent.size,
-        case: 'none',
-      });
+    expect(type.close).not.toBeNull();
+    expect(type.titles.length).toBeGreaterThan(5);
+    for (const title of type.titles) {
+      expect(title, String(width)).toEqual({ text: title.text, ...type.close });
     }
     expect(type.headline).not.toBeNull();
     for (const lead of type.leads) expect(lead, String(width)).toBe(type.headline);

@@ -65,7 +65,7 @@ test('the bio renders exactly where its entry is, as named blocks in its own wor
   const later: string[] = [ABOUT_HEADINGS.tools, ABOUT_HEADINGS.idea];
   const here = parts.sections.filter((section) => !later.includes(section.heading));
   // A block a part: the opening with no label, then the bio's own headings, each over its block.
-  expect(texts(bio ?? '', 'h2', 'block-label')).toEqual(here.map((s) => decode(s.heading)));
+  expect(texts(bio ?? '', 'h2', 'section-title')).toEqual(here.map((s) => decode(s.heading)));
   // The opening, the paragraph that prints, as the entry has it.
   expect(texts(bio ?? '', 'p', 'bio-lede')).toEqual([decode(parts.lede[0] ?? '')]);
   // Every bold line and every sentence after it, word for word; the open source row is one sentence

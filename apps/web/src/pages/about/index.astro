@@ -162,7 +162,7 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
           )}
           {story && (
             <div class="section bio-block">
-              <h2 class="block-label">{story.heading}</h2>
+              <h2 class="section-title">{story.heading}</h2>
               {story.paragraphs.map((paragraph) => (
                 <p class="bio-text">{paragraph}</p>
               ))}
@@ -170,7 +170,7 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
           )}
           {biggest && (
             <div class="section bio-block bio-biggest">
-              <h2 class="block-label">{biggest.heading}</h2>
+              <h2 class="section-title">{biggest.heading}</h2>
               {biggest.paragraphs.map((paragraph) => (
                 <p class="bio-text">{paragraph}</p>
               ))}
@@ -178,7 +178,7 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
           )}
           {tryIt && (
             <div class="section bio-block">
-              <h2 class="block-label">{tryIt.heading}</h2>
+              <h2 class="section-title">{tryIt.heading}</h2>
               <ul class="post-list bio-rows" role="list">
                 {rows.map(({ item, slug, href }) => (
                   <li class="bio-row" data-line={slug}>
@@ -197,7 +197,7 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
           )}
           {source && (
             <div class="section bio-block">
-              <h2 class="block-label">{source.heading}</h2>
+              <h2 class="section-title">{source.heading}</h2>
               <ul class="post-list bio-rows" role="list">
                 {sources.map(({ project, words, href }) => (
                   <li class="bio-row">
@@ -212,7 +212,7 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
           )}
           {last && (
             <div class="section bio-block bio-last">
-              <h2 class="block-label">{last.heading}</h2>
+              <h2 class="section-title">{last.heading}</h2>
               {last.paragraphs.map((paragraph) => (
                 <p class="bio-text">{paragraph}</p>
               ))}
@@ -220,7 +220,7 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
           )}
           {mine && (
             <div class="section bio-block">
-              <h2 class="block-label">{mine.heading}</h2>
+              <h2 class="section-title">{mine.heading}</h2>
               {mine.paragraphs.map((paragraph) => (
                 <p class="bio-text">
                   {withLinks(paragraph, named).map((run) =>
@@ -241,7 +241,7 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
           id="experience"
           aria-labelledby="experience-title"
         >
-          <h2 id="experience-title" class="block-label">
+          <h2 id="experience-title" class="section-title">
             Background
           </h2>
           {profile.work.length > 0 && (
@@ -267,7 +267,7 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
 
       {profile.tools && (
         <section class="section about-section" id="tools" aria-labelledby="tools-title">
-          <h2 id="tools-title" class="block-label">
+          <h2 id="tools-title" class="section-title">
             {ABOUT_HEADINGS.tools}
           </h2>
           <p class="skills-tools">{profile.tools}</p>
@@ -276,7 +276,7 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
 
       {cards.length > 0 && (
         <section class="section about-section print-only" id="work" aria-labelledby="work-title">
-          <h2 id="work-title" class="block-label">
+          <h2 id="work-title" class="section-title">
             Selected work
           </h2>
           {/* Paper names who wrote what before it lists it, so nobody reads built as typed. */}
@@ -301,7 +301,7 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
           id="writing"
           aria-labelledby="writing-title"
         >
-          <h2 id="writing-title" class="block-label">
+          <h2 id="writing-title" class="section-title">
             Writing
           </h2>
           <PostList posts={latest} level={3} />
