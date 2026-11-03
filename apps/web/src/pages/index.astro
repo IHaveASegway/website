@@ -26,7 +26,7 @@ import { figure } from '../lib/home';
 import { countTests, readDecisions } from '../lib/home-sources';
 import { homeGraph, serialize } from '../lib/jsonld';
 import { labPath } from '../lib/lab';
-import { labFact } from '../lib/lab-facts';
+import { factSource, labFact } from '../lib/lab-facts';
 import { inWords } from '../lib/lines';
 import { homeCard } from '../lib/og';
 import { postPath } from '../lib/posts';
@@ -217,7 +217,7 @@ const latest = writingRow(area.published, work);
             </p>
             {where?.fact && (
               <div class="build-evidence">
-                <p class="build-lab">Simulated in the {where.name}</p>
+                <p class="build-lab">{factSource(where.slug, where.name)}</p>
                 <p class="build-fact">{where.fact}</p>
               </div>
             )}

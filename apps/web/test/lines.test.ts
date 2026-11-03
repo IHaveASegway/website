@@ -233,7 +233,7 @@ describe('the Queue line', () => {
   test("the index's fact: the same crash with the idempotency key prints order 18 once", () => {
     const keyed = replayQueue({ ...QUEUE.config, key: true }, QUEUE.actions, QUEUE.until);
     expect(queueFact(keyed)).toBe(
-      'With an idempotency key, worker 2 crashes and order 18 still prints once. 25 orders done in 4 s, none lost or printed twice.',
+      'With an idempotency key, worker 2 crashes and order 18’s oven ticket still prints once. 25 orders done in 4 s, none lost or printed twice.',
     );
     // The opening itself printed order 18 twice, so it cannot be the fact.
     expect(() => queueFact(queueOpening())).toThrow(/doubled/);

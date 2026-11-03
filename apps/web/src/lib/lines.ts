@@ -251,7 +251,7 @@ export function queueFact(keyed: QueueSim): string {
   const kept = keptOnce(keyed);
   const crashed = (kept.effects[0]?.worker ?? 0) + 1;
   const seconds = Math.round(keyed.now / 1000);
-  return `With an idempotency key, worker ${crashed} crashes and order ${kept.id} still prints once. ${firstUp(orders(keyed.doneCount))} done in ${seconds} s, none lost or printed twice.`;
+  return `With an idempotency key, worker ${crashed} crashes and order ${kept.id}’s oven ticket still prints once. ${firstUp(orders(keyed.doneCount))} done in ${seconds} s, none lost or printed twice.`;
 }
 
 /** The Queue line's fix on the board, after the crash its describer tells: "With an idempotency
