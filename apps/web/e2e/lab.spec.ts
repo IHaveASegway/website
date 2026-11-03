@@ -552,9 +552,13 @@ test('a stop clicked away says so in its tip, with the mouse still on it', async
     });
   await page.evaluate((y) => scrollTo(0, y), at.y - 300);
   const scrolled = await page.evaluate(() => scrollY);
-  await page.mouse.move(at.x, at.y - scrolled);
+  // The first mouse over the demo loads the app, so the mouse moves again until the tip answers, as
+  // a hand on a mouse does. On a real network the app arrives after any one move.
   const tip = map.locator('[data-rl-tip] text');
-  await expect(tip).not.toContainText('No order today');
+  await expect(async () => {
+    for (const nudge of [0, 1]) await page.mouse.move(at.x + nudge, at.y - scrolled);
+    await expect(tip).toContainText(/Van [A-D], stop \d+/, { timeout: 500 });
+  }).toPass({ timeout: 15_000 });
   await page.mouse.down();
   await page.mouse.up();
   await expect(status(page)).toContainText(/^Removed /, { timeout: 20_000 });
@@ -563,6 +567,25 @@ test('a stop clicked away says so in its tip, with the mouse still on it', async
   });
   await expect(tip).toContainText('No order today');
 });
+
+// A face a page doesn't preload is one more file on its first view. The Route Lab's write-up asked
+// for one, and Lighthouse read 162,009 B on PR 67's preview, over the page's 160,000. Until 2026-11-03.
+for (const lab of ['backfill', 'cache', 'queue', 'raft', 'routes']) {
+  test(`the ${lab} lab fetches no font it doesn't preload`, async ({ page }) => {
+    await page.goto(`/lab/${lab}/`, { waitUntil: 'networkidle' });
+    const { fetched, preloaded } = await page.evaluate(() => ({
+      fetched: performance
+        .getEntriesByType('resource')
+        .map(({ name }) => new URL(name).pathname)
+        .filter((path) => path.endsWith('.woff2')),
+      preloaded: [
+        ...document.querySelectorAll<HTMLLinkElement>('link[rel="preload"][as="font"]'),
+      ].map(({ href }) => new URL(href).pathname),
+    }));
+    expect(fetched.length).toBeGreaterThan(0);
+    expect(fetched.filter((path) => !preloaded.includes(path))).toEqual([]);
+  });
+}
 
 // Nothing moves when the boot module arrives: CSS shows the controls from the first paint wherever
 // script runs (route-lab.css, the scripting media feature). On a phone on a slow network the module
