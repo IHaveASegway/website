@@ -393,7 +393,7 @@ test.describe('the Raft Lab’s landing run', () => {
     await expect(summary(page)).toHaveText('Server 1 leads term 1, 3 entries committed.');
     await page.clock.runFor(2_100);
     await expect(summary(page)).toHaveText(
-      'Term 1 has lost its leader, 3 entries committed, 1 server down.',
+      'Term 1 lost its leader, 3 entries committed, 1 server down.',
     );
     await expect(page.locator('[data-rf-node="0"]')).toHaveAttribute('data-up', 'false');
     await page.clock.runFor(3_100);
@@ -694,7 +694,7 @@ test.describe('the Raft Lab’s landing run', () => {
     await land(page);
     await page.clock.runFor(2_100);
     await expect(summary(page)).toHaveText(
-      'Term 1 has lost its leader, 3 entries committed, 1 server down.',
+      'Term 1 lost its leader, 3 entries committed, 1 server down.',
     );
     await page.getByRole('button', { name: 'Cut off the leader' }).click();
     const line = page.locator('[data-said]');

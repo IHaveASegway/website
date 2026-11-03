@@ -323,21 +323,28 @@
 
 /* The axis keeps to one row, so its ends mark the chart's: at 320 px the end fell under the start. The
    words between them take two lines where they must, and that room is kept where a longer clock could
-   need it, so nothing under the chart moves. */
+   need it, so nothing under the chart moves. A rem in a media query is the visitor's own text size: at
+   16 px every phone has this row, and with larger text on a narrow screen it wraps, or it would push the
+   page wider than the window (SC 1.4.10). */
 .qu-strip-foot {
-  flex-wrap: nowrap;
   padding-inline-start: 2.75rem;
 }
 
-.qu-strip-foot > :not(:nth-child(2)) {
-  flex: none;
+@media (width >= 18rem) {
+  .qu-strip-foot {
+    flex-wrap: nowrap;
+  }
+
+  .qu-strip-foot > :not(:nth-child(2)) {
+    flex: none;
+  }
+
+  .qu-strip-foot > :nth-child(2) {
+    text-align: center;
+  }
 }
 
-.qu-strip-foot > :nth-child(2) {
-  text-align: center;
-}
-
-@media (width < 24rem) {
+@media (18rem <= width < 24rem) {
   .qu-strip-foot {
     min-block-size: 2lh;
   }
@@ -399,6 +406,7 @@
    (e2e/steady.spec.ts). */
 .qu-producer {
   inline-size: 10rem;
+  max-inline-size: 100%;
 }
 
 .qu-note {

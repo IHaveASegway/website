@@ -269,7 +269,7 @@ export function summary(sim: Sim): string {
       ? `${serverName(leader.id)} leads term ${leader.term}`
       : term > 0
         ? sim.checker.leaders.has(term)
-          ? `Term ${term} has lost its leader`
+          ? `Term ${term} lost its leader`
           : `No leader in term ${term}`
         : 'No leader',
     `${entries(committed)} committed`,

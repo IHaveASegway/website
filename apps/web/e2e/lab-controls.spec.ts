@@ -305,7 +305,10 @@ for (const lab of LABS) {
     const off = await context.newPage();
     await off.goto(`/lab/${lab.name}/`);
     await expect(off.locator('noscript')).toBeVisible();
-    await expect(off.locator('noscript')).toContainText('With JavaScript on, you can play it');
+    // Playwright's text matchers read no noscript, so its words are read from the element.
+    expect(await off.locator('noscript').evaluate((el) => el.textContent)).toContain(
+      'With JavaScript on, you can play it',
+    );
     await context.close();
   });
 }

@@ -259,11 +259,11 @@ test('each log says how many entries it holds, beside its server’s name', asyn
     rows.evaluateAll((all) =>
       all.map((row) => getComputedStyle(row, '::after').content.replace(/"/g, '')),
     );
-  expect(await counts()).toEqual(['· 3', '· 3', '· 3', '· 3', '· 3']);
+  expect(await counts()).toEqual(['3', '3', '3', '3', '3']);
   await page.getByRole('button', { name: 'Cut off the leader' }).click();
   for (let i = 0; i < 10; i++) await page.getByRole('button', { name: 'Send a write' }).click();
   await expect(page.locator('[data-rf-log="0"] .rf-cell')).toHaveCount(13);
-  expect(await counts()).toEqual(['· 13', '· 3', '· 3', '· 3', '· 3']);
+  expect(await counts()).toEqual(['13', '3', '3', '3', '3']);
   // It stands by the name as the entries pass under it, and clear of them.
   const name = await rows.first().locator('.rf-log-name').boundingBox();
   const box = page.locator('.rf-logs-box');
@@ -386,7 +386,7 @@ for (const width of [384, 768, 1024, 1440]) {
     };
     await hold(
       summary(page),
-      'Term 123 has lost its leader, 1000 entries committed, 2 servers down, the network is split. Servers 1 and 3 and 4 still think they lead older terms.',
+      'Term 123 lost its leader, 1000 entries committed, 2 servers down, the network is split. Servers 1 and 3 and 4 still think they lead older terms.',
     );
     await hold(
       page.locator('[data-said]'),

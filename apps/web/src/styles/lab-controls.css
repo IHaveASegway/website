@@ -5,9 +5,11 @@
   token from tokens.css. It moves nothing, so it declares no transition and no animation.
 */
 
-/* A group of controls: its name, and what it works. */
+/* A group of controls: its name, and what it works. Its one column can shrink, or a button of a set
+   width pushes the page sideways at a larger text size. */
 .lab-group {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.5rem;
   align-content: start;
   min-width: 0;

@@ -461,7 +461,7 @@ test('the raft lab’s caption keeps the room of its longest words at every widt
       const opening = p.textContent;
       const before = p.getBoundingClientRect().height;
       p.textContent =
-        'Term 123 has lost its leader, 1000 entries committed, 2 servers down, the network is split. Servers 1 and 3 and 4 still think they lead older terms.';
+        'Term 123 lost its leader, 1000 entries committed, 2 servers down, the network is split. Servers 1 and 3 and 4 still think they lead older terms.';
       const after = p.getBoundingClientRect().height;
       p.textContent = opening;
       return after - before;
@@ -744,7 +744,7 @@ for (const { phone, viewport } of PHONES) {
           // The longest a run can say, with each number a digit longer than a run makes it.
           await caption.evaluate((p) => {
             p.textContent =
-              'Term 123 has lost its leader, 1000 entries committed, 2 servers down, the network is split. Servers 1 and 3 and 4 still think they lead older terms.';
+              'Term 123 lost its leader, 1000 entries committed, 2 servers down, the network is split. Servers 1 and 3 and 4 still think they lead older terms.';
           });
           const after = await caption.boundingBox();
           expect(Math.abs((after?.height ?? 0) - (before?.height ?? 0))).toBeLessThanOrEqual(1);
@@ -934,6 +934,53 @@ for (const { phone, viewport } of PHONES) {
       );
       expect(found).toEqual([]);
     });
+  });
+}
+
+// A check's words grow as it breaks, and each keeps the room of its longest at every width, whichever
+// way its row stands: one under the other, or side by side where the list has the room.
+const LONGEST_CHECK = {
+  queue: {
+    drains: 'Broken: not empty 30 s after orders stopped, 12 times',
+    once: 'Broken: 12 orders printed more than once',
+  },
+  cache: {
+    'one-fetch': 'Broken 40 times: at worst 23 fetches of one page in flight',
+    fresh: 'Broken: 1,234 reads, the worst 1,234 ms out of date',
+  },
+  backfill: {
+    totals:
+      'Broken 3 times, first at 01:19 on Wednesday, October 21: Wednesday’s report holds 1,415 orders and the source 1,303.',
+  },
+} as const;
+
+for (const [name, longest] of Object.entries(LONGEST_CHECK) as [
+  keyof typeof LONGEST_CHECK,
+  Record<string, string>,
+][]) {
+  test(`the ${name} lab's checks keep the room of their longest words at every width`, async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    await open(page, LABS[name].path);
+    for (const width of [320, 360, 384, 430, 600, 768, 1024, 1180, 1280, 1440]) {
+      await page.setViewportSize({ width, height: 800 });
+      for (const [id, words] of Object.entries(longest)) {
+        const row = page.locator(
+          `[data-${LABS[name].short}-${name === 'backfill' ? 'check' : 'prop'}="${id}"]`,
+        );
+        const grown = await row.evaluate((item, text) => {
+          const word = item.querySelector('.lab-check-word') as Element;
+          const before = item.getBoundingClientRect().height;
+          const was = word.textContent;
+          word.textContent = text;
+          const after = item.getBoundingClientRect().height;
+          word.textContent = was;
+          return after - before;
+        }, words);
+        expect(grown, `${id} at ${width} px`).toBeLessThanOrEqual(0.5);
+      }
+    }
   });
 }
 

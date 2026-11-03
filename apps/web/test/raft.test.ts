@@ -625,7 +625,7 @@ describe('the committed count', () => {
     const sim = openingRun();
     crashAll(sim);
     restartAll(sim);
-    expect(summary(sim)).toBe('Term 1 has lost its leader, 3 entries committed.');
+    expect(summary(sim)).toBe('Term 1 lost its leader, 3 entries committed.');
     stepUntil(sim, (s) => leaderOf(s) !== null);
     runUntil(sim, sim.now + 500);
     // Section 5.4.2: a leader commits only its own term's entries by counting, so none knows yet.
@@ -728,7 +728,7 @@ describe('the caption never contradicts the picture', () => {
   test('a down leader is not an old leader: it is down, and the caption says that', () => {
     const sim = openingRun();
     crash(sim, 0);
-    expect(summary(sim)).toBe('Term 1 has lost its leader, 3 entries committed, 1 server down.');
+    expect(summary(sim)).toBe('Term 1 lost its leader, 3 entries committed, 1 server down.');
     expect(leaders(sim).behind).toEqual([]);
   });
 
@@ -787,7 +787,7 @@ describe('the caption never contradicts the picture', () => {
           broken.push(`seed ${seed} at ${sim.now}: ${words}`);
         if (named.leader && !words.startsWith(`Server ${named.leader.id + 1} leads term `))
           broken.push(`seed ${seed} at ${sim.now}: ${words}`);
-        if (!named.leader && !/^(No leader|Term \d+ has lost its leader)/.test(words))
+        if (!named.leader && !/^(No leader|Term \d+ lost its leader)/.test(words))
           broken.push(`seed ${seed} at ${sim.now}: ${words}`);
         if (named.behind.length > 0 && !/ still think(s it leads| they lead) /.test(words))
           broken.push(`seed ${seed} at ${sim.now}: ${words}`);
