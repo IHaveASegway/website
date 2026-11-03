@@ -24,7 +24,7 @@ So it feels kind of strange to say this, but I think that part of my job is goin
 I didn't type this site's code. Coding agents wrote it. I look at the site on my phone and tell them what's wrong.
 
 The other day I looked up how much I've been reviewing all of this. I've merged more than 50 pull requests on this
-site, and GitHub shows zero reviews and zero inline comments.
+site, and GitHub shows zero inline comments on any of them.
 
 I don't remember deciding to stop reading the code. It just kind of happened.
 
@@ -34,18 +34,19 @@ which sells code quality tools, surveyed over 1,100 developers, 96% said they do
 correct. Only 48% said they always check it before they commit.
 
 [Anthropic](https://www.anthropic.com/research/measuring-agent-autonomy), which makes Claude Code, found new users let
-it run on full auto-approve in about 20% of sessions. By 750 sessions, it's over 40%. Those same people interrupt it
-more, so it looks to me like they aren't checking out. They just stop reading every step and jump in when something
+it run on full auto-approve in about 20% of sessions. By 750 sessions, it's over 40%. Experienced users also interrupt
+it more, so it looks to me like they aren't checking out. They just stop reading every step and jump in when something
 looks off.
 
 And the amount of code keeps climbing. [Greptile](https://www.greptile.com/reports/state-of-ai-coding), which sells AI
 code review, says lines changed per developer on its customers' teams went from about 6,000 to about 21,000 in a year.
-[A study of 26 open source projects](https://dev.to/aictrl/the-abandoned-pr-page-55ad) saw merged pull requests with no
-human comment go from 42% to 54% in the established ones. I've seen something like this in my own work too: a lot more
-lines shipped to prod, and a lot fewer changes requested by people.
+[aictrl](https://aictrl.dev/blog/open-source-review-ai-era), which also sells AI code review, looked at 26 open source
+projects. In the median established one, merged pull requests with no human comment went from 42% to 54% between early
+2025 and the third quarter of 2026. I've seen something like this in my own work too: a lot more lines shipped to prod,
+and a lot fewer changes requested by people.
 
 I don't want to read too much into that. Part of it is probably just people getting tired of reviewing.
-[DORA's latest report](https://cloud.google.com/blog/products/ai-machine-learning/announcing-the-2025-dora-report) ties
+[DORA's 2025 report](https://cloud.google.com/blog/products/ai-machine-learning/announcing-the-2025-dora-report) ties
 more AI use to less stable delivery. And every test on this site was green the night I opened it on my iPhone and
 watched it jump around under my thumb.
 
@@ -63,8 +64,8 @@ drivers over 270 million miles, and that's its own number.
 [IIHS](https://iihs.org/news/detail/waymos-driverless-cars-crash-less-often-than-people), which doesn't work for Waymo,
 ran its own study and found 68% fewer police-reportable crashes per mile.
 
-Humanoid robots are a lot earlier. [Figure's robots](https://www.figure.ai/news/production-at-bmw) loaded about 90,000
-parts at a BMW plant over 11 months, and that's one narrow job. But I'd guess that's how this starts.
+Humanoid robots are a lot earlier. [Figure says its robots](https://www.figure.ai/news/production-at-bmw) loaded about
+90,000 parts at a BMW plant over 11 months, and that's one narrow job. But I'd guess that's how this starts.
 
 When I picture where it goes, I think one day we'll look back at a lot of this work and be like:
 
