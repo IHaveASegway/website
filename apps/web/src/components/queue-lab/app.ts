@@ -1,4 +1,6 @@
+import { eventLog } from '../../lib/lab/event-log';
 import { runOnLanding } from '../../lib/lab/landing-run';
+import { speaker, startsOver, type Say } from '../../lib/lab/said';
 import { properties } from '../../lib/queue/check';
 import { valueOf, word } from '../../lib/sim/link';
 import {
@@ -14,12 +16,13 @@ import {
   slow,
   startProducer,
   stopProducer,
-  type Line,
   type Sim,
 } from '../../lib/queue/sim';
 import {
+  AGAIN,
   aheadOf,
   capacityWords,
+  eventsWords,
   LAYOUTS,
   linkTo,
   mapMarkup,
@@ -29,10 +32,12 @@ import {
   playTo,
   propertyWords,
   REPLAY_FROM,
+  REPLAY_WORDS,
   seconds,
   SETTINGS,
   startOver,
   statusText,
+  STORY,
   STRIP,
   strip,
   stripWords,
@@ -43,17 +48,21 @@ import {
 } from '../../lib/queue/view';
 
 // The Queue Lab in the browser (ADR 0020's pattern): the simulation, run in virtual time and drawn
-// on every frame while it runs. It opens paused, on the same opening the build drew, and moves only
-// when the visitor presses Run, which Pause stops (SC 2.2.2); a hidden tab pauses it too. The
-// opening's picture tells a crash that has already happened, so Run on a run still standing
-// untouched at that moment plays it again from REPLAY_FROM, as Start over does: the visitor
-// watches worker 2 crash and order 18 print twice, rather than reading that it did. Each frame
-// runs the core to a whole millisecond, as replay does, never event by event, and takes the
-// opening's crash at its moment (view.ts, playTo), so the run a visitor makes is the run its
-// recorded actions replay. With reduced motion, Run moves in still steps: half a second of the
-// chosen speed, twice a second. A link to a run (lib/sim/link.ts) opens it, paused at the
-// opening's moment, on load or when followed on the page; Start over writes the link to the run
-// it plays.
+// on every frame while it runs. It takes over the same opening the build drew. A visitor who didn't
+// ask for less motion lands on it running (ADR 0030); otherwise it moves only when they press Run,
+// which Pause stops (SC 2.2.2), and a hidden tab pauses it too.
+//
+// The controls mean what they mean in every lab (docs/lab.md, "The controls"). The opening's picture
+// tells a crash that has already happened, so Run on a run still standing at that moment, with
+// nothing done since but a choice of settings, plays it again from REPLAY_FROM, and so does Run when
+// nothing is left to happen. Start over goes back there too and writes the link to the run it plays.
+// So does a choice of the setting that decides the story (view.ts, STORY): the visitor watches
+// worker 2 crash and order 18 print once under the key, rather than read that it did. Each frame
+// runs the core to a whole millisecond, as replay does, never event by event, and takes the opening's
+// crash at its moment (view.ts, playTo), so the run a visitor makes is the run its recorded actions
+// replay. With reduced motion, Run moves in still steps: half a second of the chosen speed, twice a
+// second. A link to a run (lib/sim/link.ts) opens it, paused at the opening's moment, on load or when
+// followed on the page.
 
 const FRAME_CAP = 100; // real ms: a frame after a long pause does not leap ahead
 const EVENTS_PER_FRAME = 4_000;
@@ -80,7 +89,6 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   const maps = [...root.querySelectorAll<SVGSVGElement>('[data-qu-map]')];
   const run = $<HTMLButtonElement>('[data-qu-run]');
   const lines = $<HTMLOListElement>('[data-qu-lines]');
-  const said = $('[data-qu-said]');
   const chart = $<SVGSVGElement>('[data-qu-strip]');
   const curve = $<SVGPolylineElement>('[data-qu-strip-line]');
   const ticks = $<SVGGElement>('[data-qu-crashes]');
@@ -91,12 +99,13 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     if (element && element.getAttribute(name) !== value) element.setAttribute(name, value);
   };
 
-  let sim: Sim = openLink(location.hash) ?? openingRun();
+  const linked = openLink(location.hash);
+  let sim: Sim = linked ?? openingRun();
   /** The opening's crashes this run has still to take: none at the opening's moment, worker 2's
    *  once started over. */
   let ahead: Crash[] = [];
-  /** Whether the run stands where the picture told it, untouched: opened at the opening's moment,
-   *  and neither played nor stepped since. A press that changes the run is an action it records. */
+  /** Whether the run stands where the picture told it: opened at the opening's moment, and neither
+   *  played nor stepped since. */
   let told = true;
   let speed = 1;
   let playing = false;
@@ -105,13 +114,18 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   let clock = sim.now;
   let frame = 0;
   let timer = 0;
-  let shownLines: Line | undefined;
   const shownMaps = new Map<SVGSVGElement, string>();
   /** The layout the page shows (queue-lab.css): the other one is not drawn until it shows. */
   let showing = maps.filter((map) => map.getClientRects().length > 0);
-  // The build wrote the opening's last lines; the run writes its own from the first draw, so none
-  // is written twice.
-  lines?.replaceChildren();
+  // The build wrote the opening's last lines; a link's run writes its own.
+  const log = eventLog(lines, 'lab-log-at', seconds, linked ? undefined : sim.lines.at(-1));
+  if (linked) log.clear();
+  const tell = speaker(root, $('[data-qu-said]'));
+  /** While the run is the one a visitor landed on, nobody's choice yet, it says nothing. */
+  let landing = false;
+  const say: Say = (words, control, short) => {
+    if (!landing) tell(words, control, short);
+  };
 
   /** Everything the page shows of the run, changed only where it changed. */
   function draw(): void {
@@ -143,6 +157,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     text($('[data-qu-summary]'), summary(sim));
     text($('[data-qu-status]'), statusText(sim));
     text($('[data-qu-clock]'), `Virtual time ${seconds(sim.now)}`);
+    text($('[data-qu-events]'), eventsWords(sim));
     text($('[data-qu-seed]'), String(sim.seed));
     for (const w of sim.workers.slice(0, sim.size)) {
       const n = w.id + 1;
@@ -166,36 +181,8 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       const on = radio.value === (name ? word(sim[name]) : String(speed));
       if (radio.checked !== on) radio.checked = on;
     }
-    drawLines();
+    log.draw(sim.lines);
   }
-
-  /** The event log: new lines appended, the oldest dropped past 60. */
-  function drawLines(): void {
-    if (!lines) return;
-    const from = shownLines ? sim.lines.indexOf(shownLines) + 1 : 0;
-    // The newest line stays in view while the reader is at the log's end, as an emptied log is. A
-    // reader who has scrolled back to read is left there, not pulled down again by the next frame:
-    // on a phone a finger on the log would otherwise fight every draw.
-    const box = lines.parentElement;
-    const following = box && box.scrollHeight - box.scrollTop - box.clientHeight < 2;
-    if (shownLines && from === 0) lines.replaceChildren();
-    const first = from === 0 ? Math.max(0, sim.lines.length - 60) : from;
-    for (const line of sim.lines.slice(first)) {
-      const item = document.createElement('li');
-      const at = document.createElement('span');
-      at.className = 'qu-at';
-      at.textContent = seconds(line.at);
-      item.append(at, ` ${line.text}`);
-      lines.append(item);
-    }
-    while (lines.children.length > 60) lines.firstElementChild?.remove();
-    if (box && following && sim.lines.length > first) box.scrollTop = box.scrollHeight;
-    shownLines = sim.lines.at(-1);
-  }
-
-  const say = (words: string) => {
-    if (said) said.textContent = words;
-  };
 
   /** Runs the core on by some virtual ms, to a whole one, within a frame's budget of events. */
   function advance(by: number): void {
@@ -216,33 +203,47 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     draw();
   }
 
-  /** Shows another run from its opening: Start over's, with the crash still ahead, or a link's.
-   *  Said where it stands: started over, the clock, since nothing has happened yet to tell;
-   *  otherwise its caption. */
+  /** Shows another run from its opening: Start over's, with the crash still ahead, or a link's. */
   function open(next: Sim, pending: Crash[], resume: boolean): void {
     pause();
     sim = next;
     ahead = pending;
     clock = sim.now;
-    shownLines = undefined;
-    lines?.replaceChildren();
+    log.clear();
     draw();
-    say(ahead.length > 0 ? `Virtual time ${seconds(sim.now)}` : summary(sim));
     if (resume) play();
   }
 
-  /** The run again from REPLAY_FROM, the one its link names: Start over keeps the seed and the
-   *  settings, and worker 2's crash is still to come. */
+  /** The run again from REPLAY_FROM, the one its link names: the seed and the settings stay, and
+   *  worker 2's crash is still to come. */
   function begin(resume: boolean): void {
     open(startOver(sim, REPLAY_FROM), aheadOf(REPLAY_FROM), resume);
     told = false;
   }
 
+  /** Whether nothing is left to happen: the queue has drained with no order coming. */
+  const over = () =>
+    !sim.violation && !Number.isFinite(Math.min(nextTime(sim), ahead[0]?.at ?? Infinity));
+
+  /** Whether the run stands where the picture told it, with nothing done since but a choice of
+   *  settings: then Run plays what the picture told, under those settings, as it happens. */
+  const untouched = () =>
+    told && sim.actions.slice(OPENING.actions.length).every((action) => action.kind in SETTINGS);
+
   function stopped(): boolean {
-    if (!sim.violation) return false;
-    say(statusText(sim));
-    pause();
-    return true;
+    if (sim.violation) {
+      say(statusText(sim));
+      pause();
+      return true;
+    }
+    if (over()) {
+      say(
+        `Nothing is left in the queue or in flight, so the clock stops here. Run plays the run again from ${seconds(REPLAY_FROM)}, or take orders to carry on.`,
+      );
+      pause();
+      return true;
+    }
+    return false;
   }
 
   function tick(now: number): void {
@@ -290,27 +291,47 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     const before = sim.lines.at(-1);
     if (control instanceof HTMLInputElement && control.type === 'radio') {
       if (!control.checked) return;
+      const name = setting(control.name);
       choose(control.name, control.value);
-      if (!setting(control.name)) return;
+      if (!name) return;
+      if (STORY.includes(name)) {
+        // The address names the run, so a reload or the link shared opens it, as Start over's does.
+        const line = sim.lines.at(-1)?.text ?? '';
+        const wasPlaying = playing;
+        begin(wasPlaying);
+        history.replaceState(null, '', linkTo(sim));
+        const started = startsOver('run', 'it', REPLAY_WORDS, wasPlaying);
+        say(`${line}. ${started}`, control, `${line.split(':')[0]}. ${started}`);
+        return;
+      }
     } else if (control.matches('[data-qu-run]')) {
       if (playing) pause();
-      // Still the moment the picture tells, untouched: play the crash it told, as it happens.
-      else if (told && sim.actions.length === OPENING.actions.length) begin(true);
-      else play();
+      else if (untouched() || over()) {
+        begin(true);
+        say(AGAIN, control);
+      } else {
+        play();
+        say('', control);
+      }
       return;
     } else if (control.matches('[data-qu-step]')) {
+      if (over()) {
+        begin(false);
+        say(AGAIN, control);
+        return;
+      }
       // The next event, or the opening's crash when it comes first: a crash is a moment too.
-      const next = Math.min(nextTime(sim), ahead[0]?.at ?? Infinity);
-      if (Number.isFinite(next)) playTo(sim, ahead, next);
+      playTo(sim, ahead, Math.min(nextTime(sim), ahead[0]?.at ?? Infinity));
       told = false;
       clock = sim.now;
-      if (!Number.isFinite(next)) say('Nothing more happens until you act.');
-      else if (sim.lines.at(-1) === before) say(`Virtual time ${seconds(sim.now)}`);
+      if (sim.lines.at(-1) === before) say(`Virtual time ${seconds(sim.now)}`, control);
       stopped();
     } else if (control.matches('[data-qu-reset]')) {
-      begin(playing);
+      const wasPlaying = playing;
+      begin(wasPlaying);
       // The address names the run, settings and all, so a reload or the link shared opens it.
       history.replaceState(null, '', linkTo(sim));
+      say(startsOver('run', 'these settings', REPLAY_WORDS, wasPlaying), control);
       return;
     } else if (control.matches('[data-qu-producer]')) {
       if (sim.producing) stopProducer(sim);
@@ -326,7 +347,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       if (w) slow(sim, w.id, !w.slow);
     } else return;
     const latest = sim.lines.at(-1);
-    if (latest && latest !== before) say(latest.text);
+    if (latest && latest !== before) say(latest.text, control);
     draw();
   }
 
@@ -343,10 +364,11 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   });
   // A link to a run followed on this page opens that run, paused, as loading it would.
   addEventListener('hashchange', () => {
-    const linked = openLink(location.hash);
-    if (linked) {
-      open(linked, [], false);
+    const next = openLink(location.hash);
+    if (next) {
+      open(next, [], false);
       told = true;
+      say(summary(sim));
     }
   });
   still.addEventListener('change', () => {
@@ -374,17 +396,20 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   }
   draw();
   // The run a visitor lands on plays the crash the picture told, as Run does, and again.
-  return () =>
+  return () => {
+    landing = true;
     runOnLanding(root, {
       play: () => {
-        if (told && sim.actions.length === OPENING.actions.length) begin(true);
+        if (untouched()) begin(true);
         else play();
       },
       pause,
       playing: () => playing,
-      finished: () =>
-        Boolean(sim.violation) ||
-        !Number.isFinite(Math.min(nextTime(sim), ahead[0]?.at ?? Infinity)),
+      finished: () => Boolean(sim.violation) || over(),
       again: () => begin(true),
+      taken: () => {
+        landing = false;
+      },
     });
+  };
 }

@@ -6,8 +6,8 @@ import { REPLAY_FROM } from '../src/lib/queue/view';
 // The Queue Lab in a browser (ADR 0026, after ADR 0020's pattern): without JavaScript the page is
 // the opening run the build drew, with no control; with it, nothing moves or loads until the
 // visitor shows intent, the simulation takes over at the picture's exact moment and runs only
-// between Run and Pause; Run on that untouched moment, and Start over, play the run from
-// REPLAY_FROM (1.5 s), so worker 2's crash happens in front of the visitor; each of the
+// between Run and Pause; Run on that untouched moment, Start over and the idempotency key play the
+// run from REPLAY_FROM (1.5 s), so worker 2's crash happens in front of the visitor; each of the
 // write-up's "Three things to try" plays as it says, with its seeds, times and numbers; the
 // picture and the controls that try it fit one screen, a phone's too, with nothing pinned; under
 // reduced motion Run moves in still steps; and the page meets axe after a run, since script
@@ -60,12 +60,14 @@ async function watch(page: Page): Promise<() => Promise<string[]>> {
 const seconds = async (page: Page) =>
   Number(/([\d.]+) s/.exec((await clock(page).textContent()) ?? '')?.[1] ?? NaN);
 
-/** Runs at the quick speed until `done` holds, then pauses. */
+/** Runs at the quick speed until `done` holds, then pauses, unless the run has stopped by itself
+ *  with nothing left to happen. */
 async function runUntil(page: Page, done: () => Promise<boolean>, timeout = 20_000) {
   await page.getByRole('radio', { name: 'Quick' }).check();
   await page.getByRole('button', { name: 'Run' }).click();
   await expect.poll(done, { timeout }).toBe(true);
-  await page.getByRole('button', { name: 'Pause' }).click();
+  const pause = page.getByRole('button', { name: 'Pause' });
+  if (await pause.isVisible()) await pause.click();
 }
 
 test('without JavaScript, the page is the opening run: order 18 printed twice, worker 2 down, no control', async ({
@@ -121,7 +123,7 @@ test('without JavaScript, the page is the opening run: order 18 printed twice, w
   expect(await bars('once')).toEqual(['45deg true', '-45deg true']);
   expect(await bars('no-loss')).toEqual(['none', 'none']);
   await expect(log(page)).toContainText("2.873 s Worker 1 prints order 18's ticket again");
-  for (const control of await page.locator('.qu-controls, .qu-settings, .qu-clock, .qu-key').all())
+  for (const control of await page.locator('.qu-controls, .qu-settings, .lab-clock, .qu-key').all())
     await expect(control).toBeHidden();
   await context.close();
 });
@@ -266,11 +268,18 @@ test('the first thing to try: worker 2 crashes at 2.4 s and order 18 prints twic
   ])
     await expect(log(page)).toContainText(line);
 
+  // The key decides the story, so the run goes back to before the crash under it, and says so. Until
+  // 2026-11-02 Run carried on with the key lit and the check still Broken, and only the write-up said
+  // to start over.
   await page.getByRole('radio', { name: 'On' }).check();
-  // Start over stands before the crash; Run plays it.
-  await page.getByRole('button', { name: 'Start over' }).click();
   await expect(clock(page)).toHaveText(STARTED_OVER);
   await expect(map(page).locator('.qu-state')).toHaveCount(0);
+  await expect(page.locator('[data-qu-said]')).toHaveText(
+    "The idempotency key is on: a worker keeps a record of each order, written in the same step as its ticket. The run starts over under it, at 1.500 s, before worker 2's crash. Press Run to watch it.",
+  );
+  await expect(page.locator('[data-said]').first()).toHaveText(
+    "The idempotency key is on. The run starts over under it, at 1.500 s, before worker 2's crash. Press Run to watch it.",
+  );
   await runUntil(page, async () =>
     ((await log(page).textContent()) ?? '').includes('2.873 s Worker 1 finds order 18'),
   );
@@ -394,14 +403,14 @@ test('then a slow worker: with ten orders of prefetch it sits on nine it cannot 
 }) => {
   test.setTimeout(60_000);
   await page.goto(QUEUE);
-  await page.getByRole('radio', { name: '10', exact: true }).check();
+  await page.getByRole('radio', { name: '10 orders', exact: true }).check();
   await page.getByRole('button', { name: 'Slow down worker 1' }).click();
   await expect(map(page).locator('.qu-state')).toHaveText(['Slow', 'Down']);
   const waiting = map(page).locator('.qu-slot[data-worker="0"][data-state="waiting"]');
   await runUntil(page, async () => (await waiting.count()) === 9);
   await expect(map(page).locator('.qu-slot[data-worker="0"][data-state="working"]')).toHaveCount(1);
 
-  await page.getByRole('radio', { name: '1', exact: true }).check();
+  await page.getByRole('radio', { name: '1 order', exact: true }).check();
   await page.getByRole('button', { name: 'Start over' }).click();
   await page.getByRole('button', { name: 'Slow down worker 1' }).click();
   await runUntil(page, async () => (await seconds(page)) > 10);
@@ -508,12 +517,16 @@ test('Start over writes the link to its run, the seed and each setting changed, 
   page,
 }) => {
   await page.goto(QUEUE);
-  await page.getByRole('radio', { name: 'On' }).check();
+  const entries = await page.evaluate(() => history.length);
+  // A choice that works on the run as it stands writes nothing: the link names how a run starts. The
+  // one that starts the run over writes its link, as Start over does.
   await page.getByRole('radio', { name: 'Rush' }).check();
   await page.getByRole('radio', { name: 'Dead-letter after four tries' }).check();
-  // A choice alone writes nothing: the link names how a run starts.
   expect(new URL(page.url()).hash).toBe('');
-  const entries = await page.evaluate(() => history.length);
+  await page.getByRole('radio', { name: 'On' }).check();
+  await expect
+    .poll(() => new URL(page.url()).hash)
+    .toBe('#seed-28&load=rush&key=on&handling=dead-letter');
   await page.getByRole('button', { name: 'Start over' }).click();
   await expect(clock(page)).toHaveText(STARTED_OVER);
   // The address names the run and replaces itself: no new entry in the history.
@@ -548,7 +561,7 @@ test('a link followed before the app has loaded loads it, and opens that run wit
   await page.evaluate(() => (location.hash = '#seed-9&prefetch=10&ack=before'));
   await expect(page.locator('[data-qu-seed]')).toHaveText('9');
   await expect(clock(page)).toHaveText('Virtual time 4.000 s');
-  await expect(page.getByRole('radio', { name: '10', exact: true })).toBeChecked();
+  await expect(page.getByRole('radio', { name: '10 orders', exact: true })).toBeChecked();
   await expect(page.getByRole('radio', { name: 'Before the work' })).toBeChecked();
   expect(app).toHaveLength(1);
 });
@@ -567,7 +580,7 @@ test('a link followed on the page opens its run paused at the opening’s moment
   await expect(page.locator('[data-qu-seed]')).toHaveText('9');
   await expect(clock(page)).toHaveText('Virtual time 4.000 s');
   await expect(page.getByRole('button', { name: 'Run' })).toBeVisible();
-  await expect(page.getByRole('radio', { name: '10', exact: true })).toBeChecked();
+  await expect(page.getByRole('radio', { name: '10 orders', exact: true })).toBeChecked();
   await expect(page.getByRole('radio', { name: 'Before the work' })).toBeChecked();
   await expect(page.getByRole('radio', { name: 'Off' })).toBeChecked();
   const nine = await shown(page);
@@ -578,7 +591,7 @@ test('a link followed on the page opens its run paused at the opening’s moment
   // seed 9's under the opening's settings, as the bare link gives it. It is followed from another
   // seed's run under other settings, so a page that ignored it would show that run instead.
   await page.evaluate(() => (location.hash = '#seed-9'));
-  await expect(page.getByRole('radio', { name: '1', exact: true })).toBeChecked();
+  await expect(page.getByRole('radio', { name: '1 order', exact: true })).toBeChecked();
   const bare = await shown(page);
   await page.evaluate(() => (location.hash = '#seed-12&load=rush&prefetch=10'));
   await expect(page.locator('[data-qu-seed]')).toHaveText('12');
@@ -586,7 +599,7 @@ test('a link followed on the page opens its run paused at the opening’s moment
   await page.evaluate(() => (location.hash = '#seed-9&load=storm&prefetch=3&key=maybe&colour=red'));
   await expect(page.locator('[data-qu-seed]')).toHaveText('9');
   await expect(page.getByRole('radio', { name: 'Busy' })).toBeChecked();
-  await expect(page.getByRole('radio', { name: '1', exact: true })).toBeChecked();
+  await expect(page.getByRole('radio', { name: '1 order', exact: true })).toBeChecked();
   await expect(page.getByRole('radio', { name: 'Off' })).toBeChecked();
   expect(await shown(page)).toEqual(bare);
   // A hash that links to no run, as the skip link's, leaves the run alone.

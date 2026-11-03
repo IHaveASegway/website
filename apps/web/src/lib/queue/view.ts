@@ -109,6 +109,10 @@ export const SEEDS_IN_CI = 2_000;
 
 export const seconds = (ms: number): string => `${(ms / 1000).toFixed(3)} s`;
 
+/** "143 events", for the clock, as every lab's says it. */
+export const eventsWords = (sim: Sim): string =>
+  `${sim.events.toLocaleString('en-US')} ${sim.events === 1 ? 'event' : 'events'}`;
+
 /** A time to a tenth of a second, for the history strip's ends. */
 export const tenths = (ms: number): string => `${(ms / 1000).toFixed(1)} s`;
 
@@ -345,6 +349,22 @@ export const SETTINGS = {
   key: { values: [false, true], opening: false },
   handling: { values: ['requeue', 'dead-letter'], opening: 'requeue' },
 } as const;
+
+/**
+ * The setting that decides the story the run opens on: order 18 prints twice, or the key stops it. A
+ * run that has told that story has nothing more to say about it, so a choice of this one replays the
+ * run under it, from REPLAY_FROM, where a visitor watches the same crash come out the other way.
+ * Every other setting works from the moment it's chosen, on the run as it stands: a rush fills the
+ * queue, and acknowledging before the work lets go of what the workers hold, for the next crash to
+ * lose. Replayed, that next crash wouldn't be the visitor's: at 2.4 s worker 2 happens to hold nothing.
+ */
+export const STORY: readonly (keyof typeof SETTINGS)[] = ['key'];
+
+const CRASHING = `worker ${(OPENING.actions[0]?.worker ?? 0) + 1}`;
+
+/** Where a run goes back to, in words, for the lines that say it did. */
+export const REPLAY_WORDS = `at ${seconds(REPLAY_FROM)}, before ${CRASHING}'s crash`;
+export const AGAIN = `The run plays again from ${seconds(REPLAY_FROM)}, before ${CRASHING}'s crash.`;
 
 /** The link to a run's start: its seed, and each setting not the opening's (#seed-28&key=on). */
 export const linkTo = (sim: Sim): string => writeLink(sim.seed, sim, SETTINGS);

@@ -15,6 +15,8 @@ export interface LandingRun {
   finished(): boolean;
   /** Starts the run again. */
   again(): void;
+  /** The visitor's first press: the demo is theirs now, and may speak. */
+  taken?(): void;
 }
 
 const LOOK = 500; // real ms between looks at the run
@@ -73,6 +75,7 @@ export function runOnLanding(root: HTMLElement, run: LandingRun): void {
       if (voice) element.setAttribute('aria-live', voice);
       else element.removeAttribute('aria-live');
     });
+    run.taken?.();
   };
   /** A press on anything that acts: a button, a choice, or a node of the Raft Lab's picture. */
   const taken = (event: Event) => {

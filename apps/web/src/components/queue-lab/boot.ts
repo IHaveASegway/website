@@ -4,9 +4,8 @@
 // it, or a press, and a press or a choice made before it arrives is kept and played once it has. A
 // touch that only scrolls the page loads nothing, but a visitor who lands here gets the demo running (below).
 
+import { clearUnloaded, sayUnloaded } from '../../lib/lab/unloaded';
 import { whenMoving } from '../../lib/lab/when-moving';
-
-const UNLOADED = 'The lab did not load. Press any control to try again.';
 
 const root = document.getElementById('queue-lab');
 
@@ -25,11 +24,12 @@ if (root) {
       .then(() => {
         ready = true;
         failed = false;
+        clearUnloaded(root, said);
       })
       .catch(() => {
         started = undefined;
         failed = true;
-        if (said) said.textContent = UNLOADED;
+        sayUnloaded(root, said);
       });
   };
 
