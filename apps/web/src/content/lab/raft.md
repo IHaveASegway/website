@@ -16,7 +16,7 @@ What it guarantees is safety, whatever the network does: two servers never commi
 
 ## Three things to try
 
-Left alone, the run you land on crashes its leader to show an election, then starts over. Any press except Start over ends that, and the cluster is yours.
+Left alone, the run you land on crashes its leader to show an election, then starts over. A press that changes the run, such as a crash, a write or a split, ends that, and the cluster is yours.
 
 **Cut off the leader.** With the run going, press Cut off the leader. The others stop hearing its heartbeats; one of them times out, wins a new term and leads. The old leader still thinks it leads. Send a write: the old leader takes it, but can never commit it, since it cannot reach a majority.
 
@@ -24,7 +24,7 @@ Left alone, the run you land on crashes its leader to show an election, then sta
 
 **Heal the network.** The old leader hears the newer term and steps down. Its uncommitted entries stay until the new leader sends one of its own: send a write, and they are dropped and replaced. The “What happened” list says how many, and marks a write as gone once a different entry is committed in its place. That's correct: those entries were never committed.
 
-Then try crashing two servers at once, or three, and losing a third of all messages.
+Then try crashing two servers at once, or three, and losing 30% of all messages.
 
 ## How to read it
 
