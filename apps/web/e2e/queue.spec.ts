@@ -368,7 +368,14 @@ test('the third: a poison order, then no more orders: under requeue the queue ne
   await expect(clock(page)).toHaveText(STARTED_OVER);
   await page.getByRole('radio', { name: 'Dead-letter after four tries' }).check();
   await page.getByRole('button', { name: 'Send a poison order' }).click();
+  // The run stands where Start over left it, and each press says only Run can show what it set going.
+  // Until 2026-11-03 these two overwrote "Press Run to watch it", and the clock stood with no word why.
+  const line = page.locator('.qu-controls [data-said]');
+  await expect(line).toHaveText(
+    'Order 14 comes in, and it is poison: it fails on every try. Press Run to watch it.',
+  );
   await page.getByRole('button', { name: 'Stop taking orders' }).click();
+  await expect(line).toHaveText('Orders stop: no new ones arrive. Press Run to watch it.');
   await runUntil(page, async () => ((await log(page).textContent()) ?? '').includes('it drained'));
   for (const line of [
     '1.993 s Order 14 fails on worker 1, try 1, and waits 200 ms before the next',
@@ -763,6 +770,21 @@ for (const width of [390, 768]) {
     await expect(page.locator('.qu-settings [data-said]')).toHaveAttribute('data-spoke');
   });
 }
+
+// On a run that plays, there's nothing to ask for: the press shows at once.
+test('a poison order or a stop on a run that plays says what it did, and asks for no Run', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto(QUEUE);
+  await page.getByRole('button', { name: 'Run' }).click();
+  await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
+  const line = page.locator('.qu-controls [data-said]');
+  await page.getByRole('button', { name: 'Send a poison order' }).click();
+  await expect(line).toHaveText(/^Order \d+ comes in, and it is poison: it fails on every try\.$/);
+  await page.getByRole('button', { name: 'Stop taking orders' }).click();
+  await expect(line).toHaveText('Orders stop: no new ones arrive.');
+});
 
 // One copy shows at a width, and the two say the same, so a window made narrower can't show the words
 // the run had before.

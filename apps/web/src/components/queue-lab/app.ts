@@ -287,7 +287,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
 
   function press(control: Element): void {
     const before = sim.lines.at(-1);
-    /** Orders or a worker back wait for Run on a run that stands, as the line that stopped it said. */
+    /** What the press sets going waits for Run on a run that stands, so the line says to press it. */
     let after = '';
     if (control instanceof HTMLInputElement && control.type === 'radio') {
       if (!control.checked) return;
@@ -337,12 +337,11 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       return;
     } else if (control.matches('[data-qu-producer]')) {
       if (sim.producing) stopProducer(sim);
-      else {
-        startProducer(sim);
-        after = watchIt(playing);
-      }
+      else startProducer(sim);
+      after = watchIt(playing);
     } else if (control.matches('[data-qu-poison]')) {
       poison(sim);
+      after = watchIt(playing);
     } else if (control.matches('[data-qu-crash]')) {
       const w = sim.workers[Number(control.getAttribute('data-qu-crash'))];
       if (w?.state === 'up') crash(sim, w.id);
