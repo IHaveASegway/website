@@ -14,7 +14,6 @@ const input = (page: Page) => page.getByRole('combobox', { name: 'Find a page or
 const opener = (page: Page) =>
   page.getByRole('button', { name: /^Search(( Ctrl)? K)?$/ }).filter({ visible: true });
 const said = (page: Page) => page.locator('[data-palette-say]');
-const note = (page: Page) => page.locator('[data-palette-note]');
 
 /** A page whose menu is bound: its script has run, and its button shows. */
 async function ready(page: Page, path = '/'): Promise<void> {

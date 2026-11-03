@@ -191,10 +191,7 @@ describe("writingRow: Home's Writing row never repeats a card", () => {
 
   test('when the only post is a card, the row lists nothing', () => {
     expect(
-      writingRow(
-        [post('a-postmortem')],
-        postCards([featured], [post('a-postmortem')]),
-      ),
+      writingRow([post('a-postmortem')], postCards([featured], [post('a-postmortem')])),
     ).toEqual([]);
   });
 

@@ -253,9 +253,7 @@ test("stillhere's record: its check, its limits first, and figures the repositor
   });
   expect(stillhere?.measured).toBe('2026-11-03');
   expect(stillhere?.tag).toBe('Pre-release');
-  expect(stillhere?.description).toContain(
-    'it doesn’t measure a person’s value'.replace(/’/g, "'"),
-  );
+  expect(stillhere?.description).toContain('it doesn’t measure a person’s value');
   expect(stillhere?.facts?.map((f) => f.term)).toEqual(['Validation', 'Decisions', 'Tests']);
   expect(stillhere?.facts?.[0]?.value).toMatch(/^durable@1 AUC 0\.42/);
   const github = profile.basics.profiles.find((p) => p.network === 'GitHub');

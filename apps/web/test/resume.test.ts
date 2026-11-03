@@ -1,7 +1,6 @@
 import type { DefaultTreeAdapterTypes } from 'parse5';
 import { describe, expect, test } from 'vitest';
 import { decodeReferences } from '../src/lib/held-names';
-import { isNoindex } from '../src/lib/noindex.mjs';
 import { checkedProfiles } from '../src/lib/profile';
 import { ABOUT_PATH } from '../src/lib/about';
 import { addressText, roleYears } from '../src/lib/resume';
@@ -50,15 +49,6 @@ const links = (within: Element | undefined) =>
     : descendants(within)
         .filter((e) => e.tagName === 'a')
         .map((a) => ({ href: attribute(a, 'href') ?? '', text: textOf(a) }));
-
-/** A page this build lists: written, and not a draft. */
-const lists = (path: string) => {
-  const file = `${path.slice(1)}index.html`;
-  return files.includes(file) && !isNoindex(read(file));
-};
-/** A listed page's own title: its <h1>. */
-const headingOf = (path: string) =>
-  textOf(elementsOf(read(`${path.slice(1)}index.html`)).find((e) => e.tagName === 'h1'));
 
 describe('/about/, the résumé', () => {
   test('every build writes it, under its canonical URL, with the name as its one heading', () => {

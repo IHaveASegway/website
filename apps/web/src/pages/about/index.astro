@@ -4,7 +4,14 @@ import LabLine from '../../components/LabLine.astro';
 import PostList from '../../components/PostList.astro';
 import WorkCard from '../../components/WorkCard.astro';
 import Base from '../../layouts/Base.astro';
-import { ABOUT_HEADINGS, ABOUT_PATH, aboutParts, sectionOf, withLinks } from '../../lib/about';
+import {
+  ABOUT_HEADINGS,
+  ABOUT_PATH,
+  aboutParts,
+  openingSentence,
+  sectionOf,
+  withLinks,
+} from '../../lib/about';
 import {
   loadAbout,
   loadLabArea,
@@ -48,7 +55,7 @@ const mine = part(ABOUT_HEADINGS.mine);
 const idea = part(ABOUT_HEADINGS.idea);
 // The opening's first sentence is Home's statement; here it leads the same paragraph.
 const opening = bio?.lede[0];
-const first = opening?.match(/^.+?[.!?](?=\s)/)?.[0];
+const first = opening && openingSentence(opening);
 const area = await loadWritingArea();
 const lab = await loadLabArea();
 const cards = await loadSelectedWork();

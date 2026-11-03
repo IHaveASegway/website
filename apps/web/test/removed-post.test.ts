@@ -21,9 +21,7 @@ describe('the removed post leaves nothing in the build', () => {
     expect(read('_redirects')).toMatch(GONE);
     const served = files.filter((file) => file !== '_redirects');
     const texts = new Set(textFiles);
-    expect(
-      served.flatMap((file) => traces(file, texts.has(file) ? read(file) : '')),
-    ).toEqual([]);
+    expect(served.flatMap((file) => traces(file, texts.has(file) ? read(file) : ''))).toEqual([]);
   });
 
   test('known answers: what it catches, in any case, and what it passes', () => {
