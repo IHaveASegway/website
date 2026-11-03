@@ -96,9 +96,9 @@ test('known answers: a label that starts with the query beats a keyword, then a 
   expect(rankOf('resume', { names: ['Résumé'] })).toBe(5);
   // A title and a summary count only whole: their scattered letters find nothing.
   expect(rankOf('wky', { names: ['Lab'], summary: 'A week of reports' })).toBe(0);
-  const post = { names: ['Four', 'locks,', 'none', 'of', 'them', 'closed'] };
-  expect(rankOf('rsm', { ...post, title: 'Four locks, none of them closed' })).toBe(0);
-  expect(rankOf('none of them', { ...post, title: 'Four locks, none of them closed' })).toBe(3);
+  const post = { names: ['Four', 'loads,', 'none', 'of', 'them', 'counted'] };
+  expect(rankOf('rsm', { ...post, title: 'Four loads, none of them counted' })).toBe(0);
+  expect(rankOf('none of them', { ...post, title: 'Four loads, none of them counted' })).toBe(3);
 });
 
 test('known answers: scattered letters leave the list once a row holds the query whole', () => {

@@ -39,8 +39,9 @@ const source = post.source ? new URL(post.source) : null;
 // The register under the lead (layouts/Prose.astro, ADR 0025): the post's day, its kind (Draft
 // first on a draft), its reading time and any update in words, and its tags as plain words. After
 // the body, a note's source, then More writing: up to three other posts, newest first, as the
-// index lists them, and the way back to the index, a link in words with no arrow. A draft lists
-// nothing, since nothing lists a draft either way.
+// index lists them, and the way back to the index, a link in words with no arrow. A post with no
+// other to list has the way back and no heading over it: "More writing" over a lone link promises
+// what isn't there. A draft lists nothing, since nothing lists a draft either way.
 const area = await loadWritingArea();
 // The close (ADR 0029): this reader arrives cold from a shared link, so the post says who wrote it
 // and how to reach him, in words the bio and the profile already own. It renders on a listed post
@@ -115,12 +116,12 @@ const links = [
         </li>
       </ul>
     )}
-    {(others.length > 0 || links.length > 0) && (
+    {others.length > 0 ? (
       <section class="section more-writing" aria-labelledby="more-title">
         <h2 id="more-title" class="section-title">
           More writing
         </h2>
-        {others.length > 0 && <PostList posts={others} level={3} />}
+        <PostList posts={others} level={3} />
         {links.length > 0 && (
           <ul class="post-links">
             {links.map((link) => (
@@ -131,6 +132,16 @@ const links = [
           </ul>
         )}
       </section>
+    ) : (
+      links.length > 0 && (
+        <ul class="post-links more-writing">
+          {links.map((link) => (
+            <li>
+              <a href={link.href}>{link.text}</a>
+            </li>
+          ))}
+        </ul>
+      )
     )}
   </Fragment>
 </Prose>

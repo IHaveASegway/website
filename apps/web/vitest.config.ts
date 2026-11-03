@@ -32,6 +32,7 @@ const DIST_CHECKS = [
   'project-cards',
   'readiness',
   'readouts',
+  'removed-post',
   'resume',
   'scripts',
   'tells',

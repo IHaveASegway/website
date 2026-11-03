@@ -284,7 +284,7 @@ export const wordDay = (date: Date): string =>
  *  three, with its curled marks set here, since a description is an attribute and the build's
  *  typographer reads only a page's text. */
 export const WRITING_WORDS =
-  'What I’ve been thinking about. Right now that’s coding agents, and a trading bot I got wrong.';
+  'What I’ve been thinking about. Right now that’s coding agents.';
 
 /** A post's reading time in words: "12 min read". */
 export const minutesWords = (minutes: number): string => `${minutes} min read`;

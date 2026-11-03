@@ -59,9 +59,14 @@ test('known answer: a straight mark beside a word is found, and code is left alo
 test('inline code shows as a chip, with little padding before what follows it', async ({
   page,
 }) => {
-  const path = '/writing/trading-bot-teardown/';
+  const path = '/writing/coding-by-hand/';
   test.skip(!pages().includes(path), 'this build has no such post');
   await page.goto(path);
+  // The rule is the stylesheet's, and the site's one post holds no code since 2026-11-03.
+  await page
+    .locator('.prose p')
+    .first()
+    .evaluate((p) => p.insertAdjacentHTML('beforeend', ' <code>side</code>'));
   const chip = await page
     .locator('.prose :not(pre) > code')
     .first()

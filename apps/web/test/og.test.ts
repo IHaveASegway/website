@@ -321,8 +321,8 @@ describe("a post's card", () => {
     });
   });
 
-  // The two posts on the site. The essay's hook fits. The teardown's summary takes three lines at any
-  // size a 550 px card can read, and a summary isn't cut to fit, so its card has none.
+  // The essay's hook fits. A summary that doesn't takes three lines at any size a 550 px card can
+  // read, and isn't cut to fit, so that card has none (the known answers above).
   test.runIf(html.includes('writing/coding-by-hand/index.html'))(
     'the essay’s card says its hook, and its alt says what the card says',
     () => {
@@ -335,27 +335,6 @@ describe("a post's card", () => {
         'I doubt anyone in the back seat of a',
         'driverless Waymo is checking the mirrors.',
       ]);
-    },
-  );
-
-  test.runIf(html.includes('writing/trading-bot-teardown/index.html'))(
-    'the teardown’s summary takes three lines, so it stays off its card, whole, in the description',
-    () => {
-      const page = read('writing/trading-bot-teardown/index.html');
-      const summary = decode(meta(page, 'description') ?? '');
-      expect(summary).toMatch(/^My 2024 trading bot’s config/);
-      expect(summaryLines(summary)).toHaveLength(3);
-      expect(decode(meta(page, 'og:image:alt') ?? '')).toBe(
-        `Four locks, none of them closed, by ${profile.basics.name}`,
-      );
-    },
-  );
-
-  test.runIf(html.includes('writing/coding-by-hand/index.html'))(
-    'the posts this build has include a card with a summary and one without',
-    () => {
-      expect(posts.some(({ card }) => card.summary)).toBe(true);
-      expect(posts.some(({ card }) => !card.summary)).toBe(true);
     },
   );
 

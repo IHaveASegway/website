@@ -71,7 +71,7 @@ export function summaryLines(summary: string): string[] {
 /** A post's card: its title, what it's about and who wrote it (ADR 0029). A share arrives cold, on
  *  LinkedIn as a small tile, so the card says what this is and whose it is, and the summary is the
  *  essay's hook. A summary is written for a search result, up to 160 characters, and is never cut to
- *  fit: one that takes more than two lines stays off the card, as the teardown's does. */
+ *  fit: one that takes more than two lines stays off the card. */
 export function postCard(post: Pick<Post, 'title' | 'summary'>, author: string): OgCard {
   const fits = summaryLines(post.summary).length <= SUMMARY.lines;
   return { title: post.title, label: author, byline: true, ...(fits && { summary: post.summary }) };

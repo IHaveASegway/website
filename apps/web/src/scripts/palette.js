@@ -42,7 +42,7 @@ export function matches(query, text) {
  * How well a row answers a query, from 0, not at all, to 5. A row's names are its label and its
  * keywords, each on its own, or a long title's words. Its title and its summary count only where the
  * query stands in them whole: across a dozen words a subsequence finds almost anything ("rsm" in
- * "Four locks, none of them closed").
+ * "Four loads, none of them counted").
  * 5: its label starts with the query: what a row says beats what it's also called, so "w" is
  * Writing, not Lab for the keyword "work".
  * 4: a name starts with the query, as "essay" does "essays".

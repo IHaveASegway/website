@@ -83,7 +83,7 @@ describe('every page has one kind of apostrophe', () => {
 
 test('known answers: typeset curls a word, opens a quote and leaves the rest', () => {
   expect(typeset("I've")).toBe('I\u2019ve');
-  expect(typeset("the bots' keys")).toBe('the bots\u2019 keys');
+  expect(typeset("the vans' routes")).toBe('the vans\u2019 routes');
   expect(typeset('why "later" beats')).toBe('why \u201clater\u201d beats');
   expect(typeset("'Quoted' here")).toBe('\u2018Quoted\u2019 here');
   // A text node that starts on a possessive, its word in the element before it.

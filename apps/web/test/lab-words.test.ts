@@ -217,8 +217,7 @@ describe('what a page says of itself', () => {
   test.runIf(html.includes('writing/index.html'))(
     'Writing says what it is in its lead, its description and its feed, in one form of words',
     () => {
-      const said =
-        'What I’ve been thinking about. Right now that’s coding agents, and a trading bot I got wrong.';
+      const said = 'What I’ve been thinking about. Right now that’s coding agents.';
       const page = read('writing/index.html');
       expect(words(page)).toContain(said);
       expect(page).toContain(`<meta name="description" content="${said}">`);

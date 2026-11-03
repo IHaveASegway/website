@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { wcagContrast } from 'culori';
-import { NOT_FOUND_PAGE, pages } from './expected';
+import { NOT_FOUND_PAGE, ON_WRITING_FIXTURE, pages } from './expected';
 
 // Every page on paper (global.css, "Every page on paper"; design-system.md, "Print"): no control,
 // each link's address printed after it, hairlines a printer keeps whatever the screen showed, and
@@ -110,8 +110,10 @@ test('the essay on paper: the footer stays whole, and takes no sheet of its own'
 test('inline code has no padding on paper or in forced colors, and keeps it on screen', async ({
   page,
 }) => {
+  // The writing fixture's posts hold code by design. The site's one post holds none since 2026-11-03,
+  // and the rule is the stylesheet's, the same on both.
+  test.skip(!ON_WRITING_FIXTURE, 'no post on the site holds code');
   const posts = pages().filter((path) => /^\/(writing|notes)\/[^/]+\/$/.test(path));
-  test.skip(posts.length === 0, 'no post in this build');
   /** The padding of each piece of inline code on the page, in the media emulated now. */
   const paddings = () =>
     page.evaluate(() =>
@@ -131,7 +133,7 @@ test('inline code has no padding on paper or in forced colors, and keeps it on s
     await page.emulateMedia({ media: 'screen', forcedColors: 'active' });
     for (const padding of await paddings()) expect(padding, post).toBe('0px');
   }
-  // Every build with a post has one with inline code, so this check always has something to read.
+  // The fixture's posts have inline code, so this check always has something to read.
   expect(seen).toBeGreaterThan(0);
 });
 

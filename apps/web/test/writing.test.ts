@@ -877,9 +877,9 @@ describe('the real posts, drafts included, before anything renders them', () => 
 
 describe('typeset: front matter gets the quotes the Markdown body gets', () => {
   test('known answers: apostrophes, opening and closing quotes, and text with none', () => {
-    expect(typeset("My 2024 trading bot's config")).toBe('My 2024 trading bot\u2019s config');
+    expect(typeset("My 2024 report's config")).toBe('My 2024 report\u2019s config');
     expect(typeset('why "later" beats "now"')).toBe('why \u201clater\u201d beats \u201cnow\u201d');
-    expect(typeset("the bots' keys")).toBe('the bots\u2019 keys');
+    expect(typeset("the vans' routes")).toBe('the vans\u2019 routes');
     expect(typeset('\'Quoted\' ("inner")')).toBe('\u2018Quoted\u2019 (\u201cinner\u201d)');
     expect(typeset('a \u2014"dash"')).toBe('a \u2014\u201cdash\u201d');
     expect(typeset('No quotes at all.')).toBe('No quotes at all.');

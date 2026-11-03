@@ -25,7 +25,6 @@
     { "name": "Route optimization: VROOM, OSRM", "evidence": ["/lab/routes/"] },
     { "name": "WebAssembly", "evidence": ["/lab/routes/"] },
     { "name": "TypeScript", "evidence": ["/lab/raft/", "/lab/queue/", "/lab/cache/"] },
-    { "name": "AWS Lambda and API Gateway", "evidence": ["/writing/trading-bot-teardown/"] },
     {
       "name": "Coding agents: specs, permissions, tests",
       "evidence": ["/writing/coding-by-hand/"]

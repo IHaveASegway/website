@@ -1002,7 +1002,7 @@ test.describe('the field', () => {
       ),
     ]);
 
-  for (const path of ['/', '/lab/', '/writing/', '/about/', '/writing/trading-bot-teardown/']) {
+  for (const path of ['/', '/lab/', '/writing/', '/about/', '/writing/coding-by-hand/']) {
     test(`${path}: the lines run by themselves, under the top bar’s button`, async ({ page }) => {
       await page.goto(path);
       await expect.poll(() => running(page)).toEqual(expect.arrayContaining(['field-run']));
