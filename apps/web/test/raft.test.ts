@@ -52,7 +52,7 @@ import {
   readRun,
   SEEDS_IN_CI,
   serverState,
-  SIZE,
+  VIEW_BOX,
   statusText,
   summary,
 } from '../src/lib/raft/view';
@@ -1038,11 +1038,13 @@ describe('the cut', () => {
           if (g === cutOff) expect(reach(fence, point)).toBeLessThan(-4);
           else expect(reach(fence, point)).toBeGreaterThan(4);
         }
+      // Inside the picture's frame, its 1.5 unit line and all.
+      const [left = 0, top = 0, wide = 0, tall = 0] = VIEW_BOX.split(' ').map(Number);
       for (const [x, y] of fence) {
-        expect(x).toBeGreaterThanOrEqual(0);
-        expect(x).toBeLessThanOrEqual(SIZE);
-        expect(y).toBeGreaterThanOrEqual(0);
-        expect(y).toBeLessThanOrEqual(SIZE);
+        expect(x - 0.75).toBeGreaterThanOrEqual(left);
+        expect(x + 0.75).toBeLessThanOrEqual(left + wide);
+        expect(y - 0.75).toBeGreaterThanOrEqual(top);
+        expect(y + 0.75).toBeLessThanOrEqual(top + tall);
       }
     },
   );

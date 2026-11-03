@@ -38,6 +38,7 @@
 @media (width >= 64rem) {
   .rf {
     grid-template-columns: repeat(12, minmax(0, 1fr));
+    row-gap: 1rem;
     column-gap: var(--gutter);
     align-items: start;
   }
@@ -94,9 +95,9 @@
 }
 
 /* On a phone the picture takes the desk's whole width, out to its bezel, so its labels stay as
-   large as they can. From 64rem it stops at 28rem: its labels, set in its own units
-   (lib/raft/view.ts), stay 13 px at the least, and the picture and the controls fit one screen at
-   1440 × 900 (e2e/raft.spec.ts). */
+   large as they can. From 64rem it stops at 24.5rem, with its term's words a step larger to stay 13 px
+   at the least, so Run is on the first screen at 1440 × 900 with the picture and the safety properties
+   over it (e2e/raft.spec.ts). On a screen tall enough for both, it takes the room it had. */
 @media (width < 48rem) {
   .rf-map {
     width: calc(100% + var(--desk-side) * 2);
@@ -106,6 +107,12 @@
 }
 
 @media (width >= 64rem) {
+  .rf-map {
+    max-width: 24.5rem;
+  }
+}
+
+@media (width >= 64rem) and (height >= 60rem) {
   .rf-map {
     max-width: 28rem;
   }
@@ -230,6 +237,12 @@
   }
 }
 
+@media (width >= 64rem) {
+  .rf-term {
+    font-size: 12px;
+  }
+}
+
 /* A label stays legible where the cut crosses it: a halo of the desk's surface. */
 .rf-role,
 .rf-term {
@@ -347,6 +360,13 @@
   }
 }
 
+/* Beside the picture they keep to its height, a little closer together. */
+@media (width >= 64rem) {
+  .rf-part {
+    gap: 0.75rem;
+  }
+}
+
 /* Without script there are no controls between the picture and the logs, so no rule either. */
 @media (scripting: none) and (width < 64rem) {
   .rf-log-part {
@@ -378,6 +398,12 @@
   margin-inline-end: auto;
   padding: 0;
   list-style: none;
+}
+
+@media (width >= 64rem) {
+  .rf-logs {
+    gap: 0.375rem;
+  }
 }
 
 .rf-log {
@@ -666,6 +692,12 @@
 @media (width >= 48rem) {
   .rf-controls > .lab-said {
     min-block-size: 2lh;
+  }
+}
+
+@media (width >= 64rem) {
+  .rf-controls {
+    padding-block-start: 1rem;
   }
 }
 

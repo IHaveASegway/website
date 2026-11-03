@@ -19,11 +19,11 @@ import {
   ROLE_BASELINE,
   seconds,
   serverState,
-  SIZE,
   statusText,
   summary,
   TERM_BASELINE,
   timerShare,
+  VIEW_BOX,
 } from '../../lib/raft/view';
 import '../../styles/raft-lab.css';
 
@@ -81,7 +81,7 @@ const SPEEDS = [
   <figure class="rf-figure">
     <svg
       class="rf-map"
-      viewBox={`0 0 ${SIZE} ${SIZE}`}
+      viewBox={VIEW_BOX}
       role="img"
       aria-labelledby="rf-summary"
       data-rf-map

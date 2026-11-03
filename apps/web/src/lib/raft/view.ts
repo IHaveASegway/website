@@ -87,6 +87,9 @@ export const readRun = (hash: string): { seed: number; loss: number } | null => 
 export const SEEDS_IN_CI = 3_000;
 
 export const SIZE = 360;
+/** The picture's frame: all of its width, and of its height what the fence and the words under the
+ *  lower servers reach, so the empty 10 and 4 units over and under them aren't laid out. */
+export const VIEW_BOX = `0 10 ${SIZE} 346`;
 const CENTER = SIZE / 2;
 const ORBIT = 128;
 export const NODE_RADIUS = 27;

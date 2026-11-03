@@ -169,10 +169,15 @@ test('a split network: a fence closes off the smaller side and crosses no server
   await expect.poll(() => fenced(page)).toBe(2);
 });
 
-// On a phone the role and term grow and move down (raft-lab.css); the fence must still keep clear.
-for (const width of [390, 320]) {
+// On a phone the role and term grow and move down (raft-lab.css), and from 64rem the term grows a
+// little; the fence must still keep clear.
+for (const [width, height] of [
+  [390, 844],
+  [320, 844],
+  [1440, 900],
+] as const) {
   test(`at ${width} px wide, the fence still crosses no server or its text`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 844 });
+    await page.setViewportSize({ width, height });
     await page.goto(RAFT);
     await page.getByRole('button', { name: 'Cut off the leader' }).click();
     await expect.poll(() => fenced(page)).toBe(1);
@@ -285,6 +290,35 @@ test('from 64rem the properties share the first screen with the picture they des
   const map = await page.locator('[data-rf-map]').boundingBox();
   expect(last && last.y + last.height).toBeLessThanOrEqual(900);
   expect(last && map && last.x).toBeGreaterThan((map?.x ?? 0) + (map?.width ?? 0));
+});
+
+// Run under the fold was the desk's first impression on a laptop: a picture and a list, and nothing
+// to press. Until 2026-11-02 it stood at 900 of 900, once the properties came to stand beside the
+// picture. Measured from the top of the page, not the picture's: that test passed all along.
+for (const fonts of ['loaded', 'blocked'] as const) {
+  test(`at 1440 by 900, all of the picture, the properties and Run are on the first screen, fonts ${fonts}`, async ({
+    page,
+  }) => {
+    if (fonts === 'blocked') await page.route('**/*.woff2', (route) => route.abort());
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(RAFT);
+    await page.evaluate(() => document.fonts.ready);
+    const bottoms = await page.evaluate(() =>
+      ['[data-rf-map]', '[data-rf-summary]', '[data-rf-status]', '[data-rf-run]'].map(
+        (selector) => (document.querySelector(selector) as Element).getBoundingClientRect().bottom,
+      ),
+    );
+    expect(Math.max(...bottoms)).toBeLessThanOrEqual(900);
+  });
+}
+
+test('on a screen tall enough for both, the picture keeps its full size', async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto(RAFT);
+  const map = await page.locator('[data-rf-map]').boundingBox();
+  const run = await page.locator('[data-rf-run]').boundingBox();
+  expect(map?.width).toBe(448);
+  expect(run && run.y + run.height).toBeLessThanOrEqual(1080);
 });
 
 // The room the caption keeps at every width the desk changes at, for its longest words, with each
@@ -963,11 +997,17 @@ for (const [width, height] of [
   });
 }
 
-// A server's role and term are set in the picture's units, which shrink with a phone's width; they
-// must still draw 13 px at the least, and the leader's number above them more.
-for (const width of [390, 320]) {
+// A server's role and term are set in the picture's units, which shrink with its width; they must
+// still draw 13 px at the least, and the leader's number above them more. 1,024 px is the desk's
+// narrowest beside the logs, and 1,440 by 900 is where the picture stops at its smallest.
+for (const [width, height] of [
+  [390, 844],
+  [320, 844],
+  [1024, 768],
+  [1440, 900],
+] as const) {
   test(`at ${width} px wide, every label in the picture draws 13 px or more`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 844 });
+    await page.setViewportSize({ width, height });
     await page.goto(RAFT);
     const sizes = await page
       .locator('[data-rf-map] text')
