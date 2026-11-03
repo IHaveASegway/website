@@ -126,6 +126,23 @@ for (const lab of LABS) {
       await expect(run(page, lab)).toHaveText('Pause');
     });
 
+    // Reading the write-up from the page's contents is no press. Until 2026-11-02 any change of the
+    // hash ended the landing, and the run played on unseen for as long as they read.
+    test('a link to a part of the page leaves it holding back off the screen; a link to a run makes it stop', async ({
+      page,
+    }) => {
+      await page.goto(lab.path);
+      await expect(run(page, lab)).toHaveText('Pause');
+      await page.locator('.lab-contents a').last().click();
+      await expect(run(page, lab)).toHaveText('Run');
+      await page.evaluate(() => scrollTo(0, 0));
+      await expect(run(page, lab)).toHaveText('Pause');
+      await page.evaluate(() => (location.hash = '#seed-12'));
+      await expect(run(page, lab)).toHaveText('Run');
+      await page.waitForTimeout(800);
+      await expect(run(page, lab)).toHaveText('Run');
+    });
+
     test('its live regions keep quiet until the first press, then speak', async ({ page }) => {
       await page.goto(lab.path);
       await expect(run(page, lab)).toHaveText('Pause');

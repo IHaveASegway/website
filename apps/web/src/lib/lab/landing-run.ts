@@ -69,13 +69,19 @@ export function runOnLanding(root: HTMLElement, run: LandingRun): void {
     root.removeEventListener('click', taken, true);
     root.removeEventListener('change', taken, true);
     root.removeEventListener('input', taken, true);
-    removeEventListener('hashchange', leave);
+    removeEventListener('hashchange', followed);
     live.forEach((element, i) => {
       const voice = voices[i];
       if (voice) element.setAttribute('aria-live', voice);
       else element.removeAttribute('aria-live');
     });
     run.taken?.();
+  };
+  /** A link to a run opens it paused, and the demo is theirs. A link to a part of the page, from its
+   *  contents or the skip link, names no run, so the run goes on holding back while it's off the
+   *  screen: ended there, it played on unseen under the write-up, for as long as they read. */
+  const followed = () => {
+    if (/^#seed-\d/.test(location.hash)) leave();
   };
   /** A press on anything that acts: a button, a choice, or a node of the Raft Lab's picture. */
   const taken = (event: Event) => {
@@ -86,5 +92,5 @@ export function runOnLanding(root: HTMLElement, run: LandingRun): void {
   root.addEventListener('click', taken, true);
   root.addEventListener('change', taken, true);
   root.addEventListener('input', taken, true);
-  addEventListener('hashchange', leave);
+  addEventListener('hashchange', followed);
 }
