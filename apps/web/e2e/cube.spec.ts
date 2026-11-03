@@ -127,7 +127,8 @@ test('while VROOM plans, the words over its cube say the plan on show is for the
   await page.goto(ROUTE_LAB);
   await chooseDay(page, 'quiet');
   const backs = cube(page).locator('[data-rl-cube-back]');
-  await expect(backs.first()).toHaveText(`Last van back after 3${NBSP}h 40${NBSP}min`);
+  // The plan as dealt waits with it, so the two pictures stand on one set of orders until it answers.
+  await expect(backs.first()).toHaveText(`Last van back after 2${NBSP}h 53${NBSP}min`);
   await expect(backs.last()).toHaveText('For the previous orders');
   // VROOM's picture still draws the plan it says it does: three vans, for the opening day's orders.
   const pictures = page.locator('svg[data-rl-cube-picture]');

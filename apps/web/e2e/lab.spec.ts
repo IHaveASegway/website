@@ -508,18 +508,60 @@ test('while the first solve loads, the headline keeps what it said, until VROOM 
   await page
     .locator('input[name="rl-day"][value="quiet"]')
     .evaluate((radio: HTMLInputElement) => radio.click());
-  // The app is here, with the day's own plan drawn, and VROOM hasn't answered.
-  await expect(page.locator('[data-rl-plan="before"] [data-rl-time]')).toHaveText(
-    `3${NBSP}h 16${NBSP}min`,
-  );
+  // The app is here and VROOM hasn't answered. Both figures and the headline still agree, on the plan
+  // they were for, so a reader who checks the sum finds it right: until 2026-11-03 the plan as dealt
+  // changed at once, and the headline stood beside figures it didn't add up to.
+  const dealtTime = page.locator('[data-rl-plan="before"] [data-rl-time]');
+  const solvedTime = page.locator('[data-rl-plan="after"] [data-rl-time]');
   await expect(page.locator('[data-rl-readout]')).toHaveAttribute('data-rl-stale', '');
+  await expect(page.locator('[data-rl-status]')).toContainText('Loading the solver');
+  await expect(dealtTime).toHaveText(`5${NBSP}h 34${NBSP}min`);
+  await expect(solvedTime).toHaveText(`3${NBSP}h 12${NBSP}min`);
   await expect(saved).toHaveText(opening);
   hold = false;
+  // All three change together.
   await expect(saved).toHaveText(
     `VROOM saves 52${NBSP}min of driving, 27% less, and 32.1${NBSP}mi.`,
     { timeout: 20_000 },
   );
+  await expect(dealtTime).toHaveText(`3${NBSP}h 16${NBSP}min`);
   await expect(page.locator('[data-rl-readout]')).not.toHaveAttribute('data-rl-stale', '');
+});
+
+// A stop clicked away kept its order in the tip until the mouse moved, beside a line that said it was
+// removed. Until 2026-11-03.
+test('a stop clicked away says so in its tip, with the mouse still on it', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(ROUTE_LAB);
+  await page.locator('.rl-controls').hover();
+  const map = page.locator('[data-rl-plan="after"] svg[data-rl-map]');
+  await expect(status(page)).toHaveText('', { timeout: 20_000 });
+  // A stop the day has an order for, where the map draws it.
+  const at = await page
+    .locator('input[name="rl-order"]:checked')
+    .first()
+    .evaluate((box) => {
+      const { x, y } = (box as HTMLInputElement).dataset;
+      const svg = document.querySelector(
+        '[data-rl-plan="after"] svg[data-rl-map]',
+      ) as SVGSVGElement;
+      const point = new DOMPoint(Number(x), Number(y)).matrixTransform(
+        svg.getScreenCTM() as DOMMatrix,
+      );
+      return { x: point.x, y: point.y };
+    });
+  await page.evaluate((y) => scrollTo(0, y), at.y - 300);
+  const scrolled = await page.evaluate(() => scrollY);
+  await page.mouse.move(at.x, at.y - scrolled);
+  const tip = map.locator('[data-rl-tip] text');
+  await expect(tip).not.toContainText('No order today');
+  await page.mouse.down();
+  await page.mouse.up();
+  await expect(status(page)).toContainText(/^Removed /, { timeout: 20_000 });
+  await expect(page.locator('[data-rl-plan="after"]')).not.toHaveAttribute('data-rl-stale', '', {
+    timeout: 20_000,
+  });
+  await expect(tip).toContainText('No order today');
 });
 
 // Nothing moves when the boot module arrives: CSS shows the controls from the first paint wherever
