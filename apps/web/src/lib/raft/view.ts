@@ -48,8 +48,9 @@ export const LANDING = { crash: 100, restart: 500, write: 700, ends: 1_000 } as 
 
 /**
  * That story as a script for this run: the same actions a press records, so playing it is a run
- * replay rebuilds. It's the landing's alone. It isn't in OPENING, so the build's picture, a link's
- * run and Start over never hold it, and a press drops what's left of it (app.ts).
+ * replay rebuilds. It's the landing's alone. It isn't in OPENING, so the build's picture and a link's
+ * run never hold it. A press drops what's left of it, and Start over on a run with no other press in
+ * it tells it again (app.ts).
  */
 export function landingStory(sim: Sim): { actions: Action[]; ends: number } {
   const leader = leaderOf(sim);

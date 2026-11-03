@@ -44,9 +44,11 @@ import {
 // and the loss, as the other labs do, so the run can be watched again, and writes the link to it.
 //
 // The run a visitor lands on tells a story (lib/raft/view.ts, landingStory): the leader crashes and
-// the others elect a new one. It's the landing's alone: the visitor's first press drops what's left
-// of it, and the demo is theirs. So a press of Run never brings a crash nobody asked for, and
-// neither do Pause and Run, Start over or a link. A visitor who presses gets what their presses make.
+// the others elect a new one. It's the landing's alone: a press drops what's left of it, and the demo
+// is theirs. So a press of Run never brings a crash nobody asked for, and neither do Pause and Run or
+// a link. A visitor who presses gets what their presses make. Start over is the one press that asks
+// for that run again, so on a run with no other press in it, it tells the story again, once, as the
+// Queue Lab's brings its crash back; the same run a visitor just watched can be watched again.
 
 const FRAME_CAP = 100; // real ms: a frame after a long pause does not leap ahead
 const EVENTS_PER_FRAME = 4_000;
@@ -102,7 +104,9 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   let ahead: Action[] = [];
   /** When that story is over, so the landing run can stand a moment and go round again. */
   let storyEnds = Infinity;
-  /** Whether the visitor has pressed something or followed a link: from then on no story plays. */
+  /** Whether the run is the one they landed on, with no press in it but Start over. */
+  let told = false;
+  /** Whether the visitor has pressed anything or followed a link: then no landing starts for them. */
   let theirs = false;
   let playing = false;
   let last = 0;
@@ -258,8 +262,22 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     return sim.servers.map((s) => (s.id === leader || s.id === (leader + 1) % size ? 1 : 0));
   }
 
+  /** Starts the story over from where the run stands, its opening. */
+  function tell(): void {
+    const story = landingStory(sim);
+    ahead = story.actions;
+    storyEnds = story.ends;
+    told = true;
+  }
+
   function press(control: Element): void {
     theirs = true;
+    // Every press but Start over drops what's left of the story: Start over asks for it again.
+    const reset = control.matches('[data-rf-reset]');
+    if (!reset) {
+      told = false;
+      ahead = [];
+    }
     const node = control.closest('[data-rf-node], [data-rf-toggle]');
     const id = node?.getAttribute('data-rf-node') ?? node?.getAttribute('data-rf-toggle');
     if (id !== null && id !== undefined) {
@@ -285,9 +303,10 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       split(sim, twoAndThree());
     } else if (control.matches('[data-rf-heal]')) {
       heal(sim);
-    } else if (control.matches('[data-rf-reset]')) {
+    } else if (reset) {
       const wasPlaying = playing;
       open(fresh(sim.seed, lost()));
+      if (told) tell();
       // The address names the run, its loss and all, so a reload or the link shared opens it.
       history.replaceState(null, '', linkTo(sim.seed, percent()));
       if (wasPlaying) play();
@@ -308,9 +327,11 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     draw();
   }
 
+  // A label too, though it does nothing here: the speed already chosen fires no input, and it's as
+  // much a first press as any (lib/lab/landing-run.ts).
   root.addEventListener('click', (event) => {
     const target = event.target instanceof Element ? event.target : null;
-    const control = target?.closest('button, [data-rf-node]');
+    const control = target?.closest('button, label, [data-rf-node]');
     if (control) press(control);
   });
   root.addEventListener('input', (event) => {
@@ -324,6 +345,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     const link = readRun(location.hash);
     if (!link) return;
     theirs = true;
+    told = false;
     showLoss(link.loss);
     open(fresh(link.seed, link.loss / 100));
   });
@@ -336,13 +358,6 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
 
   draw();
   for (const control of queued) press(control);
-  /** Starts the story over from where the run stands, its opening. */
-  const tell = () => {
-    const story = landingStory(sim);
-    ahead = story.actions;
-    storyEnds = story.ends;
-  };
-
   // The run a visitor lands on goes on from the moment the picture tells, with its story ahead. A
   // visitor who already pressed something, while the top bar's Pause kept the landing waiting, has
   // their demo already, and nothing here takes it back.
@@ -358,10 +373,6 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
         open(fresh(sim.seed, lost()));
         tell();
         play();
-      },
-      theirs: () => {
-        theirs = true;
-        ahead = [];
       },
     });
   };

@@ -17,9 +17,6 @@ export interface LandingRun {
   finished(): boolean;
   /** Starts the run again. */
   again(): void;
-  /** The visitor's first press has come, or a link was followed: the demo is theirs from here, so
-   *  anything the run had planned to do by itself is off. */
-  theirs?(): void;
 }
 
 const LOOK = 500; // real ms between looks at the run
@@ -68,7 +65,6 @@ export function runOnLanding(root: HTMLElement, run: LandingRun): void {
   document.addEventListener('motionchange', look);
 
   const leave = () => {
-    run.theirs?.();
     clearInterval(every);
     clearTimeout(held);
     seen.disconnect();

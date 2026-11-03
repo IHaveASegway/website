@@ -246,8 +246,9 @@ test.describe('the Raft Lab’s landing run', () => {
     expect(await madeSinceTheOpening(page)).toHaveLength(1);
   });
 
-  // The first press, whichever it is, ends the story: nothing happens by itself after it. A press
-  // that writes or crashes writes its own line, and that's the one line there is.
+  // A first press ends the story: nothing happens by itself after it. A press that writes or crashes
+  // writes its own line, and that's the one line there is. Start over is the one press that asks for
+  // the run again, and has tests of its own below.
   const FIRST_PRESSES: [string, (page: Page) => Promise<unknown>, RegExp[]][] = [
     [
       'Pause, then Run',
@@ -258,8 +259,13 @@ test.describe('the Raft Lab’s landing run', () => {
       [],
     ],
     ['a speed', (page) => page.getByRole('radio', { name: 'Slow' }).check(), []],
+    // It fires no input, since it's the speed already chosen, and it's as much a press as any.
+    [
+      'the speed already chosen',
+      (page) => page.locator('label', { hasText: 'Steady' }).click(),
+      [],
+    ],
     ['Next event', (page) => page.getByRole('button', { name: 'Next event' }).click(), []],
-    ['Start over', (page) => page.getByRole('button', { name: 'Start over' }).click(), []],
     [
       'a write',
       (page) => page.getByRole('button', { name: 'Send a write' }).click(),
@@ -306,6 +312,61 @@ test.describe('the Raft Lab’s landing run', () => {
     await expect(summary(page)).toHaveText(/^Server [2-5] leads term \d+, 3 entries committed/);
   });
 
+  // A visitor who watched the election and pressed Start over got heartbeats and nothing else, so the
+  // run they just saw couldn't be replayed, where the Queue Lab's Start over brings its crash back.
+  test('Start over on the run they landed on tells the story again, once, and it stands', async ({
+    page,
+  }) => {
+    await land(page);
+    await page.clock.runFor(8_000);
+    await expect(summary(page)).toHaveText(
+      'Server 3 leads term 2, 3 entries committed, 1 server down.',
+    );
+    await page.getByRole('button', { name: 'Start over' }).click();
+    await expect(summary(page)).toHaveText('Server 1 leads term 1, 3 entries committed.');
+    await expect(run(page, lab)).toHaveText('Pause');
+    await expect(page.locator('[data-rf-seed]')).toHaveText('7');
+    expect(new URL(page.url()).hash).toBe('#seed-7');
+    expect(await madeSinceTheOpening(page)).toEqual([]);
+    await page.clock.runFor(2_500);
+    await expect(up(page)).toHaveCount(4);
+    await page.clock.runFor(14_000);
+    await expect(summary(page)).toHaveText('Server 3 leads term 2, 4 entries committed.');
+    // It's theirs now: no going round. The cluster stands on what the story left, with its one write.
+    await page.clock.runFor(30_000);
+    await expect(summary(page)).toHaveText('Server 3 leads term 2, 4 entries committed.');
+    await expect(up(page)).toHaveCount(5);
+    expect(await madeSinceTheOpening(page)).toHaveLength(3);
+    // And again, for as often as they ask.
+    await page.getByRole('button', { name: 'Start over' }).click();
+    await page.clock.runFor(2_500);
+    await expect(up(page)).toHaveCount(4);
+  });
+
+  test('any other press after Start over drops what is left of the story', async ({ page }) => {
+    await land(page);
+    await page.getByRole('button', { name: 'Start over' }).click();
+    await page.clock.runFor(1_000);
+    await page.getByRole('button', { name: 'Send a write' }).click();
+    await page.clock.runFor(30_000);
+    await expect(up(page)).toHaveCount(5);
+    const said = await madeSinceTheOpening(page);
+    expect(said).toHaveLength(1);
+    expect(said[0]).toMatch(/Server 1 takes write 4/);
+  });
+
+  test('Start over after any other press goes back to the opening with nothing ahead', async ({
+    page,
+  }) => {
+    await land(page);
+    await page.getByRole('button', { name: 'Send a write' }).click();
+    await page.getByRole('button', { name: 'Start over' }).click();
+    await expect(summary(page)).toHaveText('Server 1 leads term 1, 3 entries committed.');
+    await page.clock.runFor(30_000);
+    await expect(up(page)).toHaveCount(5);
+    expect(await madeSinceTheOpening(page)).toEqual([]);
+  });
+
   test('a link to a heading is no press: the story waits off the screen and carries on', async ({
     page,
   }) => {
@@ -319,6 +380,24 @@ test.describe('the Raft Lab’s landing run', () => {
     await page.clock.runFor(2_500);
     await expect(up(page)).toHaveCount(4);
     expect(await madeSinceTheOpening(page)).toHaveLength(1);
+  });
+
+  test('a link to a run followed on the page stands on that run with no story, and Start over keeps it so', async ({
+    page,
+  }) => {
+    await land(page);
+    await page.clock.runFor(2_500);
+    await expect(up(page)).toHaveCount(4);
+    await page.evaluate(() => {
+      location.hash = '#seed-7';
+    });
+    await expect(run(page, lab)).toHaveText('Run');
+    await expect(summary(page)).toHaveText('Server 1 leads term 1, 3 entries committed.');
+    await page.getByRole('button', { name: 'Start over' }).click();
+    await run(page, lab).click();
+    await page.clock.runFor(30_000);
+    await expect(up(page)).toHaveCount(5);
+    expect(await madeSinceTheOpening(page)).toEqual([]);
   });
 
   test('a link to a run has no story, standing or run', async ({ page }) => {
