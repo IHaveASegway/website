@@ -1,5 +1,5 @@
 /*
-  The controls on a simulated lab's desk, one set in every lab that has moved to them
+  The controls on a simulated lab's desk, one set in all four
   (docs/lab.md, "The controls"; components/lab/). A sheet of its own, which those components link, so
   a lab's page that draws none of them, as the Route Lab's, doesn't pay for them. Every color is a
   token from tokens.css. It moves nothing, so it declares no transition and no animation.

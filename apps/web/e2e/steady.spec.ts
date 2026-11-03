@@ -700,6 +700,24 @@ for (const { phone, viewport } of PHONES) {
           expect(await play(page, presses)).toEqual([]);
         });
 
+        // The logs' box takes focus, as the event log's does, for the keys that scroll it: a tap where
+        // it shows only in part must not scroll the page to show the rest.
+        test('the raft lab’s logs, touched where they show only in part', async ({ page }) => {
+          await open(page, lab.path);
+          const box = page.locator('.rf-logs-box');
+          const y = await box.evaluate((el) => {
+            const rect = el.getBoundingClientRect();
+            return Math.round(rect.top + scrollY - innerHeight + rect.height / 4);
+          });
+          await scrollTo(page, y);
+          const rect = await box.boundingBox();
+          if (!rect) throw new Error('no logs');
+          const viewport = page.viewportSize();
+          const at = { x: rect.x + rect.width / 2, y: (viewport?.height ?? 0) - 10 };
+          const moves = await movesAround(page, () => page.touchscreen.tap(at.x, at.y), 1_000);
+          expect(moves).toEqual([]);
+        });
+
         // A log outgrows its row with a thumb on Send a write: the page holds still, all of it.
         test('the raft lab, as its logs outgrow their rows', async ({ page }) => {
           await open(page, lab.path);
