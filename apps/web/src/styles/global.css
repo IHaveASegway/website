@@ -1421,13 +1421,14 @@
 
   /* A piece of code in a sentence is one chip: it moves to the next line whole rather than break
      inside, "private:" on one line and "true" on the next, and only one longer than the line
-     wraps, inside its own chip. */
+     wraps, inside its own chip. The chip shows on the page, and its padding is small, so what follows
+     it reads as following it: on a ground that hardly showed, "side ." read as a stray space. */
   .prose :not(pre) > code {
     display: inline-block;
     max-inline-size: 100%;
-    padding: 0.0625rem 0.3125rem;
+    padding: 0.0625rem 0.25rem;
     border-radius: var(--radius-sm);
-    background-color: var(--surface-1);
+    background-color: var(--surface-2);
     overflow-wrap: anywhere;
   }
 
