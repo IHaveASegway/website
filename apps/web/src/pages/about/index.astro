@@ -14,7 +14,7 @@ import { profilePageGraph, serialize } from '../../lib/jsonld';
 import { labPath } from '../../lib/lab';
 import { labelOf, navAll } from '../../lib/nav';
 import { aboutCard } from '../../lib/og';
-import { areaRoutes, SECTION_LABELS } from '../../lib/posts';
+import { areaRoutes, postPath, SECTION_LABELS } from '../../lib/posts';
 import { checkedProfiles, locationLine } from '../../lib/profile';
 import { addressText, evidencePages, roleYears, shownSkills } from '../../lib/resume';
 import { CONTACT_EMAIL, ORIGIN } from '../../lib/site';
@@ -52,6 +52,12 @@ const names = LAB_NAMES.flatMap(({ slug, name: words }) => {
   const entry = demo.get(slug);
   return entry ? [{ name: words, href: labPath(entry) }] : [];
 });
+// The essay the bio's last thing he builds points to, as Home links it, and the Lab its closing
+// names, each once this build writes its page. Until 2026-11-02 only the labs' names were links
+// here, on the page for readers who want more.
+const essay = area.published.find((post) => post.slug === 'you-will-be-missed');
+const reads = essay ? [{ name: 'essay', href: postPath(essay) }] : [];
+const theLab = lab.entries.length > 0 ? [{ name: 'The Lab', href: '/lab/' }] : [];
 const profiles = checkedProfiles(profile);
 const linkedIn = profiles.find((p) => p.network === 'LinkedIn');
 // The pages a skill may name: Selected work's, the listed posts, and the other pages this build
@@ -131,7 +137,7 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
                     <li>
                       <h3 class="bio-item-lead">{principle.lead}</h3>
                       <p class="bio-item-text">
-                        {withLinks(principle.text, names).map((run) =>
+                        {withLinks(principle.text, [...names, ...reads]).map((run) =>
                           typeof run === 'string' ? run : <a href={run.href}>{run.text}</a>,
                         )}
                       </p>
@@ -141,7 +147,7 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
               )}
               {section.paragraphs.map((paragraph) => (
                 <p class="bio-text">
-                  {withLinks(paragraph, names).map((run) =>
+                  {withLinks(paragraph, [...names, ...theLab]).map((run) =>
                     typeof run === 'string' ? run : <a href={run.href}>{run.text}</a>,
                   )}
                 </p>
@@ -199,7 +205,7 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
             Skills
           </h2>
           {profile.tools && <p class="skills-tools">{profile.tools}</p>}
-          <p class="skills-note">What you can see working here:</p>
+          <p class="skills-note">You can see these here, simulated or written up:</p>
           <dl class="skills">
             {skills.map((skill) => (
               <div>
