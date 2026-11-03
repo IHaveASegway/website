@@ -10,9 +10,9 @@ import { hex, themeColors } from './tokens';
 
 // Open Graph images (content.md, "Structured data and link previews"): 1200×630 PNGs drawn at
 // build time from a page's title and label, in the site's tokens. Satori lays the card out and
-// turns its text into paths; sharp rasterizes that SVG. The card takes exactly two strings, and
-// test/og.test.ts checks that they are the page's og:title and og:image:alt, so every word in the
-// picture is also text the build's scans read. Every card stands on the field behind every page
+// turns its text into paths; sharp rasterizes that SVG. The card takes those two strings, and a post's
+// its summary as well, and test/og.test.ts checks that they are the page's og:title and og:image:alt,
+// so every word in the picture is also text the build's scans read. Every card stands on the field behind every page
 // (lib/og-field.ts). It may also carry a picture with no word in it: the Route Lab's map at the
 // card's right edge (lib/route-lab/og-map.ts), a lab's line across its top (lib/og-lines.ts), or
 // what its page opens on, Home's cluster or the Lab index's glyphs (lib/og-art.ts). A lab's card
@@ -23,6 +23,8 @@ export interface OgCard {
   readonly label: string;
   /** A byline, not a section: og:title is the title alone, and the alt says who wrote it. */
   readonly byline?: boolean;
+  /** A post's summary, between its title and its byline. */
+  readonly summary?: string;
 }
 
 export { OG_SIZE };
@@ -38,10 +40,40 @@ export function aboutCard(profile: Profile, label: string): OgCard {
   return { title: profile.basics.name, label };
 }
 
-/** A post's card: its title and who wrote it (ADR 0029). A share arrives cold, on LinkedIn as a
- *  small tile, so the card says what this is and whose it is. */
-export function postCard(post: Pick<Post, 'title'>, author: string): OgCard {
-  return { title: post.title, label: author, byline: true };
+/** A post's words stop this far in on each side, so a 3:2 centre crop of the card, which takes 127.5 px
+ *  off each, keeps them all: the card's 72 px margin and this. */
+const POST_INSET = 56;
+
+/** What a post's title and summary have across. */
+const POST_ROOM = OG_SIZE.width - 2 * (72 + POST_INSET);
+
+/** A summary's size on the card, legible when the card shows about 550 px wide, as LinkedIn's does:
+ *  about 17 px there. It takes two lines at most. */
+export const SUMMARY = { size: 38, lineHeight: 1.25, lines: 2, gap: 24 } as const;
+
+/** The lines a summary takes on a post's card, broken between its words as satori breaks them. */
+export function summaryLines(summary: string): string[] {
+  const face = labelFace();
+  const across = (text: string) =>
+    (face.glyphsForString(text).reduce((sum, glyph) => sum + glyph.advanceWidth, 0) /
+      face.unitsPerEm) *
+    SUMMARY.size;
+  const lines = [''];
+  for (const word of summary.split(/\s+/)) {
+    const line = lines.at(-1) as string;
+    if (line && across(`${line} ${word}`) > POST_ROOM) lines.push(word);
+    else lines[lines.length - 1] = line ? `${line} ${word}` : word;
+  }
+  return lines;
+}
+
+/** A post's card: its title, what it's about and who wrote it (ADR 0029). A share arrives cold, on
+ *  LinkedIn as a small tile, so the card says what this is and whose it is, and the summary is the
+ *  essay's hook. A summary is written for a search result, up to 160 characters, and is never cut to
+ *  fit: one that takes more than two lines stays off the card, as the teardown's does. */
+export function postCard(post: Pick<Post, 'title' | 'summary'>, author: string): OgCard {
+  const fits = summaryLines(post.summary).length <= SUMMARY.lines;
+  return { title: post.title, label: author, byline: true, ...(fits && { summary: post.summary }) };
 }
 
 /** A section index's card: the section, and whose it is. */
@@ -79,8 +111,12 @@ const letterSpacing = (size: number) => size * -0.012;
 /** og:title and og:image:alt, written from the drawn strings and nothing else. */
 export const ogTitle = (card: OgCard) =>
   card.byline ? card.title : `${card.title} · ${card.label}`; // an ogTitle, for the head
-export const ogAlt = (card: OgCard) =>
-  card.byline ? `${card.title}, by ${card.label}` : `${card.title}, ${card.label}`;
+export const ogAlt = (card: OgCard) => {
+  if (!card.byline) return `${card.title}, ${card.label}`;
+  return card.summary
+    ? `${card.title}. ${card.summary} By ${card.label}.`
+    : `${card.title}, by ${card.label}`;
+};
 
 export interface OgNode {
   type: string;
@@ -149,7 +185,25 @@ export function ogTree(
     stage.titleColumn ??
     (picture && !above ? OG_SIZE.width - picture.width : OG_SIZE.width) -
       2 * 72 -
-      (!picture && card.byline ? 2 * 56 : 0);
+      (!picture && card.byline ? 2 * POST_INSET : 0);
+  const title = node(
+    {
+      fontFamily: 'Archivo Display',
+      fontWeight: 600,
+      fontSize: size,
+      lineHeight: 1.06,
+      letterSpacing: letterSpacing(size),
+      textWrap: 'balance',
+      ...(stage.titleColumn ? { maxWidth: stage.titleColumn } : {}),
+      // A word wider than the line, such as a long identifier, breaks instead of leaving the
+      // card. Only then: balancing narrows the box until the line count would rise, and with
+      // breaking on, a cut word keeps the count, so it cut one that fit: "Stamped / e a cache".
+      ...(card.title.split(/\s+/).some((word) => wordWidth(word, size) > room)
+        ? { wordBreak: 'break-word' }
+        : {}),
+    },
+    card.title,
+  );
   const text = node(
     {
       // Satori sizes boxes as content-box: without border-box, the padding would push the card
@@ -173,27 +227,25 @@ export function ogTree(
           : {
               height: '100%',
               justifyContent: 'space-between',
-              ...(card.byline ? { paddingInline: 56 } : {}),
+              ...(card.byline ? { paddingInline: POST_INSET } : {}),
             }),
       },
-      node(
-        {
-          fontFamily: 'Archivo Display',
-          fontWeight: 600,
-          fontSize: size,
-          lineHeight: 1.06,
-          letterSpacing: letterSpacing(size),
-          textWrap: 'balance',
-          ...(stage.titleColumn ? { maxWidth: stage.titleColumn } : {}),
-          // A word wider than the line, such as a long identifier, breaks instead of leaving the
-          // card. Only then: balancing narrows the box until the line count would rise, and with
-          // breaking on, a cut word keeps the count, so it cut one that fit: "Stamped / e a cache".
-          ...(card.title.split(/\s+/).some((word) => wordWidth(word, size) > room)
-            ? { wordBreak: 'break-word' }
-            : {}),
-        },
-        card.title,
-      ),
+      card.summary
+        ? node(
+            { flexDirection: 'column', gap: SUMMARY.gap },
+            title,
+            node(
+              {
+                fontFamily: 'Archivo Expanded',
+                fontWeight: 500,
+                fontSize: SUMMARY.size,
+                lineHeight: SUMMARY.lineHeight,
+                color: colors.muted,
+              },
+              card.summary,
+            ),
+          )
+        : title,
       node(
         { alignItems: 'center', gap: 18 },
         // A lit lamp, the one round thing the design draws (design-system.md, "Colour").
@@ -256,9 +308,13 @@ function openFace(file: string) {
 }
 
 let display: ReturnType<typeof openFace> | undefined;
+let medium: ReturnType<typeof openFace> | undefined;
 
 /** The face titles are drawn in, read once. */
 const titleFace = () => (display ??= openFace('archivo-expanded-semibold.ttf'));
+
+/** The face labels and summaries are drawn in, read once. */
+const labelFace = () => (medium ??= openFace('archivo-expanded-medium.ttf'));
 
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const PNG_KEEP = new Set(['IHDR', 'PLTE', 'tRNS', 'IDAT', 'IEND']);

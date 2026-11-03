@@ -604,7 +604,8 @@ Open Graph: one template per page type, rendered at build for each page as a 120
 |---|---|
 | Home | the name and `<title line — Q-title>`, beside the cluster |
 | About | the name and "About", the header's label; it holds the résumé, whose card this was |
-| Writing, Notes | the section label and the entry's title |
+| Writing, Notes | the section label and its owner's name |
+| A post | its title, its summary where that takes two lines or fewer (one that takes more stays off the card, and is never cut to fit), and who wrote it, all inside a 3:2 centre crop |
 | A lab | its title and its short name, the Queue Lab, as Home and About call it; a lab's own picture and colour |
 | About, Now, Colophon, Decisions | the section label and the page title |
 

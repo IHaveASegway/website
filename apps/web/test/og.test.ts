@@ -7,7 +7,10 @@ import {
   ogSvg,
   ogTree,
   OG_SIZE,
+  postCard,
   renderOg,
+  SUMMARY,
+  summaryLines,
   titleSize,
   wordWidth,
   type OgArt,
@@ -105,6 +108,15 @@ function cardFrom(ogTitle: string, ogAlt: string): OgCard | null {
   // A post's card (ADR 0029): og:title is the title alone, and the alt says who wrote it.
   if (ogAlt.startsWith(`${ogTitle}, by `))
     return { title: ogTitle, label: ogAlt.slice(ogTitle.length + 5), byline: true };
+  // And what its summary says, where the card has room for it.
+  const by = ogAlt.lastIndexOf(' By ');
+  if (ogAlt.startsWith(`${ogTitle}. `) && by >= 0 && ogAlt.endsWith('.'))
+    return {
+      title: ogTitle,
+      summary: ogAlt.slice(ogTitle.length + 2, by),
+      label: ogAlt.slice(by + 4, -1),
+      byline: true,
+    };
   for (let at = ogTitle.indexOf(' · '); at >= 0; at = ogTitle.indexOf(' · ', at + 1)) {
     const card = { title: ogTitle.slice(0, at), label: ogTitle.slice(at + 3) };
     if (ogAlt === `${card.title}, ${card.label}`) return card;
@@ -129,7 +141,7 @@ for (const file of previewed) {
     );
     expect(
       card,
-      'og:title and og:image:alt must be "title · label" and "title, label", or a post\'s "title" and "title, by label"',
+      'og:title and og:image:alt must be "title · label" and "title, label", or a post\'s "title" and "title, by label" or "title. summary By label."',
     ).not.toBeNull();
     // A lab's card, Home's and the Lab index's also carry a picture, which draws no word
     // (lib/route-lab/og-map.ts, lib/og-lines.ts, lib/og-art.ts).
@@ -225,6 +237,160 @@ test('known answers: a card is read back from its two strings, whatever they hol
   });
   expect(cardFrom('A · B', 'A, C')).toBeNull();
   expect(cardFrom('A', 'A, by B')).toEqual({ title: 'A', label: 'B', byline: true });
+  expect(cardFrom('A', 'A. It said so. By B.')).toEqual({
+    title: 'A',
+    summary: 'It said so.',
+    label: 'B',
+    byline: true,
+  });
+});
+
+// A post's card, which carries its summary between its title and its byline, so a share has a hook
+// before anyone reads a word of the post. A summary is written for a search result, up to 160
+// characters, so it's never cut to fit: one that takes more than two lines stays off the card.
+describe("a post's card", () => {
+  const colors = { background: '', foreground: '', muted: '', accent: '' };
+  const LABEL_SIZE = 44;
+
+  /** The cards of the posts in this build, as their pages say them. */
+  const posts = previewed.flatMap((file) => {
+    const page = read(file);
+    const card = cardFrom(
+      decode(meta(page, 'og:title') ?? ''),
+      decode(meta(page, 'og:image:alt') ?? ''),
+    );
+    return card?.byline ? [{ file, page, card }] : [];
+  });
+
+  /** How many of a card's pixels stand outside a 3:2 centre crop of it, with no field behind its
+   *  words: 127.5 px comes off each side, so these are the pixels wholly past 127.5 and 1072.5. */
+  async function outsideTheCrop(card: OgCard): Promise<number> {
+    const svg = await ogSvg(cardTree(card));
+    const { data, info } = await sharp(Buffer.from(svg))
+      .removeAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const cut = (OG_SIZE.width - OG_SIZE.height * 1.5) / 2;
+    expect(cut).toBe(127.5);
+    let outside = 0;
+    for (let y = 0; y < info.height; y += 1)
+      for (let x = 0; x < info.width; x += 1) {
+        if (x + 1 > cut && x < OG_SIZE.width - cut) continue;
+        const at = (y * info.width + x) * info.channels;
+        const same = [0, 1, 2].every((c) => data[at + c] === data[c]);
+        if (!same) outside += 1;
+      }
+    return outside;
+  }
+
+  test('the tree draws the title, then the summary, then the byline', () => {
+    const card = { title: 'A', summary: 'S', label: 'B', byline: true };
+    expect(drawnStrings(ogTree(card, colors))).toEqual(['A', 'S', 'B']);
+    expect(drawnStrings(ogTree({ title: 'A', label: 'B', byline: true }, colors))).toEqual([
+      'A',
+      'B',
+    ]);
+  });
+
+  test('known answers: a summary of two lines is on the card, and one of three is left off', () => {
+    const post = { title: 'A' };
+    const two = 'word '.repeat(15).trim();
+    expect(summaryLines(two)).toHaveLength(2);
+    expect(postCard({ ...post, summary: two }, 'B').summary).toBe(two);
+    const three = 'word '.repeat(25).trim();
+    expect(summaryLines(three).length).toBeGreaterThan(2);
+    expect(postCard({ ...post, summary: three }, 'B')).toEqual({
+      title: 'A',
+      label: 'B',
+      byline: true,
+    });
+  });
+
+  // The two posts on the site. The essay's hook fits. The teardown's summary takes three lines at any
+  // size a 550 px card can read, and a summary isn't cut to fit, so its card has none.
+  test.runIf(html.includes('writing/you-will-be-missed/index.html'))(
+    'the essay’s card says its hook, and its alt says what the card says',
+    () => {
+      const page = read('writing/you-will-be-missed/index.html');
+      const hook = 'I doubt anyone in the back seat of a driverless Waymo is checking the mirrors.';
+      expect(decode(meta(page, 'og:image:alt') ?? '')).toBe(
+        `You will be missed. ${hook} By ${profile.basics.name}.`,
+      );
+      expect(summaryLines(hook)).toEqual([
+        'I doubt anyone in the back seat of a',
+        'driverless Waymo is checking the mirrors.',
+      ]);
+    },
+  );
+
+  test.runIf(html.includes('writing/trading-bot-teardown/index.html'))(
+    'the teardown’s summary takes three lines, so it stays off its card, whole, in the description',
+    () => {
+      const page = read('writing/trading-bot-teardown/index.html');
+      const summary = decode(meta(page, 'description') ?? '');
+      expect(summary).toMatch(/^My 2024 trading bot’s config/);
+      expect(summaryLines(summary)).toHaveLength(3);
+      expect(decode(meta(page, 'og:image:alt') ?? '')).toBe(
+        `Four locks, none of them closed, by ${profile.basics.name}`,
+      );
+    },
+  );
+
+  test.runIf(html.includes('writing/you-will-be-missed/index.html'))(
+    'the posts this build has include a card with a summary and one without',
+    () => {
+      expect(posts.some(({ card }) => card.summary)).toBe(true);
+      expect(posts.some(({ card }) => !card.summary)).toBe(true);
+    },
+  );
+
+  for (const { file, card } of posts) {
+    test(`${file}: its title keeps its size, its summary two lines at most, its byline the foot`, async () => {
+      const svg = await ogSvg(cardTree(card), false);
+      const title = titleRuns(svg, titleSize(card.title));
+      // A line can end on a space that hangs past the margin: that's no word past it.
+      const problems = wrapProblems(card.title, title, 1072);
+      expect(problems.filter((problem) => !problem.startsWith('" "'))).toEqual([]);
+      const label = titleRuns(svg, LABEL_SIZE);
+      expect(label.length).toBeGreaterThan(0);
+      if (!card.summary) return;
+      const summary = titleRuns(svg, SUMMARY.size);
+      expect(linesOf(summary)).toEqual(summaryLines(card.summary));
+      expect(linesOf(summary).length).toBeLessThanOrEqual(SUMMARY.lines);
+      // The title stands over it, and the byline under it, with nothing touching: a baseline to the
+      // next line's top, with the descent and the ascent of each counted generously.
+      const y = (runs: typeof summary) => runs.map((run) => run.y);
+      expect(Math.max(...y(title)) + titleSize(card.title) * 0.3).toBeLessThanOrEqual(
+        Math.min(...y(summary)) - SUMMARY.size * 0.8,
+      );
+      expect(Math.max(...y(summary)) + SUMMARY.size * 0.3).toBeLessThanOrEqual(
+        Math.min(...y(label)) - LABEL_SIZE * 0.8,
+      );
+    });
+
+    // 72 + 56 = 128 px is on purpose: the words stay inside what a 3:2 tile shows, so a crop to a
+    // square-ish thumbnail doesn't cut a word.
+    test(`${file}: every word of its card stays inside a 3:2 centre crop`, async () => {
+      expect(await outsideTheCrop(card)).toBe(0);
+    });
+  }
+
+  test('known answer: a card with no inset is what that check finds', async () => {
+    const wide = { title: 'A title long enough to reach both of the margins', label: 'Lab' };
+    expect(await outsideTheCrop(wide)).toBeGreaterThan(0);
+  });
+
+  test('the longest title a post can have still leaves room for a two-line summary', async () => {
+    const title = `${'Backpressure '.repeat(5)}retried`.slice(0, 70);
+    const card = postCard({ title, summary: 'word '.repeat(15).trim() }, 'Joseph Peterson');
+    expect(card.summary).toBeDefined();
+    const svg = await ogSvg(cardTree(card), false);
+    const summary = titleRuns(svg, SUMMARY.size);
+    const label = titleRuns(svg, LABEL_SIZE);
+    expect(Math.max(...summary.map((run) => run.y)) + SUMMARY.size * 0.3).toBeLessThanOrEqual(
+      Math.min(...label.map((run) => run.y)) - LABEL_SIZE * 0.8,
+    );
+  });
 });
 
 test("a title's size steps down with its length, so the longest title still fits the card", () => {
