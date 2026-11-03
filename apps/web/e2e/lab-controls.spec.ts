@@ -40,6 +40,50 @@ for (const lab of LABS) {
   });
 }
 
+// The Route Lab draws its choices with notes under them, so they aren't Choice.astro's, and they have
+// the same corners and the same joined edges: at a desk's width, and on a phone, in rows of two.
+for (const [width, height] of [
+  [1280, 720],
+  [390, 664],
+  [320, 568],
+] as const) {
+  test(`at ${width} px the route lab's radios are push-buttons with a control's corners, joined edge to edge`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto('/lab/routes/');
+    const looks = await page.locator('label.rl-chip:visible').evaluateAll((chips) =>
+      chips.map((chip) => {
+        const next = chip.nextElementSibling;
+        const box = chip.getBoundingClientRect();
+        return {
+          radius: getComputedStyle(chip).borderTopLeftRadius,
+          joined:
+            !next ||
+            next.getBoundingClientRect().top !== box.top ||
+            Math.round(next.getBoundingClientRect().left - box.right) === -1,
+          tall: box.height >= 44,
+        };
+      }),
+    );
+    expect(looks.length).toBeGreaterThan(8);
+    for (const look of looks) expect(look).toEqual({ radius: '4px', joined: true, tall: true });
+    // Its lamp stands level with its words: a chip with no note under them had the lamp 4 px low.
+    const off = await page.locator('label.rl-chip:visible:not(:has(.rl-chip-note))').evaluateAll(
+      (chips) =>
+        chips.map((chip) => {
+          const middle = (part: Element | null) => {
+            const box = part?.getBoundingClientRect();
+            return (box?.top ?? 0) + (box?.height ?? 0) / 2;
+          };
+          return Math.abs(middle(chip.querySelector('input')) - middle(chip.querySelector('span')));
+        }),
+    );
+    expect(off.length).toBeGreaterThan(3);
+    for (const by of off) expect(by).toBeLessThanOrEqual(1);
+  });
+}
+
 for (const lab of LABS) {
   /** The Time group's parts in the order the page holds them. */
   const order = (page: Page) =>

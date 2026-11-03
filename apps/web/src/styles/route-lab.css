@@ -96,10 +96,13 @@
   padding: 0;
 }
 
+/* Each chip draws over its neighbor's edge, and the row steps in by as much, so a row that wraps
+   starts level with the one over it, as every lab's choices do (lab-controls.css, .lab-options). */
 .rl-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  row-gap: 0.25rem;
+  padding-inline-start: 1px;
 }
 
 /* On a phone the days are two columns of push-buttons, every one whole on screen, and one column
@@ -123,19 +126,23 @@
   }
 }
 
-/* A choice is a push-button (global.css, .btn): a native radio inside its label, drawn as the
-   lamp before its words, hollow until it is chosen and then lit, with the button pressed in. No
-   colour fills it: its state is the lamp and the word. Focus rings the whole button, 2 px of the
-   lit lamp as every button's ring is (global.css), not the 10 px lamp alone (SC 2.4.11, 2.4.13);
-   where :has() is not known the radio keeps its own ring. */
+/* A choice is a push-button (global.css, .btn), with a control's 4 px corners, joined edge to edge
+   with the next, the look every lab's choices have (lab-controls.css, .lab-option; until 2026-11-02
+   these were square and gapped): a native radio inside its label, drawn as the lamp before its words,
+   hollow until it is chosen and then lit, with the button pressed in. No colour fills it: its state
+   is the lamp and the word. Focus rings the whole button, 2 px of the lit lamp as every button's ring
+   is (global.css), not the 10 px lamp alone (SC 2.4.11, 2.4.13); where :has() is not known the radio
+   keeps its own ring. */
 .rl-chip {
   display: inline-grid;
   grid-template-columns: auto 1fr;
   column-gap: 0.5rem;
   align-items: center;
   min-height: 2.75rem;
+  margin-inline-start: -1px;
   padding: 0.375rem 0.875rem 0.375rem 0.75rem;
   border: 1px solid var(--input);
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 
@@ -159,7 +166,6 @@
 }
 
 .rl-chip input {
-  grid-row: 1 / span 2;
   inline-size: 0.625rem;
   block-size: 0.625rem;
   margin: 0;
@@ -172,6 +178,11 @@
 .rl-chip input:checked {
   border-color: var(--primary);
   background-color: var(--primary);
+}
+
+/* A day's lamp stands level with its name and its note together. */
+.rl-days .rl-chip input {
+  grid-row: 1 / span 2;
 }
 
 /* Forced colors keep a chosen lamp lit in the user's own palette, as global.css does a pressed
@@ -216,10 +227,6 @@
 
 .rl-chip-small {
   padding-inline: 0.5rem;
-}
-
-.rl-vans .rl-chips {
-  gap: 0.375rem;
 }
 
 .rl-surprise {
