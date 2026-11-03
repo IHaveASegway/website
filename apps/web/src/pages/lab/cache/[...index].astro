@@ -29,7 +29,7 @@ const { entry } = Astro.props;
 const { name } = (await loadProfile()).basics;
 const { Content, headings } = await render(await labEntry(entry));
 const lead =
-  'Hundreds of readers a second hit the bakery’s cache. When the menu expires, watch the database, then tame the stampede four ways.';
+  'Hundreds of readers a second hit a made-up bakery’s cache. When the menu expires, watch the database, then tame the stampede four ways.';
 // How it is built, in figures from the run the page opens on and the sweep, so none is typed.
 const opening = openingRun();
 const count = (n: number) => n.toLocaleString('en-US');
