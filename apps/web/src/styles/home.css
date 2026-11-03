@@ -313,9 +313,8 @@
   }
 }
 
-/* The display face is wide enough that at twice the text size on a 320 px screen one word can
-   outrun the column ("Selected", by 5 px on Linux): it breaks there rather than scroll the page
-   sideways (SC 1.4.10). */
+/* The wide face at twice the text size on a 320 px screen: --text-section stops at 15.5vw, which keeps
+   "Selected" whole there, and a longer word breaks rather than scroll the page sideways (SC 1.4.10). */
 .section-title {
   overflow-wrap: break-word;
 }

@@ -71,8 +71,9 @@
   /* A page's title: 32px to 48px in the display face, stopping at 10.5vw for the hero's reason. */
   --text-title: min(clamp(2rem, 1.628571rem + 1.52381vw, 3rem), 10.5vw);
   --text-title--line-height: 1.06;
-  /* A section's title: 28px to 40px. */
-  --text-section: clamp(1.75rem, 1.471429rem + 1.142857vw, 2.5rem);
+  /* A section's title: 28px to 40px. It stops at 15.5vw, which never binds at the default text size,
+     so at 32 px text on a 320 px screen its longest word, "Selected", stays whole. */
+  --text-section: min(clamp(1.75rem, 1.471429rem + 1.142857vw, 2.5rem), 15.5vw);
   --text-section--line-height: 1.1;
   /* A card's or a row's title, a post's h2: 21px to 26px. */
   --text-headline: clamp(1.3125rem, 1.196429rem + 0.47619vw, 1.625rem);
