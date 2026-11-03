@@ -217,12 +217,12 @@ export function mapTitle(
   return `${plan} ${bands}`;
 }
 
-/** The isochrones in a sentence, for the maps' names: "Shaded bands show driving time from the
+/** The isochrones in a sentence, for the maps' names: "Shaded bands show drive time from the
  *  bakery, 5 to 30 minutes, with a line at 10 and 20." */
 export function bandsSentence(minutes: readonly number[], lines: readonly number[]): string {
   const range = `${minutes[0] ?? 0} to ${minutes[minutes.length - 1] ?? 0} minutes`;
   const at = lines.length ? `, with a line at ${lines.join(' and ')}` : '';
-  return `Shaded bands show driving time from the bakery, ${range}${at}.`;
+  return `Shaded bands show drive time from the bakery, ${range}${at}.`;
 }
 
 /** The headline by the controls: what VROOM saves against the order the orders came in, as a
@@ -230,7 +230,7 @@ export function bandsSentence(minutes: readonly number[], lines: readonly number
  *  page shows them: whole minutes and tenths of a mile, each rounded before subtracting. The percent
  *  is the time's, so it stands beside the time: until 2026-11-02 it closed the sentence, after the
  *  miles, which had fallen by another share. Miles are said only when they fall, since VROOM
- *  shortens the driving time and can drive a little farther to do it. A percent that rounds to
+ *  shortens the drive time and can drive a little farther to do it. A percent that rounds to
  *  nothing is left out. One order is one route in both plans, so there is no order to beat. */
 export function savedText(before: Measured, after: Measured): string {
   if (before.vans.reduce((stops, van) => stops + van.stops.length, 0) === 1)

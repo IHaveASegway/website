@@ -37,6 +37,10 @@ const CHECKS_LABS = ['lab/queue/', 'lab/cache/', 'lab/backfill/'];
 const NODE = /\bnodes?\b/i;
 const SERVER_LABS = ['lab/raft/'];
 
+/** The Route Lab's term, which its write-up says too. "Of driving" is another thing, what a plan
+ *  does; this is how far a place is. */
+const DRIVING_TIME = /\bdriving times?\b/i;
+
 /**
  * Retired words that still stand in a write-up with a review stamp: changing them needs Joseph's read,
  * so an agent can't. Each is the exact file and word, and the test below fails once it has gone, so
@@ -90,6 +94,7 @@ describe('the words the site retired stay retired', () => {
         ...(SERVER_LABS.some((lab) => file.startsWith(lab)) && NODE.test(text)
           ? ['node: say "server", which on the Raft Lab is the word']
           : []),
+        ...(DRIVING_TIME.test(text) ? ['driving time: say "drive time"'] : []),
       ].filter(
         (hit) => !(onLabPage(file) && hit.startsWith('\\bseeded runs')) && !awaiting(file, hit),
       );

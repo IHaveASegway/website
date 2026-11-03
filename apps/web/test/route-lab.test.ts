@@ -479,7 +479,7 @@ describe('the markup both the build and the browser draw', () => {
     expect(backLine(m)).toBe(`Last van back after ${formatDuration(m.back)}`);
     const bands = bandsSentence([5, 10, 15, 20, 25, 30], [10, 20]);
     expect(bands).toBe(
-      'Shaded bands show driving time from the bakery, 5 to 30 minutes, with a line at 10 and 20.',
+      'Shaded bands show drive time from the bakery, 5 to 30 minutes, with a line at 10 and 20.',
     );
     expect(mapTitle('before', 1, 1, bands)).toBe(
       `Map of the bakery and 1 order, with the routes of 1 van dealt the orders as they came in. ${bands}`,
