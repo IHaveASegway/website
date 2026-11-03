@@ -778,6 +778,22 @@ for (const [width, height] of [
   });
 }
 
+test('at 320 px the whole board fits the desk, the last column too', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto(BACKFILL);
+  await page.evaluate(() => document.fonts.ready);
+  const { client, scroll, wraps } = await page.locator('.bf-board-box').evaluate((box) => ({
+    client: box.clientWidth,
+    scroll: box.scrollWidth,
+    // A day's name keeps to one line in the narrower column.
+    wraps: [...box.querySelectorAll('.bf-day-name')].filter(
+      (name) => name.getBoundingClientRect().height > 25,
+    ).length,
+  }));
+  expect(scroll).toBeLessThanOrEqual(client);
+  expect(wraps).toBe(0);
+});
+
 // The review of 2026-10-31 (BF-1): at 1,280 px the heads ran together, "Wait for the fileExtract",
 // as a window's width chose where "for the file" went. The board's own width chooses now.
 for (const width of [320, 390, 768, 1024, 1280, 1366, 1440, 1920]) {

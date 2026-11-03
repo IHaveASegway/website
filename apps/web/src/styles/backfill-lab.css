@@ -141,6 +141,18 @@
   padding-bottom: 1.35em;
 }
 
+/* At the narrowest phones the board gives up a little of its day column, so all of it fits the desk:
+   at 16rem the last digit of every source stood past the box's edge at 320 px. */
+@media (width < 21rem) {
+  .bf-board {
+    min-width: 15.625rem;
+  }
+
+  .bf-col-day {
+    inline-size: 3.125rem;
+  }
+}
+
 @container bf-board (inline-size >= 32rem) {
   .bf-col-day {
     inline-size: 5.5rem;
