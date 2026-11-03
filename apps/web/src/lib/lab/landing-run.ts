@@ -5,6 +5,8 @@
 // a live region that spoke from the moment a page opened would talk over the page. Their first press
 // gives it its voice back.
 
+import { readLink } from '../sim/link';
+
 /** What the run does, in the lab's own words. */
 export interface LandingRun {
   /** What Run does from here. */
@@ -36,6 +38,10 @@ export function runOnLanding(root: HTMLElement, run: LandingRun): void {
     const paused = document.documentElement.dataset['motion'] === 'paused';
     const wanted = shown && !document.hidden && !paused;
     if (!wanted) {
+      // The end of a run stands only while it's wanted: going round unseen, or under the top bar's
+      // Pause, would change the picture while nothing is meant to move.
+      clearTimeout(held);
+      held = 0;
       if (run.playing()) run.pause();
       return;
     }
@@ -71,12 +77,18 @@ export function runOnLanding(root: HTMLElement, run: LandingRun): void {
     root.removeEventListener('click', taken, true);
     root.removeEventListener('change', taken, true);
     root.removeEventListener('input', taken, true);
-    removeEventListener('hashchange', leave);
+    removeEventListener('hashchange', followed);
     live.forEach((element, i) => {
       const voice = voices[i];
       if (voice) element.setAttribute('aria-live', voice);
       else element.removeAttribute('aria-live');
     });
+  };
+  /** A link to a run opens that run, paused, and it's theirs from there. A link to a heading only
+   *  moves the page, so the run goes on as it was: it still pauses off the screen and under the top
+   *  bar's Pause. No settings are read here, only whether the hash names a run at all. */
+  const followed = () => {
+    if (readLink(location.hash, {})) leave();
   };
   /** A press on anything that acts: a button, a choice, or a node of the Raft Lab's picture. */
   const taken = (event: Event) => {
@@ -87,5 +99,5 @@ export function runOnLanding(root: HTMLElement, run: LandingRun): void {
   root.addEventListener('click', taken, true);
   root.addEventListener('change', taken, true);
   root.addEventListener('input', taken, true);
-  addEventListener('hashchange', leave);
+  addEventListener('hashchange', followed);
 }

@@ -126,6 +126,26 @@ for (const lab of LABS) {
       await expect(run(page, lab)).toHaveText('Pause');
     });
 
+    // Any hash change used to end all this, so an "On this page" link or the skip link left a run
+    // playing off the screen, deaf to the top bar's Pause, for as long as the tab stayed open.
+    test('a link to a heading is no press: it still pauses off the screen and under the top bar’s Pause', async ({
+      page,
+    }) => {
+      await page.goto(lab.path);
+      await expect(run(page, lab)).toHaveText('Pause');
+      await page.locator('.lab-contents a').last().click();
+      await expect(run(page, lab)).toHaveText('Run');
+      const said = page.locator(`#${lab.name}-lab [role="status"]`).first();
+      await expect(said).toHaveAttribute('aria-live', 'off');
+      await page.evaluate(() => scrollTo(0, 0));
+      await expect(run(page, lab)).toHaveText('Pause');
+      await page.locator('[data-motion-toggle]').click();
+      await expect(run(page, lab)).toHaveText('Run');
+      const first = await clock(page, lab).textContent();
+      await page.waitForTimeout(700);
+      await expect(clock(page, lab)).toHaveText(first ?? '');
+    });
+
     test('its live regions keep quiet until the first press, then speak', async ({ page }) => {
       await page.goto(lab.path);
       await expect(run(page, lab)).toHaveText('Pause');
@@ -286,6 +306,21 @@ test.describe('the Raft Lab’s landing run', () => {
     await expect(summary(page)).toHaveText(/^Server [2-5] leads term \d+, 3 entries committed/);
   });
 
+  test('a link to a heading is no press: the story waits off the screen and carries on', async ({
+    page,
+  }) => {
+    await land(page);
+    await page.locator('.lab-contents a').last().click();
+    await expect(run(page, lab)).toHaveText('Run');
+    await page.clock.runFor(30_000);
+    expect(await madeSinceTheOpening(page)).toEqual([]);
+    await page.evaluate(() => scrollTo(0, 0));
+    await expect(run(page, lab)).toHaveText('Pause');
+    await page.clock.runFor(2_500);
+    await expect(up(page)).toHaveCount(4);
+    expect(await madeSinceTheOpening(page)).toHaveLength(1);
+  });
+
   test('a link to a run has no story, standing or run', async ({ page }) => {
     await open(page, `${lab.path}#seed-7`);
     await expect(run(page, lab)).toHaveText('Run');
@@ -338,6 +373,30 @@ test.describe('the Raft Lab’s landing run', () => {
     await page.clock.runFor(1_500);
     await expect(up(page)).toHaveCount(4);
     expect(await madeSinceTheOpening(page)).toHaveLength(1);
+  });
+
+  // The end of the story stands six seconds, then goes round. With nobody watching, or the top bar's
+  // Pause pressed, it went round anyway: the button lit, the clock ran for up to half a second, and
+  // the picture went back to the opening, on a page told to hold still.
+  test('the top bar’s Pause holds the end of the story too, and its Play goes round from there', async ({
+    page,
+  }) => {
+    await land(page);
+    await page.clock.runFor(21_000);
+    await expect(summary(page)).toHaveText('Server 3 leads term 2, 4 entries committed.');
+    await page.locator('[data-motion-toggle]').click();
+    await expect(run(page, lab)).toHaveText('Run');
+    const stood = (await clock(page, lab).textContent()) ?? '';
+    for (let i = 0; i < 8; i++) {
+      await page.clock.runFor(1_000);
+      await expect(run(page, lab)).toHaveText('Run');
+      await expect(clock(page, lab)).toHaveText(stood);
+    }
+    await expect(summary(page)).toHaveText('Server 3 leads term 2, 4 entries committed.');
+    await page.locator('[data-motion-toggle]').click();
+    await page.clock.runFor(6_600);
+    await expect(summary(page)).toHaveText('Server 1 leads term 1, 3 entries committed.');
+    await expect(run(page, lab)).toHaveText('Pause');
   });
 
   test('none of the story is said aloud, and the first press gives the page its voice back', async ({
