@@ -248,7 +248,9 @@
     min-height: 3.5rem;
   }
 
-  @media (width >= 48rem) {
+  /* The space beside the name, from the width the name shows (below): until 2026-11-03 it came 128 px
+     later, and for those widths the bar read "Joseph Peterson Lab Writing About". */
+  @media (width >= 40rem) {
     .site-header {
       column-gap: 1.5rem;
     }

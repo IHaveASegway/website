@@ -36,7 +36,7 @@ test('the bar spans the window above main on every page, one row 56 px tall from
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
-  for (const width of [320, 344, 360, 375, 390, 768, 1024, 1440, 2560]) {
+  for (const width of [320, 344, 360, 375, 390, 640, 768, 1024, 1440, 2560]) {
     await page.setViewportSize({ width, height: 900 });
     for (const path of pages()) {
       await page.goto(path);
@@ -50,6 +50,33 @@ test('the bar spans the window above main on every page, one row 56 px tall from
         position: 'relative',
       });
     }
+  }
+});
+
+// The name shows from 640 px. Until 2026-11-03 the space beside it came at 768, so for those widths the
+// name stood 7 px from Lab, closer than Lab stands to Writing: "Joseph Peterson Lab Writing About".
+test('the name stands as far from the first link wherever it shows, and further than the links stand apart', async ({
+  page,
+}) => {
+  await page.goto('/lab/');
+  await page.evaluate(() => document.fonts.ready);
+  for (const width of [640, 700, 767, 768]) {
+    await page.setViewportSize({ width, height: 800 });
+    const { beside, between } = await page.evaluate(() => {
+      const words = (element: Element) => {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        return range.getBoundingClientRect();
+      };
+      const [lab, writing] = [...document.querySelectorAll('.site-nav a')];
+      const name = document.querySelector('.wordmark-name') as Element;
+      return {
+        beside: words(lab as Element).left - words(name).right,
+        between: words(writing as Element).left - words(lab as Element).right,
+      };
+    });
+    expect(Math.round(beside), `at ${width} px`).toBe(31);
+    expect(beside, `at ${width} px`).toBeGreaterThan(between);
   }
 });
 
