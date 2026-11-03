@@ -44,7 +44,7 @@ ihaveasegway.com
 ├── /colophon/                             How it is built, what it costs      P2
 │   └── /colophon/decisions/               Published ADRs                      P2
 │       └── <nnnn-slug>/                   One ADR, rendered from docs/adr     P2
-├── /about/                                How I work, then the résumé         now (2026-10-28)
+├── /about/                                What I've built; the résumé on paper now (2026-10-28)
 ├── /now/                                  What I am doing now, dated          P3 (PR 4)
 ├── /writing/ · /writing/<slug>/           Essays                              P3 (PR 5, from 1 post)
 ├── /notes/ · /notes/<slug>/               Field notes                         P3 (PR 5, from 1 note)
@@ -64,10 +64,10 @@ Render rules:
 
 | Section | In the header and on Home when | Phase |
 |---|---|---|
-| About | always: a page file. The bio, `src/content/about.md` (lib/about.ts), then the résumé below it; the fixture builds hold no bio and draw the résumé alone | now (2026-10-28) |
+| About | always: a page file. The bio, `src/content/about.md` (lib/about.ts), laid out on screen ([About](#about)), and on paper the résumé; the fixture builds hold no bio and draw the résumé alone | now (2026-10-28) |
 | Writing (with `/notes/` and `/rss.xml`) | at least 1 published post, essay or note; a draft never counts, and `/notes/` also waits for its first note. The bar was 3 posts until 2026-10-24; lowering it to 1 was proposed that day for Joseph's read, from his ask for a workable site from the content he has ([ADR 0005](adr/0005-url-scheme.md)'s postscript) | P3 |
 | Lab | at least 1 demo has `lifecycle: live`: the Route Lab, since 2026-10-25 ([ADR 0016](adr/0016-route-lab-in-the-browser.md)). Home shows each demo as the first card in Selected work; a Lab section of its own (row 6) waits for a second demo, so no page lists a demo twice | built |
-| Résumé | on `/about/`, under the bio, since 2026-10-28 (at `/resume/` from 2026-10-25, now a 301). It renders from the profile: Experience lists roles once Q8 is cleared and Joseph adds them; a skill shows once every page it names is built; Selected work and Writing render as on Home ([Résumé](#résumé)) | now |
+| Résumé | `/about/` on paper since 2026-11-03 (under the bio from 2026-10-28, at `/resume/` from 2026-10-25, now a 301). It renders from the profile: Background lists roles once Q8 is cleared and Joseph adds them; Selected work and Writing render as on Home ([Résumé](#résumé)) | now |
 
 Header: Joseph's name, linking home, on every page but Home (whose `<h1>` is the name); Lab · Writing · About, each only when its rule holds (About always: since 2026-10-28 it holds the résumé, on Joseph's direction to replace the Résumé page with an About page that is his résumé and how he works; `lib/nav.ts`); and the theme toggle. On a phone the bar stays one row, 56 px, down to a 320 px screen (2026-11-02), and only a larger text size gives the links a second line; the name wraps, between its words, only when it alone is wider than the line. Owned work has no section of its own: its cards sit on Home. Footer, one line: the contact address; the links whose pages exist (RSS · Now · Colophon; About is in the header only, since a fourth link wraps the line at 768 px); the external profiles whose readiness check is recorded (GitHub, LinkedIn); the command menu's button, "⌘K" or "Ctrl K", under a pointer that can hover; and the copyright. This is recognition over recall: the navigation is always visible, and the command menu (2026-10-25, [design-system.md](design-system.md#the-command-menu)) is a shortcut, never the only way in.
 
@@ -97,6 +97,8 @@ Header: Joseph's name, linking home, on every page but Home (whose `<h1>` is the
 ## Home page
 
 Budget: 7 seconds. Rows 1–3 must be visible without scrolling at 390×844 (a phone) and 1440×900 (a laptop). A line that waits on an open decision or an unchecked source is left out until it can render; it is never a placeholder on the page ([product.md](product.md) lists the decisions). Lines about owned work are drafted here; Joseph's wording wins.
+
+Since 2026-11-03 ([ADR 0031](adr/0031-about-leads-with-what-joseph-builds.md)) Home opens on "I take an idea and build the entire system. Here are a few things you can break.": the bio's first sentence and one of Home's own, written in `pages/index.astro`. The rest of the bio's opening follows at a lead's size, then LinkedIn and GitHub, LinkedIn leading, with the Raft Lab's cluster beside them. Then the bio's Things I built that you can try, in its order, each row with its lab's one fact; Selected work, which holds stillhere's card; Writing; The last thing I built, over the record line; and the close, under the bio's last heading, with LinkedIn to press. `e2e/fold.spec.ts` holds the opening's buttons inside the first screen: 676 px of 844 on a phone and 683 px of 900 on a laptop that day. The table below records each row's history; where it and this paragraph disagree, this paragraph is current, and it replaces the next.
 
 Since 2026-10-29 ([ADR 0023](adr/0023-home-as-a-story-and-rail-drop-downs.md), [ADR 0024](adr/0024-home-led-by-the-work.md)) Home tells who Joseph is top to bottom, led by the work: the hero, with the bio's opening sentence, over a live scene of the Route Lab's busy Saturday; then Selected work, whose first chapter, the Route Lab's, stands over the same scene as it lifts into the space-time cube, with the lab's two figures large, and whose second, the Raft Lab's, holds the cluster acting out an election; then How I work (the bio's principles), Writing, and what he is working toward, closing on the address. On a phone the first screen holds the scene, the name and the title, and the hero's sentence and buttons follow just below; from 64rem the whole hero is in the first screen. Every word about Joseph is the bio's, `src/content/about.md`, which he cleared on 2026-10-29: Home reads it in parts (`aboutParts`, `lib/about.ts`) and `/about/` renders it whole, so the two never differ. The table below records each row's history; where it and this paragraph disagree, this paragraph is current.
 
@@ -493,6 +495,29 @@ Some names are public in this repository but must not appear on the site until a
 - **Where it runs.** `test/not-on-site.test.ts` scans every text file and every path in `dist/`, reading markup by each element's default display. CSS can change a display, so `e2e/not-on-site.spec.ts` also reads the text the browser draws on every page, the title included, with a known answer: a name split across two blocks that CSS sets inline is caught.
 - **Lifting a hold** means deleting its line in a reviewed pull request, together with the record's `checked` stamp where the rule was the readiness checklist.
 
+## About
+
+`/about/` says what Joseph builds and has built ([ADR 0031](adr/0031-about-leads-with-what-joseph-builds.md)). Its words are `src/content/about.md`, which Home reads in parts, so a change to the bio changes both. `lib/about.ts` reads the bio as plain text and refuses markup, so the links come from the page and its records; `ABOUT_HEADINGS` names each section, and `test/about.test.ts` holds the bio to them.
+
+| Part | What it says | On screen | On paper |
+|---|---|---|---|
+| The head | The name, the role, where | The name at a title's size, then the Print button | With the addresses beside the name: the email address, the site, each checked profile |
+| The opening | What Joseph does; its first sentence is Home's statement | Plain prose, its first sentence at the statement's size | The summary |
+| How I got here | The route, the manager, the software, and who typed this site | Prose under a small label | Its second paragraph, "I didn't type this site's code", prints over Selected work, so nobody reads built as typed |
+| The biggest thing I've built | The largest system Joseph has built for real users, in round words | Prose at a lead's size | Prints: it's the résumé's strongest proof |
+| Things I built that you can try | A row per lab, and where the labs are going | A row of an index, the whole row its lab's link: the bold line at a heading's size under the lab's line from its link card (`components/LabLine.astro`, `lib/og-lines.ts`). The Route Lab's card holds its map, so its row takes its line from the same model. Numbers stay in ink inside sentences: no stat tiles and no isometric drawing, as Joseph asked | The labs' cards under Selected work |
+| Open source | stillhere | A row in the same family, its name linking to its repository, from the checked record through `projectCards()`, since `about.md` can't hold a link | Its card under Selected work |
+| The last thing I built | This site: what it took, what it costs, what it can't show | Prose, opening a step larger | Doesn't print |
+| What came from me | What Joseph decided, which agents didn't | Prose, with "The Lab" and "essay" linked where they stand | Doesn't print |
+| What I've worked with | The tools | One small line, the same sentence as `profile.json`'s `tools`, which a test holds together | Prints, as the sheet's one list of what Joseph has worked with |
+| If you've got an idea | Who should reach out, and where | Home's contact block (`components/home/Contact.astro`), under the article, with LinkedIn to press | Doesn't print |
+
+No page asks a reader to email. The address stays as plain text in the footer and in the résumé's head on paper. The numbers behind The biggest thing I've built aren't published: only the round words in `about.md`, in no test, doc or commit.
+
+The page never goes flat below its first screen ([ADR 0030](adr/0030-the-page-stays-alive.md)): the field stands behind the whole column, nothing paints a ground over it, and each section opens on the line that lights when a visitor first reaches it, each row its sweep. `e2e/about-screen.spec.ts` holds it.
+
+`profile.json` keeps its `skills`, with their evidence, and since 2026-11-03 nothing renders them.
+
 ## Résumé
 
 | When | What the site offers | System of record |
@@ -500,24 +525,27 @@ Some names are public in this repository but must not appear on the site until a
 | Until 2026-10-25 | A LinkedIn link (Q-threat-model) and "Full résumé on request" by email | LinkedIn and Joseph's private résumé |
 | Now (Q9 (a), as a page, on Joseph's direction of 2026-10-25) | `/resume/`: the name, the title, the location line and every address, then Experience, which holds "Full history on LinkedIn." and "Full résumé on request", and the sections below as their sources exist. HTML with print CSS; no PDF | `profile.json` and what the build already renders; LinkedIn and the private résumé for the rest |
 | Since 2026-10-28, on Joseph's direction | The same résumé on `/about/`, under the bio, and `/resume/` a 301 to it. A Print button saves it as a PDF in the visitor's browser, from the one-page print CSS; still no PDF is hosted | the same |
+| Since 2026-11-03, on Joseph's direction | The résumé is `/about/` on paper, and the screen tells the same in the bio's words. The offer of a résumé by email is gone, and so is the email address on screen | the same |
 | Later (Q9 (b)) | A PDF printed from that page | the same page |
 
-What the résumé renders on `/about/`, after the bio, each part only when its source exists (`src/pages/about/index.astro`, `src/lib/resume.ts`):
+What the résumé prints from `/about/`, each part only when its source exists (`src/pages/about/index.astro`, `src/lib/resume.ts`):
 
 | Part | Renders when | From |
 |---|---|---|
-| The name (`<h1>`), the title and "US · remote" | always | `profile.json` `basics`, as Home's hero has them |
+| The name (`<h1>`), the title and "Remote, US" | always, on screen too | `profile.json` `basics`, as Home's hero has them |
 | Contact: Email, Web, then each checked profile, each shown as its address | always; a profile only from a checked record | `site.ts`, `checkedProfiles()` |
-| Experience: one row per role, its years ("2019–2024", "Since 2021") in mono and its title; then "Full history on LinkedIn." and "Full résumé on request: hello@ihaveasegway.com." | always; a row per entry in `work`, none today; the LinkedIn line only while that record is checked | `profile.json` `work` (Q8 (a)) |
-| Skills: each skill, with a link to each page that shows it, labelled by that page's own title | a skill only when every page it names is listed in the build; the section only with a skill. None today | `profile.json` `skills` |
-| Selected work | the cards Home's Selected work draws, card for card: the same function feeds both (`loadSelectedWork()` in `src/lib/content.ts`). Today that is the Route Lab's card, as on Home (2026-10-25) | `lib/work.ts` |
-| Writing | the posts Home's Writing row lists, and "All writing". None today | `writingRow()` |
+| The summary: the bio's opening | where the build holds the bio | `about.md` |
+| The biggest thing I've built | where the build holds the bio | `about.md` |
+| Background: one row per role, its years ("2019–2024", "Since 2021") and its title; then "About five years building backend systems and data platforms." and "My full work history is on LinkedIn." | a row per entry in `work`, none today; the summary while `basics.summary` holds one; the LinkedIn line while that record is checked; on paper only | `profile.json` `work` (Q8 (a)), `basics.summary` |
+| What I've worked with | while `tools` holds one | `profile.json` `tools` |
+| Selected work: "I didn't type this site's code" over the cards | the cards Home's Selected work draws and the labs' own, card for card: the same function feeds both (`loadSelectedWork()` in `src/lib/content.ts`). The agents line where the build holds the bio | `lib/work.ts`, `about.md` |
+| Writing | the posts Home's Writing row lists | `writingRow()` |
 
 - **The current résumé file is never hosted and never committed.** It names the employer, which the site never does.
 - **Generate, don't redact.** The public edition comes from a source that never held the employer's name. Redacting a file that holds it fails open: one missed text layer, metadata field or earlier revision leaks it. Generating from a clean source fails closed, and `profile.json` has no field meant for the employer.
-- **One printed page.** `@media print` gives the page a named page, US Letter with half-inch margins, and leaves out the header, the skip link and the footer; the name prints at 40 px, with the addresses beside it, or under it from a larger default text size so the name never breaks inside a word; the skills print as names in the text's size, each with its comma against it; Selected work stands on the page's left edge, or past the years' gutter where roles print; Writing prints a line a post, its day, its title and its address, with no summary, so a full profile still fits; and each link in Selected work and Writing prints its address after it (the site's own with the domain), as a link does on every page on paper, so the page works on paper. Of the bio, only its first paragraph prints, the summary a résumé opens with, and the Print button never does. `e2e/about-print.spec.ts` prints the page in Chromium and requires one Letter page, on the site and on the writing fixture, whose profile holds ten roles and twelve skills, the schema's limits; its known answer, forty roles, prints on more than one page.
+- **One printed page.** `@media print` gives the page a named page, US Letter with half-inch margins, and leaves out the header, the skip link, the footer and the close; the name prints at 34 px on one line, with the addresses beside it, or under it from a larger default text size so the name never breaks inside a word; Selected work stands on the page's left edge, with no card's edge, or past the years' gutter where roles print; Writing prints a line a post, its day, its title and its address, with no summary, so a full profile still fits; and each link in Selected work and Writing prints its address after it (the site's own with the domain), as a link does on every page on paper, so the page works on paper. No skill's name prints, and the Print button never does. `e2e/about-print.spec.ts` prints the page in Chromium and requires one Letter page, on the site and on the writing fixture, whose profile holds ten roles, the schema's limit; its known answer, forty roles, prints on more than one page.
 - **Structured data.** A `ProfilePage` whose main entity is Home's Person, with a `Role` per entry in `work` ([Structured data and link previews](#structured-data-and-link-previews)).
-- **Print or save as PDF.** The button under the addresses calls the browser's own print, whose dialog also saves a PDF, from the same print CSS: a PDF the visitor makes, so the site hosts none and no copy outlives an edit. `src/scripts/palette.js` binds it and shows it, so without the script there is no button, and the command menu's Print row on that page presses it. No new script and no new dependency.
+- **Print or save as PDF.** The button in the head calls the browser's own print, whose dialog also saves a PDF, from the same print CSS: a PDF the visitor makes, so the site hosts none and no copy outlives an edit. `src/scripts/palette.js` binds it and shows it, so without the script there is no button, and the command menu's Print row on that page presses it. No new script and no new dependency.
 - **The PDF stays a later, one-way decision (Q9 (b)).** If it ships, it is built, not uploaded: Playwright prints `/about/` at build, Title and Author are set explicitly, no metadata field names a machine, a path or an account, the firewall job reads the metadata with `pdfinfo` and the text with `pdftotext` and fails on anything unexpected, and the file is `/about/joseph-peterson-resume.pdf`. Crawlers and recruiters keep copies of a PDF after it is taken down, so its first version is the strict one.
 - **If a thin résumé reads worse than none**, the fallback is a line of code: draw the résumé's sections on `/about/` only once `work` holds a role. `/resume/` left with a 301 on 2026-10-28, as the ledger requires.
 

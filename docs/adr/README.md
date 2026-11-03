@@ -35,6 +35,7 @@ Status: Draft for review in PR 1 · 2026-10-22
 | [0028](0028-home-is-his-own.md) | Home is his own: his words as the statement, his Raft cluster live beside them, what he builds with the labs as its evidence | Proposed |
 | [0029](0029-one-voice-one-column-honed-colour.md) | One voice, a reading column, and the colour honed | Proposed |
 | [0030](0030-the-page-stays-alive.md) | The page stays alive behind you, and a lab is running when you land | Proposed |
+| [0031](0031-about-leads-with-what-joseph-builds.md) | About leads with what Joseph builds, the labs say where they're going, and a post can leave | Accepted |
 
 0013 is reserved for protocol v1 and the recording format, written in PR 6 ([roadmap.md](../roadmap.md#pr-6-lab-platform-and-presence)).
 
