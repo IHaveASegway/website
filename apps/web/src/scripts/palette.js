@@ -39,10 +39,12 @@ export function matches(query, text) {
 }
 
 /**
- * How well a row answers a query, from 0, not at all, to 4. A row's names are its label and its
+ * How well a row answers a query, from 0, not at all, to 5. A row's names are its label and its
  * keywords, each on its own, or a long title's words. Its title and its summary count only where the
  * query stands in them whole: across a dozen words a subsequence finds almost anything ("rsm" in
  * "Four locks, none of them closed").
+ * 5: its label starts with the query: what a row says beats what it's also called, so "w" is
+ * Writing, not Lab for the keyword "work".
  * 4: a name starts with the query, as "essay" does "essays".
  * 3: a name or the title holds it whole, as "email" does "Copy email address".
  * 2: the summary holds it whole.
@@ -52,9 +54,12 @@ export function matches(query, text) {
 export function rankOf(query, { names, title = '', summary = '' }) {
   const wanted = fold(query).replace(/\s+/g, ' ').trim();
   const has = (list, test) => wanted && list.some((text) => test(fold(text).trim()));
-  if (has(names, (name) => name.startsWith(wanted))) return 4;
-  if (has([...names, title], (name) => name.includes(wanted))) return 3;
-  if (has([summary], (text) => text.includes(wanted))) return 2;
+  const starts = (name) => name.startsWith(wanted);
+  const holds = (text) => text.includes(wanted);
+  if (has([names[0]], starts)) return 5;
+  if (has(names, starts)) return 4;
+  if (has([...names, title], holds)) return 3;
+  if (has([summary], holds)) return 2;
   return names.some((name) => matches(query, name)) ? 1 : 0;
 }
 
@@ -115,12 +120,13 @@ function boot() {
 
   // What a row is found by, each on its own, so a query's letters cannot be gathered across them:
   // its label, the value or the names beside it, and its keywords; or a lab's or a post's title, word
-  // by word and whole, and its summary (rankOf).
+  // by word and whole, and its summary (rankOf). Its words and keywords also count together, whole,
+  // so a term of two words, "decision records", finds its row and the letters still can't scatter.
   const rowOf = (option) => {
     const { keys = '', find: summary } = option.dataset;
-    const title = option.textContent;
-    const names = summary ? title.split(/\s+/) : [...option.childNodes].map((n) => n.textContent);
-    return { option, title, summary, names: [...names, ...keys.split(' ')] };
+    const words = option.textContent;
+    const names = summary ? words.split(/\s+/) : [...option.childNodes].map((n) => n.textContent);
+    return { option, title: `${words} ${keys}`, summary, names: [...names, ...keys.split(' ')] };
   };
 
   // The rows that answer, the groups that still hold one, and the best one selected, so Enter acts

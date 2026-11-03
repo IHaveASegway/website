@@ -37,10 +37,12 @@ const { profile, generated, demos, posts, print = false } = Astro.props;
 // visitor types narrows the rows and is never written back (security.md, "Threat model").
 // What a visitor may call a page, beside its name: the site's own words first (essay, lab, ADR), then
 // the words other sites use for the same thing. Home holds the count of decision records, until
-// /colophon/ holds the records. About is where the résumé prints, so from any other page "print" and
-// "pdf" find it, and on /about/ itself they're left to the row that presses Print.
+// /colophon/ holds the records, and its keywords hold the site's two terms for them as they're
+// written (content.md, "The site's language"), since a row's keywords also count together, whole.
+// About is where the résumé prints, so from any other page "print" and "pdf" find it, and on /about/
+// itself they're left to the row that presses Print.
 const KEYWORDS: Readonly<Record<string, string>> = {
-  home: 'start adr decisions',
+  home: 'start adrs written decisions decision records',
   lab: 'labs demos projects work',
   writing: 'essays blog rss feed posts articles',
   about: `bio resume cv experience skills${print ? '' : ' print pdf'}`,

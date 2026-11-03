@@ -74,14 +74,15 @@ test('known answers: a whole match is the query as typed, its letters together',
   expect(rankOf('bak', { names: ['Break', 'a', 'Raft', 'cluster'] })).toBe(1);
   expect(rankOf('bak', { names: ['Plan a bakery’s deliveries'] })).toBe(3);
   expect(rankOf('RAFT', { names: ['Break a Raft cluster'] })).toBe(3);
-  expect(rankOf('resume', { names: ['Résumé'] })).toBe(4);
+  expect(rankOf('resume', { names: ['Résumé'] })).toBe(5);
   expect(rankOf('raft  cluster', { names: ['Break a Raft cluster'] })).toBe(3);
   expect(rankOf('   ', { names: ['Writing'] })).toBe(1);
 });
 
 // How a row answers: known answers for each rank, and what the rank is for.
-test('known answers: a name that starts with the query beats one that holds it, then a summary, then scattered letters', () => {
+test('known answers: a label that starts with the query beats a keyword, then a name that holds it, a summary and scattered letters', () => {
   const row = { names: ['Writing', 'essays', 'Copy email address'], summary: 'A week of reports' };
+  expect(rankOf('wri', row)).toBe(5);
   expect(rankOf('essay', row)).toBe(4);
   expect(rankOf('ESSAYS', row)).toBe(4);
   expect(rankOf('copy email', row)).toBe(4);
@@ -92,7 +93,7 @@ test('known answers: a name that starts with the query beats one that holds it, 
   expect(rankOf('', row)).toBe(1);
   // A keyboard's apostrophe finds a typeset one, and an accent counts for nothing.
   expect(rankOf("bakery's", { names: ['Plan a bakery’s deliveries'] })).toBe(3);
-  expect(rankOf('resume', { names: ['Résumé'] })).toBe(4);
+  expect(rankOf('resume', { names: ['Résumé'] })).toBe(5);
   // A title and a summary count only whole: their scattered letters find nothing.
   expect(rankOf('wky', { names: ['Lab'], summary: 'A week of reports' })).toBe(0);
   const post = { names: ['Four', 'locks,', 'none', 'of', 'them', 'closed'] };
@@ -184,15 +185,15 @@ function rowOf(option: Element) {
   const keys = (attribute(option, 'data-keys') ?? '').split(' ');
   const find = attribute(option, 'data-find');
   const base = { id: attribute(option, 'id') ?? '' };
+  const title = `${textOf(option)} ${keys.join(' ')}`;
   if (find !== undefined) {
-    const title = textOf(option);
-    return { ...base, title, summary: find, names: [...title.split(/\s+/), ...keys] };
+    return { ...base, title, summary: find, names: [...textOf(option).split(/\s+/), ...keys] };
   }
   const parts = option.childNodes.map((child) => {
     if ('value' in child && typeof child.value === 'string') return child.value;
     return 'tagName' in child ? textOf(child) : '';
   });
-  return { ...base, names: [...parts, ...keys] };
+  return { ...base, title, names: [...parts, ...keys] };
 }
 
 // The words a visitor brings, against the rows the build wrote: the site's own words first, and
@@ -221,8 +222,18 @@ describe('what a visitor types finds the page they mean', () => {
       expect(pick(query), query).toBe('palette-lab');
   });
 
-  test('adr: Home, which counts them, never the address', () => {
-    expect(pick('adr')).toBe('palette-home');
+  // "adrs" holds a, d, r and s in order in "address", as "adr" does, and "decision records" is the
+  // site's own term in two words, which a keyword split on its spaces can't hold.
+  test("adr, adrs and the site's two terms for them: Home, which counts them, never the address", () => {
+    for (const query of ['adr', 'adrs', 'decisions', 'decision records', 'written decisions'])
+      expect(pick(query), query).toBe('palette-home');
+  });
+
+  // What a row says beats what it's also called: a keyword doesn't take a letter from a label.
+  test('the first letter of a label finds that label, over a keyword that starts with it', () => {
+    if (writing) expect(pick('w')).toBe('palette-writing');
+    if (about) expect(pick('a')).toBe('palette-about');
+    expect(pick('h')).toBe('palette-home');
   });
 
   test('copying the address is still found by its own words', () => {
