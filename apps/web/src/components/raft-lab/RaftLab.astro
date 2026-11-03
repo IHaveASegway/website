@@ -1,5 +1,6 @@
 ---
 import EventLog from '../lab/EventLog.astro';
+import Said from '../lab/Said.astro';
 import Time from '../lab/Time.astro';
 import { LINES_SHOWN } from '../../lib/lab/event-log';
 import { PROPERTIES } from '../../lib/raft/check';
@@ -51,7 +52,10 @@ import '../../styles/raft-lab.css';
 // picture, the controls under them, and how to read it all under those (raft-lab.css), since the
 // properties are what the lead tells a visitor to watch. Nothing but the controls takes focus, so the
 // tab order is the same either way. Time is the one group every lab has (components/lab/Time.astro):
-// the clock, Run, Next event, Start over and Speed.
+// the clock, Run, Next event, Start over and Speed. What a press did, or why it did nothing, is said
+// on the line under it, over the network's buttons (lib/lab/said.ts): the other labs' stands under all
+// of a part's controls, but here that is 385 px below Cut off the leader, off the screen for a thumb
+// on that button with Run in view, and this way every control is within a screen of it, at 320 px too.
 //
 // The key names each mark on the wire, in the picture's own classes. Assistive technology skips it,
 // as it does the Queue Lab's: the picture is one image, named by its caption, and the marks it holds
@@ -121,13 +125,14 @@ const SPEEDS = [
     </figcaption>
   </figure>
 
-  <div class="rf-controls" data-rf-js>
+  <div class="rf-controls" data-rf-js data-part>
     <Time short="rf" speeds={SPEEDS} speed="0.05">
       <p class="lab-clock">
         <span data-rf-clock>Virtual time {seconds(sim.now)}</span>,{' '}
         <span data-rf-events>{eventsWords(sim)}</span>, seed <span data-rf-seed>{sim.seed}</span>
       </p>
     </Time>
+    <Said words="The network and the servers below change the run as it stands." />
     <div class="lab-group" role="group" aria-labelledby="rf-network">
       <p class="lab-group-name" id="rf-network">
         The network
@@ -169,7 +174,7 @@ const SPEEDS = [
         ))}
       </div>
     </div>
-    <p class="rf-sr" role="status" data-rf-said></p>
+    <p class="lab-sr" role="status" data-rf-said></p>
   </div>
 
   <div class="rf-part rf-log-part">

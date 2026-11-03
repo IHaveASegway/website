@@ -618,16 +618,63 @@ test.describe('the Raft Lab’s landing run', () => {
     await expect(run(page, lab)).toHaveText('Pause');
   });
 
-  test('none of the story is said aloud, and the first press gives the page its voice back', async ({
+  test('none of the story is said aloud or on the line, and the first press gives the page its voice back', async ({
     page,
   }) => {
     await land(page);
+    const line = page.locator('[data-said]');
+    const resting = await line.getAttribute('data-said');
     await page.clock.runFor(2_500);
     const said = page.locator('[data-rf-said]');
     await expect(said).toHaveAttribute('aria-live', 'off');
     await expect(said).toHaveText('');
+    await expect(line).toHaveText(resting ?? '');
+    await expect(line).not.toHaveAttribute('data-spoke');
+    // Round again, too: the run going back is nobody's press.
+    await page.clock.runFor(26_000);
+    await expect(summary(page)).toHaveText('Server 1 leads term 1, 3 entries committed.');
+    await expect(said).toHaveText('');
+    await expect(line).toHaveText(resting ?? '');
     await page.getByRole('button', { name: 'Send a write' }).click();
     await expect(said).not.toHaveAttribute('aria-live', 'off');
+    await expect(line).toHaveAttribute('data-spoke');
+  });
+
+  // For about 4 s of every 26 the story has no leader, and Cut off the leader has nothing to cut off.
+  // Until 2026-11-02 only a screen reader heard why, and the button looked dead. It's a press like
+  // any other, so what's left of the story goes with it, and the cluster elects on by its own rules.
+  test('Cut off the leader while the story has none says why on the screen, and the run is theirs', async ({
+    page,
+  }) => {
+    await land(page);
+    await page.clock.runFor(2_100);
+    await expect(summary(page)).toHaveText(
+      'No leader in term 1, 3 entries committed, 1 server down.',
+    );
+    await page.getByRole('button', { name: 'Cut off the leader' }).click();
+    const line = page.locator('[data-said]');
+    await expect(line).toHaveText('There is no leader to cut off right now.');
+    await expect(line).toBeVisible();
+    await page.clock.runFor(30_000);
+    await expect(up(page)).toHaveCount(4);
+    expect(await madeSinceTheOpening(page)).toHaveLength(1);
+    await expect(summary(page)).toHaveText(/^Server [2-5] leads term \d+, 3 entries committed/);
+  });
+
+  test('Start over on the run they landed on says the crash is ahead, and on a stood run asks for Run', async ({
+    page,
+  }) => {
+    await land(page);
+    const line = page.locator('[data-said]');
+    await page.getByRole('button', { name: 'Start over' }).click();
+    await expect(line).toHaveText(
+      'The run starts over under these settings, at 1.400 s, before the leader crashes.',
+    );
+    await run(page, lab).click();
+    await page.getByRole('button', { name: 'Start over' }).click();
+    await expect(line).toHaveText(
+      'The run starts over under these settings, at 1.400 s. Press Run to watch it.',
+    );
   });
 });
 

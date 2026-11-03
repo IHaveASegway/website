@@ -286,6 +286,12 @@ const FLOWS: Record<keyof typeof LABS, Press[]> = {
     { what: 'Run again', selector: 'button[data-rf-run]', by: 'key' },
     { what: 'Start over while it runs', selector: 'button[data-rf-reset]', by: 'tap' },
     { what: 'a speed', selector: another('rf-speed'), by: 'tap' },
+    // Each press that says something says it on the line under Time, whose room is kept.
+    { what: 'a heal with nothing to heal', selector: '[data-rf-heal]', by: 'tap', ms: 500 },
+    { what: 'a write', selector: '[data-rf-write]', by: 'tap', ms: 500 },
+    { what: 'the leader cut off', selector: '[data-rf-lone]', by: 'tap', ms: 500 },
+    { what: 'the split', selector: '[data-rf-split]', by: 'tap', ms: 500 },
+    { what: 'the heal', selector: '[data-rf-heal]', by: 'tap', ms: 500 },
   ],
   queue: [
     { what: 'Run, the first touch', selector: 'button[data-qu-run]', by: 'tap' },
@@ -444,7 +450,7 @@ test('one node holding all 120 pages keeps to its room at every width a phone ha
 
 // A press and what it says share a screen, on the smallest screen a phone's bars leave: each part of
 // the controls has its own line, because one by Run would be over a thousand pixels from the settings.
-for (const [name, lab] of Object.entries(LABS).filter(([name]) => name !== 'raft')) {
+for (const [name, lab] of Object.entries(LABS)) {
   test(`the ${name} lab: each control stands within a screen of the line it speaks in`, async ({
     page,
   }) => {
@@ -453,16 +459,36 @@ for (const [name, lab] of Object.entries(LABS).filter(([name]) => name !== 'raft
       parts.flatMap((part) => {
         const line = part.querySelector('[data-said]')?.getBoundingClientRect();
         if (!line) return ['a part with no line'];
-        return [...part.querySelectorAll('button, label')].flatMap((control) =>
-          line.bottom - control.getBoundingClientRect().top > innerHeight
+        return [...part.querySelectorAll('button, label')].flatMap((control) => {
+          const box = control.getBoundingClientRect();
+          return Math.max(line.bottom, box.bottom) - Math.min(line.top, box.top) > innerHeight
             ? [control.textContent?.trim() ?? '']
-            : [],
-        );
+            : [];
+        });
       }),
     );
     expect(far).toEqual([]);
   });
 }
+
+// The line stands under Time, so at 320 px, where the Raft Lab's controls take more than a screen,
+// no control is further from it than a screen is tall. A line under them all would be 800 px from Run.
+test('at 320 by 568, every control of the raft lab stands within a screen of its line', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await open(page, LABS.raft.path);
+  const far = await page.locator('[data-part]').evaluate((part) => {
+    const line = part.querySelector('[data-said]')?.getBoundingClientRect() as DOMRect;
+    return [...part.querySelectorAll('button, label')].flatMap((control) => {
+      const box = control.getBoundingClientRect();
+      return Math.max(line.bottom, box.bottom) - Math.min(line.top, box.top) > innerHeight
+        ? [control.textContent?.trim() ?? '']
+        : [];
+    });
+  });
+  expect(far).toEqual([]);
+});
 
 // WebKit keeps a failed import for the life of the page, so "Press any control to try again" has to
 // mean a fresh page there. With no connection yet, the page stays and says so again.
@@ -716,7 +742,7 @@ for (const { phone, viewport } of PHONES) {
       expect(moves).toEqual([]);
     });
 
-    for (const [name, lab] of Object.entries(LABS).filter(([name]) => name !== 'raft')) {
+    for (const [name, lab] of Object.entries(LABS)) {
       // The line under a part of the controls keeps the room its longest words take, so speaking moves
       // nothing, at the narrowest phone too (lib/lab/said.ts holds the words to SAID_ROOM).
       test(`the ${name} lab's lines hold their longest words in the room they keep`, async ({
@@ -735,7 +761,7 @@ for (const { phone, viewport } of PHONES) {
             ),
           LONGEST_SAID,
         );
-        expect(heights.length).toBe(2 * LONGEST_SAID.length);
+        expect(heights.length).toBeGreaterThanOrEqual(LONGEST_SAID.length);
         for (const [empty, full] of heights) expect(full).toBe(empty);
       });
     }

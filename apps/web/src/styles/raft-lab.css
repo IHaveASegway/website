@@ -614,14 +614,21 @@
   }
 }
 
-/* Controls: the shared groups (lab-controls.css), time, the network, and a button a server, under a
-   rule from bezel to bezel. */
+/* Controls: the shared groups (lab-controls.css), time, the line that says what a press did, the
+   network, and a button a server, under a rule from bezel to bezel. */
 .rf-controls {
   display: grid;
   gap: 1rem;
   margin-inline: calc(var(--desk-side) * -1);
   padding: 1.25rem var(--desk-side) 0;
   border-top: 1px solid var(--border);
+}
+
+/* Two lines is the most its words take where the desk is this wide. */
+@media (width >= 48rem) {
+  .rf-controls > .lab-said {
+    min-block-size: 2lh;
+  }
 }
 
 .rf-field {
@@ -670,17 +677,14 @@
   min-width: min(9rem, 100%);
 }
 
-/* Read by assistive technology, hidden on screen: what the last press did. */
-.rf-sr {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  border-width: 0;
-  white-space: nowrap;
+/* At the narrowest phones two still share a row, which keeps the last within a screen of the line
+   under Time. A larger text size stacks them, since the minimum grows with it. */
+@media (width < 24rem) {
+  .rf .btn.rf-toggle {
+    flex: 0 1 calc(50% - 0.25rem);
+    min-inline-size: min(7rem, 100%);
+    padding-inline: 0.5rem;
+  }
 }
 
 /* The event log (lab-controls.css), a part of the desk of its own, under a rule from bezel to bezel. */

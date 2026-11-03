@@ -29,6 +29,16 @@ import {
   runUntil as runQueue,
 } from '../src/lib/queue/sim';
 import { OPENING as QUEUE, REPLAY_WORDS as QUEUE_WORDS, stopWords } from '../src/lib/queue/view';
+import {
+  crash as crashServer,
+  heal,
+  replay as replayRaft,
+  restart as restartServer,
+  runUntil as runRaft,
+  split,
+  write as writeRaft,
+} from '../src/lib/raft/sim';
+import { OPENING as RAFT } from '../src/lib/raft/view';
 import { REPLAY_WORDS as CACHE_WORDS } from '../src/lib/cache/view';
 import { REPLAY_WORDS as BACKFILL_WORDS, STORY_WORDS } from '../src/lib/backfill/view';
 
@@ -97,8 +107,32 @@ function backfillLines(): string[] {
   return sim.lines.map((line) => line.text);
 }
 
+/** A write taken on each side of a cut, the old leader's dropped when it heals, and two crashes. */
+function raftLines(): string[] {
+  const sim = replayRaft({ seed: RAFT.seed }, RAFT.actions, RAFT.until);
+  split(sim, [1, 1, 0, 0, 0]);
+  writeRaft(sim);
+  runRaft(sim, 2_500);
+  writeRaft(sim);
+  runRaft(sim, 3_500);
+  heal(sim);
+  runRaft(sim, 4_500);
+  writeRaft(sim);
+  runRaft(sim, 6_000);
+  crashServer(sim, 0);
+  crashServer(sim, 1);
+  restartServer(sim, 0);
+  runRaft(sim, 7_000);
+  return sim.lines.map((line) => line.text);
+}
+
 describe('what a run says fits the room its line keeps', () => {
-  const lines = { queue: queueLines(), cache: cacheLines(), backfill: backfillLines() };
+  const lines = {
+    raft: raftLines(),
+    queue: queueLines(),
+    cache: cacheLines(),
+    backfill: backfillLines(),
+  };
 
   for (const [lab, texts] of Object.entries(lines))
     test(`the ${lab} lab's lines`, () => {
@@ -108,6 +142,11 @@ describe('what a run says fits the room its line keeps', () => {
 
   test('the words a lab writes for a press of its own', () => {
     const said = [
+      startsOver('run', 'these settings', 'at 1.400 s, before the leader crashes', false),
+      'There is no leader to cut off right now.',
+      'The network is already whole.',
+      'From here, 50% of messages are lost.',
+      'Virtual time 1234.567 s, 1,234,567 events.',
       startsOver('run', 'these settings', QUEUE_WORDS, false),
       startsOver('run', 'these settings', CACHE_WORDS, false),
       startsOver('week', 'these settings', BACKFILL_WORDS, false),

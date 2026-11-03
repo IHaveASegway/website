@@ -288,18 +288,30 @@ test('from 64rem the properties share the first screen with the picture they des
 });
 
 // The room the caption keeps at every width the desk changes at, for its longest words, with each
-// number a digit longer than a run makes it (e2e/steady.spec.ts holds the two phones, in WebKit).
+// number a digit longer than a run makes it (e2e/steady.spec.ts holds the two phones, in WebKit). And
+// the line under Time, for the longest a press says here.
 for (const width of [384, 768, 1024, 1440]) {
-  test(`at ${width} px wide, the caption keeps the room of its longest words`, async ({ page }) => {
+  test(`at ${width} px wide, the caption and the line under Time keep the room of their longest words`, async ({
+    page,
+  }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto(RAFT);
-    const before = await summary(page).boundingBox();
-    await summary(page).evaluate((p) => {
-      p.textContent =
-        'No leader in term 123, 1000 entries committed, 2 servers down, the network is split. Servers 1 and 3 and 4 still think they lead older terms.';
-    });
-    const after = await summary(page).boundingBox();
-    expect(Math.abs((after?.height ?? 0) - (before?.height ?? 0))).toBeLessThanOrEqual(1);
+    const hold = async (part: ReturnType<Page['locator']>, words: string) => {
+      const before = await part.boundingBox();
+      await part.evaluate((p, text) => {
+        p.textContent = text;
+      }, words);
+      const after = await part.boundingBox();
+      expect(Math.abs((after?.height ?? 0) - (before?.height ?? 0))).toBeLessThanOrEqual(1);
+    };
+    await hold(
+      summary(page),
+      'No leader in term 123, 1000 entries committed, 2 servers down, the network is split. Servers 1 and 3 and 4 still think they lead older terms.',
+    );
+    await hold(
+      page.locator('[data-said]'),
+      'The run starts over under these settings, at 1.400 s, before the leader crashes. Press Run to watch it.',
+    );
   });
 }
 
@@ -429,6 +441,61 @@ test('Next event says where the run stands when the log has nothing to tell', as
   // Each press is heard, and each says something new.
   expect(told).toBeGreaterThan(0);
   expect(new Set(heard).size).toBe(heard.length);
+});
+
+// Until 2026-11-02 these reached only a screen reader, and a press that did nothing looked dead.
+test('why a press did nothing is on the screen: Heal on a whole network, Cut off with no leader', async ({
+  page,
+}) => {
+  await page.goto(RAFT);
+  const line = page.locator('[data-said]');
+  await expect(line).toHaveCount(1);
+  await expect(line).toBeVisible();
+  await expect(line).toHaveText('The network and the servers below change the run as it stands.');
+  await expect(line).not.toHaveAttribute('data-spoke');
+
+  await page.getByRole('button', { name: 'Heal the network' }).click();
+  await expect(line).toHaveText('The network is already whole.');
+  await expect(line).toHaveAttribute('data-spoke');
+  await expect(page.locator('[data-rf-said]')).toHaveText('The network is already whole.');
+
+  // A press that does something says what, the log's line with its point.
+  await page.getByRole('button', { name: SPLIT }).click();
+  await expect(line).toHaveText('The network splits: {1, 2} and {3, 4, 5}.');
+  await page.getByRole('button', { name: 'Heal the network' }).click();
+  await expect(line).toHaveText('The network heals: every server can reach every other.');
+
+  // No leader, all five down.
+  for (let id = 0; id < 5; id++) await page.locator(`[data-rf-toggle="${id}"]`).click();
+  await expect(line).toHaveText(/^Server 5 crashes\. It keeps its term, its vote and its log on disk\.$/);
+  await page.getByRole('button', { name: 'Cut off the leader' }).click();
+  await expect(line).toHaveText('There is no leader to cut off right now.');
+  await expect(line).toBeVisible();
+
+  // Start over says where it went, and what it waits for.
+  await page.getByRole('button', { name: 'Start over' }).click();
+  await expect(line).toHaveText(
+    'The run starts over under these settings, at 1.400 s. Press Run to watch it.',
+  );
+  // Run has nothing to say, so the line goes back to what these controls do.
+  await page.getByRole('button', { name: 'Run', exact: true }).click();
+  await expect(line).not.toHaveAttribute('data-spoke');
+  await expect(line).toHaveText('The network and the servers below change the run as it stands.');
+  await page.getByRole('button', { name: 'Pause' }).click();
+
+  await page.locator('[data-rf-loss]').fill('30');
+  await expect(line).toHaveText('From here, 30% of messages are lost.');
+});
+
+// A tap on a server in the picture has no part of the controls to speak in, so it speaks in the first.
+test('a tap on a server in the picture says what it did on the line under Time', async ({
+  page,
+}) => {
+  await page.goto(RAFT);
+  await page.locator('[data-rf-node="4"] .rf-name').click();
+  await expect(page.locator('[data-said]')).toHaveText(
+    'Server 5 crashes. It keeps its term, its vote and its log on disk.',
+  );
 });
 
 test('the app writes the event log once: the build’s lines are the run’s, from its first, and a link’s run shows only its own', async ({
