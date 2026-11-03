@@ -535,7 +535,7 @@ describe('the markup both the build and the browser draw', () => {
   test('known answers: a van’s room is a share of the day’s boxes, said as one', () => {
     // A busy Saturday: 42 boxes, 3 vans of 19, 1.3 times a third of 42 rounded up.
     expect(roomText(data, busy.orders, 3, 19)).toBe(
-      'Each van takes at most 19 of the 42 boxes: 1.3 times its share.',
+      'Each van can carry at most 19 of the 42 boxes, 1.3 times an even split, so VROOM has to balance the loads.',
     );
     expect(roomText(data, busy.orders, 1, capacityFor(data, busy.orders, 1))).toBe(
       'One van takes all 42 boxes.',

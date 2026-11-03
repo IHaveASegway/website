@@ -431,6 +431,29 @@ for (const [width, height] of [
   });
 }
 
+// The Route Lab's room line says why the vans hold what they hold, at its longest on the day with every
+// order. Its room is laid out by the width, so a width in between can break what 320 and 390 don't.
+test('the route lab’s room line keeps the room of its longest words at every width a phone has', async ({
+  page,
+}) => {
+  await open(page, ROUTE_LAB);
+  const line = page.locator('[data-rl-capacity]');
+  for (let width = 320; width <= 660; width += 5) {
+    await page.setViewportSize({ width, height: 664 });
+    const grown = await line.evaluate((p) => {
+      const words = p.textContent;
+      p.textContent = '';
+      const before = p.getBoundingClientRect().height;
+      p.textContent =
+        'Each van can carry at most 123 of the 456 boxes, 1.3 times an even split, so VROOM has to balance the loads.';
+      const after = p.getBoundingClientRect().height;
+      p.textContent = words;
+      return after - before;
+    });
+    expect(grown, `at ${width} px`).toBeLessThanOrEqual(0.5);
+  }
+});
+
 // However many pages a node holds, its lamps stay in the room its box keeps, so no press makes the
 // map taller. The room is laid out by the width, so a width in between can break what 320 and 390
 // don't: at 360 px, a common phone, all 120 pages took four rows, 3 px past the room.

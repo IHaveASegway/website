@@ -246,8 +246,10 @@ export function savedText(before: Measured, after: Measured): string {
   return `VROOM saves ${time} of driving, ${percent}% less${fewer > 0 ? `, and ${miles}` : ''}.`;
 }
 
-/** Why the vans hold what they hold: a share of the day's boxes, so changing the vans changes it.
- *  Nothing when there is no order, and no share when there is one: one van takes it. */
+/** Why the vans hold what they hold: an even split of the day's boxes and a margin, so changing the
+ *  vans changes it. Nothing when there is no order, and no split when there is one: one van takes it.
+ *  Only where that margin sets the limit is it what makes VROOM balance the loads, so only there does
+ *  the line say so: the other limits have reasons of their own. */
 export function roomText(
   data: RouteData,
   orders: readonly number[],
@@ -260,13 +262,11 @@ export function roomText(
   if (orders.length === 1) return `One order: one van takes its ${all}.`;
   if (vans === 1) return `One van takes all ${all}.`;
   const share = shareCapacity(data, orders, vans);
-  const why =
-    capacity > share
-      ? 'room for every order, dealt in turn'
-      : capacity > Math.ceil((boxes / vans) * SHARE)
-        ? 'the largest order'
-        : `${SHARE} times its share`;
-  return `Each van takes at most ${capacity} of the ${all}: ${why}.`;
+  const most = `at most ${capacity} of the ${all}`;
+  if (capacity > share) return `Each van takes ${most}: room for every order, dealt in turn.`;
+  if (capacity > Math.ceil((boxes / vans) * SHARE))
+    return `Each van takes ${most}: the largest order.`;
+  return `Each van can carry ${most}, ${SHARE} times an even split, so VROOM has to balance the loads.`;
 }
 
 /** The tip over a place on a map, line by line: its name, its order, and where it falls in this
