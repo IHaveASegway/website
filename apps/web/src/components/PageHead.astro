@@ -11,11 +11,23 @@ interface Props {
 // (layouts/Prose.astro), never over the title. A lab's page has a head of its own
 // (components/lab/LabHead.astro), with the lab's glyph beside it.
 const { heading, lead } = Astro.props;
+// A title of two or more sentences stands them apart, so a narrow screen breaks between them first:
+// a hook split across its own sentences reads as neither (prose.css, .title-sentence).
+const sentences = heading.split(/(?<=[.!?])\s+/);
 ---
 
 <header class="page-head">
   <h1 id="page-title" class="page-title">
-    {heading}
+    {
+      sentences.length > 1
+        ? sentences.map((sentence, i) => (
+            <>
+              {i > 0 && ' '}
+              <span class="title-sentence">{sentence}</span>
+            </>
+          ))
+        : heading
+    }
   </h1>
   {lead && <p class="page-lead">{lead}</p>}
   <slot />

@@ -22,6 +22,10 @@
   letter-spacing: -0.012em;
 }
 
+.title-sentence {
+  display: inline-block;
+}
+
 .long-form .page-lead {
   color: var(--muted-foreground);
   font-family: var(--font-reading);
@@ -49,6 +53,14 @@
 
 .register-by {
   color: var(--foreground);
+}
+
+/* Below this width the row can't hold all four, so who wrote it takes the first line, and the day, the
+   kind and the reading time stay together on the next. */
+@media (width < 26.75rem) {
+  .register-by {
+    flex-basis: 100%;
+  }
 }
 
 .long-form-body {

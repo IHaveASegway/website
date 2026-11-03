@@ -56,6 +56,40 @@ test('known answer: a straight mark beside a word is found, and code is left alo
 
 // What follows inline code reads as following it: on a ground that hardly showed, the chip's padding
 // read as a stray space, "action . It reads side . So", in an essay about precision.
+// The essay's title is two sentences, a hook and its turn, so a phone keeps the first whole on its line,
+// as the link card does: balanced by itself, it read "Coding is / fun. That / won't save it." from 320
+// to 374 px. And the day, the kind and the reading time stay together: from 375 to 414 px, the iPhone
+// 14's width among them, "4 min read" stood alone on a second line.
+test("the essay's head on a phone: the title's first sentence whole, and the register in two lines", async ({
+  page,
+}) => {
+  const essay = '/writing/coding-by-hand/';
+  test.skip(!pages().includes(essay), 'no essay in this build');
+  for (const width of [320, 344, 360, 375, 390, 414, 427]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto(essay);
+    await page.evaluate(() => document.fonts.ready);
+    const head = await page.evaluate(() => {
+      const title = document.querySelector('#page-title') as Element;
+      const first = title.firstElementChild?.firstChild as Text;
+      const range = document.createRange();
+      range.selectNodeContents(first);
+      return {
+        text: title.textContent,
+        firstLines: new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size,
+        register: [...document.querySelectorAll('.register > li')].map((li) =>
+          Math.round(li.getBoundingClientRect().top),
+        ),
+      };
+    });
+    expect(head.text, String(width)).toBe('Coding is fun. That won’t save it.');
+    expect(head.firstLines, String(width)).toBe(1);
+    const [by = 0, ...rest] = head.register;
+    expect(new Set(rest).size, String(width)).toBe(1);
+    expect(rest[0], String(width)).toBeGreaterThan(by);
+  }
+});
+
 test('inline code shows as a chip, with little padding before what follows it', async ({
   page,
 }) => {
