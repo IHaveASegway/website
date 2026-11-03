@@ -622,7 +622,7 @@ function finish(sim: Sim, w: Worker, job: Job): void {
   if (job.poison) {
     takeOut(w, job.id);
     if (job.ackSent) {
-      lose(sim, job, `it failed on ${workerName(w.id)} after its ack had left`);
+      lose(sim, job, `it failed on ${workerName(w.id)} after its acknowledgement had left`);
       say(
         sim,
         `Order ${job.id} fails on ${workerName(w.id)} after its acknowledgement had left, so nobody holds it now: it is lost`,
@@ -960,7 +960,7 @@ export function crash(sim: Sim, k: number): void {
         sim,
         job,
         job.mode !== 'before'
-          ? `${workerName(k)} crashed while working on it, after its ack had left`
+          ? `${workerName(k)} crashed while working on it, after its acknowledgement had left`
           : sent
             ? `${workerName(k)} crashed holding it, and it was acknowledged on delivery`
             : `${workerName(k)} crashed holding it, and it was acknowledged at the switch, before its ticket printed`,

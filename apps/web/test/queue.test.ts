@@ -1139,6 +1139,20 @@ describe('the page', () => {
     expect(nextTime(down)).toBeLessThan(Infinity);
   });
 
+  // The control says acknowledges, the write-up says acknowledgement, and the caption tells the same
+  // run: the three never make a reader translate.
+  test('a lost order is told in the same words as the rest of the page', () => {
+    const sim = openingRun();
+    setAck(sim, 'before');
+    poison(sim);
+    stepUntil(sim, (s) => s.lostCount > 0);
+    expect(summary(sim)).toMatch(
+      /^Order \d+ was lost: it failed on worker \d after its acknowledgement had left\. /,
+    );
+    expect(summary(sim)).not.toMatch(/\back\b/);
+    expect(sim.lines.filter((line) => /\back\b/.test(line.text))).toEqual([]);
+  });
+
   test('the strip: the orders waiting over the first 30 s, on a scale of 20, with worker 2’s crash at 2.4 s', () => {
     const sim = openingRun();
     const shown = strip(sim);
