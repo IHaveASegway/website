@@ -280,9 +280,11 @@ const MONTHS = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ');
 export const wordDay = (date: Date): string =>
   `${MONTHS[date.getUTCMonth()] ?? ''} ${date.getUTCDate()}, ${date.getUTCFullYear()}`;
 
-/** What Writing is, in a search result and a feed reader: the index's lead, and whose it is. */
-export const writingDescription = (name: string): string =>
-  `Essays on software decisions and what they cost, by ${name}.`;
+/** What Writing is, in the index's lead, a search result and a feed reader: the same words in all
+ *  three, with its curled marks set here, since a description is an attribute and the build's
+ *  typographer reads only a page's text. */
+export const WRITING_WORDS =
+  'What I’ve been thinking about. Right now that’s coding agents, and a trading bot I got wrong.';
 
 /** A post's reading time in words: "12 min read". */
 export const minutesWords = (minutes: number): string => `${minutes} min read`;
