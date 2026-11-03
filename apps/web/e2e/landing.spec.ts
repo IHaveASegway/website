@@ -128,6 +128,48 @@ for (const lab of LABS) {
       await expect(run(page, next)).toHaveText('Pause');
     });
 
+    // One button, one meaning (ADR 0030). Until 2026-11-03 it let go of a run at the visitor's first
+    // press: it turned to Play and the field stopped, and the clock ran on.
+    test('the top bar’s Pause stops a run that’s theirs, and its Play starts only what it stopped', async ({
+      page,
+    }) => {
+      const bar = page.locator('[data-motion-toggle]');
+      await page.goto(lab.path);
+      await expect(run(page, lab)).toHaveText('Pause');
+      // Theirs now: paused and played by hand.
+      await run(page, lab).click();
+      await expect(run(page, lab)).toHaveText('Run');
+      await run(page, lab).click();
+      await expect(run(page, lab)).toHaveText('Pause');
+
+      await bar.click();
+      await expect(bar).toHaveAttribute('aria-label', 'Play motion');
+      await expect(run(page, lab)).toHaveText('Run');
+      const stopped = await clock(page, lab).textContent();
+      await page.waitForTimeout(400);
+      await expect(clock(page, lab)).toHaveText(stopped ?? '');
+
+      await bar.click();
+      await expect(run(page, lab)).toHaveText('Pause');
+      await expect(clock(page, lab)).not.toHaveText(stopped ?? '');
+
+      // A run stopped by hand stays stopped, through the bar's Pause and its Play.
+      await run(page, lab).click();
+      await expect(run(page, lab)).toHaveText('Run');
+      await bar.click();
+      await bar.click();
+      await expect(bar).toHaveAttribute('aria-label', 'Pause motion');
+      await page.waitForTimeout(100);
+      await expect(run(page, lab)).toHaveText('Run');
+
+      // A run started by hand under the bar's Pause is theirs: its Play neither starts nor stops it.
+      await bar.click();
+      await run(page, lab).click();
+      await expect(run(page, lab)).toHaveText('Pause');
+      await bar.click();
+      await expect(run(page, lab)).toHaveText('Pause');
+    });
+
     test('it pauses off the screen and goes on when it comes back', async ({ page }) => {
       await page.goto(lab.path);
       await expect(run(page, lab)).toHaveText('Pause');
@@ -679,7 +721,9 @@ test.describe('the Raft Lab’s landing run', () => {
     await page.getByRole('button', { name: 'Start over' }).click();
     await expect(line).toHaveText('The run starts over under these settings, at 1.400 s.');
     await run(page, lab).click();
-    await expect(line).toHaveText('Nothing is scheduled: press something below to break it.');
+    await expect(line).toHaveText(
+      'Nothing is scheduled: press something below to break it.',
+    );
   });
 });
 
@@ -724,6 +768,26 @@ test.describe('the Route Lab', () => {
     expect(await paused(page)).toBe(false);
 
     await page.locator('[data-motion-toggle]').click();
+    await expect(drive(page)).toHaveText('Run');
+    expect(await paused(page)).toBe(true);
+  });
+
+  // Until 2026-11-03 the bar's Play restarted vans the visitor had stopped by hand.
+  test('the top bar’s Play starts only the vans its Pause stopped', async ({ page }) => {
+    const bar = page.locator('[data-motion-toggle]');
+    await page.goto(ROUTE_LAB);
+    await expect(drive(page)).toHaveText('Pause');
+    await bar.click();
+    await expect(drive(page)).toHaveText('Run');
+    await bar.click();
+    await expect(drive(page)).toHaveText('Pause');
+    expect(await paused(page)).toBe(false);
+
+    await drive(page).click();
+    await expect(drive(page)).toHaveText('Run');
+    await bar.click();
+    await bar.click();
+    await expect(bar).toHaveAttribute('aria-label', 'Pause motion');
     await expect(drive(page)).toHaveText('Run');
     expect(await paused(page)).toBe(true);
   });

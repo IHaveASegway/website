@@ -1,6 +1,6 @@
 import { eventLog } from '../../lib/lab/event-log';
-import { runOnLanding } from '../../lib/lab/landing-run';
-import { speaker, startsOver, type Say } from '../../lib/lab/said';
+import { heldByThePage, runOnLanding } from '../../lib/lab/landing-run';
+import { speaker, startsOver } from '../../lib/lab/said';
 import { address } from '../../lib/sim/link';
 import { NODES, PAGES, seconds, type Load, type Placement } from '../../lib/cache/core';
 import {
@@ -97,12 +97,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   // The build wrote the opening's last lines; a link's run writes its own.
   const log = eventLog(lines, 'lab-log-at', seconds, linked ? undefined : sim.lines.at(-1));
   if (linked) log.clear();
-  const tell = speaker(root);
-  /** While the run is the one a visitor landed on, nobody's choice yet, it says nothing. */
-  let landing = false;
-  const say: Say = (words, control, short) => {
-    if (!landing) tell(words, control, short);
-  };
+  const say = speaker(root);
   // What the page shows: which node held each page when its lamps were last laid out, and each
   // page's lamp and state since.
   let shownOwners: readonly number[] = [];
@@ -275,6 +270,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       }
       return;
     } else if (control.matches('[data-cl-step]')) {
+      if (playing) pause();
       // Every event at the next moment, never one alone: an action after it then lands where a
       // replay puts it.
       runUntil(sim, nextTime(sim));
@@ -317,9 +313,8 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   root.addEventListener('change', (event) => {
     if (event.target instanceof Element) press(event.target);
   });
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden && playing) pause();
-  });
+  const moving = { play, pause, playing: () => playing };
+  heldByThePage(root, moving, still);
   // A link to another run followed on this page opens that run, paused, as loading it would.
   const writeLink = address(() => {
     const next = openLink(location.hash);
@@ -330,32 +325,21 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     }
     return next;
   });
-  still.addEventListener('change', () => {
-    if (playing) {
-      pause();
-      play();
-    }
-  });
 
   draw();
   for (const control of queued) press(control);
   // The run a visitor lands on plays the stampede the picture told, as Run does, and again.
   return () => {
-    landing = true;
     runOnLanding(root, {
+      ...moving,
       play: () => {
         if (untouched()) begin();
         play();
       },
-      pause,
-      playing: () => playing,
       finished: () => Boolean(sim.violation) || !Number.isFinite(nextTime(sim)),
       again: () => {
         begin();
         play();
-      },
-      taken: () => {
-        landing = false;
       },
     });
   };

@@ -1,6 +1,6 @@
 import { eventLog } from '../../lib/lab/event-log';
-import { runOnLanding } from '../../lib/lab/landing-run';
-import { speaker, startsOver, type Say } from '../../lib/lab/said';
+import { heldByThePage, runOnLanding } from '../../lib/lab/landing-run';
+import { speaker, startsOver } from '../../lib/lab/said';
 import { address } from '../../lib/sim/link';
 import { TASKS, weekday, when, type Mode, type PartitionKey } from '../../lib/backfill/core';
 import {
@@ -103,12 +103,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   // The build wrote the opening's last lines; a link's week writes its own.
   const log = eventLog(lines, 'lab-log-at', lineTime, linked ? undefined : sim.lines.at(-1));
   if (linked) log.clear();
-  const tell = speaker(root);
-  /** While the week is the one a visitor landed on, nobody's choice yet, it says nothing. */
-  let landing = false;
-  const say: Say = (words, control, short) => {
-    if (!landing) tell(words, control, short);
-  };
+  const say = speaker(root);
 
   /** Everything the page shows of the run, changed only where it changed. */
   function draw(): void {
@@ -316,6 +311,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       pick(Number(value));
       return;
     } else if (control.matches('[data-bf-step]')) {
+      if (playing) pause();
       const back = over();
       if (back) show(beforeSwitch(sim));
       told = false;
@@ -324,8 +320,11 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       if (!sim.on) {
         switchOn(sim);
         if (back) words = `${AGAIN} ${since(before)}`;
-      } else if (Number.isFinite(at) && !sim.violation) runUntil(sim, at, EVENTS_PER_FRAME);
-      else words = stuck() ?? '';
+      } else if (Number.isFinite(at) && !sim.violation) {
+        runUntil(sim, at, EVENTS_PER_FRAME);
+        // A moment the log doesn't tell, as most aren't: where the week stands, as every lab says it.
+        if (sim.lines.at(-1) === before) words = `${when(sim.now)}, ${eventsText(sim)}`;
+      } else words = stuck() ?? '';
     } else if (control.matches('[data-bf-reset]')) {
       const wasPlaying = sendBack(fromTheSwitch(sim), control);
       // The address names the week, settings and all, so a reload or the link shared opens it.
@@ -390,9 +389,8 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   root.addEventListener('change', (event) => {
     if (event.target instanceof HTMLInputElement) press(event.target);
   });
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden && playing) pause();
-  });
+  const moving = { play, pause, playing: () => playing };
+  heldByThePage(root, moving, still);
   // A link to another week followed on this page opens that week, paused, as loading it would.
   const writeLink = address(() => {
     const next = openLink(location.hash);
@@ -404,12 +402,6 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     }
     return next;
   });
-  still.addEventListener('change', () => {
-    if (playing) {
-      pause();
-      play();
-    }
-  });
 
   pick(day);
   draw();
@@ -419,16 +411,11 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     if (run) press(run);
   };
   return () => {
-    landing = true;
     runOnLanding(root, {
+      ...moving,
       play: replay,
-      pause,
-      playing: () => playing,
       finished: over,
       again: replay,
-      taken: () => {
-        landing = false;
-      },
     });
   };
 }

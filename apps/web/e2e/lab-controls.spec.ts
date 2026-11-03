@@ -256,6 +256,35 @@ test('with every worker down and orders waiting, the clock stops, says so, and a
     .toBeGreaterThan(stopped);
 });
 
+// Next event says the same thing in every lab, and it steps: until 2026-11-03 it said three different
+// things, and on a running run the clock ran on past what it had just said.
+for (const lab of LABS) {
+  test(`the ${lab.name} lab's Next event pauses a running run and says where it stands, as every lab says it`, async ({
+    page,
+  }) => {
+    await page.goto(`/lab/${lab.name}/`);
+    const run = page.locator(`[data-${lab.short}-run]`);
+    const step = page.locator(`button[data-${lab.short}-step]`);
+    const line = page.locator(`#${lab.name}-lab [data-said]`).first();
+    await run.click();
+    await expect(run).toHaveText('Pause');
+    await step.click();
+    await expect(run).toHaveText('Run');
+    const clock = page.locator('.lab-clock').first();
+    const stands = await clock.textContent();
+    await page.waitForTimeout(300);
+    await expect(clock).toHaveText(stands ?? '');
+    // An event the log tells says the log's line. One it doesn't says where the run stands.
+    const shape = /^(Virtual time \d+\.\d{3} s|\d\d:\d\d on \w+, \w+ \d+), [\d,]+ events?\.$/;
+    let told = 0;
+    for (let i = 0; i < 12 && told === 0; i++) {
+      await step.click();
+      if (shape.test((await line.textContent()) ?? '')) told += 1;
+    }
+    expect(told, (await line.textContent()) ?? '').toBe(1);
+  });
+}
+
 // The readouts read as one set, as the controls do (design-system.md). Until 2026-11-03 the caption was
 // set three ways, in two faces and two colours, a check's row two ways, and only two labs closed their
 // checks with a line that said again what the rows say.
@@ -277,9 +306,10 @@ for (const [width, height] of [
           const text = ['font-family', 'font-size', 'font-weight', 'line-height', 'color'];
           return [
             look('.lab-caption:not(.rf-gloss)', ...text),
-            look('.lab-check-name', ...text),
-            look('.lab-check-word', ...text),
-            look('.lab-check-lamp', 'inline-size', 'border-radius', 'background-color'),
+            look('.lab-check[data-held="true"] .lab-check-name', ...text),
+            look('.lab-check[data-held="true"] .lab-check-word', ...text),
+            // Its colour is the lab's own line.
+            look('.lab-check-lamp', 'inline-size', 'border-top-left-radius', 'border-top-width'),
           ].join(' | ');
         }),
       );

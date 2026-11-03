@@ -9,8 +9,6 @@
 
 import { sayUnloaded, tryAgain } from '../../lib/lab/unloaded';
 
-const LOADING = 'Loading the solver…';
-
 /** The order checkbox nearest a point on a map, within 24 px, or null: the map's targets are the
  *  places, and the list of places is the same control for the keyboard. */
 function nearest(root: HTMLElement, map: SVGSVGElement, x: number, y: number) {
@@ -30,15 +28,14 @@ export type Nearest = typeof nearest;
 const root = document.getElementById('route-lab');
 
 if (root) {
-  const status = root.querySelector('[data-rl-status]');
-
   // The vans drive when a visitor lands (ADR 0030), by the page's own markup: no script runs them,
   // this only holds them, on a button, or while the maps are off the screen.
-  const maps = root.querySelector('.rl-maps') as Element;
   const buttons = root.querySelectorAll<HTMLButtonElement>('[data-rl-drive]');
   // Still until the chrome's module says the page may move (scripts/field.js), and for good if it
-  // never does.
+  // never does. Its button stops whatever drives, and starts only what it stopped: until 2026-11-03
+  // its Play restarted vans the visitor had stopped by hand.
   let wanted = false;
+  let held = true;
   let shown = true;
   const drive = () => {
     for (const layer of root.querySelectorAll<SVGSVGElement>('[data-rl-fleet]')) {
@@ -46,8 +43,9 @@ if (root) {
       else layer.pauseAnimations();
     }
     for (const button of buttons) {
-      button.textContent = wanted ? 'Pause' : 'Run';
-      button.setAttribute('aria-label', wanted ? 'Pause the vans' : 'Run the vans');
+      const word = wanted ? 'Pause' : 'Run';
+      button.textContent = word;
+      button.setAttribute('aria-label', `${word} the vans`);
       button.dataset['lamp'] = wanted ? 'on' : 'off';
     }
   };
@@ -55,17 +53,21 @@ if (root) {
   for (const button of buttons)
     button.addEventListener('click', () => {
       wanted = !wanted;
+      held = false;
       drive();
     });
   // The top bar's button reaches the vans too, as it does a lab's run.
   document.addEventListener('motionchange', (event) => {
-    wanted = !(event as CustomEvent<{ paused: boolean }>).detail.paused;
+    const { paused } = (event as CustomEvent<{ paused: boolean }>).detail;
+    const on = wanted || held;
+    wanted = !paused && on;
+    held = paused && on;
     drive();
   });
   new IntersectionObserver(([entry]) => {
     shown = Boolean(entry?.isIntersecting);
     drive();
-  }).observe(maps);
+  }).observe(root.querySelector('.rl-maps') as Element);
 
   // What the visitor changes before the rest has loaded, in order, so nothing is lost: a control,
   // or the surprise. Which map a phone shows is not a change to the plan.
@@ -92,7 +94,7 @@ if (root) {
     if (failed) return tryAgain(root);
     if (!ready) {
       queued.push(element);
-      (status as Element).textContent = LOADING;
+      (root.querySelector('[data-rl-status]') as Element).textContent = 'Loading the solver…';
     }
     start();
   };

@@ -40,6 +40,8 @@ export function speaker(root: Element): Say {
   const lines = [...root.querySelectorAll<HTMLElement>('[data-said]')];
   const live = root.querySelector('[role="status"]') as Element;
   return (words, control, short = shortly(words)) => {
+    // The run a visitor lands on says nothing, until their first press gives it its voice back.
+    if (live.hasAttribute('aria-live')) return;
     live.textContent = curled(words);
     const here = control?.closest('[data-part]')?.querySelector('[data-said]') ?? lines[0];
     for (const line of lines) {

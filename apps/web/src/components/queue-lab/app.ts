@@ -1,6 +1,6 @@
 import { eventLog } from '../../lib/lab/event-log';
-import { runOnLanding } from '../../lib/lab/landing-run';
-import { speaker, startsOver, type Say } from '../../lib/lab/said';
+import { heldByThePage, runOnLanding } from '../../lib/lab/landing-run';
+import { speaker, startsOver } from '../../lib/lab/said';
 import { properties } from '../../lib/queue/check';
 import { address, valueOf, word } from '../../lib/sim/link';
 import {
@@ -123,12 +123,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   // The build wrote the opening's last lines; a link's run writes its own.
   const log = eventLog(lines, 'lab-log-at', seconds, linked ? undefined : sim.lines.at(-1));
   if (linked) log.clear();
-  const tell = speaker(root);
-  /** While the run is the one a visitor landed on, nobody's choice yet, it says nothing. */
-  let landing = false;
-  const say: Say = (words, control, short) => {
-    if (!landing) tell(words, control, short);
-  };
+  const say = speaker(root);
 
   /** Everything the page shows of the run, changed only where it changed. */
   function draw(): void {
@@ -316,6 +311,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       }
       return;
     } else if (control.matches('[data-qu-step]')) {
+      if (playing) pause();
       if (over()) {
         begin(false);
         say(AGAIN, control);
@@ -325,7 +321,8 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       playTo(sim, ahead, Math.min(nextTime(sim), ahead[0]?.at ?? Infinity));
       told = false;
       clock = sim.now;
-      if (sim.lines.at(-1) === before) say(`Virtual time ${seconds(sim.now)}`, control);
+      if (sim.lines.at(-1) === before)
+        say(`Virtual time ${seconds(sim.now)}, ${eventsWords(sim)}`, control);
       stopped();
     } else if (control.matches('[data-qu-reset]')) {
       const wasPlaying = playing;
@@ -359,9 +356,8 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   root.addEventListener('change', (event) => {
     if (event.target instanceof Element) press(event.target);
   });
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden && playing) pause();
-  });
+  const moving = { play, pause, playing: () => playing };
+  heldByThePage(root, moving, still);
   // A link to another run followed on this page opens that run, paused, as loading it would.
   const writeLink = address(() => {
     const next = openLink(location.hash);
@@ -371,12 +367,6 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       say(summary(sim));
     }
     return next;
-  });
-  still.addEventListener('change', () => {
-    if (playing) {
-      pause();
-      play();
-    }
   });
   // The layout follows the page's width: when the other picture shows, it is drawn then.
   const sized = new ResizeObserver(() => {
@@ -398,19 +388,14 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   draw();
   // The run a visitor lands on plays the crash the picture told, as Run does, and again.
   return () => {
-    landing = true;
     runOnLanding(root, {
+      ...moving,
       play: () => {
         if (untouched()) begin(true);
         else play();
       },
-      pause,
-      playing: () => playing,
       finished: () => Boolean(sim.violation) || over(),
       again: () => begin(true),
-      taken: () => {
-        landing = false;
-      },
     });
   };
 }

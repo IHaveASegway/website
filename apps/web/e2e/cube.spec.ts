@@ -494,6 +494,33 @@ test('under reduced motion Play steps half an hour a second instead of gliding',
   expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
 });
 
+// One button, one meaning (ADR 0030). Until 2026-11-03 the slider ran on under the top bar's Pause.
+test('the top bar’s Pause stops the day playing, and its Play starts only what it stopped', async ({
+  page,
+}) => {
+  const bar = page.locator('[data-motion-toggle]');
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(ROUTE_LAB);
+  await turnOn(page);
+  await play(page).click();
+  await expect(play(page)).toHaveText('Pause');
+  await expect.poll(() => value(page)).toBeGreaterThan(0);
+  await bar.click();
+  await expect(play(page)).toHaveText('Play the day');
+  const stopped = await value(page);
+  await page.waitForTimeout(300);
+  expect(await value(page)).toBe(stopped);
+  await bar.click();
+  await expect(play(page)).toHaveText('Pause');
+  await expect.poll(() => value(page)).toBeGreaterThan(stopped);
+  // Stopped by hand, it stays stopped.
+  await play(page).click();
+  await bar.click();
+  await bar.click();
+  await expect(bar).toHaveAttribute('aria-label', 'Pause motion');
+  await expect(play(page)).toHaveText('Play the day');
+});
+
 test('a press of Play before the scene loaded is kept, and the day plays once it arrives', async ({
   page,
 }) => {

@@ -733,7 +733,31 @@ export function start(root: HTMLElement): boolean {
     };
     playing.frame = requestAnimationFrame(glide);
   }
-  play?.addEventListener('click', () => (playing || wantPlay ? stop() : go()), { signal });
+  // The top bar's Pause stops the day too, and its Play starts it only if that Pause stopped it, as it
+  // does a lab's run (lib/lab/landing-run.ts). A press of the button after that is the visitor's.
+  let held = false;
+  play?.addEventListener(
+    'click',
+    () => {
+      held = false;
+      if (playing || wantPlay) stop();
+      else go();
+    },
+    { signal },
+  );
+  document.addEventListener(
+    'motionchange',
+    (event) => {
+      if ((event as CustomEvent<{ paused: boolean }>).detail.paused) {
+        held = Boolean(playing || wantPlay);
+        stop();
+      } else if (held) {
+        held = false;
+        go();
+      }
+    },
+    { signal },
+  );
 
   // A theme change repaints the floor and recolors the lines from the new tokens, on the next
   // frame, after the toggle has answered.

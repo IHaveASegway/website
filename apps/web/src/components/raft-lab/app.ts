@@ -1,6 +1,6 @@
 import { eventLog } from '../../lib/lab/event-log';
-import { runOnLanding } from '../../lib/lab/landing-run';
-import { speaker, startsOver, type Say } from '../../lib/lab/said';
+import { heldByThePage, runOnLanding } from '../../lib/lab/landing-run';
+import { speaker, startsOver } from '../../lib/lab/said';
 import { address } from '../../lib/sim/link';
 import {
   crash,
@@ -30,7 +30,6 @@ import {
   readRun,
   seconds,
   serverState,
-  brokenWords,
   summary,
   timerShare,
 } from '../../lib/raft/view';
@@ -169,12 +168,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     log.draw(sim.lines);
   }
 
-  const speak = speaker(root);
-  /** While the run is the one a visitor landed on, nobody's choice yet, it says nothing. */
-  let landing = false;
-  const say: Say = (words, control, short) => {
-    if (!landing) speak(words, control, short);
-  };
+  const say = speaker(root);
 
   function pause(): void {
     playing = false;
@@ -201,12 +195,9 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     last = now;
     playTo(sim, ahead, sim.now + elapsed * speed(), EVENTS_PER_FRAME);
     draw();
-    if (sim.violation) {
-      say(brokenWords(sim.violation));
-      pause();
-      return;
-    }
-    frame = requestAnimationFrame(tick);
+    // No run of these servers breaks a property, and if a bug did, its row says so and the run stops.
+    if (sim.violation) pause();
+    else frame = requestAnimationFrame(tick);
   }
 
   function play(): void {
@@ -271,6 +262,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       }
       return;
     } else if (control.matches('[data-rf-step]')) {
+      if (playing) pause();
       step(sim);
       why = `Virtual time ${seconds(sim.now)}, ${eventsWords(sim)}`;
     } else if (control.matches('[data-rf-write]')) {
@@ -313,9 +305,8 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     if (control) press(control);
   });
   root.addEventListener('input', (event) => press(event.target as Element));
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden && playing) pause();
-  });
+  const moving = { play, pause, playing: () => playing };
+  heldByThePage(root, moving, still);
   // A link to another run followed on this page opens that run's opening, paused, as loading it would.
   const writeLink = address(() => {
     const link = readRun(location.hash);
@@ -328,12 +319,6 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     }
     return link;
   });
-  still.addEventListener('change', () => {
-    if (playing) {
-      pause();
-      play();
-    }
-  });
 
   draw();
   for (const control of queued) press(control);
@@ -343,19 +328,13 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   return () => {
     if (theirs) return;
     tell();
-    landing = true;
     runOnLanding(root, {
-      play,
-      pause,
-      playing: () => playing,
+      ...moving,
       finished: () => Boolean(sim.violation) || sim.now >= storyEnds,
       again: () => {
         open(fresh(sim.seed, lost()));
         tell();
         play();
-      },
-      taken: () => {
-        landing = false;
       },
     });
   };
