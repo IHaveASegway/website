@@ -367,6 +367,19 @@ export function beforeSwitch(sim: Sim): Sim {
 }
 
 /**
+ * The settings that decide the story the week tells: how a load writes, and which day it writes.
+ * A week that has told it has nothing more to say about it, and one under way would mix the old
+ * loads with the new, so a choice of either replays the week under it, from its switch. The limit of
+ * runs works from the moment it's chosen, on the week as it stands.
+ */
+export const STORY_WORDS: Record<Mode | PartitionKey, string> = {
+  append: 'Loads now append their rows',
+  overwrite: 'Loads now overwrite their day',
+  'run-day': "Loads now file under the run's own day",
+  today: "Loads now file under the clock's day",
+};
+
+/**
  * What Start over shows: the week this one's link names (startOver), taken back to its switch, the
  * job off at 00:00 with Wednesday's failed load set, as Run takes a finished week back. Both go
  * back through beforeSwitch, so the week replays from one point, never one each: Run then plays
@@ -401,6 +414,9 @@ export function holdFile(sim: Sim, day: number): Sim {
  *  very slow one stays, and the clock and its day after that. */
 export const moment = (at: number): string =>
   dayOf(at) === dayOf(WEEK_END) ? clock(at) : when(at);
+
+/** Where a week goes back to, in words, for the lines that say it did. */
+export const REPLAY_WORDS = `at ${moment(WEEK_END)}, before the job is switched on`;
 
 /** An event line's time, short enough for its column: "00:41", or "Tue 00:10" a day later. */
 export const lineTime = (at: number): string =>

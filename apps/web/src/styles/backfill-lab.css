@@ -1,6 +1,6 @@
 /*
   The Backfill Lab (/lab/backfill/): the desk, with the run board, the strip of runs over time,
-  the event log, the properties and the controls (ADR 0026). Only that
+  the event log, the checks and the controls (ADR 0026). Only that
   page links this file. Every colour is a token from tokens.css, and the lab's own is var(--line),
   which the page's data-line sets (global.css). A state the browser sets is an attribute (data-*),
   never a class, so every class here is one a built page carries (test/css-classes.test.ts). The
@@ -482,20 +482,12 @@
   }
 }
 
-/* The properties, under the strip. */
+/* The checks, under the strip. */
 .bf-checks-block {
   display: grid;
   gap: 1.25rem;
   align-content: start;
   min-width: 0;
-}
-
-.bf-heading {
-  margin: 0;
-  font-family: var(--font-label);
-  font-size: var(--text-ui);
-  font-weight: 500;
-  line-height: var(--text-ui--line-height);
 }
 
 .bf-checks {
@@ -521,7 +513,6 @@
 }
 
 .bf-check-word,
-.bf-clock,
 .bf-key {
   color: var(--muted-foreground);
   font-family: var(--font-label);
@@ -531,11 +522,6 @@
 
 .bf-check-word {
   display: block;
-}
-
-.bf-clock {
-  margin: 0;
-  font-variant-numeric: tabular-nums;
 }
 
 .bf-key {
@@ -557,10 +543,10 @@
   flex: none;
 }
 
-/* The controls: push-buttons in rows. A choice is a row of buttons whose chosen one shows its
-   lamp lit and is pressed in, raised, as a pressed button is (global.css): the radio itself is the
-   lamp. The first part plays the week, with the choice that fixes it, how a load writes; the
-   second holds the settings and the faults, which a visitor reaches for later. */
+/* The controls (lab-page.css), in rows. The first part plays the week, with the choice that fixes
+   it, how a load writes; the second holds the settings and the faults, which a visitor reaches for
+   later. Each ends in the line that says what its presses did, which keeps its room whether or not
+   it has anything to say. */
 .bf-controls {
   display: grid;
   gap: 1.25rem;
@@ -590,83 +576,6 @@
   gap: 0.75rem 1.25rem;
 }
 
-.bf-choice {
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-.bf-legend {
-  margin-bottom: 0.375rem;
-  padding: 0;
-  color: var(--muted-foreground);
-  font-family: var(--font-label);
-  font-size: var(--text-label);
-  line-height: var(--text-label--line-height);
-}
-
-.bf-options {
-  display: flex;
-  flex-wrap: wrap;
-}
-
-/* The radio covers its push-button, edge included, and draws nothing itself: the one focus ring
-   every focusable element has (global.css) goes around the whole button, as a button's does, as
-   in the Queue Lab's choices. The lamp after it is hollow, and lit while its radio is chosen. */
-.bf-option {
-  position: relative;
-  padding-inline: 0.75rem;
-}
-
-/* A button that shows a short name, a number or a day's first letters, keeps to its words, and is
-   still 44 px across, the target size every other control on the desk has (SC 2.5.5): "1" to "7"
-   in "Runs at once" were 41 px. */
-.bf-option[data-short] {
-  min-inline-size: 2.75rem;
-  padding-inline: 0.5rem;
-}
-
-.bf-option:has(input:checked) {
-  background-color: var(--surface-2);
-}
-
-.bf-option + .bf-option {
-  margin-inline-start: -1px;
-}
-
-.bf-option input {
-  position: absolute;
-  inset-block-start: -1px;
-  inset-inline-start: -1px;
-  inline-size: calc(100% + 2px);
-  block-size: calc(100% + 2px);
-  margin: 0;
-  border: 0;
-  appearance: none;
-  background-color: transparent;
-  cursor: pointer;
-}
-
-.bf-option-lamp {
-  flex: none;
-  inline-size: 0.625rem;
-  block-size: 0.625rem;
-  border: 1.5px solid currentColor;
-  border-radius: 50%;
-}
-
-.bf-option input:checked + .bf-option-lamp {
-  border-color: var(--primary);
-  background-color: var(--primary);
-}
-
-/* Run keeps one width, its lamp and all, as its words turn to Pause, so the row never shifts
-   under the pointer. */
-.bf-run-button {
-  min-inline-size: 6.5rem;
-}
-
 /* The job's switch only switches on: once the job is on it reads as a state, and pressing it only
    says so. */
 .bf-switch[aria-disabled='true'] {
@@ -684,53 +593,15 @@
   background-color: transparent;
 }
 
-/* Read by assistive technology, hidden on screen: a lamp's word, a day's full name, what the
-   last press did. */
-.bf-sr {
-  position: absolute;
-  inline-size: 1px;
-  block-size: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  border-width: 0;
-  white-space: nowrap;
-}
-
-/* The event log: the newest line last, in a describer's window, raised, that scrolls. */
+/* The event log (lab-page.css). A line's time is short here, so its column is narrower. */
 .bf-events {
   display: grid;
   gap: 0.75rem;
 }
 
-/* The log's box is one size whatever it holds, before the run's first line and after its sixtieth,
-   so a run that empties it, or fills it, moves nothing under it (steady.spec.ts). */
-.bf-lines {
-  block-size: 16rem;
-  padding: 0.75rem 1rem;
-  overflow-y: auto;
-  background-color: var(--surface-2);
-  font-size: var(--text-label);
-  line-height: var(--text-label--line-height);
-}
-
-.bf-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.bf-list > li {
-  display: grid;
+.bf-events .lab-log-list > li {
   grid-template-columns: 3.25rem minmax(0, 1fr);
   column-gap: 0.5rem;
-}
-
-.bf-at {
-  color: var(--muted-foreground);
-  font-family: var(--font-label);
-  font-variant-numeric: tabular-nums;
 }
 
 /* On a wide desk, as the Cache Lab's: the picture on the left, the board first and the checks
@@ -769,7 +640,7 @@
     contain: size;
   }
 
-  .bf-lines {
+  .bf-events .lab-log {
     block-size: auto;
   }
 
@@ -784,8 +655,7 @@
    in the user's own palette, and a lit lamp takes the highlight. */
 @media (forced-colors: active) {
   .bf-lamp,
-  .bf-strip,
-  .bf-option input:checked + .bf-option-lamp {
+  .bf-strip {
     forced-color-adjust: none;
   }
 
@@ -823,10 +693,5 @@
   [data-lamp='lit'] .bf-halo,
   .bf-strip-now {
     stroke: Highlight;
-  }
-
-  .bf-option input:checked + .bf-option-lamp {
-    border-color: ButtonText;
-    background-color: ButtonText;
   }
 }

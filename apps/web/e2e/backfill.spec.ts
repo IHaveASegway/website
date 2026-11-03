@@ -8,9 +8,10 @@ import { clockAnimations, handsOn } from './expected';
 // between Run and Pause, and a hidden tab pauses it; each of the lab entry's "Three things to try"
 // plays on the page with the entry's own numbers, in the entry's own steps; under reduced motion
 // time moves in still steps of whole minutes; a link to a seed draws that seed's week, every
-// column of it; Start over goes back to the switch, so Run plays the failed load and the day
-// counted twice as they happen; the controls that play the week stand by the board, on a phone
-// and on a laptop; and the page meets axe after a run, since script redrew it.
+// column of it; Start over, and a choice that decides the story, go back to the switch, so Run plays
+// the failed load and the day counted twice as they happen; a failure set on a finished week fails
+// when the week plays again; the controls that play the week stand by the board, on a phone and on
+// a laptop; and the page meets axe after a run, since script redrew it.
 
 const BACKFILL = '/lab/backfill/';
 
@@ -99,7 +100,7 @@ test('without JavaScript, the page is the opening run: Wednesday counted twice, 
   await expect(page.locator('[data-bf-lines] li').first()).toHaveText(
     "00:00 Wednesday's next load attempt will fail part way through",
   );
-  for (const control of await page.locator('.bf-controls, .bf-clock').all())
+  for (const control of await page.locator('.bf-controls, .lab-clock').all())
     await expect(control).toBeHidden();
   await context.close();
 });
@@ -229,13 +230,16 @@ test('watch Wednesday count twice; then overwrite the day and start over, and ev
   await expect(page.locator('[data-bf-lines]')).toContainText(
     "Wednesday's run fails: its check found the totals differ",
   );
+  // The choice decides the story, so the week goes back to its switch under it, and says so. Until
+  // 2026-11-02 it took Start over, or a finished week, to see it.
   await page.getByRole('radio', { name: 'Overwrite the day' }).check();
   await expect(page.locator('[data-bf-said]')).toHaveText(
-    "Loads now overwrite their day's partition in one atomic step.",
+    "Loads now overwrite their day's partition in one atomic step. The week starts over under it, at 00:00, before the job is switched on. Press Run to watch it.",
   );
-  await startOver(page);
-  // As the entry says, once the week is run: Start over keeps the choice, and Wednesday's first
-  // load fails again, but this time it leaves nothing behind.
+  await expect(page.locator('[data-bf-clock]')).toHaveText('00:00 on Monday 26 October');
+  await expect(page.locator('[data-bf-events]')).toHaveText('0 events');
+  // As the entry says, once the week is run: the choice stands, and Wednesday's first load fails
+  // again, but this time it leaves nothing behind.
   await expect(page.getByRole('radio', { name: 'Overwrite the day' })).toBeChecked();
   await runToTheEnd(page);
   await expect(summary(page)).toHaveText(
@@ -355,8 +359,53 @@ test('the buttons for one day say which day they act on', async ({ page }) => {
   // A press that can change nothing yet says what would.
   await page.getByRole('button', { name: "Fail Thursday's next load" }).click();
   await expect(page.locator('[data-bf-said]')).toHaveText(
-    "Thursday's next load attempt will fail part way through. Thursday has loaded already, so this fails only a load after a clear.",
+    "Thursday's next load attempt will fail part way through. Thursday has loaded already, so this fails its load when the week plays again, or after a clear.",
   );
+});
+
+// The lead promises "fail a load". On a finished week, until 2026-11-02, Run took the week back to
+// its switch and dropped the press: the log said the failure was coming, and Monday succeeded.
+test("fail Monday's next load on the finished week, then Run: the week plays again, and Monday fails", async ({
+  page,
+}) => {
+  await page.goto(BACKFILL);
+  await page.getByRole('button', { name: "Fail Monday's next load" }).click();
+  await expect(page.locator('[data-bf-lines]')).toContainText(
+    "02:10 Monday's next load attempt will fail part way through",
+  );
+  await runToTheEnd(page);
+  await expect(page.locator('[data-bf-lines]')).toContainText(
+    "00:00 Monday's next load attempt will fail part way through",
+  );
+  await expect(page.locator('[data-bf-lines]')).toContainText(
+    "Monday's load fails after appending",
+  );
+  await expect(day(page, 0).locator('[data-bf-run-word]')).toHaveText('failed');
+  await expect(day(page, 0).locator('[data-bf-diff]')).toHaveText(/^\+\d+$/);
+  // Wednesday's failure from the opening is still set, so the two days fail. Start over is the way
+  // back to the opening's own: Monday's press goes with the old week.
+  await expect(day(page, 2).locator('[data-bf-run-word]')).toHaveText('failed');
+  await startOver(page);
+  await runToTheEnd(page);
+  await expect(summary(page)).toHaveText(OPENING_SUMMARY);
+  await expect(day(page, 0).locator('[data-bf-run-word]')).toHaveText('done');
+});
+
+test('a choice of how a load writes, with a failure set, starts the week over with the failure still set', async ({
+  page,
+}) => {
+  await page.goto(BACKFILL);
+  await page.getByRole('button', { name: "Fail Monday's next load" }).click();
+  await page.getByRole('radio', { name: 'Overwrite the day' }).check();
+  await expect(page.locator('[data-bf-lines]')).toContainText(
+    "00:00 Monday's next load attempt will fail part way through",
+  );
+  await runToTheEnd(page);
+  // An overwrite that fails leaves nothing behind, so the retry makes the day right.
+  await expect(page.locator('[data-bf-lines]')).toContainText(
+    "Monday's load fails part way, and as its overwrite is one atomic step, the report is as it was",
+  );
+  await expect(day(page, 0).locator('[data-bf-run-word]')).toHaveText('done');
 });
 
 test('under reduce, Run moves the clock in still steps of 3 minutes, every one of them, and nothing animates', async ({
@@ -443,11 +492,13 @@ test('Start over writes the link to its week, the seed and each setting changed,
   page,
 }) => {
   await page.goto(BACKFILL);
-  await page.getByRole('radio', { name: 'Overwrite the day' }).check();
-  await page.getByRole('radio', { name: '1 run at once' }).check();
-  // A choice alone writes nothing: the link names how a week starts.
-  expect(new URL(page.url()).hash).toBe('');
   const entries = await page.evaluate(() => history.length);
+  // A choice that starts the week over writes its link, as Start over does; one that works on the
+  // week as it stands writes nothing, since the link names how a week starts.
+  await page.getByRole('radio', { name: 'Overwrite the day' }).check();
+  await expect.poll(() => new URL(page.url()).hash).toBe('#seed-9&mode=overwrite');
+  await page.getByRole('radio', { name: '1 run at once' }).check();
+  expect(new URL(page.url()).hash).toBe('#seed-9&mode=overwrite');
   await startOver(page);
   // The address names the week and replaces itself: no new entry in the history.
   expect(new URL(page.url()).hash).toBe('#seed-9&mode=overwrite&runs=1');
@@ -558,19 +609,44 @@ test('the opening’s week has happened, so Run plays it again from the switch, 
   await expect(page.locator('[data-bf-events]')).toHaveText('0 events');
 });
 
-test('the log shows its newest line once the app wakes, as it does for a link', async ({
+// The log stands on its end, so it opens on its newest line with no script, and nothing moves it
+// when the app wakes. Until 2026-11-02 it opened on its oldest lines and jumped to its end at the
+// first hover or press, even one that had nothing to do with it.
+test('the log opens on its newest line with no script, and stays there as the app wakes', async ({
   page,
+  browser,
 }) => {
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  const still = await context.newPage();
+  await still.goto(BACKFILL);
+  const shown = (box: ReturnType<Page['locator']>) =>
+    box.evaluate((b) => {
+      const frame = b.getBoundingClientRect();
+      const lines = [...b.querySelectorAll('li')];
+      const seen = lines.filter((line) => {
+        const r = line.getBoundingClientRect();
+        return r.bottom > frame.top && r.top < frame.bottom;
+      });
+      return {
+        longer: b.scrollHeight > b.clientHeight,
+        last: seen.at(-1) === lines.at(-1),
+        first: seen[0] === lines[0],
+      };
+    });
+  expect(await shown(still.locator('[role="log"]'))).toEqual({
+    longer: true,
+    last: true,
+    first: false,
+  });
+  await context.close();
   await page.goto(BACKFILL);
-  const box = page.locator('.bf-lines');
-  // The build writes the log oldest first, and it is longer than its box.
-  expect(await box.evaluate((b) => b.scrollHeight > b.clientHeight && b.scrollTop === 0)).toBe(
-    true,
-  );
+  const box = page.locator('[role="log"]');
+  const top = () => box.evaluate((b) => b.scrollTop);
+  expect(await top()).toBe(0);
   await page.locator('[data-bf-board]').hover();
-  await expect
-    .poll(() => box.evaluate((b) => b.scrollHeight - b.clientHeight - b.scrollTop))
-    .toBeLessThanOrEqual(1);
+  await page.waitForTimeout(300);
+  expect(await top()).toBe(0);
+  expect(await shown(box)).toEqual({ longer: true, last: true, first: false });
 });
 
 test('a choice shows its focus around its whole push-button, as a button does', async ({
@@ -746,7 +822,7 @@ test('on a phone every choice is a 44 px target, and a failed step is a crossed 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(BACKFILL);
   const small = await page.evaluate(() =>
-    [...document.querySelectorAll('.bf-option')].flatMap((option) => {
+    [...document.querySelectorAll('.lab-option')].flatMap((option) => {
       const { width, height } = option.getBoundingClientRect();
       return width < 44 || height < 44 ? [`${option.textContent?.trim()}: ${width}x${height}`] : [];
     }),
