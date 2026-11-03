@@ -14,7 +14,7 @@ Reading a draft of About on 2026-11-03, Joseph set three things the site had got
 
 ## Decision
 
-**About leads with what Joseph builds.** The head is the name, the role and where. Then the opening, whose first sentence, "I take an idea and build the entire system", is also Home's statement; how they got here; the biggest thing they've built, in round words; the labs and the open source as rows, each a link; the last thing built, with what it costs and what it can't show; what came from them; the tools, on one small line; and the close, with LinkedIn to press. Every word is `src/content/about.md`. Home reads the rows and the last thing built from it, and stops linking kinds of system. The architect goal stays Joseph's goal, and leaves the page.
+**About leads with what Joseph builds.** The head is the name, the role and where. Then the opening, whose first sentence, "I take an idea and build the entire system", is also Home's statement; how they got here; the biggest thing they've built, in round words; the labs and the open source as rows, each a link; the last thing built, with what it costs and what it can't show; what came from them; the tools, on one small line; and the close, with LinkedIn to press. Every word is `src/content/about.md`. Home reads the rows, the biggest thing and the last thing built from it, and stops linking kinds of system. The architect goal stays Joseph's goal, and leaves the page.
 
 **LinkedIn is how people reach Joseph.** No page asks a reader to email. The email buttons and the copy controls come out; the address stays as plain text in the footer and on paper.
 

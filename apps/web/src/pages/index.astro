@@ -32,7 +32,8 @@ import '../styles/home.css';
 // statement: the bio's opening. Beside it, or under it on a phone, the one live thing on the page: the
 // Raft Lab's cluster as its page opens. Then the things they built that a visitor can try, a row for
 // each with the lab where it breaks and one fact from that lab's own build; the latest writing; the
-// last thing they built, closed by the record the repository keeps; and where to reach out. Every
+// biggest thing they've built for real users, which the next section points back to; the last thing
+// they built, closed by the record the repository keeps; and where to reach out. Every
 // figure is worked out at build from its system of record, none typed. A part renders only when its
 // source exists: the fixture builds hold no bio and no lab, and there Home is the name, the writing
 // and where to reach out.
@@ -44,11 +45,12 @@ const external = checkedProfiles(profile);
 const linkedIn = external.find((p) => p.network === 'LinkedIn');
 
 // The bio (src/content/about.md) is the one owner of Joseph's words about themself: Home lays out its
-// opening, the things they built that a visitor can try and the last thing they built, and /about/
-// renders it whole.
+// opening, the things they built that a visitor can try, the biggest thing and the last thing they
+// built, and /about/ renders it whole.
 const bioEntry = await loadAbout();
 const bio = bioEntry?.body === undefined ? undefined : aboutParts(bioEntry.body);
 const build = bio && sectionOf(bio, ABOUT_HEADINGS.tryIt);
+const biggest = bio && sectionOf(bio, ABOUT_HEADINGS.biggest);
 const last = bio && sectionOf(bio, ABOUT_HEADINGS.last);
 const idea = bio && sectionOf(bio, ABOUT_HEADINGS.idea);
 
@@ -229,6 +231,17 @@ const latest = writingRow(area.published, work);
           <a href="/rss.xml">RSS feed</a>
         </li>
       </ul>
+    </section>
+  )}
+
+  {biggest && (
+    <section class="section" id="biggest" aria-labelledby="biggest-title">
+      <h2 class="section-title" id="biggest-title">
+        {biggest.heading}
+      </h2>
+      {biggest.paragraphs.map((paragraph) => (
+        <p class="last-text">{paragraph}</p>
+      ))}
     </section>
   )}
 

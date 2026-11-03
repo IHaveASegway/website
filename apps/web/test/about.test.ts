@@ -114,6 +114,22 @@ test('the tools line says what profile.json says, under its heading, and the clo
   expect(page.indexOf('class="section contact"')).toBeLessThan(page.indexOf('<footer'));
 });
 
+// The last thing built says what it can't show and points up to the work that does, "The CRM work
+// above". So wherever a page renders that section, the biggest thing stands above it, word for word.
+test('Home says the biggest thing above the last thing, which points back to it', () => {
+  if (fixtureBuild) return;
+  const parts = aboutParts(body);
+  const biggest = sectionOf(parts, ABOUT_HEADINGS.biggest);
+  expect(sectionOf(parts, ABOUT_HEADINGS.last)?.paragraphs.join(' ')).toContain('CRM work above');
+  const home = read('index.html');
+  const section = /<section class="section" id="biggest"[\s\S]*?<\/section>/.exec(home)?.[0] ?? '';
+  expect(decode(/<h2[^>]*>([\s\S]*?)<\/h2>/.exec(section)?.[1] ?? '')).toBe(
+    decode(biggest?.heading ?? ''),
+  );
+  expect(texts(section, 'p', 'last-text')).toEqual(biggest?.paragraphs.map(decode));
+  expect(home.indexOf('id="biggest"')).toBeLessThan(home.indexOf('id="last"'));
+});
+
 // The open source row's name links to its repository, from the record's own check (lib/profile.ts,
 // projectCards): about.md holds no link, since Home reads it as plain text.
 test('stillhere’s row links its name to its repository, from the checked record', () => {

@@ -44,6 +44,10 @@ Each of the bio's things is a row between hairlines, in the bio's order:
 
 From 64rem the lead, the words and the fact stand in three columns. "Try all the labs" opens the index: no page says how many there are, since there'll be more (`test/no-lab-count.test.ts`).
 
+## The biggest thing
+
+The bio's The biggest thing I've built, word for word, stands above The last thing I built, whose last sentence points back to it: "The CRM work above is where I do that." Until the review of 2026-11-03 Home printed that sentence with nothing above it, and never said what real users rely on. `test/about.test.ts` holds the section, its words and its place.
+
 ## The record
 
 The last thing I built, the bio's prose in the place How I work held until 2026-11-03, ends, under a hairline, with one sentence. It counts the decision records, the tests and the seeded runs on every pull request, each at build from its source. It is a sentence, not a row of figures: the stats row and the heatmap were the reference's signature. It's where the site says "decision records (ADRs)", once, for the tech lead who looks for the term, in plain words. It says "tests written" because it counts declarations: a loop that runs one test across every page counts once, so CI's total is about nine times larger, and a reader who opens CI should find the words true.
