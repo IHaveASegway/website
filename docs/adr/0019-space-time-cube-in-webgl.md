@@ -67,6 +67,12 @@ The weaker budget design was to raise the Route Lab's 12,000 B to about 155,000 
 - **Headless Chromium draws WebGL through SwiftShader**, so CI tests the real scene: screenshots of the canvas change with a drag, a key and the slider, and come back with Reset and Home; a lost context is forced with `WEBGL_lose_context`.
 - **A review before the first push** (2026-10-26) found a canvas that could replace the picture before any plan arrived, a touch scroll that loaded the scene, a live region that spoke every frame of Play, a GPU program compiled again on every frame and change, a lost context that later changes undid, and vans B and D told apart by color alone. Each is fixed above and has a test.
 
+## Postscript, 2026-11-02
+
+This record took the pictures to be the build's day alone. On a phone, where three.js loads only on a tap at the cube, and in a browser with no WebGL, a visitor who changed the day met the opening day's picture and figures under "The same day, in time", below another day's maps. So the pictures and the words over them now follow `rl:plans` too, a second view beside the scene: `components/route-lab/still.ts`, loaded on the first change, draws with `lib/route-lab/still.ts`, which the build draws with as well, so the two can't differ. A plan moves only what it draws: the time axis stands as tall whatever it spans, so the floor, the box and the picture's size stay, and nothing below it moves. A lost context brings back the plan on show, not the build's.
+
+In the budgets the picture and the geometry it shares with the scene count as the cube's, since they moved there from the scene's chunk. In the app's 12,000 B they took it 1,245 B over, and that number keeps its meaning, the app and the solver alone. A first solve counts them, since a first change fetches them.
+
 ## Door
 
 Two-way. The cube is one component, one chunk and one dependency; removing them leaves the pictures, which stand alone. The principle's amendment is a policy, and reverting it is an edit to this record and product.md.
