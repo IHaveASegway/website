@@ -105,6 +105,52 @@ describe('the words the site retired stay retired', () => {
   });
 });
 
+// What a search result and a link preview show, which a page's body doesn't. "Lab" is the page's
+// name in the site's language, and until 2026-11-02 /lab/'s description said "Demos by". A lab's
+// write-up is stamped text, so the word is held here in what page code writes, not yet in its body.
+describe("a page's description and its link preview call a lab a lab", () => {
+  /** The strings a page's head gives a search result and a link preview. */
+  const head = (page: string) =>
+    [
+      ...page.matchAll(
+        /<(?:meta (?:name="description"|property="og:(?:title|description)"|property="og:image:alt") content="([^"]*)"|title>([^<]*)<\/title)/g,
+      ),
+    ].flatMap(([, content, title]) => [content ?? title ?? '']);
+  const demo = /\bdemos?\b/i;
+
+  for (const file of html) {
+    test(file, () => {
+      const strings = head(read(file));
+      expect(strings.length).toBeGreaterThan(0);
+      expect(strings.filter((text) => demo.test(text))).toEqual([]);
+    });
+  }
+
+  test('known answers: the head is read, and the old description is what this finds', () => {
+    const page =
+      '<title>Lab</title><meta name="description" content="Demos by Joseph Peterson that run in your browser.">';
+    expect(head(page)).toEqual(['Lab', 'Demos by Joseph Peterson that run in your browser.']);
+    expect(head(page).filter((text) => demo.test(text))).toHaveLength(1);
+  });
+});
+
+// "written decisions, then decision records (ADRs) once" (content.md, "The site's language"): a
+// recruiter gets the plain words first, and a tech lead still finds the term. Home's record says it,
+// and says what its test count counts: tests as written, once each, since CI runs loops of them and
+// shows a number about nine times larger. Fixture builds hold no bio, so no record.
+test.runIf(html.includes('lab/index.html'))(
+  "the site names decision records once, on Home's record, and counts tests as written",
+  () => {
+    const said = html.filter((file) => /decision records \(ADRs\)/.test(words(read(file))));
+    expect(said).toEqual(['index.html']);
+    const record = /This site so far: [^.]*\./.exec(words(read('index.html')))?.[0];
+    expect(record).toMatch(/^This site so far: \d+ decision records \(ADRs\), /);
+    expect(record).toMatch(
+      /, [\d,]+ tests written and [\d,]+ simulated runs on every pull request\.$/,
+    );
+  },
+);
+
 test('the content files say the same: a draft does not bring a retired word back', () => {
   const root = join(process.cwd(), 'src/content');
   const entries = readdirSync(root, { recursive: true, encoding: 'utf8' }).filter((file) =>

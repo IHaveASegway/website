@@ -6,7 +6,7 @@
 
 import { whenMoving } from '../../lib/lab/when-moving';
 
-const UNLOADED = 'The demo did not load. Press any control to try again.';
+const UNLOADED = 'The lab did not load. Press any control to try again.';
 
 const root = document.getElementById('raft-lab');
 

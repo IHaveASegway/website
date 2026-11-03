@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { replay as replayCache } from '../src/lib/cache/sim';
 import { OPENING as CACHE, openingRun as cacheOpening } from '../src/lib/cache/view';
 import { openingRun as backfillOpening } from '../src/lib/backfill/view';
@@ -118,6 +118,55 @@ for (const { width, height, two } of [
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
   });
 }
+
+/** The labs whose short name, the caption in the corner of its card's plate, touches a line or a fill
+ *  of that card's drawing. */
+const captionsOnTheirDrawing = (page: Page) =>
+  page.locator('main .lab-card').evaluateAll((cards) =>
+    cards.flatMap((card) => {
+      const box = card.querySelector('.lab-name')?.getBoundingClientRect();
+      if (!box) return [];
+      const shapes = card.querySelectorAll<SVGGeometryElement>(
+        '.iso-glyph :is(path, circle, ellipse, rect, polygon, line)',
+      );
+      const touches = [...shapes].some((shape) => {
+        const { fill, stroke } = getComputedStyle(shape);
+        const back = shape.getScreenCTM()?.inverse();
+        if (!back) return false;
+        for (let x = box.left; x <= box.right; x += 1)
+          for (let y = box.top; y <= box.bottom; y += 1) {
+            const at = new DOMPoint(x, y).matrixTransform(back);
+            if (fill !== 'none' && shape.isPointInFill(at)) return true;
+            if (stroke !== 'none' && shape.isPointInStroke(at)) return true;
+          }
+        return false;
+      });
+      return touches ? [card.getAttribute('data-line')] : [];
+    }),
+  );
+
+// The caption stands in the corner its tile leaves empty. The tile shrinks with the card and the
+// words don't, so at 320 px "Queue Lab" touched the Queue Lab's nearest solid.
+test('from a 320 px phone up, no lab’s name touches its drawing', async ({ page }) => {
+  test.skip(!pages().includes('/lab/'), 'this build has no lab');
+  await page.goto('/lab/');
+  await page.evaluate(() => document.fonts.ready);
+  for (const width of [320, 344, 360, 375, 390, 430, 768, 1024, 1440, 2560]) {
+    await page.setViewportSize({ width, height: 900 });
+    expect(await captionsOnTheirDrawing(page), `${width}`).toEqual([]);
+  }
+});
+
+// The known answer: the same reading finds a caption moved onto its drawing.
+test('known answer: a lab’s name set in the middle of its plate is found', async ({ page }) => {
+  test.skip(!pages().includes('/lab/'), 'this build has no lab');
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/lab/');
+  await page
+    .locator('main .lab-card[data-line="queue"] .lab-name')
+    .evaluate((name) => (name as HTMLElement).style.setProperty('inset', '40% auto auto 40%'));
+  expect(await captionsOnTheirDrawing(page)).toEqual(['queue']);
+});
 
 // Each card's fact is the sentence its lab's own model writes from the run its page opens on,
 // with the change its write-up tells the visitor to make first (lib/lines.ts), and its glyph is

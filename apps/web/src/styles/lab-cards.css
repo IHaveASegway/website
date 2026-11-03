@@ -43,9 +43,26 @@
   display: grid;
   grid-template: minmax(0, 1fr) / minmax(0, 1fr);
   place-items: center;
+  position: relative;
   block-size: clamp(10.5rem, 7rem + 9vw, 14.5rem);
   padding: 1.25rem min(1.375rem, 5vw);
   border-block-end: 1px solid var(--border);
+}
+
+/* The name Home and About call the lab by, as the picture's caption, in the corner of the plate the
+   diamond of its tile leaves empty. The tile shrinks with the card and the words don't, so on a
+   narrow phone the caption also stands higher: at 14 px down, a 320 px screen's "Queue Lab" touched
+   the Queue Lab's nearest solid (e2e/index.spec.ts). */
+.lab-name {
+  position: absolute;
+  inset-block-start: min(0.875rem, 2.5vw);
+  inset-inline-start: min(1.375rem, 5vw);
+  margin: 0;
+  color: var(--muted-foreground);
+  font-family: var(--font-wide);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  line-height: var(--text-label--line-height);
 }
 
 .lab-plate > .iso-glyph {

@@ -39,6 +39,7 @@ import {
   whereWords,
 } from '../../lib/cache/view';
 import { crowded, pageLamps, stripEnds, stripPaths } from './picture';
+import { curled } from '../../lib/typeset.mjs';
 
 // The Cache Lab in the browser: the simulation, run in virtual time and drawn on every frame while
 // it runs. It takes over the same opening the build drew. A visitor who didn't ask for less motion
@@ -76,7 +77,8 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   const lines = $<HTMLOListElement>('[data-cl-lines]');
   const strip = $('[data-cl-strip]');
   const text = (element: Element | null | undefined, value: string) => {
-    if (element && element.textContent !== value) element.textContent = value;
+    const words = curled(value);
+    if (element && element.textContent !== words) element.textContent = words;
   };
   const attribute = (element: Element | null | undefined, name: string, value: string) => {
     if (element && element.getAttribute(name) !== value) element.setAttribute(name, value);

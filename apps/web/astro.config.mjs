@@ -8,6 +8,7 @@ import { defineConfig, fontProviders } from 'astro/config';
 import { commit, withBuildHeader } from './src/lib/build.mjs';
 import { policyFor, withPagePolicies } from './src/lib/csp.mjs';
 import { isNoindex } from './src/lib/noindex.mjs';
+import { typesetHtml } from './src/lib/typeset-html.mjs';
 
 /** A self-hosted family cut by scripts/fonts/build.sh: one static file per weight. Base.astro
  *  writes its faces into every page and says which it preloads. */
@@ -34,7 +35,7 @@ const font = (name, cssVariable, weights) => ({
 // browser's first moment, about 100 ms, is not swapped in, and that page stays in its fitted
 // fallback until the next, which has the file cached. The fitting matches widths on average, not
 // line by line, so a swap moved what a reader had on the screen: the Queue Lab's key by 24 px, a
-// paragraph of a write-up by a line (e2e/steady.spec.ts). Archivo's SemiBold and B612 Mono keep
+// paragraph of a write-up by a line (e2e/steady.spec.ts). Archivo's SemiBold and JetBrains Mono keep
 // swap: a page fetches them only once it sets <strong> or code, never in that first moment, and
 // every glyph is drawn in a self-hosted face (e2e/glyphs.spec.ts).
 const PRELOADED = new Set([
@@ -69,6 +70,26 @@ const buildHeader = {
   },
 };
 
+/** Every file under a directory. */
+const walk = (at) =>
+  readdirSync(at).flatMap((name) => {
+    const path = join(at, name);
+    return statSync(path).isDirectory() ? walk(path) : [path];
+  });
+
+// Every page's text as a post's body is set: curled quotes, whatever code it passed through
+// (src/lib/typeset-html.mjs). It touches text and nothing else, so it can run before or after the
+// policy below, which hashes scripts and styles.
+const typesetPages = {
+  name: 'typeset',
+  hooks: {
+    'astro:build:done': ({ dir }) => {
+      for (const file of walk(fileURLToPath(dir)).filter((name) => name.endsWith('.html')))
+        writeFileSync(file, typesetHtml(readFileSync(file, 'utf8')));
+    },
+  },
+};
+
 // The page policy is a header (security.md, "Headers and Content Security Policy"; ADR 0018). Once
 // the pages are written, each one's policy is read from its own inline code, a hash for each
 // script and style it holds, and written into the build's _headers: the 404's on the "/*" rule,
@@ -79,11 +100,6 @@ const pagePolicy = {
   hooks: {
     'astro:build:done': ({ dir }) => {
       const root = fileURLToPath(dir);
-      const walk = (at) =>
-        readdirSync(at).flatMap((name) => {
-          const path = join(at, name);
-          return statSync(path).isDirectory() ? walk(path) : [path];
-        });
       const policies = new Map(
         walk(root)
           .filter((file) => file.endsWith('.html'))
@@ -132,13 +148,14 @@ export default defineConfig({
     recordCommand,
     recordOutDir,
     buildHeader,
+    typesetPages,
     pagePolicy,
     sitemap({ filter: indexable }),
   ],
   // Spike S9 (roadmap.md): the Fonts API's local provider serves the files from /_astro/fonts/,
   // writes the preload links Base.astro asks for and emits a <style> with each family's faces,
   // which pagePolicy hashes into style-src (above). So it serves the faces, with Astro's fallbacks
-  // off. Archivo across its width axis, one width per role, B612 Mono for code, and Reading Serif, an
+  // off. Archivo across its width axis, one width per role, JetBrains Mono for code, and Reading Serif, an
   // instance of Source Serif 4, for long reads (ADR 0029), each a static instance, so no face has an axis.
   fonts: [
     font('Archivo Display', '--font-archivo-display', {
@@ -150,7 +167,7 @@ export default defineConfig({
       400: 'archivo-regular.woff2',
       600: 'archivo-semibold.woff2',
     }),
-    font('B612 Mono', '--font-b612-mono', { 400: 'b612-mono-regular.woff2' }),
+    font('JetBrains Mono', '--font-jetbrains-mono', { 400: 'jetbrains-mono-regular.woff2' }),
     font('Reading Serif', '--font-reading-serif', {
       400: 'reading-serif-regular.woff2',
       600: 'reading-serif-semibold.woff2',

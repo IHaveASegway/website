@@ -29,6 +29,7 @@ import {
   summary,
   timerShare,
 } from '../../lib/raft/view';
+import { curled } from '../../lib/typeset.mjs';
 
 // The Raft Lab in the browser (ADR 0020): the simulation, run in virtual time and drawn on every
 // frame while it runs. It opens paused, on the same opening the build drew, and moves only when
@@ -71,7 +72,8 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   const said = $('[data-rf-said]');
   const text = (selector: string, value: string) => {
     const element = $(selector);
-    if (element && element.textContent !== value) element.textContent = value;
+    const words = curled(value);
+    if (element && element.textContent !== words) element.textContent = words;
   };
 
   /** The share of messages lost that the slider is set to, in percent, and as a share. */
@@ -161,7 +163,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       const at = document.createElement('span');
       at.className = 'rf-at';
       at.textContent = seconds(line.at);
-      item.append(at, ` ${line.text}`);
+      item.append(at, ` ${curled(line.text)}`);
       lines.append(item);
     }
     while (lines.children.length > 60) lines.firstElementChild?.remove();
@@ -170,7 +172,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   }
 
   const say = (words: string) => {
-    if (said) said.textContent = words;
+    if (said) said.textContent = curled(words);
   };
 
   function pause(): void {

@@ -4,6 +4,9 @@
    or a draft's words never change the stylesheet, and src/content/README.md is the canary. */
 @import 'tailwindcss' source('../');
 @source not '../content';
+/* The link previews draw PNGs at build (lib/og*.ts), so nothing in them is a class: their words are
+   layout values and token names, such as absolute, grid and border. */
+@source not '../lib/og*.ts';
 /* An SVG attribute's name, not a class: the space-time cube's picture lays the map down with it
    (components/route-lab/SpaceTime.astro). */
 @source not inline('transform');
@@ -21,7 +24,7 @@
    in Prussian ink, with one accent, cobalt, for what a visitor can act on; by night the same
    drawing as a blueprint. Type is one family, Archivo, in three widths: ExtraCondensed ExtraBold
    for the name, titles and figures; Expanded Medium for signage, the navigation, a block's name
-   and dates; SemiBold for buttons and controls; Regular for reading; code alone in B612 Mono. Labels are sentence case, untracked, never mono.
+   and dates; SemiBold for buttons and controls; Regular for reading; code alone in JetBrains Mono. Labels are sentence case, untracked, never mono.
    Everything stands on one left edge, ragged right. Corners follow hierarchy: the bar and bands
    square, a control 4px, a card 8px; no shadows but the open command menu's. A hairline carries
    structure (a row of a list, a stat's cell, the bar's edge), never decoration. */
@@ -229,9 +232,9 @@
   /* The top bar (docs/design/overhaul.md, "Top nav"; ADR 0027): a white band across the window on
      the paper, edged by a hairline, the same on every page and at every width, never fixed to the
      window, so it never covers what has focus (SC 2.4.11) and nothing moves as the page scrolls.
-     One row, 56 px: the wordmark, the nav after it, the tools at the far end. Below 40rem the
-     wordmark is its tile and Search its glass, their words kept for assistive technology. When the
-     row does not fit, as at 320 px or with a larger text size, the nav takes a row of its own and
+     One row, 56 px, down to a 320 px phone: the wordmark, the nav after it, the tools at the far end.
+     Below 40rem the wordmark is its tile and Search its glass, their words kept for assistive
+     technology. When the row does not fit with a larger text size, the nav takes a row of its own and
      the bar grows, rather than scrolling sideways (SC 1.4.10). */
   .masthead {
     border-bottom: 1px solid var(--border);
@@ -258,7 +261,7 @@
   }
 
   /* The wordmark: a tile of the drawing's ground in the accent, then the name in the wide face.
-     44 px square at least, a comfortable target (SC 2.5.8). */
+     44 px tall and 44 px wide at least, a comfortable target (SC 2.5.8); on a phone narrower, below. */
   .wordmark {
     display: inline-flex;
     flex: none;
@@ -442,6 +445,42 @@
       justify-content: center;
       min-inline-size: 2.75rem;
       padding-inline: 0;
+    }
+
+    /* The tile stands on the frame's edge, where the page's words start, and its target reaches out
+       past it into the margin, so the bar spends its width on the nav: 36 × 44 px, the tile's 20 and
+       12 of margin and 4 beyond. Centred in 44 px it stood 12 px in from the words below it. */
+    .wordmark {
+      justify-content: flex-start;
+      min-inline-size: 2.25rem;
+      margin-inline-start: calc(-1 * min(0.75rem, var(--frame-pad)));
+      padding-inline-start: min(0.75rem, var(--frame-pad));
+    }
+  }
+
+  /* A row of Lab, Writing and About in the wide face and three 44 px tools needs 322 px, and a 320 px
+     phone has 284 between its margins. So each step here spends the least it can at the width that
+     needs it: first the space between the words, then, on the narrowest phones, the label's size
+     and 6 px of each tool's blank edge, under the next tool's. Every target stays 44 px tall, and
+     each tool 44 px wide. Linux sets the wide face about 4% wider than macOS, and Android can too, so
+     each step starts where the row would fill on Linux (e2e/top-bar.spec.ts, in CI's image). */
+  @media (width < 23rem) {
+    .site-nav a {
+      padding-inline: 0.25rem;
+    }
+
+    .site-nav a[aria-current]::after {
+      inset-inline: 0.25rem;
+    }
+  }
+
+  @media (width < 22rem) {
+    .site-nav ul {
+      font-size: var(--text-label);
+    }
+
+    .header-tools > li + li {
+      margin-inline-start: -0.375rem;
     }
   }
 
@@ -906,6 +945,14 @@
     display: inline-flex;
   }
 
+  /* On a phone its icon stands on the frame's edge, as the wordmark's tile does at the other end: 13
+     of its 44 px are blank each side of the icon. */
+  @media (width < 40rem) {
+    .theme-toggle {
+      margin-inline-end: calc(-1 * min(0.8125rem, var(--frame-pad)));
+    }
+  }
+
   .theme-toggle svg {
     width: 1.125rem;
     height: 1.125rem;
@@ -1060,14 +1107,21 @@
     background-color: color-mix(in oklab, var(--background) 70%, transparent);
   }
 
+  .palette-bar {
+    display: flex;
+    flex: none;
+    align-items: stretch;
+    border-bottom: 1px solid var(--input);
+  }
+
   /* The base size, 17 px and up, so a phone does not zoom the page when the input takes focus.
      The input keeps its own focus ring while it has focus, drawn inside it, which the dialog's
      edge would otherwise clip. */
   .palette-input {
-    inline-size: 100%;
+    flex: 1 1 auto;
+    min-inline-size: 0;
     padding: 0.875rem 1rem;
     border: 0;
-    border-bottom: 1px solid var(--input);
     background-color: transparent;
     color: var(--foreground);
     font-family: var(--font-sans);
@@ -1082,6 +1136,44 @@
 
   .palette-input:focus-visible {
     outline-offset: -0.375rem;
+  }
+
+  /* A touch screen has no Esc and no arrows, and with the on-screen keyboard up there is little
+     backdrop left to tap. So there the menu shows a way out in words, and says nothing of keys. */
+  .palette-close {
+    display: none;
+    flex: none;
+    align-items: center;
+    min-block-size: 2.75rem;
+    padding-inline: 0.625rem;
+    border: 0;
+    background-color: transparent;
+    color: var(--muted-foreground);
+    font-family: var(--font-wide);
+    font-size: var(--text-ui);
+    font-weight: 500;
+    line-height: var(--text-ui--line-height);
+    cursor: pointer;
+  }
+
+  .palette-close:focus-visible {
+    outline-offset: -0.375rem;
+  }
+
+  /* Beside it the input gives up its own far padding, or at 320 px the button's width would cut the
+     input's words: "Find a page or an actior". */
+  @media (hover: none) {
+    .palette-close {
+      display: inline-flex;
+    }
+
+    .palette-input {
+      padding-inline-end: 0.25rem;
+    }
+
+    .palette-help {
+      display: none;
+    }
   }
 
   .palette-list {
@@ -1114,6 +1206,15 @@
     min-height: 2.75rem;
     padding-inline: 1rem;
     cursor: pointer;
+  }
+
+  /* A long title wraps in its own column: left to the row's wrapping, on a 360 px phone it fell under
+     the lamp, out of line with every row around it. The row still wraps for the address, and where
+     a larger text size leaves a column too narrow for a whole word. */
+  @media (width >= 18rem) {
+    .palette-option:not(:has(.palette-value)) {
+      flex-wrap: nowrap;
+    }
   }
 
   .palette-option::before {
@@ -1183,6 +1284,15 @@
     line-height: var(--text-label--line-height);
   }
 
+  /* The page behind the open menu stays where it is: a modal dialog makes it inert, but a wheel or a
+     finger on the backdrop would still scroll it. Where a scrollbar takes room, the gutter holds its
+     place, so taking it away moves nothing behind the backdrop. A page too short to scroll has none
+     to take away, and needs no lock: the script marks only a page that scrolls. */
+  :root[data-palette='scrolls']:has(dialog[open]) {
+    overflow: hidden;
+    scrollbar-gutter: stable;
+  }
+
   @media (forced-colors: active) {
     .palette-option[data-act='theme'] {
       display: none;
@@ -1235,7 +1345,7 @@
 
   /* A post's body, as Markdown renders it. Tailwind's preflight removes every margin, list marker
      and heading size, so the rhythm is set here once, for whatever a post holds: the base size,
-     h2 at the headline's, code in B612 Mono on the board's surface, links underlined in the rule's
+     h2 at the headline's, code in JetBrains Mono on the board's surface, links underlined in the rule's
      color. */
   .prose {
     max-width: var(--measure);

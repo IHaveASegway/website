@@ -9,6 +9,8 @@
 // reading up and away, by the lines' height, and iOS Safari has no scroll anchoring to stop that, so
 // the writer moves the box by as much. Lines dropped from the top change nothing below them.
 
+import { curled } from '../typeset.mjs';
+
 /** The most lines the log keeps: the build writes as many, so the two show the same lines. */
 export const LINES_SHOWN = 60;
 
@@ -54,7 +56,7 @@ export function eventLog<L extends Line>(
         const at = document.createElement('span');
         at.className = atClass;
         at.textContent = time(line.at);
-        item.append(at, ` ${line.text}`);
+        item.append(at, ` ${curled(line.text)}`);
         list.append(item);
       }
       if (back < -1) box.scrollTop = back - (box.scrollHeight - height);

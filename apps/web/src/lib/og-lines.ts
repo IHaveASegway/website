@@ -24,26 +24,21 @@ import { routeLabPicture } from './route-lab/picture';
 import { hex, themeColors } from './tokens';
 
 // The labs' lines on their link previews (ADR 0025): a lab's card carries its own line across the
-// top, in its own colour, and Home's and the Lab index's cards stack every line, as the board
-// does. Each line is the board's wide drawing scaled to the card: the same shape (lib/line-shapes.ts)
-// from the same opening run as its component in components/board/lines/ was, until ADR 0027 took
-// the board off the pages. This is now the shape's only renderer, SVG for a PNG drawn outside Astro. It holds no geometry
-// of its own, only how a board pixel and a share of the width land on the card, and which mark
-// each station's lamp is. It draws no word: no label, no server's number, so the card's only text
-// is still its title and its label (lib/og.ts). The colours are the dark theme's tokens, as the
-// card's are. Build-time only. test/line-shapes.test.ts reads the stations back from both
-// drawings and fails if they disagree.
+// top, in its own colour. Each line is the board's wide drawing scaled to the card: the same shape
+// (lib/line-shapes.ts) from the same opening run as its component in components/board/lines/ was,
+// until ADR 0027 took the board off the pages. This is now the shape's only renderer, SVG for a PNG
+// drawn outside Astro. It holds no geometry of its own, only how a board pixel and a share of the
+// width land on the card, and which mark each station's lamp is. It draws no word: no label, no
+// server's number, so the card's only text is still its title and its label (lib/og.ts). The colours
+// are the dark theme's tokens, as the card's are. Build-time only. test/line-shapes.test.ts reads
+// the stations back and holds each to its lab's opening run.
 
-/** A line's picture on a lab's card: the full width, above the words, low enough that the
- *  longest title a card draws (three lines at 80 px, lib/og.ts titleSize) still fits beneath. */
+/** A line's picture on a lab's card: the full width, above the words, low enough that a lab's
+ *  title in two lines still fits beneath (test/og.test.ts holds every card to it). */
 export const OG_LINE = { width: OG_SIZE.width, height: 248 } as const;
 
-/** Home's and the Lab index's picture: every line stacked, above a title of one line at 150 px. */
-export const OG_BOARD = { width: OG_SIZE.width, height: 332 } as const;
-
-/** Pixels on the card per pixel of the board's wide drawing: the lab's own card, and the stack. */
+/** Pixels on the card per pixel of the board's wide drawing. */
 export const LINE_SCALE = 2.1;
-export const BOARD_SCALE = 0.55;
 
 /** The board's wide stroke widths, as styles/lines.css drew them at 48rem and up until ADR 0027. */
 const STROKE = { track: 6, spoke: 4, loop: 3.5, lamp: 2.5, now: 3, cross: 3, gap: 2.25 } as const;
@@ -303,38 +298,10 @@ export async function linePicture(slug: string, app: string): Promise<Buffer | u
   return png(svg(OG_LINE, [`<g transform="translate(0 ${n(top)})">`, ...drawn.shapes, '</g>']));
 }
 
-/** Every line the board draws, in the board's order, stacked as its bands are, or none when no
- *  lab has a line (a build with no lab). */
-export async function boardPicture(
-  slugs: readonly string[],
-  app: string,
-): Promise<Buffer | undefined> {
-  const drawn = (await Promise.all(slugs.map((slug) => strip(slug, BOARD_SCALE, app)))).filter(
-    (d) => d !== undefined,
-  );
-  if (drawn.length === 0) return undefined;
-  const total = drawn.reduce((sum, d) => sum + d.height, 0);
-  // The bands share the room left over equally, above, between and below them.
-  const space = (OG_BOARD.height - total) / (drawn.length + 1);
-  if (space < 0) throw new Error(`og-lines: ${drawn.length} lines overfill the card's board`);
-  const shapes: string[] = [];
-  let y = space;
-  for (const d of drawn) {
-    shapes.push(`<g transform="translate(0 ${n(y)})">`, ...d.shapes, '</g>');
-    y += d.height + space;
-  }
-  return png(svg(OG_BOARD, shapes));
-}
-
 /** What a demo's card carries beside its strings: its own picture where it has one (the Route
  *  Lab's map, lib/route-lab/og-map.ts), else its line; and its line colour on the lamp. `app` is
  *  apps/web. */
 export async function demoArt(slug: string, app: string): Promise<OgArt> {
   const picture = (await demoPicture(slug, app)) ?? (await linePicture(slug, app));
   return { picture, line: hasColor(slug) ? slug : undefined };
-}
-
-/** What Home's card and the Lab index's carry: the board, every lab's line stacked. */
-export async function boardArt(slugs: readonly string[], app: string): Promise<OgArt> {
-  return { picture: await boardPicture(slugs, app) };
 }

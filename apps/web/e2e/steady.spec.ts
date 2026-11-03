@@ -222,7 +222,7 @@ test.describe('web fonts arriving late move nothing', () => {
       await handsOn(page);
       // The faces every page preloads a second late, as on a slow first visit. They are optional
       // (astro.config.mjs): not here in the browser's first moment, they are not swapped in, and
-      // the page stays in its fitted fallback. Archivo's SemiBold and B612 Mono swap by design, as
+      // the page stays in its fitted fallback. Archivo's SemiBold and JetBrains Mono swap by design, as
       // a page fetches them only once it sets <strong> or code (design-system.md, "The faces"), so
       // they come on time here. All of the page is watched, not only the screen: a reader may have
       // scrolled before the fonts came.
@@ -269,10 +269,10 @@ const another = (group: string) =>
 
 /** The longest words a line under the controls says, each at or near the room it holds at. */
 const LONGEST_SAID = [
-  "Wednesday's next load will fail part way. Wednesday has loaded already, so this fails its load when the week plays again, or after a clear.",
-  "Loads now file under the clock's day. The week starts over under it, at 00:00, before the job is switched on. Press Run to watch it.",
+  'Wednesday’s next load will fail part way. Wednesday has loaded already, so this fails its load when the week plays again, or after a clear.',
+  'Loads now file under the clock’s day. The week starts over under it, at 00:00, before the job is switched on. Press Run to watch it.',
   'Stale-while-revalidate is off. The run starts over under it, at 2.500 s, before the menu expires. Press Run to watch it.',
-  "Worker 1 crashes holding orders 26, 27, 28 and 7 more, after order 26's ticket printed and before its acknowledgement left.",
+  'Worker 1 crashes holding orders 26, 27, 28 and 7 more, after order 26’s ticket printed and before its acknowledgement left.',
 ];
 
 const FLOWS: Record<keyof typeof LABS, Press[]> = {
@@ -589,6 +589,9 @@ for (const { phone, viewport } of PHONES) {
       (typeof LABS)[keyof typeof LABS],
     ][]) {
       test(`the ${name} lab`, async ({ page }) => {
+        // Eight presses with their waits, each long enough to catch a late move, and the link's: 20
+        // s of it is the check watching. That leaves under 10 s of the default limit for the work
+        // itself, and on a busy machine the queue lab's took more, with nothing having moved.
         test.setTimeout(60_000);
         await open(page, lab.path);
         expect(await play(page, FLOWS[name])).toEqual([]);
@@ -695,5 +698,31 @@ for (const { phone, viewport } of PHONES) {
       );
       expect(found).toEqual([]);
     });
+  });
+}
+
+// The top bar on an iPhone, in WebKit, at the widths phones have: one row, 56 px, so the first screen
+// doesn't lose 32 px to a second row with half of it empty (e2e/top-bar.spec.ts holds every width in
+// Chromium). 320 is an iPhone SE of the first generation, 375 a 13 mini or a later SE, 390 an iPhone
+// 14, and 360 most Androids.
+for (const width of [320, 360, 375, 390]) {
+  test(`at ${width} px the top bar is one row, 56 px tall`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.setViewportSize({ width, height: 664 });
+    await page.goto('/lab/');
+    await page.waitForFunction(() => 'palette' in document.documentElement.dataset);
+    const bar = await page.evaluate(() => {
+      const tile = document.querySelector('.wordmark-tile') as Element;
+      const box = (document.querySelector('.site-header') as Element).getBoundingClientRect();
+      return {
+        height: Math.round(box.height),
+        tools: [...document.querySelectorAll('.search-open, .motion-toggle, .theme-toggle')].map(
+          (tool) => Math.round(tool.getBoundingClientRect().height),
+        ),
+        tile: tile.getBoundingClientRect().left,
+        wide: document.documentElement.scrollWidth,
+      };
+    });
+    expect(bar).toEqual({ height: 56, tools: [44, 44, 44], tile: 18, wide: width });
   });
 }

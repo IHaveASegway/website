@@ -14,11 +14,12 @@ const { name, generated } = Astro.props;
 // The top bar (docs/design/overhaul.md, "Top nav"; ADR 0027), the same on every page and at every
 // width: it replaces the rail of ADR 0021. The wordmark links home, on Home too, where it is the
 // page itself; then the manifest's header items whose page exists (Lab, Writing, About); then the
-// tools: Search, which opens the command menu (components/Palette.astro), Home's motion button
-// while its scene runs (SC 2.2.2), and the theme toggle. One row, 56 px, at every width: on a phone
-// the wordmark is its tile and Search its glass, each still named in words for assistive
-// technology, so the three items stay in sight and nothing hides behind a menu button. The current
-// item is marked by a 2 px rule in the accent under it, and aria-current names it: the page
+// tools: Search, which opens the command menu (components/Palette.astro), the motion button
+// (SC 2.2.2; ADR 0030: every page holds it), and the theme toggle. One row, 56 px, at every width
+// down to a 320 px phone (e2e/top-bar.spec.ts): on a phone the wordmark is its tile and Search its
+// glass, each still named in words for assistive technology, so the three items stay in sight and
+// nothing hides behind a menu button. With a larger text size the nav takes a row of its own. The
+// current item is marked by a 2 px rule in the accent under it, and aria-current names it: the page
 // itself, or a page inside the section (/lab/routes/ marks Lab, a post marks Writing).
 const headerNav = navFor('header', generated);
 const here = Astro.url.pathname;

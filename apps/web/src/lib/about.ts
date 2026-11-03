@@ -1,5 +1,6 @@
 import { z } from 'astro/zod';
 import { asDay } from './posts';
+import { typeset } from './typeset.mjs';
 
 // /about/ (content.md, "About"): who Joseph is and how he works, then his résumé. Two sources, one
 // owner each: src/content/about.md holds the bio, his words, and profile.json holds every fact the
@@ -52,7 +53,7 @@ const plain = (text: string, where: string): string => {
   const flat = text.replace(/\s+/g, ' ').trim();
   if (UNREAD.test(flat))
     throw new Error(`about.md: Home reads plain text only, and ${where} holds markup: "${flat}"`);
-  return flat;
+  return typeset(flat);
 };
 
 /**
@@ -99,7 +100,7 @@ export function aboutParts(body: string): AboutParts {
 export const ABOUT_HEADINGS = {
   build: 'What I build',
   how: 'How I work',
-  toward: "What I'm working toward",
+  toward: 'What I’m working toward',
 } as const;
 
 /** The section under a heading, or undefined when the bio has none by that name. */
@@ -116,16 +117,6 @@ export function sectionOf(parts: AboutParts, heading: string): AboutSection | un
 export function openingSentence(paragraph: string): string {
   return /^.+?[.!?](?=\s+[A-Z])/.exec(paragraph)?.[0] ?? paragraph;
 }
-
-/** The demos the bio names, by their lab's slug: on Home the first mention of each opens its page,
- *  once the build writes it. */
-export const LAB_NAMES = [
-  { slug: 'routes', name: 'Route Lab' },
-  { slug: 'raft', name: 'Raft Lab' },
-  { slug: 'queue', name: 'Queue Lab' },
-  { slug: 'cache', name: 'Cache Lab' },
-  { slug: 'backfill', name: 'Backfill Lab' },
-] as const;
 
 /** A run of text, or of text that links somewhere. */
 export type Run = string | { readonly text: string; readonly href: string };

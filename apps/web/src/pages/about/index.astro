@@ -2,7 +2,7 @@
 import PostList from '../../components/PostList.astro';
 import WorkCard from '../../components/WorkCard.astro';
 import Base from '../../layouts/Base.astro';
-import { ABOUT_PATH, aboutParts, LAB_NAMES, withLinks } from '../../lib/about';
+import { ABOUT_PATH, aboutParts, withLinks } from '../../lib/about';
 import {
   loadAbout,
   loadLabArea,
@@ -11,7 +11,7 @@ import {
   loadWritingArea,
 } from '../../lib/content';
 import { profilePageGraph, serialize } from '../../lib/jsonld';
-import { labPath } from '../../lib/lab';
+import { LAB_NAMES, labPath } from '../../lib/lab';
 import { labelOf, navAll } from '../../lib/nav';
 import { aboutCard } from '../../lib/og';
 import { areaRoutes, SECTION_LABELS } from '../../lib/posts';
@@ -68,7 +68,7 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
 ---
 
 <Base
-  title={`${title} · ${name}`}
+  title={`${name} · ${title}`}
   description={`${name}, senior software engineer: what he builds, how he works and his skills. ${locationLine(profile)}.`}
   path={ABOUT_PATH}
   og={aboutCard(profile, title)}

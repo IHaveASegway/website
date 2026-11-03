@@ -51,7 +51,7 @@ One family, **Archivo** (Omnibus-Type, SIL OFL 1.1), across its width axis: widt
 | Label | Condensed SemiBold (wdth 75, wght 600) | `--font-label` | buttons, controls, keys, labels inside drawings, where room is short | `archivo-condensed-semibold.woff2`, 11,900 B | preloaded |
 | Text | Regular (wdth 100, wght 400) | `--font-sans` | reading | `archivo-regular.woff2`, 12,272 B | preloaded |
 | Strong | SemiBold (wdth 100, wght 600) | `--font-sans` at 600 | `<strong>` | `archivo-semibold.woff2`, about 11.4 kB | on demand |
-| Code | B612 Mono Regular | `--font-mono` | code and nothing else | `b612-mono-regular.woff2`, 12,084 B | only on a page with code |
+| Code | JetBrains Mono Regular (B612 Mono until 2026-11-02; ADR 0029, postscript) | `--font-mono` | code and nothing else | `jetbrains-mono-regular.woff2`, 8,436 B | only on a page with code |
 
 Preloaded on every page: 48,244 B of the 70,000 B budget. The label face matches the old Barlow Semi Condensed's width on the labs' own words (0.394 em a letter against 0.419), so the labs' controls keep their rows.
 
@@ -88,13 +88,13 @@ desktop, 56 px, white sheet, hairline under
 │ ◆ Joseph Peterson    Lab   Writing   About             [⌕ Search      ⌘K]  ◐   │
 │                      ═══ (2 px cobalt under the current section)                │
 └────────────────────────────────────────────────────────────────────────────────┘
-phone (390), one row, 56 px
+phone (320 and up), one row, 56 px
 ┌──────────────────────────────────────┐
 │ ◆   Lab  Writing  About      ⌕    ◐  │
 └──────────────────────────────────────┘
 ```
 
-Classes: `.masthead` (the full-width band: `--surface-1`, hairline under), `.skip-link`, `.site-header` (flex row, wraps only when it must), `.wordmark` (`.wordmark-tile`, a cobalt rhombus, the drawing's ground tile; `.wordmark-name`, hidden on screen below 40rem and still read), `.site-nav` (each item one link; `[aria-current]` gets the 2 px cobalt `::after` on the bar's edge), `.header-tools` (`.palette-item` > `.search-open` with `.search-glass`, `.search-word` and `Keys`; `.motion-item` on Home while its scene exists; `ThemeToggle`). Search opens the existing command menu (`components/Palette.astro`); it shows once the script binds it, on every width; its keys only where a fine pointer can hover. Never fixed to the window.
+Classes: `.masthead` (the full-width band: `--surface-1`, hairline under), `.skip-link`, `.site-header` (flex row, wraps only with a larger text size), `.wordmark` (`.wordmark-tile`, a cobalt rhombus, the drawing's ground tile; `.wordmark-name`, hidden on screen below 40rem and still read), `.site-nav` (each item one link; `[aria-current]` gets the 2 px cobalt `::after` on the bar's edge), `.header-tools` (`.palette-item` > `.search-open` with `.search-glass`, `.search-word` and `Keys`; `.motion-item` on every page, ADR 0030; `ThemeToggle`). Search opens the existing command menu (`components/Palette.astro`); it shows once the script binds it, on every width; its keys only where a fine pointer can hover. Never fixed to the window.
 
 ### Footer (built): `components/Footer.astro`
 
@@ -128,8 +128,8 @@ White sheet on the paper, a hairline edge, 8 px corners, no shadow. Title in dis
 - **The isometric drawing** (`components/iso/System.astro`, `.iso`): see 6.
 - **Stats row** (`.stats`, `.stat`, `.stat-figure`, `.stat-caption`): a `<dl>` of four cells on `--ground`, hairlines between cells, a figure in display at `title`, its caption in wide at `label` under it. Two cells a row below 48rem. Every figure derived at build from its system of record, never typed: the live labs (`lib/lab.ts`), the seeded runs a pull request checks (the labs' sweeps), the decision records (`docs/adr/`), the posts (`lib/posts.ts`). No "+" or star glyph after a figure.
 - **Decision log** (`.decisions`): his answer to syntaqx's activity heatmap, from data he owns: each ADR a tick on a date axis, its number and title on hover and focus, the latest five listed under it with their dates. Built at build time from `docs/adr/*.md` front lines. No commit heatmap: it would be a second owner of git history and says nothing about judgment.
-- **Lab cards** (`.lab-cards`, `.lab-card`): the five labs as tool cards, two or three a row, each with its glyph cut from the drawing (`.iso-glyph`, in its lab's colour), its title, its summary and one fact from its build. The whole card is its link.
-- **Writing list** (`.post-list`, `.post-row`, `.post-date`, `.post-title`, `.post-summary`, `.post-kind`): a dated list as syntaqx's, three columns from 48rem: the date in wide at `label` (`31 Oct 2026`), the title in display at `headline` with its summary under it, the kind at the row's end. A hairline above each row; the row is its title's link; the 2 px cobalt sweep along its top on hover is the one motion.
+- **Lab cards** (`.lab-cards`, `.lab-card`): the five labs as tool cards, two or three a row, in the order a visitor meets them, easiest to follow first (`LAB_NAMES`, `lib/lab.ts`; since 2026-11-02, by slug before), each with its glyph cut from the drawing (`.iso-glyph`, in its lab's colour) under the short name Home and About call it by (`.lab-name`), its title, its summary and one fact from its build. The whole card is its link.
+- **Writing list** (`.post-list`, `.post-row`, `.post-date`, `.post-title`, `.post-summary`, `.post-kind`): a dated list as syntaqx's, three columns from 48rem: the date in wide at `label` (`Oct 31, 2026`), the title in display at `headline` with its summary under it, the kind at the row's end. A hairline above each row; the row is its title's link; the 2 px cobalt sweep along its top on hover is the one motion.
 
 ## 6. The isometric drawing
 
@@ -185,7 +185,7 @@ How I work (the bio's principles, two columns from 64rem)
 
 **/lab/**: the page head (title "Lab", lead), then the five lab cards, larger: the glyph across the card's top, the title, the summary, one fact, two a row from 64rem.
 
-**A lab's page chrome**: a breadcrumb-free head (the nav marks Lab): the title in display at `title`, the lead, then the demo on a desk (`.desk`: `--surface-1`, hairline edge, `--radius-lg`), then the write-up in a reading column with the register beside it from 64rem. The lab's colour appears only inside its drawing. Each lab keeps its controls' words and its steady-on-a-phone tests.
+**A lab's page chrome**: a breadcrumb-free head (the nav marks Lab): the title in display at `title`, the lead, opening on the lab's short name (`.lab-head-name`), then the demo on a desk (`.desk`: `--surface-1`, hairline edge, `--radius-lg`), then the write-up in a reading column with the register beside it from 64rem. The lab's colour appears only inside its drawing. Each lab keeps its controls' words and its steady-on-a-phone tests.
 
 ```
 [top nav, Lab marked]
@@ -200,11 +200,11 @@ How it works (prose, measure)      │ register (from 64rem)
 
 **/writing/**: the head, then the dated writing list (above), RSS feed at its foot.
 
-**A post**: the title at `title`, the date and kind under it in wide at `label`, the body at `base` in the measure, the register beside from 64rem; code in B612 Mono on `--surface-2`.
+**A post**: the title at `title`, the date and kind under it in wide at `label`, the body at `base` in the measure, the register beside from 64rem; code in JetBrains Mono on `--surface-2`.
 
 **/about/**: brittanychiang's two columns from 64rem: the left sticky (the name at `title`, the role, the addresses as `.kv`, Print), the right scrolling (the bio's blocks, the roles, the skills, the work cards). It still prints on one US Letter page (`e2e/about-print.spec.ts`).
 
-**404**: the drawing with one solid missing and its place drawn dashed, the existing words ("Page not found", "There is no page at this address.") beside it, and "Go to the home page" as the primary button. The old buffer-stop line (`.line-end`) and About's wheels (`.ground`) go with the signal box.
+**404**: the drawing with one solid missing and its place drawn dashed, the existing words ("Page not found", "There is no page at this address.") beside it from 64rem and over it below, and "Go to the home page" as the primary button. The old buffer-stop line (`.line-end`) and About's wheels (`.ground`) go with the signal box.
 
 ```
 [top nav]

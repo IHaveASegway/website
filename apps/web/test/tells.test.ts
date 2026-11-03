@@ -669,8 +669,8 @@ describe('mono sets code and nothing else', () => {
       .prose code { font-family: var(--font-mono); font-size: 0.84em; }
       .prose :not(pre) > code, .prose pre code { font-family: var(--font-mono); }
       code,kbd,samp,pre{font-family:var(--default-mono-font-family,ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace)}
-      @font-face { font-family: 'B612 Mono Fallback Menlo'; src: local('Menlo'); }
-      @theme { --font-mono: var(--font-b612-mono, var(--font-mono-fallbacks)), var(--font-mono-fallbacks); }
+      @font-face { font-family: 'JetBrains Mono Fallback Menlo'; src: local('Menlo'); }
+      @theme { --font-mono: var(--font-jetbrains-mono, var(--font-mono-fallbacks)), var(--font-mono-fallbacks); }
       .rail-search kbd { font-family: var(--font-label); }`;
     expect(monoOutsideCode(system, 's.css')).toEqual([]);
   });

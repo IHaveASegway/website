@@ -424,8 +424,8 @@ export const lineTime = (at: number): string =>
 
 /** "Mon 19": a day as the run board's rows name it. */
 export function shortDay(day: number): string {
-  const [name = '', date = ''] = dayText(day).split(' ');
-  return `${name.slice(0, 3)} ${date}`;
+  const words = dayText(day).split(' ');
+  return `${(words[0] ?? '').slice(0, 3)} ${words.at(-1) ?? ''}`;
 }
 
 /** A lamp's shape (ADR 0025: state is a shape and a word): not started, running, succeeded, failed,
@@ -442,7 +442,7 @@ export interface StepView {
 
 export interface DayView {
   readonly day: number;
-  /** "Mon 19", and "Monday 19 October". */
+  /** "Mon 19", and "Monday, October 19". */
   readonly short: string;
   readonly long: string;
   /** The run's state in a word; empty while the graph is off and the day has no run. */

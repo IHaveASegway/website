@@ -23,7 +23,7 @@ async function measure(page: Page, fonts: Fonts) {
   const faces = await page.evaluate(() =>
     [...document.fonts]
       .filter((face) =>
-        /^(Archivo|Archivo Display|Archivo Wide|Archivo Label|B612 Mono)-[0-9a-f]+$/.test(
+        /^(Archivo|Archivo Display|Archivo Wide|Archivo Label|JetBrains Mono)-[0-9a-f]+$/.test(
           face.family.replace(/"/g, ''),
         ),
       )

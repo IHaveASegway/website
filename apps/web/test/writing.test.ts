@@ -17,16 +17,15 @@ import {
   postLabel,
   postsBase,
   readingMinutes,
-  shortDay,
   TAGS,
   tagWords,
-  typeset,
   wordDay,
   writingArea,
   type Post,
   type PostPage,
 } from '../src/lib/posts';
-import { app, dist, files as distFiles, filesIn, kindOf } from './support/dist';
+import { typeset } from '../src/lib/typeset.mjs';
+import { app, dist, files as distFiles, filesIn, html, kindOf, read } from './support/dist';
 import { frontMatter, indirection, valueNode } from './support/front-matter';
 
 // Writing (roadmap.md, PR 5): the rules in lib/posts.ts with known answers, then the test-only
@@ -132,10 +131,23 @@ describe(`the ${MIN_POSTS}-post rule (content.md, "Sitemap and phases")`, () => 
 
   // A day in words in a page's register and a list's line (ADR 0025), from the UTC date, whatever
   // the build machine's zone; the datetime beside it stays ISO.
-  test('a day reads as words: "25 October 2026", and a single-digit day has no leading zero', () => {
-    expect(wordDay(day('2026-10-25'))).toBe('25 October 2026');
-    expect(wordDay(day('2026-01-05'))).toBe('5 January 2026');
-    expect(wordDay(day('2027-12-31'))).toBe('31 December 2027');
+  test('a day reads the same on every page: "Oct 25, 2026", and a single-digit day has no leading zero', () => {
+    expect(wordDay(day('2026-10-25'))).toBe('Oct 25, 2026');
+    expect(wordDay(day('2026-01-05'))).toBe('Jan 5, 2026');
+    expect(wordDay(day('2027-12-31'))).toBe('Dec 31, 2027');
+    expect(wordDay(day('2026-09-09'))).toBe('Sep 9, 2026');
+  });
+
+  // Every date a page shows, on every page of every build: the writing list and a post's register
+  // were two formats until 2026-11-02, both day-first on a site written in US English.
+  test('every <time> in the build reads as wordDay does, its datetime the same day', () => {
+    const times = html.flatMap((file) =>
+      [...read(file).matchAll(/<time\b[^>]*\bdatetime="([^"]+)"[^>]*>([^<]*)<\/time>/g)].map(
+        ([, datetime = '', words = '']) => ({ file, datetime, words }),
+      ),
+    );
+    for (const { file, datetime, words } of times)
+      expect(words, `${file}: ${datetime}`).toBe(wordDay(day(datetime)));
   });
 
   test("a post's tags read as words: the first capitalized, proper nouns kept", () => {
@@ -877,14 +889,8 @@ describe('typeset: front matter gets the quotes the Markdown body gets', () => {
   });
 });
 
-// The dated list's day and a post's reading time (ADR 0027, "Writing list"; lib/posts.ts).
-describe("shortDay and readingMinutes: the list's day and a post's minutes", () => {
-  test('known answers: the day with its month cut to three letters, from the UTC date', () => {
-    expect(shortDay(day('2026-10-31'))).toBe('31 Oct 2026');
-    expect(shortDay(day('2027-01-05'))).toBe('5 Jan 2027');
-    expect(shortDay(day('2026-09-09'))).toBe('9 Sep 2026');
-  });
-
+// A post's reading time (ADR 0027, "Writing list"; lib/posts.ts).
+describe("readingMinutes: a post's minutes", () => {
   test('known answers: words over 220 a minute, rounded up, one at least', () => {
     const words = (n: number) => Array.from({ length: n }, () => 'word').join(' ');
     expect(readingMinutes('')).toBe(1);

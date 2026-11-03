@@ -37,6 +37,7 @@ import {
   summary,
   switchWords,
 } from '../../lib/backfill/view';
+import { curled } from '../../lib/typeset.mjs';
 
 // The Backfill Lab in the browser (ADR 0026, as ADR 0020 for the Raft Lab): the simulation, run in
 // virtual minutes and redrawn on every frame while it runs. It takes over the same opening the build
@@ -78,7 +79,8 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   const stray = $<HTMLElement>('[data-bf-stray]');
   const rows = [...root.querySelectorAll('[data-bf-day]')];
   const set = (element: Element | null | undefined, value: string) => {
-    if (element && element.textContent !== value) element.textContent = value;
+    const words = curled(value);
+    if (element && element.textContent !== words) element.textContent = words;
   };
   const mark = (element: Element | null | undefined, name: string, value: string) => {
     if (element && element.getAttribute(name) !== value) element.setAttribute(name, value);

@@ -35,11 +35,17 @@ const { profile, generated, demos, posts, print = false } = Astro.props;
 // elsewhere on the page, in the nav, the toggle or the footer: the menu is a shortcut, never the
 // only way in (content.md, "Sitemap and phases"). The page's own text is all it shows: what a
 // visitor types narrows the rows and is never written back (security.md, "Threat model").
+// What a visitor may call a page, beside its name: the site's own words first (essay, lab, ADR), then
+// the words other sites use for the same thing. Home holds the count of decision records, until
+// /colophon/ holds the records, and its keywords hold the site's two terms for them as they're
+// written (content.md, "The site's language"), since a row's keywords also count together, whole.
+// About is where the résumé prints, so from any other page "print" and "pdf" find it, and on /about/
+// itself they're left to the row that presses Print.
 const KEYWORDS: Readonly<Record<string, string>> = {
-  home: 'start',
-  lab: 'demos',
-  writing: 'posts articles',
-  about: 'bio resume cv experience',
+  home: 'start adrs written decisions decision records',
+  lab: 'labs demos projects work',
+  writing: 'essays blog rss feed posts articles',
+  about: `bio resume cv experience skills${print ? '' : ' print pdf'}`,
   colophon: 'decisions',
 };
 const pages = [
@@ -56,20 +62,25 @@ const found = [
 ---
 
 <dialog class="palette" data-palette aria-label="Command menu">
-  <input
-    class="palette-input"
-    type="text"
-    role="combobox"
-    aria-label="Find a page or an action"
-    aria-expanded="true"
-    aria-controls="palette-list"
-    aria-autocomplete="list"
-    autocomplete="off"
-    spellcheck="false"
-    autocapitalize="none"
-    enterkeyhint="go"
-    placeholder="Find a page or an action"
-  />
+  <div class="palette-bar">
+    <input
+      class="palette-input"
+      type="text"
+      role="combobox"
+      aria-label="Find a page or an action"
+      aria-expanded="true"
+      aria-controls="palette-list"
+      aria-autocomplete="list"
+      autocomplete="off"
+      spellcheck="false"
+      autocapitalize="none"
+      enterkeyhint="go"
+      placeholder="Find a page or an action"
+    />
+    <button type="button" class="palette-close" data-palette-close>
+      Close
+    </button>
+  </div>
   <div
     class="palette-list"
     id="palette-list"

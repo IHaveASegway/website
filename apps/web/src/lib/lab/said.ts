@@ -6,6 +6,8 @@
 // a press has nothing to say, a line says what its controls do. Until 2026-11-02 the words reached
 // only a screen reader, and sighted visitors got buttons that looked dead.
 
+import { curled } from '../typeset.mjs';
+
 /** The most characters the line on the screen says, which its room holds at the narrowest phone
  *  (lab-controls.css, .lab-said; e2e/steady.spec.ts). */
 export const SAID_ROOM = 140;
@@ -37,11 +39,11 @@ export type Say = (words: string, control?: Element | null, short?: string) => v
 export function speaker(root: Element, live: Element | null): Say {
   const lines = [...root.querySelectorAll<HTMLElement>('[data-said]')];
   return (words, control, short = shortly(words)) => {
-    if (live) live.textContent = words;
+    if (live) live.textContent = curled(words);
     const here = control?.closest('[data-part]')?.querySelector('[data-said]') ?? lines[0];
     for (const line of lines) {
       const spoke = line === here && short !== '';
-      line.textContent = spoke ? short : (line.dataset['said'] ?? '');
+      line.textContent = curled(spoke ? short : (line.dataset['said'] ?? ''));
       line.toggleAttribute('data-spoke', spoke);
     }
   };

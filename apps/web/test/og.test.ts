@@ -1,15 +1,23 @@
+import sharp from 'sharp';
 import { describe, expect, test } from 'vitest';
 import {
+  cardTree,
   drawnStrings,
   homeCard,
+  ogSvg,
   ogTree,
   OG_SIZE,
   renderOg,
   titleSize,
+  wordWidth,
   type OgArt,
   type OgCard,
+  type OgNode,
 } from '../src/lib/og';
-import { boardArt, demoArt, OG_BOARD, OG_LINE } from '../src/lib/og-lines';
+import { clusterBox, homeArt, labIndexArt, OG_GLYPHS } from '../src/lib/og-art';
+import { byLabOrder } from '../src/lib/lab';
+import { demoArt, OG_LINE } from '../src/lib/og-lines';
+import { openingServers } from '../src/lib/orbit';
 import { demoPicture } from '../src/lib/route-lab/og-map';
 import tokensCss from '../src/styles/tokens.css?raw';
 import { hex, themeColors } from '../src/lib/tokens';
@@ -24,16 +32,17 @@ function meta(page: string, key: string): string | undefined {
   return new RegExp(`<meta (?:property|name)="${key}" content="([^"]*)">`).exec(page)?.[1];
 }
 
-/** The labs this build holds, in the board's order (lib/lab.ts sorts them by slug). */
+/** The labs this build holds, in the order they're met (lib/lab.ts). */
 const labs = files
   .map((file) => /^lab\/([a-z0-9-]+)\/index\.html$/.exec(file)?.[1])
   .filter((slug) => slug !== undefined)
-  .sort((a, b) => a.localeCompare(b));
+  .sort(byLabOrder);
 
-/** What a page's card carries besides its strings, as its og.png endpoint draws it: Home and the
- *  Lab index carry the board, a demo its own picture and colour, any other page nothing. */
+/** What a page's card carries besides its strings, as its og.png endpoint draws it: Home its
+ *  cluster, the Lab index its glyphs, a lab its own picture and colour, any other page nothing. */
 async function artFor(file: string): Promise<OgArt> {
-  if (file === 'index.html' || file === 'lab/index.html') return boardArt(labs, app);
+  if (file === 'index.html') return homeArt(labs);
+  if (file === 'lab/index.html') return labIndexArt(labs);
   const demo = /^lab\/([a-z0-9-]+)\/index\.html$/.exec(file)?.[1];
   return demo ? demoArt(demo, app) : {};
 }
@@ -122,8 +131,8 @@ for (const file of previewed) {
       card,
       'og:title and og:image:alt must be "title · label" and "title, label", or a post\'s "title" and "title, by label"',
     ).not.toBeNull();
-    // A demo's card, Home's and the Lab index's also carry a picture, which draws no word
-    // (lib/route-lab/og-map.ts, lib/og-lines.ts).
+    // A lab's card, Home's and the Lab index's also carry a picture, which draws no word
+    // (lib/route-lab/og-map.ts, lib/og-lines.ts, lib/og-art.ts).
     expect((await renderOg(card as OgCard, await artFor(file))).equals(bytes(png))).toBe(true);
     expect(meta(page, 'og:type')).toBe(
       /^(writing|notes)\/[a-z0-9-]+\//.test(file) ? 'article' : 'website',
@@ -141,7 +150,48 @@ test("the Route Lab's card carries its map, which draws no string, at the card's
   expect(demoPicture('another', app)).toBeUndefined();
 });
 
-test("each lab's card carries its line in its own colour, and Home's every line", async () => {
+// The page is the water on every map (design-system.md, "Map colors"), and on a card the page is the
+// field. Painted in the page's colour, the map stood on the field as a flat panel: the grid stopped
+// dead along its straight left edge. The sound runs out across that edge, so a clear water leaves
+// nothing there to see.
+describe("the Route Lab's card has no edge where its map starts", () => {
+  /** How many pixels down a picture's left edge something is drawn. */
+  async function drawnDownItsLeftEdge(png: Buffer): Promise<number> {
+    const { data, info } = await sharp(png)
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    let drawn = 0;
+    for (let y = 0; y < info.height; y += 1)
+      if ((data[y * info.width * info.channels + 3] ?? 0) > 0) drawn += 1;
+    return drawn;
+  }
+
+  test('its water is clear, so the field runs through it, and its land is not', async () => {
+    const picture = await demoPicture('routes', app);
+    if (!picture) throw new Error('the Route Lab has no picture');
+    expect(await drawnDownItsLeftEdge(picture)).toBe(0);
+    const { data, info } = await sharp(picture).raw().toBuffer({ resolveWithObject: true });
+    const pixels = data.length / info.channels;
+    let opaque = 0;
+    for (let at = info.channels - 1; at < data.length; at += info.channels)
+      if (data[at] === 255) opaque += 1;
+    // A map, not a few lines: land and water each take a good part of it.
+    expect(opaque / pixels).toBeGreaterThan(0.3);
+    expect(opaque / pixels).toBeLessThan(0.8);
+  });
+
+  test('known answer: a picture painted to its edge is what this finds', async () => {
+    const painted = await sharp({
+      create: { width: 4, height: 6, channels: 4, background: { r: 9, g: 12, b: 18, alpha: 1 } },
+    })
+      .png()
+      .toBuffer();
+    expect(await drawnDownItsLeftEdge(painted)).toBe(6);
+  });
+});
+
+test("each lab's card carries its line in its own colour", async () => {
   const night = themeColors(tokensCss, 'dark');
   for (const slug of labs) {
     const art = await demoArt(slug, app);
@@ -154,29 +204,17 @@ test("each lab's card carries its line in its own colour, and Home's every line"
     const width = picture.readUInt32BE(16);
     if (slug !== 'routes') expect(width, slug).toBe(OG_LINE.width);
   }
-  const board = (await boardArt(labs, app)).picture;
-  if (labs.length === 0) expect(board).toBeUndefined();
-  else
-    expect([board?.readUInt32BE(16), board?.readUInt32BE(20)]).toEqual([
-      OG_BOARD.width,
-      OG_BOARD.height,
-    ]);
   // A lab's colour differs from --primary, so the lamp is not the plain one by chance.
   for (const slug of labs)
     expect(hex(night.get(`line-${slug}`)!)).not.toBe(hex(night.get('primary')!));
 });
 
-test('a picture across the top leaves the words their room, and draws no string', () => {
+test('a picture across the top draws no string', () => {
   const colors = { background: '', foreground: '', muted: '', accent: '' };
-  for (const box of [OG_LINE, OG_BOARD]) {
+  for (const box of [OG_LINE, OG_GLYPHS]) {
     const tree = ogTree({ title: 'A', label: 'B' }, colors, { src: 'x', ...box });
     expect(drawnStrings(tree)).toEqual(['A', 'B']);
   }
-  // Under a line, the longest title a card draws: three lines at 80 px, the label at 44 px, the
-  // gap between them and the bottom padding (lib/og.ts).
-  expect(OG_LINE.height + 3 * 80 * 0.95 + 28 + 44 * 1.2 + 72).toBeLessThanOrEqual(OG_SIZE.height);
-  // Under the board, Home's name and the Lab index's title, one line at 150 px.
-  expect(OG_BOARD.height + 150 * 0.95 + 28 + 44 * 1.2 + 72).toBeLessThanOrEqual(OG_SIZE.height);
 });
 
 test('known answers: a card is read back from its two strings, whatever they hold', () => {
@@ -196,6 +234,241 @@ test("a title's size steps down with its length, so the longest title still fits
   expect(titleSize('x'.repeat(40))).toBe(84);
   expect(titleSize('x'.repeat(41))).toBe(72);
   expect(titleSize('x'.repeat(70))).toBe(72);
+});
+
+// A title wraps only between its words (Cache Lab's card read "Stamped / e a cache" on 2026-11-02).
+// Satori with embedFont false leaves its text as <text> runs, each with its place and width, so the
+// lines it chose can be read back. Pixels could not be scanned for this, and a byte comparison with
+// a redraw says nothing about what the redraw looks like.
+interface TitleRun {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly text: string;
+}
+
+/** The runs of a card's SVG drawn at the title's size: the label's size is another, 44 px. */
+function titleRuns(svg: string, size: number): TitleRun[] {
+  return [...svg.matchAll(/<text\b([^>]*)>([^<]*)<\/text>/g)].flatMap(
+    ([, attributes = '', text = '']) => {
+      const read = (name: string) =>
+        Number(new RegExp(`\\b${name}="([\\d.]+)"`).exec(attributes)?.[1] ?? NaN);
+      return read('font-size') === size
+        ? [{ x: read('x'), y: read('y'), width: read('width'), text: decode(text) }]
+        : [];
+    },
+  );
+}
+
+/** The lines those runs make, top to bottom, each run left to right. */
+function linesOf(runs: readonly TitleRun[]): string[] {
+  const rows = [...new Set(runs.map((run) => run.y))].sort((a, b) => a - b);
+  return rows.map((y) =>
+    runs
+      .filter((run) => run.y === y)
+      .sort((a, b) => a.x - b.x)
+      .map((run) => run.text)
+      .join('')
+      .trim(),
+  );
+}
+
+/** What's wrong with how a title was wrapped: a word cut across lines, or a run past the card's
+ *  margin. */
+function wrapProblems(title: string, runs: readonly TitleRun[], end: number): string[] {
+  const lines = linesOf(runs);
+  // A line may end at a space, or after a hyphen, where any browser would break it too.
+  const joined = (text: string) => text.replace(/-\s+/g, '-');
+  return [
+    ...(joined(lines.join(' ')) === joined(title)
+      ? []
+      : [`"${title}" wraps as ${JSON.stringify(lines)}`]),
+    ...runs
+      .filter((run) => run.x + run.width > end + 0.5)
+      .map((run) => `"${run.text}" runs past x = ${end}`),
+  ];
+}
+
+/** Where a card's title has to stop: its right margin, or the map's edge less that margin. */
+const rightEdge = (art: OgArt) => {
+  const width = art.picture?.readUInt32BE(16);
+  return (
+    (width === undefined || width === OG_SIZE.width ? OG_SIZE.width : OG_SIZE.width - width) - 72
+  );
+};
+
+for (const file of previewed) {
+  test(`${file}: its card's title wraps only between its words`, async () => {
+    const page = read(file);
+    const card = cardFrom(
+      decode(meta(page, 'og:title') ?? ''),
+      decode(meta(page, 'og:image:alt') ?? ''),
+    ) as OgCard;
+    const art = await artFor(file);
+    const size = titleSize(card.title);
+    const runs = titleRuns(await ogSvg(cardTree(card, art), false), size);
+    expect(wrapProblems(card.title, runs, rightEdge(art))).toEqual([]);
+    // Under a picture across the top, its lines, the gap, the label and the margin fit what's left.
+    const across = art.picture?.readUInt32BE(16) === OG_SIZE.width;
+    const above = across ? (art.picture?.readUInt32BE(20) ?? 0) : 0;
+    const words = linesOf(runs).length * size * 1.06 + 28 + 44 * 1.2 + 72;
+    expect(above + words, 'the words fit under the picture').toBeLessThanOrEqual(OG_SIZE.height);
+  });
+}
+
+/** How many of a PNG's pixels hold a colour away from the accent: a pixel counts once its strongest
+ *  channel is 40 of 255 over its weakest, which the page's near-black, its white and its greys don't
+ *  reach, and its hue is more than 20 degrees from the accent's. */
+async function offAccent(png: Buffer): Promise<number> {
+  const hueOf = (r: number, g: number, b: number) => {
+    const [top, chroma] = [Math.max(r, g, b), Math.max(r, g, b) - Math.min(r, g, b)];
+    const turn =
+      top === r
+        ? ((g - b) / chroma + 6) % 6
+        : top === g
+          ? (b - r) / chroma + 2
+          : (r - g) / chroma + 4;
+    return turn * 60;
+  };
+  const accent = /^#(..)(..)(..)$/.exec(hex(themeColors(tokensCss, 'dark').get('primary')!)) ?? [];
+  const [r, g, b] = accent.slice(1).map((pair) => Number.parseInt(pair, 16)) as [
+    number,
+    number,
+    number,
+  ];
+  const wanted = hueOf(r, g, b);
+  const { data, info } = await sharp(png).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  let off = 0;
+  for (let at = 0; at < data.length; at += info.channels) {
+    const [red, green, blue] = [data[at] ?? 0, data[at + 1] ?? 0, data[at + 2] ?? 0];
+    if (Math.max(red, green, blue) - Math.min(red, green, blue) < 40) continue;
+    const apart = Math.abs(hueOf(red, green, blue) - wanted);
+    if (Math.min(apart, 360 - apart) > 20) off += 1;
+  }
+  return off;
+}
+
+describe("Home's card looks like the page it opens (ADR 0029)", () => {
+  test("black and white and one accent: no lab's colour on it", async () => {
+    expect(await offAccent(bytes('og.png'))).toBe(0);
+  });
+
+  test('known answer: a colour off the accent is counted, pixel by pixel', async () => {
+    const page = { r: 9, g: 12, b: 18 };
+    const blank = sharp({ create: { width: 10, height: 10, channels: 3, background: page } });
+    expect(await offAccent(await blank.clone().png().toBuffer())).toBe(0);
+    const orange = await sharp({
+      create: { width: 3, height: 2, channels: 3, background: { r: 249, g: 124, b: 61 } },
+    })
+      .png()
+      .toBuffer();
+    const marked = await blank
+      .clone()
+      .composite([{ input: orange, left: 0, top: 0 }])
+      .png()
+      .toBuffer();
+    expect(await offAccent(marked)).toBe(6);
+  });
+
+  // Where a build has the cluster, the card sets the name as the hero does, and clear of it.
+  test.runIf(labs.includes('raft'))(
+    'the name stands in two lines, clear of the cluster',
+    async () => {
+      const card = homeCard(profile);
+      const svg = await ogSvg(cardTree(card, await homeArt(labs)), false);
+      const runs = titleRuns(svg, titleSize(card.title));
+      expect(linesOf(runs)).toEqual(card.title.split(' '));
+      const box = clusterBox(openingServers());
+      expect(Math.max(...runs.map((run) => run.x + run.width))).toBeLessThan(box.left);
+      expect(box.right).toBeLessThan(OG_SIZE.width);
+      expect(box.top).toBeGreaterThan(0);
+      // The label stands at the card's foot, under the cluster: its line starts below it.
+      expect(box.bottom).toBeLessThan(OG_SIZE.height - 72 - 44 * 1.2);
+    },
+  );
+});
+
+describe('known answers: a title wraps between its words, whatever its size', () => {
+  const line = { width: OG_LINE.width, height: OG_LINE.height };
+  const stripe = sharp({
+    create: { ...line, channels: 3, background: { r: 0, g: 0, b: 0 } },
+  })
+    .png()
+    .toBuffer();
+
+  /** The lines a title draws in, with no picture or with one across the top. */
+  async function drawn(title: string, picture?: Buffer) {
+    const art = { picture };
+    const size = titleSize(title);
+    const runs = titleRuns(await ogSvg(cardTree({ title, label: 'Lab' }, art), false), size);
+    return { lines: linesOf(runs), problems: wrapProblems(title, runs, rightEdge(art)) };
+  }
+
+  // Exactly 16 characters and over a line at 100 px, so it wraps, and "Stampede" is over half a line.
+  test('the title that broke, under its line', async () => {
+    expect(await drawn('Stampede a cache', await stripe)).toEqual({
+      lines: ['Stampede', 'a cache'],
+      problems: [],
+    });
+  });
+
+  // The verifier's list on 2026-11-02: each broke at its own size under a rule of title length.
+  for (const title of [
+    'Swamped workers',
+    'Momentum waves',
+    'Backpressure and retries',
+    'Implementation details',
+    'Misconfiguration at scale',
+  ])
+    test(title, async () => expect((await drawn(title)).problems).toEqual([]));
+
+  // A word wider than the line still has to stay on the card: this one breaks.
+  test('a word wider than the line breaks, and stays on the card', async () => {
+    const title = 'a_long_identifier_that_is_much_wider_than_any_line_of_the_card';
+    expect(wordWidth(title, titleSize(title))).toBeGreaterThan(1056);
+    const { lines, problems } = await drawn(title);
+    expect(lines.length).toBeGreaterThan(1);
+    expect(lines.join('')).toBe(title);
+    expect(problems.filter((problem) => problem.includes('runs past'))).toEqual([]);
+  });
+
+  // The measure is the title's own column. This word fits a card with nothing beside it, and is
+  // wider than the column the Route Lab's map leaves.
+  test('a word that fits the card can still be wider than the column a map leaves it', async () => {
+    const title = 'Internationalization';
+    const size = titleSize(title);
+    const width = wordWidth(title, size);
+    expect(width).toBeLessThan(1056);
+    expect(width).toBeGreaterThan(OG_SIZE.width - 491 - 144);
+    const colors = { background: '', foreground: '', muted: '', accent: '' };
+    const style = (tree: OgNode) => JSON.stringify(tree);
+    expect(style(ogTree({ title, label: 'B' }, colors))).not.toContain('break-word');
+    expect(
+      style(ogTree({ title, label: 'B' }, colors, { src: 'x', width: 491, height: 630 })),
+    ).toContain('break-word');
+  });
+
+  // The checker catches the fault it is here for: the same tree with breaking left on, as it was.
+  test('with breaking always on, the cut word is what the check finds', async () => {
+    const title = 'Stampede a cache';
+    const tree = cardTree({ title, label: 'Lab' }, { picture: await stripe });
+    const withBreaking = JSON.parse(
+      JSON.stringify(tree).replace(
+        '"textWrap":"balance"',
+        '"textWrap":"balance","wordBreak":"break-word"',
+      ),
+    ) as OgNode;
+    const runs = titleRuns(await ogSvg(withBreaking, false), titleSize(title));
+    expect(linesOf(runs)).toEqual(['Stamped', 'e a cache']);
+    expect(wrapProblems(title, runs, 1128)).toEqual([
+      '"Stampede a cache" wraps as ["Stamped","e a cache"]',
+    ]);
+  });
+
+  test('a run past the margin is reported too', () => {
+    const run = { x: 1000, y: 10, width: 200, text: 'Long' };
+    expect(wrapProblems('Long', [run], 1128)).toEqual(['"Long" runs past x = 1128']);
+  });
 });
 
 test('pages without a canonical URL (the 404) carry no preview tags', () => {

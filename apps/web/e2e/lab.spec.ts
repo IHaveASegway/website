@@ -526,7 +526,7 @@ test('on a slow phone the page does not shift when the demo’s script arrives',
 });
 
 // A load that fails is not kept (boot.ts): the route data's request is dropped once, the page says
-// the demo did not load and leaves the maps on the day it opened with, and the next change loads
+// the lab did not load and leaves the maps on the day it opened with, and the next change loads
 // and plans. Before 2026-10-25 the failure was cached, and only a reload recovered.
 test('a demo that failed to load tries again on the next change, and then plans', async ({
   page,
@@ -539,7 +539,7 @@ test('a demo that failed to load tries again on the next change, and then plans'
   await page.goto(ROUTE_LAB);
   await page.check('input[name="rl-day"][value="quiet"]');
   await expect(status(page)).toHaveText(
-    'The demo did not load, so the maps still show the day it opened with. Change anything to try again.',
+    'The lab did not load, so the maps still show the day it opened with. Change anything to try again.',
   );
   await page.check('input[name="rl-vans"][value="2"]');
   await expect(status(page)).toHaveText(PLANNED, { timeout: 20_000 });

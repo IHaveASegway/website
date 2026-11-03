@@ -11,7 +11,9 @@ import { isRound, vanClass } from './render';
 // data and the same solve as the page's own maps (lib/og.ts). It draws no word: no label, no
 // number, so the card's only text is still its title and its label, which the page's og:title and
 // og:image:alt carry and every text scan reads. The colors are the dark theme's tokens, as the
-// card's are. Build-time only.
+// card's are. Build-time only. The water is left clear, not painted: the page is the water on every
+// map (design-system.md, "Map colors"), and on the card the page is the field behind it (lib/og-field.ts).
+// Painted in the page's colour, the map stood on the field as a flat panel with a straight left edge.
 
 /** The picture's size on the card: the full height of the canvas, at the map's own shape. */
 export const OG_MAP = { width: 491, height: 630 } as const;
@@ -55,11 +57,16 @@ async function draw(app: string): Promise<Buffer> {
     }),
   );
   const bakery = at(BAKERY);
+  // The land is the map's whole box less the water: an even-odd path, so an island in the water
+  // stays land. A clip, not a mask, which would need a white of its own.
+  const land = `M${x0} ${y0}h${width}v${height}h${-width}z${basemap.water}`;
   const svg = [
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x0} ${y0} ${width} ${height}" width="${OG_MAP.width}" height="${OG_MAP.height}" preserveAspectRatio="xMidYMid slice">`,
+    `<clipPath id="land"><path clip-rule="evenodd" d="${land}"/></clipPath>`,
+    `<g clip-path="url(#land)">`,
     `<rect x="${x0}" y="${y0}" width="${width}" height="${height}" fill="${token('map-land')}"/>`,
     ...bands,
-    `<path fill-rule="evenodd" fill="${token('map-water')}" d="${basemap.water}"/>`,
+    '</g>',
     ...routes,
     ...stops,
     mark(bakery.x, bakery.y, 76, false, token('background')),

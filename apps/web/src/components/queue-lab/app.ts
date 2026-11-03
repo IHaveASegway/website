@@ -47,6 +47,7 @@ import {
   waitWords,
   type Crash,
 } from '../../lib/queue/view';
+import { curled } from '../../lib/typeset.mjs';
 
 // The Queue Lab in the browser (ADR 0020's pattern): the simulation, run in virtual time and drawn
 // on every frame while it runs. It takes over the same opening the build drew. A visitor who didn't
@@ -94,7 +95,8 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   const curve = $<SVGPolylineElement>('[data-qu-strip-line]');
   const ticks = $<SVGGElement>('[data-qu-crashes]');
   const text = (element: Element | null, value: string) => {
-    if (element && element.textContent !== value) element.textContent = value;
+    const words = curled(value);
+    if (element && element.textContent !== words) element.textContent = words;
   };
   const attribute = (element: Element | null, name: string, value: string) => {
     if (element && element.getAttribute(name) !== value) element.setAttribute(name, value);

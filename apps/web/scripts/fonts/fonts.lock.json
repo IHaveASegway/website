@@ -13,17 +13,17 @@
       "bytes": 4388,
       "provenance": "google/fonts at commit 0b58fb37: Archivo's license, served as OFL-Archivo.txt."
     },
-    "b612-mono-ttf": {
-      "url": "https://raw.githubusercontent.com/google/fonts/0b58fb370093f9a9f4ff785d94405710b79de67c/ofl/b612mono/B612Mono-Regular.ttf",
-      "sha256": "b98cb96cc8a6206dae08c063d60902df7e6d40f86139ebdb97256704253c9c69",
-      "bytes": 140292,
-      "provenance": "B612 Mono Regular 1.008, by Intactile DESIGN for Airbus, OFL 1.1, no Reserved Font Name. A static instance: code only. google/fonts at commit 0b58fb37, git blob 32bbdeee."
+    "jetbrains-mono-ttf": {
+      "url": "https://raw.githubusercontent.com/google/fonts/0b58fb370093f9a9f4ff785d94405710b79de67c/ofl/jetbrainsmono/JetBrainsMono%5Bwght%5D.ttf",
+      "sha256": "48715a42ec242c21e9f02692891e147d022299a52e48d5e413e1a942193ffeda",
+      "bytes": 187208,
+      "provenance": "JetBrains Mono 2.211, by JetBrains, OFL 1.1, no Reserved Font Name. The variable font, weights 100 to 800: cut.py instances its Regular, for code only. google/fonts at commit 0b58fb37."
     },
-    "b612-mono-ofl": {
-      "url": "https://raw.githubusercontent.com/google/fonts/0b58fb370093f9a9f4ff785d94405710b79de67c/ofl/b612mono/OFL.txt",
-      "sha256": "a815f65bc72d90494b01842d3171f7cb0f9f935e023d9cc260904d221ef1064a",
-      "bytes": 4470,
-      "provenance": "google/fonts at commit 0b58fb37, git blob 9d0aff04."
+    "jetbrains-mono-ofl": {
+      "url": "https://raw.githubusercontent.com/google/fonts/0b58fb370093f9a9f4ff785d94405710b79de67c/ofl/jetbrainsmono/OFL.txt",
+      "sha256": "b2fe5e8987594e9ffd1d2ca52a2f5d73eb8335243893c5d6254b5ad69269591d",
+      "bytes": 4399,
+      "provenance": "google/fonts at commit 0b58fb37: JetBrains Mono's license, served as OFL-JetBrainsMono.txt."
     },
     "source-serif-4-ttf": {
       "url": "https://raw.githubusercontent.com/google/fonts/0b58fb370093f9a9f4ff785d94405710b79de67c/ofl/sourceserif4/SourceSerif4%5Bopsz%2Cwght%5D.ttf",
@@ -85,9 +85,9 @@
       "sha256": "108b4e57c9c796d3d38d0428ca7ee39de47ad93187302718d9b2d8864b9b716b",
       "bytes": 4388
     },
-    "public/fonts/OFL-B612Mono.txt": {
-      "sha256": "a815f65bc72d90494b01842d3171f7cb0f9f935e023d9cc260904d221ef1064a",
-      "bytes": 4470
+    "public/fonts/OFL-JetBrainsMono.txt": {
+      "sha256": "b2fe5e8987594e9ffd1d2ca52a2f5d73eb8335243893c5d6254b5ad69269591d",
+      "bytes": 4399
     },
     "public/fonts/OFL-SourceSerif4.txt": {
       "sha256": "5f94c3fd3a23131a417ab5a0c8452de57e70c3cfb9f604d88241f7065ebf9fd9",
@@ -113,9 +113,9 @@
       "sha256": "702bbb6f7b398b9728699b78e1b55b579aff5079f2d6c06c3fb0a9d8762a0737",
       "bytes": 11400
     },
-    "src/assets/fonts/b612-mono-regular.woff2": {
-      "sha256": "01f5bbdf9ba0d00bd7f694a271692754b515600d71144706d278926c2ca65eff",
-      "bytes": 12084
+    "src/assets/fonts/jetbrains-mono-regular.woff2": {
+      "sha256": "903bfc8cdf055b50c169a378be65ff0afe9c877aaa0cd5c88b6f5e6509d0faf9",
+      "bytes": 8436
     },
     "src/assets/fonts/reading-serif-regular.woff2": {
       "sha256": "0f72ce469807ad4bb942f364c19979e637a2d02516ca0342f3cc57a9155d8b42",
@@ -134,8 +134,8 @@
       "bytes": 33588
     },
     "src/styles/font-fallbacks.css": {
-      "sha256": "02ebc94297841708734008f030b82347c272a82dc3a2a6f649a045202ddf2582",
-      "bytes": 6655
+      "sha256": "0908ffda287cddb54098b5ebad04c67557591eb04000362f62d2e2ca4ab9af1d",
+      "bytes": 6680
     }
   }
 }

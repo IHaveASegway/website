@@ -134,3 +134,59 @@ test('/about/ is one column on every screen, the head over the body', async ({ p
     expect(at.sideways, String(width)).toBeLessThanOrEqual(0);
   }
 });
+
+// A skill's name lists what it holds, and left to itself a line break strands the last of them:
+// "Message brokers: RabbitMQ, LavinMQ, / SQS", from 768 px up and on an iPhone 14. Each name that
+// takes two lines keeps two words or more on its last.
+const strandedNames = (page: import('@playwright/test').Page) =>
+  page.locator('.skills dt').evaluateAll((names) =>
+    names.flatMap((name) => {
+      const text = name.firstChild as Text;
+      const rows = new Map<number, string[]>();
+      for (const word of (text.data ?? '').matchAll(/\S+/g)) {
+        const range = document.createRange();
+        range.setStart(text, word.index);
+        range.setEnd(text, word.index + word[0].length);
+        const top = Math.round(range.getBoundingClientRect().top);
+        rows.set(top, [...(rows.get(top) ?? []), word[0]]);
+      }
+      const lines = [...rows.values()];
+      return lines.length > 1 && lines.at(-1)?.length === 1 ? [text.data] : [];
+    }),
+  );
+
+for (const width of [320, 360, 390, 768, 1024, 1440, 2560]) {
+  test(`at ${width} px no skill's name leaves a word alone on its last line`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/about/');
+    await page.evaluate(() => document.fonts.ready);
+    expect(await strandedNames(page)).toEqual([]);
+  });
+}
+
+// The known answer: the same reading on a name set in a column too narrow for it, left to wrap as it
+// likes, finds the word it strands.
+test('known answer: a name left to wrap by itself strands its last word, and this finds it', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1024, height: 900 });
+  await page.goto('/about/');
+  const stranded = await page
+    .locator('.skills dt')
+    .first()
+    .evaluate((name) => {
+      name.textContent = 'Message brokers: RabbitMQ, LavinMQ, SQS';
+      (name as HTMLElement).style.setProperty('text-wrap', 'wrap');
+      const words = name.textContent.split(' ').slice(0, -1).join(' ');
+      const measure = document.createRange();
+      (name.firstChild as Text).data = words;
+      measure.selectNodeContents(name);
+      const wide = measure.getBoundingClientRect().width;
+      (name.firstChild as Text).data = 'Message brokers: RabbitMQ, LavinMQ, SQS';
+      // Just wide enough for all but the last word.
+      (name as HTMLElement).style.setProperty('inline-size', `${Math.ceil(wide) + 2}px`);
+      return true;
+    });
+  expect(stranded).toBe(true);
+  expect(await strandedNames(page)).toEqual(['Message brokers: RabbitMQ, LavinMQ, SQS']);
+});

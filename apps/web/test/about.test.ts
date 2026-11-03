@@ -5,11 +5,11 @@ import {
   ABOUT_HEADINGS,
   aboutParts,
   aboutSchema,
-  LAB_NAMES,
   openingSentence,
   sectionOf,
   withLinks,
 } from '../src/lib/about';
+import { LAB_NAMES } from '../src/lib/lab';
 import { fixture, read } from './support/dist';
 
 // /about/ (lib/about.ts): the bio, Joseph's words from src/content/about.md, then the résumé, which
@@ -93,7 +93,7 @@ describe('aboutParts: Home reads the bio it does not own', () => {
     expect(parts.sections.map((s) => s.heading)).toEqual([
       'What I build',
       'How I work',
-      "What I'm working toward",
+      'What I’m working toward',
     ]);
     const build = sectionOf(parts, ABOUT_HEADINGS.build);
     const how = sectionOf(parts, ABOUT_HEADINGS.how);
@@ -170,10 +170,10 @@ describe('aboutParts: Home reads the bio it does not own', () => {
     const names = LAB_NAMES.map(({ slug, name }) => ({ name, href: `/lab/${slug}/` }));
     expect(LAB_NAMES.map((n) => n.name)).toEqual([
       'Route Lab',
-      'Raft Lab',
       'Queue Lab',
       'Cache Lab',
       'Backfill Lab',
+      'Raft Lab',
     ]);
     expect(withLinks('The Queue Lab, the Cache Lab and the Backfill Lab.', names)).toEqual([
       'The ',

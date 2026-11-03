@@ -122,7 +122,7 @@ test('without JavaScript, the page is the opening run: order 18 printed twice, w
       );
   expect(await bars('once')).toEqual(['45deg true', '-45deg true']);
   expect(await bars('no-loss')).toEqual(['none', 'none']);
-  await expect(log(page)).toContainText("2.873 s Worker 1 prints order 18's ticket again");
+  await expect(log(page)).toContainText('2.873 s Worker 1 prints order 18’s ticket again');
   for (const control of await page.locator('.qu-controls, .qu-settings, .lab-clock, .qu-key').all())
     await expect(control).toBeHidden();
   await context.close();
@@ -251,7 +251,7 @@ test('Run on the untouched opening plays worker 2’s crash as it happens, and N
   await runUntil(page, async () => (await seconds(page)) > 4);
   await expect(map(page).locator('.qu-again')).toHaveAttribute('data-order', '18');
   await expect(log(page)).toContainText(
-    "2.873 s Worker 1 prints order 18's ticket again: order 18 is printed twice",
+    '2.873 s Worker 1 prints order 18’s ticket again: order 18 is printed twice',
   );
   await expect(summary(page)).toHaveText(/^Order 18 was printed twice: worker 2 crashed/);
 });
@@ -263,8 +263,8 @@ test('the first thing to try: worker 2 crashes at 2.4 s and order 18 prints twic
   await expect(summary(page)).toHaveText(OPENING_STORY);
   for (const line of [
     '2.400 s Worker 2 crashes holding order 18, after its ticket printed and before its acknowledgement left.',
-    "2.404 s The broker sees worker 2's connection close and puts order 18 back at the head of the queue",
-    "2.873 s Worker 1 prints order 18's ticket again: order 18 is printed twice",
+    '2.404 s The broker sees worker 2’s connection close and puts order 18 back at the head of the queue',
+    '2.873 s Worker 1 prints order 18’s ticket again: order 18 is printed twice',
   ])
     await expect(log(page)).toContainText(line);
 

@@ -1,7 +1,7 @@
 ---
 import Glyph from '../iso/Glyph.astro';
 import { labFact } from '../../lib/lab-facts';
-import { labPath, type LabEntry } from '../../lib/lab';
+import { labName, labPath, type LabEntry } from '../../lib/lab';
 import '../../styles/lab-cards.css';
 
 interface Props {
@@ -10,17 +10,19 @@ interface Props {
   level?: 2 | 3;
 }
 
-// A lab's card (docs/design/overhaul.md, "Lab cards"): the lab's glyph across the card's top, its
-// title, its summary and one fact from its build (lib/lab-facts.ts). The whole card is its title's
-// link. It names its lab with data-line, so the glyph draws in the lab's colour; the card's own
-// edge and words never do.
+// A lab's card (docs/design/overhaul.md, "Lab cards"): the lab's glyph across the card's top, with
+// the name Home and About call it by as the picture's caption, then its title, its summary and one
+// fact from its build (lib/lab-facts.ts). The whole card is its title's link. It names its lab with
+// data-line, so the glyph draws in the lab's colour; the card's own edge and words never do.
 const { entry, level = 2 } = Astro.props;
 const Title = `h${level}` as 'h2' | 'h3';
 const fact = await labFact(entry.slug);
+const name = labName(entry.slug);
 ---
 
 <li class="card lab-card" data-line={entry.slug}>
   <div class="lab-plate">
+    {name && <p class="lab-name">{name}</p>}
     <Glyph slug={entry.slug} />
   </div>
   <div class="lab-words">
