@@ -1,13 +1,13 @@
 ---
 title: You will be missed
-summary: I think robots are going to take over a lot of our work, and we won't miss most of it. I'm going to miss writing code.
+summary: I doubt anyone in the back seat of a Waymo is checking the mirrors.
 published: 2026-11-02
 kind: essay
 tags:
   - architecture
   - platform
   - testing
-firewall_reviewed: 2026-11-02
+firewall_reviewed: 2026-11-03
 ---
 
 I didn't start in software. I started in a field job, driving a route.
