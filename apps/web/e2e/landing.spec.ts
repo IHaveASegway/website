@@ -721,9 +721,7 @@ test.describe('the Raft Lab’s landing run', () => {
     await page.getByRole('button', { name: 'Start over' }).click();
     await expect(line).toHaveText('The run starts over under these settings, at 1.400 s.');
     await run(page, lab).click();
-    await expect(line).toHaveText(
-      'Nothing is scheduled: press something below to break it.',
-    );
+    await expect(line).toHaveText('Nothing is scheduled: press something below to break it.');
   });
 });
 

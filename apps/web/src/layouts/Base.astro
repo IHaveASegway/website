@@ -67,7 +67,8 @@ const image = og && canonical ? new URL('og.png', canonical).href : undefined;
 // browser reads it the first time it works out the new page's style, which can come before a linked
 // sheet has arrived: in the sheet every page links, Chromium aborted most arrivals, with a red line in
 // the console, and always from a cache. No bytes move: it's the same rule, in the page.
-const VIEW_TRANSITION = '@media (prefers-reduced-motion:no-preference){@view-transition{navigation:auto}}';
+const VIEW_TRANSITION =
+  '@media (prefers-reduced-motion:no-preference){@view-transition{navigation:auto}}';
 const profile = await loadProfile();
 // Writing's pages and feed exist only from the first published post (lib/posts.ts), and the lab's
 // from its first live demo (lib/lab.ts): the header, the footer and the feed link below learn from

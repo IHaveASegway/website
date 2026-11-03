@@ -33,7 +33,13 @@ const control = (name: string) => ({ [`data-${short}-${name}`]: '' });
     <slot />
   </div>
   <div class="lab-row">
-    <button type="button" class="btn lab-run" data-lamp="off" data-why={runSays} {...control('run')}>
+    <button
+      type="button"
+      class="btn lab-run"
+      data-lamp="off"
+      data-why={runSays}
+      {...control('run')}
+    >
       Run
     </button>
     <button type="button" class="btn" {...control('step')}>

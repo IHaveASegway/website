@@ -613,9 +613,7 @@ test('why a press did nothing is on the screen: Heal on a whole network, Cut off
   await expect(line).toHaveText('The run starts over under these settings, at 1.400 s.');
   // Run says there's nothing to wait for, so heartbeats alone don't read as a page that stopped.
   await page.getByRole('button', { name: 'Run', exact: true }).click();
-  await expect(line).toHaveText(
-    'Nothing is scheduled: press something below to break it.',
-  );
+  await expect(line).toHaveText('Nothing is scheduled: press something below to break it.');
   await page.getByRole('button', { name: 'Pause' }).click();
 
   await page.locator('[data-rf-loss]').fill('30');
