@@ -252,6 +252,8 @@ for (const lab of FIXES) {
       await expect(run).toHaveText('Run');
       await expect(clockOf(page)).toHaveText(standing ?? '');
 
+      // With a connection, a fresh page is the way back: a browser may keep a failed import, as
+      // WebKit does (steady.spec.ts), and a deploy's new file has another name.
       await page.unroute('**/_astro/app.*.js');
       await run.click();
       await expect(run).toHaveText('Pause');

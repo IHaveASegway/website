@@ -437,6 +437,30 @@ for (const [name, lab] of Object.entries(LABS).filter(([name]) => name !== 'raft
   });
 }
 
+// WebKit keeps a failed import for the life of the page, so "Press any control to try again" has to
+// mean a fresh page there. With no connection yet, the page stays and says so again.
+for (const [name, lab] of Object.entries(LABS).filter(([name]) => name !== 'raft')) {
+  test(`the ${name} lab that did not load: a press tries again, here in WebKit too`, async ({
+    page,
+  }) => {
+    const words = 'The lab did not load. Press any control to try again.';
+    await page.route('**/_astro/app.*.js', (route) => route.abort());
+    await page.goto(lab.path);
+    const said = page.locator('[data-said]').first();
+    await expect(said).toHaveText(words);
+    const run = page.locator(`[data-${lab.short}-run]`);
+    await page.route(lab.path, (route) => route.abort());
+    await run.tap();
+    await expect(said).toHaveText(words);
+    await expect(run).toHaveText('Run');
+    await page.unroute(lab.path);
+    await page.unroute('**/_astro/app.*.js');
+    await run.tap();
+    await expect(run).toHaveText('Pause');
+    await expect(said).not.toHaveText(words);
+  });
+}
+
 // A reader who has scrolled back keeps their lines as new ones come, and the log keeps only 60. Until
 // 2026-11-02 the top line slid from 3.3 s to 5.7 s in 5 s of reading. iOS Safari has no scroll
 // anchoring to do it for them, and neither has this WebKit once the page turns it off.

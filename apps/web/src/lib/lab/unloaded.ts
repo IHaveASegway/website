@@ -15,12 +15,23 @@ export function sayUnloaded(root: Element, live: Element | null): void {
   }
 }
 
-/** Takes it back once a try has loaded the app, unless a press has spoken since. */
-export function clearUnloaded(root: Element, live: Element | null): void {
-  if (live?.textContent === UNLOADED) live.textContent = '';
-  const line = root.querySelector<HTMLElement>('[data-said]');
-  if (line?.textContent === UNLOADED) {
-    line.textContent = line.dataset['said'] ?? '';
-    line.removeAttribute('data-spoke');
+/**
+ * A press after that. Importing the file again can't work: WebKit keeps a failed import for the life
+ * of the page, and a deploy's new file has another name. Only a fresh page can load it, and WebKit
+ * carries the failure through a reload in its memory cache until something fetches the file again, so
+ * this fetches the page and its files first (the preload links name them). With no connection that
+ * fails, and the page stays and says so again, where a reload would swap it for the browser's error.
+ */
+export async function tryAgain(root: Element, live: Element | null): Promise<void> {
+  const files = [...document.querySelectorAll<HTMLLinkElement>('link[rel="modulepreload"]')];
+  try {
+    await Promise.all(
+      [location.href, ...files.map((file) => file.href)].map((url) =>
+        fetch(url, { cache: 'reload' }),
+      ),
+    );
+    location.reload();
+  } catch {
+    sayUnloaded(root, live);
   }
 }
