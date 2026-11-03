@@ -1084,7 +1084,7 @@
     flex: none;
     align-items: center;
     min-block-size: 2.75rem;
-    padding-inline: 1rem;
+    padding-inline: 0.625rem;
     border: 0;
     background-color: transparent;
     color: var(--muted-foreground);
@@ -1099,9 +1099,15 @@
     outline-offset: -0.375rem;
   }
 
+  /* Beside it the input gives up its own far padding, or at 320 px the button's width would cut the
+     input's words: "Find a page or an actior". */
   @media (hover: none) {
     .palette-close {
       display: inline-flex;
+    }
+
+    .palette-input {
+      padding-inline-end: 0.25rem;
     }
 
     .palette-help {
@@ -1139,6 +1145,15 @@
     min-height: 2.75rem;
     padding-inline: 1rem;
     cursor: pointer;
+  }
+
+  /* A long title wraps in its own column: left to the row's wrapping, on a 360 px phone it fell under
+     the lamp, out of line with every row around it. The row still wraps for the address, and where
+     a larger text size leaves a column too narrow for a whole word. */
+  @media (width >= 18rem) {
+    .palette-option:not(:has(.palette-value)) {
+      flex-wrap: nowrap;
+    }
   }
 
   .palette-option::before {

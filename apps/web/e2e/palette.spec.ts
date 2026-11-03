@@ -166,6 +166,8 @@ test("the site's own words find their pages, and scattered letters don't take En
     ['rss', 'palette-writing'],
     ['labs', 'palette-lab'],
     ['adr', 'palette-home'],
+    ['adrs', 'palette-home'],
+    ['decision records', 'palette-home'],
   ] as const) {
     if (row === 'palette-lab' && !pages().includes('/lab/')) continue;
     await input(page).fill(query);
@@ -335,6 +337,75 @@ test.describe('on a touch screen', () => {
     await close.tap();
     await expect(menu(page)).toHaveJSProperty('open', false);
     await expect(opener(page)).toBeFocused();
+  });
+
+  // What the Close button's width must not cost a narrow phone: the input's words, and a row's line.
+  for (const width of [320, 360, 390]) {
+    test(`at ${width} px the input's words fit beside Close, and a long title keeps its column`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await ready(page);
+      await opener(page).tap();
+      const fit = await page.evaluate(() => {
+        const input = document.querySelector('.palette-input') as HTMLInputElement;
+        const style = getComputedStyle(input);
+        const pen = document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D;
+        pen.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+        const place = (row: Element) => {
+          const words = document.createRange();
+          words.selectNodeContents(row.firstChild as Node);
+          return Math.round(words.getBoundingClientRect().left);
+        };
+        const rows = [...document.querySelectorAll('.palette-option')].filter((row) =>
+          row.checkVisibility(),
+        );
+        return {
+          room: input.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
+          words: pen.measureText(input.placeholder).width,
+          starts: [...new Set(rows.map(place))],
+        };
+      });
+      expect(fit.words).toBeLessThanOrEqual(fit.room);
+      expect(fit.starts).toHaveLength(1);
+    });
+  }
+
+  // A finger on the backdrop, through the browser's own touch input, since a wheel takes another
+  // path through it. The same drag with the menu closed is the known answer: it scrolls. An iPhone's
+  // Safari still needs a person: nothing here can drive it.
+  test('a finger dragged on the backdrop leaves the page where it is', async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(browserName !== 'chromium', 'a touch this way needs the DevTools protocol');
+    await ready(page, '/about/');
+    const devtools = await page.context().newCDPSession(page);
+    const touch = (type: 'touchStart' | 'touchMove' | 'touchEnd', y = 0) =>
+      devtools.send('Input.dispatchTouchEvent', {
+        type,
+        touchPoints: type === 'touchEnd' ? [] : [{ x: 195, y }],
+      });
+    const drag = async () => {
+      await touch('touchStart', 760);
+      for (let y = 740; y >= 500; y -= 20) await touch('touchMove', y);
+      await touch('touchEnd');
+    };
+    await drag();
+    await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
+    await page.evaluate(() => scrollTo(0, 0));
+    await opener(page).tap();
+    await expect(menu(page)).toHaveJSProperty('open', true);
+    // The lock reaches the compositor with the next frame, and a drag is the compositor's.
+    await page.evaluate(
+      () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+    );
+    // The finger lands below the box, on the backdrop.
+    const bottom = await menu(page).evaluate((box) => box.getBoundingClientRect().bottom);
+    expect(bottom).toBeLessThan(760);
+    await drag();
+    await page.waitForTimeout(200);
+    expect(await page.evaluate(() => scrollY)).toBe(0);
   });
 });
 
