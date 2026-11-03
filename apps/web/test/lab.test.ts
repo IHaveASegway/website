@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
 import {
   byLabOrder,
@@ -9,7 +11,7 @@ import {
   labSchema,
 } from '../src/lib/lab';
 import { attribute, elementsOf, hasClass } from './support/html';
-import { files, read } from './support/dist';
+import { app, files, read } from './support/dist';
 
 // The lab collection (lib/lab.ts; content.md, "Content model"), with known answers: what a lab
 // entry may say about itself, which pages a build writes for the lab, and that /lab/api/ stays the
@@ -117,6 +119,13 @@ describe.runIf(files.includes('lab/index.html'))('the labs as this build lists t
       .map((e) => /^palette-lab-(.+)$/.exec(attribute(e, 'id') ?? '')?.[1])
       .filter((slug) => slug !== undefined);
     expect(menu).toEqual(order);
+  });
+
+  // A rule pasted once for each of the sheet's three copies of the desk's controls went unseen: each
+  // draws the same, and the sheet's bytes are what a phone pays.
+  test("the sheet styles a lab's name in its lead once", () => {
+    const sheet = readFileSync(join(app, 'src/styles/lab-page.css'), 'utf8');
+    expect(sheet.match(/^\.lab-head-name \{/gm)).toHaveLength(1);
   });
 
   test("each lab's page opens its lead on its name, its link preview says it, and the menu finds it", () => {
