@@ -46,7 +46,7 @@ From 64rem the lead, the words and the fact stand in three columns. A row with n
 
 ## The record
 
-How I work ends, under a hairline, with one sentence. It counts the commits in the repository, the decision records, the tests and the seeded runs on every pull request, each at build from its source. It is a sentence, not a row of figures: the stats row and the heatmap were the reference's signature.
+How I work ends, under a hairline, with one sentence. It counts the decision records, the tests and the seeded runs on every pull request, each at build from its source. It is a sentence, not a row of figures: the stats row and the heatmap were the reference's signature. It's where the site says "decision records (ADRs)", once, for the tech lead who looks for the term, after the bio's plainer "written down". It says "tests written" because it counts declarations: a loop that runs one test across every page counts once, so CI's total is about nine times larger, and a reader who opens CI should find the words true.
 
 ## Contact
 

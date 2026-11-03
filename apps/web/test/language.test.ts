@@ -87,6 +87,23 @@ describe("a page's description and its link preview call a lab a lab", () => {
   });
 });
 
+// "written decisions, then decision records (ADRs) once" (content.md, "The site's language"): a
+// recruiter gets the plain words first, and a tech lead still finds the term. Home's record says it,
+// and says what its test count counts: tests as written, once each, since CI runs loops of them and
+// shows a number about nine times larger. Fixture builds hold no bio, so no record.
+test.runIf(html.includes('lab/index.html'))(
+  "the site names decision records once, on Home's record, and counts tests as written",
+  () => {
+    const said = html.filter((file) => /decision records \(ADRs\)/.test(words(read(file))));
+    expect(said).toEqual(['index.html']);
+    const record = /This site so far: [^.]*\./.exec(words(read('index.html')))?.[0];
+    expect(record).toMatch(/^This site so far: \d+ decision records \(ADRs\), /);
+    expect(record).toMatch(
+      /, [\d,]+ tests written and [\d,]+ simulated runs on every pull request\.$/,
+    );
+  },
+);
+
 test('the content files say the same: a draft does not bring a retired word back', () => {
   const root = join(process.cwd(), 'src/content');
   const entries = readdirSync(root, { recursive: true, encoding: 'utf8' }).filter((file) =>

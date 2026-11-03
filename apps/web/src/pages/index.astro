@@ -119,10 +119,12 @@ const work = await loadSelectedWork();
 const demoPages = new Set(lab.entries.map(labPath));
 const others = work.filter((card) => !demoPages.has(card.link.href));
 
-// The record the repository keeps (lib/home-sources.ts), each count from its source: the commits in
-// its history, the decision records in docs/adr/, the tests in test/ and e2e/, and the seeded runs
-// the simulated labs' sweeps play on every pull request (each lab's SEEDS_IN_CI). A count whose
-// source cannot be read is left out, never guessed.
+// The record the repository keeps (lib/home-sources.ts), each count from its source: the decision
+// records in docs/adr/, the tests in test/ and e2e/, and the seeded runs the simulated labs' sweeps
+// play on every pull request (each lab's SEEDS_IN_CI). A count whose source cannot be read is left
+// out, never guessed. This is the one place the site names the term a tech lead looks for (content.md,
+// "The site's language"): the bio says "written down" and "a written decision". It counts tests as
+// written, once each, however many times a loop runs one: CI's total is about nine times this.
 const SEEDS: Record<string, number> = {
   raft: RAFT_SEEDS,
   queue: QUEUE_SEEDS,
@@ -133,8 +135,8 @@ const decisions = readDecisions().length;
 const tests = countTests();
 const seeded = lab.entries.reduce((n, entry) => n + (SEEDS[entry.slug] ?? 0), 0);
 const record = [
-  decisions > 0 ? `${figure(decisions)} written decisions` : '',
-  tests > 0 ? `${figure(tests)} tests` : '',
+  decisions > 0 ? `${figure(decisions)} decision records (ADRs)` : '',
+  tests > 0 ? `${figure(tests)} tests written` : '',
   seeded > 0 ? `${figure(seeded)} simulated runs on every pull request` : '',
 ].filter(Boolean);
 const recordLine =
