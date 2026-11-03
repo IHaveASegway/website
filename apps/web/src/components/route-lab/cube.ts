@@ -29,6 +29,7 @@ import {
   axes,
   boxFor,
   DEFAULT_VIEW,
+  hourLabels,
   hourMarks,
   onCanvas,
   pose,
@@ -36,6 +37,7 @@ import {
   type Box,
   type View,
 } from '../../lib/route-lab/space-time';
+import { cubeName } from '../../lib/route-lab/still';
 import { positionAt, tracks, type Track } from '../../lib/route-lab/timeline';
 import type { PlansDetail } from './app';
 
@@ -77,7 +79,6 @@ interface Drawn {
 
 interface Stage {
   readonly which: Which;
-  readonly label: string;
   readonly host: HTMLElement;
   /** The element that holds the picture, then the canvas: the one stop for Tab, from the first
    *  paint (boot.ts), named for what it shows, and the one the arrow keys turn. */
@@ -85,7 +86,6 @@ interface Stage {
   readonly picture: SVGSVGElement;
   readonly canvas: HTMLCanvasElement;
   readonly marks: HTMLUListElement;
-  readonly back: HTMLElement | null;
   readonly renderer: WebGLRenderer;
   readonly scene: Scene;
   readonly camera: OrthographicCamera;
@@ -99,11 +99,6 @@ interface Stage {
    *  fewer vans never frees one, so the next plan never makes the GPU compile it again. */
   readonly materials: Map<string, Material>;
 }
-
-const LABELS: Record<Which, string> = {
-  before: 'As the orders came in',
-  after: 'Planned by VROOM',
-};
 
 /** Starts the cube, or returns false and leaves the pictures as they are when this browser cannot
  *  draw WebGL. Call it once the app has started: the canvases replace the pictures with the first
@@ -161,13 +156,11 @@ export function start(root: HTMLElement): boolean {
     canvas.style.aspectRatio = `${w} / ${h}`;
     stages.push({
       which,
-      label: LABELS[which],
       host,
       frame,
       picture,
       canvas,
       marks,
-      back: host.querySelector('[data-rl-cube-back]'),
       renderer,
       scene: new Scene(),
       camera: new OrthographicCamera(),
@@ -179,8 +172,6 @@ export function start(root: HTMLElement): boolean {
     });
   }
   if (stages.length === 0) return false;
-  // What the build wrote under each cube, put back if the scene goes.
-  const captions = stages.map((s) => s.back?.textContent ?? '');
 
   let view: View = DEFAULT_VIEW;
   let box: Box | null = null;
@@ -215,7 +206,7 @@ export function start(root: HTMLElement): boolean {
     // The hour labels, where the scene draws each mark on the bakery's pillar.
     const bakery = latest?.data.points[0] ?? { x: 0, y: 0 };
     const items = stage.marks.children;
-    hourMarks(box).forEach((s, k) => {
+    hourLabels(box).forEach((s, k) => {
       const li = items[k] as HTMLElement | undefined;
       if (!li || !box) return;
       const [x, y] = onCanvas(view, box, at, [bakery.x, s * box.scale, bakery.y]);
@@ -492,9 +483,9 @@ export function start(root: HTMLElement): boolean {
     stage.drawn = { group, tracks: planned, level, vans };
     stage.scene.add(group);
 
-    // The marks' labels: one per hour, placed on every draw.
+    // The marks' labels, placed on every draw.
     stage.marks.replaceChildren(
-      ...hourMarks(b).map((s) => {
+      ...hourLabels(b).map((s) => {
         const li = document.createElement('li');
         li.textContent = `${s / 3600} h`;
         return li;
@@ -502,11 +493,9 @@ export function start(root: HTMLElement): boolean {
     );
 
     const back = Math.max(0, ...planned.map((t) => t.back));
-    const stale = stage.which === 'after' && !detail.fresh ? ', for the previous orders' : '';
-    if (stage.back) stage.back.textContent = `Last van back after ${formatDuration(back)}${stale}`;
     stage.frame.setAttribute(
       'aria-label',
-      `${stage.label}${stale}, in time: the map lies flat, time rises from it, and each van’s line climbs as its day goes on. The last van is back after ${formatDuration(back)}.`,
+      cubeName(stage.which, back, stage.which === 'after' && !detail.fresh),
     );
   }
 
@@ -614,22 +603,21 @@ export function start(root: HTMLElement): boolean {
     }
   }
 
-  /** A lost context: the pictures come back as the build drew them, with their captions, and the
-   *  cube's controls hide; nothing here listens any more. */
+  /** A lost context: the pictures come back, which the app has kept on the plans on show all along,
+   *  and the cube's controls hide; nothing here listens any more. */
   function fallBack() {
     if (dead) return;
     stop();
     dead = true;
     life.abort();
     for (const observer of observers) observer.disconnect();
-    stages.forEach((stage, k) => {
+    for (const stage of stages) {
       stage.canvas.remove();
       stage.marks.hidden = true;
       stage.picture.removeAttribute('hidden');
       stage.frame.removeAttribute('aria-label');
-      if (stage.back) stage.back.textContent = captions[k] ?? '';
       stage.renderer.dispose();
-    });
+    }
     hideControls(section);
   }
 
@@ -654,9 +642,14 @@ export function start(root: HTMLElement): boolean {
       },
       { signal },
     );
-    canvas.addEventListener(
+    // On the frame, which holds the picture as well as the canvas: a finger's drag on the picture is
+    // what loads this module (boot.ts), and one still moving when the canvas comes turns it from
+    // there. Its pointer stays with the picture, so the canvas never hears it.
+    stage.frame.addEventListener(
       'pointermove',
       (event) => {
+        if (!drag && event.pointerType === 'touch')
+          drag = { x: event.clientX, y: event.clientY, view, id: event.pointerId };
         if (!drag || event.pointerId !== drag.id) return;
         const tilt = event.pointerType === 'mouse' ? (event.clientY - drag.y) * 0.006 : 0;
         turn({
@@ -669,8 +662,8 @@ export function start(root: HTMLElement): boolean {
     const end = () => {
       drag = null;
     };
-    canvas.addEventListener('pointerup', end, { signal });
-    canvas.addEventListener('pointercancel', end, { signal });
+    stage.frame.addEventListener('pointerup', end, { signal });
+    stage.frame.addEventListener('pointercancel', end, { signal });
     stage.frame.addEventListener(
       'keydown',
       (event) => {

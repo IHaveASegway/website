@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import type { RouteData } from '../src/lib/route-lab/data';
 import { DEFAULT_DAY, days } from '../src/lib/route-lab/days';
 import type { Line } from '../src/lib/route-lab/legs';
-import { leg, routeData } from '../src/lib/route-lab/picture';
+import { leg, routeData, routeLabPicture } from '../src/lib/route-lab/picture';
 import { capacityFor, dealtInTurn, measure } from '../src/lib/route-lab/plan';
 import {
   axes,
@@ -10,6 +10,7 @@ import {
   DEFAULT_VIEW,
   floorMatrix,
   frame,
+  hourLabels,
   hourMarks,
   onCanvas,
   pose,
@@ -18,7 +19,9 @@ import {
   simplify,
   VAN_DASHES,
 } from '../src/lib/route-lab/space-time';
+import { cubeLine, cubeName, stillMarkup } from '../src/lib/route-lab/still';
 import { positionAt, tracks } from '../src/lib/route-lab/timeline';
+import { app, read } from './support/dist';
 
 // The space-time cube's core (ADR 0019): a plan in time, and the one camera the build's picture and
 // the browser's scene share. Known answers on a tiny made-up city first, then the real data, where
@@ -117,6 +120,27 @@ describe('the camera', () => {
     expect(hourMarks(box)).toEqual([3600, 7200, 10800, 14400]);
     expect(box.center[1]).toBeCloseTo((box.seconds * box.scale) / 2);
     expect(boxFor([0, 0, 10, 10], 0).seconds).toBe(3600);
+  });
+
+  test('a day moves nothing of the picture but what it draws: the floor, the frame and the size stay', () => {
+    // Why a plan can redraw the build's picture in place: the axis stands as tall whatever it spans.
+    const day = (seconds: number) => boxFor([0, 0, 2000, 2564], seconds);
+    for (const seconds of [0, 3600, 3 * 3600, 7 * 3600, 24 * 3600]) {
+      const other = day(seconds);
+      expect(other.center[1]).toBeCloseTo(box.center[1]);
+      expect(frame(DEFAULT_VIEW, other)).toEqual(frame(DEFAULT_VIEW, box));
+      expect(floorMatrix(DEFAULT_VIEW, other)).toEqual(floorMatrix(DEFAULT_VIEW, box));
+    }
+  });
+
+  test('known answers: every hour up to eight has its word, then every second, third and so on', () => {
+    const words = (hours: number) =>
+      hourLabels(boxFor([0, 0, 2000, 2564], hours * 3600)).map((seconds) => seconds / 3600);
+    expect(words(1)).toEqual([1]);
+    expect(words(8)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(words(9)).toEqual([2, 4, 6, 8]);
+    expect(words(16)).toEqual([2, 4, 6, 8, 10, 12, 14, 16]);
+    expect(words(24)).toEqual([3, 6, 9, 12, 15, 18, 21, 24]);
   });
 
   test('the camera’s axes are unit length and at right angles, and up leans toward world up', () => {
@@ -232,6 +256,67 @@ describe('the 3D camera’s pose', () => {
             }
           }
     }
+  });
+});
+
+describe('the cube’s still picture and its words', () => {
+  const box = boxFor(tiny.viewBox, 2 * 3600);
+  const plan = { routes: [[1, 2], [], [2]], unassigned: [] };
+
+  test('known answers: its line says what a map’s line says, and its name what it shows', () => {
+    const NBSP = '\u00a0';
+    expect(cubeLine(8_388)).toBe(`Last van back after 2${NBSP}h 20${NBSP}min`);
+    // No van leaves: no line, as under a map. Until 2026-11-02 it said "after 0 min".
+    expect(cubeLine(0)).toBe('');
+    expect(cubeLine(8_388, true)).toBe('For the previous orders');
+    expect(cubeName('before', 8_388)).toBe(
+      `As the orders came in, in time: the map lies flat, time rises from it, and each van’s line climbs as its day goes on. The last van is back after 2${NBSP}h 20${NBSP}min.`,
+    );
+    expect(cubeName('after', 8_388, true)).toBe(
+      `Planned by VROOM, for the previous orders, in time: the map lies flat, time rises from it, and each van’s line climbs as its day goes on. The last van is back after 2${NBSP}h 20${NBSP}min.`,
+    );
+    expect(cubeName('after', 0)).toBe(
+      'Planned by VROOM, in time: the map lies flat and time rises from it. No van leaves.',
+    );
+  });
+
+  test('known answers: a tick an hour, a line per van with one on a casing, a mark per stop', () => {
+    const markup = stillMarkup(tiny, tracks(tiny, tinyLeg, plan), box);
+    expect(markup.match(/class="rl-cube-tick"/g)).toHaveLength(2);
+    expect(
+      [...markup.matchAll(/<text class="rl-cube-hour"[^>]*>([^<]+)<\/text>/g)].map(([, w]) => w),
+    ).toEqual(['1 h', '2 h']);
+    expect(markup.match(/class="rl-route-casing"/g)).toHaveLength(1);
+    expect(markup.match(/class="rl-route van-a"/g)).toHaveLength(1);
+    expect(markup.match(/class="rl-route van-c"/g)).toHaveLength(1);
+    expect(markup).not.toContain('van-b');
+    expect(markup.match(/class="rl-stop van-a"/g)).toHaveLength(2);
+    expect(markup.match(/class="rl-stop van-c rl-round"/g)).toHaveLength(1);
+    expect(markup).not.toContain('style=');
+    // A mark is too short to see, and a line cap draws it: not quite zero long (render.ts, dots).
+    expect(markup).toMatch(/d="M-?\d+ -?\d+h\.01"/);
+  });
+
+  test('a plan with no van out draws only the pillar’s hours', () => {
+    const markup = stillMarkup(
+      tiny,
+      tracks(tiny, tinyLeg, { routes: [[], []], unassigned: [] }),
+      box,
+    );
+    expect(markup).not.toContain('rl-route');
+    expect(markup).not.toContain('rl-stop');
+    expect(markup).toContain('rl-cube-tick');
+  });
+
+  test('the build’s pictures are this markup: one owner, for the build and the browser', async () => {
+    const picture = await routeLabPicture(app);
+    const page = read('lab/routes/index.html');
+    const longest = Math.max(picture.before.measured.back, picture.after.measured.back);
+    const opening = boxFor(routeData.viewBox, longest);
+    for (const { plan: drawn } of [picture.before, picture.after])
+      expect(page).toContain(
+        `<g data-rl-cube-day>${stillMarkup(routeData, tracks(routeData, leg, drawn), opening)}</g>`,
+      );
   });
 });
 

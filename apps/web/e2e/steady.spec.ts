@@ -64,9 +64,11 @@ async function steady(page: Page): Promise<void> {
       return `${tag}${kind ? `.${kind}` : ''}${data ? `[${data.name}]` : ''}`;
     };
     /** Whether an element moves by design: inside a picture, inside a box that scrolls, or in the
-     *  field behind the page (field.css), which holds nothing to read. */
+     *  field behind the page (field.css), which holds nothing to read; or folded away, where nobody
+     *  sees it, as a closed list's table is when a new plan changes its rows. */
     const exempt = (el: Element) => {
       if (el.parentElement?.closest('svg') || el.closest('canvas, .field')) return true;
+      if (el.closest('details:not([open])') && !el.closest('summary')) return true;
       for (let up = el.parentElement; up && up !== document.body; up = up.parentElement) {
         const { overflowY } = getComputedStyle(up);
         if (overflowY === 'auto' || overflowY === 'scroll') return true;
@@ -555,6 +557,20 @@ const PHONES = [
   { phone: 'a 320 px phone', viewport: { width: 320, height: 568 } },
 ];
 
+// The Route Lab's first screen on the iPhone itself, in WebKit, at the viewport the project gives it,
+// 390 by 664, with no size set by hand: routes-layout.spec.ts holds the same in Chromium, and a check
+// on any other height can pass on what a phone doesn't show.
+test('the route lab’s first screen on an iPhone 14 holds its map switch and half its map', async ({
+  page,
+}) => {
+  expect(page.viewportSize()).toEqual({ width: 390, height: 664 });
+  await page.goto(ROUTE_LAB);
+  await page.evaluate(() => document.fonts.ready);
+  await expect(page.locator('.rl-view')).toBeInViewport({ ratio: 1 });
+  await expect(page.locator('svg[data-rl-map] >> visible=true')).toBeInViewport({ ratio: 0.5 });
+  await expect(page.locator('[data-rl-saved]')).not.toBeInViewport();
+});
+
 for (const { phone, viewport } of PHONES) {
   test.describe(`on ${phone}, a lab moves nothing on the screen, and the focus stays put`, () => {
     if (viewport) test.use({ viewport });
@@ -724,12 +740,49 @@ for (const { phone, viewport } of PHONES) {
       });
     }
 
+    test('the route lab, as a visitor lands on it and its vans drive', async ({ page }) => {
+      await steady(page);
+      await page.addInitScript(() => {
+        addEventListener('load', () => window.__steady.watch());
+      });
+      await page.goto(ROUTE_LAB, { waitUntil: 'load' });
+      await page.waitForTimeout(1_500);
+      expect(await page.evaluate(() => window.__steady.moves())).toEqual([]);
+    });
+
+    test('the route lab: a new day redraws the cube’s picture and words, and all of the page holds', async ({
+      page,
+    }) => {
+      await open(page, ROUTE_LAB);
+      const backs = page.locator('[data-rl-cube-back]');
+      const moves = await movesAround(
+        page,
+        async () => {
+          // From the page itself, with no finger anywhere: a real tap and a scroll fire a mouse's
+          // pointerover on the cube here, which loads the scene, and a finger that never touches
+          // the cube is the case this holds.
+          await page
+            .locator('input[name="rl-day"][value="quiet"]')
+            .evaluate((radio: HTMLInputElement) => radio.click());
+          await expect(backs.last()).toHaveText(/2\u00a0h 48\u00a0min$/, { timeout: 20_000 });
+          await expect(page.locator('svg[data-rl-cube-picture] .rl-route')).toHaveCount(2);
+        },
+        300,
+        true,
+      );
+      expect(moves).toEqual([]);
+      await expect(page.locator('[data-rl-cube] canvas')).toHaveCount(0);
+    });
+
     test('the route lab: a map, the vans, Surprise and the space-time cube', async ({ page }) => {
       await open(page, ROUTE_LAB);
       const found = await play(page, [
         { what: 'Surprise, the first touch', selector: '[data-rl-surprise]', by: 'tap' },
         { what: 'the vans', selector: another('rl-vans'), by: 'tap' },
         { what: 'a tap on the map', selector: 'svg[data-rl-map] >> visible=true', by: 'tap' },
+        { what: 'a day', selector: another('rl-day'), by: 'tap' },
+        { what: 'the other map', selector: another('rl-view'), by: 'tap', ms: 500 },
+        { what: 'back to the first', selector: another('rl-view'), by: 'tap', ms: 500 },
       ]);
       // A tap on a cube that shows only in part: the page stays where the finger left it.
       const stage = page.locator('[data-rl-cube-stage] >> visible=true').first();

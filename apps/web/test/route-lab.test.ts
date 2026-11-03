@@ -25,6 +25,7 @@ import {
   fromVroom,
   measure,
   percentLess,
+  type Measured,
   shareCapacity,
   solveTime,
   vroomInput,
@@ -308,6 +309,117 @@ describe('the days', () => {
   });
 });
 
+// The headline against the figures beside it (correct-4, labs-21), as a reader checks it: the two
+// plans' times and miles as the page writes them, on every day and van count and on made-up days of
+// the Surprise button's shape, solved here as the browser solves them.
+describe('the headline says what the two plans’ figures say', () => {
+  const minutes = (seconds: number) => {
+    const [, h = '0', m = '0'] =
+      /^(?:(\d+)\u00a0h )?(\d+)\u00a0min$/.exec(formatDuration(seconds)) ?? [];
+    return Number(h) * 60 + Number(m);
+  };
+  const tenths = (metres: number) => Math.round(Number.parseFloat(formatMiles(metres)) * 10);
+
+  /** The plans for these orders and vans, as the page measures them. */
+  const plans = async (orders: readonly number[], vans: number) => {
+    const solver = await loadSolver(app);
+    const capacity = capacityFor(data, orders, vans);
+    const output = solver.solve(vroomInput(data, orders, vans, capacity), {
+      explorationLevel: explorationFor(orders.length),
+    });
+    return {
+      before: measure(data, dealtInTurn(data, orders, vans, capacity)),
+      after: measure(data, fromVroom(output, vans)),
+    };
+  };
+
+  /** What the sentence claims, read back from its words. */
+  const claims = (sentence: string) => {
+    const said = new RegExp(
+      `^VROOM saves ((?:\\d+${NBSP}h )?\\d+${NBSP}min) of driving(?:, (\\d+)% less)?(?:,? and (\\d+\\.\\d)${NBSP}mi)?\\.$`,
+    ).exec(sentence);
+    if (!said) return null;
+    const [, time = '', percent, mi] = said;
+    return {
+      time,
+      percent: percent === undefined ? undefined : Number(percent),
+      tenths: mi === undefined ? undefined : Math.round(Number(mi) * 10),
+    };
+  };
+
+  /** Holds a sentence to the figures: each number is theirs, and nothing is claimed they deny. */
+  const check = (sentence: string, before: Measured, after: Measured, what: string) => {
+    const fewer = minutes(before.drive) - minutes(after.drive);
+    if (fewer < 1)
+      return expect(sentence, what).toBe('These orders came in an order VROOM could not beat.');
+    const said = claims(sentence);
+    expect(said, `${what}: ${sentence}`).not.toBeNull();
+    expect(said?.time, what).toBe(formatDuration(fewer * 60));
+    const share = Math.round((fewer / minutes(before.drive)) * 100);
+    expect(said?.percent, what).toBe(share === 0 ? undefined : share);
+    const less = tenths(before.metres) - tenths(after.metres);
+    expect(said?.tenths, what).toBe(less > 0 ? less : undefined);
+  };
+
+  test('known answers: a busy Saturday at each van count, the percent beside the time', async () => {
+    const said: string[] = [];
+    for (const vans of [1, 2, 3, 4]) {
+      const { before, after } = await plans(busy?.orders ?? [], vans);
+      said.push(savedText(before, after));
+    }
+    expect(said).toEqual([
+      `VROOM saves 2${NBSP}h 26${NBSP}min of driving, 45% less, and 72.5${NBSP}mi.`,
+      `VROOM saves 2${NBSP}h 4${NBSP}min of driving, 40% less, and 59.0${NBSP}mi.`,
+      `VROOM saves 2${NBSP}h 22${NBSP}min of driving, 43% less, and 74.0${NBSP}mi.`,
+      `VROOM saves 2${NBSP}h 18${NBSP}min of driving, 41% less, and 68.9${NBSP}mi.`,
+    ]);
+  });
+
+  test('every day, at every van count', { timeout: 120_000 }, async () => {
+    for (const day of days(data))
+      for (const vans of [1, 2, 3, 4]) {
+        const { before, after } = await plans(day.orders, vans);
+        check(savedText(before, after), before, after, `${day.id}, ${vans} vans`);
+      }
+  });
+
+  test('known answer: three orders on one van, where VROOM drives farther to save a minute', async () => {
+    const place = (label: string) => data.points.find((p) => p.label === label)?.i ?? -1;
+    const orders = ['Volunteer Park', 'Heritage Park', 'Pritchard Beach'].map(place);
+    const { before, after } = await plans(orders, 1);
+    expect([formatMiles(before.metres), formatMiles(after.metres)]).toEqual([
+      `40.4${NBSP}mi`,
+      `40.6${NBSP}mi`,
+    ]);
+    expect(savedText(before, after)).toBe(`VROOM saves 1${NBSP}min of driving, 1% less.`);
+  });
+
+  test(
+    'days of the Surprise button’s shape, from a seeded shuffle',
+    { timeout: 120_000 },
+    async () => {
+      const pool = data.points.filter((p) => p.order !== undefined).map((p) => p.i);
+      // Park and Miller's minimal generator: a known sequence, so a failure can be run again.
+      let seed = 20_261_102;
+      const next = (below: number) => {
+        seed = (seed * 48_271) % 2_147_483_647;
+        return seed % below;
+      };
+      for (let run = 0; run < 60; run++) {
+        const shuffled = [...pool];
+        for (let k = shuffled.length - 1; k > 0; k--) {
+          const j = next(k + 1);
+          [shuffled[k], shuffled[j]] = [shuffled[j] ?? 0, shuffled[k] ?? 0];
+        }
+        const orders = shuffled.slice(0, 2 + next(23));
+        const vans = 1 + next(4);
+        const { before, after } = await plans(orders, vans);
+        check(savedText(before, after), before, after, `${orders.join(',')} on ${vans}`);
+      }
+    },
+  );
+});
+
 describe('the markup both the build and the browser draw', () => {
   const plan = { routes: [[3, 9], [], [12]], unassigned: [40] };
   const m = measure(data, plan);
@@ -379,22 +491,41 @@ describe('the markup both the build and the browser draw', () => {
     // One order is one route in both plans: nothing to beat, and the headline says why.
     const single = measure(data, { routes: [[3], []], unassigned: [] });
     expect(savedText(single, single)).toBe('With one order, both plans are the same route.');
+    // The percent is the time's, and stands beside it. A busy Saturday, 5 h 34 min and 148.8 mi
+    // against 3 h 12 min and 74.8 mi: the time fell 43% and the miles 50%. Until 2026-11-02 the 43%
+    // closed the sentence, after the miles: "2 h 22 min of driving and 74.0 mi, 43% less".
+    const shown = (drive: number, metres: number) => ({ ...m, drive, metres });
+    const miles = (mi: number) => mi * 1609.344;
+    expect(savedText(shown(20_038, miles(148.8)), shown(11_504, miles(74.8)))).toBe(
+      `VROOM saves 2${NBSP}h 22${NBSP}min of driving, 43% less, and 74.0${NBSP}mi.`,
+    );
     const shorter = { ...m, drive: m.drive - 600, metres: m.metres - 1_609 };
     expect(savedText(m, shorter)).toMatch(
-      new RegExp(`^VROOM saves 10${NBSP}min of driving and 1.0${NBSP}mi, \\d+% less\\.$`),
+      new RegExp(`^VROOM saves 10${NBSP}min of driving, \\d+% less, and 1.0${NBSP}mi\\.$`),
     );
     // The headline is the difference of the totals as shown: 3 h 0 min (10,770 s) and 2 h 28 min
     // (8,890 s) are 32 min apart on the page, though 1,880 s rounds to 31.
-    const shown = (drive: number, metres: number) => ({ ...m, drive, metres });
     expect(formatDuration(10_770)).toBe(`3${NBSP}h 0${NBSP}min`);
     expect(formatDuration(8_890)).toBe(`2${NBSP}h 28${NBSP}min`);
-    expect(savedText(shown(10_770, 40_000), shown(8_890, 40_000))).toMatch(
-      new RegExp(`^VROOM saves 32${NBSP}min of driving and 0.0${NBSP}mi, `),
+    expect(savedText(shown(10_770, 40_000), shown(8_890, 40_000))).toBe(
+      `VROOM saves 32${NBSP}min of driving, 18% less.`,
     );
     // Miles too: 24.9 and 24.8 mi on the page (40,152 m and 39,985 m) are 0.1 apart.
     expect([formatMiles(40_152), formatMiles(39_985)]).toEqual([`24.9${NBSP}mi`, `24.8${NBSP}mi`]);
-    expect(savedText(shown(10_770, 40_152), shown(8_890, 39_985))).toMatch(
-      new RegExp(`and 0.1${NBSP}mi, `),
+    expect(savedText(shown(10_770, 40_152), shown(8_890, 39_985))).toBe(
+      `VROOM saves 32${NBSP}min of driving, 18% less, and 0.1${NBSP}mi.`,
+    );
+    // VROOM shortens the time and can drive farther to do it: 40.4 mi against 40.6 mi claims no
+    // miles. Until 2026-11-02 that read "and 0.0 mi", a saving that wasn't one.
+    expect(savedText(shown(6_000, miles(40.4)), shown(5_940, miles(40.6)))).toBe(
+      `VROOM saves 1${NBSP}min of driving, 1% less.`,
+    );
+    // A percent that rounds to nothing says nothing: 1 min of 6 h 50 min is not "0% less".
+    expect(savedText(shown(24_600, miles(150)), shown(24_540, miles(150.5)))).toBe(
+      `VROOM saves 1${NBSP}min of driving.`,
+    );
+    expect(savedText(shown(24_600, miles(150)), shown(24_540, miles(149.8)))).toBe(
+      `VROOM saves 1${NBSP}min of driving and 0.2${NBSP}mi.`,
     );
     expect(backText({ ...m, back: 7_200 }, { ...m, back: 5_400 })).toBe(
       `The last van is back after 2${NBSP}h 0${NBSP}min as the orders came in, and after 1${NBSP}h 30${NBSP}min with VROOM.`,

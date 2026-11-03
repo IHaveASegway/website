@@ -155,6 +155,15 @@ export function simplify(line: Line, tolerance: number): Line {
 export const hourMarks = (box: Box): number[] =>
   Array.from({ length: Math.round(box.seconds / 3600) }, (_, k) => (k + 1) * 3600);
 
+/** The hours that carry a word: all of them up to eight, then every second, third and so on, since
+ *  the pillar stands as tall whatever it spans, and one van's whole day, 24 hours, ran its words
+ *  into each other. */
+export const hourLabels = (box: Box): number[] => {
+  const marks = hourMarks(box);
+  const every = Math.ceil(marks.length / 8);
+  return marks.filter((_, k) => (k + 1) % every === 0);
+};
+
 const round = (line: Line): Line => line.map((v) => Math.round(v));
 
 /** SVG path data for a screen line, as integers: the units are a few tenths of a pixel. */

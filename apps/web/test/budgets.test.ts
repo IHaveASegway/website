@@ -109,7 +109,11 @@ describe('the Route Lab', () => {
       expect(declaredFonts(page ?? '')).toEqual(expect.arrayContaining(preloadedFonts(page ?? '')));
       const firstView = figures.firstView;
       expect(firstView).toBeLessThanOrEqual(feature.firstView);
-      const firstSolve = firstView + gz(data ?? '') + lazyBytes + wasmBytes;
+      // A first change also fetches the cube's still picture and what that reaches: all of the
+      // cube's files but three.js's own chunk.
+      const still = cube.filter((file) => !/^_astro\/cube\./.test(file));
+      const firstSolve =
+        firstView + gz(data ?? '') + lazyBytes + wasmBytes + still.reduce((s, f) => s + gz(f), 0);
       expect(firstSolve).toBeLessThanOrEqual(feature.firstSolve);
     },
   );
@@ -121,6 +125,15 @@ describe('the Route Lab', () => {
     expect(cube.length).toBeGreaterThan(0);
     for (const file of cube) expect(eager.has(file), file).toBe(false);
     expect(cubeBytes).toBeLessThanOrEqual(feature.cube.lazyJavaScript);
+  });
+
+  test('its still picture counts as the cube’s, with what only it and the scene import', () => {
+    const still = files.filter((file) => /^_astro\/still\./.test(file));
+    expect(still).toHaveLength(1);
+    expect(cube).toEqual(expect.arrayContaining(still));
+    // Three.js's own chunk, the picture's, and the geometry the two share.
+    expect(cube.length).toBeGreaterThanOrEqual(3);
+    expect(ownJs.filter((file) => cube.includes(file))).toEqual([]);
   });
 
   test.runIf(page !== null)(

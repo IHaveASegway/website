@@ -302,6 +302,22 @@ for (const [themeName, colors] of Object.entries(themes)) {
       }
     });
 
+    // A moving van's dot (route-lab.css, .rl-van): the lit lamp on a ring of ink. The ring holds it
+    // off every fill of the map, and the lamp is a step off the ring, in hue where not in lightness.
+    test('map: a van’s dot, its ring at 3:1 on every fill and its lamp a step off its ring', () => {
+      const ring = get('foreground');
+      const lamp = get('primary');
+      for (const fill of [
+        'map-water',
+        'surface-1',
+        'map-land',
+        'map-park',
+        ...[1, 2, 3, 4, 5, 6].map((k) => `map-band-${k}`),
+      ])
+        expect(wcagContrast(ring, get(fill)), fill).toBeGreaterThanOrEqual(3);
+      expect(deltaOk(lamp, ring)).toBeGreaterThan(BAND_STEP);
+    });
+
     for (const van of ['map-van-a', 'map-van-b', 'map-van-c', 'map-van-d']) {
       test(`map: a stop's number, the background on ${van}, reaches 4.5:1`, () => {
         expect(wcagContrast(get('background'), get(van))).toBeGreaterThanOrEqual(4.5);
