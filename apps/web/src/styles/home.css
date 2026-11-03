@@ -100,10 +100,14 @@
 
 /* The cluster (components/home/Orbit.astro). The stage keeps its shape from the first paint, a box
    10 high to 16 wide, and the ring lies back in it by perspective, so the turning and the scroll's
-   tilt move nothing around it. The stage clips what lies outside it: the ring is drawn inside its
-   square's circle, so only the square's turning corners, which draw nothing, are cut. The offset
-   that centres the plane is a transform, not the translate property, which the build's CSS
-   minifier drops. */
+   tilt move nothing around it. Laid back, the ring's near side draws larger than the page's column
+   and its far side smaller, so its picture stands a little above the stage's middle, and past the
+   column's sides by a margin that holds no words. A clip just outside that margin only stops the
+   plane's square, whose near corners reach past the screen on a phone, from scrolling the page
+   sideways: no server and no bead of its log reaches it (e2e/home.spec.ts seeks the whole turn).
+   Until 2026-11-02 the clip was the stage, which cut the beads for half of every turn. The offset
+   that centres the plane is a transform, not the translate property, which the build's CSS minifier
+   drops. */
 .orbit {
   margin: 0;
 }
@@ -111,21 +115,28 @@
 .orbit-stage {
   position: relative;
   aspect-ratio: 16 / 10;
-  overflow: clip;
-  perspective: 70rem;
   background: radial-gradient(
-    56% 46% at 50% 52%,
+    56% 46% at 50% 48%,
     color-mix(in oklab, var(--primary) 12%, transparent),
     transparent
   );
   pointer-events: none;
 }
 
+.orbit-clip {
+  position: absolute;
+  inset-block: 0;
+  --past: min(0.75rem, calc(var(--frame-pad) - 0.25rem));
+  inset-inline: calc(-1 * var(--past));
+  overflow: clip;
+  perspective: 70rem;
+}
+
 .orbit-plane {
   position: absolute;
-  inset-block-start: 50%;
+  inset-block-start: 46%;
   inset-inline-start: 50%;
-  inline-size: min(100%, 36rem);
+  inline-size: min(calc(100% - 2 * var(--past)), 36rem);
   aspect-ratio: 1;
   transform: translate(-50%, -50%) rotateX(58deg);
 }
@@ -263,7 +274,7 @@
       animation-range: exit 0% exit 100%;
     }
 
-    .orbit-stage > .orbit-plane {
+    .orbit-clip > .orbit-plane {
       animation-name: orbit-tilt;
     }
   }

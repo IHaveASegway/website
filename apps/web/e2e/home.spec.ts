@@ -75,7 +75,91 @@ test.describe("Home's opening", () => {
   });
 });
 
+/** Through the ring's whole turn, seeked a step at a time: how many steps cut a server or a bead of
+ *  its log at the clip's edge, and by how much at worst, in px. Until 2026-11-02 they were cut for
+ *  half of every turn, 12 px at the bottom at 1440 px, right under a caption that says the servers
+ *  keep the same log. */
+const cutThroughTheTurn = (page: Page) =>
+  page.evaluate(() => {
+    const turn = document
+      .getAnimations()
+      .find((a) => (a as CSSAnimation).animationName === 'orbit-turn');
+    if (!turn) throw new Error('the ring is not turning');
+    turn.pause();
+    const clip = (document.querySelector('.orbit-clip') as Element).getBoundingClientRect();
+    const STEPS = 180;
+    let steps = 0;
+    let worst = 0;
+    for (let step = 0; step < STEPS; step++) {
+      turn.currentTime = (step / STEPS) * 90_000;
+      let cut = 0;
+      for (const mark of document.querySelectorAll('.orbit-entry, .orbit-node')) {
+        const box = mark.getBoundingClientRect();
+        cut = Math.max(
+          cut,
+          clip.left - box.left,
+          clip.top - box.top,
+          box.right - clip.right,
+          box.bottom - clip.bottom,
+        );
+      }
+      if (cut > 0.5) steps += 1;
+      worst = Math.max(worst, cut);
+    }
+    return { steps, worst };
+  });
+
 test.describe("Home's live picture", () => {
+  for (const [width, height] of [
+    [320, 568],
+    [390, 664],
+    [768, 900],
+    [1024, 768],
+    [1280, 800],
+    [1440, 900],
+    [2560, 1440],
+  ] as const) {
+    test(`at ${width} px no server or bead is cut as the ring turns, and the ring keeps its size`, async ({
+      page,
+    }) => {
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
+      await page.setViewportSize({ width, height });
+      await page.goto('/');
+      test.skip((await picture(page).count()) === 0, 'this build writes no Raft Lab');
+      await expect(page.locator('html')).toHaveAttribute('data-motion', 'on');
+      expect(await cutThroughTheTurn(page)).toEqual({ steps: 0, worst: expect.any(Number) });
+      // The room came from the margin, not from the ring: it still fills its column, up to 36rem.
+      const sizes = await page.evaluate(() => ({
+        plane: (document.querySelector('.orbit-plane') as HTMLElement).offsetWidth,
+        stage: (document.querySelector('.orbit-stage') as HTMLElement).offsetWidth,
+        page: document.documentElement.scrollWidth,
+      }));
+      expect(sizes.plane).toBe(Math.min(sizes.stage, 576));
+      expect(sizes.page).toBe(width);
+    });
+  }
+
+  // The known answer: the same reading on the stage as it stood, the clip on its own edges and the
+  // plane at its middle, finds what the turn cut.
+  test('known answer: with the clip on the stage and the ring at its middle, the cut is found', async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+    test.skip((await picture(page).count()) === 0, 'this build writes no Raft Lab');
+    await expect(page.locator('html')).toHaveAttribute('data-motion', 'on');
+    await page.evaluate(() => {
+      const old = new CSSStyleSheet();
+      old.replaceSync(`.orbit-clip { inset-inline: 0; }
+        .orbit-plane { inset-block-start: 50%; inline-size: min(100%, 36rem); }`);
+      document.adoptedStyleSheets = [old];
+    });
+    const { steps, worst } = await cutThroughTheTurn(page);
+    expect(steps).toBeGreaterThan(50);
+    expect(worst).toBeGreaterThan(8);
+  });
+
   test("it is the Raft Lab's cluster as its page opens: one leader lit, every log as long, a link to break it", async ({
     page,
   }) => {

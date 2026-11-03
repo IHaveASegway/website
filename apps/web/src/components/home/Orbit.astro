@@ -39,54 +39,56 @@ const caption = leader
 
 <figure class="orbit" aria-labelledby="orbit-caption">
   <div class="orbit-stage" aria-hidden="true">
-    <div class="orbit-plane">
-      <svg class="orbit-svg" viewBox={`0 0 ${ORBIT_BOX} ${ORBIT_BOX}`} focusable="false">
-        <g class="orbit-spin">
-          <circle class="orbit-track" cx={C} cy={C} r={R}></circle>
-          <circle class="orbit-floor" cx={C} cy={C} r={R + 6}></circle>
-          <circle class="orbit-track orbit-track-inner" cx={C} cy={C} r={R - 52}></circle>
-          {lead &&
-            place
-              .filter((p) => !p.server.leader)
-              .map((p) => (
-                <g class={`orbit-link orbit-link-${p.k}`}>
-                  <path
-                    class="orbit-wire"
-                    d={`M${n(lead.xy[0])} ${n(lead.xy[1])}L${n(p.xy[0])} ${n(p.xy[1])}`}
-                  />
-                  <path
-                    class="orbit-beat"
-                    pathLength="100"
-                    d={`M${n(lead.xy[0])} ${n(lead.xy[1])}L${n(p.xy[0])} ${n(p.xy[1])}`}
-                  />
-                  <path
-                    class="orbit-ack"
-                    pathLength="100"
-                    d={`M${n(p.xy[0])} ${n(p.xy[1])}L${n(lead.xy[0])} ${n(lead.xy[1])}`}
-                  />
-                </g>
-              ))}
-          {place.map((p) => (
-            <g class={p.server.leader ? 'orbit-server orbit-leader' : 'orbit-server'}>
-              {p.beads.map(([x, y]) => (
-                <circle class="orbit-entry" cx={n(x)} cy={n(y)} r="3" />
-              ))}
-              {p.server.leader && (
-                <circle class="orbit-glow" cx={n(p.xy[0])} cy={n(p.xy[1])} r="44" />
-              )}
-              {p.server.leader && (
-                <circle class="orbit-halo" cx={n(p.xy[0])} cy={n(p.xy[1])} r="24" />
-              )}
-              <circle
-                class="orbit-node"
-                cx={n(p.xy[0])}
-                cy={n(p.xy[1])}
-                r={p.server.leader ? 18 : 15}
-              />
-            </g>
-          ))}
-        </g>
-      </svg>
+    <div class="orbit-clip">
+      <div class="orbit-plane">
+        <svg class="orbit-svg" viewBox={`0 0 ${ORBIT_BOX} ${ORBIT_BOX}`} focusable="false">
+          <g class="orbit-spin">
+            <circle class="orbit-track" cx={C} cy={C} r={R}></circle>
+            <circle class="orbit-floor" cx={C} cy={C} r={R + 6}></circle>
+            <circle class="orbit-track orbit-track-inner" cx={C} cy={C} r={R - 52}></circle>
+            {lead &&
+              place
+                .filter((p) => !p.server.leader)
+                .map((p) => (
+                  <g class={`orbit-link orbit-link-${p.k}`}>
+                    <path
+                      class="orbit-wire"
+                      d={`M${n(lead.xy[0])} ${n(lead.xy[1])}L${n(p.xy[0])} ${n(p.xy[1])}`}
+                    />
+                    <path
+                      class="orbit-beat"
+                      pathLength="100"
+                      d={`M${n(lead.xy[0])} ${n(lead.xy[1])}L${n(p.xy[0])} ${n(p.xy[1])}`}
+                    />
+                    <path
+                      class="orbit-ack"
+                      pathLength="100"
+                      d={`M${n(p.xy[0])} ${n(p.xy[1])}L${n(lead.xy[0])} ${n(lead.xy[1])}`}
+                    />
+                  </g>
+                ))}
+            {place.map((p) => (
+              <g class={p.server.leader ? 'orbit-server orbit-leader' : 'orbit-server'}>
+                {p.beads.map(([x, y]) => (
+                  <circle class="orbit-entry" cx={n(x)} cy={n(y)} r="3" />
+                ))}
+                {p.server.leader && (
+                  <circle class="orbit-glow" cx={n(p.xy[0])} cy={n(p.xy[1])} r="44" />
+                )}
+                {p.server.leader && (
+                  <circle class="orbit-halo" cx={n(p.xy[0])} cy={n(p.xy[1])} r="24" />
+                )}
+                <circle
+                  class="orbit-node"
+                  cx={n(p.xy[0])}
+                  cy={n(p.xy[1])}
+                  r={p.server.leader ? 18 : 15}
+                />
+              </g>
+            ))}
+          </g>
+        </svg>
+      </div>
     </div>
   </div>
   <figcaption class="orbit-caption" id="orbit-caption">
