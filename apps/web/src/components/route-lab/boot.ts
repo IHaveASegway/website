@@ -7,15 +7,14 @@
 // about 350 KB, loads only when VROOM has something to plan (app.ts). A touch that only scrolls
 // the page loads nothing.
 
-const UNLOADED =
-  'The lab did not load, so the maps still show the day it opened with. Change anything to try again.';
+import { sayUnloaded, tryAgain } from '../../lib/lab/unloaded';
+
 const LOADING = 'Loading the solver…';
 
 /** The order checkbox nearest a point on a map, within 24 px, or null: the map's targets are the
  *  places, and the list of places is the same control for the keyboard. */
 function nearest(root: HTMLElement, map: SVGSVGElement, x: number, y: number) {
-  const ctm = map.getScreenCTM();
-  if (!ctm) return null;
+  const ctm = map.getScreenCTM() as DOMMatrix; // a map under a pointer is drawn
   const at = new DOMPoint(x, y).matrixTransform(ctm.inverse());
   let found: HTMLInputElement | null = null;
   let best = (24 / ctm.a) ** 2;
@@ -31,14 +30,11 @@ export type Nearest = typeof nearest;
 const root = document.getElementById('route-lab');
 
 if (root) {
-  // CSS shows the controls from the first paint wherever script runs (route-lab.css, the
-  // scripting media feature); this only covers a browser too old to know that feature.
-  for (const part of root.querySelectorAll('[data-rl-nojs]')) part.setAttribute('hidden', '');
   const status = root.querySelector('[data-rl-status]');
 
   // The vans drive when a visitor lands (ADR 0030), by the page's own markup: no script runs them,
   // this only holds them, on a button, or while the maps are off the screen.
-  const maps = root.querySelector('.rl-maps');
+  const maps = root.querySelector('.rl-maps') as Element;
   const buttons = root.querySelectorAll<HTMLButtonElement>('[data-rl-drive]');
   // Still until the chrome's module says the page may move (scripts/field.js), and for good if it
   // never does.
@@ -66,11 +62,10 @@ if (root) {
     wanted = !(event as CustomEvent<{ paused: boolean }>).detail.paused;
     drive();
   });
-  if (maps)
-    new IntersectionObserver(([entry]) => {
-      shown = entry?.isIntersecting ?? true;
-      drive();
-    }).observe(maps);
+  new IntersectionObserver(([entry]) => {
+    shown = Boolean(entry?.isIntersecting);
+    drive();
+  }).observe(maps);
 
   // What the visitor changes before the rest has loaded, in order, so nothing is lost: a control,
   // or the surprise. Which map a phone shows is not a change to the plan.
@@ -78,53 +73,47 @@ if (root) {
   let ready = false;
   let failed = false;
   let started: Promise<void> | undefined;
-  // A load that fails (a dropped connection, or a deploy that retired the files this page names)
-  // is not kept: the next change tries again. A focus or a mouse over the demo does not, so a
-  // failure costs one request per change, not one per movement.
+  // A load that fails (a dropped connection, or a deploy that retired the files this page names) says
+  // so on the screen, and the next change fetches a fresh page (lib/lab/unloaded.ts): importing the
+  // file again can't work in WebKit, and a deploy's new files have other names. A focus or a mouse
+  // over the demo does not, so a failure costs one try per change, not one per movement.
   const start = () => {
     started ??= import('./app')
       .then((app) => app.start(root, queued, nearest))
       .then(() => {
         ready = true;
-        failed = false;
       })
       .catch(() => {
-        started = undefined;
         failed = true;
-        if (status) status.textContent = UNLOADED;
+        sayUnloaded(root);
       });
   };
-  const queue = (element: Element) => {
-    if (ready) return;
-    queued.push(element);
-    if (status) status.textContent = LOADING;
+  const change = (element: Element) => {
+    if (failed) return tryAgain(root);
+    if (!ready) {
+      queued.push(element);
+      (status as Element).textContent = LOADING;
+    }
+    start();
   };
 
-  root.addEventListener('focusin', () => {
-    if (!failed) start();
-  });
+  root.addEventListener('focusin', start);
   root.addEventListener('pointerover', (event) => {
-    if (event.pointerType !== 'touch' && !failed) start();
+    if (event.pointerType !== 'touch') start();
   });
   root.addEventListener('change', (event) => {
-    const input = event.target;
-    if (!(input instanceof HTMLInputElement) || input.name === 'rl-view') return;
-    if (input.closest('[data-rl-cube]')) return; // the cube's own controls plan nothing
-    queue(input);
-    start();
+    const input = event.target as HTMLInputElement;
+    // Nor do the cube's own controls: they plan nothing.
+    if (input.name !== 'rl-view' && !input.closest('[data-rl-cube]')) change(input);
   });
   root.addEventListener('click', (event) => {
-    const target = event.target instanceof Element ? event.target : null;
-    const surprise = target?.closest('[data-rl-surprise]');
-    if (surprise) {
-      queue(surprise);
-      start();
-      return;
-    }
+    const target = event.target as Element;
+    const surprise = target.closest('[data-rl-surprise]');
+    if (surprise) return change(surprise);
     // A tap on a map toggles the order of the nearest place, through its checkbox, so the map
     // and the list are one control.
-    const map = target?.closest('svg[data-rl-map]');
-    if (map instanceof SVGSVGElement) nearest(root, map, event.clientX, event.clientY)?.click();
+    const map = target.closest<SVGSVGElement>('svg[data-rl-map]');
+    if (map) nearest(root, map, event.clientX, event.clientY)?.click();
   });
 
   // The space-time cube (ADR 0019): three.js, about 140 KB, loads on intent at the cube itself, a
@@ -132,8 +121,8 @@ if (root) {
   // slider, and never on a scroll: a finger that lands on the cube to scroll fires no click, and
   // the browser takes a drag up or down for itself and cancels the pointer (touch-action,
   // route-lab.css). The app loads with it, since the cube draws the app's plans, and the cube starts
-  // only once the app has started: an app that failed leaves the pictures, and the next intent
-  // tries again. A press of Play is kept for it.
+  // only once the app has started: an app that failed leaves the pictures, and the next press brings
+  // a fresh page. A press of Play is kept for it.
   const cube = root.querySelector<HTMLElement>('[data-rl-cube]');
   if (cube) {
     // Each cube is a stop for Tab from the first paint, before three.js is here: the focus is the
@@ -142,10 +131,7 @@ if (root) {
     // already passed, so Tab skipped both cubes. Script sets it, so without script there is no
     // stop that does nothing; cube.ts takes it away again where the cube cannot be drawn.
     for (const stage of cube.querySelectorAll<HTMLElement>('[data-rl-cube-stage]')) {
-      const title = stage.querySelector('title');
       stage.tabIndex = 0;
-      stage.setAttribute('role', 'img');
-      if (title) stage.setAttribute('aria-labelledby', title.id);
       stage.setAttribute('aria-describedby', 'rl-cube-hint');
       // A finger's drag sideways is what the hint under the cube asks for, and it fires no click:
       // until 2026-11-02 it did nothing until a tap had loaded the scene. Once a drag, as a press is.
@@ -164,16 +150,16 @@ if (root) {
     let cubed: Promise<unknown> | undefined;
     let live = false;
     // A mouse or a focus does not try again after a failed load; a click, a tap or the slider
-    // does, as a change does for the maps: one request per press, not one per movement.
+    // does, as a change does for the maps: one try per press, not one per movement.
     const open = (again = false) => {
-      if (failed && !again) return;
+      if (failed) {
+        if (again) tryAgain(root);
+        return;
+      }
       start();
       cubed ??= Promise.all([import('./cube'), started])
         .then(([scene]) => {
-          if (!ready) {
-            cubed = undefined;
-            return;
-          }
+          if (!ready) return;
           live = scene.start(root);
           // No WebGL here: the pictures stay, and so does the visitor's focus.
           if (!live) scene.hideControls(cube);
@@ -185,14 +171,11 @@ if (root) {
     cube.addEventListener('pointerover', (event) => {
       if (event.pointerType !== 'touch') open();
     });
-    cube.addEventListener('pointerdown', (event) => {
-      if (event.pointerType !== 'touch') open(true);
-    });
     cube.addEventListener('focusin', () => open());
     cube.addEventListener('input', () => open(true));
     cube.addEventListener('click', (event) => {
-      const play = event.target instanceof Element && event.target.closest('[data-rl-cube-play]');
-      if (play instanceof HTMLElement && !live) play.dataset['rlCubeWant'] = '1';
+      const play = (event.target as Element).closest<HTMLElement>('[data-rl-cube-play]');
+      if (play && !live) play.dataset['rlCubeWant'] = '1';
       open(true);
     });
   }

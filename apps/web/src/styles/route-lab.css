@@ -346,18 +346,12 @@
 }
 
 /* What script runs decides what shows, from the first paint: the controls, the status line and
-   the map switch where script runs; the line written for a visitor without it where it does not.
-   Revealing them from the boot module moved everything below them after the page had painted
-   (a layout shift of 0.16 on a phone on a slow network). The switch between the maps is CSS
+   the map switch where script runs; the line written for a visitor without it, a noscript, where it
+   does not. Revealing them from the boot module moved everything below them after the page had
+   painted (a layout shift of 0.16 on a phone on a slow network). The switch between the maps is CSS
    alone, so it works before, and without, the module. */
 @media (scripting: none) {
   .rl [data-rl-js] {
-    display: none;
-  }
-}
-
-@media (scripting: enabled) {
-  .rl [data-rl-nojs] {
     display: none;
   }
 }

@@ -559,10 +559,11 @@ test('on a slow phone the page does not shift when the demo’s script arrives',
   await context.close();
 });
 
-// A load that fails is not kept (boot.ts): the route data's request is dropped once, the page says
-// the lab did not load and leaves the maps on the day it opened with, and the next change loads
-// and plans. Before 2026-10-25 the failure was cached, and only a reload recovered.
-test('a demo that failed to load tries again on the next change, and then plans', async ({
+// A load that fails says so (boot.ts, lib/lab/unloaded.ts): the route data's request is dropped once,
+// the page says the lab did not load and leaves the maps on the day it opened with, and the next
+// change fetches a fresh page, which loads and plans. Importing the file again can't work in WebKit
+// (steady.spec.ts), and a deploy's new files have other names, so a retry on the page can't either.
+test('a lab that failed to load says so, and the next change brings a fresh page that plans', async ({
   page,
   context,
 }) => {
@@ -572,14 +573,37 @@ test('a demo that failed to load tries again on the next change, and then plans'
   );
   await page.goto(ROUTE_LAB);
   await page.check('input[name="rl-day"][value="quiet"]');
-  await expect(status(page)).toHaveText(
-    'The lab did not load, so the maps still show the day it opened with. Change anything to try again.',
+  await expect(status(page)).toHaveText('The lab did not load. Press any control to try again.');
+  await expect(status(page)).toBeVisible();
+  await expect(page.locator('[data-rl-say]')).toHaveText(
+    'The lab did not load. Press any control to try again.',
   );
+  await expect(page.locator('[data-rl-time]').first()).toHaveText(/^\d/);
+  const loaded = page.waitForEvent('load');
+  await page.locator('[data-rl-surprise]').click();
+  await loaded;
+  await expect(status(page)).toHaveText('');
   await page.check('input[name="rl-vans"][value="2"]');
   await expect(status(page)).toHaveText(PLANNED, { timeout: 20_000 });
   await expect(status(page)).toContainText('2 vans.');
   await expect(page.locator('[data-rl-plan="after"]')).not.toHaveAttribute('data-rl-stale');
-  expect(dropped).toBe(2);
+});
+
+// With no connection yet a fresh page can't come, so the page stays and says so again.
+test('with no connection yet the Route Lab stays, and says so again', async ({ page }) => {
+  await page.route('**/_astro/app.*.js', (route) => route.abort());
+  await page.goto(ROUTE_LAB);
+  await page.locator('[data-rl-surprise]').click();
+  const words = 'The lab did not load. Press any control to try again.';
+  await expect(status(page)).toHaveText(words);
+  await page.route(ROUTE_LAB, (route) => route.abort());
+  await page.evaluate(() => {
+    (window as unknown as { stayed: boolean }).stayed = true;
+    document.querySelector('[data-rl-status]')?.replaceChildren();
+  });
+  await page.locator('[data-rl-surprise]').click();
+  await expect(status(page)).toHaveText(words);
+  expect(await page.evaluate(() => (window as unknown as { stayed: boolean }).stayed)).toBe(true);
 });
 
 // A solve that runs out of time is not a broken solver (app.ts): the worker's script never

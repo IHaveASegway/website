@@ -518,6 +518,28 @@ for (const [name, lab] of Object.entries(LABS)) {
   });
 }
 
+// The Route Lab's load, the same: its retry imported the file again until 2026-11-02, which WebKit
+// answers with the failure it kept, so "Change anything to try again" could never come true on a phone.
+test('the route lab that did not load: a press tries again, here in WebKit too', async ({
+  page,
+}) => {
+  const words = 'The lab did not load. Press any control to try again.';
+  const line = page.locator('[data-rl-status]');
+  await page.route('**/_astro/app.*.js', (route) => route.abort());
+  await page.goto(ROUTE_LAB);
+  const surprise = page.locator('[data-rl-surprise]');
+  await surprise.tap();
+  await expect(line).toHaveText(words);
+  await expect(line).toBeVisible();
+  await page.unroute('**/_astro/app.*.js');
+  const loaded = page.waitForEvent('load');
+  await surprise.tap();
+  await loaded;
+  await expect(line).toHaveText('');
+  await surprise.tap();
+  await expect(line).toHaveText(/^A surprise: /, { timeout: 20_000 });
+});
+
 // A reader who has scrolled back keeps their lines as new ones come, and the log keeps only 60. Until
 // 2026-11-02 the top line slid from 3.3 s to 5.7 s in 5 s of reading. iOS Safari has no scroll
 // anchoring to do it for them, and neither has this WebKit once the page turns it off.

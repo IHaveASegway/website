@@ -264,14 +264,14 @@ const bands = bandsSentence(
     <p class="rl-capacity" data-rl-capacity>
       {roomText(routeData, day.orders, day.vans, capacity)}
     </p>
-    <p class="rl-status" data-rl-status data-rl-js></p>
+    <p class="rl-status" data-rl-status data-said data-rl-js></p>
     <p class="rl-say" role="status" data-rl-say></p>
   </div>
 
-  <p class="rl-caption" data-rl-nojs>
-    Both plans for a busy Saturday, worked out in advance by the same solver. With JavaScript on,
-    you can change the orders and the vans.
-  </p>
+  <noscript class="rl-caption">
+    Both plans for a busy Saturday, worked out in advance by the same solver. With JavaScript on, you
+    can change the orders and the vans.
+  </noscript>
 
   <div class="rl-legend">
     <div class="rl-legend-bands">

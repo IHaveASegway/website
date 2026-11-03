@@ -89,7 +89,12 @@ const NBSP = '\u00a0';
             {cubeLine(plan.measured.back)}
           </span>
         </figcaption>
-        <div class="rl-cube-stage" data-rl-cube-stage>
+        <div
+          class="rl-cube-stage"
+          role="img"
+          aria-labelledby={`rl-cube-${plan.which}-title`}
+          data-rl-cube-stage
+        >
           <svg
             class="rl-cube-picture"
             viewBox={viewBox}
