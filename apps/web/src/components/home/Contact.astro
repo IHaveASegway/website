@@ -1,10 +1,9 @@
 ---
-import { CONTACT_EMAIL } from '../../lib/site';
 import '../../styles/contact.css';
 
-// How a page closes (docs/design/home.md, "Contact"; /about/ and Home): where to reach Joseph, under
-// a title. A mailto link opens nothing on a computer with no mail app set up, so the address is
-// there to read and to copy as well as to press (scripts/copy.js).
+// How a page closes (docs/design/home.md, "Contact"; ADR 0031): where to reach out, on Home and
+// /about/. LinkedIn is how people reach Joseph, so the one thing to press is that, and no page asks a
+// reader to email.
 
 interface Props {
   /** The title over it: the bio's closing section's, where the build holds the bio. */
@@ -16,8 +15,6 @@ interface Props {
 }
 
 const { heading = 'Contact', words = [], linkedIn } = Astro.props;
-// The address may break after its "@", and only there.
-const [mailbox, domain] = CONTACT_EMAIL.split('@');
 ---
 
 <section class="section contact" id="contact" aria-labelledby="contact-title">
@@ -27,31 +24,11 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
   {words.map((paragraph) => (
     <p class="contact-words">{paragraph}</p>
   ))}
-  {words.length === 0 && (
-    <p class="contact-line">
-      {/* A phone breaks the address after its @, never inside a word (a <wbr>, unseen and unread). */}
-      <a class="contact-address" href={`mailto:${CONTACT_EMAIL}`}>
-        {mailbox}@<wbr />
-        {domain}
-      </a>
-    </p>
-  )}
-  <div class="contact-actions">
-    {words.length === 0 && (
-      <button class="btn btn-copy" type="button" data-copy-address={CONTACT_EMAIL}>
-        <span class="copy-label" aria-live="polite">
-          Copy email address
-        </span>
-      </button>
-    )}
-    {linkedIn && (
-      <a class:list={['btn', { 'btn-primary': words.length > 0 }]} href={linkedIn.url}>
+  {linkedIn && (
+    <div class="contact-actions">
+      <a class="btn btn-primary" href={linkedIn.url}>
         {linkedIn.network}
       </a>
-    )}
-  </div>
+    </div>
+  )}
 </section>
-
-{words.length === 0 && <script>
-  import '../../scripts/copy.js';
-</script>}

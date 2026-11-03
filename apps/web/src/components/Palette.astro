@@ -1,7 +1,6 @@
 ---
 import { navAll } from '../lib/nav';
 import { checkedProfiles, type Profile } from '../lib/profile';
-import { CONTACT_EMAIL } from '../lib/site';
 import { THEME_STATES } from '../lib/theme';
 
 interface Props {
@@ -29,9 +28,9 @@ const { profile, generated, demos, posts, print = false } = Astro.props;
 // Lab and Writing, every demo and every post, found by their titles, and by their summaries where
 // the query stands in one whole, so the rail's search finds what the rail has no room to list
 // (ADR 0022);
-// Actions, copying the address, the theme, whose entry shows the toggle's names, and Print, on a
-// page with a Print button (/about/), which the entry presses; and Links, the
-// profiles whose readiness check is recorded, as the footer lists them. Every row also exists
+// Actions, the theme, whose entry shows the toggle's names, and Print, on a page with a Print button
+// (/about/), which the entry presses; and Links, the profiles whose readiness check is recorded, as
+// the footer lists them, LinkedIn found by the words a visitor uses to reach out. Every row also exists
 // elsewhere on the page, in the nav, the toggle or the footer: the menu is a shortcut, never the
 // only way in (content.md, "Sitemap and phases"). The page's own text is all it shows: what a
 // visitor types narrows the rows and is never written back (security.md, "Threat model").
@@ -129,17 +128,6 @@ const found = [
       <li
         class="palette-option"
         role="option"
-        id="palette-copy"
-        data-act="copy"
-        data-copy={CONTACT_EMAIL}
-        data-keys="mail contact"
-      >
-        {'Copy email address '}
-        <span class="palette-value">{CONTACT_EMAIL}</span>
-      </li>
-      <li
-        class="palette-option"
-        role="option"
         id="palette-theme"
         data-act="theme"
         data-keys="light dark mode"
@@ -173,7 +161,7 @@ const found = [
             role="option"
             id={`palette-${p.network.toLowerCase()}`}
             data-href={p.url}
-            data-keys="profile"
+            data-keys={p.network === 'LinkedIn' ? 'profile contact reach email mail' : 'profile'}
           >
             {p.network}
           </li>

@@ -28,7 +28,7 @@ const animationStates = (page: Page) =>
 
 test.describe("Home's opening", () => {
   for (const width of [320, 390, 1440]) {
-    test(`at ${width} px the role, then the name in its own case, the statement and both ways to reach him`, async ({
+    test(`at ${width} px the role, then the name in its own case, the statement and LinkedIn leading`, async ({
       page,
     }) => {
       await page.setViewportSize({ width, height: 900 });
@@ -45,11 +45,10 @@ test.describe("Home's opening", () => {
       );
       expect(lines, 'lines of the name').toBe(2);
       expect(lines).toBeLessThanOrEqual(2);
-      await expect(page.locator('.hero-actions .btn-email')).toHaveAttribute(
-        'href',
-        'mailto:hello@ihaveasegway.com',
-      );
-      await expect(page.locator('.hero-actions .btn').last()).toHaveText('LinkedIn');
+      // LinkedIn is how people reach Joseph (ADR 0031): it leads, and nothing here asks for an email.
+      await expect(page.locator('.hero-actions .btn').first()).toHaveText('LinkedIn');
+      await expect(page.locator('.hero-actions .btn-primary')).toHaveText('LinkedIn');
+      await expect(page.locator('.hero-actions a[href^="mailto:"]')).toHaveCount(0);
     });
   }
 
@@ -304,9 +303,6 @@ test("Home's writing rows: the day, the title as the row's link, its summary, it
   }
 });
 
-// The address works with no mail app (components/home/Contact.astro; scripts/copy.js): pressed, the
-// button copies it, or where the clipboard refuses (a page not served securely) selects it, says
-// which, and keeps its width, so nothing moves.
 // "made-up" is one word to read: the line over a fact must not split it at its hyphen. Phones, and the
 // widths from 1,024 to 1,112 px where the third column split it until 2026-11-03: four widths saw none.
 test('at every width the line over a fact keeps "made-up" whole', async ({ page }) => {
@@ -326,40 +322,31 @@ test('at every width the line over a fact keeps "made-up" whole', async ({ page 
   }
 });
 
-test('Home closes with the address, a button that copies it without moving, and LinkedIn', async ({
-  page,
-  context,
-}) => {
-  await context.grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => undefined);
-  await page.goto('/');
-  const contact = page.locator('#contact');
-  await expect(contact.locator('.contact-address')).toHaveAttribute(
-    'href',
-    'mailto:hello@ihaveasegway.com',
-  );
-  await expect(contact.locator('.contact-address')).toHaveText('hello@ihaveasegway.com');
-  const copy = contact.locator('.btn-copy');
-  await expect(copy).toHaveText('Copy email address');
-  await copy.scrollIntoViewIfNeeded();
-  const size = async () => {
-    const box = await copy.boundingBox();
-    return { width: box?.width, height: box?.height };
-  };
-  const before = await size();
-  await copy.click();
-  const secure = await page.evaluate(() => isSecureContext && 'clipboard' in navigator);
-  if (secure) {
-    await expect(copy).toHaveText('Copied');
-    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
-      'hello@ihaveasegway.com',
+// Home closes on where to reach out (components/home/Contact.astro; ADR 0031): the bio's last words
+// where the build holds the bio, and LinkedIn to press. No page asks a reader to email: the address
+// stays as plain text in the footer, and on paper in the résumé's head.
+test('Home and /about/ close on LinkedIn, and no page asks for an email', async ({ page }) => {
+  const reached = await page.request.get('/');
+  expect(reached.ok()).toBe(true);
+  for (const path of ['/', '/about/']) {
+    await page.goto(path);
+    const contact = page.locator('#contact');
+    if (path === '/about/' && (await contact.count()) === 0) continue;
+    await expect(contact.locator('a.btn')).toHaveText(['LinkedIn']);
+    await expect(contact.locator('a.btn')).toHaveAttribute(
+      'href',
+      /^https:\/\/www\.linkedin\.com\/in\//,
     );
-  } else {
-    await expect(copy).toHaveText('Selected above');
-    expect(await page.evaluate(() => getSelection()?.toString().replace(/\s/g, ''))).toBe(
-      'hello@ihaveasegway.com',
-    );
+    await expect(contact.locator('a[href^="mailto:"], button')).toHaveCount(0);
   }
-  expect(await size()).toEqual(before);
-  await expect(copy).toHaveText('Copy email address', { timeout: 5_000 });
-  await expect(contact.locator('a.btn')).toHaveText(['LinkedIn']);
+  for (const path of pages()) {
+    await page.goto(path);
+    // The address, where it stands, is the footer's: nothing else on screen offers it.
+    const offered = await page
+      .locator('a[href^="mailto:"]:visible')
+      .evaluateAll((links) => links.filter((a) => !a.closest('.site-foot')).length);
+    expect(offered, path).toBe(0);
+    await expect(page.getByText(/\bemail me\b/i), path).toHaveCount(0);
+    await expect(page.locator('[data-copy-address], .btn-copy'), path).toHaveCount(0);
+  }
 });

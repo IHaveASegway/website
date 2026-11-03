@@ -594,47 +594,9 @@
   line-height: 1.5;
 }
 
-/* Contact: the address at a title's size in the wide face, breaking only after its @, with its
-   underline unbroken under the letters that hang below it; then a button that copies it, for a
-   computer with no mail app, and LinkedIn. The button keeps the width of its longest words, so
-   what it says when pressed moves nothing (scripts/copy.js). */
-.contact-line {
-  margin: 0;
-}
-
-.contact-address {
-  display: inline-block;
-  max-inline-size: 100%;
-  padding-block: 0.2em; /* a target of 24 px or more at a headline's size (SC 2.5.8) */
-  font: 600 var(--text-section) / 1.1 var(--font-display);
-  text-decoration-thickness: 0.05em;
-  text-underline-offset: 0.14em;
-  text-decoration-skip-ink: none;
-  overflow-wrap: anywhere;
-}
-
-.contact-address::selection,
-.contact-address *::selection {
-  background-color: transparent;
-  color: var(--primary);
-}
-
-.btn-copy {
-  min-inline-size: min(13.75rem, 100%);
-}
-
-/* The address at a section's size, and below 27rem a headline's, so that each side of its @ keeps
-   to one line and only the @ breaks it (e2e/layout.spec.ts). */
-@media (width < 27rem) {
-  .contact-address {
-    font-size: var(--text-headline);
-  }
-}
-
-/* On paper the cluster, a moving picture, is left off, and the copy button with it. */
+/* On paper the cluster, a moving picture, is left off. */
 @media print {
-  .orbit,
-  .btn-copy {
+  .orbit {
     display: none;
   }
 }

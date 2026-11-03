@@ -26,7 +26,6 @@ import { checkedProfiles, homeDescription, roleLine } from '../lib/profile';
 import { SEEDS_IN_CI as QUEUE_SEEDS } from '../lib/queue/view';
 import { openingServers } from '../lib/orbit';
 import { SEEDS_IN_CI as RAFT_SEEDS } from '../lib/raft/view';
-import { CONTACT_EMAIL } from '../lib/site';
 import { writingRow } from '../lib/work';
 import '../styles/home.css';
 
@@ -146,12 +145,10 @@ const latest = writingRow(area.published, work);
       {rest.map((paragraph) => (
         <p class="hero-more">{paragraph}</p>
       ))}
+      {/* LinkedIn is how people reach Joseph, so it's the button that leads (ADR 0031). */}
       <div class="hero-actions">
-        <a class="btn btn-primary btn-email" href={`mailto:${CONTACT_EMAIL}`}>
-          Email me
-        </a>
         {external.map((p) => (
-          <a class="btn" href={p.url} rel="me">
+          <a class:list={['btn', { 'btn-primary': p === linkedIn }]} href={p.url} rel="me">
             {p.network}
           </a>
         ))}

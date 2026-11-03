@@ -6,7 +6,6 @@ import { loadProfile, loadWritingArea, postEntry } from '../../lib/content';
 import { postingGraph, serialize } from '../../lib/jsonld';
 import { aboutParts, openingSentence } from '../../lib/about';
 import { checkedProfiles } from '../../lib/profile';
-import { CONTACT_EMAIL } from '../../lib/site';
 import { loadAbout } from '../../lib/content';
 import { postCard } from '../../lib/og';
 import { isoDay, minutesWords, postLabel, postPath, wordDay, type PostPage } from '../../lib/posts';
@@ -44,7 +43,7 @@ const source = post.source ? new URL(post.source) : null;
 // what isn't there. A draft lists nothing, since nothing lists a draft either way.
 const area = await loadWritingArea();
 // The close (ADR 0029): this reader arrives cold from a shared link, so the post says who wrote it
-// and how to reach him, in words the bio and the profile already own. It renders on a listed post
+// and where to reach out, in words the bio and the profile already own. It renders on a listed post
 // where the bio's entry exists; the fixture builds hold none.
 const bioEntry = await loadAbout();
 const opening = bioEntry?.body === undefined ? undefined : aboutParts(bioEntry.body).lede[0];
@@ -94,11 +93,8 @@ const links = [
         <p class="post-close-name">{profile.basics.name}</p>
         <p class="post-close-text">{whoWrote}</p>
         <div class="post-close-actions">
-          <a class="btn btn-primary" href={`mailto:${CONTACT_EMAIL}`}>
-            Email me
-          </a>
           {linkedIn && (
-            <a class="btn" href={linkedIn.url} rel="me">
+            <a class="btn btn-primary" href={linkedIn.url} rel="me">
               LinkedIn
             </a>
           )}

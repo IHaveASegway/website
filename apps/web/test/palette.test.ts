@@ -2,7 +2,6 @@ import { describe, expect, test } from 'vitest';
 import { MANIFEST } from '../src/lib/nav';
 import { isNoindex } from '../src/lib/noindex.mjs';
 import { checkedProfiles } from '../src/lib/profile';
-import { CONTACT_EMAIL } from '../src/lib/site';
 import { THEME_STATES } from '../src/lib/theme';
 import { isToggle, matches, narrowed, rankOf } from '../src/scripts/palette.js';
 import { files, html, profile, read } from './support/dist';
@@ -236,9 +235,10 @@ describe('what a visitor types finds the page they mean', () => {
     expect(pick('h')).toBe('palette-home');
   });
 
-  test('copying the address is still found by its own words', () => {
-    for (const query of ['copy', 'email', 'mail', 'contact', 'cpy'])
-      expect(pick(query), query).toBe('palette-copy');
+  // LinkedIn is how people reach Joseph (ADR 0031), so a visitor who looks for an address finds it.
+  test('the words for reaching out find LinkedIn', () => {
+    for (const query of ['linkedin', 'contact', 'reach', 'email', 'mail'])
+      expect(pick(query), query).toBe('palette-linkedin');
   });
 
   test.runIf(about)('print and pdf: About from another page, its Print row on /about/', () => {
@@ -277,17 +277,15 @@ for (const file of html) {
 
     // Print only where the page has the button the row presses: /about/, whose Print button is
     // also the only one, so the row never presses a button that is not there.
-    test('Actions copy the address and press the theme toggle, under its own names', () => {
+    test('Actions press the theme toggle, under its own names, and no row offers the address', () => {
       const printButton = /<button\b[^>]*\bdata-print\b/.test(page);
       expect(printButton).toBe(file === 'about/index.html');
       expect(groups.get('Actions')).toEqual([
-        ['Copy email address', 'act:copy'],
         [THEME_STATES[0].name, 'act:theme'],
         ...(printButton ? [['Print or save as PDF', 'act:print']] : []),
       ]);
+      expect(page).not.toContain('Copy email address');
       const rows = descendants(dialog as Element);
-      const copy = rows.find((e) => attribute(e, 'data-act') === 'copy');
-      expect(copy && attribute(copy, 'data-copy')).toBe(CONTACT_EMAIL);
       const theme = rows.find((e) => attribute(e, 'data-act') === 'theme');
       const states = descendants(theme as Element).filter((e) => hasClass(e, 'palette-theme'));
       expect(states.map((e) => [attribute(e, 'data-for'), textOf(e)])).toEqual(

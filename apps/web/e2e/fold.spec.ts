@@ -61,7 +61,7 @@ async function measure(page: Page, fonts: Fonts) {
       '.hero-name',
       '.hero-statement',
       '.hero-more:last-of-type',
-      '.hero-actions .btn-email',
+      '.hero-actions .btn-primary',
       '.hero-actions .btn:last-child',
       ...(innerWidth >= 1024 ? ['figure.orbit .orbit-stage'] : []),
     ].map((selector) => box(selector)?.bottom ?? Infinity);

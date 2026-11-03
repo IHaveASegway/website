@@ -30,7 +30,7 @@ const fold = (text) =>
     .toLowerCase();
 
 /** Whether every character of the query appears in the text, in order. Spaces in the query are
- *  ignored, so "copy email" finds "Copy email address" as "cpy" does. */
+ *  ignored, so "print pdf" finds "Print or save as PDF" as "prt" does. */
 export function matches(query, text) {
   const wanted = [...fold(query).replace(/\s+/g, '')];
   let found = 0;
@@ -46,7 +46,7 @@ export function matches(query, text) {
  * 5: its label starts with the query: what a row says beats what it's also called, so "w" is
  * Writing, not Lab for the keyword "work".
  * 4: a name starts with the query, as "essay" does "essays".
- * 3: a name or the title holds it whole, as "email" does "Copy email address".
+ * 3: a name or the title holds it whole, as "save" does "Print or save as PDF".
  * 2: the summary holds it whole.
  * 1: its letters are in a name in order, scattered, as "rsm" in "resume". An empty query is this,
  * for every row.
@@ -66,8 +66,7 @@ export function rankOf(query, { names, title = '', summary = '' }) {
 /**
  * What a query leaves of the rows, in their order, and the one Enter should act on, the first of the
  * best. Scattered letters are a fallback: once any row holds the query whole they leave the list, so
- * "rss" never offers "Copy email address" because "address" holds an r and two s's, and "bak" never
- * "Break".
+ * "bak" never offers "Break".
  */
 export function narrowed(query, rows) {
   const ranks = new Map(rows.map((row) => [row, rankOf(query, row)]));
@@ -159,26 +158,18 @@ function boot() {
     input.focus();
   };
 
-  // A page or a profile is a place to go, in this tab or, with ⌘ or Ctrl held, a new one. The
-  // address is copied while the press that asked for it is still handled, as browsers require; on
-  // a refusal the line shows the address to copy by hand. The theme entry presses the toggle, whose
+  // A page or a profile is a place to go, in this tab or, with ⌘ or Ctrl held, a new one. The theme
+  // entry presses the toggle, whose
   // handler (src/scripts/theme.js) is the only code that reads or writes the stored choice, and the
   // print entry presses the page's Print button, once the menu has closed and left the paper.
   const run = (option, newTab) => {
-    const { href, act, copy: address } = option.dataset;
+    const { href, act } = option.dataset;
     if (href !== undefined) {
       if (newTab) {
         window.open(href, '_blank', 'noopener');
       } else {
         dialog.close();
         location.assign(href);
-      }
-    } else if (act === 'copy') {
-      const failed = () => tell(`Could not copy. The address is ${address}.`);
-      try {
-        navigator.clipboard.writeText(address).then(() => tell('Copied'), failed);
-      } catch {
-        failed();
       }
     } else if (act === 'theme') {
       document.querySelector('[data-theme-toggle]')?.click();

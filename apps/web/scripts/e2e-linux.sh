@@ -11,11 +11,10 @@
 # before the push rather than after it (delivery.md, "Local checks").
 #
 # The page loads from http://host.docker.internal:<port>, which is not a secure context (only
-# https, localhost and 127.0.0.1 are), so three tests fail here that pass in CI, and are left out:
-# the clipboard copy (palette.spec.ts), the known answer for the worker's WebAssembly policy
-# (lab.spec.ts) and the known answer for a font file no text uses (glyphs.spec.ts). CI serves the
-# preview over https, or wrangler dev on 127.0.0.1 inside the container, so it runs all three.
-# E2E_LINUX_ALL=1 runs them anyway.
+# https, localhost and 127.0.0.1 are), so two tests fail here that pass in CI, and are left out: the
+# known answer for the worker's WebAssembly policy (lab.spec.ts) and the known answer for a font file
+# no text uses (glyphs.spec.ts). CI serves the preview over https, or wrangler dev on 127.0.0.1 inside
+# the container, so it runs both. E2E_LINUX_ALL=1 runs them anyway.
 #
 # Needs Docker and a build: pnpm build first, as for pnpm e2e. E2E_LINUX_PORT picks the port
 # (default 8789, beside pnpm serve's 8787 and serve:fixture's 8788). E2E_LINUX_INSPECTOR_PORT picks
@@ -84,10 +83,10 @@ curl -fsS -o /dev/null "http://127.0.0.1:$port/" || {
   exit 2
 }
 
-# The three tests that need a secure context (above), by title.
+# The two tests that need a secure context (above), by title.
 skip=()
 if [ "${E2E_LINUX_ALL:-}" != 1 ]; then
-  skip=(--grep-invert 'Copy email address copies it|a worker whose policy refuses WebAssembly|a font file fetched for a face that draws no text')
+  skip=(--grep-invert 'a worker whose policy refuses WebAssembly|a font file fetched for a face that draws no text')
 fi
 
 echo "e2e-linux: Playwright $version in mcr.microsoft.com/playwright:v$version-noble, against wrangler dev on port $port"

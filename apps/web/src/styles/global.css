@@ -1207,10 +1207,10 @@
   }
 
   /* A long title wraps in its own column: left to the row's wrapping, on a 360 px phone it fell under
-     the lamp, out of line with every row around it. The row still wraps for the address, and where
-     a larger text size leaves a column too narrow for a whole word. */
+     the lamp, out of line with every row around it. The row still wraps where a larger text size
+     leaves a column too narrow for a whole word. */
   @media (width >= 18rem) {
-    .palette-option:not(:has(.palette-value)) {
+    .palette-option {
       flex-wrap: nowrap;
     }
   }
@@ -1242,14 +1242,6 @@
       forced-color-adjust: none;
       background-color: Highlight;
     }
-  }
-
-  .palette-value {
-    margin-inline-start: auto;
-    color: var(--muted-foreground);
-    font-size: var(--text-label);
-    line-height: var(--text-label--line-height);
-    overflow-wrap: anywhere;
   }
 
   .palette-theme {

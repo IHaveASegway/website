@@ -256,7 +256,7 @@ for (const size of [16, 32]) {
         return { text: text.replace(/\s+/g, ''), rows: [...rows.values()] };
       }),
     );
-    // By address, not by place: the writing fixture lists GitHub between Web and LinkedIn.
+    // By address, not by place: a checked GitHub profile stands among them.
     const find = (start: string) => lines.find((address) => address.text.startsWith(start));
     const [email, web, linkedIn] = ['hello@', 'ihaveasegway.com', 'linkedin.com'].map(find);
     expect([email, web, linkedIn].every(Boolean), JSON.stringify(lines)).toBe(true);
