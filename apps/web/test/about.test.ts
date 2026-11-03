@@ -143,6 +143,17 @@ test('stillhere’s row links its name to its repository, from the checked recor
   expect(row.match(/<a\b/g)).toHaveLength(1);
 });
 
+// A card stands alone on Home and on paper, so it says what the project is, in the bio's own words:
+// its line used to start at "What landed", which only made sense beside the bio's sentence.
+test('stillhere’s card says what the bio says of it', () => {
+  if (fixtureBuild) return;
+  const [sentence = ''] = sectionOf(aboutParts(body), ABOUT_HEADINGS.source)?.paragraphs ?? [];
+  const words = sentence.slice(sentence.indexOf(': ') + 2);
+  expect(profile.projects.find((p) => p.name === 'stillhere')?.description).toBe(
+    words.charAt(0).toUpperCase() + words.slice(1),
+  );
+});
+
 // The labs' rows (ADR 0031): the whole row is a link to its lab, by the bold line, and each stands
 // under its lab's own line from its link card, not the isometric glyph: Joseph asked for no isometric
 // drawing beside the bio.

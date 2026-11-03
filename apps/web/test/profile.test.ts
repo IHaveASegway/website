@@ -255,7 +255,8 @@ test("stillhere's record: its check, its limits first, and figures the repositor
   expect(stillhere?.tag).toBe('Pre-release');
   expect(stillhere?.description).toContain('it doesn’t measure a person’s value');
   expect(stillhere?.facts?.map((f) => f.term)).toEqual(['Validation', 'Decisions', 'Tests']);
-  expect(stillhere?.facts?.[0]?.value).toMatch(/^durable@1 AUC 0\.42/);
+  // The verdict comes first, in words: a reader can't tell by itself whether 0.42 is good or bad.
+  expect(stillhere?.facts?.[0]?.value).toMatch(/failed: AUC 0\.42, size alone 0\.82$/);
   const github = profile.basics.profiles.find((p) => p.network === 'GitHub');
   expect(github?.checked).toEqual(stillhere?.checked);
 });
