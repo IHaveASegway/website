@@ -395,23 +395,39 @@
   }
 }
 
+/* A count of its entries stands by each server's name, since one that has fallen behind shows none at
+   the end, and a blank row under "it can never be lost" read as a lost log. An attribute the build and
+   the app write, not a counter the browser keeps: WebKit doesn't recount one when a log's cells are
+   written again, and read 0 on all five. */
 .rf-log {
   display: flex;
 }
 
-.rf-log-name {
+.rf-log-name,
+.rf-log::after {
   position: sticky;
-  inset-inline-start: 0;
   flex: none;
   box-sizing: content-box;
-  inline-size: 4.5rem;
   padding-block-start: 0.125rem;
-  padding-inline-end: 0.75rem;
   background-color: var(--surface-1);
   color: var(--muted-foreground);
   font-family: var(--font-label);
   font-size: var(--text-label);
   font-variant-numeric: tabular-nums;
+}
+
+.rf-log-name {
+  order: -2;
+  inset-inline-start: 0;
+  inline-size: 2.875rem;
+}
+
+.rf-log::after {
+  content: '· ' attr(data-entries);
+  order: -1;
+  inset-inline-start: 2.875rem;
+  inline-size: 1.625rem;
+  padding-inline-end: 0.75rem;
 }
 
 /* A row with no entries yet is as tall as one with some. */

@@ -20,6 +20,7 @@ import { LINES_SHOWN } from '../../lib/lab/event-log';
 import '../../styles/cache-lab.css';
 import Choice from '../lab/Choice.astro';
 import EventLog from '../lab/EventLog.astro';
+import NoScript from '../lab/NoScript.astro';
 import Said from '../lab/Said.astro';
 import Time from '../lab/Time.astro';
 import {
@@ -164,6 +165,7 @@ const mitigations: { toggle: Toggle; name: string }[] = [
       <figcaption class="lab-caption cl-summary" data-cl-summary>
         {summary(sim)}
       </figcaption>
+      <NoScript />
     </figure>
 
     <div class="cl-panel" data-cl-js>

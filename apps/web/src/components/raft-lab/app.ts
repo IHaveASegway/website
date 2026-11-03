@@ -140,6 +140,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       if (shownLogs[s.id] !== markup) {
         row.innerHTML = markup;
         row.setAttribute('aria-label', `Server ${s.id + 1}: ${logWords(s)}`);
+        row.parentElement?.setAttribute('data-entries', `${s.log.length}`);
         shownLogs[s.id] = markup;
       }
       const toggle = $(`[data-rf-toggle="${s.id}"]`);

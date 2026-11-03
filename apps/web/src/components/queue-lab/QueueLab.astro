@@ -1,6 +1,7 @@
 ---
 import Choice from '../lab/Choice.astro';
 import EventLog from '../lab/EventLog.astro';
+import NoScript from '../lab/NoScript.astro';
 import Said from '../lab/Said.astro';
 import Time from '../lab/Time.astro';
 import { LINES_SHOWN } from '../../lib/lab/event-log';
@@ -147,6 +148,7 @@ if (pool.length > MAX_WORKERS) throw new Error('queue lab: more workers than the
     <p class="lab-caption qu-summary" id="qu-summary" data-qu-summary>
       {summary(sim)}
     </p>
+    <NoScript />
     <ul class="qu-key" role="list" aria-hidden="true" data-qu-js>
       <li>
         <svg class="qu-key-mark" viewBox="0 0 20 20">

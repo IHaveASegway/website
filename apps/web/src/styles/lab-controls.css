@@ -200,6 +200,15 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* What a visitor with no script reads, beside the caption (components/lab/NoScript.astro). */
+.lab-noscript {
+  color: var(--muted-foreground);
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  line-height: var(--text-label--line-height);
+}
+
 /* "Checked as the run goes", one list in every lab: a lamp filled while a check holds and crossed once
    it breaks, the site's mark for failed (design-system.md, "Lamps: one meaning per mark"), its name,
    and in words how it stands. The name and the words stand one over the other, and side by side where

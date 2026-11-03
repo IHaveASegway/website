@@ -292,6 +292,24 @@ for (const lab of LABS) {
   });
 }
 
+// A lab's lead says to crash, choose or tame, and with no script the page draws no control. Until
+// 2026-11-03 only the Route Lab said why.
+for (const lab of LABS) {
+  test(`the ${lab.name} lab says what's missing with no script, and nothing of it with script`, async ({
+    browser,
+    page,
+  }) => {
+    await page.goto(`/lab/${lab.name}/`);
+    await expect(page.locator('noscript')).toBeHidden();
+    const context = await browser.newContext({ javaScriptEnabled: false });
+    const off = await context.newPage();
+    await off.goto(`/lab/${lab.name}/`);
+    await expect(off.locator('noscript')).toBeVisible();
+    await expect(off.locator('noscript')).toContainText('With JavaScript on, you can play it');
+    await context.close();
+  });
+}
+
 // The readouts read as one set, as the controls do (design-system.md). Until 2026-11-03 the caption was
 // set three ways, in two faces and two colours, a check's row two ways, and only two labs closed their
 // checks with a line that said again what the rows say.

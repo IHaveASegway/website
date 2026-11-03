@@ -1,5 +1,6 @@
 ---
 import EventLog from '../lab/EventLog.astro';
+import NoScript from '../lab/NoScript.astro';
 import Said from '../lab/Said.astro';
 import Time from '../lab/Time.astro';
 import { LINES_SHOWN } from '../../lib/lab/event-log';
@@ -116,6 +117,7 @@ const SPEEDS = [
       <p class="lab-caption rf-summary" id="rf-summary" data-rf-summary>
         {summary(sim)}
       </p>
+      <NoScript />
     </figcaption>
   </figure>
 
@@ -193,7 +195,7 @@ const SPEEDS = [
     <div class="rf-logs-box" role="group" aria-labelledby="rf-logs" tabindex="0">
       <ol class="rf-logs" role="list">
         {sim.servers.map((s) => (
-          <li class="rf-log">
+          <li class="rf-log" data-entries={s.log.length}>
             <span class="rf-log-name">Server {s.id + 1}</span>
             <ol
               class="rf-cells"
@@ -216,7 +218,9 @@ const SPEEDS = [
       which Raft holds only in memory, so a server shows its whole log hollow until a leader tells
       it again. If all five crash, no leader knows either: a new leader can’t count an older term’s
       entries until an entry of its own term commits, so they stay hollow until the next write. The
-      caption counts what was ever committed, so its number doesn’t fall.
+      caption counts what was ever committed, so its number doesn’t fall. The number beside a server’s
+      name counts its entries. The rows scroll sideways together, so a row with no dots in view has
+      fallen behind, not lost its log.
     </p>
     <ul class="rf-key" role="list" aria-hidden="true">
       <li class="rf-key-wide">

@@ -17,6 +17,7 @@ import { LINES_SHOWN } from '../../lib/lab/event-log';
 import '../../styles/backfill-lab.css';
 import Choice from '../lab/Choice.astro';
 import EventLog from '../lab/EventLog.astro';
+import NoScript from '../lab/NoScript.astro';
 import Said from '../lab/Said.astro';
 import Time from '../lab/Time.astro';
 
@@ -214,6 +215,7 @@ const KEY = [
       <p class="lab-caption bf-summary" id="bf-summary" data-bf-summary>
         {summary(sim)}
       </p>
+      <NoScript />
 
       <div class="bf-strip-part">
         <p class="bf-strip-title">

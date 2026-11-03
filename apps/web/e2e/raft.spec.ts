@@ -248,6 +248,31 @@ test('with its leader cut off, the caption says who still thinks it leads, durin
   );
 });
 
+// A server that has fallen behind shows no entries at the logs' newest end, the truth at those indexes,
+// and on a phone its row goes blank under words that say a committed entry can never be lost. Each row
+// says how many its log holds.
+test('each log says how many entries it holds, beside its server’s name', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(RAFT);
+  const rows = page.locator('.rf-log');
+  const counts = () =>
+    rows.evaluateAll((all) =>
+      all.map((row) => getComputedStyle(row, '::after').content.replace(/"/g, '')),
+    );
+  expect(await counts()).toEqual(['· 3', '· 3', '· 3', '· 3', '· 3']);
+  await page.getByRole('button', { name: 'Cut off the leader' }).click();
+  for (let i = 0; i < 10; i++) await page.getByRole('button', { name: 'Send a write' }).click();
+  await expect(page.locator('[data-rf-log="0"] .rf-cell')).toHaveCount(13);
+  expect(await counts()).toEqual(['· 13', '· 3', '· 3', '· 3', '· 3']);
+  // It stands by the name as the entries pass under it, and clear of them.
+  const name = await rows.first().locator('.rf-log-name').boundingBox();
+  const box = page.locator('.rf-logs-box');
+  await box.evaluate((el) => {
+    el.scrollLeft = -80;
+  });
+  expect(await rows.first().locator('.rf-log-name').boundingBox()).toEqual(name);
+});
+
 // The lead says to watch the five safety properties, so the page names them, Figure 3's own words,
 // each with its state, as the other labs do their checks. They stand beside the picture from 64rem.
 test('the desk names the five safety properties, each with its state', async ({ page }) => {
