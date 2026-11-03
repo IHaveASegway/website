@@ -328,7 +328,7 @@ jobs:
     container:
       image: mcr.microsoft.com/playwright:v${{ needs.verify.outputs.playwright }}-noble
       options: --user 1001
-    timeout-minutes: 15
+    timeout-minutes: 20
     permissions:
       contents: read
     steps:

@@ -197,9 +197,11 @@
 
 @media (prefers-reduced-motion: no-preference) {
   /* The patch wanders, and each line of current runs on a clock of its own: prime numbers of seconds,
-     so they never fall into step. A line crosses the window in the first quarter of its time. */
+     so they never fall into step. A line crosses the window in the first quarter of its time. The
+     patch moves in steps, about 8 a second: it's a soft edge going 12 px a second, so the eye can't
+     tell, and the phone recomposites the whole window 8 times a second for it, not 120. */
   :root[data-motion] .field::before {
-    animation: field-drift 73s ease-in-out infinite alternate;
+    animation: field-drift 73s steps(200) infinite alternate;
   }
 
   :root[data-motion] .field > .field-run {
