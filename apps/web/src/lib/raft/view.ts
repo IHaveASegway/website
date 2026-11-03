@@ -1,4 +1,5 @@
 import { readLink, writeLink } from '../sim/link';
+import type { Property } from './check';
 import type { Server } from './core';
 import {
   committedCount,
@@ -228,6 +229,20 @@ export function cutFence(groups: readonly number[]): string | null {
     .map(([x, y]) => `${round(x)} ${round(y)}`)
     .join('L')}Z`;
 }
+
+/** What each safety property promises, in plain words, each close to Figure 3's own. The build
+ *  draws them and they never change, so a browser never loads them. */
+export const PROMISES: Readonly<Record<Property, string>> = {
+  'Election Safety': 'At most one leader in a term.',
+  'Leader Append-Only': 'A leader never overwrites or deletes its own entries.',
+  'Log Matching': 'Logs with the same term at an index match up to it.',
+  'Leader Completeness': 'A committed entry is in the log of every later leader.',
+  'State Machine Safety': 'No two servers apply different entries at one index.',
+};
+
+/** A property's word beside its lamp: Holds or Broken, nothing longer, so a row never takes another
+ *  line. The status line says when it broke and how. */
+export const propertyWord = (held: boolean): string => (held ? 'Holds' : 'Broken');
 
 /** The status line: the five properties held, or the one that broke, and where. */
 export function statusText(sim: Sim): string {

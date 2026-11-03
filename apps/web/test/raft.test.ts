@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { fresh } from '../src/components/raft-lab/app';
-import { check, createChecker } from '../src/lib/raft/check';
+import { check, createChecker, PROPERTIES } from '../src/lib/raft/check';
 import {
   createServer,
   crash as crashServer,
@@ -44,6 +44,8 @@ import {
   nextSeed,
   OPENING,
   openingRun,
+  PROMISES,
+  propertyWord,
   readRun,
   SEEDS_IN_CI,
   serverState,
@@ -810,6 +812,33 @@ describe('the caption never contradicts the picture', () => {
     expect((sim.servers[2] as Server).term).toBeGreaterThan(1);
     expect(leaderOf(sim)?.id).toBe(0);
     expect(currentTerm(sim)).toBe((sim.servers[2] as Server).term);
+  });
+});
+
+describe('the five safety properties, by name', () => {
+  test('known answer: Figure 3’s names, in its order, each with what it promises', () => {
+    expect(PROPERTIES.map((name) => [name, PROMISES[name]])).toEqual([
+      ['Election Safety', 'At most one leader in a term.'],
+      ['Leader Append-Only', 'A leader never overwrites or deletes its own entries.'],
+      ['Log Matching', 'Logs with the same term at an index match up to it.'],
+      ['Leader Completeness', 'A committed entry is in the log of every later leader.'],
+      ['State Machine Safety', 'No two servers apply different entries at one index.'],
+    ]);
+    expect([propertyWord(true), propertyWord(false)]).toEqual(['Holds', 'Broken']);
+  });
+
+  test('a broken server: the run names the property as its row names it, and says when and how', () => {
+    let sim: Sim | null = null;
+    for (let seed = 1; seed <= SEEDS && !sim; seed++) {
+      const run = faultyRun(seed, { anyLogVotes: true }).sim;
+      if (run.violation) sim = run;
+    }
+    const violation = (sim as Sim).violation as NonNullable<Sim['violation']>;
+    // The page finds a property's row by this name (components/raft-lab/app.ts).
+    expect(PROPERTIES).toContain(violation.property);
+    expect(statusText(sim as Sim)).toMatch(
+      new RegExp(`^Broken at \\d+\\.\\d{3} s: ${violation.property}\\. Server \\d .+\\.$`),
+    );
   });
 });
 

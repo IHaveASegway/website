@@ -21,6 +21,7 @@ import {
   logWords,
   nextSeed,
   OPENING,
+  propertyWord,
   readRun,
   ROLE_WORD,
   seconds,
@@ -94,6 +95,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
   let frame = 0;
   let timer = 0;
   let shownLines: Line | undefined;
+  let shownBroken: string | undefined;
   const shownLogs: string[] = [];
   // The build wrote the opening's last lines; the run writes its own from the first draw, so none
   // is written twice, and a link's run shows its own.
@@ -138,6 +140,17 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       } else cut.setAttribute('data-off', '');
     }
     text('[data-rf-summary]', summary(sim));
+    // A property breaks at most once in a run, and that stops the run, so this rarely has work.
+    const broken = sim.violation?.property;
+    if (broken !== shownBroken) {
+      shownBroken = broken;
+      for (const row of root.querySelectorAll('[data-rf-prop]')) {
+        const held = row.getAttribute('data-rf-prop') !== broken;
+        row.setAttribute('data-held', String(held));
+        const word = row.querySelector('[data-rf-prop-word]');
+        if (word) word.textContent = propertyWord(held);
+      }
+    }
     text('[data-rf-status]', statusText(sim));
     text('[data-rf-clock]', `Virtual time ${seconds(sim.now)}`);
     text('[data-rf-seed]', String(sim.seed));

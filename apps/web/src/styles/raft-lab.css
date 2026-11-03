@@ -1,10 +1,10 @@
 /*
   The Raft Lab (/lab/raft/): five servers on a circle, the messages between them, each one's log,
-  the controls and the event log (design-system.md, "Effects catalog"; ADR 0020). Only that page
-  links this file. Every color is a token from tokens.css. A state the browser sets is an
-  attribute (data-*), never a class, so every class here is one a built page carries
-  (test/css-classes.test.ts). The demo moves only while the visitor runs it, and in JavaScript, so
-  this file declares no transition and no animation.
+  the safety properties, the controls and the event log (design-system.md, "Effects catalog";
+  ADR 0020). Only that page links this file. Every color is a token from tokens.css. A state the
+  browser sets is an attribute (data-*), never a class, so every class here is one a built page
+  carries (test/css-classes.test.ts). The demo moves only while it runs, and in JavaScript, so this
+  file declares no transition and no animation.
 
   The demo is the lab's desk (ADR 0027; lab-page.css, .desk). A server is a lamp in the lab's line,
   var(--line), hollow while it follows, lit while it stands for election, filled while it leads, and
@@ -28,11 +28,13 @@
   }
 }
 
-/* Below 64rem the desk is one column in the page's order: the picture, the controls that work
-   it, the logs, then what happened. The controls come right after the picture so that on a phone
-   both fit one screen; nothing pins, the visitor scrolls the desk as a page. From 64rem the logs
-   stand beside the picture and the controls run under both, as they always have; the logs hold no
-   control, so the tab order is the same either way. */
+/* Below 64rem the desk is one column in the page's order: the picture, the controls that work it,
+   the logs and how to read them, the safety properties, then what happened. The controls come right
+   after the picture so that on a phone both fit one screen; nothing pins, the visitor scrolls the
+   desk as a page. From 64rem the logs and the safety properties stand beside the picture, so the
+   five names a visitor is told to watch are on the first screen with what they watch; the controls
+   run under them and how to read it all under those. Only the controls take focus, so the tab order
+   is the same either way. */
 @media (width >= 64rem) {
   .rf {
     grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -42,17 +44,35 @@
 
   .rf-figure {
     grid-column: 1 / 7;
-    grid-row: 1;
+    grid-row: 1 / span 2;
   }
 
-  .rf-side {
+  .rf-log-part {
     grid-column: 7 / 13;
     grid-row: 1;
   }
 
+  .rf-props-part {
+    grid-column: 7 / 13;
+    grid-row: 2;
+  }
+
   .rf-controls,
+  .rf-read,
   .rf-events {
     grid-column: 1 / -1;
+  }
+
+  .rf-controls {
+    grid-row: 3;
+  }
+
+  .rf-read {
+    grid-row: 4;
+  }
+
+  .rf-events {
+    grid-row: 5;
   }
 }
 
@@ -75,8 +95,8 @@
 
 /* On a phone the picture takes the desk's whole width, out to its bezel, so its labels stay as
    large as they can. From 64rem it stops at 28rem: its labels, set in its own units
-   (lib/raft/view.ts), stay 13 px at the least, and the controls stay in the first screen at
-   1440 × 900. */
+   (lib/raft/view.ts), stay 13 px at the least, and the picture and the controls fit one screen at
+   1440 × 900 (e2e/raft.spec.ts). */
 @media (width < 48rem) {
   .rf-map {
     width: calc(100% + var(--desk-side) * 2);
@@ -310,9 +330,9 @@
   stroke: none;
 }
 
-/* The logs: a row a server, a lamp an entry, its term under it. Below 64rem they come under the
-   controls, a part of the desk of their own under a rule from bezel to bezel, as the event log is. */
-.rf-side {
+/* A part of the desk under its own rule from bezel to bezel, below 64rem: the logs and the safety
+   properties. From 64rem they stand beside the picture, and the rules run above and below them. */
+.rf-part {
   display: grid;
   gap: 1rem;
   align-content: start;
@@ -320,7 +340,7 @@
 }
 
 @media (width < 64rem) {
-  .rf-side {
+  .rf-part {
     margin-inline: calc(var(--desk-side) * -1);
     padding: 1.5rem var(--desk-side) 0;
     border-top: 1px solid var(--border);
@@ -329,7 +349,7 @@
 
 /* Without script there are no controls between the picture and the logs, so no rule either. */
 @media (scripting: none) and (width < 64rem) {
-  .rf-side {
+  .rf-log-part {
     padding-top: 0;
     border-top: 0;
   }
@@ -382,7 +402,8 @@
   width: 1rem;
 }
 
-/* An entry's lamp: hollow, a ring in the lab's line, until a majority holds it; then filled. */
+/* The logs: a row a server, a lamp an entry, its term under it. An entry's lamp is hollow, a ring in
+   the lab's line, until a majority holds it; then filled. */
 .rf-mark {
   display: block;
   width: 1rem;
@@ -416,16 +437,189 @@
   line-height: var(--text-label--line-height);
 }
 
+/* How to read it: what the logs' dots mean, and a key to the marks on the wire, in the picture's own
+   classes. Under the logs on a phone. From 64rem under the controls, as a part of the desk of its own,
+   since the first screen is for the picture and what it does. */
+.rf-read {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
 .rf-legend {
   color: var(--muted-foreground);
 }
 
-/* What the run proved, the desk's one result: the label face at the controls' size, in the ink. */
+.rf-key {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(9rem, 100%), 1fr));
+  gap: 0.25rem 1rem;
+  align-content: start;
   margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted-foreground);
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  line-height: var(--text-label--line-height);
+}
+
+.rf-key li {
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr);
+  column-gap: 0.375rem;
+  align-items: center;
+}
+
+.rf-key-wide {
+  grid-column: 1 / -1;
+}
+
+.rf-key-mark {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+}
+
+@media (width >= 64rem) {
+  .rf-read {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: var(--gutter);
+    margin-inline: calc(var(--desk-side) * -1);
+    padding: 1.5rem var(--desk-side) 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .rf-legend {
+    grid-column: 1 / 7;
+  }
+
+  .rf-key {
+    grid-column: 7 / 13;
+  }
+}
+
+/* The safety properties: a lamp each, filled while it holds and crossed once it breaks, as a property
+   is on every desk (design-system.md, "Lamps: one meaning per mark"), then its name, Holds or Broken,
+   and what it promises. The promise takes a line of its own until there's room beside the name. The
+   name's column is as wide as the longest name, so the words beside it stand in a line. */
+.rf-props {
+  display: grid;
+  gap: 0.5rem;
   margin: 0;
-.rf-status {
+  padding: 0;
+  list-style: none;
+}
+
+.rf-prop {
+  display: grid;
+  grid-template-columns: 0.875rem 8rem minmax(0, 1fr);
+  column-gap: 0.625rem;
+  align-items: baseline;
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-weight: var(--text-label--font-weight);
+  line-height: var(--text-label--line-height);
+}
+
+.rf-prop-lamp {
+  position: relative;
+  align-self: center;
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  border: 2px solid var(--line);
+  border-radius: 50%;
+  background-color: var(--line);
+}
+
+.rf-prop[data-held='false'] .rf-prop-lamp {
+  background-color: transparent;
+}
+
+/* The cross stands inside the ring, as it does on the Queue Lab's desk: two bars through the lamp's
+   middle, each a little short of the ring. */
+.rf-prop[data-held='false'] .rf-prop-lamp::before,
+.rf-prop[data-held='false'] .rf-prop-lamp::after {
+  content: '';
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  inline-size: 0.5rem;
+  block-size: 2px;
+  margin-block-start: -1px;
+  margin-inline-start: -0.25rem;
+  background-color: var(--line);
+  rotate: 45deg;
+}
+
+.rf-prop[data-held='false'] .rf-prop-lamp::after {
+  rotate: -45deg;
+}
+
+.rf-prop-name {
   font-size: var(--text-ui);
   line-height: var(--text-ui--line-height);
+}
+
+.rf-prop-word,
+.rf-prop-promise {
+  color: var(--muted-foreground);
+}
+
+.rf-prop[data-held='false'] .rf-prop-word {
+  color: var(--foreground);
+}
+
+.rf-prop-promise {
+  grid-column: 2 / -1;
+}
+
+/* With larger text on a narrow screen the name's column would push the page wider than the window
+   (SC 1.4.10), so each part takes a line of its own beside the lamp. A rem in a media query is the
+   visitor's own text size: at 16 px this is narrower than any phone. */
+@media (width < 18rem) {
+  .rf-prop {
+    grid-template-columns: 0.875rem minmax(0, 1fr);
+  }
+
+  .rf-prop-word,
+  .rf-prop-promise {
+    grid-column: 2;
+  }
+}
+
+@media (width >= 75rem) {
+  .rf-prop {
+    grid-template-columns: 0.875rem 8rem 3rem minmax(0, 1fr);
+  }
+
+  .rf-prop-promise {
+    grid-column: auto;
+  }
+}
+
+/* What the run proved, the desk's one result: the label face at the controls' size, in the ink. On
+   a phone it keeps the room its longest words take, a property broken and how: two lines, three at
+   320 px, at the part's foot, so the room reads as the space above the next rule. From 64rem it
+   stands beside the picture, where a line less leaves the controls that much higher. */
+.rf-status {
+  max-width: none;
+  min-block-size: 2lh;
+  font-size: var(--text-ui);
+  line-height: var(--text-ui--line-height);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (width < 24rem) {
+  .rf-status {
+    min-block-size: 3lh;
+  }
+}
+
+@media (width >= 64rem) {
+  .rf-status {
+    min-block-size: 0;
+  }
 }
 
 .rf-clock {
@@ -629,6 +823,18 @@
 @media (forced-colors: active) {
   .rf-cell[data-done] .rf-mark {
     background-color: CanvasText;
+  }
+
+  .rf-prop-lamp,
+  .rf-prop[data-held='false'] .rf-prop-lamp::before,
+  .rf-prop[data-held='false'] .rf-prop-lamp::after {
+    forced-color-adjust: none;
+    border-color: CanvasText;
+    background-color: CanvasText;
+  }
+
+  .rf-prop[data-held='false'] .rf-prop-lamp {
+    background-color: Canvas;
   }
 
   .rf-option input:checked + .rf-lamp {

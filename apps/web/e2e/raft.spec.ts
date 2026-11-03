@@ -13,6 +13,13 @@ const RAFT = '/lab/raft/';
 test.beforeEach(({ page }) => handsOn(page));
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 const HELD = /^All five safety properties held over [\d,]+ events\.$/;
+const PROPERTIES = [
+  'Election Safety',
+  'Leader Append-Only',
+  'Log Matching',
+  'Leader Completeness',
+  'State Machine Safety',
+];
 const SPLIT = 'Split two servers from three';
 
 const clock = (page: Page) => page.locator('[data-rf-clock]');
@@ -37,7 +44,7 @@ async function watch(page: Page): Promise<() => Promise<string[]>> {
 const seconds = async (page: Page) =>
   Number(/([\d.]+) s/.exec((await clock(page).textContent()) ?? '')?.[1] ?? NaN);
 
-test('without JavaScript, the page is the opening run: five nodes, three committed entries each, no control', async ({
+test('without JavaScript, the page is the opening run: five servers, three committed entries each, the properties named, no control', async ({
   browser,
 }) => {
   const context = await browser.newContext({ javaScriptEnabled: false });
@@ -47,6 +54,8 @@ test('without JavaScript, the page is the opening run: five nodes, three committ
   await expect(page.locator('.rf-cell[data-done]')).toHaveCount(15);
   await expect(summary(page)).toHaveText(/^Server \d leads term \d+, 3 entries committed\.$/);
   await expect(status(page)).toHaveText(HELD);
+  await expect(page.locator('.rf-prop-name')).toHaveText(PROPERTIES);
+  await expect(page.locator('.rf-prop-word')).toHaveText(PROPERTIES.map(() => 'Holds'));
   for (const control of await page.locator('.rf-controls, .rf-clock').all())
     await expect(control).toBeHidden();
   await context.close();
@@ -237,6 +246,48 @@ test('with its leader cut off, the caption says who still thinks it leads, durin
   );
 });
 
+// The lead says to watch the five safety properties, so the page names them, Figure 3's own words,
+// each with its state, as the other labs do their checks. They stand beside the picture from 64rem.
+test('the desk names the five safety properties, each with its state', async ({ page }) => {
+  await page.goto(RAFT);
+  const rows = page.locator('[data-rf-prop]');
+  await expect(page.locator('.rf-prop-name')).toHaveText(PROPERTIES);
+  await expect(rows).toHaveCount(5);
+  for (const row of await rows.all()) await expect(row).toHaveAttribute('data-held', 'true');
+  await expect(page.locator('[data-rf-prop-word]')).toHaveText(PROPERTIES.map(() => 'Holds'));
+  await expect(page.getByRole('list', { name: /^Safety properties/ })).toBeVisible();
+  // The lamp the table gives each state: filled while it holds, crossed once it broke, both in the
+  // lab's line. The page's servers never break one, so the mark is set by hand to read it.
+  const lamp = () =>
+    rows.first().evaluate((row) => {
+      const part = row.querySelector('.rf-prop-lamp') as Element;
+      return {
+        fill: getComputedStyle(part).backgroundColor,
+        ring: getComputedStyle(part).borderTopColor,
+        cross: getComputedStyle(part, '::before').content,
+      };
+    });
+  const holding = await lamp();
+  expect(holding.fill).toBe(holding.ring);
+  expect(holding.cross).toBe('none');
+  await rows.first().evaluate((row) => row.setAttribute('data-held', 'false'));
+  const broken = await lamp();
+  expect(broken.fill).toBe('rgba(0, 0, 0, 0)');
+  expect(broken.ring).toBe(holding.ring);
+  expect(broken.cross).toBe('""');
+});
+
+test('from 64rem the properties share the first screen with the picture they describe', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(RAFT);
+  const last = await page.locator('[data-rf-prop]').last().boundingBox();
+  const map = await page.locator('[data-rf-map]').boundingBox();
+  expect(last && last.y + last.height).toBeLessThanOrEqual(900);
+  expect(last && map && last.x).toBeGreaterThan((map?.x ?? 0) + (map?.width ?? 0));
+});
+
 // The room the caption keeps at every width the desk changes at, for its longest words, with each
 // number a digit longer than a run makes it (e2e/steady.spec.ts holds the two phones, in WebKit).
 for (const width of [384, 768, 1024, 1440]) {
@@ -292,6 +343,24 @@ for (const width of [390, 320]) {
     expect(await boxes()).toEqual(before);
   });
 }
+
+test('the key names each mark on the wire in the picture’s own marks, and what a term is stands by the picture', async ({
+  page,
+}) => {
+  await page.goto(RAFT);
+  const kinds = await page
+    .locator('.rf-key .rf-m')
+    .evaluateAll((marks) => marks.map((m) => m.getAttribute('data-kind')));
+  expect(kinds.sort()).toEqual(['ack', 'beat', 'entries', 'no', 'vote', 'yes']);
+  await expect(page.locator('.rf-key')).toContainText('Network partition');
+  await expect(page.locator('.rf-gloss')).toHaveText(
+    'A term is a numbered stretch of time with at most one leader.',
+  );
+  // The picture is named by the caption alone, which every change rewrites.
+  await expect(page.locator('[data-rf-map]')).toHaveAccessibleName(
+    /^Server 1 leads term 1, 3 entries committed\.$/,
+  );
+});
 
 test('under reduce, Run advances in still steps of half a second of the chosen speed, and nothing animates', async ({
   page,
