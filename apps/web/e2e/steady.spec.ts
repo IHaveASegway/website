@@ -400,7 +400,7 @@ for (const { phone, viewport } of PHONES) {
           // The longest a run can say, with each number a digit longer than a run makes it.
           await caption.evaluate((p) => {
             p.textContent =
-              'No leader in term 123, 1000 entries committed, 2 servers down, the network is split. Servers 1, 3 and 4 still think they lead older terms.';
+              'No leader in term 123, 1000 entries committed, 2 servers down, the network is split. Servers 1 and 3 and 4 still think they lead older terms.';
           });
           const after = await caption.boundingBox();
           expect(Math.abs((after?.height ?? 0) - (before?.height ?? 0))).toBeLessThanOrEqual(1);

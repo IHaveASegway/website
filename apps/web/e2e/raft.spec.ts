@@ -297,7 +297,7 @@ for (const width of [384, 768, 1024, 1440]) {
     const before = await summary(page).boundingBox();
     await summary(page).evaluate((p) => {
       p.textContent =
-        'No leader in term 123, 1000 entries committed, 2 servers down, the network is split. Servers 1, 3 and 4 still think they lead older terms.';
+        'No leader in term 123, 1000 entries committed, 2 servers down, the network is split. Servers 1 and 3 and 4 still think they lead older terms.';
     });
     const after = await summary(page).boundingBox();
     expect(Math.abs((after?.height ?? 0) - (before?.height ?? 0))).toBeLessThanOrEqual(1);

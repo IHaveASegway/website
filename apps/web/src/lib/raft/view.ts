@@ -276,20 +276,12 @@ export const propertyWord = (held: boolean): string => (held ? 'Holds' : 'Broken
 
 /** The status line: the five properties held, or the one that broke, and where. */
 export function statusText(sim: Sim): string {
-  if (sim.violation) {
-    const { detail, property, at } = sim.violation;
-    return `Broken at ${seconds(at)}: ${property}. ${detail[0]?.toUpperCase()}${detail.slice(1)}.`;
-  }
+  if (sim.violation)
+    return `Broken at ${seconds(sim.violation.at)}: ${sim.violation.property}. ${sim.violation.detail}.`;
   return `All five safety properties held over ${sim.events.toLocaleString('en-US')} events.`;
 }
 
 export const seconds = (ms: number): string => `${(ms / 1000).toFixed(3)} s`;
-
-/** The numbers of some servers in a sentence: 1, 2 and 3. */
-const named = (servers: readonly Server[]): string => {
-  const ids = servers.map((s) => s.id + 1);
-  return ids.length > 1 ? `${ids.slice(0, -1).join(', ')} and ${ids.at(-1)}` : `${ids[0]}`;
-};
 
 /**
  * A one-line summary of the cluster, for the picture's name. A leader cut off from the rest is still
@@ -312,11 +304,11 @@ export function summary(sim: Sim): string {
   ];
   if (down > 0) parts.push(`${down} ${down === 1 ? 'server' : 'servers'} down`);
   if (new Set(sim.groups).size > 1) parts.push('the network is split');
-  const words =
-    behind.length === 1
-      ? ` Server ${named(behind)} still thinks it leads term ${behind[0]?.term}.`
-      : behind.length > 1
-        ? ` Servers ${named(behind)} still think they lead older terms.`
-        : '';
+  const [old] = behind;
+  const words = !old
+    ? ''
+    : behind.length > 1
+      ? ` Servers ${behind.map((s) => s.id + 1).join(' and ')} still think they lead older terms.`
+      : ` Server ${old.id + 1} still thinks it leads term ${old.term}.`;
   return `${parts.join(', ')}.${words}`;
 }

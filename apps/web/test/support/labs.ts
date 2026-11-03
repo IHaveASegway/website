@@ -22,7 +22,7 @@ export interface SimulatedLab {
 /**
  * One row per simulated lab. The Raft Lab kept the 8,000 B of ADR 0020 until 2026-11-02, when a run
  * that lands with a story to tell, a caption that says who only thinks it leads and a row for each
- * property took it to 8,456 B (its postscript): 8,500 B, rounded up to the next 500 B as the others
+ * property took it to 8,451 B (its postscript): 8,500 B, rounded up to the next 500 B as the others
  * are. The others' budgets are proposed in ADR 0026, each its lab's measure rounded up to the next
  * 500 B, so the next growth past it is a decision and not a default.
  *

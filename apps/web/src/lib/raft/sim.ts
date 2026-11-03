@@ -1,4 +1,4 @@
-import { check, createChecker, type Checker, type Violation } from './check';
+import { check, createChecker, serverName, type Checker, type Violation } from './check';
 import {
   crash as crashServer,
   createServer,
@@ -122,8 +122,6 @@ export function createSim(config: Config): Sim {
     violation: null,
   };
 }
-
-const serverName = (id: number) => `Server ${id + 1}`;
 
 function say(sim: Sim, text: string): void {
   sim.lines.push({ at: sim.now, text });
