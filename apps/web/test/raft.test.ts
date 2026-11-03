@@ -46,10 +46,12 @@ import {
   openingRun,
   readRun,
   SEEDS_IN_CI,
+  serverState,
   SIZE,
   statusText,
   summary,
 } from '../src/lib/raft/view';
+import { read } from './support/dist';
 
 // The Raft Lab's core (ADR 0020): known answers for each of Figure 2's rules, then a property
 // sweep. The sweep runs many seeded runs with crashes, partitions and loss, checks the five safety
@@ -445,8 +447,8 @@ function stepUntil(sim: Sim, reached: (sim: Sim) => boolean): void {
   }
 }
 
-/** A vote request or AppendEntries due at the millisecond the run stands at, to a node that is up
- *  and on the sender's side of the network: the node will answer it. */
+/** A vote request or AppendEntries due at the millisecond the run stands at, to a server that is up
+ *  and on the sender's side of the network: the server will answer it. */
 const dueNow = (s: Sim): Flight | undefined =>
   s.flights.find(
     (f) =>
@@ -459,7 +461,7 @@ const dueNow = (s: Sim): Flight | undefined =>
 test('determinism: an action taken between two events of one millisecond lands at its end, where replay puts it', () => {
   // Driven event by event, as the Next event button drives a run. An action records only its
   // time, and replay runs every event up to that time before it acts, so no action may land before
-  // another event of its millisecond: here, a message still on its way to a node. The run is
+  // another event of its millisecond: here, a message still on its way to a server. The run is
   // compared with its replay as the action lands and again 2 s on: some early differences, such
   // as two timers drawn in the other order, are gone by then, yet they made a different run.
   const takes: Record<Action['kind'], (sim: Sim, due: Flight) => void> = {
@@ -479,7 +481,7 @@ test('determinism: an action taken between two events of one millisecond lands a
     for (let seed = 1; seed <= 5; seed++) {
       const sim = createSim({ seed });
       runUntil(sim, 1_000);
-      // Node 5 down and node 4 cut off, so there is a node to restart and a cut to heal.
+      // Server 5 down and server 4 cut off, so there is a server to restart and a cut to heal.
       crash(sim, 4);
       split(sim, [0, 0, 0, 1, 0]);
       stepUntil(sim, (s) => dueNow(s) !== undefined);
@@ -811,9 +813,46 @@ describe('the caption never contradicts the picture', () => {
   });
 });
 
+describe('a visitor reads server, never node (docs/content.md, "The site\'s language")', () => {
+  const NODE = /\bnodes?\b/i;
+
+  test('every line a run can write, and what the caption and a button say', () => {
+    const said: string[] = [];
+    for (let seed = 1; seed <= 200; seed++) {
+      const { sim } = faultyRun(seed);
+      said.push(summary(sim), statusText(sim), ...sim.lines.map((line) => line.text));
+      said.push(...sim.servers.map(serverState));
+    }
+    // Each kind of line turned up, so the sweep read what it says it read.
+    for (const kind of ['times out', 'wins term', 'becomes a follower', 'drops', 'commits up to'])
+      expect(said.some((line) => line.includes(kind))).toBe(true);
+    for (const kind of ['crashes', 'restarts', 'The network splits', 'The network heals'])
+      expect(said.some((line) => line.includes(kind))).toBe(true);
+    expect(said.filter((line) => NODE.test(line))).toEqual([]);
+    // The broken servers' words too, which a visitor would meet only if a property broke.
+    for (const faults of [{ anyLogVotes: true }, { oldTermCommits: true }]) {
+      for (let seed = 1; seed <= SEEDS; seed++) {
+        const { sim } = faultyRun(seed, faults);
+        if (sim.violation) expect(statusText(sim)).not.toMatch(NODE);
+        if (sim.violation) break;
+      }
+    }
+  });
+
+  test('the built page: its words and every name it gives assistive technology', () => {
+    const page = read('lab/raft/index.html').replace(/<(script|style)\b[\s\S]*?<\/\1>/g, ' ');
+    const names = [...page.matchAll(/aria-label="([^"]*)"/g)].map(([, name]) => name ?? '');
+    const words = page.replace(/<[^>]+>/g, ' ');
+    expect(words).toContain('Crash server 1');
+    expect(names.join(' ')).toContain('Server 1: 3 entries');
+    expect(words).not.toMatch(NODE);
+    expect(names.filter((name) => NODE.test(name))).toEqual([]);
+  });
+});
+
 describe('the cut', () => {
   type Point = readonly [number, number];
-  /** Every split of five nodes into two runs of the circle: one node cut off, or two. */
+  /** Every split of five servers into two runs of the circle: one server cut off, or two. */
   const splits = [1, 2].flatMap((n) =>
     Array.from({ length: 5 }, (_, start) =>
       Array.from({ length: 5 }, (_, id) => ((id - start + 5) % 5 < n ? 1 : 0)),
@@ -842,7 +881,7 @@ describe('the cut', () => {
   }
 
   test.each(splits)(
-    'split %j: a fence closes off the smaller side, clear of every other node and its text',
+    'split %j: a fence closes off the smaller side, clear of every other server and its text',
     (...groups) => {
       const fence = corners(cutFence(groups) ?? 'MZ');
       const cutOff = groups.filter((g) => g === 1).length <= 2 ? 1 : 0;

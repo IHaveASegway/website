@@ -20,11 +20,11 @@ import {
   logMarkup,
   logWords,
   nextSeed,
-  nodeText,
   OPENING,
   readRun,
   ROLE_WORD,
   seconds,
+  serverState,
   statusText,
   summary,
   timerShare,
@@ -118,16 +118,15 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
       const markup = logMarkup(s);
       if (log && shownLogs[s.id] !== markup) {
         log.innerHTML = markup;
-        log.setAttribute('aria-label', `Node ${s.id + 1}: ${logWords(s)}`);
+        log.setAttribute('aria-label', `Server ${s.id + 1}: ${logWords(s)}`);
         shownLogs[s.id] = markup;
       }
       const toggle = root.querySelector(`[data-rf-toggle="${s.id}"]`);
       if (toggle) {
         const verb = s.up ? 'Crash' : 'Restart';
-        const words = `${verb} node ${s.id + 1}`;
+        const words = `${verb} server ${s.id + 1}`;
         if (toggle.textContent !== words) toggle.textContent = words;
-        const state = nodeText(s).split(', ').slice(1).join(', ');
-        toggle.setAttribute('aria-label', `${words}, now ${state}`);
+        toggle.setAttribute('aria-label', `${words}, now ${serverState(s)}`);
       }
     }
     if (flights) flights.innerHTML = flightsMarkup(sim, still.matches);
@@ -224,7 +223,7 @@ export function start(root: HTMLElement, queued: readonly Element[]): () => void
     }
   }
 
-  /** A side of two: the leader and the node after it, or nodes 1 and 2 with no leader. */
+  /** A side of two: the leader and the server after it, or servers 1 and 2 with no leader. */
   function twoAndThree(): number[] {
     const leader = leaderOf(sim)?.id ?? 0;
     const size = sim.servers.length;

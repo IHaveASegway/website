@@ -47,7 +47,7 @@ export const createChecker = (): Checker => ({
   checkedApplied: [],
 });
 
-const name = (id: number) => `node ${id + 1}`;
+const name = (id: number) => `server ${id + 1}`;
 
 /** The first property the servers break now, or null. */
 export function check(c: Checker, servers: readonly Server[], now: number): Violation | null {

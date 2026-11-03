@@ -14,7 +14,9 @@ import {
 // What the Raft Lab draws, as markup and text, from a run's state. The page uses it twice: at
 // build, to draw the opening run so the demo is complete without JavaScript, and in the browser,
 // on every frame of a run (components/raft-lab/app.ts). Classes only, never a style attribute:
-// the page's policy refuses inline styles.
+// the page's policy refuses inline styles. A visitor always reads "server", the glossary's word for
+// Raft and the paper's; "node" in the code's fields and data-rf-node names the same thing, and no
+// visitor reads it.
 
 /** The opening: a seed, and the writes a client made, so the page opens with a leader and a
  *  short committed log. The browser replays it to take over exactly where the picture stands. */
@@ -60,13 +62,13 @@ export const SIZE = 360;
 const CENTER = SIZE / 2;
 const ORBIT = 128;
 export const NODE_RADIUS = 27;
-/** The election timer's dial, around the node. */
+/** The election timer's dial, around the server. */
 export const DIAL_RADIUS = NODE_RADIUS + 5;
-/** Where a node's two lines of text sit: baselines below its centre (RaftLab.astro). */
+/** Where a server's two lines of text sit: baselines below its centre (RaftLab.astro). */
 export const ROLE_BASELINE = DIAL_RADIUS + 14;
 export const TERM_BASELINE = DIAL_RADIUS + 26;
 
-/** A node's place on the circle: node 1 at the top, then clockwise. */
+/** A server's place on the circle: server 1 at the top, then clockwise. */
 export function place(id: number, size: number): { x: number; y: number } {
   const angle = -Math.PI / 2 + (id * 2 * Math.PI) / size;
   return { x: CENTER + ORBIT * Math.cos(angle), y: CENTER + ORBIT * Math.sin(angle) };
@@ -80,14 +82,9 @@ export const ROLE_WORD = {
   leader: 'leader',
 } as const;
 
-/** A node's one-line state, for its button and the picture's text. */
-export function nodeText(s: Server): string {
-  return s.up ? `Node ${s.id + 1}, ${ROLE_WORD[s.role]}, term ${s.term}` : `Node ${s.id + 1}, down`;
-}
-
-/** What pressing a node's button does. */
-export const nodeAction = (s: Server): string =>
-  s.up ? 'Press to crash it.' : 'Press to restart it.';
+/** A server's state in words, for its button's name. */
+export const serverState = (s: Server): string =>
+  s.up ? `${ROLE_WORD[s.role]}, term ${s.term}` : 'down';
 
 /** How far a follower's or candidate's election timer has run, 0 to 1; a leader's is full. */
 export function timerShare(s: Server, now: number): number {
@@ -97,14 +94,14 @@ export function timerShare(s: Server, now: number): number {
   return span > 0 ? Math.max(0, Math.min(1, (now - s.timerStart) / span)) : 0;
 }
 
-/** Terms take the map's four van colors in turn, so neighbouring terms always differ. A state the
+/** Terms take the map's four van colors in turn, so neighboring terms always differ. A state the
  *  browser sets is an attribute, never a class: every class the stylesheet styles is one a built
  *  page carries (test/css-classes.test.ts). */
 export const termShade = (term: number): number => (((term - 1) % 4) + 4) % 4;
 
-/** One node's log as a row of cells: filled when that node knows the entry is committed,
+/** One server's log as a row of cells: filled when that server knows the entry is committed,
  *  outlined when not, term below. A crash clears what it knew (Figure 2's commitIndex is
- *  volatile), so a node that is down outlines every cell. */
+ *  volatile), so a server that is down outlines every cell. */
 export function logMarkup(s: Server): string {
   const cells = s.log
     .map((entry, i) => {
@@ -116,7 +113,7 @@ export function logMarkup(s: Server): string {
 }
 
 /** The same log said in words, for assistive technology and for the text it stands beside: what
- *  the node knows is committed, as its lamps draw it, so a node that is down knows of none. */
+ *  the server knows is committed, as its lamps draw it, so a server that is down knows of none. */
 export function logWords(s: Server): string {
   if (s.log.length === 0) return 'empty log';
   const committed =
@@ -131,7 +128,7 @@ function along(f: Flight, size: number, share: number) {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const length = Math.hypot(dx, dy) || 1;
-  // From one node's edge to the other's, not centre to centre.
+  // From one server's edge to the other's, not centre to centre.
   const start = NODE_RADIUS / length;
   const t = start + (1 - 2 * start) * share;
   return { x: round(a.x + dx * t), y: round(a.y + dy * t) };
@@ -169,9 +166,9 @@ type Point = readonly [number, number];
 /** How far the cut's fence keeps from what it closes in. */
 export const CUT_PAD = 7;
 
-/** What one node covers on the map, as points on its edge, grown by `pad`: the timer's dial with
+/** What one server covers on the map, as points on its edge, grown by `pad`: the timer's dial with
  *  half its 3 px stroke, and the box of its two lines of text, as wide as "candidate", the longest
- *  role, and their 4 px halo. The text hangs below the node, so a node is not round. */
+ *  role, and their 4 px halo. The text hangs below the server, so it is not round. */
 export function footprint(id: number, size: number, pad: number): Point[] {
   const { x, y } = place(id, size);
   const dial = DIAL_RADIUS + 1.5 + pad;
@@ -215,10 +212,10 @@ function hull(points: readonly Point[]): Point[] {
   return [...half(sorted), ...half(sorted.reverse())];
 }
 
-/** The fence that marks a cut network: a dashed line around the smaller side, drawn around what
- *  its nodes cover, so it never crosses a node or its text. Null when the network is whole or the
- *  sides are not each one run of the circle. A straight line between the sides cannot do this:
- *  a node's text reaches down beside its neighbours. */
+/** The fence that marks a split network: a dashed line around the smaller side, drawn around what
+ *  its servers cover, so it never crosses a server or its text. Null when the network is whole or
+ *  the sides are not each one run of the circle. A straight line between the sides cannot do this:
+ *  a server's text reaches down beside its neighbors. */
 export function cutFence(groups: readonly number[]): string | null {
   const size = groups.length;
   let gaps = 0;
@@ -234,8 +231,10 @@ export function cutFence(groups: readonly number[]): string | null {
 
 /** The status line: the five properties held, or the one that broke, and where. */
 export function statusText(sim: Sim): string {
-  if (sim.violation)
-    return `Broken at ${seconds(sim.violation.at)}: ${sim.violation.property}. ${sim.violation.detail}.`;
+  if (sim.violation) {
+    const { detail, property, at } = sim.violation;
+    return `Broken at ${seconds(at)}: ${property}. ${detail[0]?.toUpperCase()}${detail.slice(1)}.`;
+  }
   return `All five safety properties held over ${sim.events.toLocaleString('en-US')} events.`;
 }
 

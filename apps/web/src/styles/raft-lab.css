@@ -91,7 +91,7 @@
   }
 }
 
-/* No fill: the numbers are set taller than any line, so a fill would cover the node around them.
+/* No fill: the numbers are set taller than any line, so a fill would cover the server around them.
    Chromium keeps an SVG text's own fill when it is selected, so the color is the text's ink. */
 .rf-map text::selection {
   background-color: transparent;
@@ -181,11 +181,11 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* A node's role and term are set in the picture's own units, so on a phone they shrink with it:
+/* A server's role and term are set in the picture's own units, so on a phone they shrink with it:
    at 390 px wide the picture is about 350 px across, and 12 and 10.5 units drew 11.7 and 10.2 px.
    Under 30rem they grow to draw 13 px at the least down to 24rem, and under 24rem again, to keep
    13 px at 320. The term moves down as it grows, so the two lines never touch; both stay inside
-   the box the cut's fence keeps clear of a node's words (lib/raft/view.ts, cutFence), which runs
+   the box the fence keeps clear of a server's words (lib/raft/view.ts, cutFence), which runs
    from 11 units over the role's baseline to 5 under the term's. The halo below covers the rest. */
 @media (width < 30rem) {
   .rf-role {

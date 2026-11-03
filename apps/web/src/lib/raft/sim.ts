@@ -123,7 +123,7 @@ export function createSim(config: Config): Sim {
   };
 }
 
-const nodeName = (id: number) => `Node ${id + 1}`;
+const serverName = (id: number) => `Server ${id + 1}`;
 
 function say(sim: Sim, text: string): void {
   sim.lines.push({ at: sim.now, text });
@@ -133,15 +133,15 @@ function say(sim: Sim, text: string): void {
 function noteText(note: Note): string {
   switch (note.kind) {
     case 'election':
-      return `${nodeName(note.node)} times out and asks for votes in term ${note.term}`;
+      return `${serverName(note.node)} times out and asks for votes in term ${note.term}`;
     case 'won':
-      return `${nodeName(note.node)} wins term ${note.term} with ${note.votes} votes`;
+      return `${serverName(note.node)} wins term ${note.term} with ${note.votes} votes`;
     case 'stepped-down':
-      return `${nodeName(note.node)} sees term ${note.term} and becomes a follower`;
+      return `${serverName(note.node)} sees term ${note.term} and becomes a follower`;
     case 'dropped':
-      return `${nodeName(note.node)} drops ${note.count} uncommitted ${note.count === 1 ? 'entry' : 'entries'} from index ${note.from}, which the leader's log replaces`;
+      return `${serverName(note.node)} drops ${note.count} uncommitted ${note.count === 1 ? 'entry' : 'entries'} from index ${note.from}, which the leader's log replaces`;
     case 'committed':
-      return `${nodeName(note.node)} commits up to index ${note.index}, an entry of term ${note.term}`;
+      return `${serverName(note.node)} commits up to index ${note.index}, an entry of term ${note.term}`;
   }
 }
 
@@ -262,7 +262,7 @@ export function crash(sim: Sim, node: number): void {
   record(sim, { at: sim.now, kind: 'crash', node });
   crashServer(s);
   // What it had sent is still on the wire; what was coming to it is lost on arrival.
-  say(sim, `${nodeName(node)} crashes. It keeps its term, its vote and its log on disk`);
+  say(sim, `${serverName(node)} crashes. It keeps its term, its vote and its log on disk`);
   settle(sim, []);
 }
 
@@ -274,7 +274,7 @@ export function restart(sim: Sim, node: number): void {
   restartServer(s, sim.now, sim.timing, sim.random);
   say(
     sim,
-    `${nodeName(node)} restarts as a follower in term ${s.term}, with ${s.log.length} entries`,
+    `${serverName(node)} restarts as a follower in term ${s.term}, with ${s.log.length} entries`,
   );
   settle(sim, []);
 }
@@ -296,7 +296,7 @@ export function heal(sim: Sim): void {
   if (sim.groups.every((g) => g === sim.groups[0])) return;
   record(sim, { at: sim.now, kind: 'heal' });
   sim.groups = sim.groups.map(() => 0);
-  say(sim, 'The network heals: every node can reach every other');
+  say(sim, 'The network heals: every server can reach every other');
   settle(sim, []);
 }
 
@@ -330,7 +330,7 @@ export function write(sim: Sim): Write | null {
   sim.target = s.id;
   const w: Write = { n, at: sim.now, node: s.id, index, term: s.term, state: 'pending' };
   sim.writes.push(w);
-  say(sim, `${nodeName(s.id)} takes write ${n} at index ${index} in term ${s.term}`);
+  say(sim, `${serverName(s.id)} takes write ${n} at index ${index} in term ${s.term}`);
   settle(sim, []);
   return w;
 }

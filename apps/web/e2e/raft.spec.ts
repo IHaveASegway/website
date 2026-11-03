@@ -100,9 +100,9 @@ test('cut off the leader: a new term elects another leader, and every safety pro
   await expect(page.locator('[data-rf-lines]')).toContainText('The network splits');
 });
 
-/** How the cut's fence meets each node as drawn: its timer ring with half its stroke, and each
- *  line of text with its halo. Each node must be wholly inside the fence or wholly outside it,
- *  and never under its line. Says how many nodes are inside, or what went wrong. */
+/** How the cut's fence meets each server as drawn: its timer ring with half its stroke, and each
+ *  line of text with its halo. Each server must be wholly inside the fence or wholly outside it,
+ *  and never under its line. Says how many servers are inside, or what went wrong. */
 // Points sit under 1 unit apart, closer than the fence's 1.5 px line, so it cannot slip between.
 const fenced = (page: Page) =>
   page.evaluate(() => {
@@ -139,15 +139,15 @@ const fenced = (page: Page) =>
           );
       }
       const id = Number(node.dataset.rfNode) + 1;
-      if (points.some((p) => cut.isPointInStroke(p))) return `the line crosses node ${id}`;
+      if (points.some((p) => cut.isPointInStroke(p))) return `the line crosses server ${id}`;
       const within = points.filter((p) => cut.isPointInFill(p)).length;
       if (within === points.length) inside++;
-      else if (within > 0) return `node ${id} is partly inside`;
+      else if (within > 0) return `server ${id} is partly inside`;
     }
     return inside;
   });
 
-test('a cut network: a fence closes off the smaller side and crosses no node or its text', async ({
+test('a split network: a fence closes off the smaller side and crosses no server or its text', async ({
   page,
 }) => {
   await page.goto(RAFT);
@@ -162,7 +162,7 @@ test('a cut network: a fence closes off the smaller side and crosses no node or 
 
 // On a phone the role and term grow and move down (raft-lab.css); the fence must still keep clear.
 for (const width of [390, 320]) {
-  test(`at ${width} px wide, the fence still crosses no node or its text`, async ({ page }) => {
+  test(`at ${width} px wide, the fence still crosses no server or its text`, async ({ page }) => {
     await page.setViewportSize({ width, height: 844 });
     await page.goto(RAFT);
     await page.getByRole('button', { name: 'Cut off the leader' }).click();
@@ -173,15 +173,19 @@ for (const width of [390, 320]) {
   });
 }
 
-test('a node button crashes it and then restarts it, and says so in its name', async ({ page }) => {
+test('a server’s button crashes it and then restarts it, and says so in its name', async ({
+  page,
+}) => {
   await page.goto(RAFT);
   const first = page.locator('[data-rf-toggle="0"]');
+  await expect(first).toHaveText('Crash server 1');
+  await expect(first).toHaveAccessibleName('Crash server 1, now leader, term 1');
   await first.click();
-  await expect(first).toHaveText('Restart node 1');
-  await expect(first).toHaveAccessibleName('Restart node 1, now down');
+  await expect(first).toHaveText('Restart server 1');
+  await expect(first).toHaveAccessibleName('Restart server 1, now down');
   await expect(page.locator('[data-rf-node="0"]')).toHaveAttribute('data-up', 'false');
   await first.click();
-  await expect(first).toHaveText('Crash node 1');
+  await expect(first).toHaveText('Crash server 1');
   await expect(page.locator('[data-rf-node="0"]')).toHaveAttribute('data-up', 'true');
 });
 
@@ -245,6 +249,46 @@ for (const width of [384, 768, 1024, 1440]) {
     });
     const after = await summary(page).boundingBox();
     expect(Math.abs((after?.height ?? 0) - (before?.height ?? 0))).toBeLessThanOrEqual(1);
+  });
+}
+
+// What the app writes as well as what the build drew: the glossary's word for Raft, and the paper's
+// (docs/content.md, "The site's language"; test/raft.test.ts reads the words a run can write).
+test('a visitor reads server, never node, in the words and in the names, after the app has redrawn them', async ({
+  page,
+}) => {
+  await page.goto(RAFT);
+  await page.locator('[data-rf-toggle="0"]').click();
+  await page.getByRole('button', { name: SPLIT }).click();
+  await page.getByRole('button', { name: 'Send a write' }).click();
+  await expect(page.locator('[data-rf-toggle="0"]')).toHaveText('Restart server 1');
+  const read = await page.locator('#raft-lab').evaluate((desk) => ({
+    words: (desk as HTMLElement).innerText,
+    names: [...desk.querySelectorAll('[aria-label]')].map((e) => e.getAttribute('aria-label')),
+  }));
+  expect(read.words).toContain('Server 5');
+  expect(read.names).toContain('Server 1: 3 entries, none known committed, last of term 1');
+  expect(read.words).not.toMatch(/\bnodes?\b/i);
+  expect(read.names.filter((name) => /\bnodes?\b/i.test(name ?? ''))).toEqual([]);
+});
+
+// Each server's button keeps one width as its word changes, so the next one stays under the thumb.
+for (const width of [390, 320]) {
+  test(`at ${width} px wide, a server’s button keeps its place and width from Crash to Restart`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(RAFT);
+    const boxes = () =>
+      page
+        .locator('[data-rf-toggle]')
+        .evaluateAll((all) =>
+          all.map((b) => ((r) => [r.x, r.y + scrollY, r.width])(b.getBoundingClientRect())),
+        );
+    const before = await boxes();
+    await page.locator('[data-rf-toggle="0"]').click();
+    await expect(page.locator('[data-rf-toggle="0"]')).toHaveText('Restart server 1');
+    expect(await boxes()).toEqual(before);
   });
 }
 
@@ -693,7 +737,7 @@ for (const [width, height] of [
   });
 }
 
-// A node's role and term are set in the picture's units, which shrink with a phone's width; they
+// A server's role and term are set in the picture's units, which shrink with a phone's width; they
 // must still draw 13 px at the least, and the leader's number above them more.
 for (const width of [390, 320]) {
   test(`at ${width} px wide, every label in the picture draws 13 px or more`, async ({ page }) => {

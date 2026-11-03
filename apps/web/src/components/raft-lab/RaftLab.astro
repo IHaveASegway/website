@@ -6,13 +6,13 @@ import {
   logMarkup,
   logWords,
   NODE_RADIUS,
-  nodeText,
   openingRun,
   OPENING,
   place,
   ROLE_BASELINE,
   ROLE_WORD,
   seconds,
+  serverState,
   SIZE,
   statusText,
   summary,
@@ -155,15 +155,15 @@ const SPEEDS = [
         <output data-rf-loss-out>0%</output>
       </label>
     </div>
-    <div class="rf-row" role="group" aria-label="Crash or restart a node">
+    <div class="rf-row" role="group" aria-label="Crash or restart a server">
       {sim.servers.map((s) => (
         <button
           type="button"
           class="btn rf-toggle"
           data-rf-toggle={s.id}
-          aria-label={`Crash node ${s.id + 1}, now ${nodeText(s).split(', ').slice(1).join(', ')}`}
+          aria-label={`Crash server ${s.id + 1}, now ${serverState(s)}`}
         >
-          Crash node {s.id + 1}
+          Crash server {s.id + 1}
         </button>
       ))}
     </div>
@@ -175,11 +175,11 @@ const SPEEDS = [
     <ol class="rf-logs" role="list">
       {sim.servers.map((s) => (
         <li class="rf-log">
-          <span class="rf-log-name">Node {s.id + 1}</span>
+          <span class="rf-log-name">Server {s.id + 1}</span>
           <ol
             class="rf-cells"
             role="list"
-            aria-label={`Node ${s.id + 1}: ${logWords(s)}`}
+            aria-label={`Server ${s.id + 1}: ${logWords(s)}`}
             data-rf-log={s.id}
             set:html={logMarkup(s)}
           />
