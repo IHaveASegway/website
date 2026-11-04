@@ -36,10 +36,13 @@ Status: Draft for review in PR 1 · 2026-10-22
 | [0029](0029-one-voice-one-column-honed-colour.md) | One voice, a reading column, and the colour honed | Proposed |
 | [0030](0030-the-page-stays-alive.md) | The page stays alive behind you, and a lab is running when you land | Proposed |
 | [0031](0031-about-leads-with-what-joseph-builds.md) | About leads with what Joseph builds, the labs say where they're going, and a post can leave | Accepted |
+| [0032](0032-workers-paid-for-the-bakery.md) | Workers Paid for the account, when the bakery demo launches | Proposed; supersedes 0008 in part once accepted |
 
 0013 is reserved for protocol v1 and the recording format, written in PR 6 ([roadmap.md](../roadmap.md#pr-6-lab-platform-and-presence)).
 
 0027, proposed on 2026-10-31, supersedes 0025 in part (its palette, faces, rail and chrome), 0024 (Home's composition) and 0023 (the rail's drop-downs), and amends 0021 and 0022; the plan for builders is [docs/design/overhaul.md](../design/overhaul.md).
+
+0032, proposed on 2026-11-04, supersedes 0008 in part once accepted: its first item, staying on Workers Free. 0008's guardrails, its SQLite-only rule and its upgrade-day checklist stand, so 0008 stays Accepted with a postscript that says so. The bakery demo, in its own repository, is the reason.
 
 0030, proposed on 2026-11-02, amends 0020 (a lab loads on arrival, as well as on intent) and 0025 (a section's line may sweep once; text still never moves).
 
