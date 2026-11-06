@@ -239,7 +239,7 @@ Idle time is the bill. With the default, each solve bills 2 s of cold start, 5 s
 
 ## The plan decision
 
-Stay on Workers Free. Keep every page a static asset, build the lab's guardrails as if the account were already on Paid, and upgrade when the first trigger below fires. Use SQLite-backed DOs only, which keeps the decision a two-way door. At this traffic the plans differ by $60 a year; what differs more is how each fails. The rationale, the alternatives and the evidence that would show this wrong are in [ADR 0008](adr/0008-workers-free-with-guardrails.md).
+Stay on Workers Free until the bakery demo launches. On 2026-11-04 Joseph decided that the account moves to Workers Paid in the bakery's launch pull request, with a $100 ceiling ([ADR 0032](adr/0032-workers-paid-for-the-bakery.md)); the bakery's own [cost.md](https://github.com/IHaveASegway/bakery/blob/docs/plan/docs/cost.md) prices its usage, and this doc's Free arithmetic stays the fallback. Until then: keep every page a static asset, build the lab's guardrails as if the account were already on Paid, and upgrade when the first trigger below fires. Use SQLite-backed DOs only, which keeps the decision a two-way door. At this traffic the plans differ by $60 a year; what differs more is how each fails. The rationale, the alternatives and the evidence that would show this wrong are in [ADR 0008](adr/0008-workers-free-with-guardrails.md).
 
 ## Guardrails
 
