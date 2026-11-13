@@ -23,7 +23,7 @@
     "@astrojs/rss": "4.0.19",
     "@astrojs/sitemap": "3.7.4",
     "@tailwindcss/vite": "4.3.3",
-    "astro": "7.4.2",
+    "astro": "7.4.7",
     "culori": "4.0.2",
     "fontkitten": "1.0.3",
     "parse5": "8.0.1",
