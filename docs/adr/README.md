@@ -37,6 +37,7 @@ Status: Draft for review in PR 1 · 2026-10-22
 | [0030](0030-the-page-stays-alive.md) | The page stays alive behind you, and a lab is running when you land | Proposed |
 | [0031](0031-about-leads-with-what-joseph-builds.md) | About leads with what Joseph builds, the labs say where they're going, and a post can leave | Accepted |
 | [0032](0032-workers-paid-for-the-bakery.md) | Workers Paid for the account, when the bakery demo launches | Proposed; supersedes 0008 in part once accepted |
+| [0033](0033-the-bakery-leads-home.md) | The bakery leads Home, and the labs are its pieces | Proposed |
 
 0013 is reserved for protocol v1 and the recording format, written in PR 6 ([roadmap.md](../roadmap.md#pr-6-lab-platform-and-presence)).
 

@@ -25,6 +25,7 @@ import { checkedProfiles, homeDescription, roleLine } from '../lib/profile';
 import { SEEDS_IN_CI as QUEUE_SEEDS } from '../lib/queue/view';
 import { openingServers } from '../lib/orbit';
 import { SEEDS_IN_CI as RAFT_SEEDS } from '../lib/raft/view';
+import { BAKERY_NAME, BAKERY_URL } from '../lib/site';
 import { writingRow } from '../lib/work';
 import '../styles/home.css';
 
@@ -32,8 +33,9 @@ import '../styles/home.css';
 // statement: the bio's opening. Beside it, or under it on a phone, the one live thing on the page: the
 // Raft Lab's cluster as its page opens. Then the things they built that a visitor can try, a row for
 // each with the lab where it breaks and one fact from that lab's own build; the latest writing; the
-// biggest thing they've built for real users, which the next section points back to; the last thing
-// they built, closed by the record the repository keeps; and where to reach out. Every
+// biggest thing they've built for real users; this site, in the bio's first paragraph on it, closed
+// by the record the repository keeps (/about/ tells the rest); and where to reach out. Since ADR
+// 0033 the bakery leads them all: the statement names it, and its section stands first. Every
 // figure is worked out at build from its system of record, none typed. A part renders only when its
 // source exists: the fixture builds hold no bio and no lab, and there Home is the name, the writing
 // and where to reach out.
@@ -49,6 +51,7 @@ const linkedIn = external.find((p) => p.network === 'LinkedIn');
 // built, and /about/ renders it whole.
 const bioEntry = await loadAbout();
 const bio = bioEntry?.body === undefined ? undefined : aboutParts(bioEntry.body);
+const bakery = bio && sectionOf(bio, ABOUT_HEADINGS.bakery);
 const build = bio && sectionOf(bio, ABOUT_HEADINGS.tryIt);
 const biggest = bio && sectionOf(bio, ABOUT_HEADINGS.biggest);
 const last = bio && sectionOf(bio, ABOUT_HEADINGS.last);
@@ -142,7 +145,7 @@ const latest = writingRow(area.published, work);
       <h1 id="name" class="hero-name">
         {name}
       </h1>
-      {statement && <p class="hero-statement">{statement} Here are a few things you can break.</p>}
+      {statement && <p class="hero-statement">{statement} Start with the made-up bakery.</p>}
       {rest.map((paragraph) => (
         <p class="hero-more">{paragraph}</p>
       ))}
@@ -157,6 +160,28 @@ const latest = writingRow(area.published, work);
     </div>
     {servers && raftEntry && <Orbit servers={servers} href={labPath(raftEntry)} />}
   </section>
+
+  {/* The bakery leads (ADR 0033): the one system on the page a visitor can use end to end, in the
+      bio's words, with its name and a button that open it on its own hostname. */}
+  {bakery && (
+    <section class="section" id="bakery" aria-labelledby="bakery-title">
+      <h2 class="section-title" id="bakery-title">
+        {bakery.heading}
+      </h2>
+      {bakery.paragraphs.map((paragraph) => (
+        <p class="last-text">
+          {withLinks(paragraph, [{ name: BAKERY_NAME, href: BAKERY_URL }]).map((run) =>
+            typeof run === 'string' ? run : <a href={run.href}>{run.text}</a>,
+          )}
+        </p>
+      ))}
+      <p class="last-text">
+        <a class="btn btn-primary" href={BAKERY_URL}>
+          Open the bakery
+        </a>
+      </p>
+    </section>
+  )}
 
   {builds.length > 0 && (
     <section class="section builds" id="build" aria-labelledby="build-title">
@@ -250,7 +275,7 @@ const latest = writingRow(area.published, work);
       <h2 class="section-title" id="last-title">
         {last.heading}
       </h2>
-      {last.paragraphs.map((paragraph) => (
+      {last.paragraphs.slice(0, 1).map((paragraph) => (
         <p class="last-text">{paragraph}</p>
       ))}
       {recordLine && <p class="record">This site so far: {recordLine}.</p>}

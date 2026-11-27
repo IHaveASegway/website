@@ -26,14 +26,14 @@ import { aboutCard } from '../../lib/og';
 import { postPath } from '../../lib/posts';
 import { checkedProfiles, locationLine } from '../../lib/profile';
 import { addressText, roleYears } from '../../lib/resume';
-import { CONTACT_EMAIL, ORIGIN } from '../../lib/site';
+import { BAKERY_NAME, BAKERY_URL, CONTACT_EMAIL, ORIGIN } from '../../lib/site';
 import { writingRow } from '../../lib/work';
 import '../../styles/about.css';
 
 // /about/ (ADR 0031): what Joseph builds and has built, one column on every screen, since 2026-10-28
 // in /resume/'s place (public/_redirects). On screen: the head (name, role, where, LinkedIn, Print), the opening
-// in plain words, how they got here, the biggest thing, the labs and the open source as rows, the last
-// thing, what came from them, the tools, and the close, every word from src/content/about.md, laid out
+// in plain words, how they got here, the biggest thing, the bakery, the labs and the open source as
+// rows, this site, what came from them, the tools, and the close, every word from src/content/about.md, laid out
 // here and never changed. On paper it is the résumé, one US Letter page (about.css, "The résumé on
 // paper"; e2e/about-print.spec.ts): the head with the addresses, the opening as the summary, the
 // biggest thing, Background, the tools, the agents line over Selected work, and Writing. Each part
@@ -48,6 +48,7 @@ const bio = bioEntry?.body === undefined ? undefined : aboutParts(bioEntry.body)
 const part = (heading: string) => (bio ? sectionOf(bio, heading) : undefined);
 const story = part(ABOUT_HEADINGS.story);
 const biggest = part(ABOUT_HEADINGS.biggest);
+const bakery = part(ABOUT_HEADINGS.bakery);
 const tryIt = part(ABOUT_HEADINGS.tryIt);
 const source = part(ABOUT_HEADINGS.source);
 const last = part(ABOUT_HEADINGS.last);
@@ -91,6 +92,8 @@ const named = [
   ...(lab.entries.length > 0 ? [{ name: 'The Lab', href: '/lab/' }] : []),
   ...(essay ? [{ name: 'essay', href: postPath(essay) }] : []),
 ];
+// The bakery's name opens it, on its own hostname (ADR 0033).
+const bakeryName = [{ name: BAKERY_NAME, href: BAKERY_URL }];
 const profiles = checkedProfiles(profile);
 const linkedIn = profiles.find((p) => p.network === 'LinkedIn');
 const title = labelOf('about');
@@ -183,6 +186,18 @@ const [mailbox, domain] = CONTACT_EMAIL.split('@');
               <h2 class="section-title">{biggest.heading}</h2>
               {biggest.paragraphs.map((paragraph) => (
                 <p class="bio-text">{paragraph}</p>
+              ))}
+            </div>
+          )}
+          {bakery && (
+            <div class="section bio-block">
+              <h2 class="section-title">{bakery.heading}</h2>
+              {bakery.paragraphs.map((paragraph) => (
+                <p class="bio-text">
+                  {withLinks(paragraph, bakeryName).map((run) =>
+                    typeof run === 'string' ? run : <a href={run.href}>{run.text}</a>,
+                  )}
+                </p>
               ))}
             </div>
           )}

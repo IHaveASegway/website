@@ -178,7 +178,7 @@ describe('what a page says of itself', () => {
     ],
     [
       'lab/index.html',
-      'Most use the same made-up bakery, and the end goal is to tie them all together into that bakery’s working software.',
+      'Most use the same made-up bakery, and that bakery now has working software of its own, which ties them together.',
     ],
     ['writing/coding-by-hand/index.html', 'Try the labs: small systems you can break'],
   ];

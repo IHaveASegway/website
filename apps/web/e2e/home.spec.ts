@@ -78,14 +78,14 @@ test.describe("Home's opening", () => {
     const statement = page.locator('.hero-statement');
     test.skip((await statement.count()) === 0, 'this build has no bio');
     await expect(statement).toHaveText(
-      'I take an idea and build the entire system. Here are a few things you can break.',
+      'I take an idea and build the entire system. Start with the made-up bakery.',
     );
     await expect(statement.locator('a')).toHaveCount(0);
     await page.goto('/about/');
     await expect(page.locator('.bio-lede')).toContainText(
       'I take an idea and build the entire system.',
     );
-    await expect(page.locator('.bio-lede')).not.toContainText('things you can break');
+    await expect(page.locator('.bio-lede')).not.toContainText('Start with the made-up bakery');
   });
 });
 

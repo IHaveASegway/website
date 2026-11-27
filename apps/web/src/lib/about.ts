@@ -100,9 +100,10 @@ export function aboutParts(body: string): AboutParts {
 export const ABOUT_HEADINGS = {
   story: 'How I got here',
   biggest: 'The biggest thing I’ve built',
+  bakery: 'A bakery you can order from',
   tryIt: 'Things I built that you can try',
   source: 'Open source',
-  last: 'The last thing I built',
+  last: 'This site',
   mine: 'What came from me',
   tools: 'What I’ve worked with',
   idea: 'If you’ve got an idea',
