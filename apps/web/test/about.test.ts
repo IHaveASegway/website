@@ -207,9 +207,10 @@ describe('aboutParts: Home reads the bio it does not own', () => {
     expect(parts.sections.map((s) => s.heading)).toEqual([
       'How I got here',
       'The biggest thing I’ve built',
+      'A bakery you can order from',
       'Things I built that you can try',
       'Open source',
-      'The last thing I built',
+      'This site',
       'What came from me',
       'What I’ve worked with',
       'If you’ve got an idea',

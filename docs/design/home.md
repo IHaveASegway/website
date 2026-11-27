@@ -12,7 +12,7 @@ On a phone, the opening is one column:
 
 1. The role, in the wide face, muted.
 2. The name, in Archivo Expanded, in its own case (`--text-name`, 32 to 72 px).
-3. The statement: the bio's first sentence and one of Home's own, "Here are a few things you can break." (`--text-statement`, 22 to 30 px), with no link in it since 2026-11-03 ([ADR 0031](../adr/0031-about-leads-with-what-joseph-builds.md)).
+3. The statement: the bio's first sentence and one of Home's own, "Start with the made-up bakery." as proposed on 2026-11-27 ([ADR 0033](../adr/0033-the-bakery-leads-home.md)), in place of "Here are a few things you can break." (`--text-statement`, 22 to 30 px), with no link in it since 2026-11-03 ([ADR 0031](../adr/0031-about-leads-with-what-joseph-builds.md)).
 4. The rest of the bio's opening, at a lead's size, muted.
 5. The checked profiles' buttons, LinkedIn leading as the primary and then GitHub, each one width at every screen width, side by side down to 320 px, and stacked as two equal bars only at a larger text size. They end inside the first screen Safari shows on an iPhone from the 13 up, 390×664 and 393×659 (`e2e/fold.spec.ts`), and past it on a 13 mini (375×629) and at 320×568, where the opening's words alone take the room.
 

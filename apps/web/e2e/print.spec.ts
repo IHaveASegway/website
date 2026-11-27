@@ -163,9 +163,10 @@ test('inline code has no padding on paper or in forced colors, and keeps it on s
 
 // Home on paper is its words in one column (home.css): a page is narrower than 64rem, so the phone's
 // order applies, and the cluster, a moving picture, is left off, with no gap where it stood; the
-// rows follow the buttons a section's space below. Until ADR 0028 the check held the isometric
-// drawing to its place under the bio's blocks; until 2026-10-30 the scene kept its 18.75rem on
-// paper, a blank gap of 300 px between the buttons and the bio's opening.
+// rows follow the buttons a section's space below, the bakery's section first since ADR 0033, which
+// prints its address after its name. Until ADR 0028 the check held the isometric drawing to its
+// place under the bio's blocks; until 2026-10-30 the scene kept its 18.75rem on paper, a blank gap
+// of 300 px between the buttons and the bio's opening.
 test('Home on paper leaves the cluster off, and its rows follow the buttons', async ({ page }) => {
   await page.setViewportSize({ width: 816, height: 1056 });
   await page.goto('/');
@@ -173,7 +174,7 @@ test('Home on paper leaves the cluster off, and its rows follow the buttons', as
   const paper = await page.evaluate(() => {
     const box = (selector: string) => document.querySelector(selector)?.getBoundingClientRect();
     const actions = box('.hero-actions');
-    const build = box('#build-title');
+    const build = box('#bakery-title, #build-title');
     const orbit = document.querySelector('figure.orbit');
     return {
       shown: orbit ? orbit.checkVisibility() : false,
