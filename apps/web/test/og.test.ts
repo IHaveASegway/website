@@ -327,13 +327,14 @@ describe("a post's card", () => {
     'the essay’s card says its hook, and its alt says what the card says',
     () => {
       const page = read('writing/coding-by-hand/index.html');
-      const hook = 'I doubt anyone in the back seat of a driverless Waymo is checking the mirrors.';
+      const hook =
+        'I liked typing every line myself. I don’t think anyone will pay for it much longer.';
       expect(decode(meta(page, 'og:image:alt') ?? '')).toBe(
         `Coding is fun. That won’t save it. ${hook} By ${profile.basics.name}.`,
       );
       expect(summaryLines(hook)).toEqual([
-        'I doubt anyone in the back seat of a',
-        'driverless Waymo is checking the mirrors.',
+        'I liked typing every line myself. I don’t think',
+        'anyone will pay for it much longer.',
       ]);
     },
   );
