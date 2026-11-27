@@ -1626,7 +1626,8 @@
     .card-more,
     .section-more,
     .build-text a,
-    .build-more a
+    .build-more a,
+    .last-text a:not(.btn)
   )::after {
     display: inline-block;
     margin-inline-start: 0.375em;
@@ -1659,7 +1660,8 @@
       .post-links a,
       .footer-links a,
       .post-title a,
-      .card-more
+      .card-more,
+      .last-text a:not(.btn)
     )[href^='https://']::after {
     content: attr(href);
   }
