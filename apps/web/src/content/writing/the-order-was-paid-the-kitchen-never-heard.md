@@ -54,7 +54,7 @@ kitchen fails, the other five get the event again, and each one ignores it.
 
 ## Where the retrying stops
 
-A queue that refuses everything shouldn't be retried forever. Each object may re-arm its timer 100 times in a UTC day.
+A queue that refuses everything shouldn't be retried forever. Each object may re-arm its timer 100 times a day.
 At one try every 30 seconds, that's 50 minutes. Past that, the rows wait for the object's next command or for the
 nightly wipe. A row waits. It is never dropped.
 

@@ -37,8 +37,8 @@ request, the object that decided it, the events it produced, why I used that too
 I didn't want a shared one. In a shared bakery, whatever one visitor types is shown to the next.
 
 So every visitor gets a private sandbox, filled with made-up history: 60 customers, 90 days of closed orders, 12 open
-orders and 8 catering events. Change a price or cancel every order on the board, and nobody else sees it. Every night at
-10:00 UTC it's wiped.
+orders and 8 catering events. Change a price or cancel every order on the board, and nobody else sees it. Every night
+it's wiped.
 
 It also holds no personal data, because it has nowhere to put any. Sign-in keeps a keyed hash of an account number and
 drops the name and the email. The bakery can't send mail, so a receipt is a row in the sandbox's inbox.

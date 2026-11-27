@@ -1,6 +1,6 @@
 ---
 title: Every visitor gets their own bakery, and it's gone by morning
-summary: How a made-up bakery gives each visitor a private copy, holds no personal data, and wipes everything at 10:00 UTC.
+summary: How a made-up bakery gives each visitor a private copy, holds no personal data, and wipes everything every night.
 published: 2026-11-27
 kind: pattern
 draft: true
@@ -59,8 +59,8 @@ hold something shaped like an email, a phone number, a card number or a link.
 
 ## What that costs
 
-A name or a street typed as plain words still gets through those checks. It lives in that one sandbox until 10:00 UTC,
-when everything is wiped.
+A name or a street typed as plain words still gets through those checks. It lives in that one sandbox until that
+night's wipe.
 
 And nothing in the bakery is real. The customers who open a campaign are made up too. It can show how the software
 works, and it can't show how real people use it.
