@@ -43,6 +43,7 @@ Bad:
 
 - This site now depends on a second system's uptime for its lead. If the bakery is down, Home's first button leads to an error. The bakery's status page and its breaker are its own ([ADR 0032](0032-workers-paid-for-the-bakery.md)).
 - The bakery's section is new copy about Joseph's work, drafted by an agent from the bakery's README. It needs his read before this record is accepted.
+- `test/readiness.test.ts` held every URL that carries the handle to the site's own host or a checked record. The bakery's hostname carries it, since the zone's name is the handle, so the test now names `bakery.ihaveasegway.com` as an own host beside the apex and `www`, and no other subdomain. The bakery's own pages link its repository, which this site's readiness checklist has not checked: a reader is one click further from it than a card would put them.
 - The bakery's repository is not linked: a link to a repository waits on the readiness checklist ([content.md](../content.md#repo-readiness-checklist)).
 
 ## Door
