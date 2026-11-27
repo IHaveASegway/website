@@ -15,7 +15,10 @@ import { html, profile, read, textFiles } from './support/dist';
 
 const GITHUB_HOST =
   /(^|\.)(github\.com|githubusercontent\.com|github\.io|githubassets\.com|github\.dev|ghcr\.io|git\.io)$/i;
-const OWN_HOST = /^(www\.)?ihaveasegway\.com$/i;
+// The site's own hosts: the apex, www, and since ADR 0033 the bakery's, named and not any
+// subdomain. The bakery is Joseph's own system on this zone (ADR 0032), and its address carries the
+// handle only because the zone's name is the handle.
+const OWN_HOST = /^((www|bakery)\.)?ihaveasegway\.com$/i;
 const HANDLE_ANY_CASE = new RegExp(HANDLE, 'i');
 
 // The font licenses the site must ship (public/fonts/OFL-*.txt) begin with their projects'
