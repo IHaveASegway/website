@@ -2,7 +2,6 @@
 title: "Coding is fun. That won't save it."
 summary: I liked typing every line myself. I don't think anyone will pay for it much longer.
 published: 2026-11-03
-updated: 2026-11-27
 kind: essay
 tags:
   - tools
