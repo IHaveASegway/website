@@ -1626,8 +1626,7 @@
     .card-more,
     .section-more,
     .build-text a,
-    .build-more a,
-    .last-text a:not(.btn)
+    .build-more a
   )::after {
     display: inline-block;
     margin-inline-start: 0.375em;
@@ -1660,14 +1659,26 @@
       .post-links a,
       .footer-links a,
       .post-title a,
-      .card-more,
-      .last-text a:not(.btn)
+      .card-more
     )[href^='https://']::after {
     content: attr(href);
   }
 
   a.card-more[data-address]::after {
     content: attr(data-address);
+  }
+
+  /* The bakery's name on Home (ADR 0033), in a rule of its own: inside the lists above, its
+     selector would lift every link in them past a card's printed address just above. */
+  .last-text a:not(.btn)::after {
+    content: attr(href);
+    display: inline-block;
+    margin-inline-start: 0.375em;
+    color: var(--muted-foreground);
+    font-family: var(--font-sans);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    overflow-wrap: anywhere;
   }
 
   .prose :not(pre) > code {
